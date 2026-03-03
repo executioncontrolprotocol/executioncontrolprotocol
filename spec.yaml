@@ -1,0 +1,396 @@
+# -----------------------------------------------------------------------------
+# Execution Control Protocol (ECP) - Context Spec (Draft)
+# -----------------------------------------------------------------------------
+# Key design changes:
+# - Executors own: protocols, mounts, and policies (each executor gets its own).
+# - Context owns: orchestration, triggers, and schemas.
+# - Context defines the orchestrator executor as the entry point.
+# - Inputs/Outputs remain at Context level (we’ll refine semantics later).
+#
+# Execution model (typical):
+# 1) Trigger fires -> Context Run starts.
+# 2) Orchestrator executor runs first (entrypoint).
+#    - It can hydrate its own SEED mounts and produce a Plan.
+# 3) Orchestrator delegates to specialist executors (often via A2A).
+#    - Specialists can hydrate their own FOCUS/DEEP mounts (bounded).
+# 4) Orchestrator (or a merger executor) produces final outputs.
+# -----------------------------------------------------------------------------
+
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: weekly-ecom-ops
+  version: 2.0.0
+  description: Weekly ecommerce ops context with executor-scoped mounts/policies and orchestrated multi-agent runs
+
+# -----------------------------------------------------------------------------
+# Inputs: parameterize reusable Contexts (like env vars)
+# -----------------------------------------------------------------------------
+inputs:
+  shopifyStoreId: { type: string, required: true }
+  jiraProject:    { type: string, required: true }
+  slackChannel:   { type: string, default: "#ops" }
+  timezone:       { type: string, default: "America/Vancouver" }
+  refundRateThreshold: { type: number, default: 0.08 }
+
+# -----------------------------------------------------------------------------
+# Outputs: left intentionally high-level for now.
+# In the future these may map to:
+# - tool actions
+# - stored artifacts
+# - downstream events
+# -----------------------------------------------------------------------------
+outputs:
+  - name: weekly_ops_brief
+    fromSchema: WeeklyOpsBrief
+    # destination: (TBD)
+    # actionMapping: (TBD)
+
+# -----------------------------------------------------------------------------
+# Schemas: structured outputs used for:
+# - planning selectors (e.g., selectedDocIds)
+# - specialist outputs
+# - final merged results
+# -----------------------------------------------------------------------------
+schemas:
+  Plan:
+    type: object
+    required: [selectedIssueIds, selectedDocIds, delegate]
+    properties:
+      selectedIssueIds: { type: array, items: { type: string } }
+      selectedDocIds:   { type: array, items: { type: string } }
+      delegate:
+        # Delegation requests produced by the orchestrator
+        type: array
+        items:
+          type: object
+          required: [executor, task]
+          properties:
+            executor: { type: string }  # must match an executor name
+            task:     { type: string }
+            # Optional: pass execution hints / constraints
+            hints:
+              type: object
+              properties:
+                priority: { type: integer }
+                maxTokens: { type: integer }
+
+  RevenueFindings:
+    type: object
+    required: [summary, anomalies]
+    properties:
+      summary: { type: string }
+      anomalies:
+        type: array
+        items:
+          type: object
+          required: [metric, observation, likelyCause]
+          properties:
+            metric: { type: string }
+            observation: { type: string }
+            likelyCause: { type: string }
+
+  OpsFindings:
+    type: object
+    required: [summary, risks]
+    properties:
+      summary: { type: string }
+      risks:
+        type: array
+        items:
+          type: object
+          required: [risk, evidenceRefs]
+          properties:
+            risk: { type: string }
+            evidenceRefs: { type: array, items: { type: string } } # strings refer to Ref IDs
+
+  WeeklyOpsBrief:
+    type: object
+    required: [summary, anomalies, recommendedActions]
+    properties:
+      summary: { type: string }
+      anomalies: { type: array, items: { type: object } }
+      recommendedActions:
+        type: array
+        items:
+          type: object
+          required: [action, targetTool, requiresApproval]
+          properties:
+            action: { type: string }
+            targetTool: { type: string }        # e.g., "jira:issues.create"
+            requiresApproval: { type: boolean }
+
+# -----------------------------------------------------------------------------
+# Triggers: when this Context runs
+# Supported types (examples):
+# - schedule (cron)
+# - webhook
+# - toolEvent (emitted by an integration)
+# -----------------------------------------------------------------------------
+triggers:
+  - type: schedule
+    cron: "0 8 * * MON"
+    timezone: "${inputs.timezone}"
+
+# -----------------------------------------------------------------------------
+# Orchestration: Context-level declaration of how executors work together
+# -----------------------------------------------------------------------------
+orchestration:
+  # Entry point executor (the "main" for this context)
+  entrypoint: orchestrator
+
+  # Strategy catalog (examples). You can treat these as standard strategy IDs.
+  # - single: run only entrypoint
+  # - controller-specialist: orchestrator plans, delegates, then merges
+  # - map-reduce: orchestrator shards work to many specialists, aggregates results
+  # - hierarchical: multi-level delegation (advanced)
+  strategy: controller-specialist
+
+  # Delegate transport defaults (optional): this is orchestration-level *policy*
+  # for how executors communicate, but the protocol implementation lives per-executor.
+  defaults:
+    maxDelegations: 4
+    maxSpecialists: 3
+    timeoutMs: 60000
+
+  # Optional: require these executor outputs before final merge completes
+  requires:
+    - RevenueFindings
+    - OpsFindings
+
+  # Optional: which schema must be produced as the final product of the run
+  produces: WeeklyOpsBrief
+
+# -----------------------------------------------------------------------------
+# Executors: each executor is an agent role with its own:
+# - protocols (A2A for delegation, MCP for tool invocation, etc.)
+# - mounts (seed/focus/deep staged hydration)
+# - policies (tool access, budgets, write controls, network rules)
+#
+# NOTE: Executors reference MCP servers by name; we can decide later whether
+# MCP server endpoints live here, or in a separate registry config.
+# -----------------------------------------------------------------------------
+executors:
+  - name: orchestrator
+    type: llm-agent
+
+    # Protocols are executor-scoped (your requirement)
+    protocols:
+      agentOrchestration:
+        type: a2a
+        version: v0.1
+      toolInvocation:
+        type: mcp
+        version: v1
+
+    model:
+      provider: openai
+      name: gpt-5
+
+    # Orchestrator should mostly work from SEED refs to avoid context blow-up
+    instructions: |
+      You are the Orchestrator for this Context.
+      Use only seed mounts initially.
+      Produce a Plan object with:
+      - selectedIssueIds, selectedDocIds
+      - delegate tasks to specialist executors
+      Keep expansions bounded and cost-aware.
+
+    outputSchemaRef: "#/schemas/Plan"
+
+    mounts:
+      # Seed mounts should return Ref objects or compact summaries.
+      - name: jira_open_issues_seed
+        stage: seed  # supported: seed|focus|deep
+        from:
+          server: jira
+          tool: issues.search
+          args:
+            project: "${inputs.jiraProject}"
+            jql: "statusCategory != Done ORDER BY updated DESC"
+            limit: 50
+        asType: IssueRef[]
+        limits: { maxItems: 50 }
+
+      - name: confluence_recent_pages_seed
+        stage: seed
+        from:
+          server: confluence
+          tool: pages.search
+          args:
+            query: "space = OPS ORDER BY lastModified DESC"
+            limit: 30
+        asType: DocumentRef[]
+        limits: { maxItems: 30 }
+
+      - name: shopify_orders_seed
+        stage: seed
+        from:
+          server: shopify
+          tool: orders.list
+          args:
+            storeId: "${inputs.shopifyStoreId}"
+            windowDays: 7
+            limit: 200
+        asType: OrderRef[]
+        limits: { maxItems: 200 }
+
+    policies:
+      toolAccess:
+        default: deny
+        allow:
+          - jira:issues.search
+          - confluence:pages.search
+          - shopify:orders.list
+
+      budgets:
+        maxToolCalls: 40
+        maxRuntimeSeconds: 90
+        maxCostUsd: 2.50
+
+      # Orchestrator should never write
+      writeControls:
+        mode: forbid  # supported: forbid|propose-only|execute-if-allowed
+
+  - name: revenue_analyst
+    type: llm-agent
+
+    protocols:
+      agentOrchestration: { type: a2a, version: v0.1 }
+      toolInvocation: { type: mcp, version: v1 }
+
+    model: { provider: openai, name: gpt-5 }
+
+    instructions: |
+      You are the Revenue Analyst.
+      Use seed data, then focus expansions as needed.
+      Return RevenueFindings with anomalies and likely causes.
+
+    outputSchemaRef: "#/schemas/RevenueFindings"
+
+    mounts:
+      # Focus expansions selected by orchestrator plan; bounded by maxSelected.
+      - name: shopify_order_details_focus
+        stage: focus
+        when:
+          selectorFrom: plan.selectedOrderIds   # OPTIONAL: if Plan includes this
+          maxSelected: 50
+        from:
+          server: shopify
+          tool: orders.get
+          args:
+            orderId: "${item}"
+        asType: Order[]
+        limits: { maxItems: 50 }
+
+    policies:
+      toolAccess:
+        default: deny
+        allow:
+          - shopify:orders.get
+          - shopify:orders.list
+
+      budgets:
+        maxToolCalls: 30
+        maxRuntimeSeconds: 90
+        maxCostUsd: 2.00
+
+      writeControls:
+        mode: forbid
+
+  - name: ops_analyst
+    type: llm-agent
+
+    protocols:
+      agentOrchestration: { type: a2a, version: v0.1 }
+      toolInvocation: { type: mcp, version: v1 }
+
+    model: { provider: openai, name: gpt-5 }
+
+    instructions: |
+      You are the Ops Analyst.
+      Expand only the issues/docs selected by the Plan.
+      Use deep mounts sparingly (top-K only).
+      Return OpsFindings with evidence refs.
+
+    outputSchemaRef: "#/schemas/OpsFindings"
+
+    mounts:
+      - name: jira_issue_details_focus
+        stage: focus
+        when:
+          selectorFrom: plan.selectedIssueIds
+          maxSelected: 10
+        from:
+          server: jira
+          tool: issues.get
+          args: { issueId: "${item}" }
+        asType: Issue[]
+        limits: { maxItems: 10 }
+
+      - name: confluence_page_bodies_deep
+        stage: deep
+        when:
+          selectorFrom: plan.selectedDocIds
+          maxSelected: 5
+        from:
+          server: confluence
+          tool: pages.get
+          args: { pageId: "${item}", includeBody: true }
+        asType: Document[]
+        limits: { maxItems: 5 }
+
+    policies:
+      toolAccess:
+        default: deny
+        allow:
+          - jira:issues.get
+          - jira:issues.search
+          - confluence:pages.get
+          - confluence:pages.search
+
+      budgets:
+        maxToolCalls: 35
+        maxRuntimeSeconds: 120
+        maxCostUsd: 3.00
+
+      writeControls:
+        mode: forbid
+
+  - name: publisher
+    type: llm-agent
+
+    protocols:
+      agentOrchestration: { type: a2a, version: v0.1 }
+      toolInvocation: { type: mcp, version: v1 }
+
+    model: { provider: openai, name: gpt-5 }
+
+    instructions: |
+      You are the Publisher/Merger.
+      Merge specialist outputs into WeeklyOpsBrief.
+      Propose write actions, but do not execute unless approved.
+
+    outputSchemaRef: "#/schemas/WeeklyOpsBrief"
+
+    # Publisher typically doesn't need mounts; it consumes prior executor outputs.
+    mounts: []
+
+    policies:
+      toolAccess:
+        default: deny
+        allow:
+          - slack:messages.post
+          - jira:issues.create
+
+      budgets:
+        maxToolCalls: 10
+        maxRuntimeSeconds: 60
+        maxCostUsd: 1.00
+
+      writeControls:
+        mode: propose-only
+        requireApprovalFor:
+          - slack:messages.post
+          - jira:issues.create
