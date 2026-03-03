@@ -83,6 +83,7 @@ export interface Trigger {
 
 export type OrchestrationStrategy =
   | "single"
+  | "controller-specialist"
   | "delegate"
   | "swarm";
 
@@ -94,7 +95,7 @@ export interface OrchestrationDefaults {
 
 export interface Orchestration {
   entrypoint: string;
-  strategy: string;
+  strategy: OrchestrationStrategy;
   defaults?: OrchestrationDefaults;
   requires?: string[];
   produces?: string;

@@ -11,5 +11,6 @@ alwaysApply: true
 - File extensions in import paths must use `.js` (Node16 module resolution).
 - Prefer `interface` over `type` for object shapes; use `type` for unions and intersections.
 - No `any` unless explicitly justified with an `eslint-disable` comment.
+- **Never use primitive types (`string`, `number`, etc.) for ECP spec-specific values.** Use the dedicated type aliases and unions defined in `src/types/ecp.ts` (e.g. `OrchestrationStrategy`, `MountStage`, `ExecutorType`, `WriteControlMode`, `TriggerType`). Primitives are only for truly generic properties like `name`, `description`, `version`, or free-form user content like `instructions`.
 - Run `npm run build` (tsc --noEmit) to verify types before committing.
 - Run `npm run lint:ts` (eslint) to verify lint rules before committing.
