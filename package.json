@@ -14,14 +14,21 @@
     "generate:schema": "npm run generate:schema --workspace=@ecp/spec",
     "validate": "npm run validate --workspace=@ecp/spec",
     "docs": "npm run build --workspace=@ecp/docs",
-    "check": "npm run build && npm run generate:schema && npm run lint && npm run validate"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run --testPathPattern='(spec|engine|mounts|policies)'",
+    "test:integration": "vitest run --testPathPattern='integration'",
+    "check": "npm run build && npm run generate:schema && npm run lint && npm run validate && npm run test"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.0.0",
     "markdownlint-cli2": "^0.17.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.18"
   }
 }
