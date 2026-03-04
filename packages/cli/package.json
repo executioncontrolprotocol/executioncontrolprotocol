@@ -1,0 +1,23 @@
+{
+  "name": "@ecp/cli",
+  "version": "0.3.0",
+  "description": "CLI for the ECP runtime engine — run Context manifests from the command line",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ecp": "src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@ecp/runtime": "*",
+    "@ecp/spec": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

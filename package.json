@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/spec && npm run build --workspace=@ecp/runtime",
+    "build": "tsc -b packages/spec && tsc -b packages/runtime && npm run build --workspace=@ecp/cli",
     "lint": "eslint . && markdownlint-cli2 '**/*.md' '#node_modules' '#packages/*/node_modules'",
     "lint:ts": "eslint .",
     "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules' '#packages/*/node_modules'",
