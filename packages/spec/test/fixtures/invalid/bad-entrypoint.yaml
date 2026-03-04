@@ -1,0 +1,11 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: bad-entrypoint
+  version: 1.0.0
+orchestration:
+  entrypoint: nonexistent
+  strategy: single
+executors:
+  - name: agent
+    type: llm-agent

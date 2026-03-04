@@ -1,0 +1,16 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: bad-schema-ref
+  version: 1.0.0
+orchestration:
+  entrypoint: agent
+  strategy: single
+  produces: NonExistent
+schemas:
+  Plan:
+    type: object
+executors:
+  - name: agent
+    type: llm-agent
+    outputSchemaRef: "#/schemas/Plan"

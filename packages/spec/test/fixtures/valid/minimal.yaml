@@ -1,0 +1,11 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: minimal
+  version: 1.0.0
+orchestration:
+  entrypoint: agent
+  strategy: single
+executors:
+  - name: agent
+    type: llm-agent

@@ -1,0 +1,9 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: empty
+  version: 1.0.0
+orchestration:
+  entrypoint: ghost
+  strategy: single
+executors: []
