@@ -26,5 +26,8 @@
     "includeGroups": true
   },
   "sort": ["kind", "alphabetical"],
+  "headings": {
+    "readme": false
+  },
   "githubPages": true
 }
