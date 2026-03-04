@@ -1,5 +1,8 @@
 # Execution Control Protocol (ECP)
 
+[![CI](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml)
+[![Docs](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/docs.yml/badge.svg)](https://guillaumecleme.github.io/executioncontextprotocol/)
+
 > The control plane for cross-system AI agents.
 
 Execution Control Protocol (ECP) is an open specification for defining,
@@ -158,7 +161,26 @@ and difficult to distribute.
 
 ## ECP v0.1 Example Schema
 
-Included in this repository is an example Context manifest.
+Included in this repository is an example Context manifest:
+[`spec.yaml`](spec.yaml).
+
+See also the [full specification](SPEC.md) and the
+[TypeScript type definitions](packages/spec/src/types/ecp.ts).
+
+------------------------------------------------------------------------
+
+## Repository Structure
+
+| Path | Description |
+|---|---|
+| [`spec.yaml`](spec.yaml) | Canonical example Context manifest |
+| [`SPEC.md`](SPEC.md) | Full protocol specification |
+| [`packages/spec/`](packages/spec/) | TypeScript types, JSON Schema, validators |
+| [`packages/runtime/`](packages/runtime/) | Execution engine, providers, protocols |
+| [`packages/cli/`](packages/cli/) | CLI tool (`ecp run` / `ecp validate`) |
+| [`packages/docs/`](packages/docs/) | TypeDoc documentation generator |
+| [`examples/`](examples/) | Example Context manifests |
+| [`evals/`](evals/) | Evaluation cases and rubrics |
 
 ------------------------------------------------------------------------
 

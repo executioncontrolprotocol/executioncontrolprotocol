@@ -29,5 +29,10 @@
   "headings": {
     "readme": false
   },
+  "sourceLinkTemplate": "https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/{path}#L{line}",
+  "navigationLinks": {
+    "GitHub": "https://github.com/GuillaumeCleme/executioncontextprotocol",
+    "Spec": "https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md"
+  },
   "githubPages": true
 }
