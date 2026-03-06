@@ -7,8 +7,12 @@ metadata:
   description: Controller-specialist example — orchestrate research across two specialists
 
 inputs:
-  subject: { type: string, required: true }
-  depth:   { type: string, default: "moderate" }
+  subject:
+    type: string
+    required: true
+  depth:
+    type: string
+    default: "moderate"
 
 outputs:
   - name: report
@@ -19,58 +23,73 @@ schemas:
     type: object
     required: [researchAreas, delegate]
     properties:
-      researchAreas: { type: array, items: { type: string } }
+      researchAreas:
+        type: array
+        items:
+          type: string
       delegate:
         type: array
         items:
           type: object
           required: [executor, task]
           properties:
-            executor: { type: string }
-            task: { type: string }
+            executor:
+              type: string
+            task:
+              type: string
 
   TechnicalFindings:
     type: object
     required: [summary, keyPoints]
     properties:
-      summary: { type: string }
+      summary:
+        type: string
       keyPoints:
         type: array
         items:
           type: object
           required: [point, detail]
           properties:
-            point: { type: string }
-            detail: { type: string }
+            point:
+              type: string
+            detail:
+              type: string
 
   PracticalFindings:
     type: object
     required: [summary, applications]
     properties:
-      summary: { type: string }
+      summary:
+        type: string
       applications:
         type: array
         items:
           type: object
           required: [application, reasoning]
           properties:
-            application: { type: string }
-            reasoning: { type: string }
+            application:
+              type: string
+            reasoning:
+              type: string
 
   Report:
     type: object
     required: [title, summary, sections]
     properties:
-      title: { type: string }
-      summary: { type: string }
+      title:
+        type: string
+      summary:
+        type: string
       sections:
         type: array
         items:
           type: object
           required: [heading, content]
           properties:
-            heading: { type: string }
-            content: { type: string }
+            heading:
+              type: string
+            content:
+              type: string
 
 triggers:
   - type: manual
@@ -90,7 +109,9 @@ orchestration:
 executors:
   - name: orchestrator
     type: agent
-    model: { provider: openai, name: gpt-4o-mini }
+    model:
+      provider: openai
+      name: gpt-4o-mini
     instructions: |
       You are a research orchestrator.
       Given a subject and depth, produce a Plan that:
@@ -101,13 +122,20 @@ executors:
     outputSchemaRef: "#/schemas/Plan"
     mounts: []
     policies:
-      toolAccess: { default: deny }
-      budgets: { maxToolCalls: 0, maxRuntimeSeconds: 30, maxCostUsd: 0.10 }
-      writeControls: { mode: forbid }
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 0
+        maxRuntimeSeconds: 30
+        maxCostUsd: 0.10
+      writeControls:
+        mode: forbid
 
   - name: technical_analyst
     type: agent
-    model: { provider: openai, name: gpt-4o-mini }
+    model:
+      provider: openai
+      name: gpt-4o-mini
     instructions: |
       You are a technical analyst.
       Given a research task, produce TechnicalFindings with a summary and key technical points.
@@ -115,13 +143,20 @@ executors:
     outputSchemaRef: "#/schemas/TechnicalFindings"
     mounts: []
     policies:
-      toolAccess: { default: deny }
-      budgets: { maxToolCalls: 0, maxRuntimeSeconds: 30, maxCostUsd: 0.10 }
-      writeControls: { mode: forbid }
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 0
+        maxRuntimeSeconds: 30
+        maxCostUsd: 0.10
+      writeControls:
+        mode: forbid
 
   - name: practical_analyst
     type: agent
-    model: { provider: openai, name: gpt-4o-mini }
+    model:
+      provider: openai
+      name: gpt-4o-mini
     instructions: |
       You are a practical applications analyst.
       Given a research task, produce PracticalFindings with a summary and real-world applications.
@@ -129,13 +164,20 @@ executors:
     outputSchemaRef: "#/schemas/PracticalFindings"
     mounts: []
     policies:
-      toolAccess: { default: deny }
-      budgets: { maxToolCalls: 0, maxRuntimeSeconds: 30, maxCostUsd: 0.10 }
-      writeControls: { mode: forbid }
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 0
+        maxRuntimeSeconds: 30
+        maxCostUsd: 0.10
+      writeControls:
+        mode: forbid
 
   - name: publisher
     type: agent
-    model: { provider: openai, name: gpt-4o-mini }
+    model:
+      provider: openai
+      name: gpt-4o-mini
     instructions: |
       You are a report publisher.
       Merge the technical and practical findings into a cohesive Report.
@@ -143,6 +185,11 @@ executors:
     outputSchemaRef: "#/schemas/Report"
     mounts: []
     policies:
-      toolAccess: { default: deny }
-      budgets: { maxToolCalls: 0, maxRuntimeSeconds: 30, maxCostUsd: 0.10 }
-      writeControls: { mode: forbid }
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 0
+        maxRuntimeSeconds: 30
+        maxCostUsd: 0.10
+      writeControls:
+        mode: forbid
