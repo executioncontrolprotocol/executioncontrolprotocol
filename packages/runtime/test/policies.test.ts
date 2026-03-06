@@ -71,9 +71,18 @@ describe("Policy enforcer", () => {
       expect(result.withinBudget).toBe(true);
     });
 
-    it("fails when tool calls exceeded", () => {
+    it("passes when usage equals the limit (at-limit is not exceeded)", () => {
       const result = enforcer.checkBudget({
         toolCalls: 10,
+        runtimeSeconds: 30,
+        costUsd: 1.0,
+      });
+      expect(result.withinBudget).toBe(true);
+    });
+
+    it("fails when tool calls exceeded", () => {
+      const result = enforcer.checkBudget({
+        toolCalls: 11,
         runtimeSeconds: 10,
         costUsd: 0.5,
       });
@@ -84,7 +93,7 @@ describe("Policy enforcer", () => {
     it("fails when runtime exceeded", () => {
       const result = enforcer.checkBudget({
         toolCalls: 5,
-        runtimeSeconds: 30,
+        runtimeSeconds: 31,
         costUsd: 0.5,
       });
       expect(result.withinBudget).toBe(false);
@@ -95,7 +104,7 @@ describe("Policy enforcer", () => {
       const result = enforcer.checkBudget({
         toolCalls: 5,
         runtimeSeconds: 10,
-        costUsd: 1.0,
+        costUsd: 1.01,
       });
       expect(result.withinBudget).toBe(false);
       expect(result.exceededLimit).toBe("cost-usd");

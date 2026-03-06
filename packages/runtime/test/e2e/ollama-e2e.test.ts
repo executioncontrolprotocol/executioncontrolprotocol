@@ -73,9 +73,9 @@ function makeSingleExecutorContext(): ECPContext {
         policies: {
           toolAccess: { default: "deny" },
           budgets: {
-            maxToolCalls: 1,
+            maxToolCalls: 0,
             maxRuntimeSeconds: 120,
-            maxCostUsd: 1,
+            maxCostUsd: 0,
           },
           writeControls: { mode: "forbid" },
         },
@@ -148,7 +148,7 @@ function makeDelegateContext(): ECPContext {
         mounts: [],
         policies: {
           toolAccess: { default: "deny" },
-          budgets: { maxToolCalls: 1, maxRuntimeSeconds: 120, maxCostUsd: 1 },
+          budgets: { maxToolCalls: 0, maxRuntimeSeconds: 120, maxCostUsd: 0 },
           writeControls: { mode: "forbid" },
         },
       },
@@ -167,7 +167,7 @@ function makeDelegateContext(): ECPContext {
         mounts: [],
         policies: {
           toolAccess: { default: "deny" },
-          budgets: { maxToolCalls: 1, maxRuntimeSeconds: 120, maxCostUsd: 1 },
+          budgets: { maxToolCalls: 0, maxRuntimeSeconds: 120, maxCostUsd: 0 },
           writeControls: { mode: "forbid" },
         },
       },

@@ -71,30 +71,30 @@ class DefaultPolicyEnforcer implements PolicyEnforcer {
       return { withinBudget: true };
     }
 
-    if (budgets.maxToolCalls !== undefined && usage.toolCalls >= budgets.maxToolCalls) {
+    if (budgets.maxToolCalls !== undefined && usage.toolCalls > budgets.maxToolCalls) {
       return {
         withinBudget: false,
         exceededLimit: "tool-calls",
-        message: `Tool call limit exceeded: ${usage.toolCalls} >= ${budgets.maxToolCalls}`,
+        message: `Tool call limit exceeded: ${usage.toolCalls} > ${budgets.maxToolCalls}`,
       };
     }
 
     if (
       budgets.maxRuntimeSeconds !== undefined &&
-      usage.runtimeSeconds >= budgets.maxRuntimeSeconds
+      usage.runtimeSeconds > budgets.maxRuntimeSeconds
     ) {
       return {
         withinBudget: false,
         exceededLimit: "runtime-seconds",
-        message: `Runtime limit exceeded: ${usage.runtimeSeconds}s >= ${budgets.maxRuntimeSeconds}s`,
+        message: `Runtime limit exceeded: ${usage.runtimeSeconds}s > ${budgets.maxRuntimeSeconds}s`,
       };
     }
 
-    if (budgets.maxCostUsd !== undefined && usage.costUsd >= budgets.maxCostUsd) {
+    if (budgets.maxCostUsd !== undefined && usage.costUsd > budgets.maxCostUsd) {
       return {
         withinBudget: false,
         exceededLimit: "cost-usd",
-        message: `Cost limit exceeded: $${usage.costUsd} >= $${budgets.maxCostUsd}`,
+        message: `Cost limit exceeded: $${usage.costUsd} > $${budgets.maxCostUsd}`,
       };
     }
 
