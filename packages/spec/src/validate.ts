@@ -205,11 +205,6 @@ function checkStructure(ctx: ECPContext): void {
         `execution object "${obj.name}" has maxRuntimeSeconds=${budgets.maxRuntimeSeconds}; budget values must be >= 1.`,
       );
     }
-    if (budgets.maxCostUsd !== undefined && budgets.maxCostUsd < 1) {
-      fail(
-        `execution object "${obj.name}" has maxCostUsd=${budgets.maxCostUsd}; budget values must be >= 1.`,
-      );
-    }
   }
   pass("All budget values are >= 1.");
 

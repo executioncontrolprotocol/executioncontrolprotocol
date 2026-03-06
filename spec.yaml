@@ -286,7 +286,6 @@ executors:
       budgets:
         maxToolCalls: 40
         maxRuntimeSeconds: 90
-        maxCostUsd: 2.50
 
       # Orchestrator should never write
       writeControls:
@@ -340,7 +339,6 @@ executors:
       budgets:
         maxToolCalls: 30
         maxRuntimeSeconds: 90
-        maxCostUsd: 2.00
 
       writeControls:
         mode: forbid
@@ -410,7 +408,6 @@ executors:
       budgets:
         maxToolCalls: 35
         maxRuntimeSeconds: 120
-        maxCostUsd: 3.00
 
       writeControls:
         mode: forbid
@@ -450,7 +447,6 @@ executors:
       budgets:
         maxToolCalls: 10
         maxRuntimeSeconds: 60
-        maxCostUsd: 1.00
 
       writeControls:
         mode: propose-only

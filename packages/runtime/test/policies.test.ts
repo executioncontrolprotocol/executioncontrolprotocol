@@ -57,7 +57,6 @@ describe("Policy enforcer", () => {
       budgets: {
         maxToolCalls: 10,
         maxRuntimeSeconds: 30,
-        maxCostUsd: 1.0,
       },
     };
     const enforcer = createPolicyEnforcer(policies);
@@ -66,7 +65,6 @@ describe("Policy enforcer", () => {
       const result = enforcer.checkBudget({
         toolCalls: 5,
         runtimeSeconds: 10,
-        costUsd: 0.5,
       });
       expect(result.withinBudget).toBe(true);
     });
@@ -75,7 +73,6 @@ describe("Policy enforcer", () => {
       const result = enforcer.checkBudget({
         toolCalls: 10,
         runtimeSeconds: 10,
-        costUsd: 0.5,
       });
       expect(result.withinBudget).toBe(false);
       expect(result.exceededLimit).toBe("tool-calls");
@@ -85,26 +82,15 @@ describe("Policy enforcer", () => {
       const result = enforcer.checkBudget({
         toolCalls: 5,
         runtimeSeconds: 30,
-        costUsd: 0.5,
       });
       expect(result.withinBudget).toBe(false);
       expect(result.exceededLimit).toBe("runtime-seconds");
     });
 
-    it("fails when cost exceeded", () => {
-      const result = enforcer.checkBudget({
-        toolCalls: 5,
-        runtimeSeconds: 10,
-        costUsd: 1.0,
-      });
-      expect(result.withinBudget).toBe(false);
-      expect(result.exceededLimit).toBe("cost-usd");
-    });
-
     it("passes with no budget policy", () => {
       const e = createPolicyEnforcer({});
       expect(
-        e.checkBudget({ toolCalls: 999, runtimeSeconds: 999, costUsd: 999 })
+        e.checkBudget({ toolCalls: 999, runtimeSeconds: 999 })
           .withinBudget,
       ).toBe(true);
     });

@@ -663,13 +663,6 @@ export interface Budgets {
    */
   maxRuntimeSeconds?: number;
 
-  /**
-   * Maximum spend in USD.
-   * Must be >= 1 when specified.
-   *
-   * @minimum 1
-   */
-  maxCostUsd?: number;
 }
 
 /**

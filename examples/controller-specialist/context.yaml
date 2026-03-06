@@ -127,7 +127,6 @@ executors:
       budgets:
         maxToolCalls: 1
         maxRuntimeSeconds: 30
-        maxCostUsd: 1
       writeControls:
         mode: forbid
 
@@ -148,7 +147,6 @@ executors:
       budgets:
         maxToolCalls: 1
         maxRuntimeSeconds: 30
-        maxCostUsd: 1
       writeControls:
         mode: forbid
 
@@ -169,7 +167,6 @@ executors:
       budgets:
         maxToolCalls: 1
         maxRuntimeSeconds: 30
-        maxCostUsd: 1
       writeControls:
         mode: forbid
 
@@ -190,6 +187,5 @@ executors:
       budgets:
         maxToolCalls: 1
         maxRuntimeSeconds: 30
-        maxCostUsd: 1
       writeControls:
         mode: forbid

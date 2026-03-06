@@ -90,14 +90,6 @@ class DefaultPolicyEnforcer implements PolicyEnforcer {
       };
     }
 
-    if (budgets.maxCostUsd !== undefined && usage.costUsd >= budgets.maxCostUsd) {
-      return {
-        withinBudget: false,
-        exceededLimit: "cost-usd",
-        message: `Cost limit exceeded: $${usage.costUsd} >= $${budgets.maxCostUsd}`,
-      };
-    }
-
     return { withinBudget: true };
   }
 

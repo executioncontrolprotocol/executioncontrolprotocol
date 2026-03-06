@@ -203,7 +203,6 @@ async function runExecute(args: ParsedArgs): Promise<void> {
   console.log(`  Success:    ${result.success}`);
   console.log(`  Duration:   ${result.durationMs}ms`);
   console.log(`  Tool calls: ${result.totalBudgetUsage.toolCalls}`);
-  console.log(`  Est. cost:  $${result.totalBudgetUsage.costUsd.toFixed(4)}`);
 
   if (result.error) {
     console.log(`  Error:      ${result.error}`);
