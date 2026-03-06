@@ -41,7 +41,7 @@ triggers:
     timezone: "America/Vancouver"
 orchestration:
   entrypoint: orchestrator
-  strategy: controller-specialist
+  strategy: delegate
   defaults:
     maxDelegations: 2
     maxExecutors: 2
@@ -51,7 +51,7 @@ orchestration:
   produces: Report
 executors:
   - name: orchestrator
-    type: llm-agent
+    type: agent
     model: { provider: openai, name: gpt-4o }
     instructions: Produce a Plan.
     outputSchemaRef: "#/schemas/Plan"
@@ -77,7 +77,7 @@ executors:
       writeControls:
         mode: forbid
   - name: analyst
-    type: llm-agent
+    type: agent
     model: { provider: openai, name: gpt-4o }
     outputSchemaRef: "#/schemas/Findings"
     mounts:
@@ -99,7 +99,7 @@ executors:
       writeControls:
         mode: forbid
   - name: publisher
-    type: llm-agent
+    type: agent
     model: { provider: openai, name: gpt-4o }
     outputSchemaRef: "#/schemas/Report"
     policies:

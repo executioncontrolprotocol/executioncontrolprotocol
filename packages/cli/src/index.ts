@@ -15,6 +15,7 @@ import { ECPEngine, loadContext, resolveInputs } from "@ecp/runtime";
 import { OpenAIProvider } from "@ecp/runtime";
 import { MCPToolInvoker } from "@ecp/runtime";
 import { A2AAgentTransport } from "@ecp/runtime";
+import type { ECPContext, Orchestrator } from "@ecp/spec";
 
 interface ParsedArgs {
   command: string;
@@ -24,6 +25,32 @@ interface ParsedArgs {
   model?: string;
   toolServers: string;
   agentEndpoints: string;
+}
+
+function collectExecutionObjectNames(context: ECPContext): string[] {
+  const names = new Set<string>();
+  const addName = (name: string): void => {
+    names.add(name);
+  };
+
+  const visitOrchestrator = (orchestrator: Orchestrator): void => {
+    addName(orchestrator.name);
+    for (const executor of orchestrator.executors ?? []) {
+      addName(executor.name);
+    }
+    for (const child of orchestrator.orchestrators ?? []) {
+      visitOrchestrator(child);
+    }
+  };
+
+  if (context.orchestrator) {
+    visitOrchestrator(context.orchestrator);
+  }
+  for (const executor of context.executors ?? []) {
+    addName(executor.name);
+  }
+
+  return [...names];
 }
 
 function printUsage(): void {
@@ -108,10 +135,12 @@ async function runValidate(args: ParsedArgs): Promise<void> {
   try {
     const context = loadContext(args.contextPath);
     resolveInputs(context, args.inputs);
+    const strategy = context.orchestration?.strategy ?? context.orchestrator?.strategy;
+    const executionObjectNames = collectExecutionObjectNames(context);
 
     console.log(`  Context: ${context.metadata.name} v${context.metadata.version}`);
-    console.log(`  Strategy: ${context.orchestration.strategy}`);
-    console.log(`  Executors: ${context.executors.map((e) => e.name).join(", ")}`);
+    console.log(`  Strategy: ${strategy ?? "unknown"}`);
+    console.log(`  Execution objects: ${executionObjectNames.join(", ")}`);
     console.log(`  Schemas: ${Object.keys(context.schemas ?? {}).join(", ")}`);
     console.log(`\n  Validation passed.\n`);
   } catch (err) {

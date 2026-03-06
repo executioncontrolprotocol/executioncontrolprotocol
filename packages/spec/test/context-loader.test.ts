@@ -17,7 +17,7 @@ describe("Context loader", () => {
     it("loads a full-featured context with all fields", () => {
       const ctx = loadContext(resolve(fixtures, "valid/full-featured.yaml"));
       expect(ctx.metadata.name).toBe("full-featured");
-      expect(ctx.orchestration.strategy).toBe("controller-specialist");
+      expect(ctx.orchestration?.strategy).toBe("delegate");
       expect(ctx.executors).toHaveLength(3);
       expect(ctx.inputs).toBeDefined();
       expect(ctx.schemas).toBeDefined();
@@ -43,8 +43,15 @@ describe("Context loader", () => {
       const ctx = loadContext(
         resolve(fixtures, "../../../../examples/controller-specialist/context.yaml"),
       );
-      expect(ctx.orchestration.strategy).toBe("controller-specialist");
+      expect(ctx.orchestration?.strategy).toBe("delegate");
       expect(ctx.executors.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("loads a context that uses top-level orchestrator", () => {
+      const ctx = loadContext(resolve(fixtures, "valid/orchestrator-root.yaml"));
+      expect(ctx.orchestrator?.name).toBe("root");
+      expect(ctx.orchestrator?.executors).toHaveLength(1);
+      expect(ctx.orchestration).toBeUndefined();
     });
   });
 
@@ -58,7 +65,7 @@ describe("Context loader", () => {
     it("rejects a context with no executors", () => {
       expect(() =>
         loadContext(resolve(fixtures, "invalid/no-executors.yaml")),
-      ).toThrow(/executor/i);
+      ).toThrow(/execution object/i);
     });
 
     it("rejects a non-existent file", () => {

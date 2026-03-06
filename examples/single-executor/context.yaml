@@ -31,7 +31,7 @@ orchestration:
 
 executors:
   - name: summarizer
-    type: llm-agent
+    type: agent
     model:
       provider: openai
       name: gpt-4o-mini

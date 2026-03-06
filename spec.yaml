@@ -126,7 +126,7 @@ schemas:
 # Supported types (examples):
 # - schedule (cron)
 # - webhook
-# - toolEvent (emitted by an integration)
+# - tool-event (emitted by an integration)
 # -----------------------------------------------------------------------------
 triggers:
   - type: schedule
@@ -142,16 +142,16 @@ orchestration:
 
   # Strategy catalog (examples). You can treat these as standard strategy IDs.
   # - single: run only entrypoint
-  # - controller-specialist: orchestrator plans, delegates, then merges
-  # - map-reduce: orchestrator shards work to many specialists, aggregates results
-  # - hierarchical: multi-level delegation (advanced)
-  strategy: controller-specialist
+  # - sequential: run child objects in a fixed order
+  # - delegate: orchestrator plans, delegates, then merges
+  # - swarm: run child objects in parallel and aggregate results
+  strategy: delegate
 
   # Delegate transport defaults (optional): this is orchestration-level *policy*
   # for how executors communicate, but the protocol implementation lives per-executor.
   defaults:
     maxDelegations: 4
-    maxSpecialists: 3
+    maxExecutors: 3
     timeoutMs: 60000
 
   # Optional: require these executor outputs before final merge completes
@@ -173,7 +173,7 @@ orchestration:
 # -----------------------------------------------------------------------------
 executors:
   - name: orchestrator
-    type: llm-agent
+    type: agent
 
     # Protocols are executor-scoped (your requirement)
     protocols:
@@ -254,7 +254,7 @@ executors:
         mode: forbid  # supported: forbid|propose-only|execute-if-allowed
 
   - name: revenue_analyst
-    type: llm-agent
+    type: agent
 
     protocols:
       agentOrchestration: { type: a2a, version: v0.1 }
@@ -300,7 +300,7 @@ executors:
         mode: forbid
 
   - name: ops_analyst
-    type: llm-agent
+    type: agent
 
     protocols:
       agentOrchestration: { type: a2a, version: v0.1 }
@@ -359,7 +359,7 @@ executors:
         mode: forbid
 
   - name: publisher
-    type: llm-agent
+    type: agent
 
     protocols:
       agentOrchestration: { type: a2a, version: v0.1 }

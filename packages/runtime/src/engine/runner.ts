@@ -8,7 +8,7 @@
  * @category Engine
  */
 
-import type { ECPContext, Executor, SchemaDefinition } from "@ecp/spec";
+import type { ECPContext, Executor, Orchestrator, SchemaDefinition } from "@ecp/spec";
 import type { ModelProvider, ChatMessage, ToolDefinition, ToolCall } from "../providers/model-provider.js";
 import type { ToolInvoker } from "../protocols/tool-invoker.js";
 import type { AgentTransport, AgentRef, DelegatedTask } from "../protocols/agent-transport.js";
@@ -87,11 +87,11 @@ export class ECPEngine {
     try {
       await this.connectToolServers(state);
 
-      const strategy = state.context.orchestration.strategy;
+      const strategy = this.getStrategy(state.context);
 
       if (strategy === "single") {
         await this.runSingleExecutor(state, options.signal);
-      } else if (strategy === "controller-specialist" || strategy === "delegate") {
+      } else if (strategy === "sequential" || strategy === "delegate" || strategy === "swarm") {
         await this.runControllerSpecialist(state, options.signal);
       } else {
         throw new Error(`Unsupported orchestration strategy: "${strategy}"`);
@@ -118,7 +118,7 @@ export class ECPEngine {
     state: RunState,
     signal?: AbortSignal,
   ): Promise<void> {
-    const entrypointName = state.context.orchestration.entrypoint;
+    const entrypointName = this.getEntrypointName(state.context);
     const executorState = state.executors.get(entrypointName);
     if (!executorState) {
       throw new Error(`Entrypoint executor "${entrypointName}" not found`);
@@ -141,7 +141,7 @@ export class ECPEngine {
     state: RunState,
     signal?: AbortSignal,
   ): Promise<void> {
-    const entrypointName = state.context.orchestration.entrypoint;
+    const entrypointName = this.getEntrypointName(state.context);
     const orchestratorState = state.executors.get(entrypointName);
     if (!orchestratorState) {
       throw new Error(`Orchestrator executor "${entrypointName}" not found`);
@@ -204,7 +204,7 @@ export class ECPEngine {
     }
 
     // Phase 4: Merge outputs if there's a publisher/merger executor
-    const producesSchema = state.context.orchestration.produces;
+    const producesSchema = state.context.orchestration?.produces;
     if (producesSchema) {
       state.status = "merging";
       await this.mergeOutputs(state, producesSchema, signal);
@@ -253,7 +253,7 @@ export class ECPEngine {
     const mergerName = executorNames.find((name) => {
       const ex = state.executors.get(name)!;
       const ref = ex.executor.outputSchemaRef?.replace("#/schemas/", "");
-      return ref === producesSchemaName && name !== state.context.orchestration.entrypoint;
+      return ref === producesSchemaName && name !== this.getEntrypointName(state.context);
     });
 
     if (mergerName) {
@@ -451,7 +451,7 @@ export class ECPEngine {
       startedAt: new Date().toISOString(),
     };
 
-    for (const executor of context.executors) {
+    for (const executor of this.getExecutionObjects(context)) {
       state.executors.set(executor.name, {
         executor,
         status: "pending",
@@ -462,7 +462,7 @@ export class ECPEngine {
 
     this.log(state, "info",
       `Loaded Context "${context.metadata.name}" v${context.metadata.version} ` +
-      `(${context.executors.length} executors, strategy: ${context.orchestration.strategy})`,
+      `(${state.executors.size} execution objects, strategy: ${this.getStrategy(context)})`,
     );
 
     return state;
@@ -560,6 +560,9 @@ export class ECPEngine {
     executor: Executor,
     context: ECPContext,
   ): SchemaDefinition | undefined {
+    if (executor.outputSchema) {
+      return executor.outputSchema;
+    }
     if (!executor.outputSchemaRef) return undefined;
     const schemaName = executor.outputSchemaRef.replace("#/schemas/", "");
     return context.schemas?.[schemaName];
@@ -616,7 +619,7 @@ export class ECPEngine {
       totalBudget.costUsd += es.budgetUsage.costUsd;
     }
 
-    const producesSchema = state.context.orchestration.produces;
+    const producesSchema = state.context.orchestration?.produces;
     let finalOutput: Record<string, unknown> | undefined;
 
     if (producesSchema) {
@@ -630,7 +633,7 @@ export class ECPEngine {
     }
 
     if (!finalOutput) {
-      const entrypoint = state.context.orchestration.entrypoint;
+      const entrypoint = this.getEntrypointName(state.context);
       finalOutput = state.executors.get(entrypoint)?.output;
     }
 
@@ -649,5 +652,54 @@ export class ECPEngine {
       durationMs: Date.now() - startTime,
       error: failed ? errorEntries.map((e) => e.message).join("; ") : undefined,
     };
+  }
+
+  private getEntrypointName(context: ECPContext): string {
+    const entrypoint = context.orchestrator?.name ?? context.orchestration?.entrypoint;
+    if (!entrypoint) {
+      throw new Error(
+        "Context entrypoint is not defined. Set orchestrator.name or orchestration.entrypoint.",
+      );
+    }
+    return entrypoint;
+  }
+
+  private getStrategy(context: ECPContext): string {
+    const strategy = context.orchestration?.strategy ?? context.orchestrator?.strategy;
+    if (!strategy) {
+      throw new Error(
+        "Context strategy is not defined. Set orchestration.strategy or orchestrator.strategy.",
+      );
+    }
+    return strategy;
+  }
+
+  private getExecutionObjects(context: ECPContext): Executor[] {
+    const executionObjects = new Map<string, Executor>();
+    const addExecutionObject = (executor: Executor): void => {
+      if (!executionObjects.has(executor.name)) {
+        executionObjects.set(executor.name, executor);
+      }
+    };
+
+    const visitOrchestrator = (orchestrator: Orchestrator): void => {
+      addExecutionObject(orchestrator);
+      for (const executor of orchestrator.executors ?? []) {
+        addExecutionObject(executor);
+      }
+      for (const child of orchestrator.orchestrators ?? []) {
+        visitOrchestrator(child);
+      }
+    };
+
+    if (context.orchestrator) {
+      visitOrchestrator(context.orchestrator);
+    }
+
+    for (const executor of context.executors ?? []) {
+      addExecutionObject(executor);
+    }
+
+    return [...executionObjects.values()];
   }
 }

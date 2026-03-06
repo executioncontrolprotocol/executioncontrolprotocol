@@ -479,7 +479,7 @@ Schemas ensure that values are machine-readable and enforce consistent formats.
 
 ---
 
-# Inputs
+# Context Inputs
 
 Inputs parameterize reusable contexts and may also be defined at orchestrator and executor level.
 
@@ -493,7 +493,7 @@ These inputs may be passed from:
 
 ---
 
-# Outputs
+# Context Outputs
 
 Outputs represent the structured results produced by orchestrators and executors.
 

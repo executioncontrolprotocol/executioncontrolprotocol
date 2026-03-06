@@ -10,6 +10,18 @@ import { extname } from "node:path";
 import yaml from "js-yaml";
 import type { ECPContext } from "@ecp/spec";
 
+function hasExecutionObjects(ctx: ECPContext): boolean {
+  if (ctx.executors && ctx.executors.length > 0) {
+    return true;
+  }
+
+  if (ctx.orchestrator) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Load an ECP Context manifest from a YAML or JSON file.
  *
@@ -45,11 +57,18 @@ export function loadContext(filePath: string): ECPContext {
   if (!ctx.metadata?.name) {
     throw new Error("Invalid Context: missing metadata.name");
   }
-  if (!ctx.orchestration?.entrypoint) {
-    throw new Error("Invalid Context: missing orchestration.entrypoint");
+  if (!ctx.orchestration?.entrypoint && !ctx.orchestrator?.name) {
+    throw new Error(
+      "Invalid Context: missing entrypoint (orchestrator.name or orchestration.entrypoint)",
+    );
   }
-  if (!ctx.executors?.length) {
-    throw new Error("Invalid Context: no executors defined");
+  if (!hasExecutionObjects(ctx)) {
+    throw new Error("Invalid Context: no execution objects defined");
+  }
+  if (!ctx.orchestration?.strategy && !ctx.orchestrator?.strategy) {
+    throw new Error(
+      "Invalid Context: missing strategy (orchestration.strategy or orchestrator.strategy)",
+    );
   }
 
   return ctx;

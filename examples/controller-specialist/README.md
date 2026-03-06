@@ -1,6 +1,6 @@
 # Controller-Specialist Example
 
-A multi-agent ECP Context demonstrating the controller-specialist orchestration strategy.
+A multi-agent ECP Context demonstrating the delegate orchestration strategy.
 
 ## What it does
 

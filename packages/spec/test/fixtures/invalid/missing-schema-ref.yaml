@@ -12,5 +12,5 @@ schemas:
     type: object
 executors:
   - name: agent
-    type: llm-agent
+    type: agent
     outputSchemaRef: "#/schemas/Plan"

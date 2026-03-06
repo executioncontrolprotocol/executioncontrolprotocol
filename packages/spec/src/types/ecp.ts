@@ -135,12 +135,22 @@ export interface ECPContext extends Extensible {
   /**
    * How the executors in this Context coordinate.
    */
-  orchestration: Orchestration;
+  orchestration?: Orchestration;
 
   /**
-   * The agent roles that participate in this Context.
+   * The top-level orchestrator for this Context.
+   *
+   * When provided, this object is treated as the execution entry point.
    */
-  executors: Executor[];
+  orchestrator?: Orchestrator;
+
+  /**
+   * Legacy flat list of executor roles that participate in this Context.
+   *
+   * Newer Contexts may instead define execution roles under
+   * {@link ECPContext.orchestrator}.
+   */
+  executors?: Executor[];
 }
 
 // ---------------------------------------------------------------------------
@@ -222,7 +232,14 @@ export interface OutputDefinition extends Extensible {
   /**
    * Name of the schema (in `schemas`) that defines the output shape.
    */
-  fromSchema: string;
+  fromSchema?: string;
+
+  /**
+   * Inline schema definition for the output shape.
+   *
+   * Use this when a reusable entry in `schemas` is not needed.
+   */
+  schema?: SchemaDefinition;
 
   /**
    * Where the output is delivered (TBD by future spec versions).
@@ -353,7 +370,7 @@ export interface Trigger extends Extensible {
  */
 export type OrchestrationStrategy =
   | "single"
-  | "controller-specialist"
+  | "sequential"
   | "delegate"
   | "swarm";
 
@@ -387,13 +404,16 @@ export interface OrchestrationDefaults {
 export interface Orchestration extends Extensible {
   /**
    * Name of the executor that serves as the entry point.
+   *
+   * Deprecated: in newer manifests, the entry point is the top-level
+   * {@link ECPContext.orchestrator}.
    */
-  entrypoint: string;
+  entrypoint?: string;
 
   /**
    * The coordination strategy (see {@link OrchestrationStrategy}).
    */
-  strategy: OrchestrationStrategy;
+  strategy?: OrchestrationStrategy;
 
   /**
    * Optional human-readable description of the orchestration approach.
@@ -425,7 +445,7 @@ export interface Orchestration extends Extensible {
  *
  * @category Executors
  */
-export type ExecutorType = "llm-agent" | "tool-agent" | "human";
+export type ExecutorType = "agent" | "tool" | "human";
 
 /**
  * Identifies a communication protocol supported by an executor.
@@ -706,6 +726,16 @@ export interface Executor extends BaseMetadata, Extensible {
   description?: string;
 
   /**
+   * Structured inputs expected by this executor.
+   */
+  inputs?: Record<string, InputDefinition>;
+
+  /**
+   * Structured outputs produced by this executor.
+   */
+  outputs?: OutputDefinition[];
+
+  /**
    * Protocol bindings for orchestration and tool invocation.
    */
   protocols?: Protocols;
@@ -721,10 +751,28 @@ export interface Executor extends BaseMetadata, Extensible {
   instructions?: string;
 
   /**
+   * Reference to the schema this executor expects as input
+   * (e.g. `"#/schemas/PlanInput"`).
+   */
+  inputSchemaRef?: string;
+
+  /**
+   * Inline schema for executor input, used when a shared schema reference is
+   * not desired.
+   */
+  inputSchema?: SchemaDefinition;
+
+  /**
    * Reference to the schema this executor must produce
    * (e.g. `"#/schemas/Plan"`).
    */
   outputSchemaRef?: string;
+
+  /**
+   * Inline schema for executor output, used when a shared schema reference is
+   * not desired.
+   */
+  outputSchema?: SchemaDefinition;
 
   /**
    * Data sources available to this executor at various hydration stages.
@@ -735,4 +783,27 @@ export interface Executor extends BaseMetadata, Extensible {
    * Security policy governing tool access, budgets, and writes.
    */
   policies?: Policies;
+}
+
+/**
+ * Coordinating execution node that can contain child executors and nested
+ * orchestrators.
+ *
+ * @category Orchestration
+ */
+export interface Orchestrator extends Executor {
+  /**
+   * Optional strategy override for this orchestrator node.
+   */
+  strategy?: OrchestrationStrategy;
+
+  /**
+   * Child executors coordinated by this orchestrator.
+   */
+  executors?: Executor[];
+
+  /**
+   * Nested orchestrators coordinated by this orchestrator.
+   */
+  orchestrators?: Orchestrator[];
 }

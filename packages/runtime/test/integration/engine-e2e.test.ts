@@ -44,13 +44,13 @@ function makeContext(): ECPContext {
     },
     orchestration: {
       entrypoint: "orchestrator",
-      strategy: "controller-specialist",
+      strategy: "delegate",
       requires: ["Findings"],
     },
     executors: [
       {
         name: "orchestrator",
-        type: "llm-agent",
+        type: "agent",
         outputSchemaRef: "#/schemas/Plan",
         mounts: [
           {
@@ -70,7 +70,7 @@ function makeContext(): ECPContext {
       },
       {
         name: "analyst",
-        type: "llm-agent",
+        type: "agent",
         outputSchemaRef: "#/schemas/Findings",
         mounts: [
           {
@@ -93,7 +93,7 @@ function makeContext(): ECPContext {
 }
 
 describe("Engine E2E — real MCP, mock model", () => {
-  it("runs a full controller-specialist flow with real MCP server", async () => {
+  it("runs a full delegate flow with real MCP server", async () => {
     const model = new MockModelProvider();
     const toolInvoker = new MCPToolInvoker();
     const transport = new MockAgentTransport();
