@@ -24,7 +24,7 @@ This is a **monorepo** for the Execution Control Protocol (ECP), using npm works
 | `npm run lint` | ESLint + markdownlint |
 | `npm run validate` | Validate `spec.yaml` via AJV + structural checks |
 | `npm run docs` | Build HTML documentation with TypeDoc |
-| `npm run check` | Full suite: build + generate:schema + lint + validate |
+| `npm run check` | Full suite: build + generate:schema + lint + validate + test |
 
 ### Running the CLI
 
@@ -34,6 +34,14 @@ npx tsx packages/cli/src/index.ts validate <context.yaml>
 ```
 
 Requires `OPENAI_API_KEY` for `ecp run`.
+
+Context manifests have required inputs. Pass them with `--input`:
+
+```sh
+npx tsx packages/cli/src/index.ts validate spec.yaml --input shopifyStoreId=demo --input jiraProject=DEMO
+npx tsx packages/cli/src/index.ts validate examples/single-executor/context.yaml --input topic=test
+npx tsx packages/cli/src/index.ts validate examples/controller-specialist/context.yaml --input subject=test
+```
 
 ### Gotchas
 
