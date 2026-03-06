@@ -190,6 +190,29 @@ function checkStructure(ctx: ECPContext): void {
   }
   pass(`All ${objects.length} execution object names are unique.`);
 
+  // Budget values must be >= 1 when specified
+  for (const obj of objects) {
+    const budgets = obj.policies?.budgets;
+    if (!budgets) continue;
+
+    if (budgets.maxToolCalls !== undefined && budgets.maxToolCalls < 1) {
+      fail(
+        `execution object "${obj.name}" has maxToolCalls=${budgets.maxToolCalls}; budget values must be >= 1.`,
+      );
+    }
+    if (budgets.maxRuntimeSeconds !== undefined && budgets.maxRuntimeSeconds < 1) {
+      fail(
+        `execution object "${obj.name}" has maxRuntimeSeconds=${budgets.maxRuntimeSeconds}; budget values must be >= 1.`,
+      );
+    }
+    if (budgets.maxCostUsd !== undefined && budgets.maxCostUsd < 1) {
+      fail(
+        `execution object "${obj.name}" has maxCostUsd=${budgets.maxCostUsd}; budget values must be >= 1.`,
+      );
+    }
+  }
+  pass("All budget values are >= 1.");
+
   // Output fromSchema must reference a declared schema
   for (const output of ctx.outputs ?? []) {
     if (!output.fromSchema && !output.schema) {

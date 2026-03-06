@@ -649,16 +649,25 @@ export interface ToolAccess {
 export interface Budgets {
   /**
    * Maximum number of tool invocations the executor may make.
+   * Must be >= 1 when specified.
+   *
+   * @minimum 1
    */
   maxToolCalls?: number;
 
   /**
    * Maximum wall-clock runtime in seconds.
+   * Must be >= 1 when specified.
+   *
+   * @minimum 1
    */
   maxRuntimeSeconds?: number;
 
   /**
    * Maximum spend in USD.
+   * Must be >= 1 when specified.
+   *
+   * @minimum 1
    */
   maxCostUsd?: number;
 }

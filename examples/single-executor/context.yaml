@@ -50,8 +50,8 @@ executors:
       toolAccess:
         default: deny
       budgets:
-        maxToolCalls: 0
+        maxToolCalls: 1
         maxRuntimeSeconds: 30
-        maxCostUsd: 0.10
+        maxCostUsd: 1
       writeControls:
         mode: forbid
