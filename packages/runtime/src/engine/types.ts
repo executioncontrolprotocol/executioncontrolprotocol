@@ -221,6 +221,9 @@ export interface ExecutionResult {
 
   /** Error message if the run failed. */
   error?: string;
+
+  /** Execution trace (present when tracing is enabled). */
+  trace?: import("../tracing/types.js").ExecutionTrace;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,9 +262,15 @@ export interface EngineConfig {
   /** Default model to use if an executor doesn't specify one. */
   defaultModel?: string;
 
+  /** Override model for all executors (takes precedence over executor config). */
+  modelOverride?: string;
+
   /** Default temperature for model generation. */
   defaultTemperature?: number;
 
   /** Whether to log debug-level entries. */
   debug?: boolean;
+
+  /** Enable execution tracing. When set, the engine emits trace spans. */
+  trace?: boolean;
 }

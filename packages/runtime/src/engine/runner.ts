@@ -26,6 +26,7 @@ import { validateOutput } from "./schema-validator.js";
 import { DefaultMountHydrator } from "../mounts/hydrator.js";
 import { createPolicyEnforcer } from "../policies/enforcer.js";
 import type { PolicyEnforcer } from "../policies/types.js";
+import type { TraceCollector } from "../tracing/collector.js";
 
 /**
  * Options for a single Context execution.
@@ -60,6 +61,7 @@ export class ECPEngine {
   private readonly agentTransport: AgentTransport;
   private readonly config: EngineConfig;
   private readonly hydrator: DefaultMountHydrator;
+  private traceCollector?: TraceCollector;
 
   constructor(
     modelProvider: ModelProvider,
@@ -72,6 +74,14 @@ export class ECPEngine {
     this.agentTransport = agentTransport;
     this.config = config;
     this.hydrator = new DefaultMountHydrator(toolInvoker);
+  }
+
+  /**
+   * Attach a trace collector to the engine.
+   * When attached, the engine emits structured trace spans during execution.
+   */
+  setTraceCollector(collector: TraceCollector): void {
+    this.traceCollector = collector;
   }
 
   /**
@@ -107,7 +117,25 @@ export class ECPEngine {
       await this.toolInvoker.disconnectAll();
     }
 
-    return this.buildResult(state, startTime);
+    const result = this.buildResult(state, startTime);
+
+    if (this.traceCollector) {
+      const trace = this.traceCollector.buildTrace({
+        executionId: state.runId,
+        contextName: state.context.metadata.name,
+        contextVersion: state.context.metadata.version,
+        strategy: this.getStrategy(state.context),
+        startedAt: state.startedAt,
+        endedAt: state.endedAt ?? new Date().toISOString(),
+        durationMs: result.durationMs,
+        success: result.success,
+        error: result.error,
+      });
+      result.trace = trace;
+      await this.traceCollector.exportAll(trace);
+    }
+
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -297,10 +325,15 @@ export class ECPEngine {
     const enforcer = createPolicyEnforcer(executor.policies ?? {});
     const startTime = Date.now();
 
+    const executorSpanId = this.traceCollector?.startSpan({
+      type: "executor",
+      executorName: executor.name,
+    });
+
     const messages = this.buildMessages(executor, executorState, taskOverride);
     const tools = await this.getAvailableTools(executor, enforcer, state);
 
-    const model = executor.model?.name ?? this.config.defaultModel ?? "gpt-4o";
+    const model = this.config.modelOverride ?? executor.model?.name ?? this.config.defaultModel ?? "gpt-4o";
     const outputSchema = this.getOutputSchema(executor, state.context);
 
     const currentMessages = [...messages];
@@ -312,6 +345,13 @@ export class ECPEngine {
         this.log(state, "warn", `Budget exceeded for "${executor.name}": ${budgetCheck.message}`);
         break;
       }
+
+      const genSpanId = this.traceCollector?.startSpan({
+        type: "model-generation",
+        executorName: executor.name,
+        parentId: executorSpanId,
+        model,
+      });
 
       const result = await this.modelProvider.generate({
         messages: currentMessages,
@@ -325,6 +365,18 @@ export class ECPEngine {
         signal,
       });
 
+      if (genSpanId) {
+        this.traceCollector?.endSpan(genSpanId, {
+          tokens: {
+            prompt: result.usage.promptTokens,
+            completion: result.usage.completionTokens,
+            total: result.usage.totalTokens,
+          },
+          reasoning: result.finishReason === "tool-calls" ? result.content || undefined : undefined,
+          output: result.finishReason !== "tool-calls" ? this.tryParseJson(result.content) : undefined,
+        });
+      }
+
       if (result.finishReason === "tool-calls" && result.toolCalls.length > 0) {
         currentMessages.push({
           role: "assistant",
@@ -337,6 +389,7 @@ export class ECPEngine {
           enforcer,
           executorState,
           state,
+          executorSpanId,
         );
 
         for (const tr of toolResults) {
@@ -376,6 +429,13 @@ export class ECPEngine {
     executorState.status = executorState.output ? "completed" : "failed";
     executorState.error = executorState.output ? undefined : "No output produced";
 
+    if (executorSpanId) {
+      this.traceCollector?.endSpan(executorSpanId, {
+        output: executorState.output,
+        error: executorState.error,
+      });
+    }
+
     this.log(state, "info",
       `Executor "${executor.name}" ${executorState.status} (${executorState.budgetUsage.runtimeSeconds.toFixed(1)}s)`,
     );
@@ -387,6 +447,7 @@ export class ECPEngine {
     enforcer: PolicyEnforcer,
     executorState: ExecutorState,
     state: RunState,
+    parentSpanId?: string,
   ): Promise<ChatMessage[]> {
     const results: ChatMessage[] = [];
 
@@ -406,9 +467,24 @@ export class ECPEngine {
         continue;
       }
 
+      const toolSpanId = this.traceCollector?.startSpan({
+        type: "tool-call",
+        executorName: executorState.executor.name,
+        parentId: parentSpanId,
+        toolName: tc.name,
+        toolArgs: tc.arguments,
+      });
+
       try {
         const result = await this.toolInvoker.callTool(serverName, toolName, tc.arguments);
         this.log(state, "debug", `Tool ${tc.name} returned (isError: ${result.isError})`);
+
+        if (toolSpanId) {
+          this.traceCollector?.endSpan(toolSpanId, {
+            toolResult: result.content,
+            toolIsError: result.isError,
+          });
+        }
 
         results.push({
           role: "tool",
@@ -418,6 +494,13 @@ export class ECPEngine {
             : JSON.stringify(result.content),
         });
       } catch (err) {
+        if (toolSpanId) {
+          this.traceCollector?.endSpan(toolSpanId, {
+            error: err instanceof Error ? err.message : String(err),
+            toolIsError: true,
+          });
+        }
+
         results.push({
           role: "tool",
           toolCallId: tc.id,
@@ -487,8 +570,25 @@ export class ECPEngine {
     planOutput?: Record<string, unknown>,
   ): Promise<void> {
     const mounts = executorState.executor.mounts ?? [];
-    const outputs = await this.hydrator.hydrateStage(mounts, stage, inputs, planOutput);
-    executorState.mountOutputs.push(...outputs);
+
+    for (const mount of mounts) {
+      if (mount.stage !== stage) continue;
+
+      const mountSpanId = this.traceCollector?.startSpan({
+        type: "mount-hydration",
+        executorName: executorState.executor.name,
+        mountName: mount.name,
+        mountStage: stage,
+      });
+
+      const outputs = await this.hydrator.hydrateStage([mount], stage, inputs, planOutput);
+      executorState.mountOutputs.push(...outputs);
+
+      if (mountSpanId) {
+        const totalItems = outputs.reduce((sum, o) => sum + o.itemCount, 0);
+        this.traceCollector?.endSpan(mountSpanId, { mountItemCount: totalItems });
+      }
+    }
   }
 
   private buildMessages(
@@ -576,6 +676,14 @@ export class ECPEngine {
       required: schema.required ?? [],
       additionalProperties: true,
     };
+  }
+
+  private tryParseJson(content: string): unknown {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return content || undefined;
+    }
   }
 
   private parseToolName(qualifiedName: string): [string, string] {
