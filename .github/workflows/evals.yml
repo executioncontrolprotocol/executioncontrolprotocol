@@ -6,8 +6,16 @@ on:
       model:
         description: "Model to use for evaluation"
         required: false
-        default: "gpt-4o-mini"
+        default: "gemma3:1b"
         type: string
+      provider:
+        description: "Provider: ollama or openai"
+        required: false
+        default: "ollama"
+        type: choice
+        options:
+          - ollama
+          - openai
   schedule:
     - cron: "0 6 * * *"
 
@@ -18,7 +26,7 @@ jobs:
   eval:
     name: Run Eval Suite
     runs-on: ubuntu-latest
-    environment: evals
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +41,26 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install Ollama
+        if: inputs.provider != 'openai'
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        if: inputs.provider != 'openai'
+        run: ollama serve &
+
+      - name: Wait for Ollama
+        if: inputs.provider != 'openai'
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && break
+            sleep 1
+          done
+
+      - name: Pull model
+        if: inputs.provider != 'openai'
+        run: ollama pull ${{ inputs.model || 'gemma3:1b' }}
+
       - name: Run single-executor eval
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -40,7 +68,8 @@ jobs:
           npx tsx packages/cli/src/index.ts run \
             examples/single-executor/context.yaml \
             --input topic="Execution Control Protocol" \
-            --model ${{ inputs.model || 'gpt-4o-mini' }} \
+            --provider ${{ inputs.provider || 'ollama' }} \
+            --model ${{ inputs.model || 'gemma3:1b' }} \
             --debug
 
       - name: Run controller-specialist eval
@@ -50,7 +79,8 @@ jobs:
           npx tsx packages/cli/src/index.ts run \
             examples/controller-specialist/context.yaml \
             --input subject="Model Context Protocol" \
-            --model ${{ inputs.model || 'gpt-4o-mini' }} \
+            --provider ${{ inputs.provider || 'ollama' }} \
+            --model ${{ inputs.model || 'gemma3:1b' }} \
             --debug
 
       - name: Upload eval artifacts

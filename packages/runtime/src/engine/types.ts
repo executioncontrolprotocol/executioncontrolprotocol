@@ -126,9 +126,6 @@ export interface BudgetUsage {
 
   /** Wall-clock runtime in seconds. */
   runtimeSeconds: number;
-
-  /** Estimated cost in USD. */
-  costUsd: number;
 }
 
 /**

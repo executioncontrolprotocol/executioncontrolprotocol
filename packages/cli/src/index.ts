@@ -12,7 +12,8 @@
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { ECPEngine, loadContext, resolveInputs } from "@ecp/runtime";
-import { OpenAIProvider } from "@ecp/runtime";
+import { OpenAIProvider, OllamaProvider } from "@ecp/runtime";
+import type { ModelProvider } from "@ecp/runtime";
 import { MCPToolInvoker } from "@ecp/runtime";
 import { A2AAgentTransport } from "@ecp/runtime";
 import type { ECPContext, Orchestrator } from "@ecp/spec";
@@ -23,6 +24,8 @@ interface ParsedArgs {
   inputs: Record<string, string | number | boolean>;
   debug: boolean;
   model?: string;
+  provider: string;
+  ollamaBaseUrl: string;
   toolServers: string;
   agentEndpoints: string;
 }
@@ -64,6 +67,8 @@ Usage:
 Options:
   --input, -i <key=value>    Set an input value (repeatable)
   --model, -m <model>        Override the default model (e.g. gpt-4o-mini)
+  --provider, -p <name>      Model provider: openai (default) or ollama
+  --ollama-base-url <url>    Ollama server URL (default: http://localhost:11434)
   --tool-servers <json>      JSON map of tool server configs
   --agent-endpoints <json>   JSON map of agent endpoints
   --debug, -d                Enable debug logging
@@ -81,6 +86,8 @@ function parseCliArgs(): ParsedArgs {
     options: {
       input: { type: "string", short: "i", multiple: true },
       model: { type: "string", short: "m" },
+      provider: { type: "string", short: "p", default: "openai" },
+      "ollama-base-url": { type: "string", default: "http://localhost:11434" },
       debug: { type: "boolean", short: "d", default: false },
       help: { type: "boolean", short: "h", default: false },
       "tool-servers": { type: "string", default: "" },
@@ -124,6 +131,8 @@ function parseCliArgs(): ParsedArgs {
     inputs,
     debug: values.debug as boolean,
     model: values.model as string | undefined,
+    provider: (values.provider as string) ?? "openai",
+    ollamaBaseUrl: (values["ollama-base-url"] as string) ?? "http://localhost:11434",
     toolServers: (values["tool-servers"] as string) ?? "",
     agentEndpoints: (values["agent-endpoints"] as string) ?? "",
   };
@@ -152,9 +161,18 @@ async function runValidate(args: ParsedArgs): Promise<void> {
 async function runExecute(args: ParsedArgs): Promise<void> {
   console.log(`\n  Running: ${args.contextPath}\n`);
 
-  const modelProvider = new OpenAIProvider({
-    defaultModel: args.model,
-  });
+  let modelProvider: ModelProvider;
+
+  if (args.provider === "ollama") {
+    modelProvider = new OllamaProvider({
+      baseURL: args.ollamaBaseUrl,
+      defaultModel: args.model,
+    });
+  } else {
+    modelProvider = new OpenAIProvider({
+      defaultModel: args.model,
+    });
+  }
 
   const toolInvoker = new MCPToolInvoker();
   const agentTransport = new A2AAgentTransport();
@@ -185,7 +203,6 @@ async function runExecute(args: ParsedArgs): Promise<void> {
   console.log(`  Success:    ${result.success}`);
   console.log(`  Duration:   ${result.durationMs}ms`);
   console.log(`  Tool calls: ${result.totalBudgetUsage.toolCalls}`);
-  console.log(`  Est. cost:  $${result.totalBudgetUsage.costUsd.toFixed(4)}`);
 
   if (result.error) {
     console.log(`  Error:      ${result.error}`);

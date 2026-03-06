@@ -88,7 +88,6 @@ executors:
       budgets:
         maxToolCalls: 10
         maxRuntimeSeconds: 30
-        maxCostUsd: 1.00
       writeControls:
         mode: forbid
   - name: analyst

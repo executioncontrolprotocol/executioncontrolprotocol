@@ -34,7 +34,7 @@ export interface BudgetCheckResult {
   withinBudget: boolean;
 
   /** Which limit was exceeded, if any. */
-  exceededLimit?: "tool-calls" | "runtime-seconds" | "cost-usd";
+  exceededLimit?: "tool-calls" | "runtime-seconds";
 
   /** Human-readable message. */
   message?: string;

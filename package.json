@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run packages/spec/test packages/runtime/test/policies.test.ts packages/runtime/test/mounts.test.ts packages/runtime/test/engine.test.ts packages/runtime/test/evals-scorer.test.ts",
     "test:integration": "vitest run packages/runtime/test/integration",
+    "test:e2e": "vitest run packages/runtime/test/e2e",
     "check": "npm run build && npm run generate:schema && npm run lint && npm run validate && npm run test"
   },
   "devDependencies": {

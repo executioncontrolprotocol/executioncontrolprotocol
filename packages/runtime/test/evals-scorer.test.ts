@@ -11,7 +11,7 @@ function makeResult(overrides: Partial<ExecutionResult> = {}): ExecutionResult {
     contextVersion: "1.0.0",
     output: { headline: "Test", body: "Works" },
     executorOutputs: {},
-    totalBudgetUsage: { toolCalls: 0, runtimeSeconds: 1, costUsd: 0.01 },
+    totalBudgetUsage: { toolCalls: 0, runtimeSeconds: 1 },
     log: [],
     durationMs: 1000,
     ...overrides,

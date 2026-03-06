@@ -25,6 +25,7 @@ This is a **monorepo** for the Execution Control Protocol (ECP), using npm works
 | `npm run validate` | Validate `spec.yaml` via AJV + structural checks |
 | `npm run docs` | Build HTML documentation with TypeDoc |
 | `npm run check` | Full suite: build + generate:schema + lint + validate + test |
+| `npm run test:e2e` | E2E tests with real Ollama model (requires running Ollama) |
 
 ### Running the CLI
 
@@ -33,7 +34,8 @@ npx tsx packages/cli/src/index.ts run <context.yaml> --input key=value --debug
 npx tsx packages/cli/src/index.ts validate <context.yaml>
 ```
 
-Requires `OPENAI_API_KEY` for `ecp run`.
+Requires `OPENAI_API_KEY` for `ecp run` (with default OpenAI provider).
+Use `--provider ollama` for local Ollama models (no API key needed).
 
 Context manifests have required inputs. Pass them with `--input`:
 
@@ -52,3 +54,5 @@ npx tsx packages/cli/src/index.ts validate examples/controller-specialist/contex
 - **Import extensions:** `Node16` module resolution — all local imports end with `.js`.
 - **Schema is a build output:** `packages/spec/dist/ecp-context.schema.json` is generated.
 - **spec.yaml lives at repo root.** The validator resolves it via `import.meta.dirname`.
+- **E2E tests auto-skip** when Ollama is not running — safe in `npm run test` and `npm run check`.
+- **CI E2E job** installs Ollama + `gemma3:1b` on every push/PR; runs `npm run test:e2e`.

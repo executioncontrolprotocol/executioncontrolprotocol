@@ -325,8 +325,6 @@ export class ECPEngine {
         signal,
       });
 
-      executorState.budgetUsage.costUsd += this.estimateCost(result.usage);
-
       if (result.finishReason === "tool-calls" && result.toolCalls.length > 0) {
         currentMessages.push({
           role: "assistant",
@@ -456,7 +454,7 @@ export class ECPEngine {
         executor,
         status: "pending",
         mountOutputs: [],
-        budgetUsage: { toolCalls: 0, runtimeSeconds: 0, costUsd: 0 },
+        budgetUsage: { toolCalls: 0, runtimeSeconds: 0 },
       });
     }
 
@@ -588,10 +586,6 @@ export class ECPEngine {
     return [qualifiedName.slice(0, colonIdx), qualifiedName.slice(colonIdx + 1)];
   }
 
-  private estimateCost(usage: { promptTokens: number; completionTokens: number }): number {
-    return (usage.promptTokens * 0.000003) + (usage.completionTokens * 0.000015);
-  }
-
   private log(state: RunState, level: RunLogEntry["level"], message: string): void {
     const entry: RunLogEntry = {
       timestamp: new Date().toISOString(),
@@ -608,7 +602,7 @@ export class ECPEngine {
 
   private buildResult(state: RunState, startTime: number): ExecutionResult {
     const executorOutputs: Record<string, Record<string, unknown>> = {};
-    const totalBudget: BudgetUsage = { toolCalls: 0, runtimeSeconds: 0, costUsd: 0 };
+    const totalBudget: BudgetUsage = { toolCalls: 0, runtimeSeconds: 0 };
 
     for (const [name, es] of state.executors) {
       if (es.output) {
@@ -616,7 +610,6 @@ export class ECPEngine {
       }
       totalBudget.toolCalls += es.budgetUsage.toolCalls;
       totalBudget.runtimeSeconds += es.budgetUsage.runtimeSeconds;
-      totalBudget.costUsd += es.budgetUsage.costUsd;
     }
 
     const producesSchema = state.context.orchestration?.produces;
