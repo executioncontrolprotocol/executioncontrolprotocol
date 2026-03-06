@@ -7,7 +7,9 @@ metadata:
   description: Minimal single-executor example — summarize a topic
 
 inputs:
-  topic: { type: string, required: true }
+  topic:
+    type: string
+    required: true
 
 outputs:
   - name: summary
@@ -18,8 +20,10 @@ schemas:
     type: object
     required: [headline, body]
     properties:
-      headline: { type: string }
-      body: { type: string }
+      headline:
+        type: string
+      body:
+        type: string
 
 triggers:
   - type: manual
@@ -31,7 +35,7 @@ orchestration:
 
 executors:
   - name: summarizer
-    type: llm-agent
+    type: agent
     model:
       provider: openai
       name: gpt-4o-mini

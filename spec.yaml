@@ -28,11 +28,21 @@ metadata:
 # Inputs: parameterize reusable Contexts (like env vars)
 # -----------------------------------------------------------------------------
 inputs:
-  shopifyStoreId: { type: string, required: true }
-  jiraProject:    { type: string, required: true }
-  slackChannel:   { type: string, default: "#ops" }
-  timezone:       { type: string, default: "America/Vancouver" }
-  refundRateThreshold: { type: number, default: 0.08 }
+  shopifyStoreId:
+    type: string
+    required: true
+  jiraProject:
+    type: string
+    required: true
+  slackChannel:
+    type: string
+    default: "#ops"
+  timezone:
+    type: string
+    default: "America/Vancouver"
+  refundRateThreshold:
+    type: number
+    default: 0.08
 
 # -----------------------------------------------------------------------------
 # Outputs: left intentionally high-level for now.
@@ -58,8 +68,14 @@ schemas:
     type: object
     required: [selectedIssueIds, selectedDocIds, delegate]
     properties:
-      selectedIssueIds: { type: array, items: { type: string } }
-      selectedDocIds:   { type: array, items: { type: string } }
+      selectedIssueIds:
+        type: array
+        items:
+          type: string
+      selectedDocIds:
+        type: array
+        items:
+          type: string
       delegate:
         # Delegation requests produced by the orchestrator
         type: array
@@ -67,66 +83,86 @@ schemas:
           type: object
           required: [executor, task]
           properties:
-            executor: { type: string }  # must match an executor name
-            task:     { type: string }
+            executor:
+              type: string  # must match an executor name
+            task:
+              type: string
             # Optional: pass execution hints / constraints
             hints:
               type: object
               properties:
-                priority: { type: integer }
-                maxTokens: { type: integer }
+                priority:
+                  type: integer
+                maxTokens:
+                  type: integer
 
   RevenueFindings:
     type: object
     required: [summary, anomalies]
     properties:
-      summary: { type: string }
+      summary:
+        type: string
       anomalies:
         type: array
         items:
           type: object
           required: [metric, observation, likelyCause]
           properties:
-            metric: { type: string }
-            observation: { type: string }
-            likelyCause: { type: string }
+            metric:
+              type: string
+            observation:
+              type: string
+            likelyCause:
+              type: string
 
   OpsFindings:
     type: object
     required: [summary, risks]
     properties:
-      summary: { type: string }
+      summary:
+        type: string
       risks:
         type: array
         items:
           type: object
           required: [risk, evidenceRefs]
           properties:
-            risk: { type: string }
-            evidenceRefs: { type: array, items: { type: string } } # strings refer to Ref IDs
+            risk:
+              type: string
+            evidenceRefs:  # strings refer to Ref IDs
+              type: array
+              items:
+                type: string
 
   WeeklyOpsBrief:
     type: object
     required: [summary, anomalies, recommendedActions]
     properties:
-      summary: { type: string }
-      anomalies: { type: array, items: { type: object } }
+      summary:
+        type: string
+      anomalies:
+        type: array
+        items:
+          type: object
       recommendedActions:
         type: array
         items:
           type: object
           required: [action, targetTool, requiresApproval]
           properties:
-            action: { type: string }
-            targetTool: { type: string }        # e.g., "jira:issues.create"
-            requiresApproval: { type: boolean }
+            action:
+              type: string
+            targetTool:
+              type: string  # e.g., "jira:issues.create"
+            requiresApproval:
+              type: boolean
 
 # -----------------------------------------------------------------------------
 # Triggers: when this Context runs
 # Supported types (examples):
 # - schedule (cron)
 # - webhook
-# - toolEvent (emitted by an integration)
+# - tool-event (emitted by an integration)
 # -----------------------------------------------------------------------------
 triggers:
   - type: schedule
@@ -142,16 +178,16 @@ orchestration:
 
   # Strategy catalog (examples). You can treat these as standard strategy IDs.
   # - single: run only entrypoint
-  # - controller-specialist: orchestrator plans, delegates, then merges
-  # - map-reduce: orchestrator shards work to many specialists, aggregates results
-  # - hierarchical: multi-level delegation (advanced)
-  strategy: controller-specialist
+  # - sequential: run child objects in a fixed order
+  # - delegate: orchestrator plans, delegates, then merges
+  # - swarm: run child objects in parallel and aggregate results
+  strategy: delegate
 
   # Delegate transport defaults (optional): this is orchestration-level *policy*
   # for how executors communicate, but the protocol implementation lives per-executor.
   defaults:
     maxDelegations: 4
-    maxSpecialists: 3
+    maxExecutors: 3
     timeoutMs: 60000
 
   # Optional: require these executor outputs before final merge completes
@@ -173,7 +209,7 @@ orchestration:
 # -----------------------------------------------------------------------------
 executors:
   - name: orchestrator
-    type: llm-agent
+    type: agent
 
     # Protocols are executor-scoped (your requirement)
     protocols:
@@ -211,7 +247,8 @@ executors:
             jql: "statusCategory != Done ORDER BY updated DESC"
             limit: 50
         asType: IssueRef[]
-        limits: { maxItems: 50 }
+        limits:
+          maxItems: 50
 
       - name: confluence_recent_pages_seed
         stage: seed
@@ -222,7 +259,8 @@ executors:
             query: "space = OPS ORDER BY lastModified DESC"
             limit: 30
         asType: DocumentRef[]
-        limits: { maxItems: 30 }
+        limits:
+          maxItems: 30
 
       - name: shopify_orders_seed
         stage: seed
@@ -234,7 +272,8 @@ executors:
             windowDays: 7
             limit: 200
         asType: OrderRef[]
-        limits: { maxItems: 200 }
+        limits:
+          maxItems: 200
 
     policies:
       toolAccess:
@@ -254,13 +293,19 @@ executors:
         mode: forbid  # supported: forbid|propose-only|execute-if-allowed
 
   - name: revenue_analyst
-    type: llm-agent
+    type: agent
 
     protocols:
-      agentOrchestration: { type: a2a, version: v0.1 }
-      toolInvocation: { type: mcp, version: v1 }
+      agentOrchestration:
+        type: a2a
+        version: v0.1
+      toolInvocation:
+        type: mcp
+        version: v1
 
-    model: { provider: openai, name: gpt-5 }
+    model:
+      provider: openai
+      name: gpt-5
 
     instructions: |
       You are the Revenue Analyst.
@@ -282,7 +327,8 @@ executors:
           args:
             orderId: "${item}"
         asType: Order[]
-        limits: { maxItems: 50 }
+        limits:
+          maxItems: 50
 
     policies:
       toolAccess:
@@ -300,13 +346,19 @@ executors:
         mode: forbid
 
   - name: ops_analyst
-    type: llm-agent
+    type: agent
 
     protocols:
-      agentOrchestration: { type: a2a, version: v0.1 }
-      toolInvocation: { type: mcp, version: v1 }
+      agentOrchestration:
+        type: a2a
+        version: v0.1
+      toolInvocation:
+        type: mcp
+        version: v1
 
-    model: { provider: openai, name: gpt-5 }
+    model:
+      provider: openai
+      name: gpt-5
 
     instructions: |
       You are the Ops Analyst.
@@ -325,9 +377,11 @@ executors:
         from:
           server: jira
           tool: issues.get
-          args: { issueId: "${item}" }
+          args:
+            issueId: "${item}"
         asType: Issue[]
-        limits: { maxItems: 10 }
+        limits:
+          maxItems: 10
 
       - name: confluence_page_bodies_deep
         stage: deep
@@ -337,9 +391,12 @@ executors:
         from:
           server: confluence
           tool: pages.get
-          args: { pageId: "${item}", includeBody: true }
+          args:
+            pageId: "${item}"
+            includeBody: true
         asType: Document[]
-        limits: { maxItems: 5 }
+        limits:
+          maxItems: 5
 
     policies:
       toolAccess:
@@ -359,13 +416,19 @@ executors:
         mode: forbid
 
   - name: publisher
-    type: llm-agent
+    type: agent
 
     protocols:
-      agentOrchestration: { type: a2a, version: v0.1 }
-      toolInvocation: { type: mcp, version: v1 }
+      agentOrchestration:
+        type: a2a
+        version: v0.1
+      toolInvocation:
+        type: mcp
+        version: v1
 
-    model: { provider: openai, name: gpt-5 }
+    model:
+      provider: openai
+      name: gpt-5
 
     instructions: |
       You are the Publisher/Merger.

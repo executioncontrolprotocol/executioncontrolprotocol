@@ -75,7 +75,7 @@ describe("ECPEngine — single executor (Slice 1)", () => {
   });
 });
 
-describe("ECPEngine — controller-specialist (Slice 2)", () => {
+describe("ECPEngine — delegate strategy (Slice 2)", () => {
   let model: MockModelProvider;
   let tools: MockToolInvoker;
   let transport: MockAgentTransport;

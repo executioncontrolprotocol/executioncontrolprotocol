@@ -8,4 +8,4 @@ orchestration:
   strategy: single
 executors:
   - name: agent
-    type: llm-agent
+    type: agent

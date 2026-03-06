@@ -5,8 +5,12 @@ metadata:
   version: 2.0.0
   description: Tests all spec features
 inputs:
-  projectId: { type: string, required: true }
-  limit: { type: number, default: 50 }
+  projectId:
+    type: string
+    required: true
+  limit:
+    type: number
+    default: 50
 outputs:
   - name: report
     fromSchema: Report
@@ -15,33 +19,41 @@ schemas:
     type: object
     required: [selectedIds]
     properties:
-      selectedIds: { type: array, items: { type: string } }
+      selectedIds:
+        type: array
+        items:
+          type: string
       delegate:
         type: array
         items:
           type: object
           required: [executor, task]
           properties:
-            executor: { type: string }
-            task: { type: string }
+            executor:
+              type: string
+            task:
+              type: string
   Findings:
     type: object
     required: [summary]
     properties:
-      summary: { type: string }
+      summary:
+        type: string
   Report:
     type: object
     required: [title, body]
     properties:
-      title: { type: string }
-      body: { type: string }
+      title:
+        type: string
+      body:
+        type: string
 triggers:
   - type: schedule
     cron: "0 9 * * MON"
     timezone: "America/Vancouver"
 orchestration:
   entrypoint: orchestrator
-  strategy: controller-specialist
+  strategy: delegate
   defaults:
     maxDelegations: 2
     maxExecutors: 2
@@ -51,8 +63,10 @@ orchestration:
   produces: Report
 executors:
   - name: orchestrator
-    type: llm-agent
-    model: { provider: openai, name: gpt-4o }
+    type: agent
+    model:
+      provider: openai
+      name: gpt-4o
     instructions: Produce a Plan.
     outputSchemaRef: "#/schemas/Plan"
     mounts:
@@ -64,7 +78,8 @@ executors:
           args:
             project: "${inputs.projectId}"
             limit: 50
-        limits: { maxItems: 50 }
+        limits:
+          maxItems: 50
     policies:
       toolAccess:
         default: deny
@@ -77,8 +92,10 @@ executors:
       writeControls:
         mode: forbid
   - name: analyst
-    type: llm-agent
-    model: { provider: openai, name: gpt-4o }
+    type: agent
+    model:
+      provider: openai
+      name: gpt-4o
     outputSchemaRef: "#/schemas/Findings"
     mounts:
       - name: issue_details
@@ -89,8 +106,10 @@ executors:
         from:
           server: jira
           tool: issues.get
-          args: { issueId: "${item}" }
-        limits: { maxItems: 5 }
+          args:
+            issueId: "${item}"
+        limits:
+          maxItems: 5
     policies:
       toolAccess:
         default: deny
@@ -99,8 +118,10 @@ executors:
       writeControls:
         mode: forbid
   - name: publisher
-    type: llm-agent
-    model: { provider: openai, name: gpt-4o }
+    type: agent
+    model:
+      provider: openai
+      name: gpt-4o
     outputSchemaRef: "#/schemas/Report"
     policies:
       writeControls:

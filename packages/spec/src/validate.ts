@@ -16,7 +16,7 @@ import yaml from "js-yaml";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Ajv = (_Ajv as any).default ?? _Ajv;
 
-import type { ECPContext } from "./types/index.js";
+import type { ECPContext, Executor, Orchestrator } from "./types/index.js";
 
 const SCHEMA_PATH = resolve(import.meta.dirname, "../dist/ecp-context.schema.json");
 
@@ -36,6 +36,40 @@ function fail(message: string): never {
 
 function pass(message: string): void {
   console.log(`  PASS: ${message}`);
+}
+
+type ExecutionObject = Executor | Orchestrator;
+
+function schemaNameFromRef(ref: string): string {
+  return ref.replace(/^#\/schemas\//, "");
+}
+
+function collectExecutionObjects(ctx: ECPContext): {
+  entrypointName?: string;
+  objects: ExecutionObject[];
+} {
+  const objects: ExecutionObject[] = [];
+
+  const visitOrchestrator = (orchestrator: Orchestrator): void => {
+    objects.push(orchestrator);
+    for (const executor of orchestrator.executors ?? []) {
+      objects.push(executor);
+    }
+    for (const child of orchestrator.orchestrators ?? []) {
+      visitOrchestrator(child);
+    }
+  };
+
+  if (ctx.orchestrator) {
+    visitOrchestrator(ctx.orchestrator);
+  }
+
+  for (const executor of ctx.executors ?? []) {
+    objects.push(executor);
+  }
+
+  const entrypointName = ctx.orchestrator?.name ?? ctx.orchestration?.entrypoint;
+  return { entrypointName, objects };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,72 +103,110 @@ function validateSchema(doc: unknown): ECPContext {
 // ---------------------------------------------------------------------------
 
 function checkStructure(ctx: ECPContext): void {
-  const executorNames = new Set(ctx.executors.map((e) => e.name));
+  const { entrypointName, objects } = collectExecutionObjects(ctx);
+  const executorNames = new Set(objects.map((e) => e.name));
   const schemaNames = new Set(Object.keys(ctx.schemas ?? {}));
 
-  // Entrypoint must reference an existing executor
-  if (!executorNames.has(ctx.orchestration.entrypoint)) {
+  if (objects.length === 0) {
+    fail("Context must define at least one execution object (orchestrator/executor).");
+  }
+  pass(`Context defines ${objects.length} execution object(s).`);
+
+  const strategy = ctx.orchestration?.strategy ?? ctx.orchestrator?.strategy;
+  if (!strategy) {
     fail(
-      `orchestration.entrypoint "${ctx.orchestration.entrypoint}" does not match any executor name.`,
+      "Missing orchestration strategy. Set orchestration.strategy or orchestrator.strategy.",
     );
   }
-  pass(
-    `orchestration.entrypoint "${ctx.orchestration.entrypoint}" references a valid executor.`,
-  );
+  pass(`Execution strategy "${strategy}" is defined.`);
+
+  // Entrypoint must resolve to an existing execution object
+  if (!entrypointName) {
+    fail(
+      "Missing entrypoint. Set either orchestrator.name (preferred) or orchestration.entrypoint.",
+    );
+  }
+  if (!executorNames.has(entrypointName)) {
+    fail(`entrypoint "${entrypointName}" does not match any execution object name.`);
+  }
+  pass(`entrypoint "${entrypointName}" references a valid execution object.`);
 
   // orchestration.requires must reference declared schemas
-  for (const req of ctx.orchestration.requires ?? []) {
+  const requiredSchemas = ctx.orchestration?.requires ?? [];
+  for (const req of requiredSchemas) {
     if (!schemaNames.has(req)) {
       fail(`orchestration.requires "${req}" is not declared in schemas.`);
     }
   }
-  if (ctx.orchestration.requires?.length) {
+  if (requiredSchemas.length > 0) {
     pass(
-      `orchestration.requires [${ctx.orchestration.requires.join(", ")}] all reference declared schemas.`,
+      `orchestration.requires [${requiredSchemas.join(", ")}] all reference declared schemas.`,
     );
   }
 
   // orchestration.produces must reference a declared schema
-  if (ctx.orchestration.produces && !schemaNames.has(ctx.orchestration.produces)) {
+  const producedSchema = ctx.orchestration?.produces;
+  if (producedSchema && !schemaNames.has(producedSchema)) {
     fail(
-      `orchestration.produces "${ctx.orchestration.produces}" is not declared in schemas.`,
+      `orchestration.produces "${producedSchema}" is not declared in schemas.`,
     );
   }
-  if (ctx.orchestration.produces) {
+  if (producedSchema) {
     pass(
-      `orchestration.produces "${ctx.orchestration.produces}" references a declared schema.`,
+      `orchestration.produces "${producedSchema}" references a declared schema.`,
     );
   }
 
-  // Executor outputSchemaRefs must reference declared schemas
-  for (const executor of ctx.executors) {
-    if (executor.outputSchemaRef) {
-      const ref = executor.outputSchemaRef.replace("#/schemas/", "");
+  // Execution object schema refs must reference declared schemas
+  for (const executor of objects) {
+    if (executor.inputSchemaRef) {
+      const ref = schemaNameFromRef(executor.inputSchemaRef);
       if (!schemaNames.has(ref)) {
         fail(
-          `executor "${executor.name}" outputSchemaRef "${executor.outputSchemaRef}" does not match a declared schema.`,
+          `execution object "${executor.name}" inputSchemaRef "${executor.inputSchemaRef}" does not match a declared schema.`,
         );
       }
       pass(
-        `executor "${executor.name}" outputSchemaRef "${executor.outputSchemaRef}" is valid.`,
+        `execution object "${executor.name}" inputSchemaRef "${executor.inputSchemaRef}" is valid.`,
+      );
+    }
+
+    if (executor.outputSchemaRef) {
+      const ref = schemaNameFromRef(executor.outputSchemaRef);
+      if (!schemaNames.has(ref)) {
+        fail(
+          `execution object "${executor.name}" outputSchemaRef "${executor.outputSchemaRef}" does not match a declared schema.`,
+        );
+      }
+      pass(
+        `execution object "${executor.name}" outputSchemaRef "${executor.outputSchemaRef}" is valid.`,
       );
     }
   }
 
-  // Executor names must be unique
-  if (executorNames.size !== ctx.executors.length) {
-    fail("Duplicate executor names detected.");
+  // Execution object names must be unique
+  if (executorNames.size !== objects.length) {
+    fail("Duplicate execution object names detected.");
   }
-  pass(`All ${ctx.executors.length} executor names are unique.`);
+  pass(`All ${objects.length} execution object names are unique.`);
 
   // Output fromSchema must reference a declared schema
   for (const output of ctx.outputs ?? []) {
-    if (!schemaNames.has(output.fromSchema)) {
+    if (!output.fromSchema && !output.schema) {
+      fail(
+        `output "${output.name}" must declare either fromSchema or inline schema.`,
+      );
+    }
+    if (output.fromSchema && !schemaNames.has(output.fromSchema)) {
       fail(
         `output "${output.name}" fromSchema "${output.fromSchema}" is not declared in schemas.`,
       );
     }
-    pass(`output "${output.name}" fromSchema "${output.fromSchema}" is valid.`);
+    if (output.fromSchema) {
+      pass(`output "${output.name}" fromSchema "${output.fromSchema}" is valid.`);
+    } else {
+      pass(`output "${output.name}" inline schema is valid.`);
+    }
   }
 }
 
@@ -159,9 +231,12 @@ function main(): void {
   console.log(
     `\n  Context: ${ctx.metadata.name} v${ctx.metadata.version} (${ctx.apiVersion})`,
   );
-  console.log(`  Executors: ${ctx.executors.map((e) => e.name).join(", ")}`);
+  const { objects } = collectExecutionObjects(ctx);
+  console.log(`  Execution objects: ${objects.map((e) => e.name).join(", ")}`);
   console.log(`  Schemas: ${Object.keys(ctx.schemas ?? {}).join(", ")}`);
-  console.log(`  Strategy: ${ctx.orchestration.strategy}`);
+  console.log(
+    `  Strategy: ${ctx.orchestration?.strategy ?? ctx.orchestrator?.strategy ?? "unknown"}`,
+  );
   console.log("\nAll checks passed.\n");
 }
 

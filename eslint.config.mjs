@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import eslintPluginYml from "eslint-plugin-yml";
 
 export default tseslint.config(
   {
@@ -11,6 +12,13 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_" },
       ],
+    },
+  },
+  ...eslintPluginYml.configs["flat/base"],
+  {
+    files: ["**/*.yaml", "**/*.yml"],
+    rules: {
+      "yml/block-mapping": ["error", "always"],
     },
   },
 );

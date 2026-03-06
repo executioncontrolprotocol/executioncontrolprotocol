@@ -1,0 +1,20 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: orchestrator-root
+  version: 1.0.0
+orchestrator:
+  name: root
+  type: agent
+  strategy: single
+  outputSchemaRef: "#/schemas/Result"
+  executors:
+    - name: analyst
+      type: agent
+      outputSchemaRef: "#/schemas/Result"
+schemas:
+  Result:
+    type: object
+    properties:
+      summary:
+        type: string
