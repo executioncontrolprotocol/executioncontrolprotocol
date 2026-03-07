@@ -166,6 +166,8 @@ Included in this repository is an example Context manifest:
 
 See also the [full specification](SPEC.md) and the
 [TypeScript type definitions](packages/spec/src/types/ecp.ts).
+The extension registration proposal is documented in
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ------------------------------------------------------------------------
 
