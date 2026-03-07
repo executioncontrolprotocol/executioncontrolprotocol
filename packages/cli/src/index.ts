@@ -15,10 +15,10 @@ import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import { ECPEngine, loadContext, resolveInputs } from "@ecp/runtime";
-import { OpenAIProvider, OllamaProvider } from "@ecp/runtime";
 import type { ModelProvider } from "@ecp/runtime";
 import { MCPToolInvoker } from "@ecp/runtime";
 import { A2AAgentTransport } from "@ecp/runtime";
+import { ExtensionRegistry, registerBuiltinModelProviders } from "@ecp/runtime";
 import {
   TraceCollector,
   ConsoleTraceExporter,
@@ -27,7 +27,7 @@ import {
   renderGraph,
 } from "@ecp/runtime";
 import type { ExecutionTrace } from "@ecp/runtime";
-import type { ECPContext, Orchestrator } from "@ecp/spec";
+import type { ECPContext, ExtensionSecurityPolicy, Orchestrator } from "@ecp/spec";
 
 interface ParsedArgs {
   command: string;
@@ -41,6 +41,7 @@ interface ParsedArgs {
   ollamaBaseUrl: string;
   toolServers: string;
   agentEndpoints: string;
+  extensionSecurity: string;
 }
 
 function collectExecutionObjectNames(context: ECPContext): string[] {
@@ -86,6 +87,7 @@ Options:
   --ollama-base-url <url>    Ollama server URL (default: http://localhost:11434)
   --trace, -t                Enable tracing (saves to ./traces/<run_id>.json)
   --trace-dir <dir>          Directory for trace files (default: ./traces)
+  --extension-security <json> JSON security policy for extension loading
   --tool-servers <json>      JSON map of tool server configs
   --agent-endpoints <json>   JSON map of agent endpoints
   --debug, -d                Enable debug logging
@@ -112,6 +114,7 @@ function parseCliArgs(): ParsedArgs {
       help: { type: "boolean", short: "h", default: false },
       "tool-servers": { type: "string", default: "" },
       "agent-endpoints": { type: "string", default: "" },
+      "extension-security": { type: "string", default: "" },
     },
   });
 
@@ -153,6 +156,7 @@ function parseCliArgs(): ParsedArgs {
     ollamaBaseUrl: (values["ollama-base-url"] as string) ?? "http://localhost:11434",
     toolServers: (values["tool-servers"] as string) ?? "",
     agentEndpoints: (values["agent-endpoints"] as string) ?? "",
+    extensionSecurity: (values["extension-security"] as string) ?? "",
   };
 }
 
@@ -179,17 +183,28 @@ async function runValidate(args: ParsedArgs): Promise<void> {
 async function runExecute(args: ParsedArgs): Promise<void> {
   console.log(`\n  Running: ${args.contextPath}\n`);
 
-  let modelProvider: ModelProvider;
-
-  if (args.provider === "ollama") {
-    modelProvider = new OllamaProvider({
+  const context = loadContext(args.contextPath);
+  const registry = new ExtensionRegistry();
+  registerBuiltinModelProviders(registry, {
+    version: "0.3.0",
+    openai: {
+      defaultModel: args.model,
+    },
+    ollama: {
       baseURL: args.ollamaBaseUrl,
       defaultModel: args.model,
-    });
-  } else {
-    modelProvider = new OpenAIProvider({
-      defaultModel: args.model,
-    });
+    },
+  });
+  registry.lock();
+
+  let modelProvider: ModelProvider;
+  try {
+    modelProvider = registry.createModelProvider(args.provider);
+  } catch {
+    console.error(
+      `\n  Unknown provider "${args.provider}". Registered providers: ${registry.listModelProviders().map((p) => p.id).join(", ")}\n`,
+    );
+    process.exit(1);
   }
 
   const toolInvoker = new MCPToolInvoker();
@@ -203,6 +218,10 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     ? JSON.parse(args.agentEndpoints) as Record<string, string>
     : undefined;
 
+  const extensionSecurity = args.extensionSecurity
+    ? JSON.parse(args.extensionSecurity) as ExtensionSecurityPolicy
+    : undefined;
+
   const engine = new ECPEngine(modelProvider, toolInvoker, agentTransport, {
     toolServers,
     agentEndpoints,
@@ -210,6 +229,10 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     modelOverride: args.model,
     debug: args.debug,
     trace: args.trace,
+    extensions: {
+      registry,
+      security: extensionSecurity ?? context.extensions?.security,
+    },
   });
 
   if (args.trace) {
@@ -222,7 +245,7 @@ async function runExecute(args: ParsedArgs): Promise<void> {
   }
 
   const result = await engine.run({
-    contextPath: args.contextPath,
+    context,
     inputs: args.inputs,
   });
 

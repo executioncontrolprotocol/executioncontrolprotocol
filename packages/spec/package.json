@@ -2,9 +2,13 @@
   "name": "@ecp/spec",
   "version": "0.3.0",
   "description": "ECP specification types, JSON Schema generation, and validation",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "src/types/index.ts",
+  "types": "src/types/index.ts",
+  "exports": {
+    ".": "./src/types/index.ts"
+  },
   "scripts": {
     "build": "tsc --noEmit",
     "generate:schema": "ts-json-schema-generator -p src/types/ecp.ts -t ECPContext --additional-properties --no-type-check -o dist/ecp-context.schema.json",

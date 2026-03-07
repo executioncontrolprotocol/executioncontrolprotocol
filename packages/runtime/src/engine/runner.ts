@@ -8,7 +8,15 @@
  * @category Engine
  */
 
-import type { ECPContext, Executor, Orchestrator, SchemaDefinition } from "@ecp/spec";
+import type {
+  ECPContext,
+  Executor,
+  ExtensionSecurityPolicy,
+  ModelProviderReference,
+  ModelProviderSelector,
+  Orchestrator,
+  SchemaDefinition,
+} from "@ecp/spec";
 import type { ModelProvider, ChatMessage, ToolDefinition, ToolCall } from "../providers/model-provider.js";
 import type { ToolInvoker } from "../protocols/tool-invoker.js";
 import type { AgentTransport, AgentRef, DelegatedTask } from "../protocols/agent-transport.js";
@@ -27,6 +35,7 @@ import { DefaultMountHydrator } from "../mounts/hydrator.js";
 import { createPolicyEnforcer } from "../policies/enforcer.js";
 import type { PolicyEnforcer } from "../policies/types.js";
 import type { TraceCollector } from "../tracing/collector.js";
+import type { ExtensionRegistry } from "../extensions/registry.js";
 
 /**
  * Options for a single Context execution.
@@ -57,6 +66,8 @@ export interface RunOptions {
  */
 export class ECPEngine {
   private readonly modelProvider: ModelProvider;
+  private readonly extensionRegistry?: ExtensionRegistry;
+  private readonly modelProviderCache = new Map<string, ModelProvider>();
   private readonly toolInvoker: ToolInvoker;
   private readonly agentTransport: AgentTransport;
   private readonly config: EngineConfig;
@@ -70,6 +81,7 @@ export class ECPEngine {
     config: EngineConfig = {},
   ) {
     this.modelProvider = modelProvider;
+    this.extensionRegistry = config.extensions?.registry;
     this.toolInvoker = toolInvoker;
     this.agentTransport = agentTransport;
     this.config = config;
@@ -321,6 +333,7 @@ export class ECPEngine {
   ): Promise<void> {
     const executor = executorState.executor;
     executorState.status = "running";
+    const modelProvider = this.resolveModelProvider(executor, state.context);
 
     const enforcer = createPolicyEnforcer(executor.policies ?? {});
     const startTime = Date.now();
@@ -331,7 +344,7 @@ export class ECPEngine {
     });
 
     const messages = this.buildMessages(executor, executorState, taskOverride);
-    const tools = await this.getAvailableTools(executor, enforcer, state);
+    const tools = await this.getAvailableTools(executor, modelProvider, enforcer, state);
 
     const model = this.config.modelOverride ?? executor.model?.name ?? this.config.defaultModel ?? "gpt-4o";
     const outputSchema = this.getOutputSchema(executor, state.context);
@@ -353,7 +366,7 @@ export class ECPEngine {
         model,
       });
 
-      const result = await this.modelProvider.generate({
+      const result = await modelProvider.generate({
         messages: currentMessages,
         model,
         tools: tools.length > 0 ? tools : undefined,
@@ -624,10 +637,11 @@ export class ECPEngine {
 
   private async getAvailableTools(
     executor: Executor,
+    modelProvider: ModelProvider,
     _enforcer: PolicyEnforcer,
     _state: RunState,
   ): Promise<ToolDefinition[]> {
-    if (!this.modelProvider.supportsToolCalling()) return [];
+    if (!modelProvider.supportsToolCalling()) return [];
 
     const allowed = executor.policies?.toolAccess?.allow ?? [];
     if (allowed.length === 0) return [];
@@ -802,5 +816,119 @@ export class ECPEngine {
     }
 
     return [...executionObjects.values()];
+  }
+
+  private resolveModelProvider(
+    executor: Executor,
+    context: ECPContext,
+  ): ModelProvider {
+    const providerSelector = executor.model?.provider;
+    if (!providerSelector || !this.extensionRegistry) {
+      return this.modelProvider;
+    }
+
+    const providerRef = this.normalizeProviderSelector(providerSelector);
+    this.assertModelProviderAllowed(providerRef, context);
+
+    const registration = this.extensionRegistry.getModelProviderRegistration(providerRef.name);
+    if (!registration) {
+      throw new Error(
+        `Model provider extension "${providerRef.name}" is not registered.`,
+      );
+    }
+    if (registration.sourceType !== providerRef.type) {
+      throw new Error(
+        `Model provider "${providerRef.name}" expected source type "${providerRef.type}", got "${registration.sourceType}".`,
+      );
+    }
+    if (registration.version !== providerRef.version) {
+      throw new Error(
+        `Model provider "${providerRef.name}" version mismatch: expected "${providerRef.version}", got "${registration.version}".`,
+      );
+    }
+
+    const cacheKey = `${providerRef.type}:${providerRef.name}:${providerRef.version}`;
+    const cached = this.modelProviderCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const providerConfig = context.extensions?.config?.[providerRef.name];
+    const created = this.extensionRegistry.createModelProvider(providerRef.name, providerConfig);
+    this.modelProviderCache.set(cacheKey, created);
+    return created;
+  }
+
+  private normalizeProviderSelector(selector: ModelProviderSelector): ModelProviderReference {
+    if (typeof selector === "string") {
+      return {
+        name: selector,
+        type: "builtin",
+        version: "0.3.0",
+      };
+    }
+    return selector;
+  }
+
+  private assertModelProviderAllowed(
+    provider: ModelProviderReference,
+    context: ECPContext,
+  ): void {
+    const security = this.getEffectiveExtensionSecurity(context);
+
+    if (security.enabled === false) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: extension loading is disabled.`,
+      );
+    }
+
+    if (security.allowKinds?.length && !security.allowKinds.includes("model-provider")) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: kind "model-provider" is not allowed.`,
+      );
+    }
+
+    if (
+      security.allowSourceTypes?.length &&
+      !security.allowSourceTypes.includes(provider.type)
+    ) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: source type "${provider.type}" is not allowed.`,
+      );
+    }
+
+    if (security.allowIds?.length && !security.allowIds.includes(provider.name)) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: provider is not in extensions allowIds.`,
+      );
+    }
+
+    if (security.denyIds?.includes(provider.name)) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: provider is listed in extensions denyIds.`,
+      );
+    }
+
+    const enabled = context.extensions?.enable ?? [];
+    if (enabled.length > 0 && !enabled.includes(provider.name)) {
+      throw new Error(
+        `Model provider "${provider.name}" denied: provider is not enabled in context.extensions.enable.`,
+      );
+    }
+  }
+
+  private getEffectiveExtensionSecurity(
+    context: ECPContext,
+  ): ExtensionSecurityPolicy {
+    const contextPolicy = context.extensions?.security;
+    const systemPolicy = this.config.extensions?.security;
+    return {
+      ...contextPolicy,
+      ...systemPolicy,
+      allowKinds: systemPolicy?.allowKinds ?? contextPolicy?.allowKinds,
+      allowSourceTypes: systemPolicy?.allowSourceTypes ?? contextPolicy?.allowSourceTypes,
+      allowIds: systemPolicy?.allowIds ?? contextPolicy?.allowIds,
+      denyIds: systemPolicy?.denyIds ?? contextPolicy?.denyIds,
+    };
   }
 }

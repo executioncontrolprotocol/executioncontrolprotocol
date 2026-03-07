@@ -6,6 +6,20 @@ metadata:
   version: 1.0.0
   description: Minimal single-executor example — summarize a topic
 
+extensions:
+  version: 1.0.0
+  providers:
+    - name: openai
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  enable:
+    - openai
+  security:
+    enabled: true
+    allowKinds: [model-provider]
+    allowSourceTypes: [builtin]
+
 inputs:
   topic:
     type: string
@@ -37,7 +51,10 @@ executors:
   - name: summarizer
     type: agent
     model:
-      provider: openai
+      provider:
+        name: openai
+        type: builtin
+        version: 0.3.0
       name: gpt-4o-mini
     instructions: |
       You are a concise summarizer.

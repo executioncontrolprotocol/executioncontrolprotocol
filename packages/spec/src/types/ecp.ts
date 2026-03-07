@@ -151,6 +151,12 @@ export interface ECPContext extends Extensible {
    * {@link ECPContext.orchestrator}.
    */
   executors?: Executor[];
+
+  /**
+   * Extension declarations and runtime security controls for loading
+   * model providers, executors, and plugins.
+   */
+  extensions?: Extensions;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +183,174 @@ export interface Metadata {
    * Optional human-readable summary of what the Context does.
    */
   description?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Extension registration and loading
+// ---------------------------------------------------------------------------
+
+/**
+ * The supported extension object kinds.
+ *
+ * @category Context
+ */
+export type ExtensionKind = "model-provider" | "executor" | "plugin";
+
+/**
+ * The supported extension source types.
+ *
+ * @category Context
+ */
+export type ExtensionSourceType = "builtin" | "npm" | "git" | "local";
+
+/**
+ * A version string used by extension references and extension manifests.
+ *
+ * @category Context
+ */
+export type ExtensionVersion = string;
+
+/**
+ * A portable reference to a loadable extension artifact.
+ *
+ * @category Context
+ */
+export interface ExtensionReference extends BaseMetadata, Extensible {
+  /**
+   * Optional human-readable summary of what this extension provides.
+   */
+  description?: string;
+
+  /**
+   * The extension kind this reference resolves to.
+   */
+  kind: ExtensionKind;
+
+  /**
+   * The source type used to resolve this extension.
+   */
+  type: ExtensionSourceType;
+
+  /**
+   * Extension version identifier.
+   *
+   * For:
+   * - `builtin`: the built-in extension API/runtime version
+   * - `npm`: a package version or semver range
+   * - `git`: a tag or commit SHA
+   * - `local`: a local module version label
+   */
+  version: ExtensionVersion;
+
+  /**
+   * NPM package name when `type` is `"npm"`.
+   */
+  packageName?: string;
+
+  /**
+   * Git repository URL when `type` is `"git"`.
+   */
+  repository?: string;
+
+  /**
+   * Local filesystem path when `type` is `"local"`.
+   */
+  path?: string;
+
+  /**
+   * Optional module entrypoint override.
+   */
+  entrypoint?: string;
+
+  /**
+   * Optional integrity hash/signature for artifact verification.
+   */
+  integrity?: string;
+}
+
+/**
+ * Runtime security policy for extension loading.
+ *
+ * @category Context
+ */
+export interface ExtensionSecurityPolicy extends Extensible {
+  /**
+   * Whether extension loading is enabled. Defaults to `true` when omitted.
+   */
+  enabled?: boolean;
+
+  /**
+   * Extension kinds allowed to load at runtime.
+   */
+  allowKinds?: ExtensionKind[];
+
+  /**
+   * Source types allowed to load at runtime.
+   */
+  allowSourceTypes?: ExtensionSourceType[];
+
+  /**
+   * Explicit allow-list of extension IDs (`ExtensionReference.name`).
+   */
+  allowIds?: string[];
+
+  /**
+   * Explicit deny-list of extension IDs (`ExtensionReference.name`).
+   */
+  denyIds?: string[];
+
+  /**
+   * When `true`, unknown or disallowed extension references fail startup.
+   */
+  strict?: boolean;
+}
+
+/**
+ * Context-level extension declaration block.
+ *
+ * @category Context
+ */
+export interface Extensions extends Extensible {
+  /**
+   * Version of the extensions block schema.
+   */
+  version: ExtensionVersion;
+
+  /**
+   * Optional human-readable description of extension usage for this Context.
+   */
+  description?: string;
+
+  /**
+   * Registered model provider extension references.
+   */
+  providers?: ExtensionReference[];
+
+  /**
+   * Registered executor extension references.
+   */
+  executors?: ExtensionReference[];
+
+  /**
+   * Registered plugin extension references.
+   */
+  plugins?: ExtensionReference[];
+
+  /**
+   * Explicitly enabled extension IDs (`ExtensionReference.name`) for this
+   * Context run.
+   */
+  enable?: string[];
+
+  /**
+   * Per-extension configuration blobs keyed by extension ID.
+   */
+  config?: Record<string, Record<string, unknown>>;
+
+  /**
+   * Runtime security controls for extension loading.
+   */
+  security?: ExtensionSecurityPolicy;
 }
 
 // ---------------------------------------------------------------------------
@@ -493,11 +667,54 @@ export interface Protocols {
  *
  * @category Executors
  */
+export type ModelProviderId = string;
+
+/**
+ * Portable model provider selector that supports built-ins and external
+ * extension sources.
+ *
+ * @category Executors
+ */
+export interface ModelProviderReference extends Extensible {
+  /**
+   * Provider ID (must match `ExtensionReference.name` when using
+   * `ECPContext.extensions.providers`).
+   */
+  name: ModelProviderId;
+
+  /**
+   * Provider source type.
+   */
+  type: ExtensionSourceType;
+
+  /**
+   * Provider extension version.
+   */
+  version: ExtensionVersion;
+}
+
+/**
+ * The selector shape for an executor model provider.
+ *
+ * @category Executors
+ */
+export type ModelProviderSelector = ModelProviderId | ModelProviderReference;
+
+/**
+ * LLM provider and model selection for an executor.
+ *
+ * @category Executors
+ */
 export interface ModelConfig {
   /**
-   * Model provider name (e.g. `"openai"`, `"anthropic"`).
+   * Model provider selector.
+   *
+   * Supports:
+   * - string IDs (legacy, e.g. `"openai"`)
+   * - structured extension refs (e.g.
+   *   `{ name: "openai", type: "builtin", version: "0.3.0" }`)
    */
-  provider: string;
+  provider: ModelProviderSelector;
 
   /**
    * Model identifier (e.g. `"gpt-5"`, `"claude-4"`).

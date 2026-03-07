@@ -10,8 +10,10 @@
 import type {
   ECPContext,
   Executor,
+  ExtensionSecurityPolicy,
   MountStage,
 } from "@ecp/spec";
+import type { ExtensionRegistry } from "../extensions/registry.js";
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -273,4 +275,26 @@ export interface EngineConfig {
 
   /** Enable execution tracing. When set, the engine emits trace spans. */
   trace?: boolean;
+
+  /**
+   * Runtime extension registration and security configuration.
+   */
+  extensions?: ExtensionRuntimeConfig;
+}
+
+/**
+ * Runtime extension controls supplied by the host system.
+ *
+ * @category Engine
+ */
+export interface ExtensionRuntimeConfig {
+  /**
+   * Extension registry used to resolve providers/executors/plugins.
+   */
+  registry?: ExtensionRegistry;
+
+  /**
+   * System-level extension loading security policy.
+   */
+  security?: ExtensionSecurityPolicy;
 }

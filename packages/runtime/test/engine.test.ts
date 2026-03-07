@@ -5,6 +5,9 @@ import { MockModelProvider } from "../src/testing/mock-model-provider.js";
 import { MockToolInvoker } from "../src/testing/mock-tool-invoker.js";
 import { MockAgentTransport } from "../src/testing/mock-agent-transport.js";
 import { loadContext } from "../src/engine/context-loader.js";
+import type { ECPContext } from "@ecp/spec";
+import type { GenerateOptions, GenerateResult, ModelProvider } from "../src/providers/model-provider.js";
+import { ExtensionRegistry } from "../src/extensions/registry.js";
 
 const singleExecutorCtx = resolve(
   import.meta.dirname,
@@ -237,5 +240,151 @@ describe("ECPEngine — tool calling loop", () => {
     expect(result.success).toBe(true);
     expect(tools.calls).toHaveLength(0);
     expect(result.log.some((e) => e.message.includes("denied"))).toBe(true);
+  });
+});
+
+class StaticProvider implements ModelProvider {
+  readonly name: string;
+  private readonly output: Record<string, unknown>;
+
+  constructor(name: string, output: Record<string, unknown>) {
+    this.name = name;
+    this.output = output;
+  }
+
+  supportsToolCalling(): boolean {
+    return false;
+  }
+
+  async generate(_options: GenerateOptions): Promise<GenerateResult> {
+    return {
+      content: JSON.stringify(this.output),
+      toolCalls: [],
+      finishReason: "stop",
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+    };
+  }
+}
+
+function makeExtensibleContext(providerName: string): ECPContext {
+  return {
+    apiVersion: "ecp/v0.3-draft",
+    kind: "Context",
+    metadata: { name: "extensible", version: "1.0.0" },
+    schemas: {
+      Result: {
+        type: "object",
+        required: ["provider"],
+        properties: {
+          provider: { type: "string" },
+        },
+      },
+    },
+    orchestration: {
+      entrypoint: "agent",
+      strategy: "single",
+      produces: "Result",
+    },
+    extensions: {
+      version: "1.0.0",
+      providers: [
+        {
+          name: providerName,
+          kind: "model-provider",
+          type: "builtin",
+          version: "1.0.0",
+        },
+      ],
+      enable: [providerName],
+      security: {
+        enabled: true,
+        allowKinds: ["model-provider"],
+        allowSourceTypes: ["builtin"],
+      },
+    },
+    executors: [
+      {
+        name: "agent",
+        type: "agent",
+        model: {
+          provider: {
+            name: providerName,
+            type: "builtin",
+            version: "1.0.0",
+          },
+          name: "dummy-model",
+        },
+        outputSchemaRef: "#/schemas/Result",
+      },
+    ],
+  };
+}
+
+describe("ECPEngine — extensibility registry", () => {
+  it("resolves executor provider from extension registry", async () => {
+    const fallbackModel = new MockModelProvider();
+    const tools = new MockToolInvoker();
+    const transport = new MockAgentTransport();
+    const registry = new ExtensionRegistry();
+
+    registry.registerModelProvider({
+      id: "provider-a",
+      kind: "model-provider",
+      sourceType: "builtin",
+      version: "1.0.0",
+      create() {
+        return new StaticProvider("provider-a", { provider: "provider-a" });
+      },
+    });
+    registry.lock();
+
+    const engine = new ECPEngine(fallbackModel, tools, transport, {
+      extensions: {
+        registry,
+      },
+    });
+
+    const result = await engine.run({
+      context: makeExtensibleContext("provider-a"),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.executorOutputs.agent.provider).toBe("provider-a");
+    expect(fallbackModel.calls).toHaveLength(0);
+  });
+
+  it("denies provider loading when source type is disallowed by system policy", async () => {
+    const fallbackModel = new MockModelProvider();
+    const tools = new MockToolInvoker();
+    const transport = new MockAgentTransport();
+    const registry = new ExtensionRegistry();
+
+    registry.registerModelProvider({
+      id: "provider-a",
+      kind: "model-provider",
+      sourceType: "builtin",
+      version: "1.0.0",
+      create() {
+        return new StaticProvider("provider-a", { provider: "provider-a" });
+      },
+    });
+    registry.lock();
+
+    const engine = new ECPEngine(fallbackModel, tools, transport, {
+      extensions: {
+        registry,
+        security: {
+          enabled: true,
+          allowSourceTypes: ["npm"],
+        },
+      },
+    });
+
+    const result = await engine.run({
+      context: makeExtensibleContext("provider-a"),
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("source type");
   });
 });
