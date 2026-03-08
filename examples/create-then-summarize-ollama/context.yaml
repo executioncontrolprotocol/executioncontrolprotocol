@@ -1,0 +1,142 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: create-then-summarize-ollama
+  version: 1.0.0
+  description: Two sequential Ollama calls — create content in a schema, then summarize it
+
+extensions:
+  version: 1.0.0
+  providers:
+    - name: ollama
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  security: {}
+
+inputs:
+  topic:
+    type: string
+    required: true
+
+outputs:
+  - name: summary
+    fromSchema: Summary
+
+schemas:
+  Plan:
+    type: object
+    required: [delegate]
+    properties:
+      delegate:
+        type: array
+        items:
+          type: object
+          required: [executor, task]
+          properties:
+            executor:
+              type: string
+            task:
+              type: string
+
+  Article:
+    type: object
+    required: [title, body]
+    properties:
+      title:
+        type: string
+      body:
+        type: string
+
+  Summary:
+    type: object
+    required: [headline, body]
+    properties:
+      headline:
+        type: string
+      body:
+        type: string
+
+triggers:
+  - type: manual
+
+orchestration:
+  entrypoint: orchestrator
+  strategy: delegate
+  defaults:
+    maxDelegations: 1
+    maxExecutors: 2
+    timeoutMs: 120000
+  requires:
+    - Article
+  produces: Summary
+
+executors:
+  - name: orchestrator
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are an orchestrator. Your ONLY job is to output a JSON object with a "delegate" array.
+      The delegate array must contain exactly one object: { "executor": "creator", "task": "<the topic from context inputs>" }.
+      Example: if the topic is "Docker", output {"delegate":[{"executor":"creator","task":"Docker"}]}.
+      Use the exact topic string from the context inputs as the value of "task". Output nothing else.
+    outputSchemaRef: "#/schemas/Plan"
+    mounts: []
+    policies:
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 1
+        maxRuntimeSeconds: 30
+      writeControls:
+        mode: forbid
+
+  - name: creator
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are a content creator. Given a task (a topic), write a short article about it.
+      Produce a JSON object with "title" (string) and "body" (string). The body should be 2-4 sentences.
+    outputSchemaRef: "#/schemas/Article"
+    mounts: []
+    policies:
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 1
+        maxRuntimeSeconds: 60
+      writeControls:
+        mode: forbid
+
+  - name: summarizer
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are a summarizer. You will receive the prior outputs from the creator (an Article with title and body).
+      Produce a JSON Summary with "headline" (one line) and "body" (2-3 sentences summarizing the article).
+    outputSchemaRef: "#/schemas/Summary"
+    mounts: []
+    policies:
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 1
+        maxRuntimeSeconds: 30
+      writeControls:
+        mode: forbid

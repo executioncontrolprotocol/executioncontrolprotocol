@@ -1,0 +1,77 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: marketing-campaign-ollama
+  version: 1.0.0
+  description: Single-executor Ollama example — create a marketing campaign for a product or topic
+
+extensions:
+  version: 1.0.0
+  providers:
+    - name: ollama
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  security: {}
+
+inputs:
+  product:
+    type: string
+    required: true
+
+outputs:
+  - name: campaign
+    fromSchema: MarketingCampaign
+
+schemas:
+  MarketingCampaign:
+    type: object
+    required: [headline, tagline, keyMessages, callToAction]
+    properties:
+      headline:
+        type: string
+      tagline:
+        type: string
+      keyMessages:
+        type: array
+        items:
+          type: string
+      callToAction:
+        type: string
+
+triggers:
+  - type: manual
+
+orchestration:
+  entrypoint: campaign_creator
+  strategy: single
+  produces: MarketingCampaign
+
+executors:
+  - name: campaign_creator
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are a marketing copywriter. Given the "product" from the context inputs, create a short marketing campaign.
+      Output ONLY a JSON object with these exact keys (no other keys):
+      - headline: a compelling campaign headline (string)
+      - tagline: a short, memorable tagline (string)
+      - keyMessages: array of 2-4 key selling points, e.g. ["Message one", "Message two"]
+      - callToAction: a clear CTA phrase, e.g. "Try free today"
+      Do not echo the product name as the only output. Always fill all four fields.
+    outputSchemaRef: "#/schemas/MarketingCampaign"
+    mounts: []
+    policies:
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 1
+        maxRuntimeSeconds: 45
+      writeControls:
+        mode: forbid

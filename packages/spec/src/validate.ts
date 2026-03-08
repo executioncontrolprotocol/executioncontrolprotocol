@@ -238,7 +238,7 @@ function checkStructure(ctx: ECPContext): void {
 
   // Extension declarations and security consistency
   if (ctx.extensions) {
-    if ((ctx.extensions as Record<string, unknown>).enable !== undefined) {
+    if ((ctx.extensions as unknown as Record<string, unknown>).enable !== undefined) {
       fail(
         "extensions.enable is not allowed in Context manifests. Extension enable list is runtime-only (use CLI --enable or system config defaultEnable).",
       );
