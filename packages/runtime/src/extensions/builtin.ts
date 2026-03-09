@@ -11,6 +11,7 @@ import { OllamaProvider } from "../providers/ollama/ollama-provider.js";
 import type { OllamaProviderConfig } from "../providers/ollama/ollama-provider.js";
 import { createFileProgressLogger } from "./progress-loggers/file-logger.js";
 import type { FileProgressLoggerConfig } from "./progress-loggers/file-logger.js";
+import { registerBuiltinMemoryPlugin } from "../plugins/memory/index.js";
 import type { ExtensionRegistry } from "./registry.js";
 
 /**
@@ -108,5 +109,15 @@ export function registerBuiltinProgressLoggers(
       });
     },
   });
+}
+
+/**
+ * Register built-in plugin extensions (e.g. long-term memory store).
+ */
+export function registerBuiltinPlugins(
+  registry: ExtensionRegistry,
+  config: { version?: ExtensionVersion } = {},
+): void {
+  registerBuiltinMemoryPlugin(registry, config);
 }
 

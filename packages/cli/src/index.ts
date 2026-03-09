@@ -19,7 +19,7 @@ import { ECPEngine, loadContext, resolveInputs, resolveSystemConfig } from "@ecp
 import type { ModelProvider, ExecutionProgressEvent, ProgressCallback } from "@ecp/runtime";
 import { MCPToolInvoker } from "@ecp/runtime";
 import { A2AAgentTransport } from "@ecp/runtime";
-import { ExtensionRegistry, registerBuiltinModelProviders, registerBuiltinProgressLoggers } from "@ecp/runtime";
+import { ExtensionRegistry, registerBuiltinModelProviders, registerBuiltinProgressLoggers, registerBuiltinPlugins } from "@ecp/runtime";
 import {
   TraceCollector,
   ConsoleTraceExporter,
@@ -28,6 +28,7 @@ import {
   renderGraph,
 } from "@ecp/runtime";
 import type { ExecutionTrace } from "@ecp/runtime";
+import type { MemoryStoreLike } from "@ecp/runtime";
 import type { ECPContext, ExtensionSecurityPolicy, Orchestrator } from "@ecp/spec";
 
 interface ParsedArgs {
@@ -72,6 +73,21 @@ function collectExecutionObjectNames(context: ECPContext): string[] {
   }
 
   return [...names];
+}
+
+function contextHasMemory(context: ECPContext): boolean {
+  const visit = (orchestrator: Orchestrator): boolean => {
+    if (orchestrator.memory) return true;
+    for (const executor of orchestrator.executors ?? []) {
+      if (executor.memory) return true;
+    }
+    for (const child of orchestrator.orchestrators ?? []) {
+      if (visit(child)) return true;
+    }
+    return false;
+  };
+  if (context.orchestrator && visit(context.orchestrator)) return true;
+  return (context.executors ?? []).some((e) => e.memory != null);
 }
 
 function phaseToLabel(status: string): string {
@@ -366,6 +382,7 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     version: "0.3.0",
     file: {},
   });
+  registerBuiltinPlugins(registry, { version: "0.3.0" });
   registry.lock();
 
   let modelProvider: ModelProvider;
@@ -433,6 +450,23 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     console.log(`\n  Running: ${args.contextPath}\n`);
   }
 
+  let memoryStore: MemoryStoreLike | undefined;
+  if (contextHasMemory(context)) {
+    const pluginReg = registry.listPlugins().find((p) => p.id === "memory");
+    if (pluginReg) {
+      try {
+        const instance = pluginReg.create(context.extensions?.config?.memory as Record<string, unknown>) as {
+          open(): Promise<MemoryStoreLike>;
+        };
+        memoryStore = await instance.open();
+      } catch (err) {
+        if (args.debug) {
+          console.error(`  Memory plugin open failed: ${err instanceof Error ? err.message : String(err)}\n`);
+        }
+      }
+    }
+  }
+
   const engine = new ECPEngine(modelProvider, toolInvoker, agentTransport, {
     toolServers,
     agentEndpoints,
@@ -440,6 +474,7 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     modelOverride: args.model,
     debug: args.debug,
     trace: args.trace,
+    memoryStore,
     onProgress,
     extensions: {
       registry,
@@ -462,6 +497,10 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     context,
     inputs: args.inputs,
   });
+
+  if (memoryStore && typeof memoryStore.close === "function") {
+    await memoryStore.close();
+  }
 
   if (spinner) {
     if (result.success) {

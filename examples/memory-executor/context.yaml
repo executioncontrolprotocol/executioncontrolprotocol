@@ -1,0 +1,90 @@
+# Example: single executor with long-term memory (plugin-based, policy-controlled).
+# Run: npx tsx packages/cli/src/index.ts run context.yaml --input topic=test --provider ollama
+# Memory is stored in .ecp/<namespace>-ecp-memory.sqlite (sql.js, portable).
+
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: memory-executor-example
+  version: 1.0.0
+  description: Single executor with long-term memory; store/recall/cleanup via policy.
+
+extensions:
+  version: 1.0.0
+  providers:
+    - name: ollama
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  plugins:
+    - name: memory
+      kind: plugin
+      type: builtin
+      version: 0.3.0
+      description: Built-in long-term memory store (SQLite via sql.js)
+  config:
+    memory:
+      namespace: memory-executor-example
+      dataDir: .ecp
+  security:
+    allowIds: [ollama, memory]
+
+inputs:
+  topic:
+    type: string
+    required: true
+
+outputs:
+  - name: summary
+    fromSchema: Summary
+
+schemas:
+  Summary:
+    type: object
+    required: [headline, body]
+    properties:
+      headline:
+        type: string
+      body:
+        type: string
+
+triggers:
+  - type: manual
+
+orchestration:
+  entrypoint: summarizer
+  strategy: single
+  produces: Summary
+
+executors:
+  - name: summarizer
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are a summarizer with long-term memory.
+      You can store facts (ecp:memory/store), list (ecp:memory/list), and delete old entries (ecp:memory/delete).
+      Use memory to refine outputs across runs. Given a topic, produce headline and body.
+    outputSchemaRef: "#/schemas/Summary"
+    mounts: []
+    memory:
+      scope: context
+      maxItems: 15
+      maxTokens: 800
+      description: Facts and preferences for this context
+    policies:
+      toolAccess:
+        default: deny
+      memoryAccess:
+        allowRead: true
+        allowWrite: true
+      budgets:
+        maxToolCalls: 10
+        maxRuntimeSeconds: 60
+      writeControls:
+        mode: forbid

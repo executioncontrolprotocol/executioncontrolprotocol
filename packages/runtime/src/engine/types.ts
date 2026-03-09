@@ -11,9 +11,67 @@ import type {
   ECPContext,
   Executor,
   ExtensionSecurityPolicy,
+  MemoryScope,
   MountStage,
 } from "@ecp/spec";
 import type { ExtensionRegistry } from "../extensions/registry.js";
+
+// ---------------------------------------------------------------------------
+// Memory (optional long-term store)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal memory record shape used by the engine when injecting memory.
+ *
+ * @category Engine
+ */
+export interface MemoryRecordLike {
+  id: string;
+  scope: MemoryScope;
+  executorName: string;
+  summary: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Minimal memory store contract used by the engine. Implementations
+ * are provided by the memory plugin (e.g. SQLite store).
+ *
+ * @category Engine
+ */
+export interface MemoryStoreLike {
+  get(
+    scope: MemoryScope,
+    options?: {
+      maxItems?: number;
+      maxTokens?: number;
+      executorName?: string;
+      summariesOnly?: boolean;
+    },
+  ): Promise<MemoryRecordLike[]>;
+
+  put(
+    scope: MemoryScope,
+    executorName: string,
+    summary: string,
+    payload?: Record<string, unknown>,
+    id?: string,
+  ): Promise<MemoryRecordLike>;
+
+  list(
+    scope: MemoryScope,
+    options?: { limit?: number; executorName?: string; olderThan?: string },
+  ): Promise<Pick<MemoryRecordLike, "id" | "summary" | "createdAt">[]>;
+
+  delete(
+    scope: MemoryScope,
+    options?: { id?: string; ids?: string[]; olderThan?: string; executorName?: string },
+  ): Promise<{ deleted: number }>;
+
+  close(): Promise<void>;
+}
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -329,6 +387,13 @@ export interface EngineConfig {
 
   /** Enable execution tracing. When set, the engine emits trace spans. */
   trace?: boolean;
+
+  /**
+   * Optional long-term memory store. When set, executors that declare
+   * memory (and have memoryAccess policy) can read/write via injected
+   * context and tools.
+   */
+  memoryStore?: MemoryStoreLike;
 
   /**
    * Optional callback for real-time execution progress (phase, steps, reasoning).
