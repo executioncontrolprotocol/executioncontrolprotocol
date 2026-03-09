@@ -184,6 +184,15 @@ export interface RunState {
 
   /** Run end time (ISO-8601), set when completed or failed. */
   endedAt?: string;
+
+  /** Counter for progress events (step numbers). */
+  progressStepCounter?: number;
+
+  /** Counter for step_complete events (completion order: 1, 2, 3...). */
+  progressCompleteCounter?: number;
+
+  /** Counter for executor steps only (1, 2, 3... for display). */
+  progressExecutorStepCounter?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +242,51 @@ export interface ExecutionResult {
 // ---------------------------------------------------------------------------
 
 /**
+ * Execution progress event emitted during a run for real-time UI (e.g. CLI spinner).
+ *
+ * @category Engine
+ */
+export type ExecutionProgressEvent =
+  | { type: "phase"; status: RunStatus }
+  | {
+      type: "step_start";
+      step: number;
+      kind: "mount" | "executor" | "model" | "tool" | "delegation";
+      executorName?: string;
+      description: string;
+    }
+  | {
+      type: "step_complete";
+      step: number;
+      kind: "mount" | "executor" | "model" | "tool" | "delegation";
+      executorName?: string;
+      description: string;
+      durationMs: number;
+      /** Chain-of-thought or reasoning from the model when available. */
+      reasoning?: string;
+      /** Executor output when kind is "executor" and the executor produced output. */
+      output?: unknown;
+      /** Token usage for this step (when kind is "executor", from model generation). */
+      tokens?: { prompt: number; completion: number; total: number };
+      /** Model used (when kind is "executor"). */
+      model?: string;
+    }
+  | {
+      type: "executor_reasoning";
+      executorName: string;
+      /** Increment or full reasoning text (chain of thought). */
+      reasoning: string;
+    };
+
+/**
+ * Callback invoked for each progress event during execution.
+ * May return a Promise so the host can flush output before the next event.
+ *
+ * @category Engine
+ */
+export type ProgressCallback = (event: ExecutionProgressEvent) => void | Promise<void>;
+
+/**
  * Configuration for tool servers the engine should connect to.
  * Maps logical server names (as used in mount definitions) to
  * connection details.
@@ -275,6 +329,12 @@ export interface EngineConfig {
 
   /** Enable execution tracing. When set, the engine emits trace spans. */
   trace?: boolean;
+
+  /**
+   * Optional callback for real-time execution progress (phase, steps, reasoning).
+   * Used by the CLI to show a spinner and step-by-step completion.
+   */
+  onProgress?: ProgressCallback;
 
   /**
    * Runtime extension registration and security configuration.
