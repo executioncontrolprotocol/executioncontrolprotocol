@@ -12,3 +12,4 @@ alwaysApply: true
 - Keep root `package.json` scripts as the single source of truth for all development commands.
 - Prefer `const` over `let`; never use `var`.
 - Use Prettier-compatible formatting (no trailing semicolons are acceptable if ESLint allows it).
+- **No emojis in the codebase.** Do not add emoji characters to source code, UI strings, logs, or comments.

@@ -56,3 +56,4 @@ npx tsx packages/cli/src/index.ts validate examples/controller-specialist/contex
 - **spec.yaml lives at repo root.** The validator resolves it via `import.meta.dirname`.
 - **E2E tests auto-skip** when Ollama is not running — safe in `npm run test` and `npm run check`.
 - **CI E2E job** installs Ollama + `gemma3:1b` on every push/PR; runs `npm run test:e2e`.
+- **No emojis.** Do not add emoji characters anywhere in the codebase (source, CLI output, logs, or comments).

@@ -9,6 +9,8 @@ import { OpenAIProvider } from "../providers/openai/openai-provider.js";
 import type { OpenAIProviderConfig } from "../providers/openai/openai-provider.js";
 import { OllamaProvider } from "../providers/ollama/ollama-provider.js";
 import type { OllamaProviderConfig } from "../providers/ollama/ollama-provider.js";
+import { createFileProgressLogger } from "./progress-loggers/file-logger.js";
+import type { FileProgressLoggerConfig } from "./progress-loggers/file-logger.js";
 import type { ExtensionRegistry } from "./registry.js";
 
 /**
@@ -65,6 +67,44 @@ export function registerBuiltinModelProviders(
       return new OllamaProvider({
         ...config.ollama,
         ...asRecord(overrides),
+      });
+    },
+  });
+}
+
+/**
+ * Configuration for registering built-in progress loggers.
+ *
+ * @category Extensions
+ */
+export interface BuiltinProgressLoggerConfig {
+  /** Built-in extension version to report for registrations. */
+  version?: ExtensionVersion;
+
+  /** Configuration for the file progress logger (log dir, file name). */
+  file?: FileProgressLoggerConfig;
+}
+
+/**
+ * Register built-in progress loggers in a registry.
+ * Includes a file logger that writes to the user's ECP directory (~/.ecp/logs).
+ */
+export function registerBuiltinProgressLoggers(
+  registry: ExtensionRegistry,
+  config: BuiltinProgressLoggerConfig = {},
+): void {
+  const version = config.version ?? "0.3.0";
+
+  registry.registerProgressLogger({
+    id: "file",
+    kind: "progress-logger",
+    sourceType: "builtin",
+    version,
+    description: "Appends execution progress to a log file in the user ECP directory (~/.ecp/logs).",
+    create(overrides) {
+      return createFileProgressLogger({
+        ...config.file,
+        ...(overrides as FileProgressLoggerConfig),
       });
     },
   });

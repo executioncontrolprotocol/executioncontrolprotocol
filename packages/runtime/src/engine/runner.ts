@@ -28,6 +28,7 @@ import type {
   BudgetUsage,
   RunLogEntry,
   ResolvedInputs,
+  ExecutionProgressEvent,
 } from "./types.js";
 import { loadContext, resolveInputs } from "./context-loader.js";
 import { validateOutput } from "./schema-validator.js";
@@ -121,9 +122,11 @@ export class ECPEngine {
 
       state.status = "completed";
       state.endedAt = new Date().toISOString();
+      await this.emitProgress(state, { type: "phase", status: "completed" });
     } catch (err) {
       state.status = "failed";
       state.endedAt = new Date().toISOString();
+      await this.emitProgress(state, { type: "phase", status: "failed" });
       this.log(state, "error", `Execution failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       await this.toolInvoker.disconnectAll();
@@ -165,10 +168,12 @@ export class ECPEngine {
     }
 
     state.status = "hydrating-seed";
+    await this.emitProgress(state, { type: "phase", status: "hydrating-seed" });
     this.log(state, "info", `Hydrating seed mounts for "${entrypointName}"`);
-    await this.hydrateMounts(executorState, state.inputs, "seed");
+    await this.hydrateMounts(state, executorState, state.inputs, "seed");
 
     state.status = "running-orchestrator";
+    await this.emitProgress(state, { type: "phase", status: "running-orchestrator" });
     this.log(state, "info", `Running executor "${entrypointName}"`);
     await this.runExecutor(executorState, state, signal);
   }
@@ -189,11 +194,13 @@ export class ECPEngine {
 
     // Phase 1: Hydrate orchestrator seed mounts
     state.status = "hydrating-seed";
+    await this.emitProgress(state, { type: "phase", status: "hydrating-seed" });
     this.log(state, "info", `Hydrating seed mounts for orchestrator "${entrypointName}"`);
-    await this.hydrateMounts(orchestratorState, state.inputs, "seed");
+    await this.hydrateMounts(state, orchestratorState, state.inputs, "seed");
 
     // Phase 2: Run orchestrator to produce plan
     state.status = "running-orchestrator";
+    await this.emitProgress(state, { type: "phase", status: "running-orchestrator" });
     this.log(state, "info", `Running orchestrator "${entrypointName}"`);
     await this.runExecutor(orchestratorState, state, signal);
 
@@ -215,6 +222,7 @@ export class ECPEngine {
 
     // Phase 3: Hydrate focus mounts for specialists and delegate tasks
     state.status = "delegating";
+    await this.emitProgress(state, { type: "phase", status: "delegating" });
     this.log(state, "info", `Delegating ${delegations.length} task(s) to specialists`);
 
     for (const delegation of delegations) {
@@ -226,13 +234,16 @@ export class ECPEngine {
 
       // Hydrate focus mounts using plan output as selector source
       state.status = "hydrating-focus";
-      await this.hydrateMounts(specialistState, state.inputs, "focus", plan);
+      await this.emitProgress(state, { type: "phase", status: "hydrating-focus" });
+      await this.hydrateMounts(state, specialistState, state.inputs, "focus", plan);
 
       state.status = "hydrating-deep";
-      await this.hydrateMounts(specialistState, state.inputs, "deep", plan);
+      await this.emitProgress(state, { type: "phase", status: "hydrating-deep" });
+      await this.hydrateMounts(state, specialistState, state.inputs, "deep", plan);
 
       // Run specialist (locally or via A2A)
       state.status = "running-specialist";
+      await this.emitProgress(state, { type: "phase", status: "running-specialist" });
       const endpoint = this.config.agentEndpoints?.[delegation.executor];
 
       if (endpoint) {
@@ -247,6 +258,7 @@ export class ECPEngine {
     const producesSchema = state.context.orchestration?.produces;
     if (producesSchema) {
       state.status = "merging";
+      await this.emitProgress(state, { type: "phase", status: "merging" });
       await this.mergeOutputs(state, producesSchema, signal);
     }
   }
@@ -259,6 +271,16 @@ export class ECPEngine {
   ): Promise<void> {
     this.log(state, "info", `Delegating to "${delegation.executor}" via A2A at ${endpoint}`);
 
+    const stepNum = this.nextStep(state);
+    await this.emitProgress(state, {
+      type: "step_start",
+      step: stepNum,
+      kind: "delegation",
+      executorName: delegation.executor,
+      description: `Delegate to ${delegation.executor}`,
+    });
+
+    const startDel = Date.now();
     const agentRef: AgentRef = {
       name: delegation.executor,
       endpoint,
@@ -278,6 +300,15 @@ export class ECPEngine {
     };
 
     const result = await this.agentTransport.delegate(agentRef, task);
+
+    await this.emitProgress(state, {
+      type: "step_complete",
+        step: this.nextCompleteStep(state),
+        kind: "delegation",
+      executorName: delegation.executor,
+      description: `Delegate to ${delegation.executor}`,
+      durationMs: Date.now() - startDel,
+    });
 
     specialistState.status = result.success ? "completed" : "failed";
     specialistState.output = result.output;
@@ -333,6 +364,16 @@ export class ECPEngine {
   ): Promise<void> {
     const executor = executorState.executor;
     executorState.status = "running";
+
+    const executorStepNum = this.nextStep(state);
+    await this.emitProgress(state, {
+      type: "step_start",
+      step: executorStepNum,
+      kind: "executor",
+      executorName: executor.name,
+      description: `Executor ${executor.name}`,
+    });
+
     const modelProvider = this.resolveModelProvider(executor, state.context);
 
     const enforcer = createPolicyEnforcer(executor.policies ?? {});
@@ -351,6 +392,12 @@ export class ECPEngine {
 
     const currentMessages = [...messages];
     const maxRounds = 10;
+    let lastTokenUsage: { prompt: number; completion: number; total: number } = {
+      prompt: 0,
+      completion: 0,
+      total: 0,
+    };
+    let lastModel = model;
 
     for (let round = 0; round < maxRounds; round++) {
       const budgetCheck = enforcer.checkBudget(executorState.budgetUsage);
@@ -359,6 +406,15 @@ export class ECPEngine {
         break;
       }
 
+      const modelStepNum = this.nextStep(state);
+      await this.emitProgress(state, {
+        type: "step_start",
+        step: modelStepNum,
+        kind: "model",
+        executorName: executor.name,
+        description: `Executor ${executor.name} — ${model}`,
+      });
+
       const genSpanId = this.traceCollector?.startSpan({
         type: "model-generation",
         executorName: executor.name,
@@ -366,6 +422,7 @@ export class ECPEngine {
         model,
       });
 
+      const genStart = Date.now();
       const result = await modelProvider.generate({
         messages: currentMessages,
         model,
@@ -378,6 +435,15 @@ export class ECPEngine {
         signal,
       });
 
+      const reasoning = result.finishReason === "tool-calls" ? result.content || undefined : undefined;
+      if (reasoning) {
+        await this.emitProgress(state, {
+          type: "executor_reasoning",
+          executorName: executor.name,
+          reasoning,
+        });
+      }
+
       if (genSpanId) {
         this.traceCollector?.endSpan(genSpanId, {
           tokens: {
@@ -385,10 +451,27 @@ export class ECPEngine {
             completion: result.usage.completionTokens,
             total: result.usage.totalTokens,
           },
-          reasoning: result.finishReason === "tool-calls" ? result.content || undefined : undefined,
+          reasoning: reasoning ?? undefined,
           output: result.finishReason !== "tool-calls" ? this.tryParseJson(result.content) : undefined,
         });
       }
+
+      lastTokenUsage = {
+        prompt: lastTokenUsage.prompt + result.usage.promptTokens,
+        completion: lastTokenUsage.completion + result.usage.completionTokens,
+        total: lastTokenUsage.total + result.usage.totalTokens,
+      };
+      lastModel = model;
+
+      await this.emitProgress(state, {
+        type: "step_complete",
+        step: this.nextCompleteStep(state),
+        kind: "model",
+        executorName: executor.name,
+        description: `Executor ${executor.name} — ${model}`,
+        durationMs: Date.now() - genStart,
+        reasoning: reasoning ?? undefined,
+      });
 
       if (result.finishReason === "tool-calls" && result.toolCalls.length > 0) {
         currentMessages.push({
@@ -442,6 +525,18 @@ export class ECPEngine {
     executorState.status = executorState.output ? "completed" : "failed";
     executorState.error = executorState.output ? undefined : "No output produced";
 
+    await this.emitProgress(state, {
+      type: "step_complete",
+      step: this.nextExecutorStep(state),
+      kind: "executor",
+      executorName: executor.name,
+      description: `Executor ${executor.name}`,
+      durationMs: Date.now() - startTime,
+      output: executorState.output,
+      tokens: lastTokenUsage.total > 0 ? lastTokenUsage : undefined,
+      model: lastModel,
+    });
+
     if (executorSpanId) {
       this.traceCollector?.endSpan(executorSpanId, {
         output: executorState.output,
@@ -480,6 +575,16 @@ export class ECPEngine {
         continue;
       }
 
+      const toolStepNum = this.nextStep(state);
+      await this.emitProgress(state, {
+        type: "step_start",
+        step: toolStepNum,
+        kind: "tool",
+        executorName: executorState.executor.name,
+        description: `Tool ${tc.name}`,
+      });
+
+      const toolStart = Date.now();
       const toolSpanId = this.traceCollector?.startSpan({
         type: "tool-call",
         executorName: executorState.executor.name,
@@ -499,6 +604,15 @@ export class ECPEngine {
           });
         }
 
+        await this.emitProgress(state, {
+          type: "step_complete",
+          step: this.nextCompleteStep(state),
+          kind: "tool",
+          executorName: executorState.executor.name,
+          description: `Tool ${tc.name}`,
+          durationMs: Date.now() - toolStart,
+        });
+
         results.push({
           role: "tool",
           toolCallId: tc.id,
@@ -513,6 +627,15 @@ export class ECPEngine {
             toolIsError: true,
           });
         }
+
+        await this.emitProgress(state, {
+          type: "step_complete",
+          step: this.nextCompleteStep(state),
+          kind: "tool",
+          executorName: executorState.executor.name,
+          description: `Tool ${tc.name}`,
+          durationMs: Date.now() - toolStart,
+        });
 
         results.push({
           role: "tool",
@@ -559,7 +682,44 @@ export class ECPEngine {
       `(${state.executors.size} execution objects, strategy: ${this.getStrategy(context)})`,
     );
 
+    state.progressStepCounter = 0;
+    state.progressCompleteCounter = 0;
+    state.progressExecutorStepCounter = 0;
+    await this.emitProgress(state, { type: "phase", status: "loading" });
+
     return state;
+  }
+
+  private async emitProgress(_state: RunState, event: ExecutionProgressEvent): Promise<void> {
+    const callbacks = this.config.onProgress
+      ? Array.isArray(this.config.onProgress)
+        ? this.config.onProgress
+        : [this.config.onProgress]
+      : [];
+    for (const cb of callbacks) {
+      try {
+        await cb(event);
+      } catch {
+        // Ignore progress callback errors so they do not break the run.
+      }
+    }
+  }
+
+  private nextStep(state: RunState): number {
+    state.progressStepCounter = (state.progressStepCounter ?? 0) + 1;
+    return state.progressStepCounter;
+  }
+
+  /** Return the next completion step number (1, 2, 3...) for step_complete events. */
+  private nextCompleteStep(state: RunState): number {
+    state.progressCompleteCounter = (state.progressCompleteCounter ?? 0) + 1;
+    return state.progressCompleteCounter;
+  }
+
+  /** Return the next executor step number (1, 2, 3...) for executor step_complete only. */
+  private nextExecutorStep(state: RunState): number {
+    state.progressExecutorStepCounter = (state.progressExecutorStepCounter ?? 0) + 1;
+    return state.progressExecutorStepCounter;
   }
 
   private async connectToolServers(state: RunState): Promise<void> {
@@ -577,15 +737,26 @@ export class ECPEngine {
   }
 
   private async hydrateMounts(
+    state: RunState,
     executorState: ExecutorState,
     inputs: ResolvedInputs,
     stage: "seed" | "focus" | "deep",
     planOutput?: Record<string, unknown>,
   ): Promise<void> {
     const mounts = executorState.executor.mounts ?? [];
+    const executorName = executorState.executor.name;
 
     for (const mount of mounts) {
       if (mount.stage !== stage) continue;
+
+      const stepNum = this.nextStep(state);
+      await this.emitProgress(state, {
+        type: "step_start",
+        step: stepNum,
+        kind: "mount",
+        executorName,
+        description: `Mount ${mount.name} (${stage})`,
+      });
 
       const mountSpanId = this.traceCollector?.startSpan({
         type: "mount-hydration",
@@ -594,13 +765,24 @@ export class ECPEngine {
         mountStage: stage,
       });
 
+      const startMount = Date.now();
       const outputs = await this.hydrator.hydrateStage([mount], stage, inputs, planOutput);
       executorState.mountOutputs.push(...outputs);
+      const durationMs = Date.now() - startMount;
 
       if (mountSpanId) {
         const totalItems = outputs.reduce((sum, o) => sum + o.itemCount, 0);
         this.traceCollector?.endSpan(mountSpanId, { mountItemCount: totalItems });
       }
+
+      await       this.emitProgress(state, {
+        type: "step_complete",
+        step: this.nextCompleteStep(state),
+        kind: "mount",
+        executorName,
+        description: `Mount ${mount.name} (${stage})`,
+        durationMs,
+      });
     }
   }
 

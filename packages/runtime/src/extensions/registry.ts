@@ -8,6 +8,7 @@ import type {
   ExecutorRegistration,
   ModelProviderRegistration,
   PluginRegistration,
+  ProgressLoggerRegistration,
 } from "./types.js";
 import type { ModelProvider } from "../providers/model-provider.js";
 
@@ -20,6 +21,7 @@ export class ExtensionRegistry {
   private readonly modelProviders = new Map<string, ModelProviderRegistration>();
   private readonly executors = new Map<string, ExecutorRegistration>();
   private readonly plugins = new Map<string, PluginRegistration>();
+  private readonly progressLoggers = new Map<string, ProgressLoggerRegistration>();
   private locked = false;
 
   /**
@@ -45,6 +47,15 @@ export class ExtensionRegistry {
     this.assertUnlocked();
     this.assertNotRegistered(registration.id, "executor");
     this.executors.set(registration.id, registration);
+  }
+
+  /**
+   * Register a progress logger extension.
+   */
+  registerProgressLogger(registration: ProgressLoggerRegistration): void {
+    this.assertUnlocked();
+    this.assertNotRegistered(registration.id, "progress-logger");
+    this.progressLoggers.set(registration.id, registration);
   }
 
   /**
@@ -98,6 +109,34 @@ export class ExtensionRegistry {
     return [...this.plugins.values()];
   }
 
+  /**
+   * Create a progress logger by ID.
+   */
+  createProgressLogger(
+    id: string,
+    config?: Record<string, unknown>,
+  ): ReturnType<ProgressLoggerRegistration["create"]> {
+    const registration = this.progressLoggers.get(id);
+    if (!registration) {
+      throw new Error(`Progress logger extension "${id}" is not registered.`);
+    }
+    return registration.create(config);
+  }
+
+  /**
+   * Get a progress logger registration by ID.
+   */
+  getProgressLoggerRegistration(id: string): ProgressLoggerRegistration | undefined {
+    return this.progressLoggers.get(id);
+  }
+
+  /**
+   * List registered progress logger extensions.
+   */
+  listProgressLoggers(): ProgressLoggerRegistration[] {
+    return [...this.progressLoggers.values()];
+  }
+
   private assertUnlocked(): void {
     if (this.locked) {
       throw new Error("Extension registry is locked and cannot be modified.");
@@ -106,9 +145,13 @@ export class ExtensionRegistry {
 
   private assertNotRegistered(
     id: string,
-    kind: "model-provider" | "executor" | "plugin",
+    kind: "model-provider" | "executor" | "plugin" | "progress-logger",
   ): void {
-    const exists = this.modelProviders.has(id) || this.executors.has(id) || this.plugins.has(id);
+    const exists =
+      this.modelProviders.has(id) ||
+      this.executors.has(id) ||
+      this.plugins.has(id) ||
+      this.progressLoggers.has(id);
     if (exists) {
       throw new Error(`Extension "${id}" is already registered; duplicate ${kind} registration denied.`);
     }

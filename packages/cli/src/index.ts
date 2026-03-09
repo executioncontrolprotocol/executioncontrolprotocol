@@ -14,11 +14,12 @@
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
+import ora from "ora";
 import { ECPEngine, loadContext, resolveInputs, resolveSystemConfig } from "@ecp/runtime";
-import type { ModelProvider } from "@ecp/runtime";
+import type { ModelProvider, ExecutionProgressEvent, ProgressCallback } from "@ecp/runtime";
 import { MCPToolInvoker } from "@ecp/runtime";
 import { A2AAgentTransport } from "@ecp/runtime";
-import { ExtensionRegistry, registerBuiltinModelProviders } from "@ecp/runtime";
+import { ExtensionRegistry, registerBuiltinModelProviders, registerBuiltinProgressLoggers } from "@ecp/runtime";
 import {
   TraceCollector,
   ConsoleTraceExporter,
@@ -44,6 +45,7 @@ interface ParsedArgs {
   toolServers: string;
   agentEndpoints: string;
   extensionSecurity: string;
+  progressLogger: string[];
 }
 
 function collectExecutionObjectNames(context: ECPContext): string[] {
@@ -72,6 +74,133 @@ function collectExecutionObjectNames(context: ECPContext): string[] {
   return [...names];
 }
 
+function phaseToLabel(status: string): string {
+  const labels: Record<string, string> = {
+    loading: "Loading context...",
+    "hydrating-seed": "Hydrating seed mounts...",
+    "running-orchestrator": "Running orchestrator...",
+    delegating: "Delegating tasks...",
+    "hydrating-focus": "Hydrating focus mounts...",
+    "hydrating-deep": "Hydrating deep mounts...",
+    "running-specialist": "Running specialist...",
+    merging: "Merging outputs...",
+    completed: "Completed.",
+    failed: "Failed.",
+  };
+  return labels[status] ?? status;
+}
+
+function createProgressHandler(
+  spinner: ReturnType<typeof ora>,
+  contextPath: string,
+  contextName: string,
+): (event: ExecutionProgressEvent) => void | Promise<void> {
+  let currentText = "Starting...";
+  const completedSteps: Array<{
+    step: number;
+    executorName: string;
+    description: string;
+    durationMs: number;
+    tokens?: { prompt: number; completion: number; total: number };
+    model?: string;
+    output?: unknown;
+  }> = [];
+
+  function redraw(): void {
+    const isTTY = process.stderr.isTTY;
+    if (isTTY) {
+      process.stderr.write("\x1b[2J\x1b[H");
+    }
+    process.stderr.write(`\n  Running: ${contextPath}\n`);
+    process.stderr.write(`  Context: ${contextName}\n\n`);
+    for (const s of completedSteps) {
+      process.stderr.write(`  Step ${s.step}: ${s.description} (${s.durationMs}ms)\n`);
+      if (s.model) {
+        process.stderr.write(`    Model: ${s.model}\n`);
+      }
+      if (s.tokens && s.tokens.total > 0) {
+        process.stderr.write(
+          `    Tokens: ${s.tokens.prompt} prompt + ${s.tokens.completion} completion = ${s.tokens.total} total\n`,
+        );
+      }
+      if (s.output !== undefined) {
+        process.stderr.write(`    Output:\n`);
+        const json = JSON.stringify(s.output, null, 2);
+        for (const line of json.split(/\r?\n/)) {
+          process.stderr.write(`      ${line}\n`);
+        }
+      }
+      process.stderr.write("\n");
+    }
+    spinner.start(currentText);
+  }
+
+  function appendLastStep(): void {
+    const s = completedSteps[completedSteps.length - 1];
+    if (!s) return;
+    spinner.stopAndPersist({
+      text: `Step ${s.step}: ${s.description} (${s.durationMs}ms)`,
+    });
+    process.stderr.write(`    Model: ${s.model ?? "n/a"}\n`);
+    if (s.tokens && s.tokens.total > 0) {
+      process.stderr.write(
+        `    Tokens: ${s.tokens.prompt} prompt + ${s.tokens.completion} completion = ${s.tokens.total} total\n`,
+      );
+    }
+    if (s.output !== undefined) {
+      process.stderr.write(`    Output:\n`);
+      const json = JSON.stringify(s.output, null, 2);
+      for (const line of json.split(/\r?\n/)) {
+        process.stderr.write(`      ${line}\n`);
+      }
+    }
+    process.stderr.write("\n");
+    spinner.start(currentText);
+  }
+
+  return async (event: ExecutionProgressEvent) => {
+    switch (event.type) {
+      case "phase":
+        currentText = phaseToLabel(event.status);
+        spinner.text = currentText;
+        break;
+      case "step_start":
+        currentText = event.description;
+        spinner.text = currentText;
+        break;
+      case "step_complete":
+        if (event.kind === "executor") {
+          completedSteps.push({
+            step: event.step,
+            executorName: event.executorName ?? "",
+            description: event.description,
+            durationMs: event.durationMs,
+            tokens: event.tokens,
+            model: event.model,
+            output: event.output,
+          });
+          spinner.stop();
+          if (process.stderr.isTTY) {
+            redraw();
+          } else {
+            appendLastStep();
+          }
+        }
+        break;
+      case "executor_reasoning":
+        spinner.stop();
+        const lines = event.reasoning.split(/\r?\n/);
+        process.stderr.write(`\n  [${event.executorName}] Chain of thought:\n`);
+        for (const line of lines) {
+          process.stderr.write(`    ${line}\n`);
+        }
+        process.stderr.write("\n");
+        spinner.start(currentText);
+        break;
+    }
+  };
+}
+
 function printUsage(): void {
   console.log(`
 ECP CLI — Execution Control Protocol runner
@@ -91,6 +220,7 @@ Options:
   --ollama-base-url <url>   Ollama server URL (default: http://localhost:11434)
   --trace, -t               Enable tracing (saves to ./traces/<run_id>.json)
   --trace-dir <dir>         Directory for trace files (default: ./traces)
+  --progress-logger <id>    Enable a progress logger (e.g. file). Repeatable. Uses config from ~/.ecp/config.yaml
   --extension-security <json> JSON security policy for extension loading
   --tool-servers <json>     JSON map of tool server configs
   --agent-endpoints <json>  JSON map of agent endpoints
@@ -116,6 +246,7 @@ function parseCliArgs(): ParsedArgs {
       "ollama-base-url": { type: "string", default: "http://localhost:11434" },
       trace: { type: "boolean", short: "t", default: false },
       "trace-dir": { type: "string", default: "./traces" },
+      "progress-logger": { type: "string", short: "l", multiple: true },
       debug: { type: "boolean", short: "d", default: false },
       help: { type: "boolean", short: "h", default: false },
       "tool-servers": { type: "string", default: "" },
@@ -171,6 +302,9 @@ function parseCliArgs(): ParsedArgs {
     toolServers: (values["tool-servers"] as string) ?? "",
     agentEndpoints: (values["agent-endpoints"] as string) ?? "",
     extensionSecurity: (values["extension-security"] as string) ?? "",
+    progressLogger: ((values["progress-logger"] as string[] | undefined) ?? []).flatMap((v) =>
+      v.split(",").map((s) => s.trim()).filter(Boolean),
+    ),
   };
 }
 
@@ -195,8 +329,6 @@ async function runValidate(args: ParsedArgs): Promise<void> {
 }
 
 async function runExecute(args: ParsedArgs): Promise<void> {
-  console.log(`\n  Running: ${args.contextPath}\n`);
-
   const context = loadContext(args.contextPath);
   const cwd = process.cwd();
   const systemConfig = resolveSystemConfig(
@@ -230,6 +362,10 @@ async function runExecute(args: ParsedArgs): Promise<void> {
       defaultModel: args.model,
     },
   });
+  registerBuiltinProgressLoggers(registry, {
+    version: "0.3.0",
+    file: {},
+  });
   registry.lock();
 
   let modelProvider: ModelProvider;
@@ -257,6 +393,46 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     ? JSON.parse(args.extensionSecurity) as ExtensionSecurityPolicy
     : (systemConfig?.extensions?.security ?? context.extensions?.security);
 
+  const progressLoggerCallbacks: ProgressCallback[] = [];
+  const plConfig = systemConfig?.progressLoggers;
+  const plEnable =
+    args.progressLogger.length > 0 ? args.progressLogger : plConfig?.defaultEnable ?? [];
+  const plAllow = plConfig?.allowEnable;
+  if (plAllow !== undefined && plAllow.length > 0) {
+    for (const id of plEnable) {
+      if (!plAllow.includes(id)) {
+        console.error(
+          `\n  Progress logger "${id}" is not in system config progressLoggers.allowEnable. Allowed: ${plAllow.join(", ")}\n`,
+        );
+        process.exit(1);
+      }
+    }
+  }
+  for (const id of plEnable) {
+    try {
+      const cb = registry.createProgressLogger(id, plConfig?.config?.[id]);
+      progressLoggerCallbacks.push(cb);
+    } catch (err) {
+      console.error(
+        `\n  Failed to create progress logger "${id}": ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+      process.exit(1);
+    }
+  }
+
+  const spinner = args.debug ? undefined : ora({ stream: process.stderr }).start("Loading context...");
+  const builtInProgress = spinner
+    ? createProgressHandler(spinner, args.contextPath, context.metadata.name)
+    : undefined;
+  const onProgress: ProgressCallback | ProgressCallback[] | undefined =
+    builtInProgress && progressLoggerCallbacks.length > 0
+      ? [builtInProgress, ...progressLoggerCallbacks]
+      : builtInProgress ?? (progressLoggerCallbacks.length > 0 ? progressLoggerCallbacks : undefined);
+
+  if (args.debug) {
+    console.log(`\n  Running: ${args.contextPath}\n`);
+  }
+
   const engine = new ECPEngine(modelProvider, toolInvoker, agentTransport, {
     toolServers,
     agentEndpoints,
@@ -264,6 +440,7 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     modelOverride: args.model,
     debug: args.debug,
     trace: args.trace,
+    onProgress,
     extensions: {
       registry,
       enable: enableFromCli,
@@ -286,6 +463,14 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     inputs: args.inputs,
   });
 
+  if (spinner) {
+    if (result.success) {
+      spinner.succeed("Execution completed.");
+    } else {
+      spinner.fail("Execution failed.");
+    }
+  }
+
   console.log("\n--- Execution Result ---");
   console.log(`  Run ID:     ${result.runId}`);
   console.log(`  Context:    ${result.contextName} v${result.contextVersion}`);
@@ -302,10 +487,12 @@ async function runExecute(args: ParsedArgs): Promise<void> {
     console.log(JSON.stringify(result.output, null, 2));
   }
 
-  console.log("\n--- Executor Outputs ---");
-  for (const [name, output] of Object.entries(result.executorOutputs)) {
-    console.log(`\n  [${name}]`);
-    console.log(JSON.stringify(output, null, 2));
+  if (!spinner) {
+    console.log("\n--- Executor Outputs ---");
+    for (const [name, output] of Object.entries(result.executorOutputs)) {
+      console.log(`\n  [${name}]`);
+      console.log(JSON.stringify(output, null, 2));
+    }
   }
 
   if (args.debug) {

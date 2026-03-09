@@ -6,6 +6,7 @@
 
 import type { ExtensionSourceType } from "@ecp/spec";
 import type { ModelProvider } from "../providers/model-provider.js";
+import type { ProgressCallback } from "../engine/types.js";
 
 /**
  * Base metadata for all runtime extension registrations.
@@ -69,5 +70,22 @@ export interface PluginRegistration extends ExtensionRegistrationBase {
    * Create a plugin extension instance from extension configuration.
    */
   create(config?: Record<string, unknown>): unknown;
+}
+
+/**
+ * Factory contract for progress logger extensions.
+ * Progress loggers receive execution progress events (phase, steps, reasoning).
+ *
+ * @category Extensions
+ */
+export interface ProgressLoggerRegistration extends ExtensionRegistrationBase {
+  /** Fixed kind discriminator for progress logger extensions. */
+  kind: "progress-logger";
+
+  /**
+   * Create a progress logger callback from extension configuration.
+   * The callback will be invoked for each progress event during a run.
+   */
+  create(config?: Record<string, unknown>): ProgressCallback;
 }
 
