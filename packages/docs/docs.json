@@ -1,0 +1,65 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Execution Context Protocol",
+  "colors": {
+    "primary": "#0F766E",
+    "light": "#14B8A6",
+    "dark": "#0D9488"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "index",
+              "getting-started/quickstart",
+              "getting-started/development"
+            ]
+          },
+          {
+            "group": "Learn",
+            "pages": [
+              "learn/concepts",
+              "learn/relationship-to-mcp",
+              "learn/security"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/schema",
+              "reference/cli",
+              "reference/spec"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Spec",
+        "href": "https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/GuillaumeCleme/executioncontextprotocol"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/GuillaumeCleme/executioncontextprotocol"
+    }
+  }
+}

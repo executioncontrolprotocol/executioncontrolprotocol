@@ -1,0 +1,90 @@
+---
+title: "CLI reference"
+description: "ecp run and ecp validate"
+---
+
+The ECP CLI runs and validates Context manifests. Run it via **tsx** from the repo or install the CLI globally.
+
+## Commands
+
+### run
+
+Execute a Context manifest:
+
+```bash
+npx tsx packages/cli/src/index.ts run <context.yaml> [options]
+```
+
+With global CLI:
+
+```bash
+ecp run <context.yaml> [options]
+```
+
+**Required:**
+
+- **context.yaml** — Path to the Context YAML file.
+
+**Common options:**
+
+| Option | Description |
+| ------ | ----------- |
+| `--enable <name>` | Enable extension by name (e.g. `openai`, `ollama`). Repeat for multiple. |
+| `-i`, `--input` | Set input `key=value`. Repeat for each input (e.g. `-i topic=test`). |
+| `--provider` | Model provider to use: `openai` (default) or `ollama`. |
+| `--model` | Override model name (e.g. for Ollama: `llama3.2:3b`). |
+| `--config` | Path to system config file (e.g. `ecp.config.yaml`). |
+| `--ollama-base-url` | Ollama API base URL (default `http://localhost:11434`). |
+| `--debug` | Enable debug logging. |
+
+**Example (OpenAI):**
+
+```bash
+npx tsx packages/cli/src/index.ts run examples/single-executor/context.yaml --enable openai -i topic="ECP"
+```
+
+**Example (Ollama):**
+
+```bash
+npx tsx packages/cli/src/index.ts run examples/single-executor/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Test"
+```
+
+### validate
+
+Validate a Context manifest without running it:
+
+```bash
+npx tsx packages/cli/src/index.ts validate <context.yaml> [options]
+ecp validate <context.yaml> [options]
+```
+
+**Options:**
+
+- **-i, --input** — Provide required inputs so validation can succeed (e.g. `-i shopifyStoreId=demo -i jiraProject=DEMO` for `spec.yaml`).
+
+**Example:**
+
+```bash
+npx tsx packages/cli/src/index.ts validate spec.yaml -i shopifyStoreId=demo -i jiraProject=DEMO
+```
+
+## Environment
+
+- **OPENAI_API_KEY** — Used by the OpenAI provider when `--provider openai` (default).
+- **OLLAMA_BASE_URL** — Optional; overrides Ollama base URL (default `http://localhost:11434`).
+
+## System config
+
+The CLI loads system config from (in order):
+
+1. `--config <path>`
+2. `./ecp.config.yaml`
+3. `~/.ecp/config.yaml` or `~/.ecp/ecp.config.example.yaml`
+
+Use it to allow-list extensions (`allowEnable`, `defaultEnable`) and set security options. See [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) and `config/ecp.config.example.yaml`.
+
+## See also
+
+- [Quickstart](/getting-started/quickstart) — First run
+- [Development](/getting-started/development) — Global install and env
+- [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) — Full setup guide

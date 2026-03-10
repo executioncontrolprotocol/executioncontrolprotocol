@@ -1,0 +1,39 @@
+---
+title: "Relationship to MCP"
+description: "How ECP builds on the Model Context Protocol"
+---
+
+ECP is designed to **embrace and extend** the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). It does not replace MCP.
+
+## What MCP standardizes
+
+- **Tool discovery** — Servers expose tools with names and schemas.
+- **Tool invocation** — Clients call tools with structured arguments.
+- **Structured tool outputs** — Results are machine-readable.
+
+## What ECP adds
+
+ECP does not redefine tool calling. Instead, it:
+
+- **References MCP servers** — Contexts declare which servers (by name) an executor can use.
+- **References MCP tool names** — Policies allow or deny specific tools (e.g. `jira:issues.search`).
+- **Uses structured argument schemas** — Mounts and tool calls use JSON Schema-compatible definitions.
+- **Bundles permissions and policies** — Default-deny tool access, budgets, write controls per executor.
+- **Adds versioning and packaging** — A Context is a versioned, portable manifest (like a container image).
+
+## Layered view
+
+| Layer | Responsibility |
+| ----- | --------------- |
+| **MCP** | Tool discovery and invocation |
+| **A2A** | Agent-to-agent communication |
+| **ECP** | Orchestration and execution control |
+
+If MCP is the "USB interface" for AI tools, ECP is the "container manifest" that defines the whole execution environment: which tools, which data (mounts), which guardrails (policies), and how executors coordinate.
+
+## Building with both
+
+- Implement or use **MCP servers** for your data and tools.
+- Define **ECP Contexts** that reference those servers, declare mounts and policies, and orchestrate agents that call MCP tools.
+
+This keeps tool semantics in MCP and execution semantics in ECP.

@@ -1,0 +1,78 @@
+---
+title: "Core concepts"
+description: "Context, executors, orchestration, and mounts"
+---
+
+ECP defines a **Context** as the root execution object: a portable artifact that describes a complete execution environment for one or more AI agents.
+
+## Context
+
+A Context contains:
+
+- **Inputs** — parameters that make the Context reusable (e.g. `shopifyStoreId`, `jiraProject`)
+- **Outputs** — declared structured results (e.g. from a schema)
+- **Schemas** — JSON Schema-like definitions referenced by executors and outputs
+- **Triggers** — events that start a run (schedule, webhook, tool-event)
+- **Orchestration** — entrypoint, strategy, and coordination defaults
+- **Orchestrator** — the top-level coordinating object (optional; legacy Contexts use a flat **executors** list)
+
+Contexts are **portable**: version them, share them, and run them on any ECP-compliant runtime.
+
+## Orchestrator and executors
+
+- **Orchestrator** — The entry point of execution. It may contain executors and nested orchestrators, define orchestration strategy, and coordinate delegation and aggregation.
+- **Executors** — Execution roles (agents, tools, or human reviewers) that run within the orchestration. Each has its own protocols, mounts, and policies.
+
+Orchestrators and executors share a common pattern for **inputs**, **outputs**, and **schema references**. Orchestrators add coordination-specific properties (child executors, delegation semantics, merge responsibilities).
+
+## Orchestration strategies
+
+| Strategy | Description |
+| -------- | ----------- |
+| **single** | Run only the entrypoint; no delegation. |
+| **sequential** | Run children in a fixed order; outputs can feed the next. |
+| **delegate** | Orchestrator plans, delegates to specialists, then merges results. Most common for complex flows. |
+| **swarm** | Run children in parallel; aggregate or merge afterward. |
+
+## Mounts
+
+Mounts define how data is loaded from external systems (e.g. via MCP tools). They run in three stages:
+
+| Stage | Purpose |
+| ----- | ------- |
+| **Seed** | Metadata and references (e.g. Ref objects with id, title, snippet). |
+| **Focus** | A subset of objects selected during orchestration (bounded). |
+| **Deep** | Full documents or large payloads (used sparingly). |
+
+This staged hydration keeps context windows and cost under control.
+
+## Policies
+
+Policies define **object-scoped** security:
+
+- **Tool access** — Default deny; allow only explicitly listed tools (e.g. `jira:issues.search`).
+- **Budgets** — e.g. `maxToolCalls`, `maxRuntimeSeconds`.
+- **Write controls** — `forbid`, `propose-only`, or `execute-if-allowed`; optional `requireApprovalFor` list.
+
+## Protocols
+
+Executors declare which protocols they use, for example:
+
+- **agentOrchestration** — A2A (agent-to-agent)
+- **toolInvocation** — MCP
+
+The runtime uses these to wire tool calls and delegation.
+
+## Triggers
+
+Triggers start a Context run. Supported types include:
+
+- **schedule** — Cron-style (e.g. `0 8 * * MON` with timezone)
+- **webhook** — HTTP-triggered
+- **tool-event** — Emitted by an integration
+
+## Learn more
+
+- [Relationship to MCP](/learn/relationship-to-mcp) — How ECP sits above MCP
+- [Security](/learn/security) — Default-deny, audit, and governance
+- [Full spec (SPEC.md)](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md) — Design goals, runtime behavior, executor types

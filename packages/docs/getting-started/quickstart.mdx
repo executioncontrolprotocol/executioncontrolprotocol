@@ -1,0 +1,58 @@
+---
+title: "Quickstart"
+description: "Run your first ECP Context in minutes"
+---
+
+Get an ECP Context running locally in three steps.
+
+## Prerequisites
+
+- **Node.js** 18+ (LTS recommended)
+- **npm** (v7+ for workspaces) or pnpm
+- For **OpenAI**: set `OPENAI_API_KEY`. For **Ollama**: [install Ollama](https://ollama.com/) and run it locally.
+
+## Step 1: Clone and install
+
+```bash
+git clone https://github.com/GuillaumeCleme/executioncontextprotocol.git
+cd executioncontextprotocol
+npm install
+```
+
+## Step 2: Run a Context
+
+Using the single-executor example with OpenAI:
+
+```bash
+npx tsx packages/cli/src/index.ts run examples/single-executor/context.yaml --enable openai -i topic="ECP"
+```
+
+Or validate a Context without running it:
+
+```bash
+npx tsx packages/cli/src/index.ts validate examples/single-executor/context.yaml -i topic=test
+```
+
+For **Ollama** (no API key):
+
+```bash
+ollama pull llama3.2:3b
+npx tsx packages/cli/src/index.ts run examples/single-executor/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Test"
+```
+
+## Step 3: Inspect the manifest
+
+The canonical example Context is [`spec.yaml`](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/spec.yaml) at the repo root. It includes:
+
+- **inputs** — parameters like `shopifyStoreId`, `jiraProject`
+- **outputs** — structured results (e.g. from a schema)
+- **schemas** — JSON Schema-like definitions for outputs
+- **triggers** — when the Context runs (e.g. schedule, webhook)
+- **orchestration** — entrypoint, strategy, delegation defaults
+- **executors** — agents with models, mounts, and policies
+
+## Next steps
+
+- [Development](/getting-started/development) — preview docs locally, global CLI install
+- [Concepts](/learn/concepts) — Context, executors, mounts, orchestration
+- [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) — env vars, system config, Ollama details

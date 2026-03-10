@@ -1,0 +1,53 @@
+---
+title: "Security"
+description: "Default-deny, budgets, and audit"
+---
+
+ECP is designed with secure-by-default principles for autonomous agent deployments.
+
+## Default-deny tool access
+
+Orchestrators and executors **cannot** call tools unless explicitly allowed. Policies use an allowlist:
+
+```yaml
+policies:
+  toolAccess:
+    default: deny
+    allow:
+      - jira:issues.search
+      - confluence:pages.search
+```
+
+Only the listed tools are permitted for that executor.
+
+## Scoped permissions
+
+- **Tool access** — Per-executor allowlists (e.g. read-only tools for analysts, write tools only for the publisher).
+- **Write controls** — Modes: `forbid`, `propose-only`, `execute-if-allowed`. Optional `requireApprovalFor` for specific tools.
+- **Budgets** — `maxToolCalls`, `maxRuntimeSeconds` to cap cost and time per executor.
+
+## Execution trace
+
+Every run should produce a **reproducible trace**, including:
+
+- Resolved Context snapshot
+- Tool invocation log
+- Agent outputs
+- Execution timeline
+- Policy decisions
+
+This supports compliance, debugging, and replay. Contexts are versioned and signed (roadmap) to avoid overly permissive configs being distributed by mistake.
+
+## Extensions and system config
+
+- **Extensions** — Contexts declare which model providers and plugins they use; versions are pinned.
+- **System config** — Optional `ecp.config.yaml` (or `--config`) can allow-list which extensions can be enabled and set organization-wide security policy.
+
+See [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) for `allowEnable`, `defaultEnable`, and security options in the example config.
+
+## Principles in short
+
+- Least-privilege execution per executor
+- Short-lived credentials and full audit logging (runtime responsibility)
+- Provenance tracking of context sources
+- Contexts should make overly-permissive configurations difficult to express and distribute

@@ -11,7 +11,7 @@ This is a **monorepo** for the Execution Control Protocol (ECP), using npm works
 | `packages/spec/` | TypeScript types, JSON Schema generation, spec validation |
 | `packages/runtime/` | ECP execution engine (providers, protocols, mounts, policies) |
 | `packages/cli/` | CLI tool: `ecp run` and `ecp validate` |
-| `packages/docs/` | TypeDoc documentation generator |
+| `packages/docs/` | Mintlify documentation site (MDX); optional TypeDoc for API reference |
 | `examples/` | Example Context manifests (single-executor, controller-specialist) |
 | `spec.yaml` | Canonical ECP Context example |
 
@@ -23,7 +23,8 @@ This is a **monorepo** for the Execution Control Protocol (ECP), using npm works
 | `npm run generate:schema` | Generate JSON Schema from spec types |
 | `npm run lint` | ESLint + markdownlint |
 | `npm run validate` | Validate `spec.yaml` via AJV + structural checks |
-| `npm run docs` | Build HTML documentation with TypeDoc |
+| `npm run docs` | Start Mintlify doc preview at http://localhost:3000 (run from repo root) |
+| `npm run docs:typedoc` | Build TypeDoc API reference in packages/docs/dist |
 | `npm run check` | Full suite: build + generate:schema + lint + validate + test |
 | `npm run test:e2e` | E2E tests with real Ollama model (requires running Ollama) |
 

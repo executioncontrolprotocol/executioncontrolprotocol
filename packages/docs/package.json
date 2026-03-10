@@ -1,13 +1,16 @@
 {
   "name": "@ecp/docs",
   "version": "0.3.0",
-  "description": "Generated API documentation for the ECP specification types",
+  "description": "Mintlify documentation site for the Execution Context Protocol (ECP)",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "typedoc"
+    "dev": "mintlify dev",
+    "build:typedoc": "typedoc",
+    "broken-links": "mintlify broken-links"
   },
   "devDependencies": {
+    "mintlify": "^4.0.0",
     "typedoc": "^0.28.0",
     "typescript": "^5.7.0"
   }

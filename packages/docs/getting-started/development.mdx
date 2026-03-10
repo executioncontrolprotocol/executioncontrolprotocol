@@ -1,0 +1,65 @@
+---
+title: "Development"
+description: "Preview docs locally and install the ECP CLI"
+---
+
+## Preview the docs locally
+
+**Prerequisites:** Node.js 19+ (or 18+; Mintlify may recommend 19+), and a docs directory with `docs.json`.
+
+From the repo root:
+
+```bash
+npm i -g mint
+cd packages/docs
+mint dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the documentation. The preview updates as you edit MDX files.
+
+To use a different port:
+
+```bash
+mint dev --port 3333
+```
+
+## Install the ECP CLI globally (optional)
+
+To get a global `ecp` command:
+
+1. Install **tsx** globally (the CLI runs TypeScript):
+
+   ```bash
+   npm install -g tsx
+   ```
+
+2. From the repo root, link the CLI:
+
+   ```bash
+   cd packages/cli
+   npm link
+   cd ../..
+   ```
+
+3. Run from any directory:
+
+   ```bash
+   ecp run path/to/context.yaml --enable openai -i topic="Hello"
+   ecp validate path/to/context.yaml
+   ```
+
+Alternatively, add a script to the root `package.json` and use `npm run ecp -- run ...`.
+
+## Environment and config
+
+- **OpenAI:** Set `OPENAI_API_KEY`.
+- **Ollama:** Default base URL is `http://localhost:11434`; override with `--ollama-base-url` or `OLLAMA_BASE_URL`.
+- **System config:** Optional `ecp.config.yaml` (e.g. from `config/ecp.config.example.yaml`) for allow-listed extensions and security. The CLI loads it from `--config`, `./ecp.config.yaml`, or `~/.ecp/config.yaml`.
+
+See [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) for full details.
+
+## Troubleshooting
+
+- **Docs preview not running:** Ensure you are in `packages/docs` (where `docs.json` lives) and run `mint update` if the CLI is outdated.
+- **404 on a page:** Confirm the page path in `docs.json` matches the file under `packages/docs` (e.g. `index` -> `index.mdx`, `getting-started/quickstart` -> `getting-started/quickstart.mdx`).
+- **Broken links:** Run `mint broken-links` from `packages/docs` to validate links.

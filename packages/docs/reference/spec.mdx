@@ -1,0 +1,48 @@
+---
+title: "Full specification"
+description: "SPEC.md and architecture"
+---
+
+The full protocol specification and architecture are maintained in the repository as Markdown.
+
+## SPEC.md
+
+**[SPEC.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md)** covers:
+
+- Design goals (protocol composability, deterministic execution, least-privilege, hierarchical orchestration, progressive context hydration)
+- Core concepts (Context, Orchestrator, Executors)
+- Runtime behavior: orchestrator vs executor, data flow, what is shared
+- Shared input/output model
+- Executor types (agent, tool, human)
+- Nested orchestration
+- Mounts (seed, focus, deep) and Ref objects
+- Policies and protocols
+- Orchestration strategies (single, sequential, delegate, swarm)
+- Triggers, schemas, context inputs/outputs
+- Security model
+
+Use it as the authoritative protocol document when implementing runtimes or tooling.
+
+## ARCHITECTURE.md
+
+**[ARCHITECTURE.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/ARCHITECTURE.md)** documents extension registration and architecture decisions.
+
+## Schema and types
+
+- **JSON Schema:** `packages/spec/dist/ecp-context.schema.json` (generate with `npm run generate:schema`)
+- **TypeScript types:** `packages/spec/src/types/ecp.ts` (single source of truth)
+
+See [Schema reference](/reference/schema) for details.
+
+## Repository
+
+| Path | Description |
+| ---- | ----------- |
+| [spec.yaml](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/spec.yaml) | Canonical example Context |
+| [SPEC.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md) | Full protocol specification |
+| [SETUP.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SETUP.md) | Install, CLI, env, config |
+| [ARCHITECTURE.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/ARCHITECTURE.md) | Extension registration and architecture |
+| [packages/spec/](https://github.com/GuillaumeCleme/executioncontextprotocol/tree/main/packages/spec) | Types, JSON Schema, validators |
+| [packages/runtime/](https://github.com/GuillaumeCleme/executioncontextprotocol/tree/main/packages/runtime) | Execution engine |
+| [packages/cli/](https://github.com/GuillaumeCleme/executioncontextprotocol/tree/main/packages/cli) | CLI implementation |
+| [examples/](https://github.com/GuillaumeCleme/executioncontextprotocol/tree/main/examples) | Example Context manifests |

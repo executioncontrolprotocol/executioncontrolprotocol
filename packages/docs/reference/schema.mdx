@@ -1,0 +1,98 @@
+---
+title: "Schema reference"
+description: "JSON Schema and TypeScript types for ECP Context"
+---
+
+The ECP Context manifest is defined by a **JSON Schema** and **TypeScript types**. Use them to validate manifests, generate UIs, or build runtimes.
+
+## JSON Schema
+
+The canonical schema for an ECP Context is generated from the TypeScript types and emitted as:
+
+**`packages/spec/dist/ecp-context.schema.json`**
+
+Generate it from the repo root:
+
+```bash
+npm run generate:schema
+```
+
+Then validate a manifest (e.g. `spec.yaml`) with the spec package validator:
+
+```bash
+npm run validate
+```
+
+The schema covers the root `ECPContext` and all nested types: `metadata`, `inputs`, `outputs`, `schemas`, `triggers`, `orchestration`, `orchestrator`, `executors`, `extensions`, and policy/mount/schema definition shapes.
+
+## TypeScript types
+
+The single source of truth for the schema is:
+
+**`packages/spec/src/types/ecp.ts`**
+
+All types are exported from `@ecp/spec` (or `packages/spec/src/types/index.ts`). Key exports include:
+
+- **ECPContext** — Root manifest interface
+- **Metadata**, **InputDefinition**, **OutputDefinition** — Context-level fields
+- **SchemaDefinition**, **SchemaProperty** — JSON Schema-aligned definitions
+- **Trigger**, **Orchestration**, **Orchestrator**, **Executor** — Execution model
+- **Mount**, **ToolAccessPolicy**, **BudgetsPolicy**, **WriteControlsPolicy** — Per-executor configuration
+- **Extensions**, **ProviderDeclaration** — Extension registration
+
+Naming follows OpenAPI conventions: **camelCase** for field names, **kebab-case** for enum/union literals (e.g. `"controller-specialist"`, `"propose-only"`), **PascalCase** for types and schema names.
+
+## TypeDoc (API docs)
+
+For full JSDoc and category-based API documentation of every type and property, the repo can generate **TypeDoc** output. From the repo root:
+
+```bash
+npm run build
+npm run docs
+```
+
+This builds the TypeDoc site into `packages/docs/dist` (when using the existing TypeDoc config). The Mintlify site does not replace the need for TypeDoc for **programmatic API reference**; it links to the spec and schema. If you publish TypeDoc elsewhere (e.g. GitHub Pages), link to it from this page or the footer.
+
+## Example: minimal Context
+
+A minimal valid Context in YAML:
+
+```yaml
+apiVersion: ecp/v0.3-draft
+kind: Context
+metadata:
+  name: hello-agent
+  version: 1.0.0
+inputs:
+  topic:
+    type: string
+    required: true
+outputs:
+  - name: summary
+    fromSchema: Summary
+schemas:
+  Summary:
+    type: object
+    required: [headline, body]
+    properties:
+      headline: { type: string }
+      body: { type: string }
+orchestration:
+  entrypoint: summarizer
+  strategy: single
+  produces: Summary
+executors:
+  - name: summarizer
+    type: agent
+    model:
+      provider: { name: openai, type: builtin, version: 0.3.0 }
+      name: gpt-4o-mini
+    instructions: Given a topic, produce a JSON object with headline and body.
+    outputSchemaRef: "#/schemas/Summary"
+```
+
+## See also
+
+- [spec.yaml](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/spec.yaml) — Canonical example Context
+- [SPEC.md](https://github.com/GuillaumeCleme/executioncontextprotocol/blob/main/SPEC.md) — Full protocol specification
+- [CLI reference](/reference/cli) — `ecp run` and `ecp validate`
