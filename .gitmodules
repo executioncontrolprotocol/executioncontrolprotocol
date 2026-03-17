@@ -1,3 +1,0 @@
-[submodule "packages/docs"]
-	path = packages/docs
-	url = git@github.com:executioncontextprotocol/docs.git
