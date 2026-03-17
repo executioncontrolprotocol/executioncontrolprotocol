@@ -11,5 +11,5 @@ npx tsx packages/cli/src/index.ts run examples/marketing-campaign-ollama/context
 Example:
 
 ```bash
-npx tsx packages/cli/src/index.ts run examples/marketing-campaign-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i product="ECP — Execution Context Protocol for AI agents"
+npx tsx packages/cli/src/index.ts run examples/marketing-campaign-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i product="ECP — Execution Control Protocol for AI agents"
 ```

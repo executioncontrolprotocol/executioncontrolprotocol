@@ -1,11 +1,11 @@
-# Execution Context Protocol (ECP)
+# Execution Control Protocol (ECP)
 
 [![CI](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml)
 [![Docs](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/docs.yml/badge.svg)](https://guillaumecleme.github.io/executioncontextprotocol/)
 
 > **The runtime specification for agentic systems.**
 
-Execution Context Protocol (ECP) is an open standard for defining,
+Execution Control Protocol (ECP) is an open standard for defining,
 packaging, versioning, and deploying **execution environments for AI agents** —
 portable specifications that describe what an agent can see, what tools it can
 access, and how it runs.
