@@ -1,0 +1,27 @@
+# On `development`, ensure publishable packages are versioned above npm latest
+# before merging to main (where publish runs).
+
+name: Development — version vs npm
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [development]
+
+permissions:
+  contents: read
+
+jobs:
+  version-above-npm:
+    name: Version > npm latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check workspace versions vs registry
+        run: node scripts/check-version-gt-published.mjs

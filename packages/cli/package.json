@@ -2,21 +2,25 @@
   "name": "@executioncontrolprotocol/cli",
   "version": "0.3.0",
   "description": "CLI for the ECP runtime engine — run Context manifests from the command line",
-  "private": true,
+  "private": false,
   "type": "module",
   "bin": {
-    "ecp": "src/index.ts"
+    "ecp": "./bin/ecp.cjs"
   },
+  "files": [
+    "bin/ecp.cjs",
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -b",
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@executioncontrolprotocol/runtime": "*",
-    "@executioncontrolprotocol/spec": "*",
+    "@executioncontrolprotocol/runtime": "^0.3.0",
     "ora": "^8.1.1"
   },
   "devDependencies": {
+    "@executioncontrolprotocol/spec": "^0.3.0",
     "@types/node": "^25.3.3",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0"

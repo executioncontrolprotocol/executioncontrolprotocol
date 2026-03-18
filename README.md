@@ -25,22 +25,17 @@ Think of ECP as:
 
 ## Getting Started
 
-**Prerequisites:** Node.js 18+, npm or pnpm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
+**Prerequisites:** Node.js 22+, npm or pnpm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
 
 ```bash
 git clone https://github.com/GuillaumeCleme/executioncontextprotocol.git
 cd executioncontextprotocol
 npm install   # or pnpm install
+npm run build
 ```
 
-**Install the CLI (recommended):**
-
-```bash
-npm install -g tsx
-cd packages/cli
-npm link
-cd ../..
-```
+**Install the CLI (recommended):** `cd packages/cli && npm link && cd ../..`  
+(Or use `npx ecp …` from the repo root after `npm run build`.)
 
 **Run an example:**
 

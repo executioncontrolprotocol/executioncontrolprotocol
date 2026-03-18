@@ -4,15 +4,22 @@
   "description": "ECP specification types, JSON Schema generation, and validation",
   "private": false,
   "type": "module",
-  "main": "src/types/index.ts",
-  "types": "src/types/index.ts",
+  "main": "./dist/types/index.js",
+  "types": "./dist/types/index.d.ts",
   "exports": {
-    ".": "./src/types/index.ts"
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -b",
     "generate:schema": "ts-json-schema-generator -p src/types/ecp.ts -t ECPContext --additional-properties --no-type-check -o dist/ecp-context.schema.json",
-    "validate": "tsx src/validate.ts",
+    "validate": "node dist/validate.js",
     "check": "npm run build && npm run generate:schema && npm run validate"
   },
   "dependencies": {

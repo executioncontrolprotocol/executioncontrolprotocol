@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * ECP CLI — run Context manifests from the command line.
  *

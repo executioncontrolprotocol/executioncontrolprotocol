@@ -6,7 +6,7 @@ This guide covers installing the ECP CLI, configuring model providers (OpenAI an
 
 ## Prerequisites
 
-- **Node.js** 18+ (LTS recommended)
+- **Node.js** 22+ (required for schema generation / full build)
 - **npm** (v7+ for workspaces) or **pnpm**
 - For **OpenAI**: an [OpenAI API key](https://platform.openai.com/api-keys)
 - For **Ollama** (optional): [Ollama](https://ollama.com/) installed and running locally
@@ -36,58 +36,40 @@ pnpm install
 
 ## Running the CLI
 
-Prefer installing/linking the CLI once so you can use `ecp` from your shell.
+Build **spec → runtime → cli** from the repo root (TypeScript emits to each package’s `dist/`):
 
 ```bash
-npm install -g tsx
-cd packages/cli
-npm link
-cd ../..
+npm install
+npm run build
 ```
 
-Then run:
+**Option A — no global install:** from the repo root:
+
+```bash
+npx ecp validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
+npx ecp run examples/single-executor/context.yaml --enable openai -i topic="Getting started"
+```
+
+**Option B — global `ecp` command:** link the CLI (compiled `dist/`; no global `tsx` required):
+
+```bash
+cd packages/cli && npm link && cd ../..
+```
+
+Then:
 
 ```bash
 ecp run examples/single-executor/context.yaml --enable openai -i topic="Getting started"
 ecp validate examples/single-executor/context.yaml
 ```
 
+Dev without rebuilding (TypeScript source): `npm run start --workspace=@executioncontrolprotocol/cli` (pass args after `--` if your npm version requires it).
+
 ------------------------------------------------------------------------
 
 ## Install the CLI Globally (optional)
 
-To get a global `ecp` command:
-
-1. Install **tsx** globally (required because the CLI runs TypeScript):
-
-   ```bash
-   npm install -g tsx
-   ```
-
-2. From the repo root, link the CLI package:
-
-   ```bash
-   cd packages/cli
-   npm link
-   cd ../..
-   ```
-
-3. Run from any directory:
-
-   ```bash
-   ecp run path/to/context.yaml --enable openai -i topic="Hello"
-   ecp validate path/to/context.yaml
-   ```
-
-If you prefer not to use a global link, add a script to the root `package.json`:
-
-```json
-"scripts": {
-  "ecp": "tsx packages/cli/src/index.ts"
-}
-```
-
-Then: `npm run ecp run examples/single-executor/context.yaml -- --enable openai -i topic=Test`
+Same as **Option B** above: `npm run build`, then `cd packages/cli && npm link`.
 
 ------------------------------------------------------------------------
 
@@ -141,10 +123,10 @@ Lighter alternative: `ollama pull llama3.2:1b`. Other options with good tool sup
    ecp run examples/single-executor/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Test"
    ```
 
-   If you didn’t link the CLI, run via your package manager:
+   If you didn’t link the CLI, from the repo root (after `npm run build`):
 
    ```bash
-   pnpm exec tsx packages/cli/src/index.ts run examples/single-executor/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Test"
+   npx ecp run examples/single-executor/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Test"
    ```
 
 ------------------------------------------------------------------------
@@ -190,10 +172,10 @@ See [`config/ecp.config.example.yaml`](config/ecp.config.example.yaml) for `allo
 | Goal              | Command / step |
 |-------------------|----------------|
 | Install deps      | `npm install` or `pnpm install` |
-| Link `ecp` CLI    | `npm install -g tsx` then `npm link` from `packages/cli` |
+| Link `ecp` CLI    | `npm run build` then `npm link` from `packages/cli` |
 | Run a Context     | `ecp run <context.yaml> --enable openai -i key=value` |
 | Validate          | `ecp validate <context.yaml>` |
 | Use OpenAI        | Set `OPENAI_API_KEY` |
 | Use Ollama        | Install [Ollama](https://ollama.com/), `ollama pull llama3.2:3b`, then `--provider ollama --enable ollama --model llama3.2:3b` |
 | System config     | Copy `config/ecp.config.example.yaml` to `./ecp.config.yaml` or use `--config <path>` |
-| Global `ecp`      | `npm install -g tsx` then `npm link` from `packages/cli` |
+| Global `ecp`      | `npm run build` then `npm link` from `packages/cli` |

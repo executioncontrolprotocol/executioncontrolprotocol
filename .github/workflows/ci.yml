@@ -20,10 +20,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Typecheck (spec → runtime → cli)
+      - name: Build (spec → schema → runtime → cli)
         run: npm run build
-      - name: Generate schema
-        run: npm run generate:schema
       - name: Lint (ESLint + markdownlint)
         run: npm run lint
       - name: Validate spec
@@ -42,6 +40,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build packages (dist for tests)
+        run: npm run build
       - name: Run unit tests
         run: npm run test:unit
       - name: Upload coverage
@@ -63,6 +63,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build packages (dist for tests)
+        run: npm run build
       - name: Run integration tests
         run: npm run test:integration
 
@@ -78,6 +80,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build packages (dist for tests)
+        run: npm run build
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
       - name: Start Ollama server
@@ -94,3 +98,37 @@ jobs:
         env:
           OLLAMA_MODEL: gemma3:1b
         run: npm run test:e2e
+
+  publish:
+    name: Publish to npm
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [check, test-unit, test-integration, test-e2e]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Build (spec → schema → runtime → cli)
+        run: npm run build
+      - name: Publish @executioncontrolprotocol/spec
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=@executioncontrolprotocol/spec --access public
+      - name: Wait for registry (avoid race before runtime publish)
+        run: sleep 10
+      - name: Publish @executioncontrolprotocol/runtime
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=@executioncontrolprotocol/runtime --access public
+      - name: Wait for registry
+        run: sleep 10
+      - name: Publish @executioncontrolprotocol/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=@executioncontrolprotocol/cli --access public
