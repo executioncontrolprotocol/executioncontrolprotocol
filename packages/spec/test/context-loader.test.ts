@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolve } from "node:path";
-import { loadContext, resolveInputs } from "@ecp/runtime";
+import { loadContext, resolveInputs } from "@executioncontrolprotocol/runtime";
 
 const fixtures = resolve(import.meta.dirname, "fixtures");
 

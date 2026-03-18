@@ -15,20 +15,20 @@ import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import ora from "ora";
-import { ECPEngine, loadContext, resolveInputs, resolveSystemConfig } from "@ecp/runtime";
-import type { ModelProvider, ExecutionProgressEvent, ProgressCallback } from "@ecp/runtime";
-import { MCPToolInvoker } from "@ecp/runtime";
-import { A2AAgentTransport } from "@ecp/runtime";
-import { ExtensionRegistry, registerBuiltinModelProviders, registerBuiltinProgressLoggers } from "@ecp/runtime";
+import { ECPEngine, loadContext, resolveInputs, resolveSystemConfig } from "@executioncontrolprotocol/runtime";
+import type { ModelProvider, ExecutionProgressEvent, ProgressCallback } from "@executioncontrolprotocol/runtime";
+import { MCPToolInvoker } from "@executioncontrolprotocol/runtime";
+import { A2AAgentTransport } from "@executioncontrolprotocol/runtime";
+import { ExtensionRegistry, registerBuiltinModelProviders, registerBuiltinProgressLoggers } from "@executioncontrolprotocol/runtime";
 import {
   TraceCollector,
   ConsoleTraceExporter,
   JsonFileTraceExporter,
   formatTrace,
   renderGraph,
-} from "@ecp/runtime";
-import type { ExecutionTrace } from "@ecp/runtime";
-import type { ECPContext, ExtensionSecurityPolicy, Orchestrator } from "@ecp/spec";
+} from "@executioncontrolprotocol/runtime";
+import type { ExecutionTrace } from "@executioncontrolprotocol/runtime";
+import type { ECPContext, ExtensionSecurityPolicy, Orchestrator } from "@executioncontrolprotocol/spec";
 
 interface ParsedArgs {
   command: string;

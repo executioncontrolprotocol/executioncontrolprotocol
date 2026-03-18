@@ -5,7 +5,7 @@ import { MockModelProvider } from "../src/testing/mock-model-provider.js";
 import { MockToolInvoker } from "../src/testing/mock-tool-invoker.js";
 import { MockAgentTransport } from "../src/testing/mock-agent-transport.js";
 import { loadContext } from "../src/engine/context-loader.js";
-import type { ECPContext } from "@ecp/spec";
+import type { ECPContext } from "@executioncontrolprotocol/spec";
 import type { GenerateOptions, GenerateResult, ModelProvider } from "../src/providers/model-provider.js";
 import { ExtensionRegistry } from "../src/extensions/registry.js";
 

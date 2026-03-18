@@ -16,7 +16,7 @@ import type {
   ModelProviderSelector,
   Orchestrator,
   SchemaDefinition,
-} from "@ecp/spec";
+} from "@executioncontrolprotocol/spec";
 import type { ModelProvider, ChatMessage, ToolDefinition, ToolCall } from "../providers/model-provider.js";
 import type { ToolInvoker } from "../protocols/tool-invoker.js";
 import type { AgentTransport, AgentRef, DelegatedTask } from "../protocols/agent-transport.js";

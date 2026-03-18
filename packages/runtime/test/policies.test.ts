@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createPolicyEnforcer } from "../src/policies/enforcer.js";
-import type { Policies } from "@ecp/spec";
+import type { Policies } from "@executioncontrolprotocol/spec";
 
 describe("Policy enforcer", () => {
   describe("tool access — default deny", () => {

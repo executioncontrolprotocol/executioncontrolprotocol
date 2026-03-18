@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { MockToolInvoker } from "../src/testing/mock-tool-invoker.js";
 import { DefaultMountHydrator, resolveSelector } from "../src/mounts/hydrator.js";
 import { interpolateString, interpolateArgs } from "../src/mounts/interpolation.js";
-import type { Mount } from "@ecp/spec";
+import type { Mount } from "@executioncontrolprotocol/spec";
 
 describe("Template interpolation", () => {
   it("interpolates ${inputs.*} expressions", () => {

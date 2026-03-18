@@ -1,5 +1,5 @@
 {
-  "name": "executioncontextprotocol",
+  "name": "@executioncontextprotocol/workspace",
   "version": "0.3.0",
   "description": "Execution Control Protocol (ECP) — open specification for defining, packaging, versioning, and deploying AI agent environments",
   "private": true,
@@ -7,18 +7,18 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/spec && tsc -b packages/runtime && npm run build --workspace=@ecp/cli",
+    "build": "tsc -b packages/spec && tsc -b packages/runtime && npm run build --workspace=@executioncontrolprotocol/cli",
     "lint": "eslint . && markdownlint-cli2 '**/*.md' '#node_modules' '#packages/*/node_modules'",
     "lint:ts": "eslint .",
     "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules' '#packages/*/node_modules'",
-    "generate:schema": "npm run generate:schema --workspace=@ecp/spec",
-    "validate": "npm run validate --workspace=@ecp/spec",
-    "docs": "npm run dev --workspace=@ecp/docs",
-    "docs:typedoc": "npm run build:typedoc --workspace=@ecp/docs",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "generate:schema": "npm run generate:schema --workspace=@executioncontrolprotocol/spec",
+    "validate": "npm run validate --workspace=@executioncontrolprotocol/spec",
+    "docs": "npm run dev --workspace=@executioncontrolprotocol/docs",
+    "docs:typedoc": "npm run build:typedoc --workspace=@executioncontrolprotocol/docs",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:watch": "vitest \"packages/spec/test\" \"packages/runtime/test\" --exclude \"packages/runtime/test/integration/**\" --exclude \"packages/runtime/test/e2e/**\"",
     "test:coverage": "vitest run --coverage",
-    "test:unit": "vitest run packages/spec/test packages/runtime/test/policies.test.ts packages/runtime/test/mounts.test.ts packages/runtime/test/engine.test.ts packages/runtime/test/evals-scorer.test.ts",
+    "test:unit": "vitest run \"packages/spec/test\" \"packages/runtime/test\" --exclude \"packages/runtime/test/integration/**\" --exclude \"packages/runtime/test/e2e/**\"",
     "test:integration": "vitest run packages/runtime/test/integration",
     "test:e2e": "vitest run packages/runtime/test/e2e",
     "check": "npm run build && npm run generate:schema && npm run lint && npm run validate && npm run test"

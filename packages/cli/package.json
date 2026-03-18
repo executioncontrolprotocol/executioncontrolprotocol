@@ -1,5 +1,5 @@
 {
-  "name": "@ecp/cli",
+  "name": "@executioncontrolprotocol/cli",
   "version": "0.3.0",
   "description": "CLI for the ECP runtime engine — run Context manifests from the command line",
   "private": true,
@@ -12,8 +12,8 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@ecp/runtime": "*",
-    "@ecp/spec": "*",
+    "@executioncontrolprotocol/runtime": "*",
+    "@executioncontrolprotocol/spec": "*",
     "ora": "^8.1.1"
   },
   "devDependencies": {

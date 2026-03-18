@@ -13,7 +13,7 @@ import { ECPEngine } from "../../src/engine/runner.js";
 import { OllamaProvider } from "../../src/providers/ollama/ollama-provider.js";
 import { MCPToolInvoker } from "../../src/protocols/mcp/mcp-tool-invoker.js";
 import { MockAgentTransport } from "../../src/testing/mock-agent-transport.js";
-import type { ECPContext } from "@ecp/spec";
+import type { ECPContext } from "@executioncontrolprotocol/spec";
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma3:1b";

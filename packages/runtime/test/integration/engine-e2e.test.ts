@@ -4,7 +4,7 @@ import { ECPEngine } from "../../src/engine/runner.js";
 import { MockModelProvider } from "../../src/testing/mock-model-provider.js";
 import { MCPToolInvoker } from "../../src/protocols/mcp/mcp-tool-invoker.js";
 import { MockAgentTransport } from "../../src/testing/mock-agent-transport.js";
-import type { ECPContext } from "@ecp/spec";
+import type { ECPContext } from "@executioncontrolprotocol/spec";
 
 const FAKE_SERVER_PATH = resolve(
   import.meta.dirname,

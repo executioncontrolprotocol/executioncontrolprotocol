@@ -1,5 +1,5 @@
 {
-  "name": "@ecp/runtime",
+  "name": "@executioncontrolprotocol/runtime",
   "version": "0.3.0",
   "description": "ECP runtime engine — loads, validates, and executes Context manifests",
   "private": false,
@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.0",
-    "@ecp/spec": "*",
+    "@executioncontrolprotocol/spec": "*",
     "@modelcontextprotocol/sdk": "^1.27.0",
     "ajv": "^8.17.0",
     "js-yaml": "^4.1.0",

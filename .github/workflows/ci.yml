@@ -29,7 +29,7 @@ jobs:
       - name: Validate spec
         run: npm run validate
       - name: CLI smoke test
-        run: npx tsx packages/cli/src/index.ts validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
+        run: npx ecp validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
 
   test-unit:
     name: Unit Tests (Layer A + B)

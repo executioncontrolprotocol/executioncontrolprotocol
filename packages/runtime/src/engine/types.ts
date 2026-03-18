@@ -12,7 +12,7 @@ import type {
   Executor,
   ExtensionSecurityPolicy,
   MountStage,
-} from "@ecp/spec";
+} from "@executioncontrolprotocol/spec";
 import type { ExtensionRegistry } from "../extensions/registry.js";
 
 // ---------------------------------------------------------------------------

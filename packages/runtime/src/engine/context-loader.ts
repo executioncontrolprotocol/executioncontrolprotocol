@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import yaml from "js-yaml";
-import type { ECPContext } from "@ecp/spec";
+import type { ECPContext } from "@executioncontrolprotocol/spec";
 
 function hasExecutionObjects(ctx: ECPContext): boolean {
   if (ctx.executors && ctx.executors.length > 0) {

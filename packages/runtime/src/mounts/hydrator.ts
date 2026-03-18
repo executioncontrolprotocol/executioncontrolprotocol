@@ -7,7 +7,7 @@
  * @category Mounts
  */
 
-import type { Mount, MountStage } from "@ecp/spec";
+import type { Mount, MountStage } from "@executioncontrolprotocol/spec";
 import type { ToolInvoker } from "../protocols/tool-invoker.js";
 import type { MountOutput, ResolvedInputs } from "../engine/types.js";
 import type { InterpolationContext, SelectorResult } from "./types.js";

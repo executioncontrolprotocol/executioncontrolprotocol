@@ -7,7 +7,7 @@
  * @category Policies
  */
 
-import type { Policies } from "@ecp/spec";
+import type { Policies } from "@executioncontrolprotocol/spec";
 import type { BudgetUsage } from "../engine/types.js";
 import type {
   PolicyEnforcer,

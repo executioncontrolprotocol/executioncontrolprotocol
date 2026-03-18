@@ -4,7 +4,7 @@
  * @category Extensions
  */
 
-import type { ExtensionSourceType } from "@ecp/spec";
+import type { ExtensionSourceType } from "@executioncontrolprotocol/spec";
 import type { ModelProvider } from "../providers/model-provider.js";
 import type { ProgressCallback } from "../engine/types.js";
 

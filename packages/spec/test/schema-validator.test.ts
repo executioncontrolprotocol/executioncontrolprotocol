@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { validateOutput } from "@ecp/runtime";
-import type { SchemaDefinition } from "@ecp/spec";
+import { validateOutput } from "@executioncontrolprotocol/runtime";
+import type { SchemaDefinition } from "@executioncontrolprotocol/spec";
 
 const planSchema: SchemaDefinition = {
   type: "object",

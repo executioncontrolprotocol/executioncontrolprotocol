@@ -4,7 +4,7 @@
  * @category Extensions
  */
 
-import type { ExtensionVersion } from "@ecp/spec";
+import type { ExtensionVersion } from "@executioncontrolprotocol/spec";
 import { OpenAIProvider } from "../providers/openai/openai-provider.js";
 import type { OpenAIProviderConfig } from "../providers/openai/openai-provider.js";
 import { OllamaProvider } from "../providers/ollama/ollama-provider.js";

@@ -7,7 +7,7 @@
  * @category Mounts
  */
 
-import type { Mount } from "@ecp/spec";
+import type { Mount } from "@executioncontrolprotocol/spec";
 import type { MountOutput, MountRef, ResolvedInputs } from "../engine/types.js";
 
 /**

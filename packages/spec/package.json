@@ -1,5 +1,5 @@
 {
-  "name": "@ecp/spec",
+  "name": "@executioncontrolprotocol/spec",
   "version": "0.3.0",
   "description": "ECP specification types, JSON Schema generation, and validation",
   "private": false,
