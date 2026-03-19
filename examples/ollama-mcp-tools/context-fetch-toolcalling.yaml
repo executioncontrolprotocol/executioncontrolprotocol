@@ -1,0 +1,69 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: ollama-mcp-fetch-toolcalling
+  version: 1.0.0
+  description: Ollama agent calls MCP fetch tool and returns extracted summary
+
+extensions:
+  version: 1.0.0
+  providers:
+    - name: ollama
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  security: {}
+
+inputs:
+  url:
+    type: string
+    required: true
+
+schemas:
+  WebSummary:
+    type: object
+    required: [url, title, summary]
+    properties:
+      url:
+        type: string
+      title:
+        type: string
+      summary:
+        type: string
+
+orchestration:
+  entrypoint: web_summarizer
+  strategy: single
+  produces: WebSummary
+
+executors:
+  - name: web_summarizer
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are a web summarizer.
+      You MUST call the tool `fetch:fetch` at least once to retrieve the page.
+      Then you MUST output ONLY a JSON object with keys:
+      - url (string)
+      - title (string)
+      - summary (string, 2-4 sentences)
+      Do not include any other keys or text.
+    outputSchemaRef: "#/schemas/WebSummary"
+    mounts: []
+    policies:
+      toolAccess:
+        default: deny
+        allow:
+          - fetch:fetch
+      budgets:
+        maxToolCalls: 3
+        maxRuntimeSeconds: 120
+      writeControls:
+        mode: forbid
+

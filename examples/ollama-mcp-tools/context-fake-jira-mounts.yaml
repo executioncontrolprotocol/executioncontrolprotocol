@@ -1,0 +1,81 @@
+apiVersion: ecp/v0.3-draft
+kind: Context
+
+metadata:
+  name: ollama-mcp-fake-jira-mounts
+  version: 1.0.0
+  description: Ollama model consumes MCP-mounted data (fake Jira issues)
+
+extensions:
+  version: 1.0.0
+  providers:
+    - name: ollama
+      kind: model-provider
+      type: builtin
+      version: 0.3.0
+  security: {}
+
+inputs:
+  project:
+    type: string
+    required: true
+
+schemas:
+  IssueDigest:
+    type: object
+    required: [project, issues]
+    properties:
+      project:
+        type: string
+      issues:
+        type: array
+        items:
+          type: object
+          required: [id, title]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+
+orchestration:
+  entrypoint: issue_digester
+  strategy: single
+  produces: IssueDigest
+
+executors:
+  - name: issue_digester
+    type: agent
+    model:
+      provider:
+        name: ollama
+        type: builtin
+        version: 0.3.0
+      name: llama3.2:3b
+    instructions: |
+      You are an issue digester.
+      Use the mounted data to produce ONLY JSON:
+      {
+        "project": string,
+        "issues": [{"id": string, "title": string}, ...]
+      }
+      Do not invent issues that are not in the mounted data.
+    outputSchemaRef: "#/schemas/IssueDigest"
+    mounts:
+      - name: issues
+        stage: seed
+        from:
+          server: test-jira
+          tool: issues.search
+          args:
+            project: "${inputs.project}"
+            limit: 3
+    policies:
+      toolAccess:
+        default: deny
+      budgets:
+        maxToolCalls: 1
+        maxRuntimeSeconds: 120
+      writeControls:
+        mode: forbid
+

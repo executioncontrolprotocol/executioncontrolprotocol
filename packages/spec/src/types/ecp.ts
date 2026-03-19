@@ -893,6 +893,72 @@ export interface WriteControls {
   requireApprovalFor?: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Memory (long-term store, policy-controlled)
+// ---------------------------------------------------------------------------
+
+/**
+ * Scope for long-term memory storage. Access is policy-driven; no executor
+ * gets long-term memory by default.
+ *
+ * @category Policies
+ */
+export type MemoryScope = "user" | "context" | "org";
+
+/**
+ * Policy governing an executor's access to long-term memory.
+ * When omitted, the executor has no long-term memory access.
+ *
+ * @category Policies
+ */
+export interface MemoryAccessPolicy extends Extensible {
+  /**
+   * Whether the executor may read from the memory store bound via
+   * {@link Executor.memory}. Default is false when policy is present.
+   */
+  allowRead?: boolean;
+
+  /**
+   * Whether the executor may write (store or delete) in the memory store.
+   * Default is false when policy is present.
+   */
+  allowWrite?: boolean;
+}
+
+/**
+ * Reference to a long-term memory store bound to an executor. When present,
+ * the executor may access the store subject to {@link Policies.memoryAccess}.
+ *
+ * @category Mounts
+ */
+export interface MemoryStoreRef extends Extensible {
+  /**
+   * Scope of the memory store (user, context, or org).
+   */
+  scope: MemoryScope;
+
+  /**
+   * Optional human-readable description of what this memory store is used for.
+   */
+  description?: string;
+
+  /**
+   * Maximum number of memory items to inject into the executor's context.
+   * Helps avoid exceeding model context windows.
+   *
+   * @minimum 1
+   */
+  maxItems?: number;
+
+  /**
+   * Approximate maximum tokens for injected memory content. When set, the
+   * runtime should truncate or summarize to stay under this limit.
+   *
+   * @minimum 1
+   */
+  maxTokens?: number;
+}
+
 /**
  * The complete security policy applied to an executor.
  *
@@ -913,6 +979,12 @@ export interface Policies {
    * Write operation governance.
    */
   writeControls?: WriteControls;
+
+  /**
+   * Long-term memory access. When omitted, the executor has no memory access.
+   * Only applies when the executor declares {@link Executor.memory}.
+   */
+  memoryAccess?: MemoryAccessPolicy;
 }
 
 // ---------------------------------------------------------------------------
@@ -990,6 +1062,13 @@ export interface Executor extends BaseMetadata, Extensible {
    * Data sources available to this executor at various hydration stages.
    */
   mounts?: Mount[];
+
+  /**
+   * Optional long-term memory store binding. When set, the executor may read
+   * or write memory (subject to {@link Policies.memoryAccess}) to refine
+   * output across runs. Access is explicit and policy-controlled.
+   */
+  memory?: MemoryStoreRef;
 
   /**
    * Security policy governing tool access, budgets, and writes.

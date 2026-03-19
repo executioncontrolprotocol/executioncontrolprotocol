@@ -67,6 +67,48 @@ Dev without rebuilding (TypeScript source): `npm run start --workspace=@executio
 
 ------------------------------------------------------------------------
 
+## Tool servers (MCP) and tool permissions
+
+ECP connects to MCP servers at runtime. The CLI supports two concerns:
+
+- **Tool server wiring** (how to start/connect to MCP servers)
+- **Tool permissions** (which executors are allowed to call which tools)
+
+### Tool server wiring
+
+Prefer the simple, repeatable `--tool-server` flag:
+
+- **stdio**: `--tool-server name=stdio:command[,arg1,arg2...]`
+- **sse**: `--tool-server name=sse:url`
+
+Examples:
+
+```bash
+ecp run ctx.yaml ^
+  --tool-server fetch=stdio:docker,run,-i,--rm,mcp/fetch
+```
+
+```bash
+ecp run ctx.yaml ^
+  --tool-server remote=sse:https://example.com/sse
+```
+
+### Tool permissions (per-executor allow-lists)
+
+Prefer the simple, repeatable `--tool-allow` flag:
+
+- `--tool-allow executor=server:tool[,server:tool...]`
+
+Example:
+
+```bash
+ecp run ctx.yaml ^
+  --tool-server fetch=stdio:docker,run,-i,--rm,mcp/fetch ^
+  --tool-allow web_summarizer=fetch:fetch
+```
+
+------------------------------------------------------------------------
+
 ## Install the CLI Globally (optional)
 
 Same as **Option B** above: `npm run build`, then `cd packages/cli && npm link`.

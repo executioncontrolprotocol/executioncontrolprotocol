@@ -13,3 +13,4 @@ alwaysApply: true
 - Prefer `const` over `let`; never use `var`.
 - Use Prettier-compatible formatting (no trailing semicolons are acceptable if ESLint allows it).
 - **No emojis in the codebase.** Do not add emoji characters to source code, UI strings, logs, or comments.
+- **Tests required for new features.** Always include unit or integration tests for any new feature or behavior change. The project targets minimum 90% test coverage (lines, functions, branches, statements); run `npm run test:coverage` to check.

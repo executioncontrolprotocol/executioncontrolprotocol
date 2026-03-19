@@ -52,11 +52,13 @@
     "ajv": "^8.17.0",
     "js-yaml": "^4.1.0",
     "openai": "^4.0.0",
+    "sql.js": "^1.14.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.3.3",
+    "@types/sql.js": "^1.4.9",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0"
   }

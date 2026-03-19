@@ -23,7 +23,10 @@ async function isOllamaAvailable(): Promise<boolean> {
     const res = await fetch(`${OLLAMA_BASE_URL}/api/tags`, {
       signal: AbortSignal.timeout(3000),
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const data = (await res.json()) as { models?: Array<{ name?: string; model?: string }> };
+    const models = data.models ?? [];
+    return models.some((m) => (m.name ?? m.model) === OLLAMA_MODEL);
   } catch {
     return false;
   }

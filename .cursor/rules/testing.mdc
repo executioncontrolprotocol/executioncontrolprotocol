@@ -1,0 +1,12 @@
+---
+description: Testing policy — tests for new features and 90% coverage target
+globs: "**/*.test.ts,**/test/**/*.ts"
+alwaysApply: false
+---
+
+# Testing Rules
+
+- **Every new feature must include tests.** When adding or changing behavior (new modules, plugins, engine behavior, or CLI behavior), add corresponding unit or integration tests in the same or the next change.
+- **Target minimum test coverage: 90%.** The project aims for at least 90% coverage for lines, functions, branches, and statements. Run `npm run test:coverage` from the repo root to view the report. Add or update tests when adding code to reach or maintain this target.
+- **Test file location:** Place tests next to source (`packages/*/src/**/*.test.ts`) or in package test dirs (`packages/*/test/**/*.test.ts`). Use Vitest; follow existing patterns in `packages/runtime/test/` and `packages/spec/test/`.
+- **E2E tests** in `packages/runtime/test/e2e/` require running Ollama and are skipped when Ollama is unavailable; they are not required for routine coverage checks.

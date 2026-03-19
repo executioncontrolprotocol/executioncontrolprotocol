@@ -1,11 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { resolve } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ECPEngine } from "../src/engine/runner.js";
 import { MockModelProvider } from "../src/testing/mock-model-provider.js";
 import { MockToolInvoker } from "../src/testing/mock-tool-invoker.js";
 import { MockAgentTransport } from "../src/testing/mock-agent-transport.js";
 import { loadContext } from "../src/engine/context-loader.js";
 import type { ECPContext } from "@executioncontrolprotocol/spec";
+import { createSqliteMemoryStore } from "../src/plugins/memory/sqlite-memory-store.js";
 import type { GenerateOptions, GenerateResult, ModelProvider } from "../src/providers/model-provider.js";
 import { ExtensionRegistry } from "../src/extensions/registry.js";
 
@@ -382,5 +386,118 @@ describe("ECPEngine — extensibility registry", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("source type");
+  });
+});
+
+function makeMemoryContext(): ECPContext {
+  return {
+    apiVersion: "ecp/v0.3-draft",
+    kind: "Context",
+    metadata: { name: "memory-test", version: "1.0.0" },
+    schemas: {
+      Result: {
+        type: "object",
+        required: ["done"],
+        properties: { done: { type: "boolean" } },
+      },
+    },
+    orchestration: {
+      entrypoint: "agent",
+      strategy: "single",
+      produces: "Result",
+    },
+    extensions: {
+      version: "1.0.0",
+      providers: [{ name: "mock", kind: "model-provider", type: "builtin", version: "1.0.0" }],
+      security: {},
+    },
+    executors: [
+      {
+        name: "agent",
+        type: "agent",
+        model: {
+          provider: { name: "mock", type: "builtin", version: "1.0.0" },
+          name: "mock-model",
+        },
+        outputSchemaRef: "#/schemas/Result",
+        memory: { scope: "context", maxItems: 10 },
+        policies: {
+          memoryAccess: { allowRead: true, allowWrite: true },
+        },
+      },
+    ],
+  };
+}
+
+describe("ECPEngine — memory", () => {
+  let model: MockModelProvider;
+  let tools: MockToolInvoker;
+  let transport: MockAgentTransport;
+  let dataDir: string;
+  let store: Awaited<ReturnType<typeof createSqliteMemoryStore>>;
+
+  beforeEach(async () => {
+    model = new MockModelProvider();
+    tools = new MockToolInvoker();
+    transport = new MockAgentTransport();
+    dataDir = mkdtempSync(join(tmpdir(), "ecp-engine-memory-"));
+    store = await createSqliteMemoryStore({ dataDir, namespace: "engine-memory" });
+  });
+
+  afterEach(async () => {
+    await store.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+
+  it("injects memory block and executes memory store tool when store and policy allow", async () => {
+    model
+      .addToolCallResponse([
+        {
+          id: "call-mem-1",
+          name: "ecp:memory/store",
+          arguments: { summary: "User likes concise answers", payload: {} },
+        },
+      ])
+      .addJsonResponse({ done: true });
+
+    const engine = new ECPEngine(model, tools, transport, { memoryStore: store });
+    const result = await engine.run({ context: makeMemoryContext() });
+
+    expect(result.success).toBe(true);
+    const memories = await store.get("context", { executorName: "agent", maxItems: 10, summariesOnly: false });
+    expect(memories.length).toBe(1);
+    expect(memories[0].summary).toBe("User likes concise answers");
+  });
+
+  it("denies memory store when policy disallows write", async () => {
+    const ctx = makeMemoryContext();
+    ctx.executors[0].policies = { memoryAccess: { allowRead: true, allowWrite: false } };
+
+    model
+      .addToolCallResponse([
+        {
+          id: "call-mem-1",
+          name: "ecp:memory/store",
+          arguments: { summary: "Should be denied" },
+        },
+      ])
+      .addJsonResponse({ done: true });
+
+    const engine = new ECPEngine(model, tools, transport, { memoryStore: store });
+    const result = await engine.run({ context: ctx });
+
+    expect(result.success).toBe(true);
+    expect(result.log.some((e) => e.message.includes("Memory tool denied"))).toBe(true);
+    const memories = await store.list("context", { executorName: "agent" });
+    expect(memories.length).toBe(0);
+  });
+
+  it("runs without crash when executor has memory but no memoryStore configured", async () => {
+    model.addJsonResponse({ done: true });
+
+    const engine = new ECPEngine(model, tools, transport);
+    const result = await engine.run({ context: makeMemoryContext() });
+
+    expect(result.success).toBe(true);
   });
 });

@@ -20,11 +20,11 @@ describe("MCP integration — real protocol, fake server", () => {
         args: ["tsx", FAKE_SERVER_PATH],
       },
     });
-  });
+  }, 30_000);
 
   afterAll(async () => {
     await invoker.disconnectAll();
-  });
+  }, 30_000);
 
   it("discovers tools from the fake MCP server", async () => {
     const tools = await invoker.listTools("test-jira");

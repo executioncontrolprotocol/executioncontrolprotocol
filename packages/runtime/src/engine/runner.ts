@@ -37,6 +37,7 @@ import { createPolicyEnforcer } from "../policies/enforcer.js";
 import type { PolicyEnforcer } from "../policies/types.js";
 import type { TraceCollector } from "../tracing/collector.js";
 import type { ExtensionRegistry } from "../extensions/registry.js";
+import type { MemoryStoreLike } from "./types.js";
 
 /**
  * Options for a single Context execution.
@@ -384,8 +385,8 @@ export class ECPEngine {
       executorName: executor.name,
     });
 
-    const messages = this.buildMessages(executor, executorState, state.inputs, taskOverride);
-    const tools = await this.getAvailableTools(executor, modelProvider, enforcer, state);
+    const messages = await this.buildMessages(executor, executorState, state.inputs, taskOverride);
+    const tools = await this.getAvailableTools(executor, modelProvider, enforcer, executorState, state);
 
     const model = this.config.modelOverride ?? executor.model?.name ?? this.config.defaultModel ?? "gpt-4o";
     const outputSchema = this.getOutputSchema(executor, state.context);
@@ -551,16 +552,100 @@ export class ECPEngine {
 
   private async executeToolCalls(
     toolCalls: ToolCall[],
-    _executor: Executor,
+    executor: Executor,
     enforcer: PolicyEnforcer,
     executorState: ExecutorState,
     state: RunState,
     parentSpanId?: string,
   ): Promise<ChatMessage[]> {
     const results: ChatMessage[] = [];
+    const store = this.config.memoryStore as MemoryStoreLike | undefined;
+    const memoryScope = executor.memory?.scope;
+    const allowRead = executor.policies?.memoryAccess?.allowRead === true;
+    const allowWrite = executor.policies?.memoryAccess?.allowWrite === true;
 
     for (const tc of toolCalls) {
       executorState.budgetUsage.toolCalls++;
+
+      if (
+        store &&
+        memoryScope &&
+        (tc.name === "ecp:memory/store" || tc.name === "ecp:memory/delete" || tc.name === "ecp:memory/list")
+      ) {
+        const allowed =
+          (tc.name === "ecp:memory/list" && allowRead) ||
+          ((tc.name === "ecp:memory/store" || tc.name === "ecp:memory/delete") && allowWrite);
+        if (!allowed) {
+          this.log(state, "warn", `Memory tool denied by policy: ${tc.name}`);
+          results.push({
+            role: "tool",
+            toolCallId: tc.id,
+            content: JSON.stringify({ error: "Memory access not allowed by policy." }),
+          });
+          continue;
+        }
+
+        const toolStepNum = this.nextStep(state);
+        await this.emitProgress(state, {
+          type: "step_start",
+          step: toolStepNum,
+          kind: "tool",
+          executorName: executorState.executor.name,
+          description: `Tool ${tc.name}`,
+        });
+        const toolStart = Date.now();
+
+        try {
+          const args = (typeof tc.arguments === "string" ? JSON.parse(tc.arguments || "{}") : tc.arguments) as Record<string, unknown>;
+          let content: string;
+
+          if (tc.name === "ecp:memory/store") {
+            const summary = String(args.summary ?? "");
+            const payload = args.payload as Record<string, unknown> | undefined;
+            const record = await store.put(memoryScope, executor.name, summary, payload);
+            content = JSON.stringify({ ok: true, id: record.id, summary: record.summary });
+          } else if (tc.name === "ecp:memory/delete") {
+            const id = args.id as string | undefined;
+            const ids = args.ids as string[] | undefined;
+            const olderThan = args.olderThan as string | undefined;
+            const { deleted } = await store.delete(memoryScope, { id, ids, olderThan });
+            content = JSON.stringify({ ok: true, deleted });
+          } else {
+            const limit = typeof args.limit === "number" ? args.limit : 20;
+            const olderThan = args.olderThan as string | undefined;
+            const list = await store.list(memoryScope, { limit, olderThan, executorName: executor.name });
+            content = JSON.stringify({ items: list });
+          }
+
+          await this.emitProgress(state, {
+            type: "step_complete",
+            step: this.nextCompleteStep(state),
+            kind: "tool",
+            executorName: executorState.executor.name,
+            description: `Tool ${tc.name}`,
+            durationMs: Date.now() - toolStart,
+          });
+          results.push({ role: "tool", toolCallId: tc.id, content });
+        } catch (err) {
+          this.log(state, "error", `Memory tool ${tc.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+          await this.emitProgress(state, {
+            type: "step_complete",
+            step: this.nextCompleteStep(state),
+            kind: "tool",
+            executorName: executorState.executor.name,
+            description: `Tool ${tc.name}`,
+            durationMs: Date.now() - toolStart,
+          });
+          results.push({
+            role: "tool",
+            toolCallId: tc.id,
+            content: JSON.stringify({
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          });
+        }
+        continue;
+      }
 
       const [serverName, toolName] = this.parseToolName(tc.name);
 
@@ -786,12 +871,12 @@ export class ECPEngine {
     }
   }
 
-  private buildMessages(
+  private async buildMessages(
     executor: Executor,
     executorState: ExecutorState,
     inputs: ResolvedInputs,
     taskOverride?: string,
-  ): ChatMessage[] {
+  ): Promise<ChatMessage[]> {
     const messages: ChatMessage[] = [];
 
     if (executor.instructions) {
@@ -806,14 +891,40 @@ export class ECPEngine {
       .map((m) => `## ${m.mountName} (${m.stage}, ${m.itemCount} items)\n${JSON.stringify(m.data, null, 2)}`)
       .join("\n\n");
 
+    let memoryBlock = "";
+    const store = this.config.memoryStore as MemoryStoreLike | undefined;
+    if (
+      store &&
+      executor.memory &&
+      (executor.policies?.memoryAccess?.allowRead === true)
+    ) {
+      const opts = {
+        maxItems: executor.memory.maxItems ?? 20,
+        maxTokens: executor.memory.maxTokens,
+        executorName: executor.name,
+        summariesOnly: true,
+      };
+      const memories = await store.get(executor.memory.scope, opts);
+      if (memories.length > 0) {
+        memoryBlock =
+          "\n\n## Long-term memory (relevant past context)\n" +
+          memories
+            .map(
+              (m) =>
+                `- [${m.createdAt}] ${m.summary}${m.payload ? ` (${JSON.stringify(m.payload)})` : ""}`,
+            )
+            .join("\n");
+      }
+    }
+
     const inputsBlock =
       Object.keys(inputs).length > 0
         ? `Context inputs:\n${JSON.stringify(inputs, null, 2)}\n\n`
         : "";
 
     const userContent = taskOverride
-      ? `Task: ${taskOverride}\n\n${inputsBlock}Available data:\n${mountContext}`
-      : `${inputsBlock}Execute your role using the following data:\n\n${mountContext}`.trim();
+      ? `Task: ${taskOverride}\n\n${inputsBlock}Available data:\n${mountContext}${memoryBlock}`
+      : `${inputsBlock}Execute your role using the following data:\n\n${mountContext}${memoryBlock}`.trim();
 
     messages.push({
       role: "user",
@@ -827,14 +938,61 @@ export class ECPEngine {
     executor: Executor,
     modelProvider: ModelProvider,
     _enforcer: PolicyEnforcer,
+    _executorState: ExecutorState,
     _state: RunState,
   ): Promise<ToolDefinition[]> {
-    if (!modelProvider.supportsToolCalling()) return [];
+    const tools: ToolDefinition[] = [];
+
+    const store = this.config.memoryStore as MemoryStoreLike | undefined;
+    if (store && executor.memory) {
+      const allowRead = executor.policies?.memoryAccess?.allowRead === true;
+      const allowWrite = executor.policies?.memoryAccess?.allowWrite === true;
+      if (allowWrite) {
+        tools.push({
+          name: "ecp:memory/store",
+          description:
+            "Store a fact or summary in long-term memory for this executor. Use a short summary and optional JSON payload. Helps refine output across runs.",
+          parameters: {
+            type: "object",
+            properties: {
+              summary: { type: "string", description: "Short summary (used for retrieval; keep under 1-2 sentences)." },
+              payload: { type: "object", description: "Optional structured data to store." },
+            },
+            required: ["summary"],
+          },
+        });
+        tools.push({
+          name: "ecp:memory/delete",
+          description: "Delete one or more long-term memory entries by id, or by age (olderThan ISO-8601). Use for cleanup.",
+          parameters: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Single memory id to delete." },
+              ids: { type: "array", items: { type: "string" }, description: "Multiple memory ids." },
+              olderThan: { type: "string", description: "Delete memories older than this ISO-8601 timestamp." },
+            },
+          },
+        });
+      }
+      if (allowRead) {
+        tools.push({
+          name: "ecp:memory/list",
+          description: "List recent long-term memory entries (ids and summaries) for this executor. Use to inspect or decide what to delete.",
+          parameters: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Max items to return (default 20)." },
+              olderThan: { type: "string", description: "Only list entries older than this ISO-8601 timestamp." },
+            },
+          },
+        });
+      }
+    }
+
+    if (!modelProvider.supportsToolCalling()) return tools;
 
     const allowed = executor.policies?.toolAccess?.allow ?? [];
-    if (allowed.length === 0) return [];
-
-    const tools: ToolDefinition[] = [];
+    if (allowed.length === 0) return tools;
 
     for (const toolRef of allowed) {
       const [serverName, toolName] = this.parseToolName(toolRef);
