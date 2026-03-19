@@ -1,7 +1,27 @@
 {
   "name": "@executioncontrolprotocol/spec",
-  "version": "0.3.0",
+  "version": "0.0.4",
   "description": "ECP specification types, JSON Schema generation, and validation",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/executioncontrolprotocol/executioncontrolprotocol",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/executioncontrolprotocol/executioncontrolprotocol.git",
+    "directory": "packages/spec"
+  },
+  "bugs": {
+    "url": "https://github.com/executioncontrolprotocol/executioncontrolprotocol/issues"
+  },
+  "keywords": [
+    "ecp",
+    "execution-control-protocol",
+    "mcp",
+    "model-context-protocol",
+    "agents",
+    "spec",
+    "schema",
+    "typescript"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/types/index.js",
@@ -14,7 +34,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
