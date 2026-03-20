@@ -73,10 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 10
-    # Store models under the workspace so we can cache them like npm (actions/cache paths).
-    # Bump the cache key suffix in "Cache Ollama models" when changing the E2E model or Ollama layout.
-    env:
-      OLLAMA_MODELS: ${{ github.workspace }}/.ollama-models
+    # Ollama runs in Docker (no install.sh on the runner — faster and avoids /usr/local permission issues).
+    # Model blobs live under .ollama-models and are cached with actions/cache; the same dir is bind-mounted into the container.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,27 +92,32 @@ jobs:
           key: ollama-models-${{ runner.os }}-gemma3-1b-v1
           restore-keys: |
             ollama-models-${{ runner.os }}-
-      # Do not cache /usr/local/bin/ollama or /usr/local/lib/ollama: actions/cache restores as the
-      # runner user and cannot extract into /usr/local (permission denied). That yields a false "cache
-      # hit" plus a huge download, then tar fails and the install step runs anyway — slower than a
-      # plain curl|sh install every time.
-      - name: Install Ollama
-        run: curl -fsSL https://ollama.com/install.sh | sh
-      - name: Start Ollama server
-        run: ollama serve &
+      - name: Start Ollama (Docker)
+        run: |
+          mkdir -p .ollama-models
+          docker run -d --name ollama \
+            -p 11434:11434 \
+            -e OLLAMA_MODELS=/models \
+            -v "${GITHUB_WORKSPACE}/.ollama-models:/models" \
+            ollama/ollama:latest
       - name: Wait for Ollama
         run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && break
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && exit 0
             sleep 1
           done
+          echo "Ollama did not become ready in time" >&2
+          exit 1
       - name: Pull model
         if: steps.ollama-models.outputs.cache-hit != 'true'
-        run: ollama pull gemma3:1b
+        run: docker exec ollama ollama pull gemma3:1b
       - name: Run E2E tests
         env:
           OLLAMA_MODEL: gemma3:1b
         run: npm run test:e2e
+      - name: Stop Ollama
+        if: always()
+        run: docker rm -f ollama || true
 
   publish:
     name: publish

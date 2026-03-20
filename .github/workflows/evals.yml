@@ -36,21 +36,36 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install Ollama
-        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Cache Ollama models
+        id: ollama-models
+        uses: actions/cache@v4
+        with:
+          path: .ollama-models
+          key: ollama-models-${{ runner.os }}-${{ env.EVAL_MODEL }}-v1
+          restore-keys: |
+            ollama-models-${{ runner.os }}-
 
-      - name: Start Ollama server
-        run: ollama serve &
+      - name: Start Ollama (Docker)
+        run: |
+          mkdir -p .ollama-models
+          docker run -d --name ollama \
+            -p 11434:11434 \
+            -e OLLAMA_MODELS=/models \
+            -v "${GITHUB_WORKSPACE}/.ollama-models:/models" \
+            ollama/ollama:latest
 
       - name: Wait for Ollama
         run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && break
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && exit 0
             sleep 1
           done
+          echo "Ollama did not become ready in time" >&2
+          exit 1
 
       - name: Pull model
-        run: ollama pull "$EVAL_MODEL"
+        if: steps.ollama-models.outputs.cache-hit != 'true'
+        run: docker exec ollama ollama pull "$EVAL_MODEL"
 
       - name: Run single-executor eval
         env:
@@ -75,6 +90,10 @@ jobs:
             --model "$EVAL_MODEL" \
             --enable ollama \
             --debug
+
+      - name: Stop Ollama
+        if: always()
+        run: docker rm -f ollama || true
 
       - name: Upload eval artifacts
         if: always()
