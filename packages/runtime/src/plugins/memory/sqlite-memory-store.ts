@@ -221,12 +221,18 @@ export async function createSqliteMemoryStore(
       }
       const stmt = db.prepare(sql);
       stmt.run(params);
-      stmt.free();
-      const countResult = db.exec("SELECT changes() as n");
+      // Prefer sqlite3_changes via sql.js API — `SELECT changes()` after a prepared DELETE
+      // can be less reliable than `getRowsModified()` on some runtimes.
       const deleted =
-        countResult.length > 0 && countResult[0].values.length > 0
-          ? Number(countResult[0].values[0][0])
-          : 0;
+        typeof (db as { getRowsModified?: () => number }).getRowsModified === "function"
+          ? (db as { getRowsModified: () => number }).getRowsModified()
+          : (() => {
+              const countResult = db.exec("SELECT changes() as n");
+              return countResult.length > 0 && countResult[0].values.length > 0
+                ? Number(countResult[0].values[0][0])
+                : 0;
+            })();
+      stmt.free();
       save();
       return { deleted };
     },

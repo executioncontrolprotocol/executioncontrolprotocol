@@ -2,7 +2,7 @@
  * Unit tests for the long-term memory plugin (SQLite store and registration).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -132,14 +132,24 @@ describe("createSqliteMemoryStore", () => {
   });
 
   it("deletes by olderThan", async () => {
-    const store = await createSqliteMemoryStore({ dataDir, namespace: "older" });
-    await store.put("context", "e1", "Old");
-    const r2 = await store.put("context", "e1", "New");
+    // `delete` uses `created_at < olderThan` (strict). Advance only the clock (no real
+    // timeouts) so the two puts get distinct ISO timestamps on fast CI.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2024-06-01T12:00:00.000Z"));
+      const store = await createSqliteMemoryStore({ dataDir, namespace: "older" });
+      const r1 = await store.put("context", "e1", "Old");
+      vi.setSystemTime(new Date("2024-06-01T12:00:00.010Z"));
+      const r2 = await store.put("context", "e1", "New");
+      expect(r1.createdAt.localeCompare(r2.createdAt)).toBeLessThan(0);
 
-    const result = await store.delete("context", { olderThan: r2.createdAt });
-    expect(result.deleted).toBeGreaterThanOrEqual(1);
+      const result = await store.delete("context", { olderThan: r2.createdAt });
+      expect(result.deleted).toBeGreaterThanOrEqual(1);
 
-    await store.close();
+      await store.close();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("filters get by scope and executorName", async () => {
