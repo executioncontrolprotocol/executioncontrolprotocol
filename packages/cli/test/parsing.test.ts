@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 
+import type { ECPContext } from "@executioncontrolprotocol/spec";
+
 import { parseKeyValueInputs, splitCommaSeparated, parseJsonObject } from "../src/lib/parsing.js";
 import { getRequiredInputNames } from "../src/lib/inputs.js";
 
@@ -37,9 +39,9 @@ describe("CLI parsing helpers", () => {
         b: { type: "number" },
         c: { type: "boolean", required: false },
       },
-    } as unknown as { inputs?: Record<string, { required?: boolean }> };
+    } as unknown as ECPContext;
 
-    const required = getRequiredInputNames(ctx as any);
+    const required = getRequiredInputNames(ctx);
     expect(required).toEqual(["a"]);
   });
 });
