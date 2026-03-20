@@ -2,15 +2,20 @@ import { Command, Flags, Args } from "@oclif/core";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { renderGraph, type ExecutionTrace } from "@executioncontrolprotocol/runtime";
+import type { ExecutionTrace } from "@executioncontrolprotocol/runtime";
+
+import { renderTraceView, type TraceOutputFormat } from "../lib/trace-view.js";
+import { getDefaultTraceDir } from "../lib/ecp-home.js";
 
 export default class Graph extends Command {
   static summary = "Display execution graph";
+  // Backwards-compatible alias for `ecp trace --output graph`.
+  static hidden = true;
 
   static flags = {
     "trace-dir": Flags.string({
       description: "Directory for trace files",
-      default: "./traces",
+      default: getDefaultTraceDir(),
     }),
   };
 
@@ -30,13 +35,15 @@ export default class Graph extends Command {
 
     if (!existsSync(filePath)) {
       this.error(
-        `\n  Trace not found: ${filePath}\n  Run with --trace to generate: ecp run <context.yaml> --trace\n`,
+        `\n  Trace not found: ${filePath}\n  Run ` +
+          `ecp run <context.yaml> (tracing is enabled by default; use --no-trace to disable)\n`,
         { exit: 1 },
       );
     }
 
     const trace = JSON.parse(readFileSync(filePath, "utf-8")) as ExecutionTrace;
-    console.log(renderGraph(trace));
+    const rendered = await renderTraceView(trace, "graph" as TraceOutputFormat);
+    console.log(rendered);
   }
 }
 

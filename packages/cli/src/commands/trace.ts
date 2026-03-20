@@ -2,15 +2,23 @@ import { Command, Flags, Args } from "@oclif/core";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { formatTrace, type ExecutionTrace } from "@executioncontrolprotocol/runtime";
+import type { ExecutionTrace } from "@executioncontrolprotocol/runtime";
+
+import { renderTraceView, type TraceOutputFormat } from "../lib/trace-view.js";
+import { getDefaultTraceDir } from "../lib/ecp-home.js";
 
 export default class Trace extends Command {
   static summary = "Display execution trace";
 
   static flags = {
+    output: Flags.string({
+      description: "Render mode: 'text' (human log) or 'graph' (ASCII visualization)",
+      options: ["text", "graph"] as const,
+      default: "text",
+    }),
     "trace-dir": Flags.string({
       description: "Directory for trace files",
-      default: "./traces",
+      default: getDefaultTraceDir(),
     }),
   };
 
@@ -24,19 +32,22 @@ export default class Trace extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Trace);
     const runId = args.runId;
+    const output = flags.output as TraceOutputFormat;
 
     const traceDir = flags["trace-dir"];
     const filePath = resolve(traceDir, `${runId}.json`);
 
     if (!existsSync(filePath)) {
       this.error(
-        `\n  Trace not found: ${filePath}\n  Run with --trace to generate: ecp run <context.yaml> --trace\n`,
+        `\n  Trace not found: ${filePath}\n  Run ` +
+          `ecp run <context.yaml> (tracing is enabled by default; use --no-trace to disable)\n`,
         { exit: 1 },
       );
     }
 
     const trace = JSON.parse(readFileSync(filePath, "utf-8")) as ExecutionTrace;
-    console.log(formatTrace(trace));
+    const rendered = await renderTraceView(trace, output);
+    console.log(rendered);
   }
 }
 

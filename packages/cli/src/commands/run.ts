@@ -24,6 +24,7 @@ import type { ModelProvider, MemoryStoreLike } from "@executioncontrolprotocol/r
 
 import { parseKeyValueInputs, splitCommaSeparated, parseJsonObject } from "../lib/parsing.js";
 import { createProgressHandler } from "../lib/progress.js";
+import { getDefaultTraceDir } from "../lib/ecp-home.js";
 
 function contextHasMemory(context: ECPContext): boolean {
   const visit = (orchestrator: Orchestrator): boolean => {
@@ -78,12 +79,13 @@ export default class Run extends Command {
     }),
     trace: Flags.boolean({
       char: "t",
-      description: "Enable tracing (saves to ./traces/<run_id>.json)",
-      default: false,
+      description: "Enable tracing (saves to the user traces directory by default)",
+      default: true,
+      allowNo: true,
     }),
     "trace-dir": Flags.string({
       description: "Directory for trace files",
-      default: "./traces",
+      default: getDefaultTraceDir(),
     }),
     "progress-logger": Flags.string({
       char: "l",
@@ -368,7 +370,7 @@ export default class Run extends Command {
       // eslint-disable-next-line no-console
       console.log(`  View with: ecp trace ${result.runId}`);
       // eslint-disable-next-line no-console
-      console.log(`  Graph with: ecp graph ${result.runId}`);
+      console.log(`  Graph with: ecp trace --output graph ${result.runId}`);
     }
 
     this.exit(result.success ? 0 : 1);
