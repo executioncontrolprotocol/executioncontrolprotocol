@@ -13,7 +13,7 @@ Given a `topic` input, the `summarizer` executor calls the LLM once and produces
 ecp run examples/single-executor/context.yaml \
   --provider ollama \
   --model gemma3:1b \
-  --enable ollama \
+  \
   --input topic="Execution Control Protocol" \
   --debug
 ```

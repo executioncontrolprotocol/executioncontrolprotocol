@@ -9,11 +9,11 @@ Two sequential Ollama calls:
 ## Run
 
 ```bash
-ecp run examples/create-then-summarize-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Your topic here"
+ecp run examples/create-then-summarize-ollama/context.yaml --provider ollama --model llama3.2:3b -i topic="Your topic here"
 ```
 
 ## Example
 
 ```bash
-ecp run examples/create-then-summarize-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i topic="Benefits of local AI models"
+ecp run examples/create-then-summarize-ollama/context.yaml --provider ollama --model llama3.2:3b -i topic="Benefits of local AI models"
 ```

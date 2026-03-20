@@ -493,4 +493,30 @@ export interface ECPSystemConfig {
    * to engine tool-server connection details.
    */
   toolServers?: ToolServerRegistry;
+
+  /**
+   * A2A specialist endpoint registry loaded from system config.
+   * Keys are executor names, values are endpoint URLs.
+   */
+  agentEndpoints?: Record<string, string>;
+
+  /**
+   * Model-provider defaults and policy controls loaded from system config.
+   */
+  modelProviders?: {
+    openai?: {
+      /** Default OpenAI model when CLI/context does not provide one. */
+      defaultModel?: string;
+      /** Optional allow-list for --model overrides when provider is openai. */
+      allowedModels?: string[];
+    };
+    ollama?: {
+      /** Optional Ollama base URL (e.g. http://localhost:11434). */
+      baseURL?: string;
+      /** Default Ollama model when CLI/context does not provide one. */
+      defaultModel?: string;
+      /** Optional allow-list for --model overrides when provider is ollama. */
+      allowedModels?: string[];
+    };
+  };
 }

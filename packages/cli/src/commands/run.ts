@@ -17,12 +17,13 @@ import {
   ConsoleTraceExporter,
   JsonFileTraceExporter,
   type ProgressCallback,
+  type ECPSystemConfig,
 } from "@executioncontrolprotocol/runtime";
 
-import type { ECPContext, ExtensionSecurityPolicy, Orchestrator, Executor } from "@executioncontrolprotocol/spec";
+import type { ECPContext, Orchestrator, Executor } from "@executioncontrolprotocol/spec";
 import type { ModelProvider, MemoryStoreLike } from "@executioncontrolprotocol/runtime";
 
-import { parseKeyValueInputs, splitCommaSeparated, parseJsonObject } from "../lib/parsing.js";
+import { parseKeyValueInputs, splitCommaSeparated } from "../lib/parsing.js";
 import { createProgressHandler } from "../lib/progress.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
 
@@ -82,28 +83,17 @@ export default class Run extends Command {
     }),
     model: Flags.string({
       char: "m",
-      description: "Override the default model (e.g. gpt-4o-mini)",
+      description: "Override model name (must be allowed by system config policy)",
     }),
     provider: Flags.string({
       char: "p",
-      description: "Model provider: openai or ollama",
+      description: "Override provider (must be allowed by system config policy)",
       options: ["openai", "ollama"] as const,
-    }),
-    enable: Flags.string({
-      char: "e",
-      multiple: true,
-      multipleNonGreedy: true,
-      description:
-        "Extension(s) to enable for this run (repeatable or comma-separated). Overrides system config defaultEnable.",
     }),
     config: Flags.string({
       char: "c",
       description: "Path to system config (ecp.config.yaml). Default: ./ecp.config.yaml then ~/.ecp/config.yaml",
       default: "",
-    }),
-    "ollama-base-url": Flags.string({
-      description: "Ollama server URL",
-      default: "http://localhost:11434",
     }),
     trace: Flags.boolean({
       char: "t",
@@ -120,14 +110,6 @@ export default class Run extends Command {
       multiple: true,
       multipleNonGreedy: true,
       description: "Enable a progress logger (e.g. file). Repeatable or comma-separated.",
-    }),
-    "extension-security": Flags.string({
-      description: "JSON security policy for extension loading",
-      default: "",
-    }),
-    "agent-endpoints": Flags.string({
-      description: "JSON map of agent endpoints",
-      default: "",
     }),
     debug: Flags.boolean({
       char: "d",
@@ -165,7 +147,6 @@ export default class Run extends Command {
         this.error(msg, { exit: 1 });
       }
     })();
-    const enableRaw = splitCommaSeparated(flags.enable as string[] | undefined);
     const progressLoggerRaw = splitCommaSeparated(flags["progress-logger"] as string[] | undefined);
 
     const context = loadContext(contextPath);
@@ -185,15 +166,23 @@ export default class Run extends Command {
       );
     }
 
-    const enableFromCli =
-      enableRaw.length > 0 ? enableRaw : systemConfig?.extensions?.defaultEnable ?? [providerToUse];
+    this.assertProviderAllowedByPolicy(providerToUse, systemConfig);
+    const selectedModel = flags.model;
+    if (selectedModel) {
+      this.assertModelAllowedByPolicy(providerToUse, selectedModel, systemConfig);
+    }
+
+    const enableFromConfig = systemConfig?.extensions?.defaultEnable ?? [];
+    const enableForRun = [...new Set([...enableFromConfig, providerToUse])];
 
     const allowEnable = systemConfig?.extensions?.allowEnable;
     if (allowEnable && allowEnable.length > 0) {
-      for (const id of enableFromCli) {
+      for (const id of enableForRun) {
         if (!allowEnable.includes(id)) {
           this.error(
-            `Extension "${id}" is not in system config allowEnable. Allowed: ${allowEnable.join(", ")}`,
+            `Provider "${id}" cannot be used because it is not in system config extensions.allowEnable.\n` +
+              `Allowed: ${allowEnable.join(", ")}\n` +
+              `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
             { exit: 1 },
           );
         }
@@ -201,10 +190,15 @@ export default class Run extends Command {
     }
 
     const registry = new ExtensionRegistry();
+    const openaiDefaults = systemConfig?.modelProviders?.openai ?? {};
+    const ollamaDefaults = systemConfig?.modelProviders?.ollama ?? {};
     registerBuiltinModelProviders(registry, {
       version: "0.3.0",
-      openai: { defaultModel: flags.model },
-      ollama: { baseURL: flags["ollama-base-url"], defaultModel: flags.model },
+      openai: { defaultModel: selectedModel ?? openaiDefaults.defaultModel },
+      ollama: {
+        baseURL: ollamaDefaults.baseURL,
+        defaultModel: selectedModel ?? ollamaDefaults.defaultModel,
+      },
     });
     registerBuiltinProgressLoggers(registry, { version: "0.3.0", file: {} });
     registerBuiltinPlugins(registry, { version: "0.3.0" });
@@ -217,34 +211,16 @@ export default class Run extends Command {
 
     const toolServers = systemConfig?.toolServers;
 
-    try {
-      new URL(flags["ollama-base-url"]);
-    } catch {
-      this.error(`Invalid --ollama-base-url: "${flags["ollama-base-url"]}" is not a valid URL.`, { exit: 1 });
-    }
-
-    const agentEndpoints = (() => {
-      if (!flags["agent-endpoints"]) return undefined;
+    if (ollamaDefaults.baseURL) {
       try {
-        return parseJsonObject<Record<string, string>>(flags["agent-endpoints"], "--agent-endpoints");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.error(msg, { exit: 1 });
-      }
-    })();
-
-    const extensionSecurity = (() => {
-      if (!flags["extension-security"]) return systemConfig?.extensions?.security ?? context.extensions?.security;
-      try {
-        return parseJsonObject<ExtensionSecurityPolicy>(
-          flags["extension-security"],
-          "--extension-security",
+        new URL(ollamaDefaults.baseURL);
+      } catch {
+        this.error(
+          `Invalid modelProviders.ollama.baseURL in system config: "${ollamaDefaults.baseURL}"`,
+          { exit: 1 },
         );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.error(msg, { exit: 1 });
       }
-    })();
+    }
 
     const progressLoggerCallbacks: ProgressCallback[] = [];
     const plConfig = systemConfig?.progressLoggers;
@@ -307,18 +283,18 @@ export default class Run extends Command {
 
     const engine = new ECPEngine(modelProvider, toolInvoker, agentTransport, {
       toolServers,
-      agentEndpoints,
-      defaultModel: flags.model,
-      modelOverride: flags.model,
+      agentEndpoints: systemConfig?.agentEndpoints,
+      defaultModel: selectedModel ?? openaiDefaults.defaultModel ?? ollamaDefaults.defaultModel,
+      modelOverride: selectedModel,
       debug: flags.debug,
       trace: flags.trace,
       memoryStore,
       onProgress,
       extensions: {
         registry,
-        enable: enableFromCli,
+        enable: enableForRun,
         allowEnable: systemConfig?.extensions?.allowEnable,
-        security: extensionSecurity,
+        security: systemConfig?.extensions?.security ?? context.extensions?.security,
       },
     });
 
@@ -413,6 +389,44 @@ export default class Run extends Command {
       const hint = err && typeof err === "object" && "hint" in err ? (err as { hint?: string }).hint : undefined;
       this.error(
         `${rawMsg}${hint ? `\n${hint}` : ""}`,
+        { exit: 1 },
+      );
+    }
+  }
+
+  private assertProviderAllowedByPolicy(providerId: string, systemConfig?: ECPSystemConfig): void {
+    const allowEnable = systemConfig?.extensions?.allowEnable;
+    if (allowEnable?.length && !allowEnable.includes(providerId)) {
+      this.error(
+        `Provider "${providerId}" is blocked by system config extensions.allowEnable.\n` +
+          `Allowed: ${allowEnable.join(", ")}\n` +
+          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
+        { exit: 1 },
+      );
+    }
+
+    const allowIds = systemConfig?.extensions?.security?.allowIds;
+    if (allowIds?.length && !allowIds.includes(providerId)) {
+      this.error(
+        `Provider "${providerId}" is blocked by system config extensions.security.allowIds.\n` +
+          `Allowed IDs: ${allowIds.join(", ")}\n` +
+          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
+        { exit: 1 },
+      );
+    }
+  }
+
+  private assertModelAllowedByPolicy(
+    providerId: string,
+    modelName: string,
+    systemConfig?: ECPSystemConfig,
+  ): void {
+    const allowedModels = systemConfig?.modelProviders?.[providerId as "openai" | "ollama"]?.allowedModels;
+    if (allowedModels?.length && !allowedModels.includes(modelName)) {
+      this.error(
+        `Model "${modelName}" is blocked for provider "${providerId}" by system config modelProviders.${providerId}.allowedModels.\n` +
+          `Allowed models: ${allowedModels.join(", ")}\n` +
+          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
         { exit: 1 },
       );
     }

@@ -76,7 +76,7 @@ jobs:
             --input topic="Execution Control Protocol" \
             --provider ollama \
             --model "$EVAL_MODEL" \
-            --enable ollama \
+            \
             --debug
 
       - name: Run controller-specialist eval
@@ -88,7 +88,7 @@ jobs:
             --input subject="Model Context Protocol" \
             --provider ollama \
             --model "$EVAL_MODEL" \
-            --enable ollama \
+            \
             --debug
 
       - name: Stop Ollama

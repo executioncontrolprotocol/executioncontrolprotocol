@@ -16,7 +16,7 @@ Run:
 
 ```bash
 ecp run examples/ollama-mcp-tools/context-fetch-toolcalling.yaml ^
-  --enable ollama ^
+  ^
   --provider ollama ^
   --model llama3.2:3b ^
   --input url=https://example.com ^
@@ -36,7 +36,7 @@ Run:
 
 ```bash
 ecp run examples/ollama-mcp-tools/context-fake-jira-mounts.yaml ^
-  --enable ollama ^
+  ^
   --provider ollama ^
   --model llama3.2:3b ^
   --input project=OPS ^

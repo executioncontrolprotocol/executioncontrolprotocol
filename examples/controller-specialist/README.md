@@ -16,7 +16,7 @@ A multi-agent ECP Context demonstrating the delegate orchestration strategy.
 ecp run examples/controller-specialist/context.yaml \
   --provider ollama \
   --model gemma3:1b \
-  --enable ollama \
+  \
   --input subject="Model Context Protocol" \
   --debug
 ```

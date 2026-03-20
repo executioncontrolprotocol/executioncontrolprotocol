@@ -13,7 +13,7 @@ npm install -g @executioncontrolprotocol/cli
 ```bash
 ecp --help
 ecp validate path/to/context.yaml
-ecp run path/to/context.yaml --enable openai -i topic="Hello"
+ecp run path/to/context.yaml -i topic="Hello"
 ```
 
 ## Links

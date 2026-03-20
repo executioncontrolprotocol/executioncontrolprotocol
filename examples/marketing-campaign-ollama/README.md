@@ -5,11 +5,11 @@ Single-executor example: create a marketing campaign (headline, tagline, key mes
 ## Run
 
 ```bash
-ecp run examples/marketing-campaign-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i product="Your product or topic"
+ecp run examples/marketing-campaign-ollama/context.yaml --provider ollama --model llama3.2:3b -i product="Your product or topic"
 ```
 
 Example:
 
 ```bash
-ecp run examples/marketing-campaign-ollama/context.yaml --provider ollama --enable ollama --model llama3.2:3b -i product="ECP — Execution Control Protocol for AI agents"
+ecp run examples/marketing-campaign-ollama/context.yaml --provider ollama --model llama3.2:3b -i product="ECP — Execution Control Protocol for AI agents"
 ```

@@ -47,7 +47,7 @@ npm run build
 
 ```bash
 npx ecp validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
-npx ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b --enable ollama -i topic="Getting started"
+npx ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="Getting started"
 ```
 
 **Option B — global `ecp` command:** link the CLI (compiled `dist/`; no global `tsx` required):
@@ -59,7 +59,7 @@ cd packages/cli && npm link && cd ../..
 Then:
 
 ```bash
-ecp run examples/single-executor/context.yaml --enable openai -i topic="Getting started"
+ecp run examples/single-executor/context.yaml -i topic="Getting started"
 ecp validate examples/single-executor/context.yaml
 ```
 
@@ -95,7 +95,7 @@ toolServers:
 Then you can run without tool-specific CLI flags:
 
 ```bash
-ecp run ctx.yaml --enable openai -i topic="..."
+ecp run ctx.yaml -i topic="..."
 ```
 
 ### Tool permissions (`Context` -> `policies.toolAccess`)
@@ -168,13 +168,13 @@ Lighter alternative: `ollama pull llama3.2:1b`. Other options with good tool sup
 3. Run ECP with the Ollama provider:
 
    ```bash
-   ecp run examples/single-executor/context.yaml --provider ollama --enable ollama --model gemma3:1b -i topic="Test"
+   ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="Test"
    ```
 
    If you didn’t link the CLI, from the repo root (after `npm run build`):
 
    ```bash
-   npx ecp run examples/single-executor/context.yaml --provider ollama --enable ollama --model gemma3:1b -i topic="Test"
+   npx ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="Test"
    ```
 
 ------------------------------------------------------------------------
@@ -219,9 +219,9 @@ See [`config/ecp.config.example.yaml`](config/ecp.config.example.yaml) for `allo
 
 - **Install deps:** `npm install` or `pnpm install`
 - **Link `ecp` CLI:** `npm run build` then `npm link` from `packages/cli`
-- **Run a Context:** `ecp run <context.yaml> --enable openai -i key=value`
+- **Run a Context:** `ecp run <context.yaml> -i key=value`
 - **Validate:** `ecp validate <context.yaml>`
 - **Use OpenAI:** set `OPENAI_API_KEY`
-- **Use Ollama:** install [Ollama](https://ollama.com/), `ollama pull llama3.2:3b`, then `--provider ollama --enable ollama --model llama3.2:3b`
+- **Use Ollama:** install [Ollama](https://ollama.com/), `ollama pull llama3.2:3b`, then `--provider ollama --model llama3.2:3b`
 - **System config:** copy `config/ecp.config.example.yaml` to `./ecp.config.yaml` or use `--config <path>`
 - **Global `ecp`:** `npm run build` then `npm link` from `packages/cli`
