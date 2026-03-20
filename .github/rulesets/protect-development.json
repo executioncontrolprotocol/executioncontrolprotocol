@@ -1,5 +1,5 @@
 {
-  "name": "Protect development — CI + PRs",
+  "name": "Protect development - CI and PRs",
   "target": "branch",
   "enforcement": "active",
   "conditions": {
@@ -33,16 +33,16 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "CI / pipeline / Build · Lint · Validate"
+            "context": "ci / build"
           },
           {
-            "context": "CI / pipeline / Unit Tests"
+            "context": "ci / unit"
           },
           {
-            "context": "CI / pipeline / Integration Tests"
+            "context": "ci / integration"
           },
           {
-            "context": "CI / pipeline / E2E Tests (Ollama)"
+            "context": "ci / e2e"
           }
         ]
       }

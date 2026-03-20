@@ -1,7 +1,7 @@
 # Runs the full CI pipeline (build, lint, validate, unit/integration/e2e tests) on pushes and PRs.
 # npm publish runs only on push to `main` (see `ci-pipeline.yml`).
 
-name: CI
+name: ci
 
 on:
   push:

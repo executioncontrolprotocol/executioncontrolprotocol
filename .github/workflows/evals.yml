@@ -1,4 +1,4 @@
-name: Evals
+name: evals
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   eval:
-    name: Run Eval Suite
+    name: eval
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

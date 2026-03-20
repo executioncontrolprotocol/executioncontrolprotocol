@@ -1,7 +1,7 @@
 # On `development`, ensure publishable packages are versioned above npm latest
 # before merging to main (where publish runs).
 
-name: Development — version vs npm
+name: devversion
 
 on:
   push:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  version-above-npm:
-    name: Version > npm latest
+  version:
+    name: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
