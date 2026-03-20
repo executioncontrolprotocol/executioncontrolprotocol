@@ -23,25 +23,36 @@
   "private": false,
   "type": "module",
   "bin": {
-    "ecp": "./bin/ecp.cjs"
+    "ecp": "./bin/run.js"
   },
   "files": [
-    "bin/ecp.cjs",
+    "bin/run.js",
+    "bin/run.cmd",
+    "bin/dev.js",
+    "bin/dev.cmd",
     "dist",
     "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
-    "start": "tsx src/index.ts"
+    "start": "node ./bin/dev.js"
   },
   "dependencies": {
     "@executioncontrolprotocol/runtime": "^0.0.4",
+    "@oclif/core": "^4.10.0",
     "ora": "^8.1.1"
   },
   "devDependencies": {
     "@executioncontrolprotocol/spec": "^0.0.4",
     "@types/node": "^25.3.3",
+    "ts-node": "^10.9.2",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "commands": "./dist/commands",
+    "dirname": "ecp",
+    "topicSeparator": " "
   }
 }

@@ -486,4 +486,11 @@ export interface ECPSystemConfig {
      */
     config?: Record<string, Record<string, unknown>>;
   };
+
+  /**
+   * Tool server wiring for MCP connections.
+   * Maps logical server names (used in Context `mount.from.server` and tool refs)
+   * to engine tool-server connection details.
+   */
+  toolServers?: ToolServerRegistry;
 }

@@ -16,3 +16,22 @@ progressLoggers:
       # logDir: /path/to/logs
       # Optional: override log file name (default: ecp.log)
       # logFile: ecp.log
+
+# ----------------------------------------------------------------------
+# MCP tool servers (tool wiring)
+#
+# Configure how ECP connects to MCP servers. Tool permissions come from
+# each Context's `policies.toolAccess`, not from CLI flags.
+toolServers:
+  fetch:
+    transport:
+      type: stdio
+      command: docker
+      args: [run, -i, --rm, mcp/fetch]
+
+  test-jira:
+    transport:
+      type: stdio
+      command: npx
+      args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+      cwd: .

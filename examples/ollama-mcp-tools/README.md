@@ -15,15 +15,16 @@ This uses the public `mcp-server-fetch` server (tool name: `fetch`).
 Run:
 
 ```bash
-node packages/cli/dist/index.js run examples/ollama-mcp-tools/context-fetch-toolcalling.yaml ^
+ecp run examples/ollama-mcp-tools/context-fetch-toolcalling.yaml ^
+  --enable ollama ^
   --provider ollama ^
   --model llama3.2:3b ^
   --input url=https://example.com ^
-  --tool-server fetch=stdio:docker,run,-i,--rm,mcp/fetch ^
-  --tool-allow web_summarizer=fetch:fetch
 ```
 
 Notes:
+- MCP tool wiring is configured via `toolServers.fetch.transport` in `ecp.config.yaml`.
+- Tool permissions come from the Context manifest (`policies.toolAccess`), not from CLI flags.
 - If you prefer `uvx`, replace the `command/args` with `uvx mcp-server-fetch` and (on Windows) set `PYTHONIOENCODING=utf-8`.
 
 ## Example B — local fake MCP server (deterministic)
@@ -33,10 +34,13 @@ This runs a tiny local MCP server (TypeScript over stdio) so you can test MCP wi
 Run:
 
 ```bash
-node packages/cli/dist/index.js run examples/ollama-mcp-tools/context-fake-jira-mounts.yaml ^
+ecp run examples/ollama-mcp-tools/context-fake-jira-mounts.yaml ^
+  --enable ollama ^
   --provider ollama ^
   --model llama3.2:3b ^
   --input project=OPS ^
-  --tool-server test-jira=stdio:npx,tsx,examples/ollama-mcp-tools/servers/fake-mcp-server.ts
 ```
+
+Notes:
+- MCP tool wiring is configured via `toolServers.test-jira.transport` in `ecp.config.yaml`.
 

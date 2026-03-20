@@ -23,3 +23,32 @@ extensions:
     allowKinds: [model-provider]
     allowSourceTypes: [builtin]
     allowIds: [openai, ollama]
+
+# ----------------------------------------------------------------------
+# MCP tool servers (tool wiring)
+#
+# Tool wiring is configured globally (system config). Each server name
+# here must match the `server` used in Context mounts/tool refs, e.g.
+# `server: fetch` and tools like `fetch:fetch`.
+toolServers:
+  # Public MCP via stdio (example uses Docker to start the MCP server).
+  fetch:
+    transport:
+      type: stdio
+      command: docker
+      args: [run, -i, --rm, mcp/fetch]
+
+  # Deterministic local fake MCP server (TypeScript over stdio).
+  # Assumes you run `ecp` from the repo root.
+  test-jira:
+    transport:
+      type: stdio
+      command: npx
+      args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+      cwd: .
+
+  # Example SSE transport.
+  remote:
+    transport:
+      type: sse
+      url: https://example.com/sse
