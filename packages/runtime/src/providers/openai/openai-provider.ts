@@ -17,6 +17,7 @@ import type {
   ToolDefinition,
   TokenUsage,
 } from "../model-provider.js";
+import { ProviderInitializationError } from "../provider-init-error.js";
 
 /**
  * Configuration for the OpenAI provider.
@@ -144,11 +145,27 @@ export class OpenAIProvider implements ModelProvider {
   private readonly defaultMaxTokens: number;
 
   constructor(config: OpenAIProviderConfig = {}) {
-    this.client = new OpenAI({
-      apiKey: config.apiKey ?? process.env.OPENAI_API_KEY,
-      baseURL: config.baseURL,
-      organization: config.organization,
-    });
+    const apiKey = config.apiKey ?? process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new ProviderInitializationError(
+        "The OPENAI_API_KEY environment variable is missing or empty; either provide it, or instantiate the OpenAI client with an apiKey option.",
+        { hint: "Hint: set environment variable `OPENAI_API_KEY` for the OpenAI provider." },
+      );
+    }
+
+    try {
+      this.client = new OpenAI({
+        apiKey,
+        baseURL: config.baseURL,
+        organization: config.organization,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProviderInitializationError(
+        `Failed to initialize OpenAI client: ${msg}`,
+        { hint: "Hint: verify your OpenAI API key and provider configuration." },
+      );
+    }
     this.defaultModel = config.defaultModel ?? "gpt-4o";
     this.defaultMaxTokens = config.defaultMaxTokens ?? 4096;
   }

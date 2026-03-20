@@ -19,7 +19,7 @@ import {
   type ProgressCallback,
 } from "@executioncontrolprotocol/runtime";
 
-import type { ECPContext, ExtensionSecurityPolicy, Orchestrator } from "@executioncontrolprotocol/spec";
+import type { ECPContext, ExtensionSecurityPolicy, Orchestrator, Executor } from "@executioncontrolprotocol/spec";
 import type { ModelProvider, MemoryStoreLike } from "@executioncontrolprotocol/runtime";
 
 import { parseKeyValueInputs, splitCommaSeparated, parseJsonObject } from "../lib/parsing.js";
@@ -41,6 +41,35 @@ function contextHasMemory(context: ECPContext): boolean {
   return (context.executors ?? []).some((e) => e.memory != null);
 }
 
+function inferModelProviderFromContext(context: ECPContext): string | undefined {
+  const providers = new Set<string>();
+
+  const visitExecutor = (executor: Executor): void => {
+    const providerName = (executor.model as unknown as { provider?: { name?: string } })?.provider?.name;
+    if (providerName) providers.add(providerName);
+  };
+
+  const visitOrchestrator = (orchestrator: Orchestrator): void => {
+    for (const executor of orchestrator.executors ?? []) {
+      visitExecutor(executor);
+    }
+    for (const child of orchestrator.orchestrators ?? []) {
+      visitOrchestrator(child);
+    }
+  };
+
+  if (context.orchestrator) visitOrchestrator(context.orchestrator);
+  for (const executor of context.executors ?? []) {
+    visitExecutor(executor);
+  }
+
+  if (providers.size === 1) return [...providers][0];
+  if (providers.size === 0) return undefined;
+  throw new Error(
+    `Context declares multiple model providers (${[...providers].join(", ")}). Please pass --provider.`,
+  );
+}
+
 export default class Run extends Command {
   static summary = "Execute a Context manifest";
 
@@ -59,7 +88,6 @@ export default class Run extends Command {
       char: "p",
       description: "Model provider: openai or ollama",
       options: ["openai", "ollama"] as const,
-      default: "openai",
     }),
     enable: Flags.string({
       char: "e",
@@ -142,8 +170,23 @@ export default class Run extends Command {
 
     const context = loadContext(contextPath);
 
+    let providerToUse: string | undefined;
+    try {
+      providerToUse = flags.provider ?? inferModelProviderFromContext(context);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.error(msg, { exit: 1 });
+    }
+
+    if (!providerToUse) {
+      this.error(
+        'Model provider could not be inferred from the Context. Pass --provider openai|ollama.',
+        { exit: 1 },
+      );
+    }
+
     const enableFromCli =
-      enableRaw.length > 0 ? enableRaw : systemConfig?.extensions?.defaultEnable ?? [flags.provider];
+      enableRaw.length > 0 ? enableRaw : systemConfig?.extensions?.defaultEnable ?? [providerToUse];
 
     const allowEnable = systemConfig?.extensions?.allowEnable;
     if (allowEnable && allowEnable.length > 0) {
@@ -167,7 +210,7 @@ export default class Run extends Command {
     registerBuiltinPlugins(registry, { version: "0.3.0" });
     registry.lock();
 
-    const modelProvider = this.createModelProviderOrFail(registry, flags.provider);
+    const modelProvider = this.createModelProviderOrFail(registry, providerToUse);
 
     const toolInvoker = new MCPToolInvoker();
     const agentTransport = new A2AAgentTransport();
@@ -377,11 +420,21 @@ export default class Run extends Command {
   }
 
   private createModelProviderOrFail(registry: ExtensionRegistry, providerId: string): ModelProvider {
-    try {
-      return registry.createModelProvider(providerId);
-    } catch {
+    const registration = registry.getModelProviderRegistration(providerId);
+    if (!registration) {
       const known = registry.listModelProviders().map((p) => p.id).join(", ");
       this.error(`Unknown provider "${providerId}". Registered providers: ${known}`, { exit: 1 });
+    }
+
+    try {
+      return registry.createModelProvider(providerId);
+    } catch (err) {
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      const hint = err && typeof err === "object" && "hint" in err ? (err as { hint?: string }).hint : undefined;
+      this.error(
+        `${rawMsg}${hint ? `\n${hint}` : ""}`,
+        { exit: 1 },
+      );
     }
   }
 }
