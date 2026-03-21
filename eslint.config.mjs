@@ -4,7 +4,7 @@ import * as espree from "espree";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/", "**/node_modules/"],
+    ignores: ["**/dist/", "**/node_modules/", "**/coverage/"],
   },
   ...tseslint.configs.recommended,
   {

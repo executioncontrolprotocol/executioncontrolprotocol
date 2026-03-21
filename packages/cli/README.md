@@ -40,11 +40,11 @@ YAML and JSON are supported; defaults are searched in order: `./ecp.config.yaml`
 
 ECP separates **where** a secret is loaded from using **provider ids** in `toolServers.<name>.credentials.bindings[].source`:
 
-| Provider id       | Meaning |
-|-------------------|--------|
-| `process.env`     | Read from the current process environment (`process.env[<key>]`). |
-| `dot.env`         | Read from a `.env`-style file on disk (path from config or `--environment`). |
-| `os.secrets`      | Read from the OS credential manager / keychain; stored under an `ecp://<key>` target (same as default `SecretRef.id`; provider is only in `source.provider`, e.g. `os.secrets.MY_KEY` as shorthand in docs). |
+| Provider id   | Meaning                                                                                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `process.env` | Read from the current process environment (`process.env[<key>]`).                                                                                                                                            |
+| `dot.env`     | Read from a `.env`-style file on disk (path from config or `--environment`).                                                                                                                                 |
+| `os.secrets`  | Read from the OS credential manager / keychain; stored under an `ecp://<key>` target (same as default `SecretRef.id`; provider is only in `source.provider`, e.g. `os.secrets.MY_KEY` as shorthand in docs). |
 
 Bindings use **plain keys** (e.g. `GITHUB_PAT`, `server/fetch.token`) in `source.key`. Values are never stored in Context YAML—only references.
 
