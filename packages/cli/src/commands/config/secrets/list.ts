@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { configScopeFlags } from "../../../lib/config-flags.js";
-import { OS_PROVIDER_ID, SESSION_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
+import { OS_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../../../lib/secrets-config.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
@@ -12,7 +12,7 @@ export default class ConfigSecretsList extends Command {
     ...configScopeFlags,
     provider: Flags.string({
       char: "p",
-      description: `Provider id (e.g. ${OS_PROVIDER_ID}, ${SESSION_PROVIDER_ID})`,
+      description: `Provider id (e.g. ${OS_PROVIDER_ID})`,
       required: true,
     }),
   };

@@ -51,6 +51,8 @@ ecp validate examples/single-executor/context.yaml
 
 **Full setup guide:** [SETUP.md](SETUP.md) — global CLI install, Ollama, environment variables, system config (`ecp.config.yaml`), and docs.
 
+**MCP credentials:** secret bindings use provider ids `process.env`, `dot.env`, and `os.secrets` (see [packages/cli/README.md](packages/cli/README.md) and [CHANGELOG.md](CHANGELOG.md) for v0.4.2).
+
 ------------------------------------------------------------------------
 
 ## Why ECP Exists

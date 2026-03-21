@@ -11,11 +11,19 @@ export {
   OS_PROVIDER_ID,
   SESSION_PROVIDER_ID,
 } from "./provider-ids.js";
-export { normalizeOsKeychainAccountKey } from "./os-keychain-account-key.js";
+export {
+  canonicalSecretKeyForOsStorage,
+  normalizeOsKeychainAccountKey,
+  osKeychainCredentialTarget,
+} from "./os-keychain-account-key.js";
 export { redactSecret } from "./redaction.js";
 export { DefaultSecretBroker } from "./broker.js";
 export { DefaultSecretProviderRegistry } from "./registry.js";
-export { secretRefFromBinding } from "./ref.js";
+export {
+  canonicalSecretKeyForBinding,
+  secretRefFromBinding,
+  secretRefIdFromLogicalKey,
+} from "./ref.js";
 export { isInsecureSecretProvider } from "./insecure.js";
 export * from "./warnings.js";
 export {

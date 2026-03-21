@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "CLI for the ECP runtime engine — run Context manifests from the command line",
   "license": "Apache-2.0",
   "homepage": "https://github.com/executioncontrolprotocol/executioncontrolprotocol",
@@ -38,13 +38,13 @@
     "start": "node ./bin/dev.js"
   },
   "dependencies": {
-    "@executioncontrolprotocol/plugins": "^0.4.1",
-    "@executioncontrolprotocol/runtime": "^0.4.1",
+    "@executioncontrolprotocol/plugins": "^0.4.2",
+    "@executioncontrolprotocol/runtime": "^0.4.2",
     "@oclif/core": "^4.10.0",
     "ora": "^8.1.1"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/spec": "^0.4.1",
+    "@executioncontrolprotocol/spec": "^0.4.2",
     "@types/node": "^25.3.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.0.0",

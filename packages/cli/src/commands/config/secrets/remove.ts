@@ -1,9 +1,12 @@
 import { Command, Flags } from "@oclif/core";
 import { configScopeFlags } from "../../../lib/config-flags.js";
-import { OS_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../../../lib/secrets-config.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
-import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
+import {
+  canonicalSecretKeyForBinding,
+  createDefaultSecretBroker,
+  secretRefIdFromLogicalKey,
+} from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 export default class ConfigSecretsRemove extends Command {
@@ -18,7 +21,7 @@ export default class ConfigSecretsRemove extends Command {
     }),
     key: Flags.string({
       char: "k",
-      description: `Lookup key (same form as add - ${OS_PROVIDER_ID} normalizes to ecp.*)`,
+      description: `Lookup key (same form as add)`,
       required: true,
     }),
   };
@@ -47,9 +50,9 @@ export default class ConfigSecretsRemove extends Command {
     }
 
     const ref: SecretRef = {
-      id: `ecp://${flags.provider}/${flags.key}`,
+      id: secretRefIdFromLogicalKey(flags.key!),
       provider: flags.provider!,
-      key: flags.key!,
+      key: canonicalSecretKeyForBinding(flags.key!),
     };
     await provider.delete(ref);
     this.log(`Removed secret for provider "${flags.provider}" key "${flags.key}".`);

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/spec",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "ECP specification types, JSON Schema generation, and validation",
   "license": "Apache-2.0",
   "homepage": "https://github.com/executioncontrolprotocol/executioncontrolprotocol",

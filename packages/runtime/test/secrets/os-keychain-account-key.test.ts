@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeOsKeychainAccountKey } from "../../src/secrets/os-keychain-account-key.js";
+import {
+  normalizeOsKeychainAccountKey,
+  osKeychainCredentialTarget,
+} from "../../src/secrets/os-keychain-account-key.js";
 
 describe("normalizeOsKeychainAccountKey", () => {
   it("prefixes bare keys with ecp.", () => {
@@ -25,5 +28,15 @@ describe("normalizeOsKeychainAccountKey", () => {
 
   it("trims whitespace", () => {
     expect(normalizeOsKeychainAccountKey("  my.key  ")).toBe("ecp.my.key");
+  });
+});
+
+describe("osKeychainCredentialTarget", () => {
+  it("matches secret ref id shape (no provider in URI)", () => {
+    expect(osKeychainCredentialTarget("GITHUB_PAT")).toBe("ecp://GITHUB_PAT");
+  });
+
+  it("normalizes backslashes to slashes in the path", () => {
+    expect(osKeychainCredentialTarget("a\\b")).toBe("ecp://a/b");
   });
 });

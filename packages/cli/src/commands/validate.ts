@@ -1,4 +1,4 @@
-import { Command, Flags, Args } from "@oclif/core";
+import { Flags, Args } from "@oclif/core";
 import { resolve } from "node:path";
 
 import { loadContext, resolveInputs } from "@executioncontrolprotocol/runtime";
@@ -7,6 +7,7 @@ import type { ECPContext, Orchestrator } from "@executioncontrolprotocol/spec";
 import { commandErrorMessage } from "../lib/command-helpers.js";
 import { parseKeyValueInputs } from "../lib/parsing.js";
 import { getRequiredInputNames } from "../lib/inputs.js";
+import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
 
 function collectExecutionObjectNames(context: ECPContext): string[] {
   const names = new Set<string>();
@@ -36,10 +37,11 @@ function collectExecutionObjectNames(context: ECPContext): string[] {
   return [...names];
 }
 
-export default class Validate extends Command {
+export default class Validate extends EcpEnvironmentCommand {
   static summary = "Validate a Context manifest";
 
   static flags = {
+    ...EcpEnvironmentCommand.flags,
     input: Flags.string({
       char: "i",
       multiple: true,
@@ -62,6 +64,7 @@ export default class Validate extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Validate);
+    this.applyEnvironmentFlag(flags);
     const contextPath = resolve(args.contextPath);
 
     console.log(`\nValidating: ${contextPath}\n`);

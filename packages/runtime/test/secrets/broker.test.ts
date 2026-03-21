@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DefaultSecretBroker } from "../../src/secrets/broker.js";
 import { DefaultSecretProviderRegistry } from "../../src/secrets/registry.js";
 import { registerBuiltinSecretProviders } from "../../src/secrets/builtin.js";
+import { ENV_PROVIDER_ID } from "../../src/secrets/provider-ids.js";
 import type { SecretRef, ToolServerCredentialBinding } from "@executioncontrolprotocol/plugins";
 
 describe("DefaultSecretBroker", () => {
@@ -16,8 +17,8 @@ describe("DefaultSecretBroker", () => {
     registerBuiltinSecretProviders(registry);
     const broker = new DefaultSecretBroker(registry, "permissive");
     const ref: SecretRef = {
-      id: "ecp://env/ECP_BROKER_TEST_SECRET",
-      provider: "env",
+      id: "ecp://ECP_BROKER_TEST_SECRET",
+      provider: ENV_PROVIDER_ID,
       key: "ECP_BROKER_TEST_SECRET",
     };
     const r = await broker.resolve(ref);
@@ -33,7 +34,7 @@ describe("DefaultSecretBroker", () => {
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "TOKEN",
-        source: { provider: "env", key: "ECP_BROKER_TEST_TOKEN" },
+        source: { provider: ENV_PROVIDER_ID, key: "ECP_BROKER_TEST_TOKEN" },
         required: true,
         delivery: "env",
       },
@@ -49,7 +50,7 @@ describe("DefaultSecretBroker", () => {
     const broker = new DefaultSecretBroker(registry, "strict");
     const binding: ToolServerCredentialBinding = {
       name: "X",
-      source: { provider: "env", key: "ECP_BROKER_TEST_UNUSED" },
+      source: { provider: ENV_PROVIDER_ID, key: "ECP_BROKER_TEST_UNUSED" },
       required: false,
     };
     await expect(broker.resolveBinding(binding)).rejects.toThrow(/strict/);

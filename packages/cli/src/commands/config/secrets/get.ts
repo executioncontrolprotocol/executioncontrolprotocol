@@ -3,7 +3,11 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { OS_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../../../lib/secrets-config.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
-import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
+import {
+  canonicalSecretKeyForBinding,
+  createDefaultSecretBroker,
+  secretRefIdFromLogicalKey,
+} from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 export default class ConfigSecretsGet extends Command {
@@ -51,9 +55,9 @@ export default class ConfigSecretsGet extends Command {
     }
 
     const ref: SecretRef = {
-      id: `ecp://${flags.provider}/${flags.key}`,
+      id: secretRefIdFromLogicalKey(flags.key!),
       provider: flags.provider!,
-      key: flags.key!,
+      key: canonicalSecretKeyForBinding(flags.key!),
     };
     const result = await provider.load(ref);
     if (!result) {

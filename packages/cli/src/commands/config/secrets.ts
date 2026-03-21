@@ -1,10 +1,10 @@
 import { Command } from "@oclif/core";
-import { OS_PROVIDER_ID, SESSION_PROVIDER_ID } from "../../lib/secret-provider-ids.js";
+import { OS_PROVIDER_ID } from "../../lib/secret-provider-ids.js";
 
 export default class ConfigSecrets extends Command {
-  static summary = "Manage secrets (os, env, dot, session)";
+  static summary = "Manage secrets (process.env, dot.env, os.secrets, …)";
 
-  static description = `Store and inspect secret values outside config files. Prefer os on Mac/Windows.
+  static description = `Store and inspect secret values outside config files. Prefer os.secrets on Mac/Windows.
 
 Subcommands:
   add|get|remove|list     CRUD-style commands for a provider key
@@ -22,7 +22,7 @@ Subcommands:
       [
         "Usage: ecp config secrets <subcommand>",
         "",
-        `  add       Add or replace a secret (${OS_PROVIDER_ID}, ${SESSION_PROVIDER_ID})`,
+        `  add       Add or replace a secret (${OS_PROVIDER_ID}, …)`,
         "  get       Read a secret (default: redacted preview)",
         "  remove    Remove a stored secret",
         "  list      List keys (when supported by provider)",

@@ -39,7 +39,7 @@ export class DefaultSecretBroker implements SecretBroker {
     if (insecure && this.policy === "strict" && !_ctx?.allowInsecureForBinding) {
       throw new Error(
         `Secret provider "${ref.provider}" is not allowed when secrets.policy is "strict". ` +
-          `Set allowInsecure: true on the binding, or use a secure provider (e.g. os).`,
+          `Set allowInsecure: true on the binding, or use a secure provider (e.g. os.secrets).`,
       );
     }
 
@@ -87,7 +87,7 @@ export class DefaultSecretBroker implements SecretBroker {
     if (insecure && this.policy === "strict" && !binding.allowInsecure) {
       throw new Error(
         `Secret provider "${ref.provider}" is not allowed when secrets.policy is "strict". ` +
-          `Set allowInsecure: true on the binding, or use os.`,
+          `Set allowInsecure: true on the binding, or use os.secrets.`,
       );
     }
 

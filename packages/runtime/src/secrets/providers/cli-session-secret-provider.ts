@@ -17,6 +17,7 @@ import {
   putCliSessionSecret,
 } from "../cli-session-store.js";
 import { SESSION_PROVIDER_ID } from "../provider-ids.js";
+import { secretRefIdFromLogicalKey } from "../ref.js";
 import { redactSecret } from "../redaction.js";
 
 /**
@@ -62,7 +63,7 @@ export class CliSessionSecretProvider implements SecretProvider {
 
   async list(): Promise<SecretRef[]> {
     return listCliSessionKeys().map((key) => ({
-      id: `ecp://${this.id}/${key}`,
+      id: secretRefIdFromLogicalKey(key),
       provider: this.id,
       key,
     }));

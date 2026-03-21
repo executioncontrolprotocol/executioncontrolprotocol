@@ -177,6 +177,16 @@ Lighter alternative: `ollama pull llama3.2:1b`. Other options with good tool sup
    npx ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="Test"
    ```
 
+### MCP tool credentials (secret providers)
+
+Tool and HTTP credentials in Contexts use structured bindings with **`source.provider`** set to one of:
+
+- **`process.env`** — read from the real process environment.
+- **`dot.env`** — read from a `.env`-style file (default path: `secrets.providers.dot.env.path` in `ecp.config.yaml`, or override per run with **`ecp run --environment <path>`** on `run`, `validate`, `trace`, and related commands). This does **not** merge the file into `process.env`.
+- **`os.secrets`** — read from the OS keychain; store values with `ecp config secrets add --provider os.secrets --key <key> --prompt`.
+
+These are **separate namespaces** (not one merged map). Full behavior and examples: [`packages/cli/README.md`](packages/cli/README.md) (Secrets section) and root [`CHANGELOG.md`](CHANGELOG.md) for v0.4.2 breaking renames.
+
 ------------------------------------------------------------------------
 
 ## System Config (ecp.config.yaml)

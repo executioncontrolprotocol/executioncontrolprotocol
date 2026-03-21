@@ -5,6 +5,7 @@ import { MCPToolInvoker } from "../../src/protocols/mcp/mcp-tool-invoker.js";
 import { MockAgentTransport } from "../../src/testing/mock-agent-transport.js";
 import { MockModelProvider } from "../../src/testing/mock-model-provider.js";
 import { createDefaultSecretBroker } from "../../src/secrets/builtin.js";
+import { ENV_PROVIDER_ID } from "../../src/secrets/provider-ids.js";
 import type { ECPContext } from "@executioncontrolprotocol/spec";
 
 const ENV_ECHO_SERVER_PATH = resolve(
@@ -85,7 +86,7 @@ describe("Secrets integration — stdio env merge", () => {
             bindings: [
               {
                 name: "ECP_TEST_SECRET_ENV_VAR",
-                source: { provider: "env", key: "ECP_TEST_SECRET_ENV_VAR" },
+                source: { provider: ENV_PROVIDER_ID, key: "ECP_TEST_SECRET_ENV_VAR" },
                 required: true,
                 delivery: "env",
               },

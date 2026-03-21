@@ -1,6 +1,6 @@
 {
   "name": "@executioncontextprotocol/workspace",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Execution Control Protocol (ECP) — open specification for defining, packaging, versioning, and deploying AI agent environments",
   "private": true,
   "engines": {

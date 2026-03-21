@@ -3,26 +3,30 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
 import { configScopeFlags } from "../../../lib/config-flags.js";
-import { OS_PROVIDER_ID, SESSION_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
+import { OS_PROVIDER_ID } from "../../../lib/secret-provider-ids.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../../../lib/secrets-config.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
-import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
+import {
+  canonicalSecretKeyForBinding,
+  createDefaultSecretBroker,
+  secretRefIdFromLogicalKey,
+} from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 export default class ConfigSecretsAdd extends Command {
-  static summary = `Add or replace a secret in a provider (${OS_PROVIDER_ID}, ${SESSION_PROVIDER_ID})`;
+  static summary = `Add or replace a secret in a provider (e.g. ${OS_PROVIDER_ID})`;
 
   static flags = {
     ...configScopeFlags,
     provider: Flags.string({
       char: "p",
-      description: `Provider id (e.g. ${OS_PROVIDER_ID}, ${SESSION_PROVIDER_ID})`,
+      description: `Provider id (e.g. ${OS_PROVIDER_ID})`,
       required: true,
     }),
     key: Flags.string({
       char: "k",
       description:
-        `Secret lookup key (${OS_PROVIDER_ID}: dotted ecp.* or path e.g. server/fetch.token -> ecp.server.fetch.token)`,
+        `Secret lookup key (e.g. GITHUB_API_KEY or server/fetch.token; ref id is ecp://<key>)`,
       required: true,
     }),
     value: Flags.string({
@@ -82,9 +86,9 @@ export default class ConfigSecretsAdd extends Command {
     }
 
     const ref: SecretRef = {
-      id: `ecp://${flags.provider}/${flags.key}`,
+      id: secretRefIdFromLogicalKey(flags.key!),
       provider: flags.provider!,
-      key: flags.key!,
+      key: canonicalSecretKeyForBinding(flags.key!),
     };
     await provider.store({ ref, value });
     this.log(`Stored secret for provider "${flags.provider}" key "${flags.key}".`);

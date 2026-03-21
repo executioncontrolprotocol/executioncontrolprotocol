@@ -1,11 +1,11 @@
 /**
- * Secret provider contracts for ECP (built-in providers: `os`, `env`, `dot`, `session`, …).
+ * Secret provider contracts for ECP (built-in providers: `os.secrets`, `process.env`, `dot.env`, `session`, …).
  *
  * @category Secrets
  */
 
 /**
- * How strictly to treat insecure secret sources (`env`, `dot`, `session`).
+ * How strictly to treat insecure secret sources (`process.env`, `dot.env`, `session`).
  *
  * @category Secrets
  */
@@ -17,17 +17,18 @@ export type SecretPolicyMode = "permissive" | "warn" | "strict";
  * @category Secrets
  */
 export interface CredentialBindingSource {
-  /** Secret provider id (e.g. `os`, `env`). */
+  /** Secret provider id (e.g. `os.secrets`, `process.env`, `dot.env`). */
   provider: string;
 
   /**
    * Provider-specific lookup key.
-   * For `os`, use a dotted `ecp.*` name or path segments (e.g. `mcp.github.token` or `server/fetch.token`);
-   * the runtime normalizes to a single keyring account under the `ecp.` namespace.
+   * For `os.secrets`, use a plain logical key (e.g. `GITHUB_API_KEY` or `server/fetch.token`); shorthand
+   * `os.secrets.MY_KEY` in docs maps to `provider: os.secrets`, `key: MY_KEY`.
+   * Default generated ref ids are the string `ecp://` plus the normalized key; `provider` disambiguates namespaces.
    */
   key: string;
 
-  /** Optional stable URI-style id for tooling. */
+  /** Optional override for the ref `id` (normally `ecp://` + normalized key). */
   refId?: string;
 }
 

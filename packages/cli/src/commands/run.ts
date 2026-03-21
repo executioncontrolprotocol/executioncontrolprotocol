@@ -1,4 +1,4 @@
-import { Command, Flags, Args } from "@oclif/core";
+import { Flags, Args } from "@oclif/core";
 import { resolve } from "node:path";
 import ora from "ora";
 
@@ -35,6 +35,7 @@ import { commandErrorMessage } from "../lib/command-helpers.js";
 import { parseKeyValueInputs, splitCommaSeparated } from "../lib/parsing.js";
 import { createProgressHandler } from "../lib/progress.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
+import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../lib/secrets-config.js";
 
 function contextHasMemory(context: ECPContext): boolean {
@@ -81,10 +82,11 @@ function inferModelProviderFromContext(context: ECPContext): string | undefined 
   );
 }
 
-export default class Run extends Command {
+export default class Run extends EcpEnvironmentCommand {
   static summary = "Execute a Context manifest";
 
   static flags = {
+    ...EcpEnvironmentCommand.flags,
     input: Flags.string({
       char: "i",
       multiple: true,
@@ -138,6 +140,7 @@ export default class Run extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Run);
+    this.applyEnvironmentFlag(flags);
 
     const contextPath = resolve(args.contextPath);
     const inputs = (() => {
@@ -197,7 +200,7 @@ export default class Run extends Command {
       }
     }
 
-    const dotenvPath = resolveDotenvPathFromConfig(cwd, systemConfig);
+    const dotenvPath = this.effectiveDotenvPath ?? resolveDotenvPathFromConfig(cwd, systemConfig);
     const { broker: secretBroker } = createDefaultSecretBroker({
       policy: resolveSecretPolicyFromConfig(systemConfig),
       dotenvPath,

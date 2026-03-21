@@ -1,4 +1,4 @@
-import { Command, Flags, Args } from "@oclif/core";
+import { Flags, Args } from "@oclif/core";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -6,11 +6,13 @@ import type { ExecutionTrace } from "@executioncontrolprotocol/runtime";
 
 import { renderTraceView, type TraceOutputFormat } from "../lib/trace-view.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
+import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
 
-export default class Trace extends Command {
+export default class Trace extends EcpEnvironmentCommand {
   static summary = "Display execution trace";
 
   static flags = {
+    ...EcpEnvironmentCommand.flags,
     output: Flags.string({
       description: "Render mode: 'text' (human log) or 'graph' (ASCII visualization)",
       options: ["text", "graph"] as const,
@@ -31,6 +33,7 @@ export default class Trace extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Trace);
+    this.applyEnvironmentFlag(flags);
     const runId = args.runId;
     const output = flags.output as TraceOutputFormat;
 

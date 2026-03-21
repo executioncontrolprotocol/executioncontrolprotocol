@@ -15,7 +15,7 @@ describe("CLI secrets commands (via broker)", () => {
 
     const input = {
       ref: {
-        id: "ecp://session/test-key",
+        id: "ecp://test-key",
         provider: "session",
         key: "test-key",
       } as SecretRef,
@@ -36,7 +36,7 @@ describe("CLI secrets commands (via broker)", () => {
 
     await provider!.store!({
       ref: {
-        id: "ecp://session/key1",
+        id: "ecp://key1",
         provider: "session",
         key: "key1",
       } as SecretRef,
@@ -44,7 +44,7 @@ describe("CLI secrets commands (via broker)", () => {
     });
     await provider!.store!({
       ref: {
-        id: "ecp://session/key2",
+        id: "ecp://key2",
         provider: "session",
         key: "key2",
       } as SecretRef,
@@ -64,7 +64,7 @@ describe("CLI secrets commands (via broker)", () => {
     expect(provider).not.toBeNull();
 
     const ref: SecretRef = {
-      id: "ecp://session/delete-test",
+      id: "ecp://delete-test",
       provider: "session",
       key: "delete-test",
     };
@@ -82,7 +82,7 @@ describe("CLI secrets commands (via broker)", () => {
     expect(provider).not.toBeNull();
 
     const ref: SecretRef = {
-      id: "ecp://session/missing",
+      id: "ecp://missing",
       provider: "session",
       key: "missing",
     };

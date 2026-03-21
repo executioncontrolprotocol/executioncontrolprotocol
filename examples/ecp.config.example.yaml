@@ -21,7 +21,7 @@ loggers:
 # secrets:
 #   policy: warn
 #   providers:
-#     dot: { path: .env }
+#     dot.env: { path: .env }
 
 # ----------------------------------------------------------------------
 # MCP tool servers (tool wiring)

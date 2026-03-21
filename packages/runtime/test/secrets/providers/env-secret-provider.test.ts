@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ENV_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { EnvSecretProvider } from "../../../src/secrets/providers/env-secret-provider.js";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
@@ -11,7 +12,7 @@ describe("EnvSecretProvider", () => {
   });
 
   it("has correct id and display name", () => {
-    expect(provider.id).toBe("env");
+    expect(provider.id).toBe(ENV_PROVIDER_ID);
     expect(provider.displayName).toBe("Process environment");
   });
 
@@ -31,14 +32,14 @@ describe("EnvSecretProvider", () => {
   it("returns healthy status", async () => {
     const health = await provider.healthCheck();
     expect(health.ok).toBe(true);
-    expect(health.providerId).toBe("env");
+    expect(health.providerId).toBe(ENV_PROVIDER_ID);
   });
 
   it("loads secret from process.env", async () => {
     vi.stubEnv("ECP_TEST_SECRET", "secret-value");
     const ref: SecretRef = {
-      id: "ecp://env/ECP_TEST_SECRET",
-      provider: "env",
+      id: "ecp://ECP_TEST_SECRET",
+      provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_SECRET",
     };
     const result = await provider.load(ref);
@@ -49,8 +50,8 @@ describe("EnvSecretProvider", () => {
 
   it("returns null for missing env var", async () => {
     const ref: SecretRef = {
-      id: "ecp://env/MISSING",
-      provider: "env",
+      id: "ecp://MISSING",
+      provider: ENV_PROVIDER_ID,
       key: "MISSING",
     };
     const result = await provider.load(ref);
@@ -60,8 +61,8 @@ describe("EnvSecretProvider", () => {
   it("returns null for empty env var", async () => {
     vi.stubEnv("ECP_TEST_EMPTY", "");
     const ref: SecretRef = {
-      id: "ecp://env/ECP_TEST_EMPTY",
-      provider: "env",
+      id: "ecp://ECP_TEST_EMPTY",
+      provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_EMPTY",
     };
     const result = await provider.load(ref);
@@ -71,8 +72,8 @@ describe("EnvSecretProvider", () => {
   it("redacts secret value in preview", async () => {
     vi.stubEnv("ECP_TEST_LONG", "very-long-secret-value-that-should-be-redacted");
     const ref: SecretRef = {
-      id: "ecp://env/ECP_TEST_LONG",
-      provider: "env",
+      id: "ecp://ECP_TEST_LONG",
+      provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_LONG",
     };
     const result = await provider.load(ref);

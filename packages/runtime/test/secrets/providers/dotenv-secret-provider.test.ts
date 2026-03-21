@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+import { DOT_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { DotenvSecretProvider } from "../../../src/secrets/providers/dotenv-secret-provider.js";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
@@ -31,7 +32,7 @@ describe("DotenvSecretProvider", () => {
   });
 
   it("has correct id and display name", () => {
-    expect(provider.id).toBe("dot");
+    expect(provider.id).toBe(DOT_PROVIDER_ID);
     expect(provider.displayName).toBe("Dotenv file");
   });
 
@@ -56,7 +57,7 @@ describe("DotenvSecretProvider", () => {
   it("returns unhealthy status when file missing", async () => {
     const health = await provider.healthCheck();
     expect(health.ok).toBe(false);
-    expect(health.providerId).toBe("dot");
+    expect(health.providerId).toBe(DOT_PROVIDER_ID);
     expect(health.message).toContain("not found");
     expect(health.details?.path).toBe(dotenvPath);
   });
@@ -65,14 +66,14 @@ describe("DotenvSecretProvider", () => {
     writeFileSync(dotenvPath, "KEY=value\n");
     const health = await provider.healthCheck();
     expect(health.ok).toBe(true);
-    expect(health.providerId).toBe("dot");
+    expect(health.providerId).toBe(DOT_PROVIDER_ID);
   });
 
   it("loads secret from dotenv file", async () => {
     writeFileSync(dotenvPath, "ECP_TEST_TOKEN=abc123\n");
     const ref: SecretRef = {
-      id: "ecp://dot/ECP_TEST_TOKEN",
-      provider: "dot",
+      id: "ecp://ECP_TEST_TOKEN",
+      provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_TOKEN",
     };
     const result = await provider.load(ref);
@@ -84,8 +85,8 @@ describe("DotenvSecretProvider", () => {
   it("returns null for missing key in file", async () => {
     writeFileSync(dotenvPath, "OTHER_KEY=value\n");
     const ref: SecretRef = {
-      id: "ecp://dot/MISSING",
-      provider: "dot",
+      id: "ecp://MISSING",
+      provider: DOT_PROVIDER_ID,
       key: "MISSING",
     };
     const result = await provider.load(ref);
@@ -94,8 +95,8 @@ describe("DotenvSecretProvider", () => {
 
   it("returns null when file does not exist", async () => {
     const ref: SecretRef = {
-      id: "ecp://dot/KEY",
-      provider: "dot",
+      id: "ecp://KEY",
+      provider: DOT_PROVIDER_ID,
       key: "KEY",
     };
     const result = await provider.load(ref);
@@ -108,8 +109,8 @@ describe("DotenvSecretProvider", () => {
       "# comment\n\nECP_TEST_KEY=value\n  # another comment\nOTHER=test\n",
     );
     const ref: SecretRef = {
-      id: "ecp://dot/ECP_TEST_KEY",
-      provider: "dot",
+      id: "ecp://ECP_TEST_KEY",
+      provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_KEY",
     };
     const result = await provider.load(ref);
@@ -120,18 +121,18 @@ describe("DotenvSecretProvider", () => {
   it("strips quotes from values", async () => {
     writeFileSync(dotenvPath, 'KEY1="quoted"\nKEY2=\'single-quoted\'\nKEY3=unquoted\n');
     const ref1: SecretRef = {
-      id: "ecp://dot/KEY1",
-      provider: "dot",
+      id: "ecp://KEY1",
+      provider: DOT_PROVIDER_ID,
       key: "KEY1",
     };
     const ref2: SecretRef = {
-      id: "ecp://dot/KEY2",
-      provider: "dot",
+      id: "ecp://KEY2",
+      provider: DOT_PROVIDER_ID,
       key: "KEY2",
     };
     const ref3: SecretRef = {
-      id: "ecp://dot/KEY3",
-      provider: "dot",
+      id: "ecp://KEY3",
+      provider: DOT_PROVIDER_ID,
       key: "KEY3",
     };
     expect((await provider.load(ref1))!.value).toBe("quoted");
@@ -142,8 +143,8 @@ describe("DotenvSecretProvider", () => {
   it("handles multiple key-value pairs", async () => {
     writeFileSync(dotenvPath, "KEY1=value1\nKEY2=value2\nKEY3=value3\n");
     const ref: SecretRef = {
-      id: "ecp://dot/KEY2",
-      provider: "dot",
+      id: "ecp://KEY2",
+      provider: DOT_PROVIDER_ID,
       key: "KEY2",
     };
     const result = await provider.load(ref);
@@ -154,8 +155,8 @@ describe("DotenvSecretProvider", () => {
   it("returns null for empty value", async () => {
     writeFileSync(dotenvPath, "EMPTY_KEY=\n");
     const ref: SecretRef = {
-      id: "ecp://dot/EMPTY_KEY",
-      provider: "dot",
+      id: "ecp://EMPTY_KEY",
+      provider: DOT_PROVIDER_ID,
       key: "EMPTY_KEY",
     };
     const result = await provider.load(ref);
@@ -165,8 +166,8 @@ describe("DotenvSecretProvider", () => {
   it("redacts secret value in preview", async () => {
     writeFileSync(dotenvPath, "ECP_TEST_LONG=very-long-secret-value-that-should-be-redacted\n");
     const ref: SecretRef = {
-      id: "ecp://dot/ECP_TEST_LONG",
-      provider: "dot",
+      id: "ecp://ECP_TEST_LONG",
+      provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_LONG",
     };
     const result = await provider.load(ref);

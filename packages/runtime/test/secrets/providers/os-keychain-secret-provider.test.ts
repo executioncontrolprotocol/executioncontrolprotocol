@@ -3,35 +3,77 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { OS_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { OsKeychainSecretProvider } from "../../../src/secrets/providers/os-keychain-secret-provider.js";
 import { ECP_KEYRING_SERVICE } from "../../../src/secrets/constants.js";
+import { osKeychainCredentialTarget } from "../../../src/secrets/os-keychain-account-key.js";
 import type { SecretRef, SecretStoreInput } from "@executioncontrolprotocol/plugins";
 
+const SEP = "\x1f";
+
+type TargetStored = { password: string; username: string };
+
 const { mockKeyringStore } = vi.hoisted(() => ({
-  mockKeyringStore: new Map<string, string>(),
+  mockKeyringStore: new Map<string, string | TargetStored>(),
 }));
 
 vi.mock("@napi-rs/keyring", () => {
   return {
     Entry: class MockEntry {
+      private _target?: string;
+
+      static withTarget(target: string, service: string, username: string): MockEntry {
+        const e = new MockEntry(service, username);
+        e._target = target;
+        return e;
+      }
+
       constructor(
         private service: string,
         private account: string,
       ) {}
+
+      private storageKey(): string {
+        return this._target ? `${this.service}${SEP}${this._target}` : `${this.service}:${this.account}`;
+      }
+
       setPassword(password: string): void {
-        mockKeyringStore.set(`${this.service}:${this.account}`, password);
+        if (this._target) {
+          mockKeyringStore.set(this.storageKey(), {
+            password,
+            username: this.account,
+          });
+        } else {
+          mockKeyringStore.set(this.storageKey(), password);
+        }
       }
+
       getPassword(): string | null {
-        return mockKeyringStore.get(`${this.service}:${this.account}`) ?? null;
+        const v = mockKeyringStore.get(this.storageKey());
+        if (v == null) return null;
+        if (typeof v === "string") return v;
+        return v.password;
       }
+
       deletePassword(): void {
-        mockKeyringStore.delete(`${this.service}:${this.account}`);
+        mockKeyringStore.delete(this.storageKey());
       }
     },
-    findCredentials: (service: string) => {
+    findCredentials: (service: string, target?: string | null) => {
       const creds: Array<{ account: string }> = [];
       for (const key of mockKeyringStore.keys()) {
-        const [svc, account] = key.split(":");
-        if (svc === service) {
-          creds.push({ account });
+        if (key.includes(SEP)) {
+          const sepIdx = key.indexOf(SEP);
+          const svc = key.slice(0, sepIdx);
+          const storeTarget = key.slice(sepIdx + SEP.length);
+          if (svc !== service) continue;
+          if (target === "ecp://*" && !storeTarget.startsWith("ecp://")) continue;
+          const val = mockKeyringStore.get(key);
+          if (val && typeof val === "object") {
+            creds.push({ account: val.username });
+          }
+        } else {
+          const [svc, account] = key.split(":");
+          if (svc === service) {
+            creds.push({ account });
+          }
         }
       }
       return creds;
@@ -72,10 +114,10 @@ describe("OsKeychainSecretProvider", () => {
     expect(health.providerId).toBe(OS_PROVIDER_ID);
   });
 
-  it("stores and loads secrets using normalized ecp.* account keys", async () => {
+  it("stores and loads secrets using ecp://<key> keyring targets", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/test-key`,
+        id: `ecp://test-key`,
         provider: OS_PROVIDER_ID,
         key: "test-key",
       },
@@ -84,7 +126,7 @@ describe("OsKeychainSecretProvider", () => {
     await provider.store(input);
 
     const ref: SecretRef = {
-      id: `ecp://${OS_PROVIDER_ID}/test-key`,
+      id: `ecp://test-key`,
       provider: OS_PROVIDER_ID,
       key: "test-key",
     };
@@ -92,12 +134,13 @@ describe("OsKeychainSecretProvider", () => {
     expect(result).not.toBeNull();
     expect(result!.value).toBe("secret-value");
     expect(result!.redactedPreview).not.toContain("secret-value");
-    expect(mockKeyringStore.has(`${ECP_KEYRING_SERVICE}:ecp.test-key`)).toBe(true);
+    const target = osKeychainCredentialTarget("test-key");
+    expect(mockKeyringStore.has(`${ECP_KEYRING_SERVICE}${SEP}${target}`)).toBe(true);
   });
 
   it("returns null for missing secret", async () => {
     const ref: SecretRef = {
-      id: `ecp://${OS_PROVIDER_ID}/missing`,
+      id: `ecp://missing`,
       provider: OS_PROVIDER_ID,
       key: "missing",
     };
@@ -108,7 +151,7 @@ describe("OsKeychainSecretProvider", () => {
   it("deletes secrets", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/delete-test`,
+        id: `ecp://delete-test`,
         provider: OS_PROVIDER_ID,
         key: "delete-test",
       },
@@ -121,10 +164,10 @@ describe("OsKeychainSecretProvider", () => {
     expect(await provider.load(input.ref)).toBeNull();
   });
 
-  it("lists stored secrets with physical keyring account names", async () => {
+  it("lists stored secrets with logical keys", async () => {
     const input1: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/list-key1`,
+        id: `ecp://list-key1`,
         provider: OS_PROVIDER_ID,
         key: "list-key1",
       },
@@ -132,7 +175,7 @@ describe("OsKeychainSecretProvider", () => {
     };
     const input2: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/list-key2`,
+        id: `ecp://list-key2`,
         provider: OS_PROVIDER_ID,
         key: "list-key2",
       },
@@ -144,16 +187,36 @@ describe("OsKeychainSecretProvider", () => {
     const list = await provider.list();
     expect(list.length).toBe(2);
     const keys = list.map((r) => r.key);
-    expect(keys).toContain("ecp.list-key1");
-    expect(keys).toContain("ecp.list-key2");
+    expect(keys).toContain("list-key1");
+    expect(keys).toContain("list-key2");
     expect(list.every((r) => r.provider === OS_PROVIDER_ID)).toBe(true);
-    expect(list.every((r) => r.id.startsWith(`ecp://${OS_PROVIDER_ID}/`))).toBe(true);
+    expect(list.every((r) => r.id.startsWith(`ecp://`))).toBe(true);
+  });
+
+  it("maps list entries that are already ecp:// targets to secret refs", () => {
+    const anyProvider = provider as unknown as {
+      listAccountToSecretRef(account: string): SecretRef;
+    };
+    const id = "ecp://my/token";
+    const r = anyProvider.listAccountToSecretRef(id);
+    expect(r.id).toBe(id);
+    expect(r.key).toBe("my/token");
+  });
+
+  it("maps legacy ecp://os.secrets/key list accounts to canonical refs", () => {
+    const anyProvider = provider as unknown as {
+      listAccountToSecretRef(account: string): SecretRef;
+    };
+    const legacy = `ecp://${OS_PROVIDER_ID}/legacy-key`;
+    const r = anyProvider.listAccountToSecretRef(legacy);
+    expect(r.key).toBe("legacy-key");
+    expect(r.id).toBe("ecp://legacy-key");
   });
 
   it("uses ECP_KEYRING_SERVICE for storage", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/service-test`,
+        id: "ecp://service-test",
         provider: OS_PROVIDER_ID,
         key: "service-test",
       },
@@ -163,13 +226,13 @@ describe("OsKeychainSecretProvider", () => {
 
     const { findCredentials } = await import("@napi-rs/keyring");
     const creds = findCredentials(ECP_KEYRING_SERVICE);
-    expect(creds.some((c) => c.account === "ecp.service-test")).toBe(true);
+    expect(creds.some((c) => c.account === "service-test")).toBe(true);
   });
 
   it("redacts secret value in preview", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://${OS_PROVIDER_ID}/redact-test`,
+        id: `ecp://redact-test`,
         provider: OS_PROVIDER_ID,
         key: "redact-test",
       },

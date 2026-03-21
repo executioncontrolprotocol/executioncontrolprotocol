@@ -1,5 +1,5 @@
 import { Command } from "@oclif/core";
-import { OS_PROVIDER_ID, SESSION_PROVIDER_ID } from "../lib/secret-provider-ids.js";
+import { OS_PROVIDER_ID } from "../lib/secret-provider-ids.js";
 
 export default class Config extends Command {
   static summary = "Manage ECP system configuration";
@@ -34,7 +34,7 @@ You can also edit the file directly — use "ecp config path" for the resolved p
         "  models            CRUD for model providers and allowed models",
         "  tools             CRUD for MCP tool servers",
         "  loggers           CRUD for logger policy and per-logger config",
-        `  secrets           Store/list secrets (${OS_PROVIDER_ID}, ${SESSION_PROVIDER_ID}, ...)`,
+        `  secrets           Store/list secrets (${OS_PROVIDER_ID}, …)`,
         "  endpoints         CRUD for A2A agent endpoint URLs",
         "",
         "Resource commands use verbs: add, get, remove, update (see ecp config <topic> --help).",

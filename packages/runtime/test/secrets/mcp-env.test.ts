@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveStdioEnvForToolServer } from "../../src/secrets/mcp-env.js";
 import type { SecretBroker, ToolServerCredentialBinding } from "@executioncontrolprotocol/plugins";
 import { buildMinimalStdioEnv } from "../../src/secrets/minimal-env.js";
+import { ENV_PROVIDER_ID } from "../../src/secrets/provider-ids.js";
 
 describe("resolveStdioEnvForToolServer", () => {
   it("returns unchanged transport for non-stdio transport", async () => {
@@ -69,7 +70,7 @@ describe("resolveStdioEnvForToolServer", () => {
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "SECRET_TOKEN",
-        source: { provider: "env", key: "ECP_TEST_TOKEN" },
+        source: { provider: ENV_PROVIDER_ID, key: "ECP_TEST_TOKEN" },
         required: true,
         delivery: "env",
       },
@@ -114,7 +115,7 @@ describe("resolveStdioEnvForToolServer", () => {
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "PATH",
-        source: { provider: "env", key: "ECP_TEST_PATH" },
+        source: { provider: ENV_PROVIDER_ID, key: "ECP_TEST_PATH" },
         required: true,
         delivery: "env",
       },
@@ -156,7 +157,7 @@ describe("resolveStdioEnvForToolServer", () => {
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "TOKEN",
-        source: { provider: "env", key: "ECP_TEST_TOKEN" },
+        source: { provider: ENV_PROVIDER_ID, key: "ECP_TEST_TOKEN" },
         required: true,
         delivery: "env",
       },
@@ -187,7 +188,7 @@ describe("resolveStdioEnvForToolServer", () => {
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "TOKEN",
-        source: { provider: "env", key: "ECP_TEST_TOKEN" },
+        source: { provider: ENV_PROVIDER_ID, key: "ECP_TEST_TOKEN" },
         required: true,
         delivery: "env",
       },

@@ -1,4 +1,4 @@
-import { Command, Flags, Args } from "@oclif/core";
+import { Flags, Args } from "@oclif/core";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -6,13 +6,15 @@ import type { ExecutionTrace } from "@executioncontrolprotocol/runtime";
 
 import { renderTraceView, type TraceOutputFormat } from "../lib/trace-view.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
+import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
 
-export default class Graph extends Command {
+export default class Graph extends EcpEnvironmentCommand {
   static summary = "Display execution graph";
   // Backwards-compatible alias for `ecp trace --output graph`.
   static hidden = true;
 
   static flags = {
+    ...EcpEnvironmentCommand.flags,
     "trace-dir": Flags.string({
       description: "Directory for trace files",
       default: getDefaultTraceDir(),
@@ -28,6 +30,7 @@ export default class Graph extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Graph);
+    this.applyEnvironmentFlag(flags);
     const runId = args.runId;
 
     const traceDir = flags["trace-dir"];
