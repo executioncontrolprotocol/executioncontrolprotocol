@@ -16,7 +16,7 @@ export function canonicalSecretKeyForOsStorage(key: string): string {
 }
 
 /**
- * Windows/macOS keyring **target** for `os.secrets`: `ecp://` + key (no provider segment).
+ * Windows/macOS keyring **target** for `os.secrets`: {@link secretRefIdFromLogicalKey} (protocol prefix + key; no provider segment in the URI path).
  * Passed to `Entry.withTarget` from `@napi-rs/keyring` so Windows does not build the default
  * `username.service` target (which produced `ecp.KEY.ecp` when both contained `ecp`).
  */

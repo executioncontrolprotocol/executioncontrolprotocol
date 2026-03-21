@@ -24,11 +24,11 @@ export interface CredentialBindingSource {
    * Provider-specific lookup key.
    * For `os.secrets`, use a plain logical key (e.g. `GITHUB_API_KEY` or `server/fetch.token`); shorthand
    * `os.secrets.MY_KEY` in docs maps to `provider: os.secrets`, `key: MY_KEY`.
-   * Default generated ref ids are the string `ecp://` plus the normalized key; `provider` disambiguates namespaces.
+   * Default generated ref ids are `ECP_SECRET_REF_PROTOCOL_PREFIX` from `@executioncontrolprotocol/runtime` plus the normalized key; `provider` disambiguates namespaces.
    */
   key: string;
 
-  /** Optional override for the ref `id` (normally `ecp://` + normalized key). */
+  /** Optional override for the ref `id` (normally `ECP_SECRET_REF_PROTOCOL_PREFIX` + normalized key from runtime). */
   refId?: string;
 }
 

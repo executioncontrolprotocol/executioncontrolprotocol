@@ -12,7 +12,11 @@ import type {
   SecretStoreInput,
   SecretValueResult,
 } from "@executioncontrolprotocol/plugins";
-import { ECP_KEYRING_SERVICE } from "../constants.js";
+import {
+  ECP_KEYRING_SERVICE,
+  ECP_SECRET_REF_PROTOCOL_PREFIX,
+  ECP_SECRET_REF_WIN32_ENUM_FILTER,
+} from "../constants.js";
 import {
   canonicalSecretKeyForOsStorage,
   osKeychainCredentialTarget,
@@ -72,12 +76,11 @@ export class OsKeychainSecretProvider implements SecretProvider {
 
   /**
    * Map OS `findCredentials` account string to a binding key + ref id.
-   * Accepts `ecp://<key>`, legacy `ecp://<provider>/<key>` (e.g. older `os.secrets/...`), or a bare username.
+   * Accepts {@link ECP_SECRET_REF_PROTOCOL_PREFIX} URIs (key-only path), legacy `{prefix}{provider}/…`, or a bare username.
    */
   private listAccountToSecretRef(account: string): SecretRef {
-    const scheme = "ecp://";
-    if (account.startsWith(scheme)) {
-      const rest = account.slice(scheme.length);
+    if (account.startsWith(ECP_SECRET_REF_PROTOCOL_PREFIX)) {
+      const rest = account.slice(ECP_SECRET_REF_PROTOCOL_PREFIX.length);
       const legacy = `${this.id}/`;
       if (rest.startsWith(legacy)) {
         const key = rest.slice(legacy.length);
@@ -129,13 +132,12 @@ export class OsKeychainSecretProvider implements SecretProvider {
   async list(): Promise<SecretRef[]> {
     try {
       const { findCredentials } = await import("@napi-rs/keyring");
-      // Windows: @napi-rs/keyring / keyring-rs uses filter `*.{service}` (e.g. `*.ecp`) when `target`
-      // is omitted. That only matches Credential Manager TargetNames ending in `.ecp`. We store with
-      // `Entry.withTarget("ecp://<key>", …)`, so TargetName does not match `*.ecp` and enumerate
-      // returns nothing. Pass an explicit prefix filter so `ecp://…` entries are included.
+      // Windows: findCredentials defaults to `*.{service}` when `target` is omitted. We store with
+      // `Entry.withTarget(ECP_SECRET_REF_PROTOCOL_PREFIX + key, …)`, so TargetName does not match `*.ecp`.
+      // Pass `ECP_SECRET_REF_WIN32_ENUM_FILTER` so those entries are enumerated.
       const creds =
         process.platform === "win32"
-          ? findCredentials(ECP_KEYRING_SERVICE, "ecp://*")
+          ? findCredentials(ECP_KEYRING_SERVICE, ECP_SECRET_REF_WIN32_ENUM_FILTER)
           : findCredentials(ECP_KEYRING_SERVICE);
       return creds.map((c) => this.listAccountToSecretRef(c.account));
     } catch {

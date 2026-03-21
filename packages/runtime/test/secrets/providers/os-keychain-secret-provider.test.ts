@@ -2,8 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { OS_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { OsKeychainSecretProvider } from "../../../src/secrets/providers/os-keychain-secret-provider.js";
-import { ECP_KEYRING_SERVICE } from "../../../src/secrets/constants.js";
+import {
+  ECP_KEYRING_SERVICE,
+  ECP_SECRET_REF_PROTOCOL_PREFIX,
+  ECP_SECRET_REF_WIN32_ENUM_FILTER,
+} from "../../../src/secrets/constants.js";
 import { osKeychainCredentialTarget } from "../../../src/secrets/os-keychain-account-key.js";
+import { secretRefIdFromLogicalKey } from "../../../src/secrets/ref.js";
 import type { SecretRef, SecretStoreInput } from "@executioncontrolprotocol/plugins";
 
 const SEP = "\x1f";
@@ -64,7 +69,8 @@ vi.mock("@napi-rs/keyring", () => {
           const svc = key.slice(0, sepIdx);
           const storeTarget = key.slice(sepIdx + SEP.length);
           if (svc !== service) continue;
-          if (target === "ecp://*" && !storeTarget.startsWith("ecp://")) continue;
+          if (target === ECP_SECRET_REF_WIN32_ENUM_FILTER && !storeTarget.startsWith(ECP_SECRET_REF_PROTOCOL_PREFIX))
+            continue;
           const val = mockKeyringStore.get(key);
           if (val && typeof val === "object") {
             creds.push({ account: val.username });
@@ -114,10 +120,10 @@ describe("OsKeychainSecretProvider", () => {
     expect(health.providerId).toBe(OS_PROVIDER_ID);
   });
 
-  it("stores and loads secrets using ecp://<key> keyring targets", async () => {
+  it("stores and loads secrets using protocol-prefixed keyring targets", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://test-key`,
+        id: secretRefIdFromLogicalKey("test-key"),
         provider: OS_PROVIDER_ID,
         key: "test-key",
       },
@@ -126,7 +132,7 @@ describe("OsKeychainSecretProvider", () => {
     await provider.store(input);
 
     const ref: SecretRef = {
-      id: `ecp://test-key`,
+      id: secretRefIdFromLogicalKey("test-key"),
       provider: OS_PROVIDER_ID,
       key: "test-key",
     };
@@ -140,7 +146,7 @@ describe("OsKeychainSecretProvider", () => {
 
   it("returns null for missing secret", async () => {
     const ref: SecretRef = {
-      id: `ecp://missing`,
+      id: secretRefIdFromLogicalKey("missing"),
       provider: OS_PROVIDER_ID,
       key: "missing",
     };
@@ -151,7 +157,7 @@ describe("OsKeychainSecretProvider", () => {
   it("deletes secrets", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://delete-test`,
+        id: secretRefIdFromLogicalKey("delete-test"),
         provider: OS_PROVIDER_ID,
         key: "delete-test",
       },
@@ -167,7 +173,7 @@ describe("OsKeychainSecretProvider", () => {
   it("lists stored secrets with logical keys", async () => {
     const input1: SecretStoreInput = {
       ref: {
-        id: `ecp://list-key1`,
+        id: secretRefIdFromLogicalKey("list-key1"),
         provider: OS_PROVIDER_ID,
         key: "list-key1",
       },
@@ -175,7 +181,7 @@ describe("OsKeychainSecretProvider", () => {
     };
     const input2: SecretStoreInput = {
       ref: {
-        id: `ecp://list-key2`,
+        id: secretRefIdFromLogicalKey("list-key2"),
         provider: OS_PROVIDER_ID,
         key: "list-key2",
       },
@@ -190,33 +196,33 @@ describe("OsKeychainSecretProvider", () => {
     expect(keys).toContain("list-key1");
     expect(keys).toContain("list-key2");
     expect(list.every((r) => r.provider === OS_PROVIDER_ID)).toBe(true);
-    expect(list.every((r) => r.id.startsWith(`ecp://`))).toBe(true);
+    expect(list.every((r) => r.id.startsWith(ECP_SECRET_REF_PROTOCOL_PREFIX))).toBe(true);
   });
 
-  it("maps list entries that are already ecp:// targets to secret refs", () => {
+  it("maps list entries that are already protocol-prefixed targets to secret refs", () => {
     const anyProvider = provider as unknown as {
       listAccountToSecretRef(account: string): SecretRef;
     };
-    const id = "ecp://my/token";
+    const id = secretRefIdFromLogicalKey("my/token");
     const r = anyProvider.listAccountToSecretRef(id);
     expect(r.id).toBe(id);
     expect(r.key).toBe("my/token");
   });
 
-  it("maps legacy ecp://os.secrets/key list accounts to canonical refs", () => {
+  it("maps legacy provider-prefixed list accounts to canonical refs", () => {
     const anyProvider = provider as unknown as {
       listAccountToSecretRef(account: string): SecretRef;
     };
-    const legacy = `ecp://${OS_PROVIDER_ID}/legacy-key`;
+    const legacy = `${ECP_SECRET_REF_PROTOCOL_PREFIX}${OS_PROVIDER_ID}/legacy-key`;
     const r = anyProvider.listAccountToSecretRef(legacy);
     expect(r.key).toBe("legacy-key");
-    expect(r.id).toBe("ecp://legacy-key");
+    expect(r.id).toBe(secretRefIdFromLogicalKey("legacy-key"));
   });
 
   it("uses ECP_KEYRING_SERVICE for storage", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: "ecp://service-test",
+        id: secretRefIdFromLogicalKey("service-test"),
         provider: OS_PROVIDER_ID,
         key: "service-test",
       },
@@ -232,7 +238,7 @@ describe("OsKeychainSecretProvider", () => {
   it("redacts secret value in preview", async () => {
     const input: SecretStoreInput = {
       ref: {
-        id: `ecp://redact-test`,
+        id: secretRefIdFromLogicalKey("redact-test"),
         provider: OS_PROVIDER_ID,
         key: "redact-test",
       },

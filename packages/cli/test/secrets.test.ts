@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
-import { clearCliSessionSecrets } from "@executioncontrolprotocol/runtime";
+import {
+  clearCliSessionSecrets,
+  createDefaultSecretBroker,
+  secretRefIdFromLogicalKey,
+} from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 describe("CLI secrets commands (via broker)", () => {
@@ -15,7 +18,7 @@ describe("CLI secrets commands (via broker)", () => {
 
     const input = {
       ref: {
-        id: "ecp://test-key",
+        id: secretRefIdFromLogicalKey("test-key"),
         provider: "session",
         key: "test-key",
       } as SecretRef,
@@ -36,7 +39,7 @@ describe("CLI secrets commands (via broker)", () => {
 
     await provider!.store!({
       ref: {
-        id: "ecp://key1",
+        id: secretRefIdFromLogicalKey("key1"),
         provider: "session",
         key: "key1",
       } as SecretRef,
@@ -44,7 +47,7 @@ describe("CLI secrets commands (via broker)", () => {
     });
     await provider!.store!({
       ref: {
-        id: "ecp://key2",
+        id: secretRefIdFromLogicalKey("key2"),
         provider: "session",
         key: "key2",
       } as SecretRef,
@@ -64,7 +67,7 @@ describe("CLI secrets commands (via broker)", () => {
     expect(provider).not.toBeNull();
 
     const ref: SecretRef = {
-      id: "ecp://delete-test",
+      id: secretRefIdFromLogicalKey("delete-test"),
       provider: "session",
       key: "delete-test",
     };
@@ -82,7 +85,7 @@ describe("CLI secrets commands (via broker)", () => {
     expect(provider).not.toBeNull();
 
     const ref: SecretRef = {
-      id: "ecp://missing",
+      id: secretRefIdFromLogicalKey("missing"),
       provider: "session",
       key: "missing",
     };

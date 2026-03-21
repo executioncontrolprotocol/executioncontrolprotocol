@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { ECP_SECRET_REF_PROTOCOL_PREFIX } from "../../src/secrets/constants.js";
 import {
   normalizeOsKeychainAccountKey,
   osKeychainCredentialTarget,
 } from "../../src/secrets/os-keychain-account-key.js";
+import { secretRefIdFromLogicalKey } from "../../src/secrets/ref.js";
 
 describe("normalizeOsKeychainAccountKey", () => {
   it("prefixes bare keys with ecp.", () => {
@@ -33,10 +35,10 @@ describe("normalizeOsKeychainAccountKey", () => {
 
 describe("osKeychainCredentialTarget", () => {
   it("matches secret ref id shape (no provider in URI)", () => {
-    expect(osKeychainCredentialTarget("GITHUB_PAT")).toBe("ecp://GITHUB_PAT");
+    expect(osKeychainCredentialTarget("GITHUB_PAT")).toBe(secretRefIdFromLogicalKey("GITHUB_PAT"));
   });
 
   it("normalizes backslashes to slashes in the path", () => {
-    expect(osKeychainCredentialTarget("a\\b")).toBe("ecp://a/b");
+    expect(osKeychainCredentialTarget("a\\b")).toBe(`${ECP_SECRET_REF_PROTOCOL_PREFIX}a/b`);
   });
 });

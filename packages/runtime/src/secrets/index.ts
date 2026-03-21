@@ -4,7 +4,12 @@
  * @category Secrets
  */
 
-export { ECP_KEYRING_ACCOUNT_PREFIX, ECP_KEYRING_SERVICE } from "./constants.js";
+export {
+  ECP_KEYRING_ACCOUNT_PREFIX,
+  ECP_KEYRING_SERVICE,
+  ECP_SECRET_REF_PROTOCOL_PREFIX,
+  ECP_SECRET_REF_WIN32_ENUM_FILTER,
+} from "./constants.js";
 export {
   DOT_PROVIDER_ID,
   ENV_PROVIDER_ID,

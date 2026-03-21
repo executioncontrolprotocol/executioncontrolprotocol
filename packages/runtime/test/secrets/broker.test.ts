@@ -4,6 +4,7 @@ import { DefaultSecretBroker } from "../../src/secrets/broker.js";
 import { DefaultSecretProviderRegistry } from "../../src/secrets/registry.js";
 import { registerBuiltinSecretProviders } from "../../src/secrets/builtin.js";
 import { ENV_PROVIDER_ID } from "../../src/secrets/provider-ids.js";
+import { secretRefIdFromLogicalKey } from "../../src/secrets/ref.js";
 import type { SecretRef, ToolServerCredentialBinding } from "@executioncontrolprotocol/plugins";
 
 describe("DefaultSecretBroker", () => {
@@ -17,7 +18,7 @@ describe("DefaultSecretBroker", () => {
     registerBuiltinSecretProviders(registry);
     const broker = new DefaultSecretBroker(registry, "permissive");
     const ref: SecretRef = {
-      id: "ecp://ECP_BROKER_TEST_SECRET",
+      id: secretRefIdFromLogicalKey("ECP_BROKER_TEST_SECRET"),
       provider: ENV_PROVIDER_ID,
       key: "ECP_BROKER_TEST_SECRET",
     };

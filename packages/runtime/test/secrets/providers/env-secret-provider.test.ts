@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ENV_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { EnvSecretProvider } from "../../../src/secrets/providers/env-secret-provider.js";
+import { secretRefIdFromLogicalKey } from "../../../src/secrets/ref.js";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 describe("EnvSecretProvider", () => {
@@ -38,7 +39,7 @@ describe("EnvSecretProvider", () => {
   it("loads secret from process.env", async () => {
     vi.stubEnv("ECP_TEST_SECRET", "secret-value");
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_SECRET",
+      id: secretRefIdFromLogicalKey("ECP_TEST_SECRET"),
       provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_SECRET",
     };
@@ -50,7 +51,7 @@ describe("EnvSecretProvider", () => {
 
   it("returns null for missing env var", async () => {
     const ref: SecretRef = {
-      id: "ecp://MISSING",
+      id: secretRefIdFromLogicalKey("MISSING"),
       provider: ENV_PROVIDER_ID,
       key: "MISSING",
     };
@@ -61,7 +62,7 @@ describe("EnvSecretProvider", () => {
   it("returns null for empty env var", async () => {
     vi.stubEnv("ECP_TEST_EMPTY", "");
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_EMPTY",
+      id: secretRefIdFromLogicalKey("ECP_TEST_EMPTY"),
       provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_EMPTY",
     };
@@ -72,7 +73,7 @@ describe("EnvSecretProvider", () => {
   it("redacts secret value in preview", async () => {
     vi.stubEnv("ECP_TEST_LONG", "very-long-secret-value-that-should-be-redacted");
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_LONG",
+      id: secretRefIdFromLogicalKey("ECP_TEST_LONG"),
       provider: ENV_PROVIDER_ID,
       key: "ECP_TEST_LONG",
     };

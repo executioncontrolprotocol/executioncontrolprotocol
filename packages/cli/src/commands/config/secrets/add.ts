@@ -9,6 +9,7 @@ import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 import {
   canonicalSecretKeyForBinding,
   createDefaultSecretBroker,
+  ECP_SECRET_REF_PROTOCOL_PREFIX,
   secretRefIdFromLogicalKey,
 } from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
@@ -26,7 +27,7 @@ export default class ConfigSecretsAdd extends Command {
     key: Flags.string({
       char: "k",
       description:
-        `Secret lookup key (e.g. GITHUB_API_KEY or server/fetch.token; ref id is ecp://<key>)`,
+        `Secret lookup key (e.g. GITHUB_API_KEY or server/fetch.token; ref id is ${ECP_SECRET_REF_PROTOCOL_PREFIX}<key>)`,
       required: true,
     }),
     value: Flags.string({

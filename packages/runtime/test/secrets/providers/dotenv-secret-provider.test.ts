@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 
 import { DOT_PROVIDER_ID } from "../../../src/secrets/provider-ids.js";
 import { DotenvSecretProvider } from "../../../src/secrets/providers/dotenv-secret-provider.js";
+import { secretRefIdFromLogicalKey } from "../../../src/secrets/ref.js";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 describe("DotenvSecretProvider", () => {
@@ -72,7 +73,7 @@ describe("DotenvSecretProvider", () => {
   it("loads secret from dotenv file", async () => {
     writeFileSync(dotenvPath, "ECP_TEST_TOKEN=abc123\n");
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_TOKEN",
+      id: secretRefIdFromLogicalKey("ECP_TEST_TOKEN"),
       provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_TOKEN",
     };
@@ -85,7 +86,7 @@ describe("DotenvSecretProvider", () => {
   it("returns null for missing key in file", async () => {
     writeFileSync(dotenvPath, "OTHER_KEY=value\n");
     const ref: SecretRef = {
-      id: "ecp://MISSING",
+      id: secretRefIdFromLogicalKey("MISSING"),
       provider: DOT_PROVIDER_ID,
       key: "MISSING",
     };
@@ -95,7 +96,7 @@ describe("DotenvSecretProvider", () => {
 
   it("returns null when file does not exist", async () => {
     const ref: SecretRef = {
-      id: "ecp://KEY",
+      id: secretRefIdFromLogicalKey("KEY"),
       provider: DOT_PROVIDER_ID,
       key: "KEY",
     };
@@ -109,7 +110,7 @@ describe("DotenvSecretProvider", () => {
       "# comment\n\nECP_TEST_KEY=value\n  # another comment\nOTHER=test\n",
     );
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_KEY",
+      id: secretRefIdFromLogicalKey("ECP_TEST_KEY"),
       provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_KEY",
     };
@@ -121,17 +122,17 @@ describe("DotenvSecretProvider", () => {
   it("strips quotes from values", async () => {
     writeFileSync(dotenvPath, 'KEY1="quoted"\nKEY2=\'single-quoted\'\nKEY3=unquoted\n');
     const ref1: SecretRef = {
-      id: "ecp://KEY1",
+      id: secretRefIdFromLogicalKey("KEY1"),
       provider: DOT_PROVIDER_ID,
       key: "KEY1",
     };
     const ref2: SecretRef = {
-      id: "ecp://KEY2",
+      id: secretRefIdFromLogicalKey("KEY2"),
       provider: DOT_PROVIDER_ID,
       key: "KEY2",
     };
     const ref3: SecretRef = {
-      id: "ecp://KEY3",
+      id: secretRefIdFromLogicalKey("KEY3"),
       provider: DOT_PROVIDER_ID,
       key: "KEY3",
     };
@@ -143,7 +144,7 @@ describe("DotenvSecretProvider", () => {
   it("handles multiple key-value pairs", async () => {
     writeFileSync(dotenvPath, "KEY1=value1\nKEY2=value2\nKEY3=value3\n");
     const ref: SecretRef = {
-      id: "ecp://KEY2",
+      id: secretRefIdFromLogicalKey("KEY2"),
       provider: DOT_PROVIDER_ID,
       key: "KEY2",
     };
@@ -155,7 +156,7 @@ describe("DotenvSecretProvider", () => {
   it("returns null for empty value", async () => {
     writeFileSync(dotenvPath, "EMPTY_KEY=\n");
     const ref: SecretRef = {
-      id: "ecp://EMPTY_KEY",
+      id: secretRefIdFromLogicalKey("EMPTY_KEY"),
       provider: DOT_PROVIDER_ID,
       key: "EMPTY_KEY",
     };
@@ -166,7 +167,7 @@ describe("DotenvSecretProvider", () => {
   it("redacts secret value in preview", async () => {
     writeFileSync(dotenvPath, "ECP_TEST_LONG=very-long-secret-value-that-should-be-redacted\n");
     const ref: SecretRef = {
-      id: "ecp://ECP_TEST_LONG",
+      id: secretRefIdFromLogicalKey("ECP_TEST_LONG"),
       provider: DOT_PROVIDER_ID,
       key: "ECP_TEST_LONG",
     };
