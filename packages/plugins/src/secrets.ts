@@ -5,7 +5,7 @@
  */
 
 /**
- * How strictly to treat insecure secret sources (`env`, `dotenv`, `cli-session`, `memory`).
+ * How strictly to treat insecure secret sources (`env`, `dotenv`, `cli-session`).
  *
  * @category Secrets
  */

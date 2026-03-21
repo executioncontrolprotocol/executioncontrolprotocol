@@ -12,7 +12,7 @@ export default class ConfigSecretsList extends Command {
     ...configScopeFlags,
     provider: Flags.string({
       char: "p",
-      description: "Provider id (e.g. os-keychain, memory, cli-session)",
+      description: "Provider id (e.g. os-keychain, cli-session)",
       required: true,
     }),
   };

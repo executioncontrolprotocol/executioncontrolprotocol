@@ -29,7 +29,6 @@ export type {
   BuiltinSecretRegistrationOptions,
   CreateDefaultSecretBrokerOptions,
 } from "./builtin.js";
-export { MemorySecretProvider, clearMemorySecretStore } from "./providers/memory-secret-provider.js";
 export { EnvSecretProvider } from "./providers/env-secret-provider.js";
 export { DotenvSecretProvider } from "./providers/dotenv-secret-provider.js";
 export { CliSessionSecretProvider } from "./providers/cli-session-secret-provider.js";

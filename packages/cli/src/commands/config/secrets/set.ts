@@ -9,13 +9,13 @@ import { createDefaultSecretBroker } from "@executioncontrolprotocol/runtime";
 import type { SecretRef } from "@executioncontrolprotocol/plugins";
 
 export default class ConfigSecretsSet extends Command {
-  static summary = "Store a secret in a provider (os-keychain, cli-session, memory)";
+  static summary = "Store a secret in a provider (os-keychain, cli-session)";
 
   static flags = {
     ...configScopeFlags,
     provider: Flags.string({
       char: "p",
-      description: "Provider id (e.g. os-keychain, cli-session, memory)",
+      description: "Provider id (e.g. os-keychain, cli-session)",
       required: true,
     }),
     key: Flags.string({

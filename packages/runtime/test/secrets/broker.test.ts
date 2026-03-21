@@ -1,44 +1,39 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DefaultSecretBroker } from "../../src/secrets/broker.js";
 import { DefaultSecretProviderRegistry } from "../../src/secrets/registry.js";
 import { registerBuiltinSecretProviders } from "../../src/secrets/builtin.js";
-import { clearMemorySecretStore } from "../../src/secrets/providers/memory-secret-provider.js";
 import type { SecretRef, ToolServerCredentialBinding } from "@executioncontrolprotocol/plugins";
 
 describe("DefaultSecretBroker", () => {
-  beforeEach(() => {
-    clearMemorySecretStore();
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("resolves memory provider secrets", async () => {
+  it("resolves env provider secrets", async () => {
+    vi.stubEnv("ECP_BROKER_TEST_SECRET", "top-secret-value");
     const registry = new DefaultSecretProviderRegistry();
     registerBuiltinSecretProviders(registry);
     const broker = new DefaultSecretBroker(registry, "permissive");
-    const mem = registry.get("memory")!;
-    await mem.store!({
-      ref: { id: "ecp://memory/k", provider: "memory", key: "k" },
-      value: "top-secret-value",
-    });
-    const ref: SecretRef = { id: "ecp://memory/k", provider: "memory", key: "k" };
+    const ref: SecretRef = {
+      id: "ecp://env/ECP_BROKER_TEST_SECRET",
+      provider: "env",
+      key: "ECP_BROKER_TEST_SECRET",
+    };
     const r = await broker.resolve(ref);
     expect(r.value).toBe("top-secret-value");
     expect(r.redactedPreview).not.toContain("top-secret");
   });
 
   it("resolveBindingsToEnv maps binding names", async () => {
+    vi.stubEnv("ECP_BROKER_TEST_TOKEN", "abc123");
     const registry = new DefaultSecretProviderRegistry();
     registerBuiltinSecretProviders(registry);
     const broker = new DefaultSecretBroker(registry, "permissive");
-    const mem = registry.get("memory")!;
-    await mem.store!({
-      ref: { id: "ecp://memory/tok", provider: "memory", key: "tok" },
-      value: "abc123",
-    });
     const bindings: ToolServerCredentialBinding[] = [
       {
         name: "TOKEN",
-        source: { provider: "memory", key: "tok" },
+        source: { provider: "env", key: "ECP_BROKER_TEST_TOKEN" },
         required: true,
         delivery: "env",
       },
@@ -54,7 +49,7 @@ describe("DefaultSecretBroker", () => {
     const broker = new DefaultSecretBroker(registry, "strict");
     const binding: ToolServerCredentialBinding = {
       name: "X",
-      source: { provider: "memory", key: "x" },
+      source: { provider: "env", key: "ECP_BROKER_TEST_UNUSED" },
       required: false,
     };
     await expect(broker.resolveBinding(binding)).rejects.toThrow(/strict/);

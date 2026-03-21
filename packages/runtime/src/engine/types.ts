@@ -362,7 +362,7 @@ export interface ECPSystemConfig {
     /** Preferred provider id for interactive commands (e.g. `os-keychain`). */
     defaultProvider?: string;
 
-    /** How to treat insecure providers (`env`, `dotenv`, `cli-session`, `memory`). */
+    /** How to treat insecure providers (`env`, `dotenv`, `cli-session`). */
     policy?: SecretPolicyMode;
 
     /** Per-provider toggles and options. */

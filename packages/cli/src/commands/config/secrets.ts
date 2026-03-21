@@ -21,7 +21,7 @@ Subcommands:
       [
         "Usage: ecp config secrets <subcommand>",
         "",
-        "  set       Store a secret (os-keychain, cli-session, memory)",
+        "  set       Store a secret (os-keychain, cli-session)",
         "  get       Read a secret (default: redacted preview)",
         "  delete    Remove a stored secret",
         "  list      List keys (when supported by provider)",

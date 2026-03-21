@@ -11,9 +11,6 @@ export const WARNING_DOTENV_PROVIDER =
 export const WARNING_CLI_SESSION_PROVIDER =
   "CLI-entered secrets are ephemeral and intended only for temporary testing.";
 
-export const WARNING_MEMORY_PROVIDER =
-  "Secret source 'memory' is for tests only; values are not persisted securely.";
-
 export function warningForProvider(providerId: string): string | undefined {
   switch (providerId) {
     case "env":
@@ -22,8 +19,6 @@ export function warningForProvider(providerId: string): string | undefined {
       return WARNING_DOTENV_PROVIDER;
     case "cli-session":
       return WARNING_CLI_SESSION_PROVIDER;
-    case "memory":
-      return WARNING_MEMORY_PROVIDER;
     default:
       return undefined;
   }

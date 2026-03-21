@@ -12,7 +12,6 @@ import { DefaultSecretProviderRegistry } from "./registry.js";
 import { CliSessionSecretProvider } from "./providers/cli-session-secret-provider.js";
 import { DotenvSecretProvider } from "./providers/dotenv-secret-provider.js";
 import { EnvSecretProvider } from "./providers/env-secret-provider.js";
-import { MemorySecretProvider } from "./providers/memory-secret-provider.js";
 import { OsKeychainSecretProvider } from "./providers/os-keychain-secret-provider.js";
 
 export interface BuiltinSecretRegistrationOptions {
@@ -35,7 +34,6 @@ export function registerBuiltinSecretProviders(
   const dotenvPath = options.dotenvPath ?? resolve(cwd, ".env");
   registry.register(new DotenvSecretProvider(dotenvPath));
   registry.register(new CliSessionSecretProvider());
-  registry.register(new MemorySecretProvider());
 }
 
 export interface CreateDefaultSecretBrokerOptions extends BuiltinSecretRegistrationOptions {
