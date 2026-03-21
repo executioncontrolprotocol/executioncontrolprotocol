@@ -2,6 +2,11 @@ import { Command, Flags } from "@oclif/core";
 
 import { stringifySystemConfig } from "@executioncontrolprotocol/runtime";
 
+import {
+  CONFIG_DUMP_HEADER_WHEN_MISSING,
+  formatConfigFileHeaderLine,
+  runWithCommandError,
+} from "../../lib/command-helpers.js";
 import { configScopeFlags } from "../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../lib/system-config-cli.js";
 
@@ -21,7 +26,7 @@ export default class ConfigGet extends Command {
     const { flags } = await this.parse(ConfigGet);
     const cwd = process.cwd();
 
-    try {
+    await runWithCommandError(this, async () => {
       const { path, exists, config } = loadConfigForDisplay({
         global: flags.global as boolean,
         cwd,
@@ -29,11 +34,8 @@ export default class ConfigGet extends Command {
       });
 
       const fmt = flags.format as "yaml" | "json";
-      this.log(`# ${path}${exists ? "" : " (empty — no file yet)"}\n`);
+      this.log(formatConfigFileHeaderLine(path, exists, CONFIG_DUMP_HEADER_WHEN_MISSING));
       this.log(stringifySystemConfig(config, fmt));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
-    }
+    });
   }
 }

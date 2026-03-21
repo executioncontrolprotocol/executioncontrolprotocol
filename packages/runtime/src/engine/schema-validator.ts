@@ -8,11 +8,7 @@
  * @category Engine
  */
 
-import _Ajv from "ajv";
-import type { SchemaDefinition, SchemaProperty } from "@executioncontrolprotocol/spec";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Ajv = (_Ajv as any).default ?? _Ajv;
+import { Ajv, type SchemaDefinition, type SchemaProperty } from "@executioncontrolprotocol/spec";
 
 /**
  * The result of validating data against a schema.

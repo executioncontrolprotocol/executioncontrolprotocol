@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import type { PluginSecurityPolicy } from "@executioncontrolprotocol/spec";
 
+import { commandErrorMessage } from "../../../../lib/command-helpers.js";
 import { configScopeFlags } from "../../../../lib/config-flags.js";
 import { persistConfig, readForMutation } from "../../../../lib/system-config-cli.js";
 
@@ -36,8 +37,7 @@ export default class ConfigPluginsSecurityUpdate extends Command {
     try {
       parsed = JSON.parse(raw);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      this.error(`Invalid JSON: ${msg}`, { exit: 1 });
+      this.error(`Invalid JSON: ${commandErrorMessage(e)}`, { exit: 1 });
     }
 
     if (!parsed || typeof parsed !== "object") {

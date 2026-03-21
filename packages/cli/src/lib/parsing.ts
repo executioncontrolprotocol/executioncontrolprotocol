@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { commandErrorMessage } from "./command-helpers.js";
+
 export type InputValue = string | number | boolean;
 
 /**
@@ -47,8 +49,7 @@ export function parseJsonObject<T = unknown>(raw: string | undefined, flagName: 
   try {
     return JSON.parse(raw) as T;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Invalid ${flagName}: ${msg}`);
+    throw new Error(`Invalid ${flagName}: ${commandErrorMessage(err)}`);
   }
 }
 

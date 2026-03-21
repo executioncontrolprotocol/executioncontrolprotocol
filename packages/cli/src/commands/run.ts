@@ -31,6 +31,7 @@ import type {
   ProgressCallback,
 } from "@executioncontrolprotocol/plugins";
 
+import { commandErrorMessage } from "../lib/command-helpers.js";
 import { parseKeyValueInputs, splitCommaSeparated } from "../lib/parsing.js";
 import { createProgressHandler } from "../lib/progress.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
@@ -143,8 +144,7 @@ export default class Run extends Command {
       try {
         return parseKeyValueInputs(flags.input as string[] | undefined, "--input");
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.error(msg, { exit: 1 });
+        this.error(commandErrorMessage(err), { exit: 1 });
       }
     })();
 
@@ -153,8 +153,7 @@ export default class Run extends Command {
       try {
         return resolveSystemConfig(flags.config ? flags.config : undefined, cwd);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.error(msg, { exit: 1 });
+        this.error(commandErrorMessage(err), { exit: 1 });
       }
     })();
     const loggerRaw = splitCommaSeparated(flags.logger as string[] | undefined);
@@ -165,8 +164,7 @@ export default class Run extends Command {
     try {
       providerToUse = flags.provider ?? inferModelProviderFromContext(context);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
+      this.error(commandErrorMessage(err), { exit: 1 });
     }
 
     if (!providerToUse) {
@@ -260,8 +258,7 @@ export default class Run extends Command {
         const cb = registry.createLogger(id, loggersConfig?.config?.[id]);
         loggerCallbacks.push(cb);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.error(`Failed to create logger "${id}": ${msg}`, { exit: 1 });
+        this.error(`Failed to create logger "${id}": ${commandErrorMessage(err)}`, { exit: 1 });
       }
     }
 
@@ -289,8 +286,7 @@ export default class Run extends Command {
           memoryStore = await instance.open();
         } catch (err) {
           if (flags.debug) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`  Memory plugin open failed: ${msg}\n`);
+            console.error(`  Memory plugin open failed: ${commandErrorMessage(err)}\n`);
           }
         }
       }
@@ -327,7 +323,7 @@ export default class Run extends Command {
     try {
       resolvedInputs = resolveInputs(context, inputs) as typeof inputs;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = commandErrorMessage(err);
       const missing = msg.match(/^Missing required input: "([^"]+)"$/);
       if (missing) {
         const inputName = missing[1];
@@ -401,7 +397,7 @@ export default class Run extends Command {
     try {
       return registry.createModelProvider(providerId);
     } catch (err) {
-      const rawMsg = err instanceof Error ? err.message : String(err);
+      const rawMsg = commandErrorMessage(err);
       const hint = err && typeof err === "object" && "hint" in err ? (err as { hint?: string }).hint : undefined;
       this.error(
         `${rawMsg}${hint ? `\n${hint}` : ""}`,

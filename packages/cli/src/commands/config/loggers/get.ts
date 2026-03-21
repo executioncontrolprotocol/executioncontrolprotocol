@@ -1,5 +1,6 @@
 import { Command } from "@oclif/core";
 
+import { formatConfigFileHeaderLine, runWithCommandError } from "../../../lib/command-helpers.js";
 import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 
@@ -12,14 +13,14 @@ export default class ConfigLoggersGet extends Command {
     const { flags } = await this.parse(ConfigLoggersGet);
     const cwd = process.cwd();
 
-    try {
+    await runWithCommandError(this, async () => {
       const { path, exists, config } = loadConfigForDisplay({
         global: flags.global as boolean,
         cwd,
         explicit: flags.config as string | undefined,
       });
 
-      this.log(`# ${path}${exists ? "" : " (no file — empty)"}\n`);
+      this.log(formatConfigFileHeaderLine(path, exists));
       const loggers = config.loggers;
       this.log("allowEnable:");
       this.log(loggers?.allowEnable?.length ? loggers.allowEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
@@ -27,9 +28,6 @@ export default class ConfigLoggersGet extends Command {
       this.log(loggers?.defaultEnable?.length ? loggers.defaultEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
       this.log("config keys:");
       this.log(loggers?.config ? Object.keys(loggers.config).map((k) => `  - ${k}`).join("\n") : "  (not set)");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
-    }
+    });
   }
 }

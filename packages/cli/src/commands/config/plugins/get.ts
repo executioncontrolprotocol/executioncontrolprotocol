@@ -1,5 +1,6 @@
 import { Command } from "@oclif/core";
 
+import { formatConfigFileHeaderLine, runWithCommandError } from "../../../lib/command-helpers.js";
 import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 import { getSystemPluginPolicy } from "@executioncontrolprotocol/runtime";
@@ -13,14 +14,14 @@ export default class ConfigPluginsGet extends Command {
     const { flags } = await this.parse(ConfigPluginsGet);
     const cwd = process.cwd();
 
-    try {
+    await runWithCommandError(this, async () => {
       const { path, exists, config } = loadConfigForDisplay({
         global: flags.global as boolean,
         cwd,
         explicit: flags.config as string | undefined,
       });
 
-      this.log(`# ${path}${exists ? "" : " (no file — empty)"}\n`);
+      this.log(formatConfigFileHeaderLine(path, exists));
       const ex = getSystemPluginPolicy(config);
       this.log("allowEnable:");
       this.log(ex?.allowEnable?.length ? ex.allowEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
@@ -32,9 +33,6 @@ export default class ConfigPluginsGet extends Command {
       } else {
         this.log("  (not set)");
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
-    }
+    });
   }
 }

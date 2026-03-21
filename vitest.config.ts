@@ -3,10 +3,6 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     globals: true,
-    include: [
-      "packages/*/src/**/*.test.ts",
-      "packages/*/test/**/*.test.ts",
-    ],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],
@@ -20,5 +16,36 @@ export default defineConfig({
         },
       },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: [
+            "packages/spec/test/**/*.test.ts",
+            "packages/runtime/test/**/*.test.ts",
+            "packages/cli/test/**/*.test.ts",
+          ],
+          exclude: [
+            "packages/runtime/test/integration/**",
+            "packages/runtime/test/e2e/**",
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["packages/runtime/test/integration/**/*.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "e2e",
+          include: ["packages/runtime/test/e2e/**/*.test.ts"],
+        },
+      },
+    ],
   },
 });

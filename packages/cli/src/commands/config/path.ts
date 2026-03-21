@@ -1,5 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 
+import { runWithCommandError } from "../../lib/command-helpers.js";
 import { configScopeFlags } from "../../lib/config-flags.js";
 import { loadConfigForDisplay, resolveWritePathForMutation } from "../../lib/system-config-cli.js";
 
@@ -30,12 +31,9 @@ export default class ConfigPath extends Command {
       return;
     }
 
-    try {
+    await runWithCommandError(this, async () => {
       const { path, exists } = loadConfigForDisplay({ global, cwd, explicit });
       this.log(path + (exists ? "" : " (not created yet — run ecp config init)"));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
-    }
+    });
   }
 }

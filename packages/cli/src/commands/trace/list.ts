@@ -1,5 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 
+import { runWithCommandError } from "../../lib/command-helpers.js";
 import { listTraceIds } from "../../lib/trace-files.js";
 import { getDefaultTraceDir } from "../../lib/ecp-home.js";
 
@@ -17,7 +18,7 @@ export default class TraceList extends Command {
     const { flags } = await this.parse(TraceList);
     const traceDir = flags["trace-dir"];
 
-    try {
+    await runWithCommandError(this, async () => {
       const ids = await listTraceIds(traceDir);
       if (ids.length === 0) {
         console.log(`No trace files found in ${traceDir}.`);
@@ -28,10 +29,7 @@ export default class TraceList extends Command {
       for (const id of ids) {
         console.log(`- ${id}`);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.error(msg, { exit: 1 });
-    }
+    });
   }
 }
 

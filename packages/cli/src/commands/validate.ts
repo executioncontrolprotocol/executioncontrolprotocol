@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { loadContext, resolveInputs } from "@executioncontrolprotocol/runtime";
 import type { ECPContext, Orchestrator } from "@executioncontrolprotocol/spec";
 
+import { commandErrorMessage } from "../lib/command-helpers.js";
 import { parseKeyValueInputs } from "../lib/parsing.js";
 import { getRequiredInputNames } from "../lib/inputs.js";
 
@@ -91,7 +92,7 @@ export default class Validate extends Command {
       }
       console.log(`\n  Validation passed.\n`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = commandErrorMessage(err);
       const missing = msg.match(/^Missing required input: "([^"]+)"$/);
       if (missing && context) {
         const inputName = missing[1];

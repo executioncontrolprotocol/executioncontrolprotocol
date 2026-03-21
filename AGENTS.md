@@ -4,6 +4,8 @@
 
 This is a **monorepo** for the Execution Control Protocol (ECP), using npm workspaces.
 
+Coding standards for AI agents (DRY, minimal focused changes, testing expectations) live in [`.cursor/rules/general.mdc`](.cursor/rules/general.mdc).
+
 ### Repository structure
 
 | Path | Purpose |
@@ -52,7 +54,7 @@ ecp validate examples/controller-specialist/context.yaml --input subject=test
 - **Monorepo with npm workspaces.** Always run `npm install` from the repo root.
 - **Build order matters:** spec → runtime → cli (composite project references).
 - **No Python.** All tooling is NPM-based.
-- **AJV CJS/ESM interop:** runtime and spec use `_Ajv.default ?? _Ajv` pattern.
+- **AJV CJS/ESM interop:** use the shared `Ajv` export from `@executioncontrolprotocol/spec` (see `packages/spec/src/ajv.ts`).
 - **Import extensions:** `Node16` module resolution — all local imports end with `.js`.
 - **Schema is a build output:** `packages/spec/dist/ecp-context.schema.json` is generated.
 - **spec.yaml lives at repo root.** The validator resolves it via `import.meta.dirname`.

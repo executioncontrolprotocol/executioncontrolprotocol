@@ -9,12 +9,9 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import _Ajv from "ajv";
 import yaml from "js-yaml";
 
-// AJV CJS/ESM interop: the default export may be wrapped in a .default property
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Ajv = (_Ajv as any).default ?? _Ajv;
+import { Ajv } from "./ajv.js";
 
 import type {
   ECPContext,
