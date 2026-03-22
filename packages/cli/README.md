@@ -30,6 +30,8 @@ Without **`--config`**, the CLI looks for **`./ecp.config.yaml`** / **`./ecp.con
 ecp config --help
 ecp config init                    # best-practices starter in current directory
 ecp config init --global          # ~/.ecp/config.yaml
+ecp config reset                   # delete ./ecp.config.yaml and ./ecp.config.json if present
+ecp config reset --global         # delete known files under ~/.ecp/ (config.json, config.yaml, ecp.config.yaml)
 ecp config path                    # resolved file path (use --for-write for mutation target)
 ecp config get --format json
 ecp config get --type tools        # wiring slice (also: models, loggers, endpoints)

@@ -21,11 +21,21 @@ export function globalEcpConfigYamlPath(): string {
   return resolve(homedir(), ".ecp", "ecp.config.yaml");
 }
 
-const GLOBAL_CANDIDATES = (): string[] => [
-  globalConfigJsonPath(),
-  globalConfigYamlPath(),
-  globalEcpConfigYamlPath(),
-];
+/**
+ * All global paths `ecp config reset --global` may remove (same order as discovery elsewhere).
+ */
+export function getGlobalSystemConfigCandidatePaths(): string[] {
+  return [globalConfigJsonPath(), globalConfigYamlPath(), globalEcpConfigYamlPath()];
+}
+
+/**
+ * Project-local config files `ecp config reset` may remove (YAML and JSON).
+ */
+export function getLocalSystemConfigPaths(cwd: string): string[] {
+  return [resolve(cwd, "ecp.config.yaml"), resolve(cwd, "ecp.config.json")];
+}
+
+const GLOBAL_CANDIDATES = (): string[] => getGlobalSystemConfigCandidatePaths();
 
 /**
  * Path to use when writing config (prefers an existing file in scope).

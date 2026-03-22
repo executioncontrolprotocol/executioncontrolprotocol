@@ -13,6 +13,8 @@ Plugins installs and secrets store ops keep their topics.`;
   static examples = [
     "ecp config init",
     "ecp config init --global",
+    "ecp config reset",
+    "ecp config reset --global",
     "ecp config get",
     "ecp config get --type tools",
     'ecp config add --type tools fetch --transport-type stdio --stdio-command npx --stdio-arg -y --stdio-arg @modelcontextprotocol/server-fetch',
@@ -28,6 +30,7 @@ Plugins installs and secrets store ops keep their topics.`;
         "Usage: ecp config <subcommand>",
         "",
         "  init              Write best-practices default if missing",
+        "  reset             Remove config file(s) (local, --global, or --config)",
         "  path              Print config file path",
         "  get               Full config, or slice: --type tools|models|loggers|endpoints [--id for loggers]",
         "  add               Wiring: --type tools|models|loggers|endpoints …",
