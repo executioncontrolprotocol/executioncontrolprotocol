@@ -4,7 +4,7 @@ import { configScopeFlags } from "../../../../lib/config-flags.js";
 import { persistConfig, readForMutation } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigModelsOllamaUpdate extends Command {
-  static summary = "Update modelProviders.ollama.baseURL";
+  static summary = "Update models.providers.ollama.config.baseURL";
 
   static args = {
     url: Args.string({ required: true, description: "Ollama base URL (e.g. http://localhost:11434)" }),
@@ -21,9 +21,11 @@ export default class ConfigModelsOllamaUpdate extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.modelProviders ??= {};
-    config.modelProviders.ollama ??= {};
-    config.modelProviders.ollama.baseURL = args.url;
+    config.models ??= {};
+    config.models.providers ??= {};
+    config.models.providers.ollama ??= {};
+    config.models.providers.ollama.config ??= {};
+    config.models.providers.ollama.config.baseURL = args.url;
 
     persistConfig(path, config);
     this.log(`Updated ollama.baseURL = ${args.url} (${path})`);

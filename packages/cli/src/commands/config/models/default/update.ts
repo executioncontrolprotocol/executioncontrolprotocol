@@ -8,7 +8,7 @@ import {
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigModelsDefaultUpdate extends Command {
-  static summary = "Update modelProviders.<provider>.defaultModel";
+  static summary = "Update models.providers.<provider>.defaultModel";
 
   static args = {
     provider: Args.string({
@@ -33,10 +33,11 @@ export default class ConfigModelsDefaultUpdate extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.modelProviders ??= {};
+    config.models ??= {};
+    config.models.providers ??= {};
     const prov = args.provider;
-    config.modelProviders[prov] ??= {};
-    config.modelProviders[prov]!.defaultModel = args.model;
+    config.models.providers[prov] ??= {};
+    config.models.providers[prov]!.defaultModel = args.model;
 
     persistConfig(path, config);
     this.log(`Updated ${prov}.defaultModel = ${args.model} (${path})`);

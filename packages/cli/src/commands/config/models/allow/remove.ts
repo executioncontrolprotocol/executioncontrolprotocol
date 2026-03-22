@@ -9,7 +9,7 @@ import {
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigModelsAllowRemove extends Command {
-  static summary = "Remove a model from modelProviders.<provider>.allowedModels";
+  static summary = "Remove a model from models.providers.<provider>.allowedModels";
 
   static args = {
     provider: Args.string({
@@ -34,10 +34,11 @@ export default class ConfigModelsAllowRemove extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.modelProviders ??= {};
+    config.models ??= {};
+    config.models.providers ??= {};
     const prov = args.provider;
-    config.modelProviders[prov] ??= {};
-    const block = config.modelProviders[prov]!;
+    config.models.providers[prov] ??= {};
+    const block = config.models.providers[prov]!;
     block.allowedModels = removeId(block.allowedModels, args.model);
 
     persistConfig(path, config);

@@ -1,35 +1,46 @@
 /**
- * Best-practices default for `ecp config init` (mirrors repo `config/ecp.config.example.yaml`).
+ * Best-practices default for `ecp config init` (aligned with `config/ecp.config.example.yaml` v0.5).
  */
-export const DEFAULT_ECP_SYSTEM_CONFIG_YAML = `# ECP system config — best-practices default
+export const DEFAULT_ECP_SYSTEM_CONFIG_YAML = `# ECP system config — best-practices default (schema v0.5)
 # Edit with: ecp config … or your editor (YAML or JSON).
 
-plugins:
-  allowEnable:
-    - openai
-    - ollama
-  defaultEnable:
-    - openai
-  security:
-    allowKinds: [provider]
+version: "0.5"
+
+security:
+  models:
+    allowProviders: [openai, ollama]
+    defaultProviders: [openai]
+  loggers:
+    allowEnable: []
+    defaultEnable: []
+  secrets:
+    allowProviders: []
+  plugins:
+    allowKinds: [provider, executor, logger, memory, tool]
     allowSourceTypes: [builtin]
     allowIds: [openai, ollama]
 
-modelProviders:
-  openai:
-    defaultModel: gpt-4o-mini
-    allowedModels: [gpt-4o-mini, gpt-4o]
-  ollama:
-    baseURL: http://localhost:11434
-    defaultModel: gemma3:1b
-    allowedModels: [gemma3:1b, llama3.2:3b]
+models:
+  providers:
+    openai:
+      defaultModel: gpt-4o-mini
+      allowedModels: [gpt-4o-mini, gpt-4o]
+      config: {}
+    ollama:
+      defaultModel: gemma3:1b
+      allowedModels: [gemma3:1b, llama3.2:3b]
+      config:
+        baseURL: http://localhost:11434
+
+tools:
+  servers: {}
 
 # loggers:
-#   defaultEnable: [file]
-#   allowEnable: [file]
 #   config: {}
 
-# agentEndpoints: {}
-
-# toolServers: {}
+# agents:
+#   endpoints:
+#     specialist_name:
+#       url: https://example.com/a2a
+#       config: {}
 `;

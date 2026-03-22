@@ -4,7 +4,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { persistConfig, readForMutation } from "../../../lib/system-config-cli.js";
 
 export default class ConfigEndpointsRemove extends Command {
-  static summary = "Remove an agentEndpoints entry";
+  static summary = "Remove an agents.endpoints entry";
 
   static args = {
     name: Args.string({ required: true, description: "Executor / specialist name" }),
@@ -21,11 +21,11 @@ export default class ConfigEndpointsRemove extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    if (config.agentEndpoints && args.name in config.agentEndpoints) {
-      delete config.agentEndpoints[args.name];
+    if (config.agents?.endpoints && args.name in config.agents.endpoints) {
+      delete config.agents.endpoints[args.name];
     }
 
     persistConfig(path, config);
-    this.log(`Removed agentEndpoints.${args.name} (${path})`);
+    this.log(`Removed agents.endpoints.${args.name} (${path})`);
   }
 }

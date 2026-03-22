@@ -3,6 +3,7 @@ import { Command } from "@oclif/core";
 import { formatConfigFileHeaderLine, runWithCommandError } from "../../../lib/command-helpers.js";
 import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
+import { getSecurityConfig } from "@executioncontrolprotocol/runtime";
 
 export default class ConfigLoggersGet extends Command {
   static summary = "Get logger allow-lists, defaults, and config keys";
@@ -21,13 +22,25 @@ export default class ConfigLoggersGet extends Command {
       });
 
       this.log(formatConfigFileHeaderLine(path, exists));
-      const loggers = config.loggers;
-      this.log("allowEnable:");
-      this.log(loggers?.allowEnable?.length ? loggers.allowEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
-      this.log("defaultEnable:");
-      this.log(loggers?.defaultEnable?.length ? loggers.defaultEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
-      this.log("config keys:");
-      this.log(loggers?.config ? Object.keys(loggers.config).map((k) => `  - ${k}`).join("\n") : "  (not set)");
+      const secLog = getSecurityConfig(config)?.loggers;
+      this.log("security.loggers.allowEnable:");
+      this.log(
+        secLog?.allowEnable?.length
+          ? secLog.allowEnable.map((x: string) => `  - ${x}`).join("\n")
+          : "  (not set)",
+      );
+      this.log("security.loggers.defaultEnable:");
+      this.log(
+        secLog?.defaultEnable?.length
+          ? secLog.defaultEnable.map((x: string) => `  - ${x}`).join("\n")
+          : "  (not set)",
+      );
+      this.log("loggers.config keys:");
+      this.log(
+        config.loggers?.config
+          ? Object.keys(config.loggers.config).map((k) => `  - ${k}`).join("\n")
+          : "  (not set)",
+      );
     });
   }
 }

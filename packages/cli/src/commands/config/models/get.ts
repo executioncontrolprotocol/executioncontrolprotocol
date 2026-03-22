@@ -5,7 +5,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 
 export default class ConfigModelsGet extends Command {
-  static summary = "Get model provider defaults and allowed models";
+  static summary = "Get model provider defaults and allowed models (models.providers)";
 
   static flags = { ...configScopeFlags };
 
@@ -21,7 +21,7 @@ export default class ConfigModelsGet extends Command {
       });
 
       this.log(formatConfigFileHeaderLine(path, exists));
-      const mp = config.modelProviders;
+      const mp = config.models?.providers;
       for (const key of ["openai", "ollama"] as const) {
         const block = mp?.[key];
         this.log(`${key}:`);
@@ -31,8 +31,9 @@ export default class ConfigModelsGet extends Command {
         }
         if (block.defaultModel) this.log(`  defaultModel: ${block.defaultModel}`);
         if (block.allowedModels?.length) this.log(`  allowedModels: ${block.allowedModels.join(", ")}`);
-        if (key === "ollama" && "baseURL" in block && block.baseURL) {
-          this.log(`  baseURL: ${block.baseURL}`);
+        const baseURL = block.config?.baseURL;
+        if (key === "ollama" && typeof baseURL === "string" && baseURL) {
+          this.log(`  config.baseURL: ${baseURL}`);
         }
         this.log("");
       }

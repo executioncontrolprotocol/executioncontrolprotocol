@@ -5,10 +5,11 @@ import {
   addUnique,
   persistConfig,
   readForMutation,
+  touchSecurity,
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigPluginsDefaultAdd extends Command {
-  static summary = "Add a plugin ID to plugins.defaultEnable";
+  static summary = "Add a model provider ID to security.models.defaultProviders";
 
   static args = {
     id: Args.string({ required: true, description: "Plugin ID (e.g. openai)" }),
@@ -25,13 +26,14 @@ export default class ConfigPluginsDefaultAdd extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.plugins ??= {};
-    config.plugins.defaultEnable = addUnique(config.plugins.defaultEnable, args.id);
-    if (config.plugins.allowEnable && config.plugins.allowEnable.length > 0) {
-      config.plugins.allowEnable = addUnique(config.plugins.allowEnable, args.id);
+    const sec = touchSecurity(config);
+    sec.models ??= {};
+    sec.models.defaultProviders = addUnique(sec.models.defaultProviders, args.id);
+    if (sec.models.allowProviders && sec.models.allowProviders.length > 0) {
+      sec.models.allowProviders = addUnique(sec.models.allowProviders, args.id);
     }
 
     persistConfig(path, config);
-    this.log(`Updated defaultEnable (${path}): ${config.plugins.defaultEnable?.join(", ")}`);
+    this.log(`Updated security.models.defaultProviders (${path}): ${sec.models.defaultProviders?.join(", ")}`);
   }
 }

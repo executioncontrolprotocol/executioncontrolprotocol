@@ -54,8 +54,18 @@ export function loadContext(filePath: string): ECPContext {
       `Invalid Context: expected kind "Context", got "${ctx.kind}"`,
     );
   }
+  if (!ctx.specVersion || typeof ctx.specVersion !== "string") {
+    throw new Error(
+      'Invalid Context: specVersion is required (e.g. "ecp/v0.3-draft").',
+    );
+  }
   if (!ctx.metadata?.name) {
     throw new Error("Invalid Context: missing metadata.name");
+  }
+  if (!ctx.metadata.version || typeof ctx.metadata.version !== "string") {
+    throw new Error(
+      'Invalid Context: metadata.version is required (semantic version string, e.g. "1.0.0").',
+    );
   }
   if (!ctx.orchestration?.entrypoint && !ctx.orchestrator?.name) {
     throw new Error(

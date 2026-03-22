@@ -1,92 +1,191 @@
-# ECP System Config — example
+# ECP System Config — example (target v0.5+ layout)
 #
-# Copy to ecp.config.yaml in the project root, or to ~/.ecp/config.yaml,
-# or generate a best-practices starter with: ecp config init [--global]
-# Load at startup via: ecp run context.yaml --config ecp.config.yaml
-# Or rely on default locations: ./ecp.config.yaml, ./ecp.config.json, then ~/.ecp/
+# The file has two roles:
+#   • Top-level sections (`models`, `tools`, `executors`, `memory`, `agents`, `loggers`,
+#     `secrets`, `plugins`, …) — **configure** those capabilities (wiring, defaults, `config` blobs).
+#   • `security` — **the same keys**, mirrored: what is **allowed** / **enabled by default**
+#     for each area (allow-lists, defaults, and global plugin-extension rules under `security.plugins`).
 #
-# Contexts declare which plugins they use (plugins.providers); the
-# runtime decides which of those are enabled via --enable or this config.
+# Copy to ecp.config.yaml in the project root, or to ~/.ecp/config.yaml.
+# Load at startup: ecp run context.yaml --config ecp.config.yaml
+# Default search order: ./ecp.config.yaml, ./ecp.config.json, then ~/.ecp/
+#
+# Context manifests declare plugins and execution shape; system `security` and CLI flags
+# decide what is actually allowed at runtime.
+#
+# Generic `config` on every kind
+# ------------------------------
+# Aligns with PluginKind-style surfaces (provider, executor, logger, memory, tool, …):
+# each keyed entry MAY include a sibling `config` object. ECP validates a small shared outer
+# shape per section (e.g. transport + credentials for tools; defaultModel + allowedModels
+# for model providers); provider- or plugin-specific keys (e.g. Ollama baseURL) live under
+# `config` and are defined by that implementation, not by ECP core.
+#
+# Document version
+# ----------------
+# Top-level `version` is the schema version of this system config file (not the ECP release).
+# Bump it when the on-disk shape changes in a breaking way; loaders may use it for validation
+# and migration.
+
+version: "0.5"
 
 # ----------------------------------------------------------------------
-# Secrets: policy and provider options (secret values live in the OS keyring,
-# env, .env, or ephemeral CLI session — not in this file).
+# Security — mirrors each capability area below: allow / default / gates only
+# (edit via `ecp config security` when implemented). Does not hold transport or secrets values.
+# ----------------------------------------------------------------------
+
+security:
+  # Model providers — keys under `models.providers`.
+  models:
+    allowProviders: [openai, ollama]
+    defaultProviders: [openai]
+
+  # MCP tool servers — logical names under `tools.servers`.
+  tools:
+    allowServers: [fetch, test-jira, remote]
+
+  # Executor plugins — IDs under `executors.instances` (when configured).
+  executors:
+    allowExecutors: [myExecutor]
+    defaultEnable: []
+
+  # Memory stores — IDs under `memory.stores`.
+  memory:
+    allowStores: [default]
+    defaultStore: default
+
+  # A2A specialists — names under `agents.endpoints`.
+  agents:
+    allowEndpoints: [specialist_name]
+    defaultEnable: []
+
+  # Logger plugins — IDs under `loggers.config`.
+  loggers:
+    allowEnable: [file]
+    defaultEnable: [file]
+
+  # Secret *provider* IDs that may be used (must align with `secrets.providers` when restricted).
+  secrets:
+    allowProviders: [os.secrets, dot.env]
+
+  # Global plugin extension policy (PluginSecurityPolicy): kinds, sources, id allow/deny, strict.
+  # Not the same tree as top-level `plugins.installs` (artifact installs).
+  plugins:
+    allowKinds: [provider, executor, logger, memory, tool]
+    allowSourceTypes: [builtin]
+    allowIds: [openai, ollama, file, memory]
+
+# ----------------------------------------------------------------------
+# Plugins — installs and packaged-plugin metadata (`ecp config plugins install`)
+# Populated by the installer; not where allow-lists live. Each install accepts `config`.
+# ----------------------------------------------------------------------
+
+# plugins:
+#   installs:
+#     filesystem:
+#       source: { type: npm, spec: "@modelcontextprotocol/server-filesystem@2026.1.14" }
+#       path: ~/.ecp/plugins/filesystem
+#       pluginKind: tool
+#       config: {}
+
+# ----------------------------------------------------------------------
+# Models — model providers (`ecp config models` …). Cross-provider fields at entry root;
+# provider-specific options under `config`.
+# ----------------------------------------------------------------------
+
+models:
+  providers:
+    openai:
+      defaultModel: gpt-4o-mini
+      allowedModels: [gpt-4o-mini, gpt-4o]
+      config: {}
+    ollama:
+      defaultModel: gemma3:1b
+      allowedModels: [gemma3:1b, llama3.2:3b]
+      config:
+        baseURL: http://localhost:11434
+
+# ----------------------------------------------------------------------
+# Tools — MCP servers (`ecp config tools` …). Each server: transport (+ credentials) + `config`.
+# ----------------------------------------------------------------------
+
+tools:
+  servers:
+    fetch:
+      transport:
+        type: stdio
+        command: docker
+        args: [run, -i, --rm, mcp/fetch]
+      config: {}
+      # credentials:
+      #   bindings:
+      #     - name: TOKEN
+      #       source: { provider: os.secrets, key: server/fetch.token }
+      #       required: true
+      #       delivery: env
+
+    test-jira:
+      transport:
+        type: stdio
+        command: npx
+        args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+        cwd: .
+      config: {}
+
+    remote:
+      transport:
+        type: sse
+        url: https://example.com/sse
+      config: {}
+
+# ----------------------------------------------------------------------
+# Executors — system defaults for executor plugins (`ecp config executors` when implemented).
+# ----------------------------------------------------------------------
+
+executors:
+  instances:
+    myExecutor:
+      config: {}
+
+# ----------------------------------------------------------------------
+# Memory — long-term memory store defaults (`ecp config memory` when implemented).
+# ----------------------------------------------------------------------
+
+memory:
+  stores:
+    default:
+      config: {}
+
+# ----------------------------------------------------------------------
+# Agents — A2A specialists (`ecp config agents` CRUD planned).
+# ----------------------------------------------------------------------
+
+agents:
+  endpoints:
+    specialist_name:
+      url: https://example.com/a2a
+      config: {}
+
+# ----------------------------------------------------------------------
+# Loggers — per-logger settings. Allow/default live under `security.loggers`.
+# ----------------------------------------------------------------------
+
+loggers:
+  config:
+    file:
+      logDir: ~/.ecp/logs
+      config: {}
+
+# ----------------------------------------------------------------------
+# Secrets — policy and provider options (values live in keyring / env / .env / session).
+# Which providers may run is gated by `security.secrets.allowProviders`.
 #
 # ecp config secrets add --provider os.secrets --key server/fetch.token --prompt
+# ----------------------------------------------------------------------
+
 # secrets:
+#   defaultProvider: os.secrets
 #   policy: warn
 #   providers:
 #     dot.env:
 #       path: .env
-
-plugins:
-  # Allow-list: only these plugin IDs may be enabled at runtime.
-  # CLI --enable and defaultEnable must be a subset of this list.
-  allowEnable:
-    - openai
-    - ollama
-
-  # Default plugins to enable when CLI does not pass --enable.
-  defaultEnable:
-    - openai
-
-  # System-level plugin security policy (optional).
-  security:
-    allowKinds: [provider]
-    allowSourceTypes: [builtin]
-    allowIds: [openai, ollama]
-
-# ----------------------------------------------------------------------
-# Model provider runtime defaults and policy
-#
-# `ecp run --provider/--model` overrides are validated against these lists.
-modelProviders:
-  openai:
-    defaultModel: gpt-4o-mini
-    allowedModels: [gpt-4o-mini, gpt-4o]
-  ollama:
-    baseURL: http://localhost:11434
-    defaultModel: gemma3:1b
-    allowedModels: [gemma3:1b, llama3.2:3b]
-
-# ----------------------------------------------------------------------
-# Optional A2A specialist endpoint registry.
-# When set, executor names map to endpoint URLs and are always loaded from config.
-# agentEndpoints:
-#   specialist_name: https://example.com/a2a
-
-# ----------------------------------------------------------------------
-# MCP tool servers (tool wiring)
-#
-# Tool wiring is configured globally (system config). Each server name
-# here must match the `server` used in Context mounts/tool refs, e.g.
-# `server: fetch` and tools like `fetch:fetch`.
-toolServers:
-  # Public MCP via stdio (example uses Docker to start the MCP server).
-  fetch:
-    transport:
-      type: stdio
-      command: docker
-      args: [run, -i, --rm, mcp/fetch]
-    # Example: inject TOKEN into the container env from the OS keyring at connect time.
-    # credentials:
-    #   bindings:
-    #     - name: TOKEN
-    #       source: { provider: os.secrets, key: server/fetch.token }
-    #       required: true
-    #       delivery: env
-
-  # Deterministic local fake MCP server (TypeScript over stdio).
-  # Assumes you run `ecp` from the repo root.
-  test-jira:
-    transport:
-      type: stdio
-      command: npx
-      args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
-      cwd: .
-
-  # Example SSE transport.
-  remote:
-    transport:
-      type: sse
-      url: https://example.com/sse

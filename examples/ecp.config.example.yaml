@@ -1,43 +1,80 @@
-# ECP system config — copy to ~/.ecp/config.yaml to use.
-# See getDefaultConfigPaths() for resolution order.
+# ECP system config — shorter example (v0.5). Copy to ~/.ecp/config.yaml or ./ecp.config.yaml.
+# Full commented reference: ../config/ecp.config.example.yaml
 
-plugins:
-  allowEnable: [openai, ollama]
-  defaultEnable: [ollama]
+version: "0.5"
 
-# Loggers receive the same events as the CLI (phase, steps, reasoning).
-# Enable "file" to append a log to ~/.ecp/logs/ecp.log
+security:
+  models:
+    allowProviders: [openai, ollama]
+    defaultProviders: [ollama]
+  tools:
+    allowServers: [fetch, test-jira]
+  executors:
+    allowExecutors: [myExecutor]
+    defaultEnable: []
+  memory:
+    allowStores: [default]
+    defaultStore: default
+  agents:
+    allowEndpoints: [specialist_name]
+    defaultEnable: []
+  loggers:
+    allowEnable: [file]
+    defaultEnable: [file]
+  secrets:
+    allowProviders: [os.secrets, dot.env]
+  plugins:
+    allowKinds: [provider, executor, logger, memory, tool]
+    allowSourceTypes: [builtin]
+    allowIds: [openai, ollama]
+
+models:
+  providers:
+    openai:
+      defaultModel: gpt-4o-mini
+      allowedModels: [gpt-4o-mini, gpt-4o]
+      config: {}
+    ollama:
+      defaultModel: gemma3:1b
+      allowedModels: [gemma3:1b, llama3.2:3b]
+      config:
+        baseURL: http://localhost:11434
+
+tools:
+  servers:
+    fetch:
+      transport:
+        type: stdio
+        command: docker
+        args: [run, -i, --rm, mcp/fetch]
+    test-jira:
+      transport:
+        type: stdio
+        command: npx
+        args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+        cwd: .
+
+executors:
+  instances:
+    myExecutor:
+      config: {}
+
+memory:
+  stores:
+    default:
+      config: {}
+
+agents:
+  endpoints:
+    specialist_name:
+      url: https://example.com/a2a
+      config: {}
+
 loggers:
-  allowEnable: [file]
-  defaultEnable: [file]
   config:
-    file:
-      # Optional: override log directory (default: ~/.ecp/logs)
-      # logDir: /path/to/logs
-      # Optional: override log file name (default: ecp.log)
-      # logFile: ecp.log
+    file: {}
 
-# Optional: secrets.policy (warn|strict|permissive) and ecp config secrets * commands.
 # secrets:
 #   policy: warn
 #   providers:
 #     dot.env: { path: .env }
-
-# ----------------------------------------------------------------------
-# MCP tool servers (tool wiring)
-#
-# Configure how ECP connects to MCP servers. Tool permissions come from
-# each Context's `policies.toolAccess`, not from CLI flags.
-toolServers:
-  fetch:
-    transport:
-      type: stdio
-      command: docker
-      args: [run, -i, --rm, mcp/fetch]
-
-  test-jira:
-    transport:
-      type: stdio
-      command: npx
-      args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
-      cwd: .

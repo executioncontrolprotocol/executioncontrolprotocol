@@ -349,7 +349,7 @@ function main(): void {
   checkStructure(ctx);
 
   console.log(
-    `\n  Context: ${ctx.metadata.name} v${ctx.metadata.version} (${ctx.apiVersion})`,
+    `\n  Context: ${ctx.metadata.name} v${ctx.metadata.version} (${ctx.specVersion})`,
   );
   const { objects } = collectExecutionObjects(ctx);
   console.log(`  Execution objects: ${objects.map((e) => e.name).join(", ")}`);

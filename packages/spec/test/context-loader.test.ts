@@ -62,6 +62,12 @@ describe("Context loader", () => {
       ).toThrow(/kind/i);
     });
 
+    it("rejects a context with missing specVersion", () => {
+      expect(() =>
+        loadContext(resolve(fixtures, "invalid/missing-spec-version.yaml")),
+      ).toThrow(/specVersion/i);
+    });
+
     it("rejects a context with no executors", () => {
       expect(() =>
         loadContext(resolve(fixtures, "invalid/no-executors.yaml")),

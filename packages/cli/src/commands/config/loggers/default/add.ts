@@ -5,10 +5,11 @@ import {
   addUnique,
   persistConfig,
   readForMutation,
+  touchSecurity,
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigLoggersDefaultAdd extends Command {
-  static summary = "Add a logger ID to loggers.defaultEnable";
+  static summary = "Add a logger ID to security.loggers.defaultEnable";
 
   static args = {
     id: Args.string({ required: true, description: "Logger ID" }),
@@ -25,13 +26,14 @@ export default class ConfigLoggersDefaultAdd extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.loggers ??= {};
-    config.loggers.defaultEnable = addUnique(config.loggers.defaultEnable, args.id);
-    if (config.loggers.allowEnable && config.loggers.allowEnable.length > 0) {
-      config.loggers.allowEnable = addUnique(config.loggers.allowEnable, args.id);
+    const sec = touchSecurity(config);
+    sec.loggers ??= {};
+    sec.loggers.defaultEnable = addUnique(sec.loggers.defaultEnable, args.id);
+    if (sec.loggers.allowEnable && sec.loggers.allowEnable.length > 0) {
+      sec.loggers.allowEnable = addUnique(sec.loggers.allowEnable, args.id);
     }
 
     persistConfig(path, config);
-    this.log(`Updated loggers.defaultEnable (${path}): ${config.loggers.defaultEnable?.join(", ")}`);
+    this.log(`Updated security.loggers.defaultEnable (${path}): ${sec.loggers.defaultEnable?.join(", ")}`);
   }
 }

@@ -13,7 +13,7 @@ const FAKE_SERVER_PATH = resolve(
 
 function makeContext(): ECPContext {
   return {
-    apiVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.3-draft",
     kind: "Context",
     metadata: { name: "e2e-test", version: "1.0.0" },
     inputs: { projectId: { type: "string", required: true } },

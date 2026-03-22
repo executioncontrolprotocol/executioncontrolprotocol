@@ -1,4 +1,4 @@
-apiVersion: ecp/v0.3-draft
+specVersion: ecp/v0.3-draft
 kind: Context
 metadata:
   name: empty

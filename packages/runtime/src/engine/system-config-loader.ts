@@ -9,7 +9,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, extname, dirname } from "node:path";
 import { homedir } from "node:os";
 import yaml from "js-yaml";
-import type { ECPSystemConfig } from "./types.js";
+import type { AgentEndpointConfig, ECPSystemConfig, SecurityConfig } from "./types.js";
 
 const CONFIG_FILENAME = "ecp.config.yaml";
 const CONFIG_JSON_FILENAME = "ecp.config.json";
@@ -35,14 +35,53 @@ export function getDefaultConfigPaths(cwd: string): string[] {
 }
 
 /**
- * Resolved plugin policy block from system config.
+ * System config schema version this runtime expects (document `version` field).
  *
  * @category Engine
  */
-export function getSystemPluginPolicy(
-  config: ECPSystemConfig | undefined,
-): ECPSystemConfig["plugins"] | undefined {
-  return config?.plugins;
+export const SYSTEM_CONFIG_SCHEMA_VERSION = "0.5";
+
+/**
+ * Policy subtree from system config (`security` mirrors each configure area).
+ *
+ * @category Engine
+ */
+export function getSecurityConfig(config: ECPSystemConfig | undefined): SecurityConfig | undefined {
+  return config?.security;
+}
+
+/**
+ * Reject unknown `version` values when set.
+ *
+ * @category Engine
+ */
+export function assertSystemConfigSchemaVersion(config: ECPSystemConfig | undefined): void {
+  if (!config) return;
+  if (config.version !== undefined && config.version !== SYSTEM_CONFIG_SCHEMA_VERSION) {
+    throw new Error(
+      `Unsupported system config version "${String(config.version)}". This build expects "${SYSTEM_CONFIG_SCHEMA_VERSION}". See CHANGELOG for migration.`,
+    );
+  }
+}
+
+/**
+ * Build the flat A2A URL map passed to {@link EngineConfig.agentEndpoints}.
+ * Accepts `agents.endpoints.<name>` as `{ url }` or a legacy plain string.
+ *
+ * @category Engine
+ */
+export function resolveAgentEndpointsMap(config: ECPSystemConfig | undefined): Record<string, string> {
+  const raw = config?.agents?.endpoints;
+  if (!raw) return {};
+  const out: Record<string, string> = {};
+  for (const [name, entry] of Object.entries(raw)) {
+    if (typeof entry === "string") {
+      out[name] = entry;
+    } else if (entry && typeof entry === "object" && typeof (entry as AgentEndpointConfig).url === "string") {
+      out[name] = (entry as AgentEndpointConfig).url;
+    }
+  }
+  return out;
 }
 
 function parseSystemConfigFromParsed(parsed: unknown, sourceLabel: string): ECPSystemConfig {
@@ -50,6 +89,7 @@ function parseSystemConfigFromParsed(parsed: unknown, sourceLabel: string): ECPS
   if (!config || typeof config !== "object") {
     throw new Error(`Failed to parse system config from ${sourceLabel}: not an object`);
   }
+  assertSystemConfigSchemaVersion(config);
   return config;
 }
 

@@ -1,4 +1,18 @@
+<!-- markdownlint-disable-file MD024 -->
 # Changelog
+
+## 0.5.0
+
+### Breaking changes
+
+- **System config shape (v0.5):** Policy moves to top-level **`security`** (mirrors `models`, `tools`, `loggers`, `secrets`, `plugins`, …). **`plugins.allowEnable` / `defaultEnable` / `security`** under `plugins` are removed — use **`security.models.allowProviders`**, **`security.models.defaultProviders`**, and **`security.plugins`**. **`modelProviders`** → **`models.providers`**; **`toolServers`** → **`tools.servers`**; logger allow/default → **`security.loggers`**; **`agentEndpoints`** → **`agents.endpoints`** as **`{ url, config? }`**. Add **`version: "0.5"`**; other `version` values are rejected when set.
+- **Ollama `baseURL`** belongs under **`models.providers.ollama.config.baseURL`** (not a sibling of `defaultModel`).
+- **Context manifests:** Top-level **`apiVersion`** is renamed **`specVersion`** (same string values, e.g. `ecp/v0.3-draft`). **`metadata.version`** is **required** when loading a Context (semantic version of that manifest).
+
+### Added
+
+- **`PluginKind` `tool`** in `@executioncontrolprotocol/spec` and **`PLUGIN_KINDS`** tuple; MCP gating via **`security.plugins.allowKinds`** and **`security.tools.allowServers`**.
+- **CLI:** `ecp config security get`, `ecp config security plugins update`; **`ecp config secrets yaml`** (`get`, `set-default-provider`, `set-policy`); **`ecp config plugins installs`** (`list`, `add`, `remove`). Legacy `ecp config plugins allow|default|security` commands now read/write **`security.*`** where applicable.
 
 ## 0.4.2
 

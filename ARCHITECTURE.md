@@ -275,7 +275,7 @@ This allows evolving runtime internals without breaking extension contracts.
 
 ## Secret providers (tool credentials)
 
-The runtime resolves `toolServers.*.credentials.bindings` through a **secret registry** using stable provider ids: **`process.env`**, **`dot.env`**, and **`os.secrets`**. Bindings declare which namespace to read; the CLI can override the on-disk `.env` file for **`dot.env`** with **`--environment`** on execution-oriented commands, while `ecp config secrets` uses persisted config only (no `--environment`). Default secret ref ids are **`ecp://<key>`** (provider is not in the URI). OS-backed entries use that string as the keyring target (**`Entry.withTarget`**) so Windows Credential Manager does not append a second `ecp` from the default `username.service` pattern.
+The runtime resolves `tools.servers.*.credentials.bindings` through a **secret registry** using stable provider ids: **`process.env`**, **`dot.env`**, and **`os.secrets`**. Bindings declare which namespace to read; the CLI can override the on-disk `.env` file for **`dot.env`** with **`--environment`** on execution-oriented commands, while `ecp config secrets` uses persisted config only (no `--environment`). Default secret ref ids are **`ecp://<key>`** (provider is not in the URI). OS-backed entries use that string as the keyring target (**`Entry.withTarget`**) so Windows Credential Manager does not append a second `ecp` from the default `username.service` pattern.
 
 ## Testing Strategy for Implementation Phase
 

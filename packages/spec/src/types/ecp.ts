@@ -100,7 +100,7 @@ export interface ECPContext extends Extensible {
    * The ECP specification version this manifest conforms to
    * (e.g. `"ecp/v0.3-draft"`).
    */
-  apiVersion: string;
+  specVersion: string;
 
   /**
    * Must be `"Context"`.
@@ -191,11 +191,26 @@ export interface Metadata {
 
 /**
  * Role of a plugin in the Context manifest and runtime registry.
+ * `"tool"` denotes MCP (or similar) tool servers wired under system config `tools.servers`
+ * and gated by `security.tools` / `security.plugins` on the host.
  * Additional values may be added by future spec versions.
  *
  * @category Context
  */
-export type PluginKind = "provider" | "executor" | "logger" | "memory";
+export type PluginKind = "provider" | "executor" | "logger" | "memory" | "tool";
+
+/**
+ * All defined {@link PluginKind} values (for CLI validation and docs).
+ *
+ * @category Context
+ */
+export const PLUGIN_KINDS: readonly PluginKind[] = [
+  "provider",
+  "executor",
+  "logger",
+  "memory",
+  "tool",
+] as const;
 
 /**
  * The supported plugin artifact source types.
@@ -270,9 +285,12 @@ export interface PluginReference extends BaseMetadata, Extensible {
 }
 
 /**
- * Runtime security policy for plugin loading.
+ * Runtime security policy for plugin loading (Context `plugins.security` and,
+ * on the host, system config `security.plugins`).
  * Security is always enabled. Use `allowKinds` and `allowSourceTypes` only to
  * restrict which plugin kinds/source types are allowed (default: all builtin allowed).
+ * When `allowKinds` is set and omits `"tool"`, implementations should refuse MCP tool
+ * server connections that are classified as tool plugins.
  *
  * @category Context
  */
@@ -280,6 +298,7 @@ export interface PluginSecurityPolicy extends Extensible {
   /**
    * Plugin kinds allowed to load at runtime.
    * When omitted, all kinds are allowed (default: allow all built-in plugins).
+   * Include `"tool"` when Context or system config uses MCP servers under `tools.servers`.
    */
   allowKinds?: PluginKind[];
 

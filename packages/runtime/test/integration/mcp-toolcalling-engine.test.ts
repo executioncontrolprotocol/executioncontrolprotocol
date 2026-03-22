@@ -13,7 +13,7 @@ const FAKE_SERVER_PATH = resolve(
 
 function makeToolCallingContext(): ECPContext {
   return {
-    apiVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.3-draft",
     kind: "Context",
     metadata: {
       name: "mcp-toolcalling-engine-integration",

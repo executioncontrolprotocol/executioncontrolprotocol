@@ -5,7 +5,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 
 export default class ConfigToolsGet extends Command {
-  static summary = "Get MCP tool server names (toolServers)";
+  static summary = "Get MCP tool server names (tools.servers)";
 
   static flags = { ...configScopeFlags };
 
@@ -21,7 +21,7 @@ export default class ConfigToolsGet extends Command {
       });
 
       this.log(formatConfigFileHeaderLine(path, exists));
-      const names = config.toolServers ? Object.keys(config.toolServers) : [];
+      const names = config.tools?.servers ? Object.keys(config.tools.servers) : [];
       if (names.length === 0) {
         this.log("(no tool servers configured)");
         return;

@@ -3,10 +3,10 @@ import { Command } from "@oclif/core";
 import { formatConfigFileHeaderLine, runWithCommandError } from "../../../lib/command-helpers.js";
 import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
-import { getSystemPluginPolicy } from "@executioncontrolprotocol/runtime";
+import { getSecurityConfig } from "@executioncontrolprotocol/runtime";
 
 export default class ConfigPluginsGet extends Command {
-  static summary = "Get plugin allow-lists, defaults, and security";
+  static summary = "List plugin installs (plugins.installs) — policy is under security.plugins";
 
   static flags = { ...configScopeFlags };
 
@@ -22,17 +22,16 @@ export default class ConfigPluginsGet extends Command {
       });
 
       this.log(formatConfigFileHeaderLine(path, exists));
-      const ex = getSystemPluginPolicy(config);
-      this.log("allowEnable:");
-      this.log(ex?.allowEnable?.length ? ex.allowEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
-      this.log("defaultEnable:");
-      this.log(ex?.defaultEnable?.length ? ex.defaultEnable.map((x: string) => `  - ${x}`).join("\n") : "  (not set)");
-      this.log("security:");
-      if (ex?.security) {
-        this.log(JSON.stringify(ex.security, null, 2));
-      } else {
-        this.log("  (not set)");
-      }
+      const installs = config.plugins?.installs;
+      this.log("plugins.installs keys:");
+      this.log(
+        installs && Object.keys(installs).length > 0
+          ? Object.keys(installs).map((k) => `  - ${k}`).join("\n")
+          : "  (not set)",
+      );
+      const secPlugins = getSecurityConfig(config)?.plugins;
+      this.log("security.plugins (extension policy):");
+      this.log(secPlugins ? JSON.stringify(secPlugins, null, 2) : "  (not set)");
     });
   }
 }

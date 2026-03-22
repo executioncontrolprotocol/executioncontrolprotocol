@@ -71,25 +71,26 @@ Dev without rebuilding (TypeScript source): `npm run start --workspace=@executio
 
 ECP connects to MCP servers at runtime. The CLI no longer accepts `--tool-server` / `--tool-allow` flags; instead:
 
-- **Tool server wiring** comes from your global `ecp.config.yaml` under `toolServers:`.
+- **Tool server wiring** comes from your `ecp.config.yaml` under **`tools.servers`** (v0.5 layout).
 - **Tool permissions** come from each Context manifest under `policies.toolAccess`.
 
-### Tool server wiring (`ecp.config.yaml` -> `toolServers`)
+### Tool server wiring (`ecp.config.yaml` -> `tools.servers`)
 
 For example, to connect a `fetch` tool server via stdio (Docker) and a `remote` tool server via SSE:
 
 ```yaml
-toolServers:
-  fetch:
-    transport:
-      type: stdio
-      command: docker
-      args: [run, -i, --rm, mcp/fetch]
+tools:
+  servers:
+    fetch:
+      transport:
+        type: stdio
+        command: docker
+        args: [run, -i, --rm, mcp/fetch]
 
-  remote:
-    transport:
-      type: sse
-      url: https://example.com/sse
+    remote:
+      transport:
+        type: sse
+        url: https://example.com/sse
 ```
 
 Then you can run without tool-specific CLI flags:
@@ -111,7 +112,7 @@ policies:
       - fetch:search
 ```
 
-The allowed tool refs (like `fetch:fetch`) must use the same `server` name you configure in `ecp.config.yaml` under `toolServers`.
+The allowed tool refs (like `fetch:fetch`) must use the same `server` name you configure in `ecp.config.yaml` under `tools.servers`.
 
 ------------------------------------------------------------------------
 
@@ -205,7 +206,7 @@ cp config/ecp.config.example.yaml ecp.config.yaml
 
 Then run without passing `--config`; the CLI will use `./ecp.config.yaml` if present.
 
-See [`config/ecp.config.example.yaml`](config/ecp.config.example.yaml) for `plugins.allowEnable`, `plugins.defaultEnable`, `plugins.security`, and related options.
+See [`config/ecp.config.example.yaml`](config/ecp.config.example.yaml) for the v0.5 **`security`** mirror, **`models.providers`**, **`tools.servers`**, and related options.
 
 ------------------------------------------------------------------------
 

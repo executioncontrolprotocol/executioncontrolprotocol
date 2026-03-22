@@ -34,7 +34,7 @@ async function isOllamaAvailable(): Promise<boolean> {
 
 function makeSingleExecutorContext(): ECPContext {
   return {
-    apiVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.3-draft",
     kind: "Context",
     metadata: {
       name: "ollama-e2e-single",
@@ -88,7 +88,7 @@ function makeSingleExecutorContext(): ECPContext {
 
 function makeDelegateContext(): ECPContext {
   return {
-    apiVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.3-draft",
     kind: "Context",
     metadata: {
       name: "ollama-e2e-delegate",

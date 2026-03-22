@@ -272,6 +272,12 @@ export interface EngineConfig {
   toolServers?: ToolServerRegistry;
 
   /**
+   * When non-empty, only MCP servers with these logical names may be connected
+   * (from system config `security.tools.allowServers`).
+   */
+  mcpServerAllowList?: string[];
+
+  /**
    * A2A endpoint registry for specialist executors.
    * Keys are executor names, values are endpoint URLs.
    */
@@ -348,106 +354,184 @@ export interface PluginRuntimeConfig {
 }
 
 /**
+ * Policy subtree for model providers (mirrors `models.providers` keys).
+ *
+ * @category Engine
+ */
+export interface SecurityModelsConfig {
+  /** Provider IDs that may be used. When set, only these are permitted. */
+  allowProviders?: string[];
+  /** Default provider IDs to enable when the CLI does not narrow the set. */
+  defaultProviders?: string[];
+}
+
+/**
+ * Policy for MCP tool server names (mirrors keys under `tools.servers`).
+ *
+ * @category Engine
+ */
+export interface SecurityToolsConfig {
+  /** Logical server names allowed to connect. When set, others are denied. */
+  allowServers?: string[];
+}
+
+/**
+ * Policy for executor plugin instances (mirrors `executors.instances` keys).
+ *
+ * @category Engine
+ */
+export interface SecurityExecutorsConfig {
+  allowExecutors?: string[];
+  defaultEnable?: string[];
+}
+
+/**
+ * Policy for memory stores (mirrors `memory.stores` keys).
+ *
+ * @category Engine
+ */
+export interface SecurityMemoryConfig {
+  allowStores?: string[];
+  defaultStore?: string;
+}
+
+/**
+ * Policy for A2A endpoints (mirrors `agents.endpoints` keys).
+ *
+ * @category Engine
+ */
+export interface SecurityAgentsConfig {
+  allowEndpoints?: string[];
+  defaultEnable?: string[];
+}
+
+/**
+ * Policy for logger plugins (mirrors `loggers.config` keys).
+ *
+ * @category Engine
+ */
+export interface SecurityLoggersConfig {
+  allowEnable?: string[];
+  defaultEnable?: string[];
+}
+
+/**
+ * Policy for secret *provider* IDs (mirrors `secrets.providers` keys).
+ *
+ * @category Engine
+ */
+export interface SecuritySecretsConfig {
+  allowProviders?: string[];
+}
+
+/**
+ * Top-level security block: mirrors each configure area; allow/default/gates only.
+ *
+ * @category Engine
+ */
+export interface SecurityConfig {
+  models?: SecurityModelsConfig;
+  tools?: SecurityToolsConfig;
+  executors?: SecurityExecutorsConfig;
+  memory?: SecurityMemoryConfig;
+  agents?: SecurityAgentsConfig;
+  loggers?: SecurityLoggersConfig;
+  secrets?: SecuritySecretsConfig;
+  /** Global extension / plugin loading policy (not `plugins.installs`). */
+  plugins?: PluginSecurityPolicy;
+}
+
+/**
+ * Per model-provider entry under `models.providers`.
+ *
+ * @category Engine
+ */
+export interface ModelProviderConfig {
+  defaultModel?: string;
+  allowedModels?: string[];
+  /** Provider-specific options (e.g. Ollama `baseURL`). */
+  config?: Record<string, unknown>;
+}
+
+/**
+ * A2A endpoint entry under `agents.endpoints`.
+ *
+ * @category Engine
+ */
+export interface AgentEndpointConfig {
+  url: string;
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Optional install provenance under `plugins.installs`.
+ *
+ * @category Engine
+ */
+export interface PluginInstallEntry {
+  source?: Record<string, unknown>;
+  path?: string;
+  pluginKind?: string;
+  config?: Record<string, unknown>;
+}
+
+/**
  * System configuration for ECP (e.g. ecp.config.yaml).
- * Used to allow-list enabled plugins and set system security policy.
- * Can be loaded from --config path or default locations.
+ * Policy lives under `security`; wiring under `models`, `tools`, `plugins`, etc.
  *
  * @category Engine
  */
 export interface ECPSystemConfig {
   /**
-   * Secret provider defaults and policy (values live in providers, not in this file).
+   * Schema version of this file (e.g. `"0.5"`). Loaders may validate or warn.
    */
-  secrets?: {
-    /** Preferred provider id for interactive commands (e.g. `os`). */
-    defaultProvider?: string;
+  version?: string;
 
-    /** How to treat insecure providers (`env`, `dot`, `session`). */
-    policy?: SecretPolicyMode;
+  security?: SecurityConfig;
 
-    /** Per-provider toggles and options. */
-    providers?: Record<
-      string,
-      {
-        enabled?: boolean;
-        /** Dotenv file path (relative to cwd when loading project config). */
-        path?: string;
-      }
-    >;
-  };
-
-  /**
-   * Plugin allow-list and defaults.
-   */
   plugins?: {
-    /**
-     * Plugin IDs that may be enabled at runtime. When set, only these
-     * may appear in the runtime enable list (CLI --enable or config.defaultEnable).
-     */
-    allowEnable?: string[];
+    installs?: Record<string, PluginInstallEntry>;
+  };
 
-    /**
-     * Default plugin IDs to enable when CLI does not pass --enable.
-     */
-    defaultEnable?: string[];
+  models?: {
+    providers?: Record<string, ModelProviderConfig>;
+  };
 
-    /**
-     * System-level plugin security policy.
-     */
-    security?: PluginSecurityPolicy;
+  tools?: {
+    servers?: ToolServerRegistry;
+  };
+
+  executors?: {
+    instances?: Record<string, { config?: Record<string, unknown> }>;
+  };
+
+  memory?: {
+    stores?: Record<string, { config?: Record<string, unknown> }>;
+  };
+
+  agents?: {
+    endpoints?: Record<string, AgentEndpointConfig | string>;
   };
 
   /**
-   * Execution loggers: which logger plugins to enable and their config.
-   * Loggers receive the same progress events as the CLI (phase, steps, reasoning).
+   * Per-logger configuration. Allow/default live under `security.loggers`.
    */
   loggers?: {
-    /**
-     * Default logger IDs to enable (e.g. ["file"]).
-     */
-    defaultEnable?: string[];
-
-    /**
-     * Allow-list of logger IDs. When set, only these may be enabled.
-     */
-    allowEnable?: string[];
-
-    /**
-     * Per-logger configuration, keyed by logger ID.
-     */
     config?: Record<string, Record<string, unknown>>;
   };
 
   /**
-   * Tool server wiring for MCP connections.
-   * Maps logical server names (used in Context `mount.from.server` and tool refs)
-   * to engine tool-server connection details.
+   * Secret provider defaults and policy (values live in providers, not in this file).
    */
-  toolServers?: ToolServerRegistry;
-
-  /**
-   * A2A specialist endpoint registry loaded from system config.
-   * Keys are executor names, values are endpoint URLs.
-   */
-  agentEndpoints?: Record<string, string>;
-
-  /**
-   * Model-provider defaults and policy controls loaded from system config.
-   */
-  modelProviders?: {
-    openai?: {
-      /** Default OpenAI model when CLI/context does not provide one. */
-      defaultModel?: string;
-      /** Optional allow-list for --model overrides when provider is openai. */
-      allowedModels?: string[];
-    };
-    ollama?: {
-      /** Optional Ollama base URL (e.g. http://localhost:11434). */
-      baseURL?: string;
-      /** Default Ollama model when CLI/context does not provide one. */
-      defaultModel?: string;
-      /** Optional allow-list for --model overrides when provider is ollama. */
-      allowedModels?: string[];
-    };
+  secrets?: {
+    defaultProvider?: string;
+    policy?: SecretPolicyMode;
+    providers?: Record<
+      string,
+      {
+        enabled?: boolean;
+        path?: string;
+      }
+    >;
   };
 }

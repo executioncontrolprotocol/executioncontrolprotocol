@@ -6,7 +6,9 @@ export default class Config extends Command {
 
   static description = `Inspect and edit system config (project ecp.config.* or global ~/.ecp/).
 
-Subcommands cover plugins, model providers, MCP tool servers, loggers, secrets, and A2A endpoints.
+v0.5 layout: policy under top-level security (mirrors models, tools, loggers, …); wiring under models.providers, tools.servers, loggers.config, agents.endpoints, plugins.installs, secrets.
+
+Subcommands: security, plugins (installs + deprecated allow paths), models, tools, loggers, secrets (store ops + yaml *), endpoints (agents.endpoints).
 You can also edit the file directly — use "ecp config path" for the resolved path.`;
 
   static examples = [
@@ -30,12 +32,13 @@ You can also edit the file directly — use "ecp config path" for the resolved p
         "  init              Write best-practices default if missing",
         "  path              Print config file path",
         "  get               Print merged config (YAML or JSON)",
-        "  plugins           CRUD for plugin allow-lists, defaults, security",
-        "  models            CRUD for model providers and allowed models",
-        "  tools             CRUD for MCP tool servers",
-        "  loggers           CRUD for logger policy and per-logger config",
-        `  secrets           Store/list secrets (${OS_PROVIDER_ID}, …)`,
-        "  endpoints         CRUD for A2A agent endpoint URLs",
+        "  security          Dump security.* (policy mirror)",
+        "  plugins           installs list/add/remove; legacy allow → security.models",
+        "  models            CRUD for models.providers",
+        "  tools             CRUD for tools.servers",
+        "  loggers           security.loggers + loggers.config",
+        `  secrets           Store ops + yaml get/set-default-provider/set-policy`,
+        "  endpoints         CRUD for agents.endpoints (A2A URLs)",
         "",
         "Resource commands use verbs: add, get, remove, update (see ecp config <topic> --help).",
         "Run ecp config --help for flags and full help.",

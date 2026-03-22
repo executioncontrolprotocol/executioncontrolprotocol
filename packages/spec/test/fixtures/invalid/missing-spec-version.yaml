@@ -1,0 +1,10 @@
+kind: Context
+metadata:
+  name: no-spec-version
+  version: 1.0.0
+orchestration:
+  entrypoint: agent
+  strategy: single
+executors:
+  - name: agent
+    type: agent
