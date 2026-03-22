@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/plugins",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "description": "ECP plugin contracts and manifest types — TypeScript types for compliant model providers, executors, loggers, and memory plugins",
   "license": "Apache-2.0",
   "homepage": "https://github.com/executioncontrolprotocol/executioncontrolprotocol",
@@ -38,7 +38,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/spec": "^0.4.2"
+    "@executioncontrolprotocol/spec": "^0.5.1"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

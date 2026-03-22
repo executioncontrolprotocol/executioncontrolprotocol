@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/runtime",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "description": "ECP runtime engine — loads, validates, and executes Context manifests",
   "license": "Apache-2.0",
   "homepage": "https://github.com/executioncontrolprotocol/executioncontrolprotocol",
@@ -47,8 +47,8 @@
   },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.0",
-    "@executioncontrolprotocol/plugins": "^0.4.2",
-    "@executioncontrolprotocol/spec": "^0.4.2",
+    "@executioncontrolprotocol/plugins": "^0.5.1",
+    "@executioncontrolprotocol/spec": "^0.5.1",
     "@modelcontextprotocol/sdk": "^1.27.0",
     "@napi-rs/keyring": "^1.2.0",
     "ajv": "^8.17.0",

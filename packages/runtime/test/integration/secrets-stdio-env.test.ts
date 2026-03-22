@@ -15,7 +15,7 @@ const ENV_ECHO_SERVER_PATH = resolve(
 
 function makeSecretsContext(): ECPContext {
   return {
-    specVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.5-draft",
     kind: "Context",
     metadata: {
       name: "secrets-stdio-env-integration",

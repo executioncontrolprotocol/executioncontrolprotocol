@@ -1,6 +1,12 @@
 <!-- markdownlint-disable-file MD024 -->
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Context `specVersion`:** The latest protocol label is **`ecp/v0.5-draft`** (`LATEST_PROTOCOL_VERSION` in `@executioncontrolprotocol/spec`), aligned with the **0.5.x** npm release line. Update manifests that still use `ecp/v0.3-draft`. Unit tests enforce that system config schema `version`, this string, and workspace `package.json` major.minor stay in sync.
+
 ## 0.5.0
 
 ### Breaking changes

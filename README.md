@@ -308,7 +308,7 @@ import type { PluginReference, ModelProvider, PluginRegistration } from "@execut
 A minimal Context in under a minute:
 
 ```yaml
-specVersion: ecp/v0.3-draft
+specVersion: ecp/v0.5-draft
 kind: Context
 
 metadata:

@@ -105,7 +105,7 @@ A **Context** is the root execution object in ECP.
 
 A Context contains:
 
-* **`specVersion`** — which ECP Context specification the manifest targets (e.g. `ecp/v0.3-draft`; formerly `apiVersion`)
+* **`specVersion`** — which ECP Context specification the manifest targets (e.g. `ecp/v0.5-draft`; formerly `apiVersion`)
 * **`kind`**: `Context`
 * **`metadata`** (including a required semantic **`version`** for the manifest)
 * Inputs
