@@ -4,7 +4,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { persistConfig, readForMutation } from "../../../lib/system-config-cli.js";
 
 export default class ConfigEndpointsAdd extends Command {
-  static summary = "Set agentEndpoints.<executorName> to a URL";
+  static summary = "Set agents.endpoints.<executorName>.url (A2A)";
 
   static args = {
     name: Args.string({ required: true, description: "Executor / specialist name" }),
@@ -22,16 +22,17 @@ export default class ConfigEndpointsAdd extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.agentEndpoints ??= {};
-    if (config.agentEndpoints[args.name] !== undefined) {
+    config.agents ??= {};
+    config.agents.endpoints ??= {};
+    if (config.agents.endpoints[args.name] !== undefined) {
       this.error(
         `Endpoint "${args.name}" already exists. Use "ecp config endpoints update" to change the URL.`,
         { exit: 1 },
       );
     }
-    config.agentEndpoints[args.name] = args.url;
+    config.agents.endpoints[args.name] = { url: args.url };
 
     persistConfig(path, config);
-    this.log(`Added agentEndpoints.${args.name} = ${args.url} (${path})`);
+    this.log(`Added agents.endpoints.${args.name}.url = ${args.url} (${path})`);
   }
 }

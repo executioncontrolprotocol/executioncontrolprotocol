@@ -812,8 +812,26 @@ export class ECPEngine {
 
   private async connectToolServers(state: RunState): Promise<void> {
     const servers = this.config.toolServers ?? {};
+    const allowList = this.config.mcpServerAllowList;
+    const effectiveSec = this.getEffectivePluginSecurity(state.context);
+    if (effectiveSec.allowKinds?.length && !effectiveSec.allowKinds.includes("tool")) {
+      this.log(
+        state,
+        "warn",
+        'Skipping MCP tool server connections: effective security.plugins.allowKinds does not include "tool".',
+      );
+      return;
+    }
     const broker = this.config.secretBroker;
     for (const [name, serverConfig] of Object.entries(servers)) {
+      if (allowList !== undefined && allowList.length > 0 && !allowList.includes(name)) {
+        this.log(
+          state,
+          "warn",
+          `Skipping tool server "${name}": not listed in security.tools.allowServers.`,
+        );
+        continue;
+      }
       try {
         let transport = serverConfig.transport;
         if (broker) {
@@ -1254,13 +1272,13 @@ export class ECPEngine {
 
     if (security.allowIds?.length && !security.allowIds.includes(provider.name)) {
       throw new Error(
-        `Model provider "${provider.name}" denied: provider is not in plugins allowIds.`,
+        `Model provider "${provider.name}" denied: provider is not in security.plugins.allowIds.`,
       );
     }
 
     if (security.denyIds?.includes(provider.name)) {
       throw new Error(
-        `Model provider "${provider.name}" denied: provider is listed in plugins denyIds.`,
+        `Model provider "${provider.name}" denied: provider is listed in security.plugins.denyIds.`,
       );
     }
 
@@ -1269,7 +1287,7 @@ export class ECPEngine {
     if (allowEnable !== undefined && allowEnable.length > 0) {
       if (!allowEnable.includes(provider.name)) {
         throw new Error(
-          `Model provider "${provider.name}" denied: not in system config allow-list (allowEnable).`,
+          `Model provider "${provider.name}" denied: not in system config security.models.allowProviders.`,
         );
       }
     }

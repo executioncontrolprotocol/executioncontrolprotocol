@@ -5,7 +5,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
 
 export default class ConfigEndpointsGet extends Command {
-  static summary = "Get A2A agent endpoints (agentEndpoints)";
+  static summary = "Get A2A agent endpoints (agents.endpoints)";
 
   static flags = { ...configScopeFlags };
 
@@ -21,13 +21,20 @@ export default class ConfigEndpointsGet extends Command {
       });
 
       this.log(formatConfigFileHeaderLine(path, exists));
-      const ae = config.agentEndpoints;
+      const ae = config.agents?.endpoints;
       if (!ae || Object.keys(ae).length === 0) {
         this.log("(no agent endpoints configured)");
         return;
       }
       for (const k of Object.keys(ae).sort()) {
-        this.log(`${k}: ${ae[k]}`);
+        const v = ae[k];
+        const url =
+          typeof v === "string"
+            ? v
+            : v && typeof v === "object" && typeof (v as { url?: string }).url === "string"
+              ? (v as { url: string }).url
+              : "(invalid entry)";
+        this.log(`${k}: ${url}`);
       }
     });
   }

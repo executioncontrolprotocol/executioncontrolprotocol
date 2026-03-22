@@ -57,6 +57,11 @@ export function loadContext(filePath: string): ECPContext {
   if (!ctx.metadata?.name) {
     throw new Error("Invalid Context: missing metadata.name");
   }
+  if (!ctx.metadata.version || typeof ctx.metadata.version !== "string") {
+    throw new Error(
+      'Invalid Context: metadata.version is required (semantic version string, e.g. "1.0.0").',
+    );
+  }
   if (!ctx.orchestration?.entrypoint && !ctx.orchestrator?.name) {
     throw new Error(
       "Invalid Context: missing entrypoint (orchestrator.name or orchestration.entrypoint)",

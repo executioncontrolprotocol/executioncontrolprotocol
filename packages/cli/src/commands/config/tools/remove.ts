@@ -21,8 +21,8 @@ export default class ConfigToolsRemove extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    if (config.toolServers && args.name in config.toolServers) {
-      delete config.toolServers[args.name];
+    if (config.tools?.servers && args.name in config.tools.servers) {
+      delete config.tools.servers[args.name];
     }
 
     persistConfig(path, config);

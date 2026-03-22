@@ -5,10 +5,11 @@ import {
   persistConfig,
   readForMutation,
   removeId,
+  touchSecurity,
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigPluginsDefaultRemove extends Command {
-  static summary = "Remove a plugin ID from plugins.defaultEnable";
+  static summary = "Remove a model provider ID from security.models.defaultProviders";
 
   static args = {
     id: Args.string({ required: true, description: "Plugin ID" }),
@@ -25,10 +26,13 @@ export default class ConfigPluginsDefaultRemove extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.plugins ??= {};
-    config.plugins.defaultEnable = removeId(config.plugins.defaultEnable, args.id);
+    const sec = touchSecurity(config);
+    sec.models ??= {};
+    sec.models.defaultProviders = removeId(sec.models.defaultProviders, args.id);
 
     persistConfig(path, config);
-    this.log(`Updated defaultEnable (${path}): ${config.plugins.defaultEnable?.join(", ") ?? "(empty)"}`);
+    this.log(
+      `Updated security.models.defaultProviders (${path}): ${sec.models.defaultProviders?.join(", ") ?? "(empty)"}`,
+    );
   }
 }

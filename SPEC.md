@@ -617,6 +617,25 @@ ECP defines the orchestration strategy governing how orchestrators and executors
 
 ---
 
+# Host system configuration (`ecp.config.yaml`)
+
+The **host** may load a system configuration file (YAML or JSON) alongside a Context. This file is **not** part of the Context manifest; it configures the runtime and **policy** for the machine or project.
+
+**Schema version:** the document SHOULD include top-level `version: "0.5"` (string). Runtimes may reject other values.
+
+**Two roles:**
+
+1. **Configure** — wiring and data: `models.providers`, `tools.servers`, `loggers.config`, `agents.endpoints`, `plugins.installs`, `secrets`, optional `executors.instances`, `memory.stores`, and opaque `config` blobs on entries where applicable.
+2. **`security`** — the **same area names**, but only **allow-lists and defaults**: `security.models`, `security.tools`, `security.loggers`, `security.secrets`, `security.plugins` (global `PluginSecurityPolicy`: `allowKinds`, `allowSourceTypes`, `allowIds`, …), plus `security.executors`, `security.memory`, `security.agents` when those areas are used.
+
+**`PluginKind`** in Context manifests includes `tool` for MCP (or similar) tool servers that correspond to logical names under `tools.servers`. When `security.plugins.allowKinds` is set and omits `tool`, implementations SHOULD refuse MCP connections that are governed as tool plugins. `security.tools.allowServers`, when set, restricts which logical server names may connect.
+
+**A2A endpoints** live under `agents.endpoints.<name>` as an object `{ url: string, config?: object }` (a plain string URL MAY be accepted as a migration convenience).
+
+See the repository `config/ecp.config.example.yaml` for a normative example.
+
+---
+
 # Future Extensions
 
 Potential roadmap areas include:

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
-import type { ECPSystemConfig } from "@executioncontrolprotocol/runtime";
+import type { ECPSystemConfig, SecurityConfig } from "@executioncontrolprotocol/runtime";
 import {
   getDefaultConfigPaths,
   loadSystemConfig,
@@ -130,4 +130,10 @@ export type ModelProviderId = "openai" | "ollama";
 
 export function isModelProviderId(s: string): s is ModelProviderId {
   return s === "openai" || s === "ollama";
+}
+
+/** Ensure `config.security` exists for in-place mutation. */
+export function touchSecurity(config: ECPSystemConfig): SecurityConfig {
+  config.security ??= {};
+  return config.security;
 }

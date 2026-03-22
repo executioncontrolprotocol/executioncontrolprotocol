@@ -8,7 +8,9 @@ export default class ConfigSecrets extends Command {
 
 Subcommands:
   add|get|remove|list     CRUD-style commands for a provider key
-  providers list|doctor   Availability and health`;
+  providers list|doctor   Availability and health
+  yaml get                Print secrets.* + security.secrets from the YAML file
+  yaml set-default-provider|set-policy   Edit non-secret YAML fields`;
 
   static examples = [
     `ecp config secrets add --provider ${OS_PROVIDER_ID} --key server/fetch.token --prompt`,
@@ -27,6 +29,9 @@ Subcommands:
         "  remove    Remove a stored secret",
         "  list      List keys (when supported by provider)",
         "  providers list|doctor",
+        "  yaml get  Print secrets + security.secrets blocks",
+        "  yaml set-default-provider <id>",
+        "  yaml set-policy <permissive|warn|strict>",
         "",
         "Run ecp config secrets <cmd> --help for flags.",
       ].join("\n"),

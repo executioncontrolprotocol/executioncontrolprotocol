@@ -19,7 +19,8 @@ import {
   ConsoleTraceExporter,
   JsonFileTraceExporter,
   type ECPSystemConfig,
-  getSystemPluginPolicy,
+  getSecurityConfig,
+  resolveAgentEndpointsMap,
 } from "@executioncontrolprotocol/runtime";
 
 import type { ECPContext, Orchestrator, Executor } from "@executioncontrolprotocol/spec";
@@ -183,16 +184,17 @@ export default class Run extends EcpEnvironmentCommand {
       this.assertModelAllowedByPolicy(providerToUse, selectedModel, systemConfig);
     }
 
-    const enableFromConfig = getSystemPluginPolicy(systemConfig)?.defaultEnable ?? [];
+    const secModels = getSecurityConfig(systemConfig)?.models;
+    const enableFromConfig = secModels?.defaultProviders ?? [];
     const enableForRun = [...new Set([...enableFromConfig, providerToUse])];
 
-    const allowEnable = getSystemPluginPolicy(systemConfig)?.allowEnable;
-    if (allowEnable && allowEnable.length > 0) {
+    const allowProviders = secModels?.allowProviders;
+    if (allowProviders && allowProviders.length > 0) {
       for (const id of enableForRun) {
-        if (!allowEnable.includes(id)) {
+        if (!allowProviders.includes(id)) {
           this.error(
-            `Provider "${id}" cannot be used because it is not in system config plugins.allowEnable.\n` +
-              `Allowed: ${allowEnable.join(", ")}\n` +
+            `Provider "${id}" cannot be used because it is not in system config security.models.allowProviders.\n` +
+              `Allowed: ${allowProviders.join(", ")}\n` +
               `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
             { exit: 1 },
           );
@@ -208,13 +210,18 @@ export default class Run extends EcpEnvironmentCommand {
     });
 
     const registry = new ExtensionRegistry();
-    const openaiDefaults = systemConfig?.modelProviders?.openai ?? {};
-    const ollamaDefaults = systemConfig?.modelProviders?.ollama ?? {};
+    const providers = systemConfig?.models?.providers ?? {};
+    const openaiDefaults = providers.openai ?? {};
+    const ollamaDefaults = providers.ollama ?? {};
+    const ollamaBaseURL =
+      typeof ollamaDefaults.config?.baseURL === "string"
+        ? ollamaDefaults.config.baseURL
+        : undefined;
     registerBuiltinModelProviders(registry, {
       version: BUILTIN_PLUGIN_VERSION,
       openai: { defaultModel: selectedModel ?? openaiDefaults.defaultModel },
       ollama: {
-        baseURL: ollamaDefaults.baseURL,
+        baseURL: ollamaBaseURL,
         defaultModel: selectedModel ?? ollamaDefaults.defaultModel,
       },
     });
@@ -227,14 +234,15 @@ export default class Run extends EcpEnvironmentCommand {
     const toolInvoker = new MCPToolInvoker();
     const agentTransport = new A2AAgentTransport();
 
-    const toolServers = systemConfig?.toolServers;
+    const toolServers = systemConfig?.tools?.servers;
+    const mcpServerAllowList = getSecurityConfig(systemConfig)?.tools?.allowServers;
 
-    if (ollamaDefaults.baseURL) {
+    if (ollamaBaseURL) {
       try {
-        new URL(ollamaDefaults.baseURL);
+        new URL(ollamaBaseURL);
       } catch {
         this.error(
-          `Invalid modelProviders.ollama.baseURL in system config: "${ollamaDefaults.baseURL}"`,
+          `Invalid models.providers.ollama.config.baseURL in system config: "${ollamaBaseURL}"`,
           { exit: 1 },
         );
       }
@@ -242,13 +250,15 @@ export default class Run extends EcpEnvironmentCommand {
 
     const loggerCallbacks: ProgressCallback[] = [];
     const loggersConfig = systemConfig?.loggers;
-    const loggersEnabled = loggerRaw.length > 0 ? loggerRaw : loggersConfig?.defaultEnable ?? [];
-    const loggersAllow = loggersConfig?.allowEnable;
+    const secLoggers = getSecurityConfig(systemConfig)?.loggers;
+    const loggersEnabled =
+      loggerRaw.length > 0 ? loggerRaw : secLoggers?.defaultEnable ?? [];
+    const loggersAllow = secLoggers?.allowEnable;
     if (loggersAllow && loggersAllow.length > 0) {
       for (const id of loggersEnabled) {
         if (!loggersAllow.includes(id)) {
           this.error(
-            `Logger "${id}" is not in system config loggers.allowEnable. Allowed: ${loggersAllow.join(
+            `Logger "${id}" is not in system config security.loggers.allowEnable. Allowed: ${loggersAllow.join(
               ", ",
             )}`,
             { exit: 1 },
@@ -295,10 +305,15 @@ export default class Run extends EcpEnvironmentCommand {
       }
     }
 
+    const agentEndpoints = resolveAgentEndpointsMap(systemConfig);
+    const agentEndpointsForEngine =
+      Object.keys(agentEndpoints).length > 0 ? agentEndpoints : undefined;
+
     const engine = new ECPEngine(modelProvider, toolInvoker, agentTransport, {
       toolServers,
+      mcpServerAllowList,
       secretBroker,
-      agentEndpoints: systemConfig?.agentEndpoints,
+      agentEndpoints: agentEndpointsForEngine,
       defaultModel: selectedModel ?? openaiDefaults.defaultModel ?? ollamaDefaults.defaultModel,
       modelOverride: selectedModel,
       debug: flags.debug,
@@ -308,8 +323,9 @@ export default class Run extends EcpEnvironmentCommand {
       plugins: {
         registry,
         enable: enableForRun,
-        allowEnable: getSystemPluginPolicy(systemConfig)?.allowEnable,
-        security: getSystemPluginPolicy(systemConfig)?.security ?? getContextPlugins(context)?.security,
+        allowEnable: secModels?.allowProviders,
+        security:
+          getSecurityConfig(systemConfig)?.plugins ?? getContextPlugins(context)?.security,
       },
     });
 
@@ -410,20 +426,20 @@ export default class Run extends EcpEnvironmentCommand {
   }
 
   private assertProviderAllowedByPolicy(providerId: string, systemConfig?: ECPSystemConfig): void {
-    const allowEnable = getSystemPluginPolicy(systemConfig)?.allowEnable;
-    if (allowEnable?.length && !allowEnable.includes(providerId)) {
+    const allowProviders = getSecurityConfig(systemConfig)?.models?.allowProviders;
+    if (allowProviders?.length && !allowProviders.includes(providerId)) {
       this.error(
-        `Provider "${providerId}" is blocked by system config plugins.allowEnable.\n` +
-          `Allowed: ${allowEnable.join(", ")}\n` +
+        `Provider "${providerId}" is blocked by system config security.models.allowProviders.\n` +
+          `Allowed: ${allowProviders.join(", ")}\n` +
           `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
         { exit: 1 },
       );
     }
 
-    const allowIds = getSystemPluginPolicy(systemConfig)?.security?.allowIds;
+    const allowIds = getSecurityConfig(systemConfig)?.plugins?.allowIds;
     if (allowIds?.length && !allowIds.includes(providerId)) {
       this.error(
-        `Provider "${providerId}" is blocked by system config plugins.security.allowIds.\n` +
+        `Provider "${providerId}" is blocked by system config security.plugins.allowIds.\n` +
           `Allowed IDs: ${allowIds.join(", ")}\n` +
           `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
         { exit: 1 },
@@ -436,10 +452,10 @@ export default class Run extends EcpEnvironmentCommand {
     modelName: string,
     systemConfig?: ECPSystemConfig,
   ): void {
-    const allowedModels = systemConfig?.modelProviders?.[providerId as "openai" | "ollama"]?.allowedModels;
+    const allowedModels = systemConfig?.models?.providers?.[providerId]?.allowedModels;
     if (allowedModels?.length && !allowedModels.includes(modelName)) {
       this.error(
-        `Model "${modelName}" is blocked for provider "${providerId}" by system config modelProviders.${providerId}.allowedModels.\n` +
+        `Model "${modelName}" is blocked for provider "${providerId}" by system config models.providers.${providerId}.allowedModels.\n` +
           `Allowed models: ${allowedModels.join(", ")}\n` +
           `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
         { exit: 1 },

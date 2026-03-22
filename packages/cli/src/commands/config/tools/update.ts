@@ -6,7 +6,7 @@ import { configScopeFlags } from "../../../lib/config-flags.js";
 import { persistConfig, readForMutation } from "../../../lib/system-config-cli.js";
 
 export default class ConfigToolsUpdate extends Command {
-  static summary = "Update an MCP tool server entry (toolServers.<name>)";
+  static summary = "Update an MCP tool server entry (tools.servers.<name>)";
 
   static description =
     "Replaces the server block for an existing name. Same shape as add (JSON with a \"transport\" object).";
@@ -56,12 +56,13 @@ export default class ConfigToolsUpdate extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.toolServers ??= {};
-    if (!config.toolServers[args.name]) {
+    config.tools ??= {};
+    config.tools.servers ??= {};
+    if (!config.tools.servers[args.name]) {
       this.error(`No tool server named "${args.name}". Use "ecp config tools add" first.`, { exit: 1 });
     }
 
-    config.toolServers[args.name] = parsed as { transport: Record<string, unknown> };
+    config.tools.servers[args.name] = parsed as { transport: Record<string, unknown> };
 
     persistConfig(path, config);
     this.log(`Updated tool server "${args.name}" (${path})`);

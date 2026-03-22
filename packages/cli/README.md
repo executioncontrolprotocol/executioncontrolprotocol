@@ -18,7 +18,7 @@ ecp run path/to/context.yaml -i topic="Hello"
 
 ### System config (`ecp.config.yaml` / `~/.ecp/config.yaml`)
 
-Manage allow-lists, model defaults, MCP tool servers, and more:
+**v0.5 layout:** use top-level **`security`** for allow-lists and defaults (mirrors `models`, `tools`, `loggers`, …). Wiring lives under **`models.providers`**, **`tools.servers`**, **`loggers.config`**, **`agents.endpoints`**, **`plugins.installs`**, **`secrets`**. Set **`version: "0.5"`**.
 
 ```bash
 ecp config --help
@@ -26,19 +26,21 @@ ecp config init                    # best-practices starter in current directory
 ecp config init --global          # ~/.ecp/config.yaml
 ecp config path                    # resolved file path (use --for-write for mutation target)
 ecp config get --format json
-ecp config plugins get
+ecp config security get
+ecp config plugins get             # plugins.installs + security.plugins summary
 ecp config models get
 ecp config tools get
 ecp config loggers get
+ecp config secrets yaml get
 ```
 
-`ecp run` accepts `--logger` / `-l` (e.g. `file`) to enable logger **plugins** (`kind: logger`); see `loggers` in system config.
+`ecp run` accepts `--logger` / `-l` (e.g. `file`) to enable logger **plugins** (`kind: logger`); defaults and allow-lists are under **`security.loggers`**, per-logger options under **`loggers.config`**.
 
 YAML and JSON are supported; defaults are searched in order: `./ecp.config.yaml`, `./ecp.config.json`, then `~/.ecp/`.
 
 ## Secrets and environment files
 
-ECP separates **where** a secret is loaded from using **provider ids** in `toolServers.<name>.credentials.bindings[].source`:
+ECP separates **where** a secret is loaded from using **provider ids** in `tools.servers.<name>.credentials.bindings[].source`:
 
 | Provider id   | Meaning                                                                                                                                                                                                      |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

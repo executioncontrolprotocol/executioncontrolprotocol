@@ -5,10 +5,11 @@ import {
   persistConfig,
   readForMutation,
   removeId,
+  touchSecurity,
 } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigLoggersAllowRemove extends Command {
-  static summary = "Remove a logger ID from loggers.allowEnable";
+  static summary = "Remove a logger ID from security.loggers.allowEnable";
 
   static args = {
     id: Args.string({ required: true, description: "Logger ID" }),
@@ -25,9 +26,10 @@ export default class ConfigLoggersAllowRemove extends Command {
       explicit: flags.config as string | undefined,
     });
 
-    config.loggers ??= {};
-    config.loggers.allowEnable = removeId(config.loggers.allowEnable, args.id);
-    config.loggers.defaultEnable = removeId(config.loggers.defaultEnable, args.id);
+    const sec = touchSecurity(config);
+    sec.loggers ??= {};
+    sec.loggers.allowEnable = removeId(sec.loggers.allowEnable, args.id);
+    sec.loggers.defaultEnable = removeId(sec.loggers.defaultEnable, args.id);
 
     persistConfig(path, config);
     this.log(`Removed "${args.id}" from logger allow/default lists. ${path}`);
