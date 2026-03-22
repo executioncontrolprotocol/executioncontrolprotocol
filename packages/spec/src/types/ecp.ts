@@ -100,7 +100,7 @@ export interface ECPContext extends Extensible {
    * The ECP specification version this manifest conforms to
    * (e.g. `"ecp/v0.3-draft"`).
    */
-  apiVersion: string;
+  specVersion: string;
 
   /**
    * Must be `"Context"`.

@@ -7,7 +7,7 @@
 
 - **System config shape (v0.5):** Policy moves to top-level **`security`** (mirrors `models`, `tools`, `loggers`, `secrets`, `plugins`, …). **`plugins.allowEnable` / `defaultEnable` / `security`** under `plugins` are removed — use **`security.models.allowProviders`**, **`security.models.defaultProviders`**, and **`security.plugins`**. **`modelProviders`** → **`models.providers`**; **`toolServers`** → **`tools.servers`**; logger allow/default → **`security.loggers`**; **`agentEndpoints`** → **`agents.endpoints`** as **`{ url, config? }`**. Add **`version: "0.5"`**; other `version` values are rejected when set.
 - **Ollama `baseURL`** belongs under **`models.providers.ollama.config.baseURL`** (not a sibling of `defaultModel`).
-- **Context manifests:** **`metadata.version`** is now **required** when loading a Context (semantic version of that manifest).
+- **Context manifests:** Top-level **`apiVersion`** is renamed **`specVersion`** (same string values, e.g. `ecp/v0.3-draft`). **`metadata.version`** is **required** when loading a Context (semantic version of that manifest).
 
 ### Added
 
