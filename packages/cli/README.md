@@ -1,6 +1,10 @@
 # `@executioncontrolprotocol/cli`
 
-Command-line interface for **Execution Control Protocol (ECP)**.
+**Execution Control Protocol (ECP)** specifies portable **Context** manifests for agent orchestration: structured inputs and outputs, tool boundaries, per-executor policies, and host-level enforcement via system config—so runs stay least-privilege and auditable.
+
+**Learn more:** [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
+
+This package is the **command-line interface** for validating and running Contexts.
 
 ## Install
 
@@ -68,5 +72,6 @@ If both `--environment` and `secrets.providers.dot.env.path` are set, **`--envir
 
 ## Links
 
+- **Docs**: [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
 - **Repo**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol`
 - **Issues**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol/issues`

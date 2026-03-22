@@ -1,6 +1,10 @@
 # `@executioncontrolprotocol/runtime`
 
-The **ECP runtime engine**: loads, validates, and executes ECP Context manifests.
+**Execution Control Protocol (ECP)** specifies portable **Context** manifests for agent orchestration: structured inputs and outputs, tool boundaries, per-executor policies, and host-level enforcement via system config—so runs stay least-privilege and auditable.
+
+**Learn more:** [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
+
+This package is the **runtime engine** that loads, validates, and executes Context manifests.
 
 ## Plugin kinds
 
@@ -14,5 +18,6 @@ npm install @executioncontrolprotocol/runtime
 
 ## Links
 
+- **Docs**: [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
 - **Repo**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol`
 - **Issues**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol/issues`
