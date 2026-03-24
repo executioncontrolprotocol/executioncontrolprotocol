@@ -193,11 +193,27 @@ export interface Metadata {
  * Role of a plugin in the Context manifest and runtime registry.
  * `"tool"` denotes MCP (or similar) tool servers wired under system config `tools.servers`
  * and gated by `security.tools` / `security.plugins` on the host.
+ * `"third-party"` marks vendor-packaged plugins; use {@link PluginSecurityPolicy.allowThirdParty} to gate them.
+ * Hosts may also require `"third-party"` in `allowKinds` when set. Use {@link PluginReference.provides} when
+ * `kind` is `"third-party"` to declare the concrete role.
  * Additional values may be added by future spec versions.
  *
  * @category Context
  */
-export type PluginKind = "provider" | "executor" | "logger" | "memory" | "tool";
+export type PluginKind =
+  | "provider"
+  | "executor"
+  | "logger"
+  | "memory"
+  | "tool"
+  | "third-party";
+
+/**
+ * Concrete plugin role after resolving a `"third-party"` umbrella declaration.
+ *
+ * @category Context
+ */
+export type ResolvedPluginKind = Exclude<PluginKind, "third-party">;
 
 /**
  * All defined {@link PluginKind} values (for CLI validation and docs).
@@ -210,14 +226,23 @@ export const PLUGIN_KINDS: readonly PluginKind[] = [
   "logger",
   "memory",
   "tool",
+  "third-party",
 ] as const;
 
 /**
- * The supported plugin artifact source types.
+ * How a plugin artifact is sourced (`builtin`, `npm`, `git`, or `local` only).
+ * Vendor gating uses {@link PluginSecurityPolicy.allowThirdParty}, not an extra source literal here.
  *
  * @category Context
  */
 export type ExtensionSourceType = "builtin" | "npm" | "git" | "local";
+
+/**
+ * All defined {@link ExtensionSourceType} values (for CLI validation and docs).
+ *
+ * @category Context
+ */
+export const EXTENSION_SOURCE_TYPES: readonly ExtensionSourceType[] = ["builtin", "npm", "git", "local"] as const;
 
 /**
  * A version string used by plugin references and manifests.
@@ -282,6 +307,11 @@ export interface PluginReference extends BaseMetadata, Extensible {
    * Optional integrity hash/signature for artifact verification.
    */
   integrity?: string;
+
+  /**
+   * When {@link kind} is `"third-party"`, declares which concrete plugin role this reference implements.
+   */
+  provides?: ResolvedPluginKind;
 }
 
 /**
@@ -303,8 +333,16 @@ export interface PluginSecurityPolicy extends Extensible {
   allowKinds?: PluginKind[];
 
   /**
-   * Source types allowed to load at runtime.
-   * When omitted, only built-in plugins are allowed.
+   * Global switch for vendor / externally installed plugins. When `false`, Context declarations with
+   * {@link PluginKind} `"third-party"` and installs from `npm` / `git` / `local` are blocked.
+   * Use {@link allowSourceTypes} to allow specific artifact channels when third-party is enabled.
+   *
+   * @category Context
+   */
+  allowThirdParty?: boolean;
+
+  /**
+   * Allowed artifact source types: `builtin`, `npm`, `git`, `local` only (no separate `third-party` literal).
    */
   allowSourceTypes?: ExtensionSourceType[];
 
