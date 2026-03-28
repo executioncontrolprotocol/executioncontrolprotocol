@@ -15,6 +15,7 @@ import {
   registerBuiltinModelProviders,
   registerBuiltinLoggers,
   registerBuiltinPlugins,
+  registerDynamicPluginsFromInstalls,
   TraceCollector,
   ConsoleTraceExporter,
   JsonFileTraceExporter,
@@ -193,6 +194,7 @@ export default class Run extends EcpEnvironmentCommand {
     });
     registerBuiltinLoggers(registry, { version: BUILTIN_PLUGIN_VERSION, file: {} });
     registerBuiltinPlugins(registry, { version: BUILTIN_PLUGIN_VERSION });
+    await registerDynamicPluginsFromInstalls(registry, systemConfig);
     registry.lock();
 
     const modelProvider = this.createModelProviderOrFail(registry, providerToUse);

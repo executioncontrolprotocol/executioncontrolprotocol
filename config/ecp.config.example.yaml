@@ -71,15 +71,20 @@ security:
   secrets:
     allowProviders: [os.secrets, dot.env]
 
-  # Global plugin extension policy (PluginSecurityPolicy): kinds, sources, id allow/deny, strict.
+  # Global plugin extension policy (PluginSecurityPolicy): kinds, allowSourceTypes (builtin|npm|git|local only),
+  # id allow/deny, strict, allowThirdParty. Vendor gating: allowThirdParty (not a source-type literal).
+  # CLI: `ecp config security plugins third-party enable|disable`,
+  # `ecp config security plugins allow-source-type add|remove <type>`,
+  # `ecp config security plugins update --allow-third-party` / `--no-allow-third-party`.
   # Not the same tree as top-level `plugins.installs` (artifact installs).
   plugins:
-    allowKinds: [provider, executor, logger, memory, tool]
+    allowKinds: [provider, executor, logger, memory, tool, third-party]
     allowSourceTypes: [builtin]
     allowIds: [openai, ollama, file, memory]
+    # allowThirdParty: true
 
 # ----------------------------------------------------------------------
-# Plugins — installs and packaged-plugin metadata (`ecp config plugins installs …`)
+# Plugins — installs and packaged-plugin metadata (`ecp config plugins add|get|remove|update …`)
 # Populated by the installer; not where allow-lists live. Each install accepts `config`.
 # ----------------------------------------------------------------------
 
@@ -89,6 +94,7 @@ security:
 #       source: { type: npm, spec: "@modelcontextprotocol/server-filesystem@2026.1.14" }
 #       path: ~/.ecp/plugins/filesystem
 #       pluginKind: tool
+#       version: "2026.1.14"
 #       config: {}
 
 # ----------------------------------------------------------------------
