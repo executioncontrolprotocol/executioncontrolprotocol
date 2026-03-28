@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "clean": "node scripts/clean-dist.mjs && tsc -b packages/spec packages/plugins packages/recalled packages/runtime packages/cli --clean",
-    "build": "npm run clean && tsc -b packages/spec packages/plugins packages/recalled packages/runtime packages/cli && npm run generate:schema --workspace=@executioncontrolprotocol/spec",
+    "build": "npm run clean && tsc -b packages/spec packages/plugins packages/recalled packages/runtime packages/cli && npm run generate:schema --workspace=@executioncontrolprotocol/spec && npm run build:examples",
+    "build:examples": "cd examples/third-party-provider-plugin && npm install --ignore-scripts && npx tsc",
     "build:clean": "npm run clean",
     "lint": "eslint . && markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#packages/*/node_modules\" \"#examples/*/node_modules\"",
     "lint:ts": "eslint .",

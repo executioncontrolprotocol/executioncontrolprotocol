@@ -1,8 +1,6 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
 
 import { ExtensionRegistry } from "../src/extensions/registry.js";
 import { registerDynamicPluginsFromInstalls } from "../src/extensions/dynamic-plugins.js";
@@ -15,14 +13,6 @@ const pluginRoot = join(
 );
 
 describe("third-party provider plugin example", () => {
-  beforeAll(() => {
-    if (!existsSync(join(pluginRoot, "node_modules"))) {
-      execSync("npm install", { cwd: pluginRoot, stdio: "pipe" });
-    }
-    if (!existsSync(join(pluginRoot, "dist", "register.js"))) {
-      execSync("npm run build", { cwd: pluginRoot, stdio: "pipe" });
-    }
-  });
   it("loads and registers the mock provider via dynamic loader", async () => {
     const registry = new ExtensionRegistry();
 
