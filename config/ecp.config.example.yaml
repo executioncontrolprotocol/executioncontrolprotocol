@@ -37,11 +37,14 @@ version: "0.5"
 security:
   # Model providers — keys under `models.providers`.
   models:
-    allowProviders: [openai, ollama]
+    allowProviders: [openai, ollama, anthropic, gemini, mistral]
     defaultProviders: [openai]
     allowedModels:
       openai: [gpt-4o-mini, gpt-4o]
       ollama: [gemma3:1b, llama3.2:3b]
+      anthropic: [claude-sonnet-4-20250514, claude-haiku-35-20241022]
+      gemini: [gemini-2.5-flash, gemini-2.5-pro]
+      mistral: [mistral-small-latest, mistral-large-latest]
 
   # MCP tool servers — logical names under `tools.servers`.
   tools:
@@ -71,15 +74,20 @@ security:
   secrets:
     allowProviders: [os.secrets, dot.env]
 
-  # Global plugin extension policy (PluginSecurityPolicy): kinds, sources, id allow/deny, strict.
+  # Global plugin extension policy (PluginSecurityPolicy): kinds, allowSourceTypes (builtin|npm|git|local only),
+  # id allow/deny, strict, allowThirdParty. Vendor gating: allowThirdParty (not a source-type literal).
+  # CLI: `ecp config security plugins third-party enable|disable`,
+  # `ecp config security plugins allow-source-type add|remove <type>`,
+  # `ecp config security plugins update --allow-third-party` / `--no-allow-third-party`.
   # Not the same tree as top-level `plugins.installs` (artifact installs).
   plugins:
-    allowKinds: [provider, executor, logger, memory, tool]
+    allowKinds: [provider, executor, logger, memory, tool, third-party]
     allowSourceTypes: [builtin]
-    allowIds: [openai, ollama, file, memory]
+    allowIds: [openai, ollama, anthropic, gemini, mistral, file, memory]
+    # allowThirdParty: true
 
 # ----------------------------------------------------------------------
-# Plugins — installs and packaged-plugin metadata (`ecp config plugins installs …`)
+# Plugins — installs and packaged-plugin metadata (`ecp config plugins add|get|remove|update …`)
 # Populated by the installer; not where allow-lists live. Each install accepts `config`.
 # ----------------------------------------------------------------------
 
@@ -89,6 +97,7 @@ security:
 #       source: { type: npm, spec: "@modelcontextprotocol/server-filesystem@2026.1.14" }
 #       path: ~/.ecp/plugins/filesystem
 #       pluginKind: tool
+#       version: "2026.1.14"
 #       config: {}
 
 # ----------------------------------------------------------------------
@@ -107,6 +116,18 @@ models:
       supportedModels: [gemma3:1b, llama3.2:3b]
       config:
         baseURL: http://localhost:11434
+    anthropic:
+      defaultModel: claude-sonnet-4-20250514
+      supportedModels: [claude-sonnet-4-20250514, claude-haiku-35-20241022]
+      config: {}
+    gemini:
+      defaultModel: gemini-2.5-flash
+      supportedModels: [gemini-2.5-flash, gemini-2.5-pro]
+      config: {}
+    mistral:
+      defaultModel: mistral-small-latest
+      supportedModels: [mistral-small-latest, mistral-large-latest]
+      config: {}
 
 # ----------------------------------------------------------------------
 # Tools — MCP servers (`ecp config add|update --type tools <name> --transport-type stdio|sse …` or `--file …`). Each server: transport (+ credentials) + `config`.

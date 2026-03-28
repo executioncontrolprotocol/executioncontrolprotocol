@@ -10,6 +10,12 @@ import { OpenAIProvider } from "../providers/openai/openai-provider.js";
 import type { OpenAIProviderConfig } from "../providers/openai/openai-provider.js";
 import { OllamaProvider } from "../providers/ollama/ollama-provider.js";
 import type { OllamaProviderConfig } from "../providers/ollama/ollama-provider.js";
+import { AnthropicProvider } from "../providers/anthropic/anthropic-provider.js";
+import type { AnthropicProviderConfig } from "../providers/anthropic/anthropic-provider.js";
+import { GeminiProvider } from "../providers/gemini/gemini-provider.js";
+import type { GeminiProviderConfig } from "../providers/gemini/gemini-provider.js";
+import { MistralProvider } from "../providers/mistral/mistral-provider.js";
+import type { MistralProviderConfig } from "../providers/mistral/mistral-provider.js";
 import { createFileLogger } from "./loggers/file-logger.js";
 import type { FileLoggerConfig } from "./loggers/file-logger.js";
 import { registerBuiltinMemoryPlugin } from "../plugins/memory/index.js";
@@ -30,6 +36,15 @@ export interface BuiltinModelProviderConfig {
 
   /** Default Ollama provider configuration. */
   ollama?: OllamaProviderConfig;
+
+  /** Default Anthropic provider configuration. */
+  anthropic?: AnthropicProviderConfig;
+
+  /** Default Google Gemini provider configuration. */
+  gemini?: GeminiProviderConfig;
+
+  /** Default Mistral provider configuration. */
+  mistral?: MistralProviderConfig;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -69,6 +84,48 @@ export function registerBuiltinModelProviders(
     create(overrides) {
       return new OllamaProvider({
         ...config.ollama,
+        ...asRecord(overrides),
+      });
+    },
+  });
+
+  registry.registerModelProvider({
+    id: "anthropic",
+    kind: "provider",
+    source: "builtin",
+    version,
+    description: "Built-in Anthropic model provider extension.",
+    create(overrides): ModelProvider {
+      return new AnthropicProvider({
+        ...config.anthropic,
+        ...asRecord(overrides),
+      });
+    },
+  });
+
+  registry.registerModelProvider({
+    id: "gemini",
+    kind: "provider",
+    source: "builtin",
+    version,
+    description: "Built-in Google Gemini model provider extension.",
+    create(overrides): ModelProvider {
+      return new GeminiProvider({
+        ...config.gemini,
+        ...asRecord(overrides),
+      });
+    },
+  });
+
+  registry.registerModelProvider({
+    id: "mistral",
+    kind: "provider",
+    source: "builtin",
+    version,
+    description: "Built-in Mistral AI model provider extension.",
+    create(overrides): ModelProvider {
+      return new MistralProvider({
+        ...config.mistral,
         ...asRecord(overrides),
       });
     },

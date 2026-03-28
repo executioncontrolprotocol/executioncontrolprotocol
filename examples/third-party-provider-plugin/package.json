@@ -1,0 +1,36 @@
+{
+  "name": "ecp-provider-example",
+  "version": "1.0.0",
+  "description": "Example third-party model provider plugin for ECP",
+  "type": "module",
+  "main": "./dist/register.js",
+  "types": "./dist/register.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugins": "file:../../packages/plugins"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "ecp": {
+    "schemaVersion": "1",
+    "id": "example-provider",
+    "kind": "third-party",
+    "provides": "provider",
+    "title": "Example Mock Provider",
+    "description": "A mock model provider demonstrating the ECP third-party plugin contract.",
+    "ecpPeerRange": ">=0.5.0",
+    "entry": {
+      "module": "dist/register.js"
+    },
+    "wiring": {
+      "provider": {
+        "defaultModel": "mock-model-v1",
+        "supportedModels": ["mock-model-v1", "mock-model-v2"],
+        "config": {}
+      }
+    }
+  }
+}

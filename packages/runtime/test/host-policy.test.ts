@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertHostPolicyForContext,
+  assertPluginSecurityPolicyForContext,
   collectModelProviderIdsFromContext,
   modelProviderIdFromConfig,
 } from "../src/engine/host-policy.js";
@@ -223,4 +224,58 @@ describe("assertHostPolicyForContext", () => {
       }),
     ).not.toThrow();
   });
+
+  it("throws when Context plugin reference is not allow-listed", () => {
+    const ctx = {
+      ...minimalContext(),
+      plugins: {
+        version: "1",
+        providers: [{ name: "custom", kind: "provider" as const, type: "npm" as const, version: "1.0.0" }],
+      },
+    } as ECPContext;
+    expect(() =>
+      assertHostPolicyForContext(
+        ctx,
+        {
+          version: "0.5",
+          models: { providers: { openai: { defaultModel: "gpt-4o-mini", supportedModels: ["gpt-4o-mini"] } } },
+          security: {
+            models: { allowProviders: ["openai"] },
+            tools: {},
+            executors: {},
+            memory: {},
+            agents: {},
+            loggers: {},
+            secrets: {},
+            plugins: { allowIds: ["openai"] },
+          },
+        },
+        { providerId: "openai", loggersEnabled: [] },
+      ),
+    ).toThrow(/security\.plugins\.allowIds/);
+  });
 });
+
+describe("assertPluginSecurityPolicyForContext", () => {
+  it("throws for structured model provider ref when allowIds excludes it", () => {
+    const ctx = {
+      specVersion: "ecp/v0.5-draft",
+      kind: "Context",
+      metadata: { name: "t", version: "1.0.0" },
+      orchestration: { strategy: "single" },
+      orchestrator: {
+        name: "o",
+        type: "agent",
+        model: { provider: { name: "ollama", type: "builtin", version: "0.3.0" }, name: "gemma3:1b" },
+        executors: [],
+      },
+      schemas: {},
+    } as ECPContext;
+    expect(() =>
+      assertPluginSecurityPolicyForContext(ctx, {
+        allowIds: ["openai"],
+      }),
+    ).toThrow(/model provider/);
+  });
+});
+

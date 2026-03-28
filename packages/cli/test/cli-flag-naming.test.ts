@@ -35,4 +35,18 @@ describe("CLI flag and arg naming (kebab-case)", () => {
     expect(help("trace")).toMatch(/\bRUN-ID\b/);
     expect(help("graph")).toMatch(/\bRUN-ID\b/);
   });
+
+  it("config plugins topic lists CRUD commands (add, get, remove, update)", { timeout: 60_000 }, () => {
+    const out = help("config plugins");
+    expect(out).toMatch(/\bconfig plugins add\b/);
+    expect(out).toMatch(/\bconfig plugins get\b/);
+    expect(out).toMatch(/\bconfig plugins remove\b/);
+    expect(out).toMatch(/\bconfig plugins update\b/);
+    expect(out).not.toMatch(/config plugins installs\b/);
+  });
+
+  it("plugins remove/update expose --clean and --upgrade", { timeout: 60_000 }, () => {
+    expect(help("config plugins remove")).toMatch(/--clean\b/);
+    expect(help("config plugins update")).toMatch(/--upgrade\b/);
+  });
 });

@@ -53,6 +53,8 @@ ecp validate examples/controller-specialist/context.yaml --input subject=test
 
 ### Gotchas
 
+- **Build before using CLI.** `dist/` directories are gitignored; after `npm install`, run `npm run build` before the `ecp` CLI works. To link the CLI globally: `cd packages/cli && npm link && cd ../..`
+- **Pre-commit hook** runs `npm run lint && npm run test:unit` (via Husky). Both must pass before any commit.
 - **Monorepo with npm workspaces.** Always run `npm install` from the repo root.
 - **Build order matters:** spec → runtime → cli (composite project references).
 - **No Python.** All tooling is NPM-based.

@@ -3,11 +3,9 @@ import type {
   PluginKind,
   PluginSecurityPolicy,
 } from "@executioncontrolprotocol/spec";
-import { PLUGIN_KINDS } from "@executioncontrolprotocol/spec";
+import { EXTENSION_SOURCE_TYPES, PLUGIN_KINDS } from "@executioncontrolprotocol/spec";
 
 import { splitCommaSeparated } from "./parsing.js";
-
-const EXTENSION_SOURCE_TYPES: readonly ExtensionSourceType[] = ["builtin", "npm", "git", "local"];
 
 /**
  * Parse repeatable `--option key=value` flags; duplicate keys are rejected.
@@ -84,6 +82,7 @@ export function buildPluginSecurityPolicyFromFlags(options: {
   allowId?: string[];
   denyId?: string[];
   strict?: boolean;
+  allowThirdParty?: boolean;
 }): PluginSecurityPolicy {
   const policy: PluginSecurityPolicy = {};
   if (options.allowKind?.length) {
@@ -103,7 +102,7 @@ export function buildPluginSecurityPolicyFromFlags(options: {
     for (const s of options.allowSourceType) {
       if (!(EXTENSION_SOURCE_TYPES as readonly string[]).includes(s)) {
         throw new Error(
-          `Invalid --allow-source-type "${s}" (expected one of: ${EXTENSION_SOURCE_TYPES.join(", ")}).`,
+          `Invalid --allow-source-type "${s}" (expected one of: ${[...EXTENSION_SOURCE_TYPES].join(", ")}).`,
         );
       }
       st.push(s as ExtensionSourceType);
@@ -118,6 +117,9 @@ export function buildPluginSecurityPolicyFromFlags(options: {
   }
   if (options.strict !== undefined) {
     policy.strict = options.strict;
+  }
+  if (options.allowThirdParty !== undefined) {
+    policy.allowThirdParty = options.allowThirdParty;
   }
   return policy;
 }

@@ -1,7 +1,7 @@
 import { Command, Flags } from "@oclif/core";
 
 import type { PluginSecurityPolicy } from "@executioncontrolprotocol/spec";
-import { PLUGIN_KINDS } from "@executioncontrolprotocol/spec";
+import { EXTENSION_SOURCE_TYPES, PLUGIN_KINDS } from "@executioncontrolprotocol/spec";
 
 import { readJsonFromFile } from "../../../../lib/config-cli-json.js";
 import { buildPluginSecurityPolicyFromFlags } from "../../../../lib/config-wiring-cli.js";
@@ -26,7 +26,7 @@ export default class ConfigSecurityPluginsUpdate extends Command {
     }),
     "allow-source-type": Flags.string({
       description: "Extension source type allow-list entry (repeatable)",
-      options: ["builtin", "npm", "git", "local"],
+      options: [...EXTENSION_SOURCE_TYPES],
       multiple: true,
     }),
     "allow-id": Flags.string({
@@ -39,6 +39,11 @@ export default class ConfigSecurityPluginsUpdate extends Command {
     }),
     strict: Flags.boolean({
       description: "When true, unknown or disallowed plugin references fail startup",
+      allowNo: true,
+    }),
+    "allow-third-party": Flags.boolean({
+      description:
+        "Allow vendor / third-party plugins and non-builtin install sources (use --no-allow-third-party to disable)",
       allowNo: true,
     }),
   };
@@ -60,9 +65,12 @@ export default class ConfigSecurityPluginsUpdate extends Command {
     );
 
     if (!flags.file && !hasPolicyFlags) {
-      this.error("Provide --file or at least one policy flag (--allow-kind, --allow-source-type, ...).", {
-        exit: 1,
-      });
+      this.error(
+        "Provide --file or at least one policy flag (--allow-kind, --allow-source-type, --allow-third-party, ...).",
+        {
+          exit: 1,
+        },
+      );
     }
     if (flags.file && hasPolicyFlags) {
       this.error("Use either --file or policy flags, not both.", { exit: 1 });
@@ -83,6 +91,7 @@ export default class ConfigSecurityPluginsUpdate extends Command {
           allowId,
           denyId,
           strict: flags.strict,
+          allowThirdParty: flags["allow-third-party"] as boolean | undefined,
         });
       }
     } catch (e) {

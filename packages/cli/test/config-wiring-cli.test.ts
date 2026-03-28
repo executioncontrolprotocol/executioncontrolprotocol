@@ -67,6 +67,19 @@ describe("buildPluginSecurityPolicyFromFlags", () => {
       }),
     ).toThrow(/Invalid --allow-kind/);
   });
+
+  it("sets allowThirdParty from flags", () => {
+    expect(
+      buildPluginSecurityPolicyFromFlags({
+        allowThirdParty: true,
+      }).allowThirdParty,
+    ).toBe(true);
+    expect(
+      buildPluginSecurityPolicyFromFlags({
+        allowThirdParty: false,
+      }).allowThirdParty,
+    ).toBe(false);
+  });
 });
 
 describe("buildToolServerEntryFromFlags", () => {

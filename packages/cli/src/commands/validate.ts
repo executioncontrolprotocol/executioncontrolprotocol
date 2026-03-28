@@ -72,8 +72,8 @@ export default class Validate extends EcpEnvironmentCommand {
     }),
     provider: Flags.string({
       char: "p",
-      description: "Override model provider for host policy check (openai|ollama)",
-      options: ["openai", "ollama"] as const,
+      description: "Override model provider for host policy check (openai|ollama|anthropic|gemini|mistral)",
+      options: ["openai", "ollama", "anthropic", "gemini", "mistral"] as const,
     }),
     logger: Flags.string({
       char: "l",
@@ -114,7 +114,7 @@ export default class Validate extends EcpEnvironmentCommand {
       const providerToUse = flags.provider ?? inferModelProviderFromContext(context);
       if (!providerToUse) {
         throw new Error(
-          'Model provider could not be inferred from the Context. Pass --provider openai|ollama.',
+          'Model provider could not be inferred from the Context. Pass --provider openai|ollama|anthropic|gemini|mistral.',
         );
       }
 

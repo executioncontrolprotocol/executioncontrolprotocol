@@ -4,6 +4,7 @@ export * from "./system-config-loader.js";
 export * from "./system-config-merge.js";
 export * from "./model-policy.js";
 export * from "./host-policy.js";
+export * from "./plugin-security.js";
 export * from "./system-config-validate.js";
 export * from "./schema-validator.js";
 export * from "./runner.js";

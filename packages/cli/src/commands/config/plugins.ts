@@ -1,5 +1,10 @@
 import { Command } from "@oclif/core";
 
+/**
+ * Parent topic for `ecp config plugins` (install entries under `plugins.installs`).
+ *
+ * @category CLI
+ */
 export default class ConfigPlugins extends Command {
   static summary = "Plugin installs (plugins.installs); policy is ecp config security";
 
@@ -7,7 +12,8 @@ export default class ConfigPlugins extends Command {
 
 Subcommands:
   get              List plugins.installs keys + security.plugins summary
-  installs list|add|remove`;
+  add|update       Add or replace an install (use \`--install\` with --npm, --git, or --local to fetch materialize; \`update --upgrade\` re-fetches npm/git)
+  remove           Remove plugins.installs.<id> (\`--clean\` also deletes local installed files)`;
 
   async run(): Promise<void> {
     await this.parse(ConfigPlugins);
@@ -16,9 +22,11 @@ Subcommands:
         "Usage: ecp config plugins <subcommand>",
         "",
         "  get              plugins.installs + security.plugins",
-        "  installs list",
-        "  installs add <id> --npm <spec> [--path <dir>] [--kind tool]",
-        "  installs remove <id>",
+        "  add <id> --npm <spec> [--path <dir>] [--kind tool]   (metadata-only)",
+        "  add <id> --install --npm|git|local …               (fetch + hooks + wiring)",
+        "  update <id> …                                      (same flags as add)",
+        "  update <id> --upgrade                              (re-fetch using stored npm/git source)",
+        "  remove <id> [--clean]",
         "",
         "Policy examples:",
         "  ecp config security models allow add ollama",

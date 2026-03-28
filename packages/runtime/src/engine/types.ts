@@ -10,6 +10,9 @@
 import type {
   ECPContext,
   Executor,
+  ExtensionVersion,
+  PluginInstallSource,
+  PluginKind,
   PluginSecurityPolicy,
   MountStage,
 } from "@executioncontrolprotocol/spec";
@@ -478,9 +481,34 @@ export interface AgentEndpointConfig {
  * @category Engine
  */
 export interface PluginInstallEntry {
-  source?: Record<string, unknown>;
+  /**
+   * Artifact source (npm spec, git URL, local path, or builtin).
+   */
+  source?: PluginInstallSource | Record<string, unknown>;
+
+  /**
+   * Absolute path to the unpacked package on disk.
+   */
   path?: string;
-  pluginKind?: string;
+
+  /**
+   * Declared {@link PluginKind} for this install (includes `"third-party"` when applicable).
+   */
+  pluginKind?: PluginKind;
+
+  /**
+   * Resolved package version label when known.
+   */
+  version?: ExtensionVersion;
+
+  /**
+   * Optional integrity hash for the artifact.
+   */
+  integrity?: string;
+
+  /**
+   * Per-install options merged into host wiring `config` blobs.
+   */
   config?: Record<string, unknown>;
 }
 

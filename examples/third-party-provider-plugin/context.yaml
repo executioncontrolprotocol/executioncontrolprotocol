@@ -1,0 +1,51 @@
+specVersion: ecp/v0.5-draft
+kind: Context
+
+metadata:
+  name: mock-provider-demo
+  version: 1.0.0
+
+plugins:
+  version: 1.0.0
+  providers:
+    - name: example-provider
+      kind: provider
+      type: local
+      version: 1.0.0
+  security: {}
+
+inputs:
+  topic:
+    type: string
+    required: true
+
+outputs:
+  - name: summary
+    fromSchema: Summary
+
+schemas:
+  Summary:
+    type: object
+    required: [headline, body]
+    properties:
+      headline:
+        type: string
+      body:
+        type: string
+
+orchestration:
+  entrypoint: writer
+  strategy: single
+  produces: Summary
+
+executors:
+  - name: writer
+    type: agent
+    model:
+      provider:
+        name: example-provider
+        type: local
+        version: 1.0.0
+      name: mock-model-v1
+    instructions: Given a topic, produce a JSON object with headline and body.
+    outputSchemaRef: "#/schemas/Summary"
