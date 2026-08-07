@@ -1,294 +1,98 @@
-# ECP Registration Architecture (Draft)
+# ECP Architecture (current)
 
-## Status
+This repository implements ECP as a **TypeScript-first workflow authoring and
+execution protocol**.
 
-Draft proposal for implementation planning.
+**Source of truth:** [`ecp-overhaul.md`](ecp-overhaul.md)  
+**Monorepo guide:** [`AGENTS.md`](AGENTS.md)
 
-## Goal
+------------------------------------------------------------------------
 
-Make extensibility a first-class capability by introducing a unified registration
-mechanism for:
+## Core separation
 
-- model providers
-- executors
-- plugins (for storage, memory, observability, and future capabilities)
+ECP is built around a strict separation:
 
-The design must support loading extensions from:
+- **Workflow**: portable execution graph (`@executioncontrolprotocol.workflow`, version `"1.0"`)
+- **Environment**: configured container that executes workflows (runtime +
+  extensions + policies)
+- **Run**: execution of a workflow manifest inside an environment
 
-- npm packages
-- git repositories
-- local modules (for development and testing)
+Rule:
 
-## Design Principles
+> **Workflow manifests are portable. They do not contain runtime config, extension config, policy config, secrets, or host wiring.**
 
-1. Extensible by default
-   - Core runtime depends on contracts, not concrete implementations.
-2. Deterministic resolution
-   - Extension loading is explicit and reproducible.
-3. Least privilege
-   - Plugins declare capabilities; runtime enforces capability-scoped access.
-4. Backward compatible
-   - Existing OpenAI/Ollama and protocol wiring continue working during rollout.
-5. Spec-aware, runtime-safe
-   - Registration metadata can live in Context manifests, but loading remains
-     runtime-controlled with validation and policy checks.
+------------------------------------------------------------------------
 
-## Non-Goals (Initial Phase)
+## Definitions, bindings, invocations
 
-- Remote execution marketplace
-- Arbitrary runtime code execution without trust controls
-- Hot reloading in production
+ECP uses three layers of composition:
 
-## High-Level Architecture
+- **Definition**: declares reusable implementation/contract  
+  `defineExtension(...)`, `defineRuntime(...)`, `definePolicy(...)`
+- **Binding**: configures a definition inside an environment  
+  `extension("@executioncontrolprotocol/memory").with({ ... })`, `runtime("@executioncontrolprotocol/local").with({ ... })`
+- **Invocation**: calls a capability from inside a workflow  
+  `step("@executioncontrolprotocol/memory.search").with(input).as("signals")`
 
-The runtime introduces an `ExtensionRegistry` that manages typed registries:
+------------------------------------------------------------------------
 
-- `ModelProviderRegistry`
-- `ExecutorRegistry`
-- `PluginRegistry`
+## Registry + catalog model
 
-Each registry stores descriptors + factories, keyed by stable IDs. The engine
-resolves these IDs at startup, builds concrete implementations, and injects them
-through existing runtime interfaces.
+At runtime, ECP resolves everything through a registry:
 
-### Core Components
+- **extensions** register capabilities and lifecycle hooks
+- **policies** register governance hooks (`policy:pre` / `policy:post` / `policy:finally`)
+- **runtimes** provide an executor that runs the workflow graph and emits lifecycle
 
-#### 1) Plugin descriptor
+Extension packages “self-catalog” at module load (e.g. `catalogExtension(def)`).
+Environments bind extensions by id (string) after importing the package so its
+definitions are available.
 
-Common metadata for registered plugins:
+Key boundary:
 
-- `id` (globally unique, kebab-case)
-- `kind` — **`provider`**, **`executor`**, **`logger`**, **`memory`**, or future plugin kinds
-- `version`
-- `apiVersion` (ECP plugin API compatibility)
-- `capabilities` (declared features)
-- `description` and optional metadata
+> **Extensions never import hosts.** Extension packages depend on `@executioncontrolprotocol/types` +
+> `@executioncontrolprotocol/core` only. Host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`) wrap core.
 
-#### 2) Extension Factories
+------------------------------------------------------------------------
 
-Factories create runtime instances from validated config:
+## Execution lifecycle (public)
 
-- model provider factory -> `ModelProvider`
-- executor factory -> executor runtime adapter
-- plugin factory -> plugin instance with lifecycle hooks
-- plugin factory with `kind: "logger"` -> progress callback (`ProgressCallback`); `kind: "memory"` and future kinds return their own instance shapes
+Only these public lifecycle scopes are stable:
 
-Factories must be pure with explicit dependencies:
+- `run:*`
+- `step:*`
+- `policy:*`
 
-- logger/tracing
-- network/tool access policy handles
-- config object (schema-validated)
+Policies can:
 
-#### 3) Extension Registry
+- **allow**: continue
+- **deny**: block execution
+- **pause**: require approval/human gating
+- **modify**: apply modifications (within policy constraints)
 
-Responsibilities:
+------------------------------------------------------------------------
 
-- register descriptors/factories
-- detect conflicts (duplicate IDs or incompatible versions)
-- expose query API by kind/capability
-- lock registry after bootstrap to prevent drift
+## Package architecture (at a glance)
 
-#### 4) Extension Loader
+- `@executioncontrolprotocol/types`: protocol types + JSON Schema artifacts
+- `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine
+- `@executioncontrolprotocol/node`: Node runtime host
+- `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI)
+- `@executioncontrolprotocol/extensions/*`: first-party extensions (written like third-party extensions)
+- `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
+- `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
+- `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/encode/decode
+- `@executioncontrolprotocol/harnesses-browser-nano`: harness tasks used by demo + evals
+- `@executioncontrolprotocol/evals` (private): harness/provider eval fixtures + matrix tests
+- [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo): reference UI app using the browser runtime + harnesses
 
-Resolves extension packages from declared sources:
+------------------------------------------------------------------------
 
-- `npm`: package name + semver or lockfile pin
-- `git`: repo URL + commit SHA/tag
-- `local`: file path for local development
+## Harnesses vs evals
 
-Responsibilities:
+- **Harnesses** define how ECP calls models/providers to author/repair/assist with
+  ECP artifacts (prompts, repair loop, decode/validation feedback).
+- **Evals** are fixture-driven tests that hold harnesses accountable across
+  provider profiles.
 
-- fetch/install into isolated extension cache
-- verify integrity (hash/signature where available)
-- dynamically import declared entrypoint
-- call extension module `register(registry, context)`
-
-#### 5) Plugin Runtime Host
-
-Standard lifecycle for plugins:
-
-- `onInit` (startup)
-- `onRunStart`
-- `onBeforeExecutor`
-- `onAfterExecutor`
-- `onRunEnd`
-- `onShutdown`
-
-This host provides capability-scoped APIs instead of direct internals.
-
-## Extension Types
-
-## Model Providers
-
-Register providers under a provider ID used by `executor.model.provider`.
-
-Example capability declarations:
-
-- `generate-text`
-- `structured-output`
-- `tool-calling`
-- `streaming`
-
-Runtime selection model:
-
-- if executor sets `model.provider`, resolve via `ModelProviderRegistry`
-- fallback to default provider only when explicitly configured
-
-## Executors
-
-Register executor implementations by `executor.type` and optional subtype.
-
-Examples:
-
-- `agent`
-- `tool`
-- `human`
-- future custom types (`workflow`, `router`, `critic`)
-
-Executor plugins should not bypass policy enforcement. The runtime wraps all
-executor calls with policy and budget checks.
-
-## Plugins
-
-Register cross-cutting features and domain services.
-
-Initial plugin categories:
-
-- storage (future short-term/long-term memory)
-- artifacts
-- observability exporters
-- policy extensions
-- credential resolvers
-
-Plugins may also expose named services for other extensions through a controlled
-service locator owned by the runtime host.
-
-## Registration Sources and Locking
-
-To support npm and git while preserving reproducibility:
-
-1. Context/runtime declares extension sources.
-2. Loader resolves them into a local extension cache.
-3. Resolution output is written to a lock artifact (for example
-   `ecp.extensions.lock`), containing:
-   - source kind (`npm`/`git`/`local`)
-   - resolved version / commit SHA
-   - integrity hash
-   - entrypoint path
-4. Subsequent runs can operate in locked mode (no floating upgrades).
-
-## Proposed Context Shape (Conceptual)
-
-This is an architectural target, not final schema:
-
-- `extensions.sources[]`
-  - `name`
-  - `type`: `npm` | `git` | `local`
-  - source-specific fields (`package`, `version`, `repo`, `ref`, `path`)
-  - `integrity` (optional but recommended)
-- Plugin enable list is **runtime-only** (CLI `--enable` or system config `defaultEnable`). Contexts declare `plugins.providers` but cannot enable plugins themselves; the system/CLI controls which are enabled and can allow-list via system config (`allowEnable`).
-- `plugins.config.<pluginId>`
-  - schema-validated config passed to factory/hooks
-
-The final schema should remain minimal and default-deny:
-
-- extensions are disabled unless explicitly enabled
-- unknown extension IDs fail validation or startup (strict mode)
-
-## Security Model
-
-### Trust Levels
-
-Each source is assigned trust policy:
-
-- `trusted` (internal signed packages)
-- `restricted` (allow-listed public packages)
-- `blocked` (deny)
-
-### Enforcement
-
-- allow-list package names and git hosts
-- require commit SHA pin for git in production mode
-- optional signature/integrity verification
-- capability gating at runtime host boundary
-- sandbox constraints for plugin I/O (where runtime supports isolation)
-
-## Versioning and Compatibility
-
-Define a versioned extension API contract:
-
-- `ECP_EXTENSION_API_VERSION = "v1"`
-
-Each extension declares `apiVersion`; loader rejects incompatible versions.
-This allows evolving runtime internals without breaking extension contracts.
-
-## Bootstrap Flow
-
-1. Parse context + runtime config.
-2. Build empty registry.
-3. Register built-in extensions (OpenAI, Ollama, default executors, etc.).
-4. Resolve and load external extension sources.
-5. Apply enable-list and config validation.
-6. Freeze registry.
-7. Construct engine with resolved providers/executors/plugins.
-8. Execute run with plugin lifecycle hooks.
-
-## Failure Handling
-
-- Duplicate extension ID -> startup error.
-- Missing enabled extension -> startup error.
-- Incompatible `apiVersion` -> startup error.
-- Plugin init failure:
-  - strict mode: fail startup
-  - permissive mode: disable plugin and continue with warning
-
-## Incremental Implementation Plan
-
-## Phase 1: Internal Registry Abstractions
-
-- Add typed registry interfaces in runtime.
-- Keep current CLI behavior by registering built-ins only.
-- Route provider resolution through registry (no external loading yet).
-
-## Phase 2: Source Loader (Local + NPM)
-
-- Implement extension loader with local and npm sources.
-- Add lock artifact generation and locked-mode resolution.
-- Add validation + trust policy config.
-
-## Phase 3: Git Sources
-
-- Add git resolver with SHA pinning and integrity checks.
-- Add caching strategy and retry/backoff behavior.
-
-## Phase 4: Plugin Host + Storage Plugins
-
-- Introduce plugin lifecycle hooks.
-- Add first storage plugin contract for short-term/long-term memory.
-- Expose storage service to executors through typed runtime API.
-
-## Phase 5: Spec Integration
-
-- Add `plugins` fields to ECP spec types.
-- Regenerate JSON schema.
-- Add validator checks for extension IDs and config shape references.
-
-## Secret providers (tool credentials)
-
-The runtime resolves `tools.servers.*.credentials.bindings` through a **secret registry** using stable provider ids: **`process.env`**, **`dot.env`**, and **`os.secrets`**. Bindings declare which namespace to read; the CLI can override the on-disk `.env` file for **`dot.env`** with **`--environment`** on execution-oriented commands, while `ecp config secrets` uses persisted config only (no `--environment`). Default secret ref ids are **`ecp://<key>`** (provider is not in the URI). OS-backed entries use that string as the keyring target (**`Entry.withTarget`**) so Windows Credential Manager does not append a second `ecp` from the default `username.service` pattern.
-
-## Testing Strategy for Implementation Phase
-
-When implementation starts, validate with:
-
-- unit tests for registries, conflict detection, version checks
-- integration tests for source resolution (npm/git/local)
-- engine tests for provider/executor selection via registry
-- plugin lifecycle tests with deterministic fixtures
-- negative tests for trust policy and lock mismatches
-
-E2E should cover:
-
-- loading provider from npm package
-- loading plugin from git SHA
-- storage plugin participation in an orchestrated run
+Harnesses should not own fixtures; evals should not re-implement harness logic.

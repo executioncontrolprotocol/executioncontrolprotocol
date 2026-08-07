@@ -1,0 +1,12 @@
+{
+  "schema": "@executioncontrolprotocol.patch",
+  "version": "1.0.0",
+  "targetSchema": "@executioncontrolprotocol.workflow",
+  "patches": [
+    {
+      "path": "steps[echo].label",
+      "value": "New label",
+      "mode": "replace"
+    }
+  ]
+}

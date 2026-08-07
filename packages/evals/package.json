@@ -1,0 +1,34 @@
+{
+  "name": "@executioncontrolprotocol/evals",
+  "version": "0.0.10",
+  "description": "Harness and provider evaluation tests for ECP",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/browser": "0.0.10",
+    "@executioncontrolprotocol/chrome-ai": "0.0.10",
+    "@executioncontrolprotocol/core": "0.0.10",
+    "@executioncontrolprotocol/harnesses-browser-nano": "0.0.10",
+    "@executioncontrolprotocol/harnesses-browser-coding": "0.0.10",
+    "@executioncontrolprotocol/extension-ollama": "0.0.10",
+    "@executioncontrolprotocol/format-eql": "0.0.10",
+    "@executioncontrolprotocol/format-toon": "0.0.10",
+    "@executioncontrolprotocol/node": "0.0.10",
+    "@executioncontrolprotocol/types": "0.0.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,320 @@
+{
+  "cases": [
+    {
+      "id": "chat-01",
+      "suite": "chat",
+      "title": "Troubleshoot failure routes to patch",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "The workflow failed on echo, help me fix it.",
+        "manifestRef": "workflows/echo-workflow.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "workflow-patch"
+          },
+          {
+            "kind": "shotCount",
+            "value": 2
+          },
+          {
+            "kind": "promptPhase",
+            "shotIndex": 0,
+            "value": "unfiltered"
+          },
+          {
+            "kind": "promptPhase",
+            "shotIndex": 1,
+            "value": "contextualized"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "chat-02",
+      "suite": "chat",
+      "title": "Create routing",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "I need a new workflow with echo and summarize."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "workflow-create"
+          },
+          {
+            "kind": "shotCount",
+            "value": 2
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "chat-03",
+      "suite": "chat",
+      "title": "FAQ how patching works",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "How does workflow patching work?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "faq"
+          },
+          {
+            "kind": "classifiedTopic",
+            "contains": "patch"
+          },
+          {
+            "kind": "shotCount",
+            "value": 2
+          },
+          {
+            "kind": "replySchema"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Explains ECP patching without changing a workflow",
+          "classifiedIntent": "faq",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "chat-04",
+      "suite": "chat",
+      "title": "What is ECP",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "What is ECP?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "faq"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ECP"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Defines ECP briefly",
+          "classifiedIntent": "faq",
+          "rubric": "One or two sentences, no markdown fences",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "chat-05",
+      "suite": "chat",
+      "title": "Capabilities question",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "What extensions are available in this environment?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "general"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ecp"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Lists ECP extensions",
+          "classifiedIntent": "general",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "chat-06",
+      "suite": "chat",
+      "title": "Patch label change",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "Change the echo step label to Patched Echo.",
+        "manifestRef": "workflows/echo-workflow.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "workflow-patch"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "chat-07",
+      "suite": "chat",
+      "title": "Identity question",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "What can you do?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "general"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "workflow"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "States assistant capabilities",
+          "classifiedIntent": "general",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "chat-08",
+      "suite": "chat",
+      "title": "Off-topic joke",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "Tell me a joke."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "classifiedIntent",
+            "value": "general"
+          },
+          {
+            "kind": "classifiedTopic",
+            "contains": "off-topic"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true,
+          "classifiedIntent": "general"
+        }
+      }
+    },
+    {
+      "id": "chat-09",
+      "suite": "chat",
+      "title": "Run status assistant",
+      "harness": "chat",
+      "model": "default",
+      "input": {
+        "message": "What is the run status?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "shotCount",
+            "value": 2
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "fail"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Reports failed run status",
+          "rubric": "Mentions failed status from run context",
+          "requireApproved": true
+        }
+      }
+    }
+  ]
+}

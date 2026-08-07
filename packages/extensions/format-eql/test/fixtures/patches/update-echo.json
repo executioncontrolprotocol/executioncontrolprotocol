@@ -1,0 +1,32 @@
+{
+  "schema": "@executioncontrolprotocol.patch",
+  "version": "1.0",
+  "targetSchema": "@executioncontrolprotocol.workflow",
+  "patches": [
+    {
+      "path": "workflow.id",
+      "mode": "replace",
+      "value": "echo-test"
+    },
+    {
+      "path": "steps[echo].label",
+      "mode": "replace",
+      "value": "Echo step"
+    },
+    {
+      "path": "steps[echo].input.prompt",
+      "mode": "merge",
+      "value": "hello"
+    },
+    {
+      "path": "steps[echo].as",
+      "mode": "replace",
+      "value": "brief"
+    },
+    {
+      "path": "steps[echo].mode",
+      "mode": "replace",
+      "value": "replace"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true
+  },
+  "references": [
+    { "path": "../../types" },
+    { "path": "../../core" },
+    { "path": "../browser-nano" }
+  ],
+  "include": ["src/**/*.ts", "src/import-meta-glob.d.ts"]
+}

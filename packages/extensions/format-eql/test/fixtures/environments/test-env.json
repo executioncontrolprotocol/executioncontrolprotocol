@@ -1,0 +1,27 @@
+{
+  "schema": "@executioncontrolprotocol.environment",
+  "version": "1.0",
+  "environment": {
+    "id": "test-env",
+    "label": "Test Environment"
+  },
+  "runtime": {
+    "id": "@executioncontrolprotocol/in-memory",
+    "label": "In memory"
+  },
+  "extensions": [
+    {
+      "id": "@executioncontrolprotocol/test",
+      "order": 0,
+      "label": "Test extension",
+      "config": { "enabled": true }
+    }
+  ],
+  "policies": [
+    {
+      "id": "@executioncontrolprotocol/budget",
+      "order": 1,
+      "label": "Budget"
+    }
+  ]
+}

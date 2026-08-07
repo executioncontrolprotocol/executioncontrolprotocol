@@ -1,0 +1,44 @@
+{
+  "name": "@executioncontrolprotocol/extensions",
+  "version": "0.0.10",
+  "description": "Aggregator that registers first-party ECP extensions",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/extension-memory": "0.0.10",
+    "@executioncontrolprotocol/extension-ollama": "0.0.10",
+    "@executioncontrolprotocol/extension-openai": "0.0.10",
+    "@executioncontrolprotocol/extension-slack": "0.0.10",
+    "@executioncontrolprotocol/extension-storage": "0.0.10",
+    "@executioncontrolprotocol/extension-telemetry": "0.0.10",
+    "@executioncontrolprotocol/format-eql": "0.0.10",
+    "@executioncontrolprotocol/format-mermaid": "0.0.10",
+    "@executioncontrolprotocol/format-toon": "0.0.10"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "^0.0.10",
+    "@executioncontrolprotocol/types": "^0.0.10",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "0.0.10",
+    "@executioncontrolprotocol/types": "0.0.10",
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  }
+}

@@ -1,14 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "composite": true },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../spec" },
-    { "path": "../plugins" },
-    { "path": "../runtime" }
+    { "path": "../types" },
+    { "path": "../core" },
+    { "path": "../runtimes/node" },
+    { "path": "../extensions/secrets" }
   ]
 }

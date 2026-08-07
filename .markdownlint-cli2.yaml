@@ -1,0 +1,6 @@
+# File discovery for markdownlint-cli2 (rule overrides in .markdownlint.yaml).
+globs:
+  - "**/*.md"
+ignores:
+  - "**/node_modules/**"
+  - "docs/ecp-implementation-assessment.md"

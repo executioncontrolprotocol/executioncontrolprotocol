@@ -4,10 +4,9 @@
 
 > **The runtime specification for agentic systems.**
 
-Execution Control Protocol (ECP) is an open standard for defining,
-packaging, versioning, and deploying **execution environments for AI agents** —
-portable specifications that describe what an agent can see, what tools it can
-access, and how it runs.
+Execution Control Protocol (ECP) is an open standard and reference implementation
+for defining, packaging, versioning, and running **portable deterministic and semi-deterministic workflow execution environments for AI agents, built by agents** in
+**governed execution environments**.
 
 ECP is designed to **embrace and extend** the Model Context Protocol
 (MCP) — not replace it.
@@ -25,7 +24,7 @@ Think of ECP as:
 
 ## Getting Started
 
-**Prerequisites:** Node.js 22+, npm or pnpm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
+**Prerequisites:** Node.js 22+, npm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
 
 ```bash
 git clone https://github.com/GuillaumeCleme/executioncontextprotocol.git
@@ -34,24 +33,23 @@ npm install   # or pnpm install
 npm run build
 ```
 
-**Install the CLI (recommended):** `cd packages/cli && npm link && cd ../..`  
-(Or use `npx ecp …` from the repo root after `npm run build`.)
+**Install the CLI (recommended):** `npm link` from `packages/cli/` after `npm run build`.
 
-**Run an example** (from the repo root, use a system config file—copy `config/ecp.config.example.yaml` to `ecp.config.yaml`, or pass `--config`):
-
-```bash
-ecp run examples/single-executor/context.yaml --config config/ecp.config.example.yaml --provider ollama --model gemma3:1b -i topic="ECP"
-```
-
-**Validate a Context:**
+**Run an example** (from the repo root):
 
 ```bash
-ecp validate examples/single-executor/context.yaml --config config/ecp.config.example.yaml
+ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-**Full setup guide:** [SETUP.md](SETUP.md) — global CLI install, Ollama, environment variables, system config (`ecp.config.yaml`), and docs.
+**Validate a workflow against an environment:**
 
-**MCP credentials:** secret bindings use provider ids `process.env`, `dot.env`, and `os.secrets` (see [packages/cli/README.md](packages/cli/README.md) and [CHANGELOG.md](CHANGELOG.md) for v0.4.2).
+```bash
+ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+```
+
+**Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
+**Implementation spec (source of truth):** [`ecp-overhaul.md`](ecp-overhaul.md)  
+**Docs:** [`docs/`](docs/)
 
 ------------------------------------------------------------------------
 
@@ -103,9 +101,10 @@ Today:
 -   Permissions are unclear.
 -   Configurations are not portable.
 
-ECP introduces a portable, versioned object called a **Context**.
+ECP introduces a portable, versioned object called a **Workflow** (executed inside
+an **Environment**).
 
-A Context defines the **execution environment** for an AI agent:
+An Environment defines the governed execution container for an agent/system:
 
 -   What MCP servers are available
 -   What tools are allowed
@@ -118,8 +117,8 @@ A Context defines the **execution environment** for an AI agent:
 ECP enables:
 
 -   Shareable execution environments
--   Verticalized contexts (e.g., Shopify Ops Context, RevOps Context)
--   Agency-built reusable contexts
+-   Verticalized environments (e.g., Shopify Ops Environment, RevOps Environment)
+-   Reusable workflow libraries
 -   Safe, inspectable cross-system AI execution
 
 ------------------------------------------------------------------------
@@ -179,34 +178,24 @@ Applications
 
 ## Core Concepts
 
-### Context
+### Workflow
 
-A declarative, versioned, parameterized **execution environment** specification for an AI agent.
+A portable, runtime-free execution graph (schema: `@executioncontrolprotocol.workflow`, version: `"1.0"`).
 
-Equivalent to a Dockerfile + image manifest.
-
-Does not include ephemeral data.
+Workflows do **not** contain runtime config, extension config, policy config, or secrets.
 
 ------------------------------------------------------------------------
 
-### Context Instance
+### Environment
 
-A deployed, parameterized installation of a Context.
-
-Equivalent to a Docker container.
-
-Binds:
-
-- Credentials
-- Inputs
-- Team scope
-- Trigger activation
+A configured execution container that binds a runtime, extensions, policies, and
+secret sources, then executes workflows deterministically under governance.
 
 ------------------------------------------------------------------------
 
 ### Execution
 
-A single execution of an instance in response to a trigger.
+A single execution of a workflow manifest inside an environment.
 
 Includes:
 
@@ -285,98 +274,41 @@ Instead of defining **fixed workflows**, ECP defines **execution environments fo
 
 ------------------------------------------------------------------------
 
-## ECP v0.1 Example Schema
+## Workflow Hello World
 
-Included in this repository is an example Context manifest:
-[`spec.yaml`](spec.yaml).
+The smallest runnable workflow in this repo is the echo example:
 
-See also the [full specification](SPEC.md) and the
-[TypeScript type definitions](packages/spec/src/types/ecp.ts).
-Plugin registration and loader architecture are documented in
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
-
-**Plugin authors (TypeScript):** install [`@executioncontrolprotocol/plugins`](https://www.npmjs.com/package/@executioncontrolprotocol/plugins) for manifest types plus runtime contracts (`ModelProvider`, `MemoryStore`, `ProgressCallback`, extension registration shapes) without depending on the full engine. Example:
-
-```ts
-import type { PluginReference, ModelProvider, PluginRegistration } from "@executioncontrolprotocol/plugins";
+```bash
+ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-------------------------------------------------------------------------
-
-## Hello World
-
-A minimal Context in under a minute:
-
-```yaml
-specVersion: ecp/v0.5-draft
-kind: Context
-
-metadata:
-  name: hello-agent
-  version: 1.0.0
-
-plugins:
-  version: 1.0.0
-  providers:
-    - name: openai
-      kind: provider
-      type: builtin
-      version: 0.3.0
-  security: {}
-
-inputs:
-  topic:
-    type: string
-    required: true
-
-outputs:
-  - name: summary
-    fromSchema: Summary
-
-schemas:
-  Summary:
-    type: object
-    required: [headline, body]
-    properties:
-      headline: { type: string }
-      body: { type: string }
-
-orchestration:
-  entrypoint: summarizer
-  strategy: single
-  produces: Summary
-
-executors:
-  - name: summarizer
-    type: agent
-    model:
-      provider: { name: openai, type: builtin, version: 0.3.0 }
-      name: gpt-4o-mini
-    instructions: Given a topic, produce a JSON object with headline and body.
-    outputSchemaRef: "#/schemas/Summary"
-```
-
-Run it: `ecp run context.yaml -i topic="AI agents"`
-
-See [`examples/single-executor/context.yaml`](examples/single-executor/context.yaml) for a full runnable example.
+The canonical artifact is the JSON workflow manifest (`@executioncontrolprotocol.workflow`), even when
+you author in TypeScript via the Fluent API.
 
 ------------------------------------------------------------------------
 
 ## Repository Structure
 
+This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). For commands, package boundaries, and extension rules, start with [`AGENTS.md`](AGENTS.md).
+
 | Path | Description |
 | ---- | ----------- |
-| [`spec.yaml`](spec.yaml) | Canonical example Context manifest |
-| [`SPEC.md`](SPEC.md) | Full protocol specification |
-| **[`SETUP.md`](SETUP.md)** | **Setup guide: install, CLI (global), env vars, Ollama, system config, docs** |
-| [`config/`](config/) | Example system config (`ecp.config.example.yaml`) — allow-list plugins and security; use with `--config` or copy to `./ecp.config.yaml` / `~/.ecp/config.yaml` |
-| [`packages/spec/`](packages/spec/) | TypeScript types, JSON Schema, validators |
-| [`packages/plugins/`](packages/plugins/) | Publishable plugin + manifest types for contributors (`@executioncontrolprotocol/plugins` on npm) |
-| [`packages/runtime/`](packages/runtime/) | Execution engine, providers, protocols |
-| [`packages/cli/`](packages/cli/) | CLI tool (`ecp run` / `ecp validate`) |
-| [`packages/docs/`](packages/docs/) | TypeDoc documentation generator |
-| [`examples/`](examples/) | Example Context manifests |
-| [`evals/`](evals/) | Evaluation cases and rubrics |
+| [`packages/types/`](packages/types/) | Protocol types and generated JSON Schema (`@executioncontrolprotocol/types`) |
+| [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch (`@executioncontrolprotocol/core`; subpaths `@executioncontrolprotocol/core/node`, `@executioncontrolprotocol/core/browser`, …) |
+| [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
+| [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, session config (`@executioncontrolprotocol/browser`) — **not** the demo UI |
+| [`packages/runtimes/temporal/`](packages/runtimes/temporal/) | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
+| [Browser demo (standalone repo)](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) | Reference browser demo app (Vite + React): chat, panels, provider picker |
+| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp encode`, …) |
+| [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
+| [`packages/harnesses/`](packages/harnesses/) | Harnesses (agent-facing author/repair/invoke flows); used by demo + evals |
+| [`packages/evals/`](packages/evals/) | Eval fixtures and matrix tests for harness behavior (`@executioncontrolprotocol/evals`, private) |
+| [`packages/mcp/`](packages/mcp/) | MCP server adapter |
+| [`packages/policies/`](packages/policies/) | Budget, approval, state-control policies |
+| [`examples/`](examples/) | Fluent workflow + environment examples (`workflow.ts`, `environment.ts`) |
+| [`archive/legacy-v0.5/`](archive/legacy-v0.5/) | Archived v0.5 Context YAML CLI and docs |
+| [`ecp-overhaul.md`](ecp-overhaul.md) | Current implementation spec |
+| [`docs/`](docs/) | Project documentation (browser demo, harness evals, patch model, etc.) |
 
 ------------------------------------------------------------------------
 

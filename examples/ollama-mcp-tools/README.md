@@ -1,47 +1,27 @@
 # Ollama + MCP tools (ECP examples)
 
-This folder contains **ECP Context** examples that use an **Ollama model** and invoke **MCP tools**.
+Legacy documentation note: this folder originally contained v0.5 **Context YAML**
+examples showing how to wire MCP tools alongside an Ollama model.
+
+The repository has since moved to the v1 model: portable **workflows**
+(`@executioncontrolprotocol.workflow`) executed inside configured **environments** (runtime + extensions +
+policies). MCP integration in v1 is primarily represented by:
+
+- `@executioncontrolprotocol/mcp` (package): expose an environment to agents via MCP tools/resources/prompts
+- extensions that provide capabilities backed by tool servers (host-specific)
 
 ## Prereqs
 
-- Ollama running locally (default: `http://localhost:11434`)
-- An Ollama model pulled (example uses `llama3.2:3b`)
-- ECP CLI available (`npm i` at repo root, then `npm run build`)
+- Node.js 22+
+- (Optional) Ollama running locally
 
-## Example A — public MCP (`mcp-server-fetch`)
+## What is still useful here
 
-This uses the public `mcp-server-fetch` server (tool name: `fetch`).
+This folder still contains a small deterministic stdio MCP server you can reuse for
+local wiring tests:
 
-Run:
+- `servers/fake-mcp-server.ts`
 
-```bash
-ecp run examples/ollama-mcp-tools/context-fetch-toolcalling.yaml ^
-  ^
-  --provider ollama ^
-  --model llama3.2:3b ^
-  --input url=https://example.com ^
-```
-
-Notes:
-
-- MCP tool wiring is configured via `tools.servers.fetch.transport` in `ecp.config.yaml`.
-- Tool permissions come from the Context manifest (`policies.toolAccess`), not from CLI flags.
-- If you prefer `uvx`, replace the `command/args` with `uvx mcp-server-fetch` and (on Windows) set `PYTHONIOENCODING=utf-8`.
-
-## Example B — local fake MCP server (deterministic)
-
-This runs a tiny local MCP server (TypeScript over stdio) so you can test MCP wiring without Docker, Python, or network.
-
-Run:
-
-```bash
-ecp run examples/ollama-mcp-tools/context-fake-jira-mounts.yaml ^
-  ^
-  --provider ollama ^
-  --model llama3.2:3b ^
-  --input project=OPS ^
-```
-
-Notes:
-
-- MCP tool wiring is configured via `tools.servers.test-jira.transport` in `ecp.config.yaml`.
+If you want a runnable v1 example for MCP tool wiring, the recommended approach is
+to author a dedicated environment module that binds an extension capable of talking
+to your MCP server, then run a workflow that invokes that capability.

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&amp;family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .node-canvas {
+            background-image: radial-gradient(circle, #2d3449 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            background: rgba(11, 19, 38, 0.85);
+        }
+        .code-line::before {
+            content: attr(data-line);
+            display: inline-block;
+            width: 2rem;
+            color: #4d4632;
+            text-align: right;
+            margin-right: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .glow-primary { box-shadow: 0 0 15px rgba(250, 204, 21, 0.2); }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2d3449; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4d4632; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#231b00",
+                        "on-secondary": "#233143",
+                        "on-tertiary-container": "#006270",
+                        "on-primary": "#3c2f00",
+                        "background": "#0b1326",
+                        "surface": "#0b1326",
+                        "surface-container-high": "#222a3d",
+                        "surface-container-highest": "#2d3449",
+                        "secondary-fixed": "#d4e4fa",
+                        "primary-fixed": "#ffe083",
+                        "on-tertiary-fixed-variant": "#004e59",
+                        "on-secondary-fixed-variant": "#39485a",
+                        "surface-container-low": "#131b2e",
+                        "on-tertiary-fixed": "#001f25",
+                        "tertiary": "#c7f5ff",
+                        "inverse-on-surface": "#283044",
+                        "on-secondary-container": "#a7b6cc",
+                        "on-surface-variant": "#d1c6ab",
+                        "on-primary-container": "#6c5700",
+                        "error-container": "#93000a",
+                        "primary": "#facc15",
+                        "surface-dim": "#0b1326",
+                        "surface-tint": "#eec200",
+                        "inverse-primary": "#735c00",
+                        "secondary-fixed-dim": "#b9c8de",
+                        "surface-container-lowest": "#060e20",
+                        "on-error": "#690005",
+                        "surface-container": "#171f33",
+                        "inverse-surface": "#dae2fd",
+                        "surface-variant": "#2d3449",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#a0efff",
+                        "outline": "#9a9078",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#4d4632",
+                        "tertiary-fixed-dim": "#15daf4",
+                        "on-tertiary": "#00363e",
+                        "on-background": "#dae2fd",
+                        "on-surface": "#dae2fd",
+                        "surface-bright": "#31394d",
+                        "tertiary-container": "#33e4ff",
+                        "on-primary-fixed-variant": "#574500",
+                        "primary-container": "#facc15",
+                        "primary-fixed-dim": "#eec200",
+                        "secondary-container": "#39485a",
+                        "on-secondary-fixed": "#0d1c2d",
+                        "secondary": "#b9c8de"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "margin-mobile": "20px",
+                        "base": "8px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "sidebar-width": "380px",
+                        "canvas-padding": "32px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["JetBrains Mono"],
+                        "display-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "display-lg-mobile": ["36px", {"lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background h-screen overflow-hidden font-body-md selection:bg-primary/30">
+<!-- Top Navigation Bar (Shared Component: TopAppBar) -->
+<header class="flex justify-between items-center w-full px-gutter bg-surface dark:bg-surface h-16 border-b border-outline-variant relative z-50">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">Graph Editor</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-primary border-b-2 border-primary pb-1 font-label-sm text-label-sm cursor-pointer" href="#">Editor</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm cursor-pointer" href="#">Variables</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm cursor-pointer" href="#">History</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm cursor-pointer" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<button class="px-4 py-1.5 rounded border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm">Save</button>
+<button class="px-4 py-1.5 rounded bg-primary text-on-primary font-bold hover:brightness-110 transition-transform active:scale-95 font-label-sm text-label-sm">Execute</button>
+</div>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface">settings</span>
+<img alt="User avatar" class="w-8 h-8 rounded-full border border-outline-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcBFls6CeFFsYpCgrqhMT6lt-rY3G_o-CosTql2EXigTJJNOKUJiwaboENslzan0XWC8RLNT0q-Ec93lAmfWB4bpqi8SqPY9gH59tEm5fM8SHbRABRmTrrL7famM3N_ERpZ1yLNp2AUZQnYxN3VkZ22cB5IIThQFVxQ1VDNbG45gYpedSrUbG6iORwcXSUmXd_pcsY_vIMjzbU7BzrTaXpSo2LbM9LQ2ZE0krTq7dbM2fj1kfd0BNV4vUdsGAfwDbjRS4xf1vJKpfl"/>
+</div>
+</header>
+<main class="flex h-[calc(100vh-64px)] w-full relative">
+<!-- Left Sidebar (Shared Component: SideNavBar / Code Editor Interface) -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low w-[380px] h-full flex flex-col flex-shrink-0 border-r border-outline-variant transition-all duration-300 relative" id="sidebar">
+<div class="flex items-center justify-between p-4 border-b border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">code</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-on-surface-variant">Logic Source</span>
+</div>
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors" onclick="toggleSidebar()">
+<span class="material-symbols-outlined text-on-surface-variant">first_page</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto font-label-sm text-label-sm p-2 bg-surface-container-lowest">
+<div class="space-y-0.5">
+<div class="code-line flex" data-line="1"><span class="text-primary">async function</span> <span class="text-primary-fixed">orchestrate</span>() {</div>
+<div class="code-line flex" data-line="2">  <span class="text-tertiary-fixed-dim">const</span> <span class="text-on-surface">data</span> = <span class="text-primary">await</span> fetchAPI();</div>
+<div class="code-line flex" data-line="3">  </div>
+<div class="code-line flex" data-line="4">  <span class="text-outline italic">// Filter system signals</span></div>
+<div class="code-line flex" data-line="5">  <span class="text-primary">if</span> (data.status === <span class="text-tertiary"> 'active' </span>) {</div>
+<div class="code-line flex" data-line="6">    triggerNode(<span class="text-tertiary"> 'Filter_01' </span>);</div>
+<div class="code-line flex" data-line="7">    <span class="text-primary">return</span> processStream(data);</div>
+<div class="code-line flex" data-line="8">  }</div>
+<div class="code-line flex" data-line="9">}</div>
+</div>
+</div>
+<!-- Sidebar Footer Navigation -->
+<div class="p-4 border-t border-outline-variant space-y-1">
+<div class="flex items-center gap-3 p-2 rounded hover:bg-surface-container-high text-on-surface-variant cursor-pointer transition-colors">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</div>
+<div class="flex items-center gap-3 p-2 rounded hover:bg-surface-container-high text-on-surface-variant cursor-pointer transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-body-md text-body-md">Documentation</span>
+</div>
+</div>
+</aside>
+<!-- Main Workspace (Canvas) -->
+<section class="flex-1 relative node-canvas overflow-hidden">
+<!-- Nodes -->
+<div class="absolute inset-0 p-canvas-padding" id="canvas-content">
+<!-- SVG Connections -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<path class="opacity-60" d="M 180 140 Q 280 140, 280 240" fill="none" stroke="#facc15" stroke-width="2"></path>
+<path class="opacity-80" d="M 440 280 Q 540 280, 540 380" fill="none" stroke="#b9c8de" stroke-dasharray="4,4" stroke-width="2"></path>
+<circle cx="280" cy="240" fill="#facc15" r="4"></circle>
+</svg>
+<!-- Trigger Node -->
+<div class="absolute top-20 left-20 w-60 bg-surface-container rounded-lg border border-outline-variant p-4 glow-primary">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tight text-on-surface">Trigger</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">more_vert</span>
+</div>
+<div class="bg-surface-container-lowest rounded p-2 border border-outline-variant/30 font-label-sm text-label-sm text-on-surface-variant">
+                        webhook.on('received')
+                    </div>
+<div class="mt-4 flex justify-end">
+<div class="w-3 h-3 bg-primary rounded-full -mr-5 border-2 border-surface-container"></div>
+</div>
+</div>
+<!-- Filter Node -->
+<div class="absolute top-60 left-[320px] w-64 bg-surface-container rounded-lg border border-outline-variant p-4">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">filter_alt</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tight text-on-surface">Condition Filter</span>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between text-label-sm">
+<span class="text-on-surface-variant">Input</span>
+<div class="w-3 h-3 bg-secondary rounded-full -mr-5 border-2 border-surface-container"></div>
+</div>
+<div class="bg-surface-container-lowest rounded p-2 border border-outline-variant/30 font-label-sm text-label-sm text-primary">
+                            payload.value &gt; 100
+                        </div>
+<div class="flex items-center justify-between text-label-sm">
+<div class="w-3 h-3 bg-primary rounded-full -ml-5 border-2 border-surface-container"></div>
+<span class="text-on-surface-variant">True</span>
+</div>
+</div>
+</div>
+<!-- API Call Node -->
+<div class="absolute top-[400px] left-[580px] w-72 bg-surface-container rounded-lg border border-primary p-4 glow-primary">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">api</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tight text-on-surface">Production API</span>
+</div>
+<span class="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded border border-primary/30">ACTIVE</span>
+</div>
+<div class="bg-surface-container-lowest rounded p-2 mb-2 font-label-sm text-label-sm text-on-surface-variant">
+                        POST /v1/dispatch
+                    </div>
+<div class="flex gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] text-on-surface-variant font-label-sm">TRANSMITTING...</span>
+</div>
+</div>
+</div>
+<!-- Floating Chat Window -->
+<div class="absolute bottom-10 left-1/2 -translate-x-1/2 w-[70%] h-[60%] glass-panel rounded-xl border border-outline-variant flex flex-col shadow-2xl transition-all duration-500 z-40 overflow-hidden" id="chat-window">
+<!-- Chat Header -->
+<div class="flex items-center justify-between p-4 border-b border-outline-variant bg-surface-container-high/60">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container text-sm" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div>
+<h3 class="font-headline-md text-[14px] leading-tight text-on-surface">Logic Assistant</h3>
+<p class="text-[11px] text-on-surface-variant">Solaris Architect</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary text-sm">open_in_full</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary text-sm" onclick="toggleChat()">remove</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary text-sm">close</span>
+</div>
+</div>
+<!-- Chat Body -->
+<div class="flex-1 p-6 overflow-y-auto space-y-6">
+<div class="flex items-start gap-3 max-w-[80%]">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+</div>
+<div class="bg-surface-container-high p-3 rounded-lg rounded-tl-none border border-outline-variant/30">
+<p class="text-body-md">I've analyzed your current graph. The <span class="text-primary font-bold">Production API</span> node is currently processing a high volume of requests. Would you like me to implement a circuit breaker pattern?</p>
+</div>
+</div>
+<div class="flex items-start gap-3 flex-row-reverse max-w-[80%] ml-auto">
+<div class="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB213C6If55rDwYg7toLdj5lPMhBmbF1A_5iUMQVbQfeKeAnsKLXE6CPtqn-CDkuaTNxFxnLWBYPSnrSJqBcGWBxLdt42XRje1nIG8neT_oL_oVVskDRybYe-826zE7GNMh5rjsWCrv2ayewQ7VoSohBDkmwpnRhSngcgfNNcTE2OBLqCb2lYHBOGTnuFcqKrRbHKkQboTLQeWVBHV-mcFI_PyTgjkYv2AafMtA0vnTeEuASRfBWyb2wnbAK77New49abvDtK8CA2iM"/>
+</div>
+<div class="bg-primary/10 p-3 rounded-lg rounded-tr-none border border-primary/20">
+<p class="text-body-md text-on-surface">Yes, please show me the logic for a 5-second timeout and retry logic.</p>
+</div>
+</div>
+<div class="flex items-start gap-3 max-w-[80%]">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+</div>
+<div class="bg-surface-container-high p-3 rounded-lg rounded-tl-none border border-outline-variant/30">
+<p class="text-body-md mb-2">Certainly. I've updated the script in your editor. Here's the node configuration:</p>
+<div class="bg-surface-container-lowest p-2 rounded font-label-sm text-label-sm border border-outline-variant/50 text-primary">
+                                { "timeout": 5000, "retries": 3, "strategy": "exponential_backoff" }
+                            </div>
+</div>
+</div>
+</div>
+<!-- Chat Input -->
+<div class="p-4 border-t border-outline-variant bg-surface-container-low/50">
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded py-3 px-4 text-on-surface focus:ring-1 focus:ring-primary focus:border-primary outline-none text-body-md placeholder:text-outline" placeholder="Ask assistant to modify logic..." type="text"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors">attach_file</span>
+<button class="w-8 h-8 rounded bg-primary text-on-primary flex items-center justify-center hover:brightness-110 transition-transform active:scale-90">
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Canvas Controls -->
+<div class="absolute bottom-6 right-6 flex flex-col gap-2 z-30">
+<button class="w-10 h-10 rounded bg-surface-container border border-outline-variant text-on-surface-variant flex items-center justify-center hover:text-primary transition-colors shadow-lg">
+<span class="material-symbols-outlined">add</span>
+</button>
+<button class="w-10 h-10 rounded bg-surface-container border border-outline-variant text-on-surface-variant flex items-center justify-center hover:text-primary transition-colors shadow-lg">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<button class="w-10 h-10 rounded bg-surface-container border border-outline-variant text-on-surface-variant flex items-center justify-center hover:text-primary transition-colors shadow-lg">
+<span class="material-symbols-outlined">near_me</span>
+</button>
+</div>
+</section>
+</main>
+<script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = sidebar.querySelector('button span');
+            if (sidebar.style.width === '0px') {
+                sidebar.style.width = '380px';
+                sidebar.style.opacity = '1';
+                icon.innerText = 'first_page';
+            } else {
+                sidebar.style.width = '0px';
+                sidebar.style.opacity = '0';
+                icon.innerText = 'last_page';
+            }
+        }
+
+        let chatExpanded = true;
+        function toggleChat() {
+            const chat = document.getElementById('chat-window');
+            if (chatExpanded) {
+                chat.style.height = '60px';
+                chat.style.bottom = '10px';
+                chat.style.overflow = 'hidden';
+            } else {
+                chat.style.height = '60%';
+                chat.style.bottom = '40px';
+                chat.style.overflow = 'visible';
+            }
+            chatExpanded = !chatExpanded;
+        }
+
+        // Slight drift animation for canvas
+        document.addEventListener('mousemove', (e) => {
+            const canvas = document.getElementById('canvas-content');
+            const x = (window.innerWidth / 2 - e.pageX) / 80;
+            const y = (window.innerHeight / 2 - e.pageY) / 80;
+            canvas.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    </script>
+</body></html>

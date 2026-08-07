@@ -1,0 +1,18 @@
+{
+  "schema": "@executioncontrolprotocol.workflow",
+  "version": "1.0.0",
+  "workflow": {
+    "id": "minimal-echo",
+    "label": "Minimal Echo"
+  },
+  "steps": [
+    {
+      "type": "step",
+      "id": "echo",
+      "label": "Echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": { "value": "hello" },
+      "as": "echo"
+    }
+  ]
+}

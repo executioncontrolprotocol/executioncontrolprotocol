@@ -1,26 +1,28 @@
 # Controller-Specialist Example
 
-A multi-agent ECP Context demonstrating the delegate orchestration strategy.
+Legacy documentation note: this folder previously documented a v0.5 **Context YAML**
+example (“controller-specialist”). The repository has since moved to the v1 model:
+portable **workflows** (`@executioncontrolprotocol.workflow`) executed inside configured **environments**.
+
+If you are looking for current runnable examples, start here instead:
+
+- `examples/01-echo/` — smallest end-to-end example (`ecp run … --env …`)
+- `examples/02-weekly-brief/` — multi-step workflow using memory + model + Slack
 
 ## What it does
 
-1. **Orchestrator** receives a `subject` input and produces a `Plan` with research areas and delegation tasks
-2. **Technical Analyst** receives a delegated task and produces `TechnicalFindings`
-3. **Practical Analyst** receives a delegated task and produces `PracticalFindings`
-4. **Publisher** merges all findings into a final `Report`
+Conceptually, the scenario is still useful:
+
+1. A controller produces a plan
+2. Specialists execute delegated tasks
+3. A publisher/merger combines results into a final artifact
 
 ## Run it
 
 ```bash
-# From the repo root (Ollama must be running; default model gemma3:1b)
-ecp run examples/controller-specialist/context.yaml \
-  --provider ollama \
-  --model gemma3:1b \
-  \
-  --input subject="Model Context Protocol" \
-  --debug
+ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
 ## Requirements
 
-- [Ollama](https://ollama.com/) installed and running, with the model you pass to `--model` pulled (e.g. `ollama pull gemma3:1b`).
+- Node.js 22+

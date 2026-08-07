@@ -1,82 +1,97 @@
-# `@executioncontrolprotocol/cli`
+# @executioncontrolprotocol/cli
 
-**Execution Control Protocol (ECP)** specifies portable **Context** manifests for agent orchestration: structured inputs and outputs, tool boundaries, per-executor policies, and host-level enforcement via system config—so runs stay least-privilege and auditable.
+ECP command-line interface for running **workflows** (`@executioncontrolprotocol.workflow`) in configured
+**environments** (runtime + extensions + policies).
 
-**Learn more:** [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
+This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosystem:
 
-This package is the **command-line interface** for validating and running Contexts.
+- Compile workflow source modules (`.ts` / `.js`) to portable JSON manifests
+- Validate workflows against an environment’s registered capabilities
+- Describe/search environment capabilities for agent/UI discovery
+- Run workflows and print structured run results
+- Encode/decode workflows using format extensions (TOON, Fluent, JSON)
+
+For the architecture and monorepo package boundaries, start with
+[`AGENTS.md`](../../AGENTS.md) and [`ecp-overhaul.md`](../../ecp-overhaul.md).
 
 ## Install
 
-```bash
+From npm (when published):
+
+```sh
 npm install -g @executioncontrolprotocol/cli
+```
+
+From this monorepo (recommended for development):
+
+```sh
+npm install
+npm run build
+cd packages/cli
+npm link
 ```
 
 ## Usage
 
-```bash
-ecp --help
-ecp validate path/to/context.yaml --config path/to/ecp.config.yaml
-ecp run path/to/context.yaml --config path/to/ecp.config.yaml -i topic="Hello"
+All operational commands that need an environment accept:
+
+- `--env <path>`: a module that exports the environment builder (`default export`)
+
+### Run
+
+```sh
+ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-Without **`--config`**, the CLI looks for **`./ecp.config.yaml`** / **`./ecp.config.json`** and **`~/.ecp/*`** and merges them when both exist. If **no** file is found, **`ecp run`** and **`ecp validate`** exit with an error so host policy is never implicit.
+Provide workflow input (JSON file):
 
-### System config (`ecp.config.yaml` / `~/.ecp/config.yaml`)
-
-**v0.5 layout:** use top-level **`security`** for allow-lists and defaults (mirrors `models`, `tools`, `loggers`, …). Wiring lives under **`models.providers`** (use **`supportedModels`** per provider), **`tools.servers`**, **`loggers.config`**, **`agents.endpoints`**, **`plugins.installs`**, **`secrets`**. Per-provider model **policy** is **`security.models.allowedModels`** (map of provider id to model name lists). Set **`version: "0.5"`**.
-
-```bash
-ecp config --help
-ecp config init                    # best-practices starter in current directory
-ecp config init --global          # ~/.ecp/config.yaml
-ecp config reset                   # delete ./ecp.config.yaml and ./ecp.config.json if present
-ecp config reset --global         # delete known files under ~/.ecp/ (config.json, config.yaml, ecp.config.yaml)
-ecp config path                    # resolved file path (use --for-write for mutation target)
-ecp config get --format json
-ecp config get --type tools        # wiring slice (also: models, loggers, endpoints)
-ecp config add --type tools NAME --transport-type stdio --stdio-command npx --stdio-arg -y --stdio-arg @modelcontextprotocol/server-fetch
-ecp config security get
-ecp config security               # list policy subcommands
-ecp config security models allow add ollama
-ecp config plugins get             # plugins.installs + security.plugins summary
-ecp config secrets yaml get
+```sh
+ecp run workflow.json --env environment.ts --input input.json
 ```
 
-`ecp run` accepts `--logger` / `-l` (e.g. `file`) to enable logger **plugins** (`kind: logger`); defaults and allow-lists are under **`security.loggers`**, per-logger options under **`loggers.config`**.
+Dry run (validate + plan without invoking capabilities):
 
-YAML and JSON are supported. **`ecp run`** and **`ecp validate`** load a **merged** view when both a project config (`./ecp.config.yaml` or `./ecp.config.json`) and a user config under **`~/.ecp/`** exist: values from the user file **override** the project file on the same keys (including under **`security`**). Use **`--config <path>`** to point at a **single** file with **no** merge. At least one file must exist (merged discovery or **`--config`**); otherwise the command fails.
-
-## Secrets and environment files
-
-ECP separates **where** a secret is loaded from using **provider ids** in `tools.servers.<name>.credentials.bindings[].source`:
-
-| Provider id   | Meaning                                                                                                                                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `process.env` | Read from the current process environment (`process.env[<key>]`).                                                                                                                                            |
-| `dot.env`     | Read from a `.env`-style file on disk (path from config or `--environment`).                                                                                                                                 |
-| `os.secrets`  | Read from the OS credential manager / keychain; stored under an `ecp://<key>` target (same as default `SecretRef.id`; provider is only in `source.provider`, e.g. `os.secrets.MY_KEY` as shorthand in docs). |
-
-Bindings use **plain keys** (e.g. `GITHUB_PAT`, `server/fetch.token`) in `source.key`. Values are never stored in Context YAML—only references.
-
-### `ecp config secrets`
-
-Use **`os.secrets`** for durable storage (e.g. `ecp config secrets add --provider os.secrets --key myapp/token --prompt`). The `ecp config` commands do **not** support `--environment`; they resolve `dot.env` only from `ecp.config.*` (`secrets.providers.dot.env.path`).
-
-### `--environment` (runtime commands only)
-
-On **`ecp run`**, **`ecp validate`**, **`ecp trace`**, **`ecp trace list`**, and **`ecp graph`**, you can pass:
-
-```bash
-ecp run context.yaml --environment ./.env.local
+```sh
+ecp run workflow.ts --env environment.ts --dry-run
 ```
 
-This sets the **file** used by the **`dot.env`** provider for that process. It **does not** merge variables into `process.env`; use `source.provider: process.env` only for variables already in the shell/CI environment, and `source.provider: dot.env` for file-backed values.
+### Validate
 
-If both `--environment` and `secrets.providers.dot.env.path` are set, **`--environment` wins** for that command. If the path does not exist, the CLI exits with an error.
+```sh
+ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+```
 
-## Links
+### Compile (portable JSON)
 
-- **Docs**: [executioncontrolprotocol.io](https://executioncontrolprotocol.io)
-- **Repo**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol`
-- **Issues**: `https://github.com/executioncontrolprotocol/executioncontrolprotocol/issues`
+```sh
+ecp compile examples/01-echo/workflow.ts -o dist/workflow.json
+```
+
+### Describe / search environment capabilities
+
+```sh
+ecp describe --env examples/01-echo/environment.ts
+ecp search "echo" --env examples/01-echo/environment.ts
+```
+
+### Encode / decode formats
+
+Encoding and decoding uses **format extensions** bound in your environment.
+
+```sh
+ecp encode workflow.json --format toon --env environment.ts -o workflow.toon
+ecp encode workflow.json --format fluent --env environment.ts -o workflow.generated.ts
+ecp decode workflow.toon --format toon --env environment.ts -o workflow.json
+```
+
+Notes:
+
+- Fluent **decode** is not supported. Use `ecp compile` for TypeScript/Fluent source → manifest.
+- JSON is the canonical manifest format; other formats are optional extensions.
+
+## Related packages
+
+- [`@executioncontrolprotocol/core`](../core/README.md): runtime-agnostic core + fluent API
+- [`@executioncontrolprotocol/node`](../runtimes/node/README.md): Node runtime host used by CLI examples
+- [`@executioncontrolprotocol/types`](../types/README.md): protocol types + generated JSON Schemas
+- [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents

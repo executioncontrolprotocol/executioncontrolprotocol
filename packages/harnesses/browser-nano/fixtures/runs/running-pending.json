@@ -1,0 +1,14 @@
+{
+  "run": {
+    "schema": "@executioncontrolprotocol.run.result",
+    "version": "1.0",
+    "run": { "id": "run-started", "status": "started" },
+    "state": { "pendingStep": "echo" },
+    "history": {
+      "echo": {
+        "status": "started",
+        "attempts": 1
+      }
+    }
+  }
+}

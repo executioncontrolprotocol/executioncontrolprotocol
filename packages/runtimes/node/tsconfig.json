@@ -1,0 +1,16 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true
+  },
+  "references": [
+    { "path": "../../types" },
+    { "path": "../../core" },
+    { "path": "../../policies" },
+    { "path": "../../extensions/secrets" },
+    { "path": "../../extensions/process-env" }
+  ],
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@executioncontrolprotocol/node",
+  "version": "0.0.10",
+  "description": "ECP Node.js runtime and environment extensions",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "zod": "^3.24.0"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/core": "0.0.10",
+    "@executioncontrolprotocol/types": "0.0.10",
+    "@executioncontrolprotocol/policies": "0.0.10",
+    "@executioncontrolprotocol/secrets": "0.0.10",
+    "@executioncontrolprotocol/process-env": "0.0.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  }
+}

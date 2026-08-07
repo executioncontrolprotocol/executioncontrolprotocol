@@ -1,0 +1,493 @@
+{
+  "cases": [
+    {
+      "id": "wf-create-01",
+      "suite": "workflow-create",
+      "title": "Minimal echo",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create a minimal @executioncontrolprotocol.workflow with one step id echo using @executioncontrolprotocol/test.echo and input value hello."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.echo"
+          },
+          {
+            "kind": "stepCount",
+            "exact": 1
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-02",
+      "suite": "workflow-create",
+      "title": "Echo plus summarize",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create a workflow with echo (@executioncontrolprotocol/test.echo) then summarize (@executioncontrolprotocol/test.summarize) passing echo output."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepCount",
+            "min": 2
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.summarize"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-03",
+      "suite": "workflow-create",
+      "title": "Validate then echo",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Build a workflow: first @executioncontrolprotocol/test.validate then @executioncontrolprotocol/test.echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.validate"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-04",
+      "suite": "workflow-create",
+      "title": "Notify step",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create workflow with @executioncontrolprotocol/test.echo and a final @executioncontrolprotocol/test.notify step."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.notify"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-05",
+      "suite": "workflow-create",
+      "title": "Translate branch",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create a two-step workflow using @executioncontrolprotocol/test.echo and @executioncontrolprotocol/test.translate."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.translate"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-06",
+      "suite": "workflow-create",
+      "title": "Spanish label",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Crea un flujo con un paso echo usando @executioncontrolprotocol/test.echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-07",
+      "suite": "workflow-create",
+      "title": "French label",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Créez un workflow avec une étape @executioncontrolprotocol/test.echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-08",
+      "suite": "workflow-create",
+      "title": "German label",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Erstelle einen Workflow mit @executioncontrolprotocol/test.echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-09",
+      "suite": "workflow-create",
+      "title": "Triple steps",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create a 3-step workflow using @executioncontrolprotocol/test.validate, @executioncontrolprotocol/test.echo, and @executioncontrolprotocol/test.summarize."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepCount",
+            "min": 3
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-10",
+      "suite": "workflow-create",
+      "title": "Workflow id minimal-echo",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create workflow id minimal-echo with one @executioncontrolprotocol/test.echo step labeled Runner."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-create-11",
+      "suite": "workflow-create",
+      "title": "Quality judge",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Design a clear production workflow using @executioncontrolprotocol/test.echo for ingestion."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Workflow is coherent and references echo capability",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "wf-create-12",
+      "suite": "workflow-create",
+      "title": "Descriptor caps",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "List capabilities then create echo-only workflow with @executioncontrolprotocol/test.echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "descriptorListsExtensions",
+            "ids": [
+              "@executioncontrolprotocol/format-toon",
+              "@executioncontrolprotocol/format-eql",
+              "@executioncontrolprotocol/format-json",
+              "@executioncontrolprotocol/test"
+            ]
+          },
+          {
+            "kind": "descriptorListsCapabilities",
+            "ids": [
+              "@executioncontrolprotocol/test.echo",
+              "@executioncontrolprotocol/test.summarize"
+            ]
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    }
+  ]
+}

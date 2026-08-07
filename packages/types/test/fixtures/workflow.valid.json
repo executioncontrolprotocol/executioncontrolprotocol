@@ -1,0 +1,14 @@
+{
+  "schema": "@executioncontrolprotocol.workflow",
+  "version": "1.0",
+  "workflow": { "id": "echo", "label": "Echo" },
+  "steps": [
+    {
+      "type": "step",
+      "id": "echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": { "value": "hi" },
+      "as": "echo"
+    }
+  ]
+}

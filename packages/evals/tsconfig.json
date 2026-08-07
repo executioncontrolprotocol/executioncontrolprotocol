@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true
+  },
+  "references": [
+    { "path": "../types" },
+    { "path": "../core" },
+    { "path": "../runtimes/browser" },
+    { "path": "../harnesses/browser-nano" },
+    { "path": "../harnesses/browser-coding" },
+    { "path": "../runtimes/node" },
+    { "path": "../extensions/ollama" },
+    { "path": "../extensions/chrome-ai" },
+    { "path": "../extensions/format-toon" }
+  ],
+  "include": ["src/**/*.ts", "src/import-meta-glob.d.ts"]
+}

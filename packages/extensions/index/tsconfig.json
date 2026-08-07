@@ -1,0 +1,16 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "composite": true },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../memory" },
+    { "path": "../openai" },
+    { "path": "../ollama" },
+    { "path": "../slack" },
+    { "path": "../storage" },
+    { "path": "../telemetry" },
+    { "path": "../format-toon" },
+    { "path": "../format-eql" },
+    { "path": "../format-mermaid" }
+  ]
+}

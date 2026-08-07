@@ -57,5 +57,4 @@ Meta-commands that are not resource CRUD (e.g. `config init`, `config path`) are
 
 ## `ecp config secrets`
 
-- Use **`add`** / **`get`** / **`list`** / **`remove`** only (no `set` / `delete` for this topic).
-- **`list`** is allowed here: it enumerates keyring *keys*, not a single resource body (distinct from **`get`** for one secret’s value).
+- Prefer **`ecp config secrets add KEY`** (interactive paste) or **`ecp config secrets add KEY --value …`** for non-interactive inline input; **`get KEY`**, **`remove KEY`**, **`list`**.

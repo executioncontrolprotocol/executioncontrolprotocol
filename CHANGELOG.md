@@ -1,6 +1,13 @@
 <!-- markdownlint-disable-file MD024 -->
 # Changelog
 
+> Note: this changelog primarily documents the historical **v0.5 “Context YAML + system config”**
+> era. The current repository architecture is the `@executioncontrolprotocol/*` monorepo (workflow +
+> environment model) described in [`AGENTS.md`](AGENTS.md) and
+> [`ecp-overhaul.md`](ecp-overhaul.md).
+>
+> The legacy v0.5 CLI and docs are archived under [`archive/legacy-v0.5/`](archive/legacy-v0.5/).
+
 ## Unreleased
 
 ### Added

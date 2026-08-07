@@ -18,7 +18,7 @@ jobs:
   eval:
     name: eval
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 120
     env:
       # workflow_dispatch has github.event.inputs; scheduled runs do not — defaults apply.
       EVAL_MODEL: ${{ github.event.inputs.model || 'gemma3:1b' }}
@@ -92,6 +92,9 @@ jobs:
             --model "$EVAL_MODEL" \
             \
             --debug
+
+      - name: Run harness eval matrix
+        run: npm run eval:matrix
 
       - name: Stop Ollama
         if: always()

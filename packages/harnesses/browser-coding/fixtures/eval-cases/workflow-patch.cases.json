@@ -1,0 +1,379 @@
+{
+  "cases": [
+    {
+      "id": "wf-patch-01",
+      "suite": "workflow-patch",
+      "title": "Label change",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Change the echo step label to Patched Echo."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepLabel",
+            "stepId": "echo",
+            "value": "Patched Echo"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-02",
+      "suite": "workflow-patch",
+      "title": "Input value",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Set echo input value to world."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-03",
+      "suite": "workflow-patch",
+      "title": "Add summarize",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Add a summarize step after echo using @executioncontrolprotocol/test.summarize."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepCount",
+            "min": 2
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-04",
+      "suite": "workflow-patch",
+      "title": "Remove notify",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/multi-cap-workflow.json",
+      "input": {
+        "request": "Remove the notify step from the workflow."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepRemoved",
+            "stepId": "notify"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-05",
+      "suite": "workflow-patch",
+      "title": "Workflow label",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/two-step-chain.json",
+      "input": {
+        "request": "Change workflow label to Updated Chain."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "workflowLabel",
+            "value": "Updated Chain"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-06",
+      "suite": "workflow-patch",
+      "title": "Step config",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/two-step-chain.json",
+      "input": {
+        "request": "Change summarize step label to Short Summary."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepLabel",
+            "stepId": "summarize",
+            "value": "Short Summary"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-07",
+      "suite": "workflow-patch",
+      "title": "Ref chain",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/two-step-chain.json",
+      "input": {
+        "request": "Ensure summarize input references echo output via $ref."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "inputRefPresent",
+            "stepId": "summarize"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-08",
+      "suite": "workflow-patch",
+      "title": "Add validate",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Insert a validate step before echo using @executioncontrolprotocol/test.validate."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepUses",
+            "capabilityId": "@executioncontrolprotocol/test.validate"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-09",
+      "suite": "workflow-patch",
+      "title": "Combined",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/two-step-chain.json",
+      "input": {
+        "request": "Add translate after echo and remove summarize if present."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-10",
+      "suite": "workflow-patch",
+      "title": "Patch judge",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Improve echo label to be user friendly."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Patch is minimal and correct",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "wf-patch-11",
+      "suite": "workflow-patch",
+      "title": "Translate label",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Rename echo label to Translated Output."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "wf-patch-12",
+      "suite": "workflow-patch",
+      "title": "Move echo",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-validate-reorder.json",
+      "input": {
+        "request": "Move the echo step to run after validate."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "artifactSchema",
+            "value": "@executioncontrolprotocol.workflow"
+          },
+          {
+            "kind": "validationValid"
+          },
+          {
+            "kind": "stepOrder",
+            "stepIds": [
+              "validate",
+              "echo"
+            ]
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,658 @@
+{
+  "cases": [
+    {
+      "id": "asst-01",
+      "suite": "assistant",
+      "title": "Failed echo",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Why did step echo fail?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "echo"
+          },
+          {
+            "kind": "answerContains",
+            "text": "error"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Explains echo failure",
+          "rubric": "Mentions echo step and describes the error from run context",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-02",
+      "suite": "assistant",
+      "title": "Failed status",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What is the run status?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "fail"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "asst-03",
+      "suite": "assistant",
+      "title": "Running",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Is my workflow still running?",
+        "runContextFixture": "runs/running-pending.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "run"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "asst-04",
+      "suite": "assistant",
+      "title": "Extensions",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What plugins and extensions can you use?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ecp"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Extensions",
+          "rubric": "Lists ECP extensions or plugins loaded in this environment",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-05",
+      "suite": "assistant",
+      "title": "Steps",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What steps are in the workflow?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "asst-06",
+      "suite": "assistant",
+      "title": "Fix suggest",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "How can I fix the echo error?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "citationStepId",
+            "value": "echo"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Fix suggest",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-07",
+      "suite": "assistant",
+      "title": "Output",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What did the echo step produce?",
+        "runContextFixture": "runs/completed-with-refs.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          }
+        ],
+        "judge": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "id": "asst-08",
+      "suite": "assistant",
+      "title": "Tone judge",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Explain the failure politely.",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "error"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Professional helpful tone",
+          "rubric": "Polite explanation of the echo error with actionable guidance",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-09",
+      "suite": "assistant",
+      "title": "Confirm patch",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Should we patch step echo input?",
+        "runContextFixture": "runs/failed-echo-step.json"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Confirm patch",
+          "rubric": "Affirms patching echo step input when appropriate",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-10",
+      "suite": "assistant",
+      "title": "Capabilities list",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "List supported step capabilities."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Capabilities list",
+          "rubric": "Names concrete step capability ids such as test.echo",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-11",
+      "suite": "assistant",
+      "title": "What is ECP",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What is ECP?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ECP"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Defines ECP in one or two sentences",
+          "rubric": "Mentions workflows or governed environments",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-12",
+      "suite": "assistant",
+      "title": "Identity",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What can you do?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "workflow"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "States assistant capabilities",
+          "rubric": "Mentions building workflows and answering ECP or environment questions",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-13",
+      "suite": "assistant",
+      "title": "Register refusal",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Register a new extension for me."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "cannot"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Graceful refusal",
+          "rubric": "Explains cannot register and offers alternatives",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-14",
+      "suite": "assistant",
+      "title": "Environment help",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What capabilities are available?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "test.echo"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Lists capabilities",
+          "rubric": "Names capability ids from the environment",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-15",
+      "suite": "assistant",
+      "title": "Off-topic joke",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Tell me a joke."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-16",
+      "suite": "assistant",
+      "title": "Off-topic weather",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What's the weather today?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-17",
+      "suite": "assistant",
+      "title": "Off-topic cover letter",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Write a cover letter for a software job."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          },
+          {
+            "kind": "answerMaxLength",
+            "max": 220
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-18",
+      "suite": "assistant",
+      "title": "Gibberish",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "asdf qwerty ???"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-19",
+      "suite": "assistant",
+      "title": "MCP vs ECP",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "How is MCP different from ECP?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ECP"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Contrasts MCP and ECP",
+          "rubric": "Mentions both MCP and ECP in a brief accurate way",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-20",
+      "suite": "assistant",
+      "title": "Workflow definition",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What is a workflow in ECP?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "workflow"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Defines ECP workflow",
+          "rubric": "Mentions steps, capabilities, or portable manifests",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-21",
+      "suite": "assistant",
+      "title": "Off-topic task",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "Write my resume."
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerRedirectsToScope"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
+          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
+          "requireApproved": true
+        }
+      }
+    },
+    {
+      "id": "asst-22",
+      "suite": "assistant",
+      "title": "FAQ brevity",
+      "harness": "workflow-assistant",
+      "model": "default",
+      "input": {
+        "message": "What is ECP?"
+      },
+      "assertions": {
+        "deterministic": [
+          {
+            "kind": "invokeSuccess"
+          },
+          {
+            "kind": "replySchema"
+          },
+          {
+            "kind": "answerContains",
+            "text": "ECP"
+          },
+          {
+            "kind": "answerMaxLength",
+            "max": 280
+          },
+          {
+            "kind": "rawNotContains",
+            "text": "```"
+          }
+        ],
+        "judge": {
+          "enabled": true,
+          "goal": "Defines ECP briefly",
+          "rubric": "One or two sentences, no markdown fences",
+          "requireApproved": true
+        }
+      }
+    }
+  ]
+}

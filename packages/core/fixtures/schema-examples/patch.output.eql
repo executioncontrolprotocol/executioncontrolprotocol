@@ -1,0 +1,4 @@
+PATCH WORKFLOW example-wf
+
+UPDATE STEP example-step
+  LABEL "Example label"

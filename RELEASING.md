@@ -19,15 +19,18 @@ Check locally (same as development CI):
 npm run version:check-vs-npm
 ```
 
-## Published packages
+## Published packages (`@executioncontrolprotocol/*`)
 
-- `@executioncontrolprotocol/spec`
-- `@executioncontrolprotocol/runtime`
-- `@executioncontrolprotocol/cli` — depends on **runtime** (and thus **spec**). All three ship **compiled `dist/`** JS; run **`npm run build`** from the repo root before tests or `npx ecp`.
+- `@executioncontrolprotocol/types` — protocol types and generated JSON Schemas (`dist/schemas/`)
+- `@executioncontrolprotocol/core` — fluent API, environment, local runtime
+- `@executioncontrolprotocol/cli` — `ecp` Oclif CLI (`compile`, `validate`, `describe`, `search`, `run`)
+- `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, and `@executioncontrolprotocol/extension-*` as needed
 
-**Node:** use **≥ 22** locally and in CI (`generate:schema` / `ts-json-schema-generator` requires it).
+Run **`npm run build`** and **`npm run generate:schema`** from the repo root before release; packages ship compiled **`dist/`** JS.
 
-Granular **NPM_TOKEN** should allow **Publish** on all three packages under `@executioncontrolprotocol`.
+**Node:** use **≥ 22** locally and in CI.
+
+Configure **NPM_TOKEN** with publish access for each package namespace you release.
 
 ## GitHub secret
 

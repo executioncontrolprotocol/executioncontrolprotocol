@@ -1,0 +1,115 @@
+{
+  "name": "@executioncontrolprotocol/core",
+  "version": "0.0.10",
+  "description": "ECP fluent API, environment, registry, and local runtime",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./environment": {
+      "types": "./dist/environment/environment.d.ts",
+      "import": "./dist/environment/environment.js"
+    },
+    "./environment/config-resolver": {
+      "types": "./dist/environment/config-resolver.d.ts",
+      "import": "./dist/environment/config-resolver.js"
+    },
+    "./definitions/types": {
+      "types": "./dist/definitions/types.d.ts",
+      "import": "./dist/definitions/types.js"
+    },
+    "./registry": {
+      "types": "./dist/registry/registry.d.ts",
+      "import": "./dist/registry/registry.js"
+    },
+    "./bindings/extension": {
+      "types": "./dist/bindings/extension.d.ts",
+      "import": "./dist/bindings/extension.js"
+    },
+    "./bindings/runtime": {
+      "types": "./dist/bindings/runtime.d.ts",
+      "import": "./dist/bindings/runtime.js"
+    },
+    "./bindings/policy": {
+      "types": "./dist/bindings/policy.d.ts",
+      "import": "./dist/bindings/policy.js"
+    },
+    "./config-schema": {
+      "types": "./dist/config-schema/index.d.ts",
+      "import": "./dist/config-schema/index.js"
+    },
+    "./runtime/context": {
+      "types": "./dist/runtime/context.d.ts",
+      "import": "./dist/runtime/context.js"
+    },
+    "./runtime/store": {
+      "types": "./dist/runtime/store.d.ts",
+      "import": "./dist/runtime/store.js"
+    },
+    "./registry/errors": {
+      "types": "./dist/registry/errors.d.ts",
+      "import": "./dist/registry/errors.js"
+    },
+    "./runtime/in-memory-executor": {
+      "types": "./dist/runtime/in-memory-executor.d.ts",
+      "import": "./dist/runtime/in-memory-executor.js"
+    },
+    "./runtime/executor": {
+      "types": "./dist/runtime/executor.d.ts",
+      "import": "./dist/runtime/executor.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    },
+    "./loaders": {
+      "types": "./dist/loaders/index.d.ts",
+      "import": "./dist/loaders/index.js"
+    },
+    "./compile": {
+      "types": "./dist/compile/entry.d.ts",
+      "import": "./dist/compile/entry.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/types": "0.0.10"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/types": "^0.0.10",
+    "zod": "^3.24.0"
+  },
+  "optionalDependencies": {
+    "esbuild": "^0.25.0",
+    "esbuild-wasm": "^0.25.0"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/browser-secrets": "0.0.10",
+    "@executioncontrolprotocol/node": "0.0.10",
+    "@executioncontrolprotocol/policies": "0.0.10",
+    "esbuild": "^0.25.0",
+    "esbuild-wasm": "^0.25.0",
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "workflow-authoring-create",
+  "role": "You are an ECP workflow author for small local models. You build valid @executioncontrolprotocol.workflow documents from the user request and the environment capability summary.",
+  "task": "Create a workflow manifest as compact headerless EQL only. Output exactly one WORKFLOW document — never repeat a second WORKFLOW header or copy multiple examples. Every step must USE a real capability id from the summary. When the request names N capabilities or says two-step or 3-step, output exactly N STEP lines in order. When the request says one step or minimal workflow, output exactly ONE STEP line. Every STEP must have a unique short step id; when reusing the same USES capability more than once, pick distinct ids by role (e.g. poem, summarize) — never repeat the capability suffix. Chain steps with WITH field = REF priorStep.output when passing outputs between steps. Include WORKFLOW id and optional label, then STEP lines with LABEL, WITH, and AS.",
+  "outputSchema": "@executioncontrolprotocol.workflow",
+  "promptFormat": "eql",
+  "fewShots": [
+    {
+      "message": "Create a minimal @executioncontrolprotocol.workflow with one step id echo using @executioncontrolprotocol/test.echo and input value hello.",
+      "output": "WORKFLOW minimal-echo \"Minimal Echo\"\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo"
+    },
+    {
+      "message": "Create a workflow with echo (@executioncontrolprotocol/test.echo) then summarize (@executioncontrolprotocol/test.summarize) passing echo output.",
+      "output": "WORKFLOW echo-summarize \"Echo summarize\"\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo\nSTEP summarize USES @executioncontrolprotocol/test.summarize\n  LABEL \"Summarize\"\n  WITH payload = REF echo.output\n  AS summary"
+    },
+    {
+      "message": "Build a workflow: first @executioncontrolprotocol/test.validate then @executioncontrolprotocol/test.echo.",
+      "output": "WORKFLOW validate-echo \"Validate then echo\"\nSTEP validate USES @executioncontrolprotocol/test.validate\n  LABEL \"Validate\"\n  WITH payload = {\"ok\": true}\n  AS validated\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo"
+    },
+    {
+      "message": "Create a two-step workflow using @executioncontrolprotocol/test.echo and @executioncontrolprotocol/test.translate.",
+      "output": "WORKFLOW two-step-translate \"Echo translate\"\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo\nSTEP translate USES @executioncontrolprotocol/test.translate\n  LABEL \"Translate\"\n  WITH text = REF echo.output\n  AS translated"
+    },
+    {
+      "message": "Create workflow with @executioncontrolprotocol/test.echo and a final @executioncontrolprotocol/test.notify step.",
+      "output": "WORKFLOW echo-notify \"Echo and notify\"\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo\nSTEP notify USES @executioncontrolprotocol/test.notify\n  LABEL \"Notify\"\n  WITH payload = REF echo.output\n  AS notified"
+    },
+    {
+      "message": "Create a 3-step workflow using @executioncontrolprotocol/test.validate, @executioncontrolprotocol/test.echo, and @executioncontrolprotocol/test.summarize.",
+      "output": "WORKFLOW triple-chain \"Validate echo summarize\"\nSTEP validate USES @executioncontrolprotocol/test.validate\n  LABEL \"Validate\"\n  WITH payload = {\"ok\": true}\n  AS validated\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo\nSTEP summarize USES @executioncontrolprotocol/test.summarize\n  LABEL \"Summarize\"\n  WITH payload = REF echo.output\n  AS summary"
+    },
+    {
+      "message": "Create a workflow with one step that uses @executioncontrolprotocol/chrome-ai.generate to summarize the text hello in one sentence.",
+      "output": "WORKFLOW chrome-summarize \"Chrome summarize\"\nSTEP summarize USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Summarize\"\n  WITH prompt = \"Summarize in one sentence: hello\"\n  AS summary"
+    },
+    {
+      "message": "Create a two-step workflow: echo with @executioncontrolprotocol/test.echo then summarize the echo output with @executioncontrolprotocol/chrome-ai.generate.",
+      "output": "WORKFLOW echo-chrome-summarize \"Echo then chrome summarize\"\nSTEP echo USES @executioncontrolprotocol/test.echo\n  LABEL \"Echo\"\n  WITH value = \"hello\"\n  AS echo\nSTEP summarize USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Summarize\"\n  WITH prompt = \"Summarize the echoed text in one sentence.\"\n  WITH context = REF echo.echo\n  AS summary"
+    },
+    {
+      "message": "Create a two-step workflow: generate a short poem with @executioncontrolprotocol/chrome-ai.generate, then summarize that poem with the same capability.",
+      "output": "WORKFLOW poem-summarize \"Poem Summarization\"\nSTEP poem USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Generate Poem\"\n  WITH prompt = \"Write a short poem about the ocean.\"\n  AS poem\nSTEP summarize USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Summarize Poem\"\n  WITH prompt = \"Summarize the following poem:\"\n  WITH context = REF poem.text\n  AS summary"
+    },
+    {
+      "message": "Build a workflow that uses Chrome AI to generate a short email, then extract key action items from it in a second step.",
+      "output": "WORKFLOW email-action \"Email Action\"\nSTEP email USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Generate Email\"\n  WITH prompt = \"Generate a short professional email summarizing the following text.\"\n  AS email\nSTEP actions USES @executioncontrolprotocol/chrome-ai.generate\n  LABEL \"Extract Action Items\"\n  WITH prompt = \"Extract the key action items from the following email:\"\n  WITH context = REF email.text\n  AS actions"
+    }
+  ],
+  "repairHint": "Return corrected @executioncontrolprotocol.workflow EQL only. Output exactly one WORKFLOW block. Every STEP USES must match a capability id named in the user request. When the request names multiple capabilities, output one STEP per capability in order. When the request asks for one or minimal step, output exactly ONE STEP line. Every STEP must have a unique short step id; when reusing the same USES capability twice, use distinct ids (poem, summarize) — never repeat the capability suffix."
+}

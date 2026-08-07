@@ -1,0 +1,18 @@
+{
+  "run": {
+    "schema": "@executioncontrolprotocol.run.result",
+    "version": "1.0",
+    "run": { "id": "run-completed-chain", "status": "completed" },
+    "history": {
+      "echo": {
+        "status": "completed",
+        "output": { "echo": "seed" },
+        "committedAs": "state.echo.output"
+      },
+      "summarize": {
+        "status": "completed",
+        "output": { "ok": true, "result": "seed" }
+      }
+    }
+  }
+}

@@ -1,73 +1,46 @@
-import { Command, Flags } from "@oclif/core";
-import { configScopeFlags } from "../../../lib/config-flags.js";
-import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../../../lib/secrets-config.js";
-import { loadConfigForDisplay } from "../../../lib/system-config-cli.js";
+import { Args, Command, Flags } from "@oclif/core"
 import {
-  canonicalSecretKeyForBinding,
-  createDefaultSecretBroker,
+  canonicalSecretKey,
   ECP_SECRET_REF_PROTOCOL_PREFIX,
-  secretRefIdFromLogicalKey,
-} from "@executioncontrolprotocol/runtime";
-import type { SecretRef } from "@executioncontrolprotocol/plugins";
+  redactSecret,
+} from "@executioncontrolprotocol/secrets"
+import { getCliSecretsStore } from "../../../lib/secrets/store.js"
 
+/** Read an OS keychain secret. */
 export default class ConfigSecretsGet extends Command {
-  static summary = "Read a secret (redacted by default)";
+  static summary = "Read a secret (redacted by default)"
+
+  static args = {
+    key: Args.string({
+      required: true,
+      description: `Lookup key (ref id is ${ECP_SECRET_REF_PROTOCOL_PREFIX}<key>)`,
+    }),
+  }
 
   static flags = {
-    ...configScopeFlags,
-    provider: Flags.string({
-      char: "p",
-      description: "Provider id",
-      required: true,
-    }),
-    key: Flags.string({
-      char: "k",
-      description: `Lookup key (same form as add; ref id is ${ECP_SECRET_REF_PROTOCOL_PREFIX}<key>)`,
-      required: true,
-    }),
-    show: Flags.boolean({
+    reveal: Flags.boolean({
       description: "Print full value (writes to stdout — avoid logs)",
     }),
-  };
+  }
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(ConfigSecretsGet);
-    const cwd = process.cwd();
-    const { config } = loadConfigForDisplay({
-      global: flags.global as boolean,
-      cwd,
-      explicit: flags.config as string | undefined,
-    });
-    const dotenvPath = resolveDotenvPathFromConfig(cwd, config);
-    const { registry } = createDefaultSecretBroker({
-      policy: resolveSecretPolicyFromConfig(config),
-      dotenvPath,
-      cwd,
-    });
-
-    const provider = registry.get(flags.provider!);
-    if (!provider) {
-      this.error(`Unknown provider "${flags.provider}".`, { exit: 1 });
-    }
-    const available = await provider.isAvailable();
+    const { args, flags } = await this.parse(ConfigSecretsGet)
+    const store = getCliSecretsStore()
+    const available = await store.isAvailable()
     if (!available) {
-      this.error(`Provider "${flags.provider}" is not available.`, { exit: 1 });
+      this.error("OS keychain is not available on this system.", { exit: 1 })
     }
 
-    const ref: SecretRef = {
-      id: secretRefIdFromLogicalKey(flags.key!),
-      provider: flags.provider!,
-      key: canonicalSecretKeyForBinding(flags.key!),
-    };
-    const result = await provider.load(ref);
-    if (!result) {
-      this.error(`No secret for key "${flags.key}".`, { exit: 1 });
+    const key = canonicalSecretKey(args.key)
+    const value = await store.get(key)
+    if (value == null) {
+      this.error(`No secret for key "${key}".`, { exit: 1 })
     }
-    if (flags.show) {
-      this.warn("Printing full secret to stdout — ensure this is not logged or captured.");
-      this.log(result.value);
+    if (flags.reveal) {
+      this.warn("Printing full secret to stdout — ensure this is not logged or captured.")
+      this.log(value)
     } else {
-      this.log(result.redactedPreview);
+      this.log(redactSecret(value))
     }
   }
 }

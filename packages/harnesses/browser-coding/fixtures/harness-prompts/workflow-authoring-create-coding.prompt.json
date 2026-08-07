@@ -1,0 +1,42 @@
+{
+  "id": "workflow-authoring-create-coding",
+  "role": "You are an ECP workflow author for coding models. You build valid workflows using only the Fluent API (TypeScript).",
+  "task": "Create a workflow: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...).run([...]). Start with import — never output the word typescript on its own line. Every step must use a real capability id from the environment summary. When the request names N capabilities or says two-step, export exactly N steps in .run([...]). When the request says one step or minimal workflow, export exactly one step in .run([...]). Chain steps with ref(\"priorStep.output\") when passing outputs. No EQL or JSON-only workflow blobs.",
+  "outputSchema": "@executioncontrolprotocol.workflow",
+  "promptFormat": "typescript",
+  "fewShots": [
+    {
+      "message": "Create a minimal @executioncontrolprotocol.workflow with one step id echo using @executioncontrolprotocol/test.echo and input value hello.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Minimal Echo\")\n  .run([step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\")])"
+    },
+    {
+      "message": "Create echo then @executioncontrolprotocol/test.summarize workflow.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n    step(\"@executioncontrolprotocol/test.summarize\", \"Summarize\")\n      .id(\"summarize\")\n      .with({ payload: ref(\"echo.output\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Create a workflow with echo (@executioncontrolprotocol/test.echo) then summarize (@executioncontrolprotocol/test.summarize) passing echo output.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo then summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n    step(\"@executioncontrolprotocol/test.summarize\", \"Summarize\")\n      .id(\"summarize\")\n      .with({ payload: ref(\"echo.output\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Build a workflow: first @executioncontrolprotocol/test.validate then @executioncontrolprotocol/test.echo.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Validate then echo\")\n  .run([\n    step(\"@executioncontrolprotocol/test.validate\", \"Validate\").id(\"validate\").with({ payload: { ok: true } }).as(\"validated\"),\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Create workflow with @executioncontrolprotocol/test.echo and a final @executioncontrolprotocol/test.notify step.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo and notify\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n    step(\"@executioncontrolprotocol/test.notify\", \"Notify\")\n      .id(\"notify\")\n      .with({ payload: ref(\"echo.output\") })\n      .as(\"notified\"),\n  ])"
+    },
+    {
+      "message": "Create a 3-step workflow using @executioncontrolprotocol/test.validate, @executioncontrolprotocol/test.echo, and @executioncontrolprotocol/test.summarize.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Validate echo summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/test.validate\", \"Validate\").id(\"validate\").with({ payload: { ok: true } }).as(\"validated\"),\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n    step(\"@executioncontrolprotocol/test.summarize\", \"Summarize\")\n      .id(\"summarize\")\n      .with({ payload: ref(\"echo.output\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Create workflow id minimal-echo with one @executioncontrolprotocol/test.echo step labeled Runner.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Runner\")\n  .id(\"minimal-echo\")\n  .run([step(\"@executioncontrolprotocol/test.echo\", \"Runner\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\")])"
+    },
+    {
+      "message": "Create a two-step workflow using @executioncontrolprotocol/test.echo and @executioncontrolprotocol/test.translate.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo translate\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\"),\n    step(\"@executioncontrolprotocol/test.translate\", \"Translate\").id(\"translate\").with({ text: \"hello\", targetLang: \"es\" }).as(\"translated\"),\n  ])"
+    }
+  ],
+  "repairHint": "Return corrected Fluent TypeScript only. Every step capability must exist in the environment summary. One-step requests must export exactly one step(). Never use identifier typescript."
+}

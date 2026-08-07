@@ -1,0 +1,22 @@
+{
+  "schema": "@executioncontrolprotocol.workflow",
+  "version": "1.0",
+  "workflow": {
+    "id": "ref-state",
+    "label": "Ref and state"
+  },
+  "steps": [
+    {
+      "type": "step",
+      "id": "collect",
+      "label": "Collect",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "context": { "$ref": "state.signals.results" },
+        "brief": { "$state": "creativeInputs" }
+      },
+      "as": "out",
+      "when": { "eq": ["state.approved", false] }
+    }
+  ]
+}

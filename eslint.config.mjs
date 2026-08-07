@@ -4,7 +4,7 @@ import * as espree from "espree";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/", "**/node_modules/", "**/coverage/"],
+    ignores: ["**/dist/", "**/node_modules/", "**/coverage/", "archive/**"],
   },
   ...tseslint.configs.recommended,
   {
@@ -12,6 +12,38 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // Package boundary: extensions and harnesses are environment-agnostic and must
+  // depend only on @executioncontrolprotocol/types + @executioncontrolprotocol/core. They may not import host packages.
+  // Scoped to `src` so integration tests may still use a host runtime.
+  {
+    files: [
+      "packages/extensions/**/src/**/*.ts",
+      "packages/harnesses/**/src/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@executioncontrolprotocol/node",
+                "@executioncontrolprotocol/node/*",
+                "@executioncontrolprotocol/browser",
+                "@executioncontrolprotocol/browser/*",
+                "@executioncontrolprotocol/cli",
+                "@executioncontrolprotocol/cli/*",
+                "@executioncontrolprotocol/mcp",
+                "@executioncontrolprotocol/mcp/*",
+              ],
+              message:
+                "Extensions and harnesses must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/types and @executioncontrolprotocol/core only.",
+            },
+          ],
+        },
       ],
     },
   },

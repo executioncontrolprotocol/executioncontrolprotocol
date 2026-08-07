@@ -1,0 +1,49 @@
+{
+  "name": "@executioncontrolprotocol/harnesses-browser-nano",
+  "version": "0.0.10",
+  "description": "Browser Nano ECP harness for on-device and small models (demo + eval matrix)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./prompts": {
+      "types": "./dist/prompts/index.d.ts",
+      "import": "./dist/prompts/index.js"
+    },
+    "./request-capability-hints": {
+      "types": "./dist/_internal/request-capability-hints.d.ts",
+      "import": "./dist/_internal/request-capability-hints.js"
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "eval:matrix": "vitest run --config ../../../vitest.config.ts --project eval packages/harnesses/browser-nano/test/eval"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "^0.0.10",
+    "@executioncontrolprotocol/types": "^0.0.10",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "0.0.10",
+    "@executioncontrolprotocol/evals": "0.0.10",
+    "@executioncontrolprotocol/extension-ollama": "0.0.10",
+    "@executioncontrolprotocol/format-eql": "0.0.10",
+    "@executioncontrolprotocol/format-toon": "0.0.10",
+    "@executioncontrolprotocol/node": "0.0.10",
+    "@executioncontrolprotocol/types": "0.0.10",
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@executioncontrolprotocol/harnesses-browser-coding",
+  "version": "0.0.10",
+  "description": "Browser Coding ECP harness for stronger local coding models (eval matrix)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./prompts": {
+      "types": "./dist/prompts/index.d.ts",
+      "import": "./dist/prompts/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "eval:matrix": "vitest run --config ../../../vitest.config.ts --project eval packages/harnesses/browser-coding/test/eval"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "^0.0.10",
+    "@executioncontrolprotocol/types": "^0.0.10",
+    "zod": "^3.24.0"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/harnesses-browser-nano": "0.0.10"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "0.0.10",
+    "@executioncontrolprotocol/evals": "0.0.10",
+    "@executioncontrolprotocol/extension-ollama": "0.0.10",
+    "@executioncontrolprotocol/format-toon": "0.0.10",
+    "@executioncontrolprotocol/node": "0.0.10",
+    "@executioncontrolprotocol/types": "0.0.10",
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "@executioncontrolprotocol.harness.reply",
+  "answer": "The echo step failed because the input value was empty.",
+  "citations": [
+    {
+      "kind": "step",
+      "id": "echo",
+      "detail": "Step status failed in run history."
+    }
+  ]
+}

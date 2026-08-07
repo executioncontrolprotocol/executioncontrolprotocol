@@ -1,9 +1,0 @@
-specVersion: ecp/v0.5-draft
-kind: Context
-metadata:
-  name: empty
-  version: 1.0.0
-orchestration:
-  entrypoint: ghost
-  strategy: single
-executors: []

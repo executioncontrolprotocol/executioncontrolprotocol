@@ -1,0 +1,33 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/types" },
+    { "path": "packages/core" },
+    { "path": "packages/runtimes/node" },
+    { "path": "packages/runtimes/browser" },
+    { "path": "packages/harnesses/browser-nano" },
+    { "path": "packages/harnesses/browser-coding" },
+    { "path": "packages/policies" },
+    { "path": "packages/mcp" },
+    { "path": "packages/extensions/memory" },
+    { "path": "packages/extensions/openai" },
+    { "path": "packages/extensions/ollama" },
+    { "path": "packages/extensions/slack" },
+    { "path": "packages/extensions/storage" },
+    { "path": "packages/extensions/telemetry" },
+    { "path": "packages/extensions/format-toon" },
+    { "path": "packages/extensions/format-eql" },
+    { "path": "packages/extensions/format-mermaid" },
+    { "path": "packages/extensions/secrets" },
+    { "path": "packages/extensions/browser-secrets" },
+    { "path": "packages/extensions/process-env" },
+    { "path": "packages/extensions/chrome-ai" },
+    { "path": "packages/extensions/claude" },
+    { "path": "packages/extensions/fal" },
+    { "path": "packages/extensions/image-sharp" },
+    { "path": "packages/extensions/index" },
+    { "path": "packages/runtimes/temporal" },
+    { "path": "packages/cli" },
+    { "path": "packages/evals" }
+  ]
+}

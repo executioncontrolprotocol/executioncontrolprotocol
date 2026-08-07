@@ -11,3 +11,6 @@ coverage/
 
 # Local config files
 ecp.config.yaml
+
+# Secrets
+.env

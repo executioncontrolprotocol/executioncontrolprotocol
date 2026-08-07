@@ -1,0 +1,13 @@
+schema: @executioncontrolprotocol.workflow
+version: "1.0"
+workflow:
+  id: echo-test
+  label: Echo test
+steps[1]:
+  - type: step
+    id: echo
+    label: Echo
+    uses: @executioncontrolprotocol/test.echo
+    input:
+      value: hello from fluent API
+    as: echo

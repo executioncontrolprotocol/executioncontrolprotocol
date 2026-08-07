@@ -1,0 +1,73 @@
+---
+description: How to build ECP extensions (first-party and third-party) without host/runtime coupling
+globs: packages/extensions/**/*
+alwaysApply: false
+---
+
+# ECP extension packages
+
+Treat every extension under `packages/extensions/` as if it were published for **third-party** authors: environment-agnostic, minimal dependencies, no imports from Node/Browser host packages unless the extension *is* a runtime or host adapter.
+
+## Dependencies
+
+| Package | Use for |
+| ------- | ------- |
+| `@executioncontrolprotocol/types` | Protocol types (`WorkflowManifest`, `EcpSchema`, `EncodedArtifact`, capability IDs, etc.) |
+| `@executioncontrolprotocol/core` | `defineExtension`, `capabilityFor`, `catalogExtension`, shared validation (`validateWorkflow`), encoding error types |
+| `zod` | Config and capability I/O schemas (`z.object`, `z.string`, etc.) — import directly from `"zod"`, not through `@executioncontrolprotocol/core` |
+| Third-party libs | Format/SDK deps only (e.g. `@toon-format/toon`) scoped to the extension’s job |
+
+**Do not** depend on `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, `@executioncontrolprotocol/cli`, or `@executioncontrolprotocol/mcp` in extension `dependencies` or `devDependencies`.
+
+Runtimes and policies follow the same boundary unless they intentionally implement a host (`@executioncontrolprotocol/node` runtime, browser registry, etc.).
+
+## Registration and discovery
+
+1. Build an `ExtensionDefinition` with `defineExtension("@vendor", "name").withCapabilities([...]).build()`.
+2. **Required:** call `catalogExtension(def)` at module load (top level of `src/index.ts`). This is the single, consistent pattern for **every** first-party and third-party extension. Without it, a string binding `extension("@vendor/name")` cannot resolve the definition and fails — even though `import "@vendor/package"` ran. Do not rely on a `register*` helper alone for catalog lookup.
+3. Also export `registerVendorExtension(registry?)` for hosts that need eager registration on a specific `Registry`. The helper must be idempotent (`if (!registry.getExtension(id)) ...`).
+
+> Consistency rule: catalog-on-load is mandatory; eager `register*` is the optional convenience layer on top. All extensions under `packages/extensions/` follow this, so contributors have one model to copy.
+
+Consumers (apps, examples, CLI env files) bind extensions in **environment modules**; extension packages must not assume Node `process.env`, browser `globalThis`, or a specific runtime.
+
+## Fluent authoring (not an extension)
+
+Manifest ↔ Fluent API conversion lives in **`@executioncontrolprotocol/core`** (`renderWorkflowToFluent`, `compileWorkflowSource`, `encodeFluent`, `ecp.encode().as("fluent")`). Do not add a `@executioncontrolprotocol/format-fluent` extension package. Extension format packages are for optional encodings (e.g. `@executioncontrolprotocol/format-toon`, `@executioncontrolprotocol/format-mermaid`).
+
+## Capability handlers
+
+- Handlers receive typed inputs and a **utility** or **capability** context from `@executioncontrolprotocol/core`; avoid reaching into `Environment` internals.
+- Use `capabilityFor("@vendor/name", "capability-id")` for stable capability IDs.
+- Host-specific extensions **must** call `.withSupportedRuntimes([...])` on `defineExtension` (omit for universal extensions).
+- Import `z` from `"zod"` for config and capability schemas (peer dependency; do not import through `@executioncontrolprotocol/core`).
+
+```ts
+import { defineExtension, capabilityFor, catalogExtension, globalRegistry } from "@executioncontrolprotocol/core"
+import { z } from "zod"
+
+export const myExtension = defineExtension("@vendor", "my-ext")
+  .withConfig({ apiKey: z.string().optional() })
+  .withCapabilities([
+    capabilityFor("@vendor/my-ext", "do-thing")
+      .withInput(z.object({ value: z.string() }))
+      .withOutput(z.object({ result: z.string() }))
+      .withHandler(async (input) => ({ result: input.value })),
+  ])
+  .build()
+
+catalogExtension(myExtension)
+```
+
+- Encode/decode/format capabilities: accept `unknown` documents, infer `schema` when present, validate known `EcpSchema` values with diagnostics; do not throw on unknown schemas unless `strict` decode is requested.
+
+## Tests
+
+- Test the extension in isolation: fixtures for `@executioncontrolprotocol.workflow`, `@executioncontrolprotocol.environment`, `@executioncontrolprotocol.environment.describe`, etc.
+- Use `environment()` from `@executioncontrolprotocol/core` for `encode`/`decode` integration tests (no runtime binding required).
+- Do **not** import `@executioncontrolprotocol/node` to call `describe()`, `run()`, or wire runtimes; that belongs in `@executioncontrolprotocol/core` / `@executioncontrolprotocol/node` tests.
+- In-repo stub: `import "@executioncontrolprotocol/core/testing"` and `extension("@executioncontrolprotocol/test")` only when a test must invoke a real capability handler.
+
+## Environment modules (apps/examples, not extensions)
+
+Application `environment.ts` files may import `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser` for `environment()`, secrets, and runtime defaults. That layer composes extensions; it is not part of the extension package contract.

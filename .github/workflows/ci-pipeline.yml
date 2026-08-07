@@ -1,5 +1,4 @@
-# Reusable CI pipeline: build, lint, validate, tests, and (on main push only) npm publish.
-# Called from `ci.yml`.
+# Reusable CI pipeline for @executioncontrolprotocol/* monorepo
 
 name: ci
 
@@ -20,14 +19,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build (spec → plugins → schema → runtime → cli)
-        run: npm run build
-      - name: Lint (ESLint + markdownlint)
-        run: npm run lint
-      - name: Validate spec
-        run: npm run validate
-      - name: CLI smoke test
-        run: npx ecp validate spec.yaml --config config/ecp.config.example.yaml --input shopifyStoreId=test --input jiraProject=TEST
+      - run: npm run build
+      - run: npm run lint
+      - name: CLI smoke
+        run: |
+          npx ecp compile examples/01-echo/workflow.ts -o /tmp/ecp-workflow.json
+          npx ecp validate /tmp/ecp-workflow.json --env examples/01-echo/environment.ts
 
   unit:
     name: unit
@@ -40,17 +37,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build packages (dist for tests)
-        run: npm run build
-      - name: Run unit tests
-        run: npm run test:unit
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: coverage/
-          retention-days: 7
+      - run: npm run build
+      - run: npm run test:unit
 
   integration:
     name: integration
@@ -63,18 +51,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build packages (dist for tests)
-        run: npm run build
-      - name: Run integration tests
-        run: npm run test:integration
+      - run: npm run build
+      - run: npm run test:integration
 
-  e2e:
-    name: e2e
+  browser:
+    name: browser
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 10
-    # Ollama runs in Docker (no install.sh on the runner — faster and avoids /usr/local permission issues).
-    # Model blobs live under .ollama-models and are cached with actions/cache; the same dir is bind-mounted into the container.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,79 +65,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build packages (dist for tests)
-        run: npm run build
-      - name: Cache Ollama models
-        id: ollama-models
+      - run: npm run build
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
-          path: .ollama-models
-          key: ollama-models-${{ runner.os }}-gemma3-1b-v1
-          restore-keys: |
-            ollama-models-${{ runner.os }}-
-      - name: Start Ollama (Docker)
-        run: |
-          mkdir -p .ollama-models
-          docker run -d --name ollama \
-            -p 11434:11434 \
-            -e OLLAMA_MODELS=/models \
-            -v "${GITHUB_WORKSPACE}/.ollama-models:/models" \
-            ollama/ollama:latest
-      - name: Wait for Ollama
-        run: |
-          for i in $(seq 1 60); do
-            curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 && exit 0
-            sleep 1
-          done
-          echo "Ollama did not become ready in time" >&2
-          exit 1
-      - name: Pull model
-        if: steps.ollama-models.outputs.cache-hit != 'true'
-        run: docker exec ollama ollama pull gemma3:1b
-      - name: Run E2E tests
-        env:
-          OLLAMA_MODEL: gemma3:1b
-        run: npm run test:e2e
-      - name: Stop Ollama
-        if: always()
-        run: docker rm -f ollama || true
-
-  publish:
-    name: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    needs: [build, unit, integration, e2e]
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - name: Build (spec → plugins → schema → runtime → cli)
-        run: npm run build
-      - name: Publish @executioncontrolprotocol/spec
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@executioncontrolprotocol/spec --access public
-      - name: Wait for registry (avoid race before plugins publish)
-        run: sleep 10
-      - name: Publish @executioncontrolprotocol/plugins
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@executioncontrolprotocol/plugins --access public
-      - name: Wait for registry (avoid race before runtime publish)
-        run: sleep 10
-      - name: Publish @executioncontrolprotocol/runtime
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@executioncontrolprotocol/runtime --access public
-      - name: Wait for registry
-        run: sleep 10
-      - name: Publish @executioncontrolprotocol/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace=@executioncontrolprotocol/cli --access public
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run test:browser:install
+      - run: npm run test:browser

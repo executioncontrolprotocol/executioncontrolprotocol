@@ -1,0 +1,53 @@
+{
+  "schema": "@executioncontrolprotocol.environment.describe",
+  "version": "1.0",
+  "environment": {
+    "id": "disc",
+    "label": "Discovery"
+  },
+  "runtime": {
+    "id": "@executioncontrolprotocol/in-memory",
+    "features": {
+      "loops": true
+    }
+  },
+  "extensions": [
+    {
+      "id": "@executioncontrolprotocol/test",
+      "order": 0,
+      "capabilities": ["@executioncontrolprotocol/test.echo"]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "@executioncontrolprotocol/test.echo",
+      "label": "Echo",
+      "extension": "@executioncontrolprotocol/test",
+      "inputSchema": {
+        "value": "string!"
+      },
+      "outputSchema": {
+        "output": "object"
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/memory.search",
+      "label": "Search Memory",
+      "extension": "@executioncontrolprotocol/memory",
+      "inputSchema": {
+        "query": "string!",
+        "since": "string"
+      },
+      "outputSchema": {
+        "results": "array"
+      }
+    }
+  ],
+  "policies": [
+    {
+      "id": "@executioncontrolprotocol/budget",
+      "label": "Budget Guardrails",
+      "summary": "Spend limits"
+    }
+  ]
+}
