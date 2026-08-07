@@ -272,7 +272,7 @@ class StaticProvider implements ModelProvider {
 
 function makeExtensibleContext(providerName: string): ECPContext {
   return {
-    specVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.5-draft",
     kind: "Context",
     metadata: { name: "extensible", version: "1.0.0" },
     schemas: {
@@ -391,7 +391,7 @@ describe("ECPEngine — extensibility registry", () => {
 
 function makeMemoryContext(): ECPContext {
   return {
-    specVersion: "ecp/v0.3-draft",
+    specVersion: "ecp/v0.5-draft",
     kind: "Context",
     metadata: { name: "memory-test", version: "1.0.0" },
     schemas: {

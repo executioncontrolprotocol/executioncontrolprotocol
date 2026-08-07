@@ -19,6 +19,7 @@ alwaysApply: true
 
 - **Field names:** camelCase (e.g. `outputSchemaRef`, `maxToolCalls`, `fromSchema`).
 - **Enum / union literal values:** kebab-case (e.g. `"controller-specialist"`, `"tool-event"`, `"propose-only"`). Never camelCase or snake_case.
+- **CLI (`ecp` …):** user-facing **flag names**, **subcommand segments**, and **keys** in `key=value` parameters use **kebab-case** in the same family as enum/union literals above. See `.cursor/rules/cli-crud.mdc`. (TS field names in saved config stay camelCase; the CLI is a separate surface.)
 - **Type and interface names:** PascalCase (e.g. `ECPContext`, `MountStage`, `WriteControlMode`).
 - **Schema component names** (in `spec.yaml` → `schemas:`): PascalCase (e.g. `Plan`, `RevenueFindings`).
 - **Optional `description`** field: every major ECP object interface SHOULD include an optional `description?: string` field, following OpenAPI's pattern of allowing documentation at every level.

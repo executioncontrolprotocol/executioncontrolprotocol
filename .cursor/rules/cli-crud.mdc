@@ -6,6 +6,30 @@ alwaysApply: false
 
 # CLI command conventions (`@executioncontrolprotocol/cli`)
 
+## User-facing tokens (kebab-case, same family as spec literals)
+
+CLI user input uses the **same casing style as enum / union literal values** in `.cursor/rules/typescript.mdc` (**kebab-case**). That is a **different layer** from **TypeScript field names** (camelCase in types and YAML): the shell shows `--default-model`, while the saved field remains `defaultModel`.
+
+- **Long flags:** **kebab-case** with hyphens between words (`--default-model`, `--supported-models`, `--stdio-command`, `--transport-type`). **Never** camelCase (`--defaultModel`) or **snake_case** (`--default_model`) in flag names.
+- **Single-word** long flags: **lowercase** (`--file`, `--provider`, `--type`, `--url`, `--global`). A single segment is still consistent with kebab-case (no inner hyphens needed).
+- **Flag values** that are closed sets aligned with the spec (e.g. strategy, mount stage) **must** use the same **kebab-case** literals as in `ecp.ts` / manifests (`stdio`, `sse`, `controller-specialist`, … — use the canonical string from the type union).
+- **Subcommand segments** in the topic path (`ecp config security loggers allow add`, `allowed-models`, …): **kebab-case** for multi-word segments; match spec vocabulary where applicable.
+- **`--option key=value` (and similar):** the **key** side is **kebab-case** at the CLI (e.g. `base-url=http://…`). Code that writes into `ecp.config.*` may map to camelCase or plugin-defined keys at the persistence boundary; document that mapping next to the parser.
+- **Short flags:** **single ASCII letters** where used (`-c` / `--config`, `-g` / `--global`). Do not introduce shorts that collide with shells or Oclif without review.
+- **Oclif:** the **`static flags` property name** becomes the external flag name. Use **quoted kebab-case keys**: `"default-model": Flags.string({ … })`. A bare `defaultModel` key yields `--defaultModel` in help — **forbidden** for new commands/flags.
+
+**Summary:** Anything the user **types** as a named parameter (flag name, subcommand word, structured `key` in `key=value`) follows **kebab-case**, aligned with **enum / union literal** rules in TypeScript. Free-form **values** (paths, secrets, model ids, URLs) are not renamed by this rule.
+
+## Host security and system config on disk
+
+- **`ecp run`** and **`ecp validate`** **require** a resolvable system configuration file: project-local **`./ecp.config.yaml`** / **`./ecp.config.json`**, user-global **`~/.ecp/config.yaml`** (or **`~/.ecp/config.json`** / **`~/.ecp/ecp.config.yaml`** per merge rules), or **`--config <path>`** to an existing YAML/JSON file. If **none** of these exist, the command **fails** with a clear error (no implicit “open host” when config is missing). **`--config`** still loads a **single** file with **no** merge with `~/.ecp`.
+
+## Wiring vs `security` (system config)
+
+- **`ecp config add|remove|get|update --type tools|models|loggers|endpoints`** — **wiring only** (`tools.servers`, `models.providers`, `loggers.config`, `agents.endpoints`). Use **generic** `--provider`, **`--default-model` / `--allowed-models` / `--option key=value`** (repeatable; duplicate keys invalid) for models; **`--transport-type` stdio|sse**, **`--stdio-command`**, **`--stdio-arg`**, **`--sse-url`**, **`--option`**, **`--credentials-file`**, or **`--file`** for tools; **`--option`** or **`--file`** for loggers/endpoints; **no** provider-specific command trees (no `ollama` subtopic, no hard-coded provider branches in those handlers).
+- **`ecp config security …`** — **all** allow/deny/default-enable style policy under `security.*`. Naming mirrors the alignment spec: `ecp config security models allow|default …`, `ecp config security tools allow …`, `ecp config security loggers allow|default …`, `ecp config security agents allow|default …`, `ecp config security executors allow|default …`, `ecp config security memory allow …` and `memory default set …`, `ecp config security secrets allow …`, plus `ecp config security models allowed-models …` for per-provider model caps. Do not add parallel allow/deny under `ecp config plugins` or typed `--type` CRUD.
+- **`ecp config plugins`** — **installs** and **`get`** only; extension policy is **`ecp config security plugins update`**.
+
 ## CRUD verbs
 
 Commands that manipulate a resource (including nested resources) use **only** these action names:
@@ -21,20 +45,17 @@ Meta-commands that are not resource CRUD (e.g. `config init`, `config path`) are
 
 ## Layout
 
-- Prefer **one Oclif command file per action**, nested by topic: e.g. `commands/config/models/allow/add.ts` → `ecp config models allow add`.
+- Prefer **one Oclif command file per action**, nested by topic: e.g. `commands/config/security/loggers/allow/add.ts` → `ecp config security loggers allow add`.
+- Wiring mutations are centralized in **`ecp config add|update|remove`** with **`--type`**; shared logic lives in `packages/cli/src/lib/config-wiring-ops.ts`.
 - File names match the CLI segment (`add.ts`, `get.ts`, `remove.ts`, `update.ts`), not hyphenated compound verbs.
 
 ## Examples
 
-- Prefer `ecp config get` over `ecp config show` for dumping resolved config.
-- Prefer `ecp config tools update` over `… set` when replacing an existing tool server block.
-- System plugin policy lives under **`ecp config plugins`** (not a duplicate `extensions` topic).
+- Prefer `ecp config get` (no `--type`) for the full merged config dump; use **`ecp config get --type tools`** (etc.) for wiring slices.
+- Prefer **`ecp config update --type tools NAME --file …`** or structured flags (`--transport-type`, `--stdio-command`, …) for replacing a tool server block.
+- Do not add parallel command trees for renamed concepts (e.g. `config extensions` and `config plugins`). One topic per resource; rename in place when terminology changes.
 
 ## `ecp config secrets`
 
 - Use **`add`** / **`get`** / **`list`** / **`remove`** only (no `set` / `delete` for this topic).
 - **`list`** is allowed here: it enumerates keyring *keys*, not a single resource body (distinct from **`get`** for one secret’s value).
-
-## Duplicates
-
-Do not add parallel command trees for renamed concepts (e.g. `config extensions` and `config plugins`). One topic per resource; rename in place when terminology changes.

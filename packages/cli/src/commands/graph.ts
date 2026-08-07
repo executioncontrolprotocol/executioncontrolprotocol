@@ -22,7 +22,7 @@ export default class Graph extends EcpEnvironmentCommand {
   };
 
   static args = {
-    runId: Args.string({
+    "run-id": Args.string({
       required: true,
       description: "run id (e.g. run-123...)",
     }),
@@ -31,7 +31,7 @@ export default class Graph extends EcpEnvironmentCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Graph);
     this.applyEnvironmentFlag(flags);
-    const runId = args.runId;
+    const runId = args["run-id"];
 
     const traceDir = flags["trace-dir"];
     const filePath = resolve(traceDir, `${runId}.json`);

@@ -1,6 +1,39 @@
 <!-- markdownlint-disable-file MD024 -->
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **CLI:** **`ecp config reset`** removes project **`ecp.config.yaml`** and **`ecp.config.json`**, or with **`--global`** all known config files under **`~/.ecp/`**; **`--config <path>`** deletes a single file. Idempotent when no matching files exist.
+- **Runtime / CLI:** **`resolveMergedSystemConfig`** merges project **`ecp.config.*`** with **`~/.ecp/*`** so **global overrides local** on overlapping keys; **`--config <path>`** still loads one file only. **`resolveMergedSystemConfigRequired`** (used by **`ecp run`** / **`ecp validate`**) throws when **no** file is found so execution never proceeds without host policy on disk. **`assertHostPolicyForContext`** centralizes checks for **supported vs allowed models** (`models.providers.*.supportedModels` vs **`security.models.allowedModels`**), **logger allowlists**, **MCP servers** referenced by Context **mounts** vs **`tools.servers`** / **`security.tools.allowServers`**, **`security.models.allowProviders`** (including **`defaultProviders`**), **`security.plugins.allowIds`** (including Context **`plugins.providers`** names), and related gates.
+- **`ecp validate`:** **`--config` / `-c`**, **`--model` / `-m`**, **`--provider` / `-p`**, **`--logger` / `-l`** mirror **`ecp run`** for host policy validation before execution.
+- **`ecp config add|update`:** **`--default-model`** without **`--supported-models`** seeds **`supportedModels`** with that default; **`ecp config add|update --type models`** also seeds **`security.models.allowedModels.<provider>`** when missing. New **tools** / **loggers** / **endpoints** wiring appends the id to the matching **`security.*` allow** list (and ensures **`security.<area>`** stubs exist).
+- **CLI:** `--file -` reads JSON from stdin for commands that accept `--file` (e.g. `ecp config add|update --type …`, `ecp config security plugins update`). On Windows, npm `.cmd` shims and `cmd.exe` often break inline JSON; piping JSON into `--file -` avoids that.
+- **CLI:** Typed flags for wiring and policy: **`--option key=value`** (repeatable, unique keys per invocation) for nested `config` blobs; **`--default-model`**, **`--supported-models`** for model **wiring**; **`ecp config security models allowed-models`** edits **`security.models.allowedModels`**; **`--transport-type` stdio|sse**, **`--stdio-command`**, **`--stdio-arg`**, **`--stdio-cwd`**, **`--sse-url`**, **`--credentials-file`** for tools; **`ecp config security plugins update`** accepts **`--allow-kind`**, **`--allow-source-type`**, **`--allow-id`**, **`--deny-id`**, **`--strict`**.
+
+### Fixed
+
+- **Host policy:** `ecp run` / `ecp validate` now **fail** when the Context references a model provider that has **no** `models.providers.<id>` wiring in system config (for example after `ecp config remove --type models`). Security allow-lists alone are not enough; wiring must exist.
+- **CLI:** `ecp config add|update` multi-word flags use **kebab-case** on the command line (`--default-model`, `--supported-models`, `--transport-type`, `--stdio-command`, …), matching help text and common POSIX-style conventions.
+
+### Changed
+
+- **`ecp run` / `ecp validate`:** Enforce **effective model** against **`models.providers.<id>.supportedModels`** (implicit **`[defaultModel]`** when **`supportedModels`** is omitted) **and** **`security.models.allowedModels.<id>`** when policy applies; **fail** when a Context **mount** references an MCP server missing from **`tools.servers`** or blocked by **`security.tools.allowServers`** (instead of only logging at runtime).
+- **Context `specVersion`:** The latest protocol label is **`ecp/v0.5-draft`** (`LATEST_PROTOCOL_VERSION` in `@executioncontrolprotocol/spec`), aligned with the **0.5.x** npm release line. Update manifests that still use `ecp/v0.3-draft`. Unit tests enforce that system config schema `version`, this string, and workspace `package.json` major.minor stay in sync.
+
+### Breaking changes (CLI)
+
+- **System config models:** **`models.providers.<id>.allowedModels`** is removed. Use **`supportedModels`** for wiring (host capability) and **`security.models.allowedModels`** as a map **`{ <providerId>: [model names] }`** for policy. For each provider in **`security.models.allowProviders`**, **`security.models.allowedModels[providerId]`** MUST be a **non-empty** array, and every entry MUST be supported by that provider’s wiring. **`ecp config add|update --type models`** uses **`--supported-models`** (replaces **`--allowed-models`**). **`ecp config security models allowed-models add|remove`** now edits **`security.models.allowedModels`** only (not wiring).
+- **`ecp run`** / **`ecp validate`:** A system config file is **required** when using default discovery (merged project + `~/.ecp`). If no file is found, the command **fails** instead of running without host policy. Use **`ecp config init`**, copy **`config/ecp.config.example.yaml`** to **`ecp.config.yaml`**, add **`~/.ecp/config.yaml`**, or pass **`--config <path>`** to an existing file.
+- **`ecp config path`:** **`--forWrite`** is renamed **`--for-write`** (kebab-case, consistent with other flags).
+- **`ecp run`**, **`ecp validate`:** positional arg label is **`CONTEXT-PATH`** (was `CONTEXTPATH`). **`ecp trace`** and **`ecp graph`:** positional arg label is **`RUN-ID`** (was `RUNID`). Values are passed the same way; only help/usage naming changed.
+- **`ecp config add|update`** and **`ecp config security plugins update`:** removed **`--json`**. Use **`--file`** / **`--file -`**, or the flags above (structured tool transport, model fields, **`--option`**, or security plugin policy flags). **`-c` / `--config`** remains the path to the system config file only.
+- **Security subcommand names** (if you already adopted the interim hyphenated paths): `… models allow-providers` → `… models allow`; `… models default-providers` → `… models default`; `… tools allow-servers` → `… tools allow`; `… agents allow-endpoints` → `… agents allow`; `… memory allow-stores` → `… memory allow`; `… memory default-store set` → `… memory default set`; `… secrets allow-providers` → `… secrets allow`.
+- **Wiring vs policy:** Removed nested `ecp config models|tools|loggers|endpoints` and `ecp config plugins allow|default`, `ecp config loggers allow|default`, and provider-specific `ecp config models ollama` (and related) commands.
+  - **Wiring** (data plane): `ecp config add|remove|get|update --type tools|models|loggers|endpoints` with generic `--provider` + typed flags / `--file` for models; no provider-specific CLI branches.
+  - **Policy** (allow/deny/default): `ecp config security …` only — e.g. `ecp config security models allow add <id>`, `ecp config security models default add <id>`, `ecp config security models allowed-models add <provider> <model>`, `ecp config security tools allow add <name>`, `ecp config security loggers allow add <id>`, `ecp config security secrets allow add <id>`, `ecp config security memory allow add <id>`, `ecp config security memory default set <id>`, plus agents/executors subcommands. See `ecp config security` (no args) for the full list.
+
 ## 0.5.0
 
 ### Breaking changes

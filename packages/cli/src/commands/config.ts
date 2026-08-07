@@ -6,19 +6,19 @@ export default class Config extends Command {
 
   static description = `Inspect and edit system config (project ecp.config.* or global ~/.ecp/).
 
-v0.5 layout: policy under top-level security (mirrors models, tools, loggers, …); wiring under models.providers, tools.servers, loggers.config, agents.endpoints, plugins.installs, secrets.
-
-Subcommands: security, plugins (installs + deprecated allow paths), models, tools, loggers, secrets (store ops + yaml *), endpoints (agents.endpoints).
-You can also edit the file directly — use "ecp config path" for the resolved path.`;
+Wiring (data plane): \`ecp config add|remove|get|update --type tools|models|loggers|endpoints\`.
+Policy (allow/deny): \`ecp config security …\` only.
+Plugins installs and secrets store ops keep their topics.`;
 
   static examples = [
     "ecp config init",
     "ecp config init --global",
+    "ecp config reset",
+    "ecp config reset --global",
     "ecp config get",
-    "ecp config path --global",
-    "ecp config plugins get",
-    "ecp config models allow add ollama llama3.2:3b",
-    "ecp config tools add fetch --json '{\"transport\":{\"type\":\"stdio\",\"command\":\"docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/fetch\"]}}'",
+    "ecp config get --type tools",
+    'ecp config add --type tools fetch --transport-type stdio --stdio-command npx --stdio-arg -y --stdio-arg @modelcontextprotocol/server-fetch',
+    "ecp config security models allowed-models add ollama llama3.2:3b",
     `ecp config secrets add --provider ${OS_PROVIDER_ID} --key server/fetch.token --prompt`,
     "ecp config secrets providers doctor",
   ];
@@ -30,18 +30,17 @@ You can also edit the file directly — use "ecp config path" for the resolved p
         "Usage: ecp config <subcommand>",
         "",
         "  init              Write best-practices default if missing",
+        "  reset             Remove config file(s) (local, --global, or --config)",
         "  path              Print config file path",
-        "  get               Print merged config (YAML or JSON)",
-        "  security          Dump security.* (policy mirror)",
-        "  plugins           installs list/add/remove; legacy allow → security.models",
-        "  models            CRUD for models.providers",
-        "  tools             CRUD for tools.servers",
-        "  loggers           security.loggers + loggers.config",
+        "  get               Full config, or slice: --type tools|models|loggers|endpoints [--id for loggers]",
+        "  add               Wiring: --type tools|models|loggers|endpoints …",
+        "  update            Wiring: --type …",
+        "  remove            Wiring: --type …",
+        "  security          All allow/deny/default policy (security.*)",
+        "  plugins           installs list/add/remove; get",
         `  secrets           Store ops + yaml get/set-default-provider/set-policy`,
-        "  endpoints         CRUD for agents.endpoints (A2A URLs)",
         "",
-        "Resource commands use verbs: add, get, remove, update (see ecp config <topic> --help).",
-        "Run ecp config --help for flags and full help.",
+        "Run ecp config --help for flags. Run ecp config security (no args) for policy command list.",
       ].join("\n"),
     );
   }

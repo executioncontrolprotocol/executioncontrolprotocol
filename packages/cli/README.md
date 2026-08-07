@@ -16,31 +16,36 @@ npm install -g @executioncontrolprotocol/cli
 
 ```bash
 ecp --help
-ecp validate path/to/context.yaml
-ecp run path/to/context.yaml -i topic="Hello"
+ecp validate path/to/context.yaml --config path/to/ecp.config.yaml
+ecp run path/to/context.yaml --config path/to/ecp.config.yaml -i topic="Hello"
 ```
+
+Without **`--config`**, the CLI looks for **`./ecp.config.yaml`** / **`./ecp.config.json`** and **`~/.ecp/*`** and merges them when both exist. If **no** file is found, **`ecp run`** and **`ecp validate`** exit with an error so host policy is never implicit.
 
 ### System config (`ecp.config.yaml` / `~/.ecp/config.yaml`)
 
-**v0.5 layout:** use top-level **`security`** for allow-lists and defaults (mirrors `models`, `tools`, `loggers`, …). Wiring lives under **`models.providers`**, **`tools.servers`**, **`loggers.config`**, **`agents.endpoints`**, **`plugins.installs`**, **`secrets`**. Set **`version: "0.5"`**.
+**v0.5 layout:** use top-level **`security`** for allow-lists and defaults (mirrors `models`, `tools`, `loggers`, …). Wiring lives under **`models.providers`** (use **`supportedModels`** per provider), **`tools.servers`**, **`loggers.config`**, **`agents.endpoints`**, **`plugins.installs`**, **`secrets`**. Per-provider model **policy** is **`security.models.allowedModels`** (map of provider id to model name lists). Set **`version: "0.5"`**.
 
 ```bash
 ecp config --help
 ecp config init                    # best-practices starter in current directory
 ecp config init --global          # ~/.ecp/config.yaml
+ecp config reset                   # delete ./ecp.config.yaml and ./ecp.config.json if present
+ecp config reset --global         # delete known files under ~/.ecp/ (config.json, config.yaml, ecp.config.yaml)
 ecp config path                    # resolved file path (use --for-write for mutation target)
 ecp config get --format json
+ecp config get --type tools        # wiring slice (also: models, loggers, endpoints)
+ecp config add --type tools NAME --transport-type stdio --stdio-command npx --stdio-arg -y --stdio-arg @modelcontextprotocol/server-fetch
 ecp config security get
+ecp config security               # list policy subcommands
+ecp config security models allow add ollama
 ecp config plugins get             # plugins.installs + security.plugins summary
-ecp config models get
-ecp config tools get
-ecp config loggers get
 ecp config secrets yaml get
 ```
 
 `ecp run` accepts `--logger` / `-l` (e.g. `file`) to enable logger **plugins** (`kind: logger`); defaults and allow-lists are under **`security.loggers`**, per-logger options under **`loggers.config`**.
 
-YAML and JSON are supported; defaults are searched in order: `./ecp.config.yaml`, `./ecp.config.json`, then `~/.ecp/`.
+YAML and JSON are supported. **`ecp run`** and **`ecp validate`** load a **merged** view when both a project config (`./ecp.config.yaml` or `./ecp.config.json`) and a user config under **`~/.ecp/`** exist: values from the user file **override** the project file on the same keys (including under **`security`**). Use **`--config <path>`** to point at a **single** file with **no** merge. At least one file must exist (merged discovery or **`--config`**); otherwise the command fails.
 
 ## Secrets and environment files
 

@@ -34,9 +34,11 @@ Coding standards for AI agents (DRY, minimal focused changes, testing expectatio
 ### Running the CLI
 
 ```sh
-ecp run <context.yaml> --input key=value --debug
-ecp validate <context.yaml>
+ecp run <context.yaml> --config ecp.config.yaml --input key=value --debug
+ecp validate <context.yaml> --config ecp.config.yaml
 ```
+
+**System config:** `ecp run` and `ecp validate` require a resolvable system config (`./ecp.config.yaml`, `~/.ecp/config.yaml`, or `--config <path>`). Without any file, the CLI exits with an error.
 
 Requires `OPENAI_API_KEY` for `ecp run` (with default OpenAI provider).
 Use `--provider ollama` for local Ollama models (no API key needed).

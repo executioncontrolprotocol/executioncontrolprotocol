@@ -13,7 +13,7 @@ export default class ConfigPath extends Command {
 
   static flags = {
     ...configScopeFlags,
-    forWrite: Flags.boolean({
+    "for-write": Flags.boolean({
       description: "Show the path that mutating subcommands would write (prefer existing local/global file)",
       default: false,
     }),
@@ -25,7 +25,7 @@ export default class ConfigPath extends Command {
     const global = flags.global as boolean;
     const explicit = flags.config as string | undefined;
 
-    if (flags.forWrite) {
+    if (flags["for-write"]) {
       const path = resolveWritePathForMutation({ global, cwd, explicit });
       this.log(path);
       return;

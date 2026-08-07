@@ -105,7 +105,7 @@ A **Context** is the root execution object in ECP.
 
 A Context contains:
 
-* **`specVersion`** — which ECP Context specification the manifest targets (e.g. `ecp/v0.3-draft`; formerly `apiVersion`)
+* **`specVersion`** — which ECP Context specification the manifest targets (e.g. `ecp/v0.5-draft`; formerly `apiVersion`)
 * **`kind`**: `Context`
 * **`metadata`** (including a required semantic **`version`** for the manifest)
 * Inputs
@@ -630,6 +630,8 @@ The **host** may load a system configuration file (YAML or JSON) alongside a Con
 
 1. **Configure** — wiring and data: `models.providers`, `tools.servers`, `loggers.config`, `agents.endpoints`, `plugins.installs`, `secrets`, optional `executors.instances`, `memory.stores`, and opaque `config` blobs on entries where applicable.
 2. **`security`** — the **same area names**, but only **allow-lists and defaults**: `security.models`, `security.tools`, `security.loggers`, `security.secrets`, `security.plugins` (global `PluginSecurityPolicy`: `allowKinds`, `allowSourceTypes`, `allowIds`, …), plus `security.executors`, `security.memory`, `security.agents` when those areas are used.
+
+**Models (two planes):** Under **`models.providers.<id>`**, **`supportedModels`** lists models this host can run (capability / wiring). Under **`security.models`**, **`allowedModels`** is a map **`{ <providerId>: [model names] }`** listing what policy permits. For each provider id in **`security.models.allowProviders`**, that map entry MUST be non-empty, and every allowed model MUST appear in the corresponding **`supportedModels`** (or the implicit `[defaultModel]` set when **`supportedModels`** is omitted). The runtime enforces both planes on **`ecp run`** and **`ecp validate`**.
 
 **`PluginKind`** in Context manifests includes `tool` for MCP (or similar) tool servers that correspond to logical names under `tools.servers`. When `security.plugins.allowKinds` is set and omits `tool`, implementations SHOULD refuse MCP connections that are governed as tool plugins. `security.tools.allowServers`, when set, restricts which logical server names may connect.
 

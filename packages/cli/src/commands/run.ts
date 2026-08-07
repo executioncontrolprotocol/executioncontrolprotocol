@@ -8,7 +8,7 @@ import {
   ECPEngine,
   loadContext,
   resolveInputs,
-  resolveSystemConfig,
+  resolveMergedSystemConfigRequired,
   MCPToolInvoker,
   A2AAgentTransport,
   ExtensionRegistry,
@@ -18,12 +18,12 @@ import {
   TraceCollector,
   ConsoleTraceExporter,
   JsonFileTraceExporter,
-  type ECPSystemConfig,
   getSecurityConfig,
   resolveAgentEndpointsMap,
+  assertHostPolicyForContext,
 } from "@executioncontrolprotocol/runtime";
 
-import type { ECPContext, Orchestrator, Executor } from "@executioncontrolprotocol/spec";
+import type { ECPContext, Orchestrator } from "@executioncontrolprotocol/spec";
 import { getContextPlugins } from "@executioncontrolprotocol/spec";
 import type {
   MemoryPluginInstance,
@@ -38,6 +38,7 @@ import { createProgressHandler } from "../lib/progress.js";
 import { getDefaultTraceDir } from "../lib/ecp-home.js";
 import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
 import { resolveDotenvPathFromConfig, resolveSecretPolicyFromConfig } from "../lib/secrets-config.js";
+import { inferModelProviderFromContext } from "../lib/infer-model-provider.js";
 
 function contextHasMemory(context: ECPContext): boolean {
   const visit = (orchestrator: Orchestrator): boolean => {
@@ -52,35 +53,6 @@ function contextHasMemory(context: ECPContext): boolean {
   };
   if (context.orchestrator && visit(context.orchestrator)) return true;
   return (context.executors ?? []).some((e) => e.memory != null);
-}
-
-function inferModelProviderFromContext(context: ECPContext): string | undefined {
-  const providers = new Set<string>();
-
-  const visitExecutor = (executor: Executor): void => {
-    const providerName = (executor.model as unknown as { provider?: { name?: string } })?.provider?.name;
-    if (providerName) providers.add(providerName);
-  };
-
-  const visitOrchestrator = (orchestrator: Orchestrator): void => {
-    for (const executor of orchestrator.executors ?? []) {
-      visitExecutor(executor);
-    }
-    for (const child of orchestrator.orchestrators ?? []) {
-      visitOrchestrator(child);
-    }
-  };
-
-  if (context.orchestrator) visitOrchestrator(context.orchestrator);
-  for (const executor of context.executors ?? []) {
-    visitExecutor(executor);
-  }
-
-  if (providers.size === 1) return [...providers][0];
-  if (providers.size === 0) return undefined;
-  throw new Error(
-    `Context declares multiple model providers (${[...providers].join(", ")}). Please pass --provider.`,
-  );
 }
 
 export default class Run extends EcpEnvironmentCommand {
@@ -106,7 +78,7 @@ export default class Run extends EcpEnvironmentCommand {
     config: Flags.string({
       char: "c",
       description:
-        "Path to system config (YAML/JSON). Default: ./ecp.config.yaml, ./ecp.config.json, then ~/.ecp/ (see ecp config path)",
+        "Path to system config (YAML/JSON). If omitted, merged project + ~/.ecp config is required (see ecp config path); missing files are an error.",
       default: "",
     }),
     trace: Flags.boolean({
@@ -133,7 +105,7 @@ export default class Run extends EcpEnvironmentCommand {
   };
 
   static args = {
-    contextPath: Args.string({
+    "context-path": Args.string({
       required: true,
       description: "Path to context.yaml (or context.json)",
     }),
@@ -143,7 +115,7 @@ export default class Run extends EcpEnvironmentCommand {
     const { args, flags } = await this.parse(Run);
     this.applyEnvironmentFlag(flags);
 
-    const contextPath = resolve(args.contextPath);
+    const contextPath = resolve(args["context-path"]);
     const inputs = (() => {
       try {
         return parseKeyValueInputs(flags.input as string[] | undefined, "--input");
@@ -155,12 +127,12 @@ export default class Run extends EcpEnvironmentCommand {
     const cwd = process.cwd();
     const systemConfig = (() => {
       try {
-        return resolveSystemConfig(flags.config ? flags.config : undefined, cwd);
+        const raw = flags.config as string | undefined;
+        return resolveMergedSystemConfigRequired(raw?.trim() ? raw : undefined, cwd);
       } catch (err) {
         this.error(commandErrorMessage(err), { exit: 1 });
       }
     })();
-    const loggerRaw = splitCommaSeparated(flags.logger as string[] | undefined);
 
     const context = loadContext(contextPath);
 
@@ -178,29 +150,23 @@ export default class Run extends EcpEnvironmentCommand {
       );
     }
 
-    this.assertProviderAllowedByPolicy(providerToUse, systemConfig);
-    const selectedModel = flags.model;
-    if (selectedModel) {
-      this.assertModelAllowedByPolicy(providerToUse, selectedModel, systemConfig);
+    const selectedModel = flags.model as string | undefined;
+    const loggerRaw = splitCommaSeparated(flags.logger as string[] | undefined);
+    const loggersEnabled: string[] =
+      loggerRaw.length > 0 ? loggerRaw : getSecurityConfig(systemConfig)?.loggers?.defaultEnable ?? [];
+    try {
+      assertHostPolicyForContext(context, systemConfig, {
+        providerId: providerToUse,
+        selectedModel,
+        loggersEnabled,
+      });
+    } catch (err) {
+      this.error(commandErrorMessage(err), { exit: 1 });
     }
 
     const secModels = getSecurityConfig(systemConfig)?.models;
     const enableFromConfig = secModels?.defaultProviders ?? [];
     const enableForRun = [...new Set([...enableFromConfig, providerToUse])];
-
-    const allowProviders = secModels?.allowProviders;
-    if (allowProviders && allowProviders.length > 0) {
-      for (const id of enableForRun) {
-        if (!allowProviders.includes(id)) {
-          this.error(
-            `Provider "${id}" cannot be used because it is not in system config security.models.allowProviders.\n` +
-              `Allowed: ${allowProviders.join(", ")}\n` +
-              `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
-            { exit: 1 },
-          );
-        }
-      }
-    }
 
     const dotenvPath = this.effectiveDotenvPath ?? resolveDotenvPathFromConfig(cwd, systemConfig);
     const { broker: secretBroker } = createDefaultSecretBroker({
@@ -250,22 +216,6 @@ export default class Run extends EcpEnvironmentCommand {
 
     const loggerCallbacks: ProgressCallback[] = [];
     const loggersConfig = systemConfig?.loggers;
-    const secLoggers = getSecurityConfig(systemConfig)?.loggers;
-    const loggersEnabled =
-      loggerRaw.length > 0 ? loggerRaw : secLoggers?.defaultEnable ?? [];
-    const loggersAllow = secLoggers?.allowEnable;
-    if (loggersAllow && loggersAllow.length > 0) {
-      for (const id of loggersEnabled) {
-        if (!loggersAllow.includes(id)) {
-          this.error(
-            `Logger "${id}" is not in system config security.loggers.allowEnable. Allowed: ${loggersAllow.join(
-              ", ",
-            )}`,
-            { exit: 1 },
-          );
-        }
-      }
-    }
     for (const id of loggersEnabled) {
       try {
         const cb = registry.createLogger(id, loggersConfig?.config?.[id]);
@@ -425,42 +375,5 @@ export default class Run extends EcpEnvironmentCommand {
     }
   }
 
-  private assertProviderAllowedByPolicy(providerId: string, systemConfig?: ECPSystemConfig): void {
-    const allowProviders = getSecurityConfig(systemConfig)?.models?.allowProviders;
-    if (allowProviders?.length && !allowProviders.includes(providerId)) {
-      this.error(
-        `Provider "${providerId}" is blocked by system config security.models.allowProviders.\n` +
-          `Allowed: ${allowProviders.join(", ")}\n` +
-          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
-        { exit: 1 },
-      );
-    }
-
-    const allowIds = getSecurityConfig(systemConfig)?.plugins?.allowIds;
-    if (allowIds?.length && !allowIds.includes(providerId)) {
-      this.error(
-        `Provider "${providerId}" is blocked by system config security.plugins.allowIds.\n` +
-          `Allowed IDs: ${allowIds.join(", ")}\n` +
-          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
-        { exit: 1 },
-      );
-    }
-  }
-
-  private assertModelAllowedByPolicy(
-    providerId: string,
-    modelName: string,
-    systemConfig?: ECPSystemConfig,
-  ): void {
-    const allowedModels = systemConfig?.models?.providers?.[providerId]?.allowedModels;
-    if (allowedModels?.length && !allowedModels.includes(modelName)) {
-      this.error(
-        `Model "${modelName}" is blocked for provider "${providerId}" by system config models.providers.${providerId}.allowedModels.\n` +
-          `Allowed models: ${allowedModels.join(", ")}\n` +
-          `Update your config first (ecp.config.yaml / ecp config) and rerun.`,
-        { exit: 1 },
-      );
-    }
-  }
 }
 

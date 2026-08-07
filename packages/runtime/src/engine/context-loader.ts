@@ -56,7 +56,7 @@ export function loadContext(filePath: string): ECPContext {
   }
   if (!ctx.specVersion || typeof ctx.specVersion !== "string") {
     throw new Error(
-      'Invalid Context: specVersion is required (e.g. "ecp/v0.3-draft").',
+      'Invalid Context: specVersion is required (e.g. "ecp/v0.5-draft").',
     );
   }
   if (!ctx.metadata?.name) {

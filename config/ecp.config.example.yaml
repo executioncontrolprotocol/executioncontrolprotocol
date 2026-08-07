@@ -17,7 +17,7 @@
 # ------------------------------
 # Aligns with PluginKind-style surfaces (provider, executor, logger, memory, tool, …):
 # each keyed entry MAY include a sibling `config` object. ECP validates a small shared outer
-# shape per section (e.g. transport + credentials for tools; defaultModel + allowedModels
+# shape per section (e.g. transport + credentials for tools; defaultModel + supportedModels
 # for model providers); provider- or plugin-specific keys (e.g. Ollama baseURL) live under
 # `config` and are defined by that implementation, not by ECP core.
 #
@@ -31,7 +31,7 @@ version: "0.5"
 
 # ----------------------------------------------------------------------
 # Security — mirrors each capability area below: allow / default / gates only
-# (edit via `ecp config security` when implemented). Does not hold transport or secrets values.
+# Edit via `ecp config security …` (allow/deny subcommands). Does not hold transport or secrets values.
 # ----------------------------------------------------------------------
 
 security:
@@ -39,10 +39,13 @@ security:
   models:
     allowProviders: [openai, ollama]
     defaultProviders: [openai]
+    allowedModels:
+      openai: [gpt-4o-mini, gpt-4o]
+      ollama: [gemma3:1b, llama3.2:3b]
 
   # MCP tool servers — logical names under `tools.servers`.
   tools:
-    allowServers: [fetch, test-jira, remote]
+    allowServers: [fetch, test-jira, remote, jira, confluence, shopify]
 
   # Executor plugins — IDs under `executors.instances` (when configured).
   executors:
@@ -76,7 +79,7 @@ security:
     allowIds: [openai, ollama, file, memory]
 
 # ----------------------------------------------------------------------
-# Plugins — installs and packaged-plugin metadata (`ecp config plugins install`)
+# Plugins — installs and packaged-plugin metadata (`ecp config plugins installs …`)
 # Populated by the installer; not where allow-lists live. Each install accepts `config`.
 # ----------------------------------------------------------------------
 
@@ -89,7 +92,7 @@ security:
 #       config: {}
 
 # ----------------------------------------------------------------------
-# Models — model providers (`ecp config models` …). Cross-provider fields at entry root;
+# Models — model providers (`ecp config add|update --type models --provider <id> --default-model … --supported-models … --option key=value …` or `--file …`). Cross-provider fields at entry root;
 # provider-specific options under `config`.
 # ----------------------------------------------------------------------
 
@@ -97,16 +100,16 @@ models:
   providers:
     openai:
       defaultModel: gpt-4o-mini
-      allowedModels: [gpt-4o-mini, gpt-4o]
+      supportedModels: [gpt-4o-mini, gpt-4o]
       config: {}
     ollama:
       defaultModel: gemma3:1b
-      allowedModels: [gemma3:1b, llama3.2:3b]
+      supportedModels: [gemma3:1b, llama3.2:3b]
       config:
         baseURL: http://localhost:11434
 
 # ----------------------------------------------------------------------
-# Tools — MCP servers (`ecp config tools` …). Each server: transport (+ credentials) + `config`.
+# Tools — MCP servers (`ecp config add|update --type tools <name> --transport-type stdio|sse …` or `--file …`). Each server: transport (+ credentials) + `config`.
 # ----------------------------------------------------------------------
 
 tools:
@@ -125,6 +128,31 @@ tools:
       #       delivery: env
 
     test-jira:
+      transport:
+        type: stdio
+        command: npx
+        args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+        cwd: .
+      config: {}
+
+    # Logical names used by repo root spec.yaml (weekly-ecom-ops mounts).
+    jira:
+      transport:
+        type: stdio
+        command: npx
+        args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+        cwd: .
+      config: {}
+
+    confluence:
+      transport:
+        type: stdio
+        command: npx
+        args: [tsx, examples/ollama-mcp-tools/servers/fake-mcp-server.ts]
+        cwd: .
+      config: {}
+
+    shopify:
       transport:
         type: stdio
         command: npx

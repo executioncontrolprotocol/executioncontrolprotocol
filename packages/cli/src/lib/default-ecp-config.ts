@@ -10,6 +10,9 @@ security:
   models:
     allowProviders: [openai, ollama]
     defaultProviders: [openai]
+    allowedModels:
+      openai: [gpt-4o-mini, gpt-4o]
+      ollama: [gemma3:1b, llama3.2:3b]
   loggers:
     allowEnable: []
     defaultEnable: []
@@ -24,11 +27,11 @@ models:
   providers:
     openai:
       defaultModel: gpt-4o-mini
-      allowedModels: [gpt-4o-mini, gpt-4o]
+      supportedModels: [gpt-4o-mini, gpt-4o]
       config: {}
     ollama:
       defaultModel: gemma3:1b
-      allowedModels: [gemma3:1b, llama3.2:3b]
+      supportedModels: [gemma3:1b, llama3.2:3b]
       config:
         baseURL: http://localhost:11434
 

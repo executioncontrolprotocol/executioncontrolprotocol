@@ -21,7 +21,7 @@
 // ---------------------------------------------------------------------------
 
 /** @internal */
-export const LATEST_PROTOCOL_VERSION = "0.3-draft";
+export const LATEST_PROTOCOL_VERSION = "0.5-draft";
 
 // ---------------------------------------------------------------------------
 // JSON Schema primitives (aligned with JSON Schema Draft 2020-12)
@@ -98,7 +98,7 @@ export interface Extensible {
 export interface ECPContext extends Extensible {
   /**
    * The ECP specification version this manifest conforms to
-   * (e.g. `"ecp/v0.3-draft"`).
+   * (e.g. `"ecp/v0.5-draft"`).
    */
   specVersion: string;
 

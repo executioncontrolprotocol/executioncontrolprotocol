@@ -35,7 +35,7 @@ describe("--environment (EcpEnvironmentCommand)", () => {
   it("fails before run when --environment points to a missing file", () => {
     try {
       execSync(
-        `node "${runJs}" run examples/single-executor/context.yaml --environment ./ecp-missing-env-9f2a.env`,
+        `node "${runJs}" run examples/single-executor/context.yaml --config config/ecp.config.example.yaml --environment ./ecp-missing-env-9f2a.env`,
         { encoding: "utf-8", cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] },
       );
       expect.fail("expected non-zero exit");

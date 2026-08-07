@@ -1,13 +1,20 @@
 import { Flags, Args } from "@oclif/core";
 import { resolve } from "node:path";
 
-import { loadContext, resolveInputs } from "@executioncontrolprotocol/runtime";
+import {
+  assertHostPolicyForContext,
+  getSecurityConfig,
+  loadContext,
+  resolveInputs,
+  resolveMergedSystemConfigRequired,
+} from "@executioncontrolprotocol/runtime";
 import type { ECPContext, Orchestrator } from "@executioncontrolprotocol/spec";
 
 import { commandErrorMessage } from "../lib/command-helpers.js";
-import { parseKeyValueInputs } from "../lib/parsing.js";
+import { parseKeyValueInputs, splitCommaSeparated } from "../lib/parsing.js";
 import { getRequiredInputNames } from "../lib/inputs.js";
 import { EcpEnvironmentCommand } from "../lib/ecp-environment-command.js";
+import { inferModelProviderFromContext } from "../lib/infer-model-provider.js";
 
 function collectExecutionObjectNames(context: ECPContext): string[] {
   const names = new Set<string>();
@@ -53,10 +60,31 @@ export default class Validate extends EcpEnvironmentCommand {
         "Validate the Context manifest itself but skip runtime input resolution (prints required inputs instead).",
       default: false,
     }),
+    config: Flags.string({
+      char: "c",
+      description:
+        "Path to system config (YAML/JSON). If omitted, merged project + ~/.ecp config is required; missing files are an error.",
+      default: "",
+    }),
+    model: Flags.string({
+      char: "m",
+      description: "Override model name for host policy check (must match run)",
+    }),
+    provider: Flags.string({
+      char: "p",
+      description: "Override model provider for host policy check (openai|ollama)",
+      options: ["openai", "ollama"] as const,
+    }),
+    logger: Flags.string({
+      char: "l",
+      multiple: true,
+      multipleNonGreedy: true,
+      description: "Logger plugins to check against security.loggers (repeatable; same as run)",
+    }),
   };
 
   static args = {
-    contextPath: Args.string({
+    "context-path": Args.string({
       required: true,
       description: "Path to context.yaml (or context.json)",
     }),
@@ -65,7 +93,8 @@ export default class Validate extends EcpEnvironmentCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Validate);
     this.applyEnvironmentFlag(flags);
-    const contextPath = resolve(args.contextPath);
+    const contextPath = resolve(args["context-path"]);
+    const cwd = process.cwd();
 
     console.log(`\nValidating: ${contextPath}\n`);
 
@@ -73,6 +102,32 @@ export default class Validate extends EcpEnvironmentCommand {
     try {
       const inputs = parseKeyValueInputs(flags.input as string[] | undefined, "--input");
       context = loadContext(contextPath);
+
+      const rawConfig = flags.config as string | undefined;
+      let systemConfig;
+      try {
+        systemConfig = resolveMergedSystemConfigRequired(rawConfig?.trim() ? rawConfig : undefined, cwd);
+      } catch (e) {
+        throw e;
+      }
+
+      const providerToUse = flags.provider ?? inferModelProviderFromContext(context);
+      if (!providerToUse) {
+        throw new Error(
+          'Model provider could not be inferred from the Context. Pass --provider openai|ollama.',
+        );
+      }
+
+      const selectedModel = flags.model as string | undefined;
+      const loggerRaw = splitCommaSeparated(flags.logger as string[] | undefined);
+      const loggersEnabled: string[] =
+        loggerRaw.length > 0 ? loggerRaw : getSecurityConfig(systemConfig)?.loggers?.defaultEnable ?? [];
+      assertHostPolicyForContext(context, systemConfig, {
+        providerId: providerToUse,
+        selectedModel,
+        loggersEnabled,
+      });
+
       if (!flags["skip-inputs"]) {
         resolveInputs(context, inputs);
       }

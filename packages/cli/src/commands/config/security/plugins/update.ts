@@ -1,47 +1,92 @@
 import { Command, Flags } from "@oclif/core";
-import { readFileSync } from "node:fs";
 
 import type { PluginSecurityPolicy } from "@executioncontrolprotocol/spec";
+import { PLUGIN_KINDS } from "@executioncontrolprotocol/spec";
 
-import { commandErrorMessage } from "../../../../lib/command-helpers.js";
+import { readJsonFromFile } from "../../../../lib/config-cli-json.js";
+import { buildPluginSecurityPolicyFromFlags } from "../../../../lib/config-wiring-cli.js";
 import { configScopeFlags } from "../../../../lib/config-flags.js";
 import { persistConfig, readForMutation, touchSecurity } from "../../../../lib/system-config-cli.js";
 
 export default class ConfigSecurityPluginsUpdate extends Command {
-  static summary = "Replace security.plugins (PluginSecurityPolicy JSON)";
+  static summary = "Replace security.plugins (PluginSecurityPolicy)";
 
   static description =
-    "Sets allowKinds, allowSourceTypes, allowIds, denyIds, strict, etc. Replaces the whole security.plugins block.";
+    "Sets allowKinds, allowSourceTypes, allowIds, denyIds, strict, etc. Replaces the whole security.plugins block. Use typed flags or --file.";
 
   static flags = {
     ...configScopeFlags,
-    json: Flags.string({
-      description: "JSON object (PluginSecurityPolicy)",
-    }),
     file: Flags.string({
-      description: "Path to a JSON file",
+      description: "Path to a JSON file, or - to read JSON from stdin",
+    }),
+    "allow-kind": Flags.string({
+      description: "Plugin kind allow-list entry (repeatable)",
+      options: [...PLUGIN_KINDS],
+      multiple: true,
+    }),
+    "allow-source-type": Flags.string({
+      description: "Extension source type allow-list entry (repeatable)",
+      options: ["builtin", "npm", "git", "local"],
+      multiple: true,
+    }),
+    "allow-id": Flags.string({
+      description: "Plugin id allow-list entry (repeatable)",
+      multiple: true,
+    }),
+    "deny-id": Flags.string({
+      description: "Plugin id deny-list entry (repeatable)",
+      multiple: true,
+    }),
+    strict: Flags.boolean({
+      description: "When true, unknown or disallowed plugin references fail startup",
+      allowNo: true,
     }),
   };
 
   async run(): Promise<void> {
     const { flags } = await this.parse(ConfigSecurityPluginsUpdate);
-    if (!flags.json && !flags.file) {
-      this.error("Provide --json or --file.", { exit: 1 });
+
+    const allowKind = flags["allow-kind"] as string[] | undefined;
+    const allowSourceType = flags["allow-source-type"] as string[] | undefined;
+    const allowId = flags["allow-id"] as string[] | undefined;
+    const denyId = flags["deny-id"] as string[] | undefined;
+
+    const hasPolicyFlags = Boolean(
+      allowKind?.length ||
+        allowSourceType?.length ||
+        allowId?.length ||
+        denyId?.length ||
+        flags.strict !== undefined,
+    );
+
+    if (!flags.file && !hasPolicyFlags) {
+      this.error("Provide --file or at least one policy flag (--allow-kind, --allow-source-type, ...).", {
+        exit: 1,
+      });
     }
-    if (flags.json && flags.file) {
-      this.error("Use only one of --json or --file.", { exit: 1 });
+    if (flags.file && hasPolicyFlags) {
+      this.error("Use either --file or policy flags, not both.", { exit: 1 });
     }
 
-    const raw = flags.file ? readFileSync(flags.file, "utf-8") : String(flags.json);
-    let parsed: unknown;
+    let parsed: PluginSecurityPolicy;
     try {
-      parsed = JSON.parse(raw);
+      if (flags.file) {
+        const raw = readJsonFromFile(flags.file);
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+          this.error("Security policy must be a JSON object.", { exit: 1 });
+        }
+        parsed = raw as PluginSecurityPolicy;
+      } else {
+        parsed = buildPluginSecurityPolicyFromFlags({
+          allowKind,
+          allowSourceType,
+          allowId,
+          denyId,
+          strict: flags.strict,
+        });
+      }
     } catch (e) {
-      this.error(`Invalid JSON: ${commandErrorMessage(e)}`, { exit: 1 });
-    }
-
-    if (!parsed || typeof parsed !== "object") {
-      this.error("Security policy must be a JSON object.", { exit: 1 });
+      this.error(e instanceof Error ? e.message : String(e), { exit: 1 });
     }
 
     const cwd = process.cwd();
@@ -52,7 +97,7 @@ export default class ConfigSecurityPluginsUpdate extends Command {
     });
 
     const sec = touchSecurity(config);
-    sec.plugins = parsed as PluginSecurityPolicy;
+    sec.plugins = parsed;
 
     persistConfig(path, config);
     this.log(`Updated security.plugins (${path})`);

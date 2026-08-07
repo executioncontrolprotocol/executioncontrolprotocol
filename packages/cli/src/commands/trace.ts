@@ -25,7 +25,7 @@ export default class Trace extends EcpEnvironmentCommand {
   };
 
   static args = {
-    runId: Args.string({
+    "run-id": Args.string({
       required: true,
       description: "run id (e.g. run-123...)",
     }),
@@ -34,7 +34,7 @@ export default class Trace extends EcpEnvironmentCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Trace);
     this.applyEnvironmentFlag(flags);
-    const runId = args.runId;
+    const runId = args["run-id"];
     const output = flags.output as TraceOutputFormat;
 
     const traceDir = flags["trace-dir"];

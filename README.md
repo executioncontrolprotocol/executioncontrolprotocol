@@ -37,16 +37,16 @@ npm run build
 **Install the CLI (recommended):** `cd packages/cli && npm link && cd ../..`  
 (Or use `npx ecp …` from the repo root after `npm run build`.)
 
-**Run an example:**
+**Run an example** (from the repo root, use a system config file—copy `config/ecp.config.example.yaml` to `ecp.config.yaml`, or pass `--config`):
 
 ```bash
-ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="ECP"
+ecp run examples/single-executor/context.yaml --config config/ecp.config.example.yaml --provider ollama --model gemma3:1b -i topic="ECP"
 ```
 
 **Validate a Context:**
 
 ```bash
-ecp validate examples/single-executor/context.yaml
+ecp validate examples/single-executor/context.yaml --config config/ecp.config.example.yaml
 ```
 
 **Full setup guide:** [SETUP.md](SETUP.md) — global CLI install, Ollama, environment variables, system config (`ecp.config.yaml`), and docs.
@@ -308,7 +308,7 @@ import type { PluginReference, ModelProvider, PluginRegistration } from "@execut
 A minimal Context in under a minute:
 
 ```yaml
-specVersion: ecp/v0.3-draft
+specVersion: ecp/v0.5-draft
 kind: Context
 
 metadata:

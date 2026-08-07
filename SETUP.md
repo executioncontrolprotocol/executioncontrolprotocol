@@ -43,11 +43,11 @@ npm install
 npm run build
 ```
 
-**Option A — no global install:** from the repo root:
+**Option A — no global install:** from the repo root (pass **`--config`** to an existing system config file, or copy **`config/ecp.config.example.yaml`** to **`ecp.config.yaml`** first):
 
 ```bash
-npx ecp validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
-npx ecp run examples/single-executor/context.yaml --provider ollama --model gemma3:1b -i topic="Getting started"
+npx ecp validate spec.yaml --config config/ecp.config.example.yaml --input shopifyStoreId=test --input jiraProject=TEST
+npx ecp run examples/single-executor/context.yaml --config config/ecp.config.example.yaml --provider ollama --model gemma3:1b -i topic="Getting started"
 ```
 
 **Option B — global `ecp` command:** link the CLI (compiled `dist/`; no global `tsx` required):
@@ -56,11 +56,11 @@ npx ecp run examples/single-executor/context.yaml --provider ollama --model gemm
 cd packages/cli && npm link && cd ../..
 ```
 
-Then:
+Then (with **`ecp.config.yaml`** in the repo root, or **`--config config/ecp.config.example.yaml`**):
 
 ```bash
-ecp run examples/single-executor/context.yaml -i topic="Getting started"
-ecp validate examples/single-executor/context.yaml
+ecp run examples/single-executor/context.yaml --config config/ecp.config.example.yaml -i topic="Getting started"
+ecp validate examples/single-executor/context.yaml --config config/ecp.config.example.yaml
 ```
 
 Dev without rebuilding (TypeScript source): `npm run start --workspace=@executioncontrolprotocol/cli` (pass args after `--` if your npm version requires it).
@@ -192,11 +192,7 @@ These are **separate namespaces** (not one merged map). Full behavior and exampl
 
 ## System Config (ecp.config.yaml)
 
-ECP supports a **system config** file to allow-list plugins and set security policy. The CLI loads it from (in order):
-
-1. Path given by **`--config <path>`**
-2. **`./ecp.config.yaml`** (current directory)
-3. **`~/.ecp/config.yaml`** or **`~/.ecp/ecp.config.yaml`**
+ECP supports a **system config** file to allow-list plugins and set security policy. **`ecp run`** and **`ecp validate`** **require** a resolvable file: **`--config <path>`** to one YAML/JSON file, or default discovery finds **`./ecp.config.yaml`** / **`./ecp.config.json`** and/or **`~/.ecp/config.yaml`** (and related paths). If **no** file exists, those commands **fail** (host security is not optional). When both a project file and **`~/.ecp/*`** exist and **no** `--config` is passed, the CLI **merges** them (global overrides local on overlapping keys).
 
 **Example:** copy the example and optionally edit:
 
@@ -230,8 +226,8 @@ See [`config/ecp.config.example.yaml`](config/ecp.config.example.yaml) for the v
 
 - **Install deps:** `npm install` or `pnpm install`
 - **Link `ecp` CLI:** `npm run build` then `npm link` from `packages/cli`
-- **Run a Context:** `ecp run <context.yaml> -i key=value`
-- **Validate:** `ecp validate <context.yaml>`
+- **Run a Context:** `ecp run <context.yaml> -i key=value` (requires a system config file; see **System Config** above)
+- **Validate:** `ecp validate <context.yaml>` (same)
 - **Use OpenAI:** set `OPENAI_API_KEY`
 - **Use Ollama:** install [Ollama](https://ollama.com/), `ollama pull llama3.2:3b`, then `--provider ollama --model llama3.2:3b`
 - **System config:** copy `config/ecp.config.example.yaml` to `./ecp.config.yaml` or use `--config <path>`

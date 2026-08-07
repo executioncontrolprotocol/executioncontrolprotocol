@@ -27,7 +27,7 @@ jobs:
       - name: Validate spec
         run: npm run validate
       - name: CLI smoke test
-        run: npx ecp validate spec.yaml --input shopifyStoreId=test --input jiraProject=TEST
+        run: npx ecp validate spec.yaml --config config/ecp.config.example.yaml --input shopifyStoreId=test --input jiraProject=TEST
 
   unit:
     name: unit

@@ -363,6 +363,11 @@ export interface SecurityModelsConfig {
   allowProviders?: string[];
   /** Default provider IDs to enable when the CLI does not narrow the set. */
   defaultProviders?: string[];
+  /**
+   * Per-provider model allowlist (policy). Keys mirror `models.providers`.
+   * When a provider appears in {@link allowProviders}, its entry must be non-empty (see host validation).
+   */
+  allowedModels?: Record<string, string[]>;
 }
 
 /**
@@ -448,7 +453,11 @@ export interface SecurityConfig {
  */
 export interface ModelProviderConfig {
   defaultModel?: string;
-  allowedModels?: string[];
+  /**
+   * Models this host can use for this provider (wiring / capability).
+   * Policy allowlists live under `security.models.allowedModels`.
+   */
+  supportedModels?: string[];
   /** Provider-specific options (e.g. Ollama `baseURL`). */
   config?: Record<string, unknown>;
 }
