@@ -1,10 +1,13 @@
 import { existsSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { Plugin } from "vite"
 
 /**
- * Redirect harness prompt loaders to browser-safe modules.
+ * Redirect harness / core prompt loaders to browser-safe modules.
  * Vite `resolve.alias` on absolute paths does not match relative `./load-*.js` imports in dev.
+ *
+ * - `load-harness-prompt` lives next to each harness (`browser-nano` / `browser-coding`)
+ * - `load-schema-example` remains under core `harness/prompts`
  */
 export function browserPromptLoaderPlugin(options: {
   corePromptsDir: string
@@ -12,16 +15,28 @@ export function browserPromptLoaderPlugin(options: {
 }): Plugin {
   const { corePromptsDir, stubDir } = options
 
-  function resolveCorePrompt(base: string): string {
-    const jsPath = join(corePromptsDir, `${base}.browser.js`)
+  function resolveBesideImporter(importer: string | undefined, base: string): string | undefined {
+    if (!importer) return undefined
+    const dir = dirname(importer.split("?")[0]!)
+    const jsPath = join(dir, `${base}.browser.js`)
     if (existsSync(jsPath)) return jsPath
-    return join(corePromptsDir, `${base}.browser.ts`)
+    const tsPath = join(dir, `${base}.browser.ts`)
+    if (existsSync(tsPath)) return tsPath
+    return undefined
   }
 
-  function resolveSchemaPrompt(base: string): string {
-    const jsPath = join(corePromptsDir, `${base}.browser.js`)
+  function resolveInDir(dir: string, base: string): string {
+    const jsPath = join(dir, `${base}.browser.js`)
     if (existsSync(jsPath)) return jsPath
-    return join(corePromptsDir, `${base}.browser.ts`)
+    return join(dir, `${base}.browser.ts`)
+  }
+
+  function resolveFromAbsoluteLoader(source: string, base: string): string | undefined {
+    const normalized = source.replace(/\\/g, "/")
+    const suffixJs = `/${base}.js`
+    const suffixTs = `/${base}.ts`
+    if (!normalized.endsWith(suffixJs) && !normalized.endsWith(suffixTs)) return undefined
+    return resolveInDir(dirname(source.split("?")[0]!), base)
   }
 
   function isPromptLoaderId(source: string): boolean {
@@ -53,12 +68,19 @@ export function browserPromptLoaderPlugin(options: {
   return {
     name: "browser-prompt-loader",
     enforce: "pre",
-    resolveId(source) {
+    resolveId(source, importer) {
       if (isPromptLoaderId(source)) {
-        return resolveCorePrompt("load-harness-prompt")
+        return (
+          resolveBesideImporter(importer, "load-harness-prompt") ??
+          resolveFromAbsoluteLoader(source, "load-harness-prompt")
+        )
       }
       if (isSchemaLoaderId(source)) {
-        return resolveSchemaPrompt("load-schema-example")
+        return (
+          resolveBesideImporter(importer, "load-schema-example") ??
+          resolveFromAbsoluteLoader(source, "load-schema-example") ??
+          resolveInDir(corePromptsDir, "load-schema-example")
+        )
       }
       if (isPromptNodeId(source)) {
         return join(stubDir, "load-harness-prompt-node-stub.ts")

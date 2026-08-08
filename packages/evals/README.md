@@ -267,7 +267,7 @@ describe.skipIf(!readiness.ready)(
 )
 ```
 
-Eval tests use a **120s** default timeout on the Vitest `eval` project (`testTimeout` in [`vitest.config.ts`](../../vitest.config.ts)).
+Eval tests use a **120s** default timeout on the Vitest `eval` project (`testTimeout` in [`vitest.config.mts`](../../vitest.config.mts)).
 
 Reuse [`assert-harness-result.ts`](test/harness/assert-harness-result.ts) for `assertHarnessInvokeSuccess`, `harnessTraceHint`, and `expectHarnessIntent`.
 

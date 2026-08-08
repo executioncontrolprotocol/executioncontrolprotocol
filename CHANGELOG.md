@@ -10,6 +10,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- **CI browser job:** Vite `browserPromptLoaderPlugin` now resolves `load-harness-prompt` beside each harness package (nano/coding) instead of the removed `packages/core/.../load-harness-prompt.browser.ts` path — this was causing Playwright Chromium to hang for hours with `0 test`. Export image-ref helpers from `browser-runtime-entry` so browser bundles that pull `@executioncontrolprotocol/policies` can load. The `browser` job now has **`timeout-minutes: 20`** (other pipeline jobs also get timeouts).
+- **CI Actions runtime:** Bump `actions/checkout`, `setup-node`, `cache`, and `upload-artifact` from **v4** to **v5** (Node 24 action runtime) to clear GitHub’s Node 20 deprecation warnings. Rename **`vitest.config.ts` → `vitest.config.mts`** so Vite’s native config loader accepts ESM without warnings.
+
 ### Changed
 
 - **Release line:** All workspace packages bumped from **0.0.10** to **0.10.0** (above the last published **0.5.0** Context-era line).

@@ -24,9 +24,9 @@ jobs:
       EVAL_MODEL: ${{ github.event.inputs.model || 'gemma3:1b' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -38,7 +38,7 @@ jobs:
 
       - name: Cache Ollama models
         id: ollama-models
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .ollama-models
           key: ollama-models-${{ runner.os }}-${{ env.EVAL_MODEL }}-v1
@@ -102,7 +102,7 @@ jobs:
 
       - name: Upload eval artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: eval-results-${{ github.run_number }}
           path: artifacts/

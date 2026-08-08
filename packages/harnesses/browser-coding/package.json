@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "eval:matrix": "vitest run --config ../../../vitest.config.ts --project eval packages/harnesses/browser-coding/test/eval"
+    "eval:matrix": "vitest run --config ../../../vitest.config.mts --project eval packages/harnesses/browser-coding/test/eval"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/core": "^0.10.0",

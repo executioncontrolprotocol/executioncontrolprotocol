@@ -138,3 +138,11 @@ export {
 export { buildSystemPromptFromFixture } from "./harness/prompts/build-system-prompt.js"
 export { buildRepairHintFromFixture } from "./harness/prompts/build-repair-hint.js"
 export * from "./harness/authoring/index.js"
+export {
+  isImageRef,
+  collectImageRefs,
+  collectOutputFormatHints,
+  imageRefUrlHostname,
+  isSvgHint,
+} from "./image/image-ref.js"
+export type { CollectedImageRef, CollectedFormatHint } from "./image/image-ref.js"
