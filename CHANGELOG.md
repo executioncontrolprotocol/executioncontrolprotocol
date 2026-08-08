@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **Release line:** All workspace packages bumped from **0.0.10** to **0.10.0** (above the last published **0.5.0** Context-era line).
+
 ### Added
 
 - **CLI:** **`ecp config reset`** removes project **`ecp.config.yaml`** and **`ecp.config.json`**, or with **`--global`** all known config files under **`~/.ecp/`**; **`--config <path>`** deletes a single file. Idempotent when no matching files exist.

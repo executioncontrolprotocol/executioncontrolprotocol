@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/workspace",
-  "version": "0.0.10",
+  "version": "0.10.0",
   "description": "Execution Control Protocol (ECP) — TypeScript fluent API for workflow authoring and execution",
   "private": true,
   "engines": {

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extension-ollama",
-  "version": "0.0.10",
+  "version": "0.10.0",
   "description": "Ollama model provider extension for ECP",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,13 +20,13 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.0.10",
-    "@executioncontrolprotocol/types": "^0.0.10",
+    "@executioncontrolprotocol/core": "^0.10.0",
+    "@executioncontrolprotocol/types": "^0.10.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.0.10",
-    "@executioncontrolprotocol/types": "0.0.10",
+    "@executioncontrolprotocol/core": "0.10.0",
+    "@executioncontrolprotocol/types": "0.10.0",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

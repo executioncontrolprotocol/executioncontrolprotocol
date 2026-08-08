@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/types",
-  "version": "0.0.10",
+  "version": "0.10.0",
   "description": "ECP protocol types and schema constants",
   "license": "Apache-2.0",
   "type": "module",

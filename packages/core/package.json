@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/core",
-  "version": "0.0.10",
+  "version": "0.10.0",
   "description": "ECP fluent API, environment, registry, and local runtime",
   "license": "Apache-2.0",
   "type": "module",
@@ -93,10 +93,10 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/types": "0.0.10"
+    "@executioncontrolprotocol/types": "0.10.0"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/types": "^0.0.10",
+    "@executioncontrolprotocol/types": "^0.10.0",
     "zod": "^3.24.0"
   },
   "optionalDependencies": {
@@ -104,9 +104,9 @@
     "esbuild-wasm": "^0.25.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/browser-secrets": "0.0.10",
-    "@executioncontrolprotocol/node": "0.0.10",
-    "@executioncontrolprotocol/policies": "0.0.10",
+    "@executioncontrolprotocol/browser-secrets": "0.10.0",
+    "@executioncontrolprotocol/node": "0.10.0",
+    "@executioncontrolprotocol/policies": "0.10.0",
     "esbuild": "^0.25.0",
     "esbuild-wasm": "^0.25.0",
     "typescript": "^5.7.0",

@@ -9,10 +9,9 @@ import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, "..")
-const newVersion = process.argv[2] ?? "0.0.10"
-
-if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(newVersion)) {
-  console.error(`Invalid semver: ${newVersion}`)
+const newVersion = process.argv[2]
+if (!newVersion || !/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(newVersion)) {
+  console.error("Usage: node scripts/bump-all-ecp-versions.mjs <semver>\nExample: 0.10.0")
   process.exit(1)
 }
 
@@ -33,12 +32,12 @@ function walkPackageJsonFiles(dir, out = []) {
   return out
 }
 
+/** Align workspace @executioncontrolprotocol/* ranges to the new version; keep ^/~ prefix. */
 function bumpInternalDep(version) {
-  if (version === "1.0.0" || version === "^1.0.0" || version === "~1.0.0") {
-    return version.startsWith("^") || version.startsWith("~")
-      ? `${version[0]}${newVersion}`
-      : newVersion
-  }
+  if (typeof version !== "string") return version
+  if (version.startsWith("^")) return `^${newVersion}`
+  if (version.startsWith("~")) return `~${newVersion}`
+  if (/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(version)) return newVersion
   return version
 }
 
