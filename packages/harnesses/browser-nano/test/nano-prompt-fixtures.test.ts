@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import {
   buildNanoRepairHint,
@@ -6,7 +9,25 @@ import {
   NANO_PROMPT_FIXTURE_IDS,
 } from "../src/prompts/index.js"
 
+const promptsDir = join(dirname(fileURLToPath(import.meta.url)), "../src/prompts")
+
 describe("browser-nano harness prompt fixtures", () => {
+  it("browser loader glob resolves to package harness-prompts fixtures", () => {
+    const browserLoader = join(promptsDir, "load-harness-prompt.browser.ts")
+    const source = readFileSync(browserLoader, "utf8")
+    expect(source).toMatch(/import\.meta\.glob\("\.\.\/\.\.\/fixtures\/harness-prompts\/\*\.prompt\.json"/)
+    expect(
+      existsSync(
+        join(promptsDir, "../../fixtures/harness-prompts/intent-classification.prompt.json"),
+      ),
+    ).toBe(true)
+    expect(
+      existsSync(
+        join(promptsDir, "../../../fixtures/harness-prompts/intent-classification.prompt.json"),
+      ),
+    ).toBe(false)
+  })
+
   it("loads intent-classification fixture", () => {
     const fixture = loadNanoHarnessPromptFixture(NANO_PROMPT_FIXTURE_IDS.INTENT_CLASSIFICATION)
     expect(fixture.fewShots?.length).toBeGreaterThanOrEqual(4)

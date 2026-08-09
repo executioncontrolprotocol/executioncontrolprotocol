@@ -10,7 +10,8 @@ function fixtureIdFromGlobKey(key: string): string {
 }
 
 function loadBrowserPromptFixtures(): Map<string, HarnessPromptFixture> {
-  const modules = import.meta.glob("../../../fixtures/harness-prompts/*.prompt.json", {
+  // Relative to this module (`src/prompts` | `dist/prompts`) → package fixtures (not `../../../`).
+  const modules = import.meta.glob("../../fixtures/harness-prompts/*.prompt.json", {
     eager: true,
     import: "default",
   }) as Record<string, HarnessPromptFixture>
