@@ -10,6 +10,16 @@
 
 ## Unreleased
 
+### Changed
+
+- **Browser host vs app:** `@executioncontrolprotocol/browser` is harness-independent (`registerBrowserHost` / `createBrowserEnvironment`). Harnesses, providers (including Ollama), and formats are composed by the app (browser-demo) or eval helpers. Compile stays on `@executioncontrolprotocol/core/compile` (Node) and `core/browser` (including `compileHarnessArtifactSource`).
+- **Browser demo:** Selecting **Ollama** resolves to the Fluent/TS **coding** harness with configurable base URL / model (defaults `http://localhost:11434` / `qwen2.5-coder:1.5b`). Provider and harness remain separate switches in code.
+
+### Added
+
+- **Browser Coding harness:** multi-shot `chat` task (parity with nano orchestrator).
+- **Ollama extension:** browser-safe config resolution (no hard `process.env` dependency).
+
 ### Fixed
 
 - **CI browser job:** Vite `browserPromptLoaderPlugin` now resolves `load-harness-prompt` beside each harness package (nano/coding) instead of the removed `packages/core/.../load-harness-prompt.browser.ts` path — this was causing Playwright Chromium to hang for hours with `0 test`. Export image-ref helpers from `browser-runtime-entry` so browser bundles that pull `@executioncontrolprotocol/policies` can load. The `browser` job now has **`timeout-minutes: 20`** (other pipeline jobs also get timeouts).

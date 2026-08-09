@@ -27,21 +27,33 @@
 | Subpath | Host |
 | ------- | ---- |
 | `@executioncontrolprotocol/core/node` | Node convenience re-export (loaders + compile) |
-| `@executioncontrolprotocol/core/compile` | Node esbuild compile |
+| `@executioncontrolprotocol/core/compile` | Node esbuild compile (`compileWorkflowSource`, `compileHarnessArtifactSource`) |
 | `@executioncontrolprotocol/core/loaders` | Node file I/O (CLI) |
-| `@executioncontrolprotocol/core/browser` | Browser authoring + esbuild-wasm compile |
+| `@executioncontrolprotocol/core/browser` | Browser authoring + esbuild-wasm compile (same compile APIs; blob eval) |
 
-**Hosts wrap core; extensions never import hosts.** `@executioncontrolprotocol/node` and `@executioncontrolprotocol/browser` bind runtimes and config extensions. Extension packages under `packages/extensions/` depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` only.
+**Compile stays on core subpaths, not on runtime hosts.** Harnesses must call compile without importing `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser`. Portability = stable compile API + Node vs browser entry (`core/compile` vs `core/browser`, or the `"browser"` condition on `./compile`). Hosts may re-export compile for app convenience; that does not move ownership.
+
+**Hosts wrap core; extensions/harnesses never import hosts.** `@executioncontrolprotocol/node` and `@executioncontrolprotocol/browser` bind runtimes and host config extensions. Extension and harness packages depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` only.
+
+**Three layers (compile / runtime / app):**
+
+| Layer | Owns | Does not own |
+| ----- | ---- | ------------ |
+| `core/compile` + `core/browser` | Compile APIs and host-specific impl | Runtimes, harnesses, which model |
+| `@executioncontrolprotocol/browser` (runtime host) | Executor, registry, session/local config, `createEcp` | Harnesses; which provider/model |
+| Browser demo app | Binds harnesses + providers; picks harness + model; UI | Host internals |
+
+**Browser runtime is harness-independent.** No harness package dependency on `@executioncontrolprotocol/browser`. The app binds nano/coding (and Ollama, Chrome AI, etc.) in its environment factory.
 
 **Browser runtime vs browser demo app:**
 
 | `@executioncontrolprotocol/browser` (runtime) | [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) (app) |
 | ------------------------ | ------------------------- |
 | Executor, registry, session config, `createEcp`, workflow shim | React/Vite UI, chat layout, panels, Mermaid viewer |
-| Optional reference helpers: `createBrowserDemoEnvironment`, `BrowserAuthoringService` | Demo-only: `provider-mode.ts`, first-run modal, localStorage for provider choice |
-| Caller supplies `providerCapabilityId` to authoring | App maps user provider pick → capability id |
+| Slim `createBrowserEnvironment` / `registerBrowserHost` | `createDemoAppEnvironment` — formats, providers, harnesses, registry-control allowlist |
+| Panel encode helper (`BrowserAuthoringService`) | `provider-mode.ts` / `HarnessMode`, first-run modal, Ollama settings, localStorage |
 
-Do not add demo UI types (e.g. `ProviderMode`) to `@executioncontrolprotocol/browser`; keep them in the demo app.
+Do not add demo UI types (e.g. `ProviderMode`) to `@executioncontrolprotocol/browser`; keep them in the demo app. Provider and harness are **independent switches** in app code (a single UI value may set both, e.g. Ollama → coding + ollama).
 
 **Operational APIs live on `Ecp` after `init()`**, not on the `Environment` builder (`run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, `invoke`, `terminate`).
 
@@ -135,14 +147,14 @@ await ecp.run(manifest)
 
 Browser demo: [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `npm link`).
 
-**Browser demo chat:** FAQ and assistant replies must come from the bound model provider via `@executioncontrolprotocol/harness-browser-nano` (`workflow-assistant` task). Do not route user-facing chat through template capabilities (`@executioncontrolprotocol/browser.guideChat`) or other non-model stand-ins. Browser demo defaults to **Chrome AI** (`@executioncontrolprotocol/chrome-ai.generate`); browser demo and eval matrix share **`HARNESS_NANO_BINDING`** (EQL outputs for intent, workflow, and assistant). The demo app may override the provider via `.uses(...)` at invoke.
+**Browser demo chat:** FAQ and assistant replies must come from the bound model provider via the selected harness (`chat` task). Do not route user-facing chat through template capabilities (`@executioncontrolprotocol/browser.guideChat`) or other non-model stand-ins. Defaults: **Chrome AI** + nano harness (EQL); **Ollama** + coding harness (Fluent/TS). The app resolves provider and harness independently (`resolveDemoSession`) and may override the provider via `.uses(...)` at invoke.
 
 **Mechanism vs policy:** `@executioncontrolprotocol/browser-registry` handles freeze, `globalThis.ecp`, and auto-bind. **`@executioncontrolprotocol/registry-control`** (bound as a policy) authorizes dynamic extension registration via `policy:pre` and `registryRequest` on the policy context.
 
 ```ts
 import { environment, workflow, step, extension, policy } from "@executioncontrolprotocol/browser"
 
-const env = await environment("demo") // binds registry-control + browser-registry (global `ecp`)
+const env = await environment("demo") // slim host: runtime + registry/session (apps bind providers/harnesses)
 
 const ecp = await env.init()
 await globalThis.ecp.registerExtension(customerExtension)

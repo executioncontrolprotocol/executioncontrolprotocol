@@ -22,9 +22,11 @@ Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) sho
 | `@executioncontrolprotocol/core/node` | Node | Re-exports `@executioncontrolprotocol/core/loaders` + `@executioncontrolprotocol/core/compile` |
 | `@executioncontrolprotocol/core/compile` | Node | `compileWorkflowSource`, `compileHarnessArtifactSource` (intent/reply TS), temp-file module eval |
 | `@executioncontrolprotocol/core/loaders` | Node | File I/O for CLI and Node apps |
-| `@executioncontrolprotocol/core/browser` | Browser | Authoring subset: builders, validate, Fluent encode, **browser-safe** `compileWorkflowSource` (esbuild-wasm + `globalThis.__ecpWorkflowShim`) |
+| `@executioncontrolprotocol/core/browser` | Browser | Authoring subset: builders, validate, Fluent encode, **browser-safe** `compileWorkflowSource` + `compileHarnessArtifactSource` (esbuild-wasm + blob `import`) |
 
 CLI and `@executioncontrolprotocol/node` import `@executioncontrolprotocol/core/compile` and `@executioncontrolprotocol/core/loaders` directly—not the main barrel.
+
+**Why compile is here (not on runtime hosts):** harnesses must compile Fluent/TS artifacts without importing `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser`. Same APIs; Node vs browser entry (or `"browser"` condition on `./compile`). Hosts may re-export for convenience.
 
 ## Environment vs Ecp
 

@@ -16,6 +16,12 @@ export const HARNESS_CODING_REPAIR = {
   includeValidationErrors: true,
 } as const
 
+/** Repair loop for multi-shot chat: reinject prior assistant output on retries. @category Harness */
+export const HARNESS_CODING_CHAT_REPAIR = {
+  ...HARNESS_CODING_REPAIR,
+  includePriorOutput: true,
+} as const
+
 const SHARED_CONTEXT = {
   includeEnvironmentDescriptor: true,
   includeEncodedDescriptor: false,
@@ -27,6 +33,7 @@ export const HARNESS_TASKS = {
   WORKFLOW_AUTHORING: "workflow-authoring",
   INTENT_CLASSIFICATION: "intent-classification",
   WORKFLOW_ASSISTANT: "workflow-assistant",
+  CHAT: "chat",
 } as const
 
 export type HarnessTask = (typeof HARNESS_TASKS)[keyof typeof HARNESS_TASKS]
@@ -77,6 +84,15 @@ const CODING_ASSISTANT = {
   trace: HARNESS_CODING_TRACE,
 } as const
 
+const CODING_CHAT = {
+  context: {
+    ...SHARED_CONTEXT,
+    promptPhase: "contextualized",
+  },
+  repair: HARNESS_CODING_CHAT_REPAIR,
+  trace: HARNESS_CODING_TRACE,
+} as const
+
 /** Full harness binding config for a task (coding profile). @category Harness */
 export function getHarnessCodingConfig(
   task: HarnessTask,
@@ -89,6 +105,8 @@ export function getHarnessCodingConfig(
       return { ...CODING_WORKFLOW }
     case HARNESS_TASKS.WORKFLOW_ASSISTANT:
       return { ...CODING_ASSISTANT }
+    case HARNESS_TASKS.CHAT:
+      return { ...CODING_CHAT }
     default:
       return { ...CODING_WORKFLOW }
   }

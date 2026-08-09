@@ -27,8 +27,10 @@ export {
 } from "./extensions/browser-local-config.js"
 
 export {
+  registerBrowserHost,
   registerBrowserDefaults,
   environment,
+  createBrowserEnvironment,
   createBrowserDemoEnvironment,
 } from "./environment.js"
 export { createEcp, type BrowserOperationalEcp, type CreateEcpOptions } from "./create-ecp.js"
@@ -40,15 +42,6 @@ export {
   type PatchWorkflowResult,
 } from "./authoring/browser-authoring-service.js"
 export { encodeAuthoringPanels } from "./authoring/browser-authoring-panels.js"
-export {
-  BROWSER_NANO_HARNESS_CAPABILITY,
-  BROWSER_NANO_HARNESS_ID,
-  HARNESS_TASKS,
-  chatResultAnswer,
-  chatResultWorkflow,
-  BROWSER_NANO_HARNESS_CAPABILITY as WORKFLOW_AUTHORING_CAPABILITY,
-  BROWSER_NANO_HARNESS_CAPABILITY as INTENT_CLASSIFICATION_CAPABILITY,
-} from "@executioncontrolprotocol/harnesses-browser-nano"
 export type { BrowserEcpGlobal } from "./extensions/browser-registry.js"
 export type { Ecp } from "@executioncontrolprotocol/core"
 
@@ -79,6 +72,7 @@ export {
   extension,
   runtime,
   policy,
+  harness,
   defineExtension,
   defineRuntime,
   definePolicy,

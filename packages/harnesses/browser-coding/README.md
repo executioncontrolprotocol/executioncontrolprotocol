@@ -3,7 +3,7 @@
 Browser Coding harness (`@executioncontrolprotocol/harness-browser-coding`) for local coding models (Ollama `qwen2.5-coder:1.5b` eval matrix).
 
 - **TypeScript-first:** Fluent workflows and typed `EcpIntent` / `HarnessReply` modules (no EQL).
-- **Eval matrix only** — browser demo continues to use `@executioncontrolprotocol/harnesses-browser-nano`.
+- **Chat + eval matrix** — browser demo can bind this harness (e.g. with Ollama); eval matrix covers intent/authoring/assistant.
 
 ## Fixtures and evals
 

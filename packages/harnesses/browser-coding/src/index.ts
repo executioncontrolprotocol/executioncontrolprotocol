@@ -6,6 +6,7 @@ export {
   HARNESS_TASKS,
   HARNESS_CODING_BINDING,
   HARNESS_CODING_REPAIR,
+  HARNESS_CODING_CHAT_REPAIR,
   HARNESS_CODING_TRACE,
   getHarnessCodingConfig,
   type HarnessTask,
@@ -16,6 +17,11 @@ export {
   resetBrowserCodingHarnessRegistrationForTests,
 } from "./register.js"
 export type { BrowserCodingHarnessInput } from "./browser-coding-harness.js"
+export {
+  chatResultAnswer,
+  chatResultWorkflow,
+  invokeMultiShotChatCoding,
+} from "./multi-shot-chat.js"
 export {
   CODING_PROMPT_FIXTURE_IDS,
   buildCodingRepairHint,

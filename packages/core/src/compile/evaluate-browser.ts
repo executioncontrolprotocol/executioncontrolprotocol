@@ -3,6 +3,20 @@ import { extractWorkflowFromModule } from "./extract-workflow-module.js"
 
 export { extractWorkflowFromModule } from "./extract-workflow-module.js"
 
+/** Evaluate ESM harness artifact module code in the browser (blob URL + dynamic import). */
+export async function evaluateHarnessArtifactModule(
+  code: string,
+  _filename = "artifact.js"
+): Promise<Record<string, unknown>> {
+  const blob = new Blob([code], { type: "text/javascript" })
+  const url = URL.createObjectURL(blob)
+  try {
+    return (await import(/* @vite-ignore */ url)) as Record<string, unknown>
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 /** Evaluate ESM workflow module code in the browser (blob URL + dynamic import). */
 export async function evaluateWorkflowModule(
   code: string,

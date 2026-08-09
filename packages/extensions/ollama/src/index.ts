@@ -261,6 +261,18 @@ async function ollamaChat(
   return data.message.content
 }
 
+const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+
+function envString(name: string): string | undefined {
+  try {
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    const value = proc?.env?.[name]
+    return typeof value === "string" && value.length > 0 ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** @executioncontrolprotocol/ollama extension. @category Extensions */
 export const ollamaExtension = defineExtension("@executioncontrolprotocol", "ollama")
   .withConfig({
@@ -276,11 +288,11 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         const parsed = input as z.infer<typeof GenerateInput>
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =
-          (cfg.baseURL as string) ??
-          process.env.OLLAMA_BASE_URL ??
-          "http://localhost:11434"
+          (cfg.baseURL as string | undefined) ??
+          envString("OLLAMA_BASE_URL") ??
+          DEFAULT_OLLAMA_BASE_URL
         const model =
-          parsed.model ?? (cfg.defaultModel as string) ?? "gemma3:1b"
+          parsed.model ?? (cfg.defaultModel as string | undefined) ?? "gemma3:1b"
         ctx.usage.increment({ modelCalls: 1 })
         const text = await ollamaChat(
           baseURL,
@@ -302,8 +314,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
-      .withHandler(async (input) => {
-        const baseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434"
+      .withHandler(async (input, ctx) => {
+        const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
+        const baseURL =
+          (cfg.baseURL as string | undefined) ??
+          envString("OLLAMA_BASE_URL") ??
+          DEFAULT_OLLAMA_BASE_URL
         const row = input as {
           goal?: string
           criteria?: string
@@ -354,9 +370,9 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
 catalogExtension(ollamaExtension)
 
 /** Register @executioncontrolprotocol/ollama. */
-export async function registerOllamaExtension(): Promise<void> {
-  if (!globalRegistry.getExtension("@executioncontrolprotocol/ollama")) {
-    await globalRegistry.registerExtension(ollamaExtension)
+export async function registerOllamaExtension(registry = globalRegistry): Promise<void> {
+  if (!registry.getExtension("@executioncontrolprotocol/ollama")) {
+    await registry.registerExtension(ollamaExtension)
   }
 }
 

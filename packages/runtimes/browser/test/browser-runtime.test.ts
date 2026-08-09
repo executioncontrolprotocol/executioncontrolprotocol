@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest"
 import { workflow, step, ref, registerTestExtension } from "@executioncontrolprotocol/core"
 import { createBrowserTestEnvironment } from "./helpers.js"
 import { registerRuntimeConformanceTests } from "../../../core/test/runtime-conformance.js"
+import { registerChromeAiExtension } from "@executioncontrolprotocol/chrome-ai"
+import "@executioncontrolprotocol/chrome-ai"
 
 registerRuntimeConformanceTests("@executioncontrolprotocol/browser", () => createBrowserTestEnvironment("browser-conformance"))
 
@@ -28,7 +30,9 @@ describe("@executioncontrolprotocol/browser runtime", () => {
     }
 
     try {
+      await registerChromeAiExtension()
       const env = await createBrowserTestEnvironment("browser-chrome-generate")
+      env.addExtensionBinding("@executioncontrolprotocol/chrome-ai", {})
       const manifest = workflow("Chrome Summarize")
         .run([
           step("@executioncontrolprotocol/chrome-ai.generate", "Summarize")
@@ -63,7 +67,9 @@ describe("@executioncontrolprotocol/browser runtime", () => {
     }
 
     try {
+      await registerChromeAiExtension()
       const env = await createBrowserTestEnvironment("browser-chrome-chain")
+      env.addExtensionBinding("@executioncontrolprotocol/chrome-ai", {})
       const manifest = workflow("Poem Summarization")
         .id("poem-summarize")
         .run([

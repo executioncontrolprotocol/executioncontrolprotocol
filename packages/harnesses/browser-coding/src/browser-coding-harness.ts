@@ -16,6 +16,7 @@ import {
   type HarnessTask,
 } from "./harness-coding-config.js"
 import { invokeIntentClassificationCoding } from "./intent-classification-coding.js"
+import { invokeMultiShotChatCoding } from "./multi-shot-chat.js"
 import { invokeWorkflowAssistantCoding } from "./workflow-assistant-coding.js"
 import { invokeWorkflowAuthoringCoding } from "./workflow-authoring-coding.js"
 
@@ -35,6 +36,14 @@ const harnessInputSchema = z.discriminatedUnion("task", [
     task: z.literal(HARNESS_TASKS.WORKFLOW_ASSISTANT),
     message: z.string(),
     runContext: z.unknown().optional(),
+    model: z.string().optional(),
+  }),
+  z.object({
+    task: z.literal(HARNESS_TASKS.CHAT),
+    message: z.string(),
+    manifest: z.unknown().optional(),
+    runContext: z.unknown().optional(),
+    conversationSummary: z.string().optional(),
     model: z.string().optional(),
   }),
 ])
@@ -92,6 +101,17 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
       case HARNESS_TASKS.WORKFLOW_ASSISTANT:
         return invokeWorkflowAssistantCoding(
           { message: input.message, runContext: input.runContext, model: input.model },
+          taskCtx
+        )
+      case HARNESS_TASKS.CHAT:
+        return invokeMultiShotChatCoding(
+          {
+            message: input.message,
+            manifest: input.manifest,
+            runContext: input.runContext,
+            conversationSummary: input.conversationSummary,
+            model: input.model,
+          },
           taskCtx
         )
       default: {

@@ -77,6 +77,7 @@
     },
     "./compile": {
       "types": "./dist/compile/entry.d.ts",
+      "browser": "./dist/compile/index.browser.js",
       "import": "./dist/compile/entry.js"
     },
     "./node": {

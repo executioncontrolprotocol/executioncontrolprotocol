@@ -29,10 +29,14 @@ export { zodIssuesToValidationIssues } from "./validate/zod-mapper.js"
 export {
   compileWorkflowSource,
   compileAndValidateWorkflowSource,
+  compileHarnessArtifactSource,
   warmBrowserWorkflowCompile,
   ESBUILD_WASM_URL_KEY,
   type CompileWorkflowResult,
   type CompileWorkflowSourceOptions,
+  type CompileHarnessArtifactResult,
+  type CompileHarnessArtifactSourceOptions,
+  type HarnessArtifactSchema,
 } from "./compile/index.browser.js"
 
 export {

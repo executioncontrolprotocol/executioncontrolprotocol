@@ -1,20 +1,44 @@
 import { describe, expect, it } from "vitest"
-import { registerTestExtension, workflow, step } from "@executioncontrolprotocol/core"
+import { registerTestExtension, workflow, step, harness } from "@executioncontrolprotocol/core"
 import {
   BrowserAuthoringService,
-  HARNESS_TASKS,
-  WORKFLOW_AUTHORING_CAPABILITY,
-  createBrowserDemoEnvironment,
+  createBrowserEnvironment,
   createEcp,
-  registerBrowserDefaults,
+  registerBrowserHost,
 } from "../src/index.js"
+import {
+  BROWSER_NANO_HARNESS_CAPABILITY,
+  BROWSER_NANO_HARNESS_ID,
+  HARNESS_NANO_BINDING,
+  HARNESS_TASKS,
+  registerBrowserNanoHarnesses,
+} from "@executioncontrolprotocol/harnesses-browser-nano"
+import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { registerFormatMermaidExtension } from "@executioncontrolprotocol/format-mermaid"
+import { registerFormatEqlExtension } from "@executioncontrolprotocol/format-eql"
+import "@executioncontrolprotocol/format-toon"
+import "@executioncontrolprotocol/format-mermaid"
+import "@executioncontrolprotocol/format-eql"
 import type { HarnessInvokeResult, WorkflowManifest } from "@executioncontrolprotocol/types"
 
 async function authoringEcp() {
-  await registerBrowserDefaults()
+  await registerBrowserHost()
+  registerBrowserNanoHarnesses()
+  await registerFormatToonExtension()
+  await registerFormatMermaidExtension()
+  await registerFormatEqlExtension()
   await registerTestExtension()
-  const env = createBrowserDemoEnvironment("authoring-test")
+  const env = createBrowserEnvironment("authoring-test")
+  env.addExtensionBinding("@executioncontrolprotocol/format-toon", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-mermaid", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-eql", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-json", {})
   env.addExtensionBinding("@executioncontrolprotocol/test", {})
+  env.withHarnesses([
+    harness(BROWSER_NANO_HARNESS_ID)
+      .uses("@executioncontrolprotocol/test.generate")
+      .with({ ...HARNESS_NANO_BINDING }),
+  ])
   return createEcp(env)
 }
 
@@ -22,7 +46,7 @@ describe("BrowserAuthoringService", () => {
   it("creates workflow via workflow-authoring harness", async () => {
     const ecp = await authoringEcp()
     const invoked = await ecp
-      .invoke(WORKFLOW_AUTHORING_CAPABILITY)
+      .invoke(BROWSER_NANO_HARNESS_CAPABILITY)
       .uses("@executioncontrolprotocol/test.generate")
       .with({ task: HARNESS_TASKS.WORKFLOW_AUTHORING, request: "echo demo workflow" })
       .process()

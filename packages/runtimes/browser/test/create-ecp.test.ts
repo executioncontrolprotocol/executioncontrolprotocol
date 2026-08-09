@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { workflow, step, registerTestExtension } from "@executioncontrolprotocol/core"
-import { createBrowserDemoEnvironment, createEcp, registerBrowserDefaults, type BrowserOperationalEcp } from "../src/index.js"
+import {
+  createBrowserEnvironment,
+  createEcp,
+  registerBrowserHost,
+  type BrowserOperationalEcp,
+} from "../src/index.js"
 
 describe("createEcp", () => {
   it("returns operational ecp with encode fluent without fluent extension", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("create-ecp-test")
+    await registerBrowserHost()
+    const env = createBrowserEnvironment("create-ecp-test")
     await registerTestExtension(env.getRegistry())
     env.addExtensionBinding("@executioncontrolprotocol/test", {})
     const ecp = await createEcp(env)
@@ -19,8 +24,8 @@ describe("createEcp", () => {
   })
 
   it("exposeGlobal provides describe and invoke on globalThis.ecp", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("global-ecp-test")
+    await registerBrowserHost()
+    const env = createBrowserEnvironment("global-ecp-test")
     await registerTestExtension(env.getRegistry())
     const ecp = await createEcp(env, { exposeGlobal: true })
     const globalEcp = (globalThis as { ecp?: BrowserOperationalEcp }).ecp

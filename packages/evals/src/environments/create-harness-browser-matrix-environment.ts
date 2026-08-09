@@ -1,12 +1,24 @@
-import { harness } from "@executioncontrolprotocol/core"
-import { createBrowserDemoEnvironment, registerBrowserDefaults } from "@executioncontrolprotocol/browser"
-import { registerTestExtension } from "@executioncontrolprotocol/core"
-import { BROWSER_NANO_HARNESS_ID } from "../harness-bindings.js"
+import { harness, registerTestExtension } from "@executioncontrolprotocol/core"
+import {
+  createBrowserEnvironment,
+  registerBrowserHost,
+} from "@executioncontrolprotocol/browser"
+import { registerChromeAiExtension } from "@executioncontrolprotocol/chrome-ai"
+import { registerFormatEqlExtension } from "@executioncontrolprotocol/format-eql"
+import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
+import "@executioncontrolprotocol/chrome-ai"
+import "@executioncontrolprotocol/format-eql"
+import "@executioncontrolprotocol/format-toon"
+import { BROWSER_NANO_HARNESS_ID, registerBrowserNanoHarnesses } from "../harness-bindings.js"
 import { HARNESS_NANO_BINDING } from "../harness-eval-config.js"
 import type { EvalProviderProfile } from "../profiles/eval-provider.js"
 
 async function registerBrowserMatrixEval(): Promise<void> {
-  await registerBrowserDefaults()
+  await registerBrowserHost()
+  registerBrowserNanoHarnesses()
+  await registerChromeAiExtension()
+  await registerFormatEqlExtension()
+  await registerFormatToonExtension()
   await registerTestExtension()
 }
 
@@ -22,13 +34,16 @@ export async function createHarnessBrowserMatrixEnvironment(provider: EvalProvid
     )
   }
   await registerBrowserMatrixEval()
-  const env = createBrowserDemoEnvironment(`harness-${provider.id}-matrix-eval`)
+  const env = createBrowserEnvironment(`harness-${provider.id}-matrix-eval`)
+  env.addExtensionBinding("@executioncontrolprotocol/chrome-ai", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-eql", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-toon", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-json", {})
+  env.addExtensionBinding("@executioncontrolprotocol/test", {})
   env.withHarnesses([
     harness(BROWSER_NANO_HARNESS_ID)
       .uses(provider.generateCapability)
       .with({ ...HARNESS_NANO_BINDING }),
   ])
-  env.addExtensionBinding("@executioncontrolprotocol/test", {})
-  env.addExtensionBinding("@executioncontrolprotocol/format-json", {})
   return env
 }

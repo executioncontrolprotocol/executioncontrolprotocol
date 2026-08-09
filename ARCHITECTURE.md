@@ -76,15 +76,23 @@ Policies can:
 
 - `@executioncontrolprotocol/types`: protocol types + JSON Schema artifacts
 - `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine
+- `@executioncontrolprotocol/core/compile` / `core/browser`: host-specific **compile** (Node esbuild vs browser esbuild-wasm) — not part of the runtime host packages
 - `@executioncontrolprotocol/node`: Node runtime host
-- `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI)
+- `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI; **harness-independent**)
 - `@executioncontrolprotocol/extensions/*`: first-party extensions (written like third-party extensions)
 - `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
 - `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/encode/decode
-- `@executioncontrolprotocol/harnesses-browser-nano`: harness tasks used by demo + evals
+- `@executioncontrolprotocol/harnesses-browser-nano`: harness tasks (EQL); bound by apps/evals, not by the browser host
+- `@executioncontrolprotocol/harnesses-browser-coding`: Fluent/TS harness; bound by apps/evals
 - `@executioncontrolprotocol/evals` (private): harness/provider eval fixtures + matrix tests
-- [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo): reference UI app using the browser runtime + harnesses
+- [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo): reference UI app — **owns** harness + provider composition
+
+------------------------------------------------------------------------
+
+## Compile portability
+
+Harnesses and apps share compile APIs (`compileWorkflowSource`, `compileHarnessArtifactSource`). Implementations live on core subpaths so harnesses never import runtime hosts. Swap host by resolving `core/compile` (Node) vs `core/browser` (or the `"browser"` export condition).
 
 ------------------------------------------------------------------------
 
@@ -94,5 +102,6 @@ Policies can:
   ECP artifacts (prompts, repair loop, decode/validation feedback).
 - **Evals** are fixture-driven tests that hold harnesses accountable across
   provider profiles.
+- **Apps** (e.g. browser-demo) bind which harness and which generate capability to use.
 
-Harnesses should not own fixtures; evals should not re-implement harness logic.
+Harnesses should not own fixtures; evals should not re-implement harness logic. Runtime hosts should not depend on harness packages.

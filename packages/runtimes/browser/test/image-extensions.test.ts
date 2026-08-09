@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest"
-import { createBrowserDemoEnvironment, registerBrowserDefaults } from "../src/index.js"
+import { createBrowserEnvironment, registerBrowserHost } from "../src/index.js"
+import { registerFalExtension } from "@executioncontrolprotocol/extension-fal"
+import { registerImageSharpExtension } from "@executioncontrolprotocol/extension-image-sharp"
+import "@executioncontrolprotocol/extension-fal"
+import "@executioncontrolprotocol/extension-image-sharp"
 
-describe("createBrowserDemoEnvironment image extensions", () => {
-  it("describe includes FAL and image-sharp capabilities with schemas", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("image-ext-test")
+describe("browser app image extension composition", () => {
+  it("describe includes FAL and image-sharp when the app binds them", async () => {
+    await registerBrowserHost()
+    await registerFalExtension()
+    await registerImageSharpExtension()
+    const env = createBrowserEnvironment("image-ext-test")
+    env.addExtensionBinding("@executioncontrolprotocol/fal", {
+      apiKey: "test",
+      defaultMode: "subscribe",
+    })
+    env.addExtensionBinding("@executioncontrolprotocol/image-sharp", {})
     const ecp = await env.init()
     const descriptor = await ecp.describe({
       capabilities: { include: ["id", "inputSchema", "outputSchema"] },

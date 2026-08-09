@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { createBrowserDemoEnvironment, createEcp, registerBrowserDefaults } from "../src/index.js"
+import { createBrowserEnvironment, createEcp, registerBrowserHost } from "../src/index.js"
 
 describe("@executioncontrolprotocol/browser.guideChat", () => {
   it("returns prose guidance without TOON", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("guide-chat-test")
+    await registerBrowserHost()
+    const env = createBrowserEnvironment("guide-chat-test")
     const ecp = await createEcp(env)
     const result = await ecp.invoke("@executioncontrolprotocol/browser.guideChat").with({ message: "What is a workflow?" }).process()
     expect(result.success).toBe(true)
@@ -15,8 +15,8 @@ describe("@executioncontrolprotocol/browser.guideChat", () => {
   })
 
   it("suggests explicit workflow creation phrasing", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("guide-chat-test-2")
+    await registerBrowserHost()
+    const env = createBrowserEnvironment("guide-chat-test-2")
     const ecp = await createEcp(env)
     const result = await ecp
       .invoke("@executioncontrolprotocol/browser.guideChat")
@@ -29,8 +29,8 @@ describe("@executioncontrolprotocol/browser.guideChat", () => {
   })
 
   it("introduces capabilities for identity questions", async () => {
-    await registerBrowserDefaults()
-    const env = createBrowserDemoEnvironment("guide-chat-test-3")
+    await registerBrowserHost()
+    const env = createBrowserEnvironment("guide-chat-test-3")
     const ecp = await createEcp(env)
     const result = await ecp
       .invoke("@executioncontrolprotocol/browser.guideChat")
