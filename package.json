@@ -44,6 +44,9 @@
     "test:browser:watch": "vitest --project browser",
     "check": "npm run build && npm run generate:schema && npm run lint && npm run test:unit && npm run test:integration && npm run test:e2e",
     "generate:schema": "npm run generate:schema -w @executioncontrolprotocol/types",
+    "version:bump": "node scripts/bump-all-ecp-versions.mjs",
+    "version:check-vs-npm": "node scripts/check-version-gt-published.mjs",
+    "publish:workspaces": "node scripts/publish-workspaces.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -137,6 +137,7 @@ export default defineConfig({
             "!packages/harnesses/**/test/eval/**",
             "packages/runtimes/node/**/*.test.ts",
             "packages/runtimes/browser/test/*.test.ts",
+            "scripts/**/*.test.ts",
           ],
         },
       },
