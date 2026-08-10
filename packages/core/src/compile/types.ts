@@ -21,6 +21,10 @@ export interface CompileWorkflowSourceOptions {
   source: string
   filename?: string
   format?: "esm"
-  /** Browser demo: resolve @executioncontrolprotocol imports via globalThis.__ecpWorkflowShim. */
+  /**
+   * How to resolve `@executioncontrolprotocol/*` imports when evaluating in the browser.
+   * Browser compile defaults to `"browser-global"` (strip imports; use `globalThis.__ecpWorkflowShim`).
+   * Node compile ignores this and bundles via the package resolver.
+   */
   resolveImports?: "browser-global"
 }

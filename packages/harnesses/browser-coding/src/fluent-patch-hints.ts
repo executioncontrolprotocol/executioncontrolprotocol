@@ -378,6 +378,20 @@ export function collectFluentCompileErrorFeedback(
   compileMessage: string
 ): HarnessOperationFeedback[] | undefined {
   const lower = compileMessage.toLowerCase()
+  if (
+    lower.includes("failed to resolve module specifier") ||
+    lower.includes("__ecpworkflowshim") ||
+    (lower.includes("cannot find module") && lower.includes("@executioncontrolprotocol"))
+  ) {
+    return [
+      collectModelOutputFeedback(
+        'Keep a single named import from "@executioncontrolprotocol/core" only ' +
+          "(workflow, step, ref, branch, parallel, loop as needed). " +
+          "Do not import other packages, relative paths, or @executioncontrolprotocol/browser for Fluent APIs. " +
+          "Example: import { workflow, step, ref } from \"@executioncontrolprotocol/core\""
+      ),
+    ]
+  }
   if (lower.includes("ref is not defined")) {
     return [
       collectModelOutputFeedback(

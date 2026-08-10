@@ -38,11 +38,61 @@ describe("@executioncontrolprotocol/ollama", () => {
     vi.clearAllMocks()
   })
 
-  it("registers the extension and exposes generate + evaluate", () => {
+  it("registers the extension and exposes generate + evaluate + listModels", () => {
     const ext = globalRegistry.getExtension("@executioncontrolprotocol/ollama")
     expect(ext).toBe(ollamaExtension)
     expect(ext?.capabilities.map((c) => c.id)).toEqual(
-      expect.arrayContaining(["@executioncontrolprotocol/ollama.generate", "@executioncontrolprotocol/ollama.evaluate"])
+      expect.arrayContaining([
+        "@executioncontrolprotocol/ollama.generate",
+        "@executioncontrolprotocol/ollama.evaluate",
+        "@executioncontrolprotocol/ollama.listModels",
+      ])
+    )
+  })
+
+  it("listModels returns sorted unique tags from /api/tags", async () => {
+    const fetchMock = mockFetch(() => ({
+      ok: true,
+      body: {
+        models: [
+          { name: "qwen2.5-coder:7b" },
+          { name: "gemma3:1b" },
+          { name: "qwen2.5-coder:7b" },
+          { name: "  " },
+          {},
+        ],
+      },
+    }))
+    const out = (await capability("@executioncontrolprotocol/ollama.listModels")({}, ctx)) as {
+      models: string[]
+    }
+    expect(out.models).toEqual(["gemma3:1b", "qwen2.5-coder:7b"])
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://localhost:11434/api/tags")
+  })
+
+  it("listModels prefers input baseURL over extension config", async () => {
+    const fetchMock = mockFetch(() => ({ ok: true, body: { models: [{ name: "a:latest" }] } }))
+    await capability("@executioncontrolprotocol/ollama.listModels")(
+      { baseURL: "http://127.0.0.1:11434/" },
+      ctx
+    )
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://127.0.0.1:11434/api/tags")
+  })
+
+  it("listModels throws on a non-ok API response", async () => {
+    mockFetch(() => ({ ok: false, status: 404, body: "not found" }))
+    // mockFetch only supports json(); override for text body path
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        text: async () => "model missing",
+        json: async () => ({}),
+      })) as unknown as typeof fetch
+    )
+    await expect(capability("@executioncontrolprotocol/ollama.listModels")({}, ctx)).rejects.toThrow(
+      /Ollama API error: 404/
     )
   })
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import {
   buildFluentPatchHintLines,
+  collectFluentCompileErrorFeedback,
   collectFluentPatchGoalFeedback,
 } from "../src/fluent-patch-hints.js"
 
@@ -52,6 +53,27 @@ describe("buildFluentPatchHintLines", () => {
     const text = lines.join("\n")
     expect(text).toContain("Reorder .run([...])")
     expect(text).toContain("validate, echo")
+  })
+})
+
+describe("collectFluentCompileErrorFeedback", () => {
+  it("maps Failed to resolve module specifier to a core-import-only repair hint", () => {
+    const feedback = collectFluentCompileErrorFeedback(
+      'Failed to resolve module specifier "@executioncontrolprotocol/core". Relative references must start with either "/", "./", or "../".'
+    )
+    expect(feedback?.length).toBe(1)
+    const text = feedback![0]!.issues.map((i) => i.message).join(" ")
+    expect(text).toContain("@executioncontrolprotocol/core")
+    expect(text).toMatch(/Do not import other packages/i)
+  })
+
+  it("maps missing workflow shim errors", () => {
+    const feedback = collectFluentCompileErrorFeedback(
+      "Cannot destructure property 'workflow' of 'globalThis.__ecpWorkflowShim' as it is undefined."
+    )
+    expect(feedback?.some((f) => f.issues.some((i) => i.message.includes("named import")))).toBe(
+      true
+    )
   })
 })
 

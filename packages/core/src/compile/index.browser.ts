@@ -65,23 +65,22 @@ function validationFromOk(valid: boolean): ValidationResult {
 
 /**
  * Compile TypeScript or JavaScript workflow source to a manifest (browser-safe).
+ * Defaults to {@link CompileWorkflowSourceOptions.resolveImports} `"browser-global"`
+ * so bare `@executioncontrolprotocol/core` imports resolve via `globalThis.__ecpWorkflowShim`
+ * (blob URL evaluation cannot resolve package specifiers).
  * @category Compile
  */
 export async function compileWorkflowSource(
   options: CompileWorkflowSourceOptions
 ): Promise<CompileWorkflowResult> {
   const filename = options.filename ?? "workflow.ts"
+  const resolveImports = options.resolveImports ?? "browser-global"
   try {
     const code =
       isTypeScriptFile(filename) ||
       options.source.includes("@executioncontrolprotocol/") ||
-      options.resolveImports === "browser-global"
-        ? await bundleWorkflowSource(
-            options.source,
-            filename,
-            ".",
-            options.resolveImports
-          )
+      resolveImports === "browser-global"
+        ? await bundleWorkflowSource(options.source, filename, ".", resolveImports)
         : options.source
     const manifest = await evaluateWorkflowModule(code, filename.replace(/\.tsx?$/, ".js"))
     const validation = validateWorkflow(manifest)

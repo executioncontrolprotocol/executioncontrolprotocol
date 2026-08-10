@@ -218,6 +218,8 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
         const compiled = await compileWorkflowSource({
           source: raw,
           filename: isPatch ? "workflow-patch.ts" : "workflow-create.ts",
+          // Browser blob eval cannot resolve package specifiers; Node compile ignores this.
+          resolveImports: "browser-global",
         })
 
         if (!compiled.ok || !compiled.manifest) {

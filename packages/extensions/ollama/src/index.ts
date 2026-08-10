@@ -2,6 +2,9 @@ import { defineExtension, capabilityFor, globalRegistry, catalogExtension } from
 import { z } from "zod"
 
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
+import { listOllamaModels } from "./list-models.js"
+
+export { listOllamaModels, type ListOllamaModelsOptions } from "./list-models.js"
 
 const GenerateInput = modelGenerateInputSchema
 
@@ -303,6 +306,20 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           parsed.options as Record<string, unknown> | undefined
         )
         return { text }
+      }),
+    capabilityFor("@executioncontrolprotocol/ollama", "listModels")
+      .withInput(z.object({ baseURL: z.string().optional() }))
+      .withOutput(z.object({ models: z.array(z.string()) }))
+      .withHandler(async (input, ctx) => {
+        const parsed = input as { baseURL?: string }
+        const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
+        const baseURL =
+          parsed.baseURL ??
+          (cfg.baseURL as string | undefined) ??
+          envString("OLLAMA_BASE_URL") ??
+          DEFAULT_OLLAMA_BASE_URL
+        const models = await listOllamaModels(baseURL)
+        return { models }
       }),
     capabilityFor("@executioncontrolprotocol/ollama", "evaluate")
       .withInput(
