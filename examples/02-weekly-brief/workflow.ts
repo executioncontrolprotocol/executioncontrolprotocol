@@ -12,7 +12,4 @@ export default workflow("Weekly leadership brief")
         context: ref("signals.results"),
       })
       .as("brief"),
-
-    step("@executioncontrolprotocol/slack.send", "Send Brief to Slack")
-      .with({ message: ref("brief.content") }),
   ])

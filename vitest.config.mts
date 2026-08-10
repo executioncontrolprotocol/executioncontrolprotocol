@@ -76,7 +76,6 @@ export default defineConfig({
         repoRoot,
         "packages/extensions/openai/src/index.ts"
       ),
-      "@executioncontrolprotocol/extension-slack": path.resolve(repoRoot, "packages/extensions/slack/src/index.ts"),
       "@executioncontrolprotocol/format-toon": path.resolve(repoRoot, "packages/extensions/format-toon/src/index.ts"),
       "@executioncontrolprotocol/format-mermaid": path.resolve(repoRoot, "packages/extensions/format-mermaid/src/index.ts"),
       "@executioncontrolprotocol/format-eql": path.resolve(repoRoot, "packages/extensions/format-eql/src/index.ts"),
@@ -85,14 +84,6 @@ export default defineConfig({
       "@executioncontrolprotocol/extension-ollama": path.resolve(
         repoRoot,
         "packages/extensions/ollama/src/index.ts"
-      ),
-      "@executioncontrolprotocol/extension-fal": path.resolve(
-        repoRoot,
-        "packages/extensions/fal/src/index.ts"
-      ),
-      "@executioncontrolprotocol/extension-image-sharp": path.resolve(
-        repoRoot,
-        "packages/extensions/image-sharp/src/index.ts"
       ),
       "@executioncontrolprotocol/evals": path.resolve(repoRoot, "packages/evals/src/index.ts"),
       "@executioncontrolprotocol/harnesses-browser-nano": path.resolve(

@@ -7,7 +7,7 @@ The ECP way to expose this should not be â€œone capability per tiny Sharp me
 # Recommended package
 
 ```txt
-packages/extensions/image-sharp/
+executioncontrolprotocol-extensions/packages/image-sharp/
   package.json
   src/
     index.ts
@@ -15,13 +15,9 @@ packages/extensions/image-sharp/
     artifact.ts
     sharp-runner.ts
     operations.ts
-    capabilities/
-      inspect.ts
-      transform.ts
-      derive.ts
-      compare.ts
-      normalize.ts
 ```
+
+(Vendor package — lives in the `executioncontrolprotocol-extensions` monorepo.)
 
 Extension ID:
 

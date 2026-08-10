@@ -6,7 +6,6 @@
     { "path": "../memory" },
     { "path": "../openai" },
     { "path": "../ollama" },
-    { "path": "../slack" },
     { "path": "../storage" },
     { "path": "../telemetry" },
     { "path": "../format-toon" },

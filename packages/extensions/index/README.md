@@ -1,7 +1,7 @@
 # @executioncontrolprotocol/extensions
 
 Optional convenience bundle that registers the **host-agnostic, dependency-light**
-first-party extensions in one call.
+first-party protocol/platform extensions in one call.
 
 ```ts
 import { registerAllExtensions } from "@executioncontrolprotocol/extensions"
@@ -15,7 +15,6 @@ await registerAllExtensions()
 | --------- | ------- |
 | `@executioncontrolprotocol/memory` | Memory capabilities + lifecycle hooks |
 | `@executioncontrolprotocol/storage` | Key/value storage capabilities |
-| `@executioncontrolprotocol/slack` | Slack send capability |
 | `@executioncontrolprotocol/telemetry` | Lifecycle telemetry hooks |
 | `@executioncontrolprotocol/openai` | OpenAI model provider |
 | `@executioncontrolprotocol/ollama` | Local Ollama model provider |
@@ -27,18 +26,16 @@ The exact set is exported as `BUNDLED_EXTENSION_IDS`.
 
 ## Intentionally excluded
 
-These are **not** registered by `registerAllExtensions()` because they are
-host-specific or require credentials. Register them explicitly when needed:
-
 | Extension | Why excluded |
 | --------- | ------------ |
 | `@executioncontrolprotocol/chrome-ai` | Browser-only (Chrome on-device `LanguageModel` API) |
 | `@executioncontrolprotocol/claude` | Requires Anthropic provider configuration/credentials |
+| `@executioncontrolprotocol/fal` | Vendor — [executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions) |
+| `@executioncontrolprotocol/slack` | Vendor — same extensions repo |
+| `@executioncontrolprotocol/image-sharp` | Vendor — same extensions repo |
+| `@executioncontrolprotocol/adobe` | Vendor scaffold — same extensions repo |
 
 ```ts
-import { registerChromeAiExtension } from "@executioncontrolprotocol/chrome-ai"
-await registerChromeAiExtension()
+import { registerFalExtension } from "@executioncontrolprotocol/fal"
+await registerFalExtension()
 ```
-
-This mirrors the spec guidance that the convenience bundle should avoid forcing
-heavy or host-specific transitive dependencies.

@@ -79,7 +79,8 @@ Policies can:
 - `@executioncontrolprotocol/core/compile` / `core/browser`: host-specific **compile** (Node esbuild vs browser esbuild-wasm) — not part of the runtime host packages
 - `@executioncontrolprotocol/node`: Node runtime host
 - `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI; **harness-independent**)
-- `@executioncontrolprotocol/extensions/*`: first-party extensions (written like third-party extensions)
+- `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, secrets, memory, model providers) — written like third-party extensions
+- Vendor extensions (`fal`, `slack`, `image-sharp`, `adobe`, …): [executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions)
 - `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
 - `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/encode/decode

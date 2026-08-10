@@ -1,7 +1,6 @@
 export { registerMemoryExtension, memoryExtension } from "@executioncontrolprotocol/extension-memory"
 export { registerOpenaiExtension, openaiExtension } from "@executioncontrolprotocol/extension-openai"
 export { registerOllamaExtension, ollamaExtension } from "@executioncontrolprotocol/extension-ollama"
-export { registerSlackExtension, slackExtension } from "@executioncontrolprotocol/extension-slack"
 export { registerStorageExtension, storageExtension } from "@executioncontrolprotocol/extension-storage"
 export { registerTelemetryExtension, telemetryExtension } from "@executioncontrolprotocol/extension-telemetry"
 export { registerFormatToonExtension, formatToonExtension } from "@executioncontrolprotocol/format-toon"
@@ -11,7 +10,6 @@ export { registerFormatMermaidExtension, formatMermaidExtension } from "@executi
 import { registerMemoryExtension } from "@executioncontrolprotocol/extension-memory"
 import { registerOpenaiExtension } from "@executioncontrolprotocol/extension-openai"
 import { registerOllamaExtension } from "@executioncontrolprotocol/extension-ollama"
-import { registerSlackExtension } from "@executioncontrolprotocol/extension-slack"
 import { registerStorageExtension } from "@executioncontrolprotocol/extension-storage"
 import { registerTelemetryExtension } from "@executioncontrolprotocol/extension-telemetry"
 import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
@@ -23,7 +21,6 @@ export const BUNDLED_EXTENSION_IDS = [
   "@executioncontrolprotocol/memory",
   "@executioncontrolprotocol/openai",
   "@executioncontrolprotocol/ollama",
-  "@executioncontrolprotocol/slack",
   "@executioncontrolprotocol/storage",
   "@executioncontrolprotocol/telemetry",
   "@executioncontrolprotocol/format-toon",
@@ -32,16 +29,19 @@ export const BUNDLED_EXTENSION_IDS = [
 ] as const
 
 /**
- * Register all bundled first-party extensions on the global registry.
+ * Register all bundled first-party protocol/platform extensions on the global registry.
  *
- * This bundle is host-agnostic and dependency-light: it includes the standard
- * capability extensions (memory, storage, slack, telemetry), the local/remote
- * model providers that do not pull heavy SDKs (openai, ollama), and the format
- * extensions used by harness encode/decode (toon, eql, mermaid).
+ * This bundle is host-agnostic and dependency-light: it includes memory, storage,
+ * telemetry, local/remote model providers that do not pull heavy SDKs (openai, ollama),
+ * and format extensions used by harness encode/decode (toon, eql, mermaid).
  *
- * Intentionally excluded (register them explicitly when needed):
+ * Vendor integrations (fal, slack, image-sharp, adobe) live in the
+ * `executioncontrolprotocol-extensions` monorepo — install and register them explicitly.
+ *
+ * Intentionally excluded from this bundle:
  * - `@executioncontrolprotocol/chrome-ai` — browser-only (Chrome on-device `LanguageModel` API).
  * - `@executioncontrolprotocol/claude` — requires the Anthropic provider configuration/credentials.
+ * - Vendor packages (`fal`, `slack`, `image-sharp`, `adobe`) — published from the extensions repo.
  *
  * @category Extensions
  */
@@ -49,7 +49,6 @@ export async function registerAllExtensions(): Promise<void> {
   await registerMemoryExtension()
   await registerOpenaiExtension()
   await registerOllamaExtension()
-  await registerSlackExtension()
   await registerStorageExtension()
   await registerTelemetryExtension()
   await registerFormatToonExtension()

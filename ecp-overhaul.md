@@ -64,10 +64,13 @@ packages/
 | `@executioncontrolprotocol/runtime-temporal`    | Optional Temporal runtime adapter.                                                                            |
 | `@executioncontrolprotocol/extension-memory`    | Memory capabilities and lifecycle hooks.                                                                      |
 | `@executioncontrolprotocol/extension-openai`    | OpenAI model capabilities.                                                                                    |
-| `@executioncontrolprotocol/extension-slack`     | Slack capabilities.                                                                                           |
 | `@executioncontrolprotocol/extension-storage`   | Storage capabilities.                                                                                         |
 | `@executioncontrolprotocol/extension-telemetry` | Telemetry lifecycle hooks.                                                                                    |
-| `@executioncontrolprotocol/extensions`          | Optional convenience bundle/re-export package.                                                                |
+| `@executioncontrolprotocol/extensions`          | Optional convenience bundle/re-export package (protocol/platform only).                                       |
+| `@executioncontrolprotocol/fal`                 | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
+| `@executioncontrolprotocol/slack`               | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
+| `@executioncontrolprotocol/image-sharp`         | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
+| `@executioncontrolprotocol/adobe`               | Vendor scaffold — published from `executioncontrolprotocol-extensions`.                                       |
 
 ## 2.3 Dependency direction
 
@@ -1480,14 +1483,10 @@ Config:
 Package:
 
 ```txt
-@executioncontrolprotocol/extension-slack
-```
-
-ID:
-
-```txt
 @executioncontrolprotocol/slack
 ```
+
+(Published from `executioncontrolprotocol-extensions`; npm package name matches extension id.)
 
 Capabilities:
 

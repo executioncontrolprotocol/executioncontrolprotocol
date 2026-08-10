@@ -8,6 +8,13 @@ alwaysApply: false
 
 Treat every extension under `packages/extensions/` as if it were published for **third-party** authors: environment-agnostic, minimal dependencies, no imports from Node/Browser host packages unless the extension *is* a runtime or host adapter.
 
+**Vendor integrations** (fal, slack, image-sharp, adobe, …) live in the sibling
+`executioncontrolprotocol-extensions` monorepo and follow the same rules — this folder is for
+protocol/platform extensions only (formats, secrets, memory, model providers, etc.).
+
+Prefer **npm package name === extension id** (e.g. `@executioncontrolprotocol/format-toon`).
+Vendor packages already follow this (`@executioncontrolprotocol/fal`, not `extension-fal`).
+
 ## Dependencies
 
 | Package | Use for |

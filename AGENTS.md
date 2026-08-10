@@ -16,7 +16,8 @@
 | `packages/evals/` | Harness/provider eval tests (`@executioncontrolprotocol/evals`, private); pinned `gemma3:1b` @ `localhost:11434` — see [packages/evals/README.md](packages/evals/README.md) |
 | `packages/harnesses/browser-nano/` | Browser Nano harness (`@executioncontrolprotocol/harnesses-browser-nano`) — small-model demo + eval matrix |
 | `packages/harnesses/browser-coding/` | Browser Coding harness (`@executioncontrolprotocol/harnesses-browser-coding`) — TypeScript/Fluent surface; Qwen 4B eval matrix |
-| `packages/extensions/*/` | First-party extensions |
+| `packages/extensions/*/` | Protocol/platform first-party extensions (formats, secrets, memory, model providers) |
+| [Vendor extensions (standalone)](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions) | Vendor integrations (`fal`, `slack`, `image-sharp`, `adobe`, …) — dogfoods the extension package boundary |
 | `archive/legacy-v0.5/` | Archived v0.5 Oclif CLI and snippets |
 | `ecp-overhaul.md` | Implementation spec (source of truth) |
 
@@ -114,7 +115,10 @@ Extension packages call `catalogExtension(def)` at module load. **Examples use s
 
 ### Extension authoring (third-party parity)
 
-Built-in packages under `packages/extensions/` follow the same rules as external extension authors. See [`.cursor/rules/extensions.mdc`](.cursor/rules/extensions.mdc).
+Protocol/platform packages under `packages/extensions/` and vendor packages in
+[executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions)
+follow the same rules as external extension authors. See [`.cursor/rules/extensions.mdc`](.cursor/rules/extensions.mdc).
+Keep **npm package name** aligned with the **extension id** (e.g. `@executioncontrolprotocol/fal`).
 
 | Do | Don't |
 | ---- | ----- |
@@ -122,7 +126,8 @@ Built-in packages under `packages/extensions/` follow the same rules as external
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
 
-**Apps and examples** compose extensions in `environment.ts` using `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser` — that host layer is separate from extension package code.
+Vendor integrations (`fal`, `slack`, `image-sharp`, `adobe`) are **not** in this monorepo — install them from npm or link the sibling `executioncontrolprotocol-extensions` checkout.
+
 
 Local dev: `npm start -w @executioncontrolprotocol/cli` (runs `bin/dev.js` after build).
 

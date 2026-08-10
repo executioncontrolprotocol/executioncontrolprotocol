@@ -102,8 +102,8 @@ Key rules:
 
 - extensions depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` only
 - extensions must not import host runtimes (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, CLI, MCP)
-- first-party extensions under `packages/extensions/*` follow the same rules as
-  third-party extensions (“dogfooding”)
+- first-party protocol/platform extensions under `packages/extensions/*` follow the same rules as
+  third-party extensions (“dogfooding”); vendor packages live in `executioncontrolprotocol-extensions`
 
 ------------------------------------------------------------------------
 
