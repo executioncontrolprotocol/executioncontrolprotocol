@@ -128,7 +128,6 @@ Keep **npm package name** aligned with the **extension id** (e.g. `@executioncon
 
 Vendor integrations (`fal`, `slack`, `image-sharp`, `adobe`) are **not** in this monorepo — install them from npm or link the sibling `executioncontrolprotocol-extensions` checkout.
 
-
 Local dev: `npm start -w @executioncontrolprotocol/cli` (runs `bin/dev.js` after build).
 
 ### Fluent API quickstart
