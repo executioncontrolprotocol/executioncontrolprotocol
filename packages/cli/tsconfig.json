@@ -6,6 +6,7 @@
     { "path": "../types" },
     { "path": "../core" },
     { "path": "../runtimes/node" },
-    { "path": "../extensions/secrets" }
+    { "path": "../extensions/secrets" },
+    { "path": "../extensions/ollama" }
   ]
 }

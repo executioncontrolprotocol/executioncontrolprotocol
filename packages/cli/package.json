@@ -26,6 +26,7 @@
   "dependencies": {
     "@executioncontrolprotocol/node": "0.10.0",
     "@executioncontrolprotocol/secrets": "0.10.0",
+    "@executioncontrolprotocol/extension-ollama": "0.10.0",
     "@oclif/core": "^4.10.0"
   },
   "devDependencies": {

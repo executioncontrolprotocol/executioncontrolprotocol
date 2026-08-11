@@ -259,7 +259,19 @@ async function ollamaChat(
       },
     }),
   })
-  if (!res.ok) throw new Error(`Ollama API error: ${res.status}`)
+  if (!res.ok) {
+    let detail = ""
+    try {
+      detail = (await res.text()).slice(0, 500).trim()
+    } catch {
+      detail = ""
+    }
+    throw new Error(
+      detail
+        ? `Ollama API error: ${res.status} for model "${model}" (${detail})`
+        : `Ollama API error: ${res.status} for model "${model}"`
+    )
+  }
   const data = (await res.json()) as { message: { content: string } }
   return data.message.content
 }
