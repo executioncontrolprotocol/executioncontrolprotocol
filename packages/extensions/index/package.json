@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extensions",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Aggregator that registers first-party ECP extensions",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,24 +20,24 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/extension-memory": "0.10.0",
-    "@executioncontrolprotocol/extension-ollama": "0.10.0",
-    "@executioncontrolprotocol/extension-openai": "0.10.0",
-    "@executioncontrolprotocol/extension-slack": "0.10.0",
-    "@executioncontrolprotocol/extension-storage": "0.10.0",
-    "@executioncontrolprotocol/extension-telemetry": "0.10.0",
-    "@executioncontrolprotocol/format-eql": "0.10.0",
-    "@executioncontrolprotocol/format-mermaid": "0.10.0",
-    "@executioncontrolprotocol/format-toon": "0.10.0"
+    "@executioncontrolprotocol/extension-memory": "0.10.1",
+    "@executioncontrolprotocol/extension-ollama": "0.10.1",
+    "@executioncontrolprotocol/extension-openai": "0.10.1",
+    "@executioncontrolprotocol/extension-slack": "0.10.1",
+    "@executioncontrolprotocol/extension-storage": "0.10.1",
+    "@executioncontrolprotocol/extension-telemetry": "0.10.1",
+    "@executioncontrolprotocol/format-eql": "0.10.1",
+    "@executioncontrolprotocol/format-mermaid": "0.10.1",
+    "@executioncontrolprotocol/format-toon": "0.10.1"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.10.0",
-    "@executioncontrolprotocol/types": "^0.10.0",
+    "@executioncontrolprotocol/core": "^0.10.1",
+    "@executioncontrolprotocol/types": "^0.10.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.10.0",
-    "@executioncontrolprotocol/types": "0.10.0",
+    "@executioncontrolprotocol/core": "0.10.1",
+    "@executioncontrolprotocol/types": "0.10.1",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

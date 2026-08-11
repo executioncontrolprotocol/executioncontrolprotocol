@@ -1,3 +1,5 @@
+import { createRequire } from "node:module"
+
 /** Default loopback port for `ecp up` (ECP leet: E=3, C=0, P=9). @category CLI */
 export const DEFAULT_ECP_UP_PORT = 3090
 
@@ -20,5 +22,7 @@ export const DEFAULT_CORS_ORIGINS: readonly string[] = [
 /** JSON MIME type for daemon responses. @category CLI */
 export const JSON_MIME = "application/json"
 
-/** Daemon package version string for /health. @category CLI */
-export const ECP_UP_VERSION = "0.10.0"
+const require = createRequire(import.meta.url)
+
+/** Daemon package version string for /health (from `@executioncontrolprotocol/cli` package.json). @category CLI */
+export const ECP_UP_VERSION = (require("../../../package.json") as { version: string }).version
