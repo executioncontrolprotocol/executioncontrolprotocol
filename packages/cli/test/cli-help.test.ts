@@ -18,6 +18,7 @@ describe("ecp --help", () => {
     expect(out).toMatch(/\bencode\b/)
     expect(out).toMatch(/\bdecode\b/)
     expect(out).toMatch(/\brun\b/)
+    expect(out).toMatch(/\bup\b/)
     expect(out).not.toMatch(/\bmcp\b/)
   })
 
@@ -29,6 +30,7 @@ describe("ecp --help", () => {
     runHelp("validate")
     runHelp("describe")
     runHelp("search")
+    runHelp("up")
     runHelp("config secrets")
     runHelp("config secrets add")
   })

@@ -10,13 +10,15 @@ function capability(id: string): Handler {
   return cap.handler as Handler
 }
 
-function mockFetch(impl: () => { ok: boolean; status?: number; body?: unknown }) {
+function mockFetch(impl: () => { ok: boolean; status?: number; body?: unknown; text?: string }) {
   const fn = vi.fn(async () => {
     const r = impl()
     return {
       ok: r.ok,
       status: r.status ?? (r.ok ? 200 : 500),
       json: async () => r.body,
+      text: async () =>
+        r.text ?? (typeof r.body === "string" ? r.body : JSON.stringify(r.body ?? "")),
     } as unknown as Response
   })
   vi.stubGlobal("fetch", fn)
@@ -107,11 +109,11 @@ describe("@executioncontrolprotocol/ollama", () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  it("generate throws on a non-ok API response", async () => {
-    mockFetch(() => ({ ok: false, status: 503 }))
+  it("generate throws on a non-ok API response including body detail", async () => {
+    mockFetch(() => ({ ok: false, status: 500, text: '{"error":"model requires more memory"}' }))
     await expect(
       capability("@executioncontrolprotocol/ollama.generate")({ prompt: "x" }, ctx)
-    ).rejects.toThrow(/Ollama API error: 503/)
+    ).rejects.toThrow(/Ollama API error: 500 for model "test-model".*model requires more memory/)
   })
 
   it("evaluate parses an approval verdict from JSON output", async () => {

@@ -74,6 +74,23 @@ ecp describe --env examples/01-echo/environment.ts
 ecp search "echo" --env examples/01-echo/environment.ts
 ```
 
+### Local daemon (`ecp up`)
+
+Start a loopback HTTP daemon that bridges Ollama for the browser demo (CORS + Private Network Access), then open the demo with a pairing token:
+
+```sh
+ecp up
+# Opens https://executioncontrolprotocol.github.io/browser-demo/?token=<uuid>&bridge=http://127.0.0.1:3090
+
+ecp up --open-url http://localhost:5173/
+ecp up --no-open
+```
+
+- `GET /health` — `{ ok, version, ollamaReachable }` (no auth; used by the demo to enable Ollama)
+- `POST /v1/invoke` — Bearer token required; body `{ capability, input?, provider? }`
+
+Default port **3090** (ECP leet). The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Add extra page origins with `--cors-origin`.
+
 ### Encode / decode formats
 
 Encoding and decoding uses **format extensions** bound in your environment.
