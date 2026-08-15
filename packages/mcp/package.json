@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/mcp",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "MCP server adapter for ECP environments",
   "license": "Apache-2.0",
   "type": "module",
@@ -16,18 +16,18 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.10.1",
-    "@executioncontrolprotocol/types": "^0.10.1",
+    "@executioncontrolprotocol/core": "^0.11.0",
+    "@executioncontrolprotocol/types": "^0.11.0",
     "zod": "^3.24.0"
   },
   "dependencies": {
-    "@executioncontrolprotocol/node": "0.10.1",
+    "@executioncontrolprotocol/node": "0.11.0",
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.10.1",
-    "@executioncontrolprotocol/format-toon": "0.10.1",
-    "@executioncontrolprotocol/types": "0.10.1",
+    "@executioncontrolprotocol/core": "0.11.0",
+    "@executioncontrolprotocol/format-toon": "0.11.0",
+    "@executioncontrolprotocol/types": "0.11.0",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

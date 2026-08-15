@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/workspace",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Execution Control Protocol (ECP) — TypeScript fluent API for workflow authoring and execution",
   "private": true,
   "engines": {
@@ -27,7 +27,7 @@
     "lint:md": "markdownlint-cli2",
     "test": "npm run build && npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:watch": "vitest --project unit",
-    "test:coverage": "vitest run --project unit --coverage",
+    "test:coverage": "npm run generate:schema && vitest run --project unit --coverage",
     "test:coverage:clean": "npm run test:coverage && npm run clean:coverage",
     "test:unit": "npm run generate:schema && vitest run --project unit",
     "test:integration": "vitest run --project integration",

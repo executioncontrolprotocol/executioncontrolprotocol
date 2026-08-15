@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "ECP command-line interface",
   "license": "Apache-2.0",
   "type": "module",
@@ -19,19 +19,19 @@
     "start": "node ./bin/dev.js"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.10.1",
-    "@executioncontrolprotocol/types": "^0.10.1",
+    "@executioncontrolprotocol/core": "^0.11.0",
+    "@executioncontrolprotocol/types": "^0.11.0",
     "zod": "^3.24.0"
   },
   "dependencies": {
-    "@executioncontrolprotocol/node": "0.10.1",
-    "@executioncontrolprotocol/secrets": "0.10.1",
-    "@executioncontrolprotocol/extension-ollama": "0.10.1",
+    "@executioncontrolprotocol/node": "0.11.0",
+    "@executioncontrolprotocol/secrets": "0.11.0",
+    "@executioncontrolprotocol/extension-ollama": "0.11.0",
     "@oclif/core": "^4.10.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.10.1",
-    "@executioncontrolprotocol/types": "0.10.1",
+    "@executioncontrolprotocol/core": "0.11.0",
+    "@executioncontrolprotocol/types": "0.11.0",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   },
