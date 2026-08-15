@@ -66,11 +66,14 @@ Do not add demo UI types (e.g. `ProviderMode`) to `@executioncontrolprotocol/bro
 npm install
 npm run build
 npm run generate:schema   # writes packages/types/dist/schemas/*.json
-npm run check    # build + generate:schema + lint + test:unit + test:integration + test:e2e
+npm run check    # build + generate:schema + lint + test:coverage + test:integration + test:e2e
 npm run test:unit
+npm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config.mts)
 npm run test:eval      # full harness matrix (Ollama gemma3:1b; chat + legacy cases; skips when unavailable)
 npm run eval:harness   # alias for test:eval:matrix
 ```
+
+**Coverage:** `npm run build` does not enforce coverage. The ship gate is `npm run test:coverage` (husky pre-commit + CI `unit`). Floors live in `vitest.config.mts` (`coverage.thresholds`); target remains **90%** — raise floors toward 90, never lower them to green CI. New behavior needs **positive**, **negative**, and **edge** tests (see `.cursor/rules/testing-coverage.mdc`). Never use `!` negation in Vitest `test.include` (zeros coverage under projects; vitest#10164).
 
 Harness eval profile is baked in `packages/evals/src/profiles/ollama-gemma.ts` (not `OLLAMA_MODEL` env).
 

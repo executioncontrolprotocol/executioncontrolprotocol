@@ -9,6 +9,8 @@
 
 Browser demo Pages deploy lives in [browser-demo](https://github.com/executioncontrolprotocol/browser-demo).
 
-To run the full quality gate locally: `npm run check` (or `npm run build`, `npm run lint`, `npm run test:unit`, `npm run test:integration`, `npm run test:e2e`). Browser tests: `npm run test:browser:install` then `npm run test:browser`.
+To run the full quality gate locally: `npm run check` (build + lint + **coverage** + integration + e2e). Browser tests: `npm run test:browser:install` then `npm run test:browser`.
+
+**Coverage gate:** `npm run build` does **not** enforce coverage. Pre-commit (`.husky/pre-commit`) and CI job `unit` run `npm run test:coverage` against floors in `vitest.config.mts` (ratchet toward 90%; never lower floors to green CI).
 
 **E2E on GitHub Actions:** The `e2e` job runs **Ollama in Docker** (`ollama/ollama`) so the runner does not run `install.sh` (slow, root-owned paths). Model blobs live in `.ollama-models/`, are **cached** with `actions/cache`, and are **bind-mounted** into the container (`OLLAMA_MODELS=/models`). `docker exec … ollama pull` runs only on cache miss. Bump the `…-v1` cache key when changing the pinned model. **Evals** use the same pattern.

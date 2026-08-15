@@ -1,5 +1,6 @@
-# Reusable CI pipeline: build, lint, tests, and (on main push only) npm publish.
+# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser, and (on main push only) npm publish.
 # Called from `ci.yml`.
+# Coverage is enforced on the `unit` job (`npm run test:coverage`), not on `npm run build`.
 
 name: ci
 
@@ -41,7 +42,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm run test:unit
+      # Coverage thresholds (vitest.config.mts) are the ship gate — not part of `npm run build`.
+      - run: npm run test:coverage
+      - name: Upload coverage summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: |
+            coverage/coverage-summary.json
+            coverage/index.html
+          if-no-files-found: ignore
 
   integration:
     name: integration

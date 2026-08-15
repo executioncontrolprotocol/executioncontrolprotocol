@@ -1,0 +1,42 @@
+---
+description: Unit test case shapes and coverage accountability for ECP packages
+globs: packages/**/*.{ts,tsx},vitest.config.mts
+alwaysApply: false
+---
+
+# Testing and coverage
+
+## Case shapes (required for behavior changes)
+
+For every new feature or behavior change, add tests that cover:
+
+| Shape | Intent | Examples |
+| ----- | ------ | -------- |
+| **Positive** | Happy path succeeds | Valid invoke, inclusive `runTo`, successful encode |
+| **Negative** | Invalid / denied / missing fails clearly | Unknown capability, policy deny, missing session file |
+| **Edge** | Boundaries and frozen/partial state | Empty input, last step completes, skip already-completed priors, clear-downstream after rerun |
+
+Do not ship only a single happy-path test.
+
+## Coverage commands
+
+```sh
+npm run build            # compile only — no coverage gate
+npm run test:coverage    # unit project + V8 report + thresholds (ship gate)
+npm run clean:coverage   # remove coverage/ (and related dump dirs)
+npm run test:coverage:clean  # run gate then delete local coverage artifacts
+npm run check            # includes test:coverage
+```
+
+Coverage JSON/HTML under `coverage/` is gitignored. CI uploads a summary artifact; local trees are removed with `npm run clean` / `npm run clean:coverage`.
+
+## Thresholds
+
+- Floors live in root [`vitest.config.mts`](vitest.config.mts) under `test.coverage.thresholds`.
+- **Never lower** a threshold to green CI; raise toward **90%** (lines, functions, branches, statements) as suites grow.
+- Target remains 90% for included packages (`core`, `types`, `policies`, `cli`, `mcp`, format extensions, `runtimes/node`).
+
+## Vitest projects + coverage
+
+- **Never** use negated globs (`!…`) in `test.include` — Vitest 4 merges them into `coverage.exclude` and zeros the report ([vitest#10164](https://github.com/vitest-dev/vitest/issues/10164)).
+- Prefer `test.exclude` for “all except …” patterns.

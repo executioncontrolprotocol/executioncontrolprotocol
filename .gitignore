@@ -1,9 +1,15 @@
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Vitest / V8 coverage (never commit)
 coverage/
+coverage-tmp/
 .coverage
 @coverage/
+v8-cov/
+*.lcov
+
 .ecp/
 
 # CI: Ollama model blobs (OLLAMA_MODELS in .github/workflows/ci-pipeline.yml e2e job)
