@@ -23,8 +23,8 @@ For architecture and the current spec, see:
 ## Install + build
 
 ```bash
-git clone https://github.com/GuillaumeCleme/executioncontextprotocol.git
-cd executioncontextprotocol
+git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
+cd executioncontrolprotocol
 npm install
 npm run build
 ```
@@ -93,7 +93,7 @@ ollama pull gemma3:1b
 
 The browser demo app lives in a **separate repository**:
 
-[https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo)
+[https://github.com/executioncontrolprotocol/browser-demo](https://github.com/executioncontrolprotocol/browser-demo)
 
 Clone it as a sibling of this repo and follow its README (`npm install`, `npm run dev`). For local ECP development, use `npm link` as documented there.
 

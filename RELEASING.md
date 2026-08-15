@@ -23,9 +23,11 @@ npm run version:check-vs-npm
 
 All non-private packages under `packages/` (including protocol/platform `extensions/*`, `runtimes/*`, and `harnesses/*`). `@executioncontrolprotocol/evals` stays private and is not published.
 
-**Vendor extensions** (`@executioncontrolprotocol/fal`, `slack`, `image-sharp`, `adobe`, …) publish from the sibling
-[executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions) repo
-(independent versioning; not included in this repo’s `publish:workspaces`).
+**Vendor extensions** publish from the sibling
+[extensions](https://github.com/executioncontrolprotocol/extensions) repo
+(independent versioning; not included in this repo’s `publish:workspaces`). See that repo’s
+[package list](https://github.com/executioncontrolprotocol/extensions#packages) — do not maintain a
+vendor inventory here.
 
 Core surface:
 

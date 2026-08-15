@@ -9,7 +9,7 @@
 | `packages/runtimes/node/` | Node runtime host (`@executioncontrolprotocol/node`) — [README](packages/runtimes/node/README.md) |
 | `packages/runtimes/browser/` | Browser runtime host (`@executioncontrolprotocol/browser`) — [README](packages/runtimes/browser/README.md) |
 | `packages/runtimes/temporal/` | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
-| [Browser demo (standalone)](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) | Reference browser demo app (UI only) |
+| [Browser demo (standalone)](https://github.com/executioncontrolprotocol/browser-demo) | Reference browser demo app (UI only) |
 | `packages/mcp/` | MCP adapter (`@executioncontrolprotocol/mcp`) |
 | `packages/cli/` | `ecp` CLI (`@executioncontrolprotocol/cli`) |
 | `packages/policies/` | Budget, approval, state-control (`@executioncontrolprotocol/policies`) |
@@ -17,7 +17,7 @@
 | `packages/harnesses/browser-nano/` | Browser Nano harness (`@executioncontrolprotocol/harnesses-browser-nano`) — small-model demo + eval matrix |
 | `packages/harnesses/browser-coding/` | Browser Coding harness (`@executioncontrolprotocol/harnesses-browser-coding`) — TypeScript/Fluent surface; Qwen 4B eval matrix |
 | `packages/extensions/*/` | Protocol/platform first-party extensions (formats, secrets, memory, model providers) |
-| [Vendor extensions (standalone)](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions) | Vendor integrations (`fal`, `slack`, `image-sharp`, `adobe`, …) — dogfoods the extension package boundary |
+| [Vendor extensions (standalone)](https://github.com/executioncontrolprotocol/extensions) | Vendor integrations — dogfoods the extension package boundary; [canonical package list](https://github.com/executioncontrolprotocol/extensions#packages) |
 | `archive/legacy-v0.5/` | Archived v0.5 Oclif CLI and snippets |
 | `ecp-overhaul.md` | Implementation spec (source of truth) |
 
@@ -48,7 +48,7 @@
 
 **Browser runtime vs browser demo app:**
 
-| `@executioncontrolprotocol/browser` (runtime) | [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) (app) |
+| `@executioncontrolprotocol/browser` (runtime) | [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (app) |
 | ------------------------ | ------------------------- |
 | Executor, registry, session config, `createEcp`, workflow shim | React/Vite UI, chat layout, panels, Mermaid viewer |
 | Slim `createBrowserEnvironment` / `registerBrowserHost` | `createDemoAppEnvironment` — formats, providers, harnesses, registry-control allowlist |
@@ -116,9 +116,9 @@ Extension packages call `catalogExtension(def)` at module load. **Examples use s
 ### Extension authoring (third-party parity)
 
 Protocol/platform packages under `packages/extensions/` and vendor packages in
-[executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions)
+[extensions](https://github.com/executioncontrolprotocol/extensions)
 follow the same rules as external extension authors. See [`.cursor/rules/extensions.mdc`](.cursor/rules/extensions.mdc).
-Keep **npm package name** aligned with the **extension id** (e.g. `@executioncontrolprotocol/fal`).
+Keep **npm package name** aligned with the **extension id**.
 
 | Do | Don't |
 | ---- | ----- |
@@ -126,7 +126,7 @@ Keep **npm package name** aligned with the **extension id** (e.g. `@executioncon
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
 
-Vendor integrations (`fal`, `slack`, `image-sharp`, `adobe`) are **not** in this monorepo — install them from npm or link the sibling `executioncontrolprotocol-extensions` checkout.
+Vendor integrations are **not** in this monorepo — install from npm or link the sibling [extensions](https://github.com/executioncontrolprotocol/extensions) checkout. **Do not** enumerate vendor packages in core docs; link to that repo’s README instead.
 
 Local dev: `npm start -w @executioncontrolprotocol/cli` (runs `bin/dev.js` after build).
 
@@ -149,7 +149,7 @@ await ecp.run(manifest)
 
 ### Browser
 
-Browser demo: [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `npm link`).
+Browser demo: [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `npm link`).
 
 **Browser demo chat:** FAQ and assistant replies must come from the bound model provider via the selected harness (`chat` task). Do not route user-facing chat through template capabilities (`@executioncontrolprotocol/browser.guideChat`) or other non-model stand-ins. Defaults: **Chrome AI** + nano harness (EQL); **Ollama** + coding harness (Fluent/TS). The app resolves provider and harness independently (`resolveDemoSession`) and may override the provider via `.uses(...)` at invoke.
 

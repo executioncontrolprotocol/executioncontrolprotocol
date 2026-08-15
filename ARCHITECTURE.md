@@ -80,14 +80,14 @@ Policies can:
 - `@executioncontrolprotocol/node`: Node runtime host
 - `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI; **harness-independent**)
 - `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, secrets, memory, model providers) — written like third-party extensions
-- Vendor extensions (`fal`, `slack`, `image-sharp`, `adobe`, …): [executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions)
+- Vendor extensions (`fal`, `slack`, `image-sharp`, `adobe`, …): [extensions](https://github.com/executioncontrolprotocol/extensions)
 - `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
 - `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/encode/decode
 - `@executioncontrolprotocol/harnesses-browser-nano`: harness tasks (EQL); bound by apps/evals, not by the browser host
 - `@executioncontrolprotocol/harnesses-browser-coding`: Fluent/TS harness; bound by apps/evals
 - `@executioncontrolprotocol/evals` (private): harness/provider eval fixtures + matrix tests
-- [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo): reference UI app — **owns** harness + provider composition
+- [browser-demo](https://github.com/executioncontrolprotocol/browser-demo): reference UI app — **owns** harness + provider composition
 
 ------------------------------------------------------------------------
 

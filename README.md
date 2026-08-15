@@ -1,6 +1,6 @@
 # Execution Control Protocol (ECP)
 
-[![CI](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/GuillaumeCleme/executioncontextprotocol/actions/workflows/ci.yml)
+[![CI](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml)
 
 > **The runtime specification for agentic systems.**
 
@@ -27,8 +27,8 @@ Think of ECP as:
 **Prerequisites:** Node.js 22+, npm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
 
 ```bash
-git clone https://github.com/GuillaumeCleme/executioncontextprotocol.git
-cd executioncontextprotocol
+git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
+cd executioncontrolprotocol
 npm install   # or pnpm install
 npm run build
 ```
@@ -298,7 +298,7 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, session config (`@executioncontrolprotocol/browser`) — **not** the demo UI |
 | [`packages/runtimes/temporal/`](packages/runtimes/temporal/) | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
-| [Browser demo (standalone repo)](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo) | Reference browser demo app (Vite + React): chat, panels, provider picker |
+| [Browser demo (standalone repo)](https://github.com/executioncontrolprotocol/browser-demo) | Reference browser demo app (Vite + React): chat, panels, provider picker |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp encode`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
 | [`packages/harnesses/`](packages/harnesses/) | Harnesses (agent-facing author/repair/invoke flows); used by demo + evals |

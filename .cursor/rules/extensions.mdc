@@ -8,12 +8,20 @@ alwaysApply: false
 
 Treat every extension under `packages/extensions/` as if it were published for **third-party** authors: environment-agnostic, minimal dependencies, no imports from Node/Browser host packages unless the extension *is* a runtime or host adapter.
 
-**Vendor integrations** (fal, slack, image-sharp, adobe, …) live in the sibling
-`executioncontrolprotocol-extensions` monorepo and follow the same rules — this folder is for
+**Vendor integrations** live in the sibling
+[`extensions`](https://github.com/executioncontrolprotocol/extensions)
+monorepo and follow the same authoring rules — this folder is for
 protocol/platform extensions only (formats, secrets, memory, model providers, etc.).
 
 Prefer **npm package name === extension id** (e.g. `@executioncontrolprotocol/format-toon`).
-Vendor packages already follow this (`@executioncontrolprotocol/fal`, not `extension-fal`).
+
+## Documentation ownership (vendor packages)
+
+- **Canonical vendor package inventory** lives only in the extensions repo
+  ([README Packages](https://github.com/executioncontrolprotocol/extensions#packages)).
+- Core monorepo docs (`AGENTS.md`, `ecp-overhaul.md`, `RELEASING.md`, `packages/extensions/index/README.md`, …)
+  may **link** to that repo; they must **not** enumerate or maintain a per-package vendor list.
+- When adding/removing a vendor extension, update the extensions repo README (and package docs) — not core inventories.
 
 ## Dependencies
 

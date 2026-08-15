@@ -1,13 +1,13 @@
-﻿# Sharp image extension design
+# Sharp image extension design
 
-Yes â€” Sharp is a very good fit for an ECP image extension because it is fast, Node-native, stream/buffer/file friendly, and already covers the core primitives you listed: resizing, extraction/cropping, rotation, compositing, format conversion, metadata, and output inspection. Sharp supports common input formats including JPEG, PNG, WebP, GIF, AVIF, TIFF, and SVG, and can output JPEG, PNG, WebP, GIF, AVIF, TIFF, and raw pixel data. It also supports streams, buffers, and filesystem input/output. ([sharp][1])
+Yes — Sharp is a very good fit for an ECP image extension because it is fast, Node-native, stream/buffer/file friendly, and already covers the core primitives you listed: resizing, extraction/cropping, rotation, compositing, format conversion, metadata, and output inspection. Sharp supports common input formats including JPEG, PNG, WebP, GIF, AVIF, TIFF, and SVG, and can output JPEG, PNG, WebP, GIF, AVIF, TIFF, and raw pixel data. It also supports streams, buffers, and filesystem input/output. ([sharp][1])
 
-The ECP way to expose this should not be â€œone capability per tiny Sharp methodâ€ only. I would build it as a **typed image-processing extension** with both low-level atomic capabilities and one high-level pipeline capability.
+The ECP way to expose this should not be “one capability per tiny Sharp method” only. I would build it as a **typed image-processing extension** with both low-level atomic capabilities and one high-level pipeline capability.
 
 # Recommended package
 
 ```txt
-executioncontrolprotocol-extensions/packages/image-sharp/
+extensions/packages/image-sharp/
   package.json
   src/
     index.ts
@@ -17,7 +17,7 @@ executioncontrolprotocol-extensions/packages/image-sharp/
     operations.ts
 ```
 
-(Vendor package — lives in the `executioncontrolprotocol-extensions` monorepo.)
+(Vendor package � lives in the `extensions` monorepo.)
 
 Extension ID:
 
@@ -214,7 +214,7 @@ branch([
 ]);
 ```
 
-You may need to add `expr.gt`, `expr.lt`, etc., but conceptually this fits ECPâ€™s existing `branch` and `loop` workflow model.
+You may need to add `expr.gt`, `expr.lt`, etc., but conceptually this fits ECP’s existing `branch` and `loop` workflow model.
 
 ---
 
@@ -244,7 +244,7 @@ step("@executioncontrolprotocol/image-sharp.transform", "Prepare campaign image"
   .as("heroImage");
 ```
 
-Sharpâ€™s resize API supports width/height and fit modes such as `cover`, `contain`, `fill`, and `inside`. ([sharp][3]) Composition is also pipeline-aware: Sharp applies operations such as resize, rotate, flip, flop, and extract before composition. ([sharp][4])
+Sharp’s resize API supports width/height and fit modes such as `cover`, `contain`, `fill`, and `inside`. ([sharp][3]) Composition is also pipeline-aware: Sharp applies operations such as resize, rotate, flip, flop, and extract before composition. ([sharp][4])
 
 Output:
 
@@ -578,7 +578,7 @@ type OutputOptions = {
 };
 ```
 
-Sharpâ€™s `toFile`/`toBuffer` completion info includes format, size, width, height, channels, and additional crop/attention fields when relevant. ([sharp][2]) That should be reflected directly in ECPâ€™s output schema.
+Sharp’s `toFile`/`toBuffer` completion info includes format, size, width, height, channels, and additional crop/attention fields when relevant. ([sharp][2]) That should be reflected directly in ECP’s output schema.
 
 ---
 
@@ -665,7 +665,7 @@ This is especially useful for marketing automation, app upload pipelines, or gen
 
 # Decision-oriented workflow example
 
-This is the shape Iâ€™d want for your use case: inspect first, then branch based on metadata.
+This is the shape I’d want for your use case: inspect first, then branch based on metadata.
 
 ```ts
 const imagePrepWorkflow = workflow("Prepare uploaded image")
@@ -789,7 +789,7 @@ That is exactly where the state-control policy matters. The runtime can stage mu
 
 # Policy controls
 
-Image processing can be expensive and risky if you allow remote URLs, huge SVGs, large pixel counts, or uncontrolled output formats. Iâ€™d add a first-party image policy.
+Image processing can be expensive and risky if you allow remote URLs, huge SVGs, large pixel counts, or uncontrolled output formats. I’d add a first-party image policy.
 
 ```txt
 @executioncontrolprotocol/image-policy
@@ -1130,7 +1130,7 @@ const imageEnv = environment("image-processing")
 
 ---
 
-# What â€œfully featuredâ€ means here
+# What “fully featured” means here
 
 I would treat the extension as three layers:
 

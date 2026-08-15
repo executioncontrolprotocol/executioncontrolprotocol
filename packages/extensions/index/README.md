@@ -30,10 +30,8 @@ The exact set is exported as `BUNDLED_EXTENSION_IDS`.
 | --------- | ------------ |
 | `@executioncontrolprotocol/chrome-ai` | Browser-only (Chrome on-device `LanguageModel` API) |
 | `@executioncontrolprotocol/claude` | Requires Anthropic provider configuration/credentials |
-| `@executioncontrolprotocol/fal` | Vendor — [executioncontrolprotocol-extensions](https://github.com/GuillaumeCleme/executioncontrolprotocol-extensions) |
-| `@executioncontrolprotocol/slack` | Vendor — same extensions repo |
-| `@executioncontrolprotocol/image-sharp` | Vendor — same extensions repo |
-| `@executioncontrolprotocol/adobe` | Vendor scaffold — same extensions repo |
+
+**Vendor extensions** are published from the sibling [extensions](https://github.com/executioncontrolprotocol/extensions) repo — see that repo’s [package list](https://github.com/executioncontrolprotocol/extensions#packages). Do not maintain a vendor inventory in this README.
 
 ```ts
 import { registerFalExtension } from "@executioncontrolprotocol/fal"

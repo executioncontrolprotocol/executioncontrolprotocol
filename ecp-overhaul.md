@@ -67,10 +67,8 @@ packages/
 | `@executioncontrolprotocol/extension-storage`   | Storage capabilities.                                                                                         |
 | `@executioncontrolprotocol/extension-telemetry` | Telemetry lifecycle hooks.                                                                                    |
 | `@executioncontrolprotocol/extensions`          | Optional convenience bundle/re-export package (protocol/platform only).                                       |
-| `@executioncontrolprotocol/fal`                 | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
-| `@executioncontrolprotocol/slack`               | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
-| `@executioncontrolprotocol/image-sharp`         | Vendor — published from `executioncontrolprotocol-extensions`.                                                |
-| `@executioncontrolprotocol/adobe`               | Vendor scaffold — published from `executioncontrolprotocol-extensions`.                                       |
+
+Vendor integrations are **not** listed here. Canonical package inventory and docs live in the sibling [extensions](https://github.com/executioncontrolprotocol/extensions) repo ([README](https://github.com/executioncontrolprotocol/extensions#packages)).
 
 ## 2.3 Dependency direction
 
@@ -1486,7 +1484,7 @@ Package:
 @executioncontrolprotocol/slack
 ```
 
-(Published from `executioncontrolprotocol-extensions`; npm package name matches extension id.)
+(Published from `extensions`; npm package name matches extension id.)
 
 Capabilities:
 

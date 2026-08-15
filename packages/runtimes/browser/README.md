@@ -2,7 +2,7 @@
 
 **Browser runtime host** for ECP: in-browser executor, registry extensions, session/local config, and helpers to initialize `Ecp` in a web page.
 
-This is **not** the browser demo application. UI, provider picker, harness selection, and demo-only persistence belong in the standalone [browser demo repo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo).
+This is **not** the browser demo application. UI, provider picker, harness selection, and demo-only persistence belong in the standalone [browser demo repo](https://github.com/executioncontrolprotocol/browser-demo).
 
 ## What belongs here
 
@@ -47,4 +47,4 @@ npm run test:browser:install   # once
 npm run test:browser
 ```
 
-See [AGENTS.md](../../AGENTS.md) and the [browser demo repo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo).
+See [AGENTS.md](../../AGENTS.md) and the [browser demo repo](https://github.com/executioncontrolprotocol/browser-demo).

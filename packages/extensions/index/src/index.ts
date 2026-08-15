@@ -36,7 +36,7 @@ export const BUNDLED_EXTENSION_IDS = [
  * and format extensions used by harness encode/decode (toon, eql, mermaid).
  *
  * Vendor integrations (fal, slack, image-sharp, adobe) live in the
- * `executioncontrolprotocol-extensions` monorepo — install and register them explicitly.
+ * `extensions` monorepo — install and register them explicitly.
  *
  * Intentionally excluded from this bundle:
  * - `@executioncontrolprotocol/chrome-ai` — browser-only (Chrome on-device `LanguageModel` API).

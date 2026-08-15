@@ -7,7 +7,7 @@
 | **`development.yml`** | Workflow `devversion`: on `development` (push + PR), checks workspace versions are above published npm (job `version`). |
 | **`evals.yml`** | Daily / manual **eval** runs: installs Ollama, pulls `gemma3:1b` (or dispatch input), runs `examples/single-executor` and `examples/controller-specialist` with `--provider ollama`. |
 
-Browser demo Pages deploy lives in [executioncontrolprotocol-browser-demo](https://github.com/GuillaumeCleme/executioncontrolprotocol-browser-demo).
+Browser demo Pages deploy lives in [browser-demo](https://github.com/executioncontrolprotocol/browser-demo).
 
 To run the full quality gate locally: `npm run check` (or `npm run build`, `npm run lint`, `npm run test:unit`, `npm run test:integration`, `npm run test:e2e`). Browser tests: `npm run test:browser:install` then `npm run test:browser`.
 
