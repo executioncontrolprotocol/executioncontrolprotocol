@@ -19,7 +19,7 @@ Set `KEEP_CONSUMER_CLI=1` to leave the temp install directory for inspection.
 ## Layout
 
 | File | Role |
-|------|------|
+| --- | --- |
 | `workflow.ts` | Minimal Fluent echo workflow |
 | `environment.ts` | Node environment + test + format-toon |
 | `package.json` | Documents required deps (smoke script installs from tarballs) |
