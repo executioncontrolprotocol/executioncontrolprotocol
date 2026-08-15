@@ -11,10 +11,37 @@ permissions:
   contents: read
 
 jobs:
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history so gitleaks can scan prior commits, not only HEAD.
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Secretlint (working tree)
+        run: npm run secrets:scan
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.24.3"
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+      - name: Gitleaks (git history)
+        run: gitleaks detect --source . --redact --verbose --config .gitleaks.toml
+
   build:
     name: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: secrets
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -96,7 +123,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [build, unit, integration, browser]
+    needs: [secrets, build, unit, integration, browser]
     permissions:
       contents: read
     steps:
