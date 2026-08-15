@@ -11,6 +11,7 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Run workflows and print structured run results
 - Invoke a single capability outside a workflow (`ecp invoke`)
 - Serve an environment over loopback HTTP for `POST /v1/invoke` (`ecp serve`)
+- Test workflows with a persistent session (`ecp test start|run|rerun|status`)
 - Encode/decode workflows using format extensions (TOON, Fluent, JSON)
 
 For the architecture and monorepo package boundaries, start with
@@ -75,6 +76,23 @@ ecp compile examples/01-echo/workflow.ts -o dist/workflow.json
 ecp describe --env examples/01-echo/environment.ts
 ecp search "echo" --env examples/01-echo/environment.ts
 ```
+
+### Test session (`ecp test`)
+
+Drive a workflow incrementally with frozen state (distinct from `@executioncontrolprotocol/core/testing` stubs):
+
+```sh
+ecp test start workflow.ts --env environment.ts -o session.json
+ecp test run --to step-b --env environment.ts --session session.json
+ecp test rerun step-a --env environment.ts --session session.json
+ecp test status --session session.json
+```
+
+- `run --to <step-id>` is **inclusive** (runs through that step, then pauses).
+- `rerun <step-id>` re-executes one step and **clears** downstream history and `.as` state keys.
+- Session file schema: `@executioncontrolprotocol.test.session`.
+
+Fluent API: `ecp.test(workflow).with({ input }).start()` then `session.runTo(id)` / `session.rerun(id)`.
 
 ### Invoke a capability
 

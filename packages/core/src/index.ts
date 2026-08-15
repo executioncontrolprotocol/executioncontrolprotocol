@@ -32,6 +32,20 @@ export { parallel, branch, loop } from "./workflow/flow.js"
 
 export { environment, Environment } from "./environment/environment.js"
 export { EcpImpl, type Ecp, type RunOptions } from "./environment/ecp.js"
+export {
+  createTestSessionBuilder,
+  restoreTestSession,
+  type TestSession,
+  type TestSessionBuilder,
+  type TestSessionStartOptions,
+} from "./test-session/index.js"
+export {
+  flattenTestStepOrder,
+  findTestStep,
+  clearDownstreamTestState,
+  isLastTestStep,
+} from "./runtime/test-session-state.js"
+export type { RuntimeExecutor, RuntimeExecutionContext, RuntimeExecutionMode } from "./runtime/executor.js"
 export { assignUniqueStepIds } from "./workflow/assign-unique-step-ids.js"
 export { createInvokeBuilder, type InvokeOperationBuilder } from "./invoke/index.js"
 export type { EnvironmentConfigResolver } from "./environment/config-resolver.js"
@@ -57,7 +71,6 @@ export {
 } from "./registry/errors.js"
 export { matchesNamespace, matchesAnyNamespace } from "./registry/namespace.js"
 export { InMemoryRuntimeExecutor } from "./runtime/in-memory-executor.js"
-export type { RuntimeExecutor, RuntimeExecutionContext } from "./runtime/executor.js"
 export type {
   PolicyContext,
   CapabilityContext,

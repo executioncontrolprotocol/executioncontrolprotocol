@@ -1338,12 +1338,18 @@ ecp search "send message" --env environment.ts
 ecp run workflow.json --env environment.ts --input input.json
 ecp invoke @executioncontrolprotocol/test.echo --env environment.ts --input input.json
 ecp serve --env environment.ts
+ecp test start workflow.ts --env environment.ts -o session.json
+ecp test run --to step-id --env environment.ts --session session.json
+ecp test rerun step-id --env environment.ts --session session.json
+ecp test status --session session.json
 ecp up
 ecp mcp serve --env environment.ts --transport stdio
 ecp mcp serve --env environment.ts --transport http --port 8787
 ```
 
 `ecp invoke` and `ecp serve` (`POST /v1/invoke`) invoke any capability bound in `--env` outside a workflow run. `ecp up` remains the Ollama/PNA demo bridge. MCP does not yet expose capability invoke as a tool.
+
+**Test sessions:** `ecp.test(workflow)` / `ecp test …` persist state for inclusive `runTo` (`--to`) and single-step `rerun` (clears downstream). Production `ecp.run` is unchanged. Distinct from `@executioncontrolprotocol/core/testing` stubs. HTTP/MCP test-session APIs are not in this slice.
 
 CLI should use `@executioncontrolprotocol/core` and optional packages as needed.
 

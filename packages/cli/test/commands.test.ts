@@ -229,4 +229,65 @@ describe("ecp CLI commands", () => {
       expect(res.code).not.toBe(0)
     }, 30_000)
   })
+
+  describe("test session", () => {
+    const TWO_STEP_WF = "packages/cli/test/fixtures/two-step/workflow.ts"
+    const TWO_STEP_ENV = "packages/cli/test/fixtures/two-step/environment.ts"
+
+    it("start → run --to → rerun clears downstream", async () => {
+      const sessionPath = join(tmp, "session.json")
+      const start = await runCli([
+        "test",
+        "start",
+        TWO_STEP_WF,
+        "--env",
+        TWO_STEP_ENV,
+        "-o",
+        sessionPath,
+      ])
+      expect(start.code).toBe(0)
+
+      const runTo = await runCli([
+        "test",
+        "run",
+        "--to",
+        "second",
+        "--env",
+        TWO_STEP_ENV,
+        "--session",
+        sessionPath,
+      ])
+      expect(runTo.code).toBe(0)
+      const full = JSON.parse(runTo.stdout) as {
+        status: string
+        history: Record<string, { status: string }>
+        state: Record<string, unknown>
+      }
+      expect(full.history.first?.status).toBe("completed")
+      expect(full.history.second?.status).toBe("completed")
+      expect(full.state.second).toBeDefined()
+
+      const rerun = await runCli([
+        "test",
+        "rerun",
+        "first",
+        "--env",
+        TWO_STEP_ENV,
+        "--session",
+        sessionPath,
+      ])
+      expect(rerun.code).toBe(0)
+      const after = JSON.parse(rerun.stdout) as {
+        status: string
+        cursor?: string
+        history: Record<string, { status: string }>
+        state: Record<string, unknown>
+      }
+      expect(after.cursor).toBe("first")
+      expect(after.history.first?.status).toBe("completed")
+      expect(after.history.second).toBeUndefined()
+      expect(after.state.second).toBeUndefined()
+      expect(after.status).toBe("paused")
+    }, 60_000)
+  })
 })

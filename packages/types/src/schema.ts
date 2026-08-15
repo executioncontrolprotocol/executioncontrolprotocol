@@ -16,6 +16,7 @@ export type EcpSchema =
   | "@executioncontrolprotocol.decode.result"
   | "@executioncontrolprotocol.intent"
   | "@executioncontrolprotocol.harness.reply"
+  | "@executioncontrolprotocol.test.session"
 
 /** Namespaced definition id (`@namespace/name`). @category Common */
 export type NamespacedId = `@${string}/${string}`

@@ -27,6 +27,7 @@ const schemas = [
   { type: "DecodeResultDocument", file: "decode.result.json" },
   { type: "EcpPatchDocumentRecord", file: "patch.json" },
   { type: "PatchResultDocument", file: "patch.result.json" },
+  { type: "TestSessionSnapshot", file: "test.session.json" },
 ]
 
 for (const { type, file } of schemas) {

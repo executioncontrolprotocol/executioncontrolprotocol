@@ -1,4 +1,7 @@
-import type { RunResult, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { RunResult, StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/types"
+
+/** Runtime execution mode. @category Runtime */
+export type RuntimeExecutionMode = "run" | "test"
 
 /** Runtime execution options passed to the executor. @category Runtime */
 export interface RuntimeExecutionContext {
@@ -10,6 +13,16 @@ export interface RuntimeExecutionContext {
   signal?: AbortSignal
   /** Max parallel branches (runtime config may override). */
   maxConcurrency?: number
+  /** Execution mode (default `"run"`). */
+  mode?: RuntimeExecutionMode
+  /** Seed state for test sessions (replaces input-only seed when set). */
+  seedState?: Record<string, unknown>
+  /** Seed step history for test sessions. */
+  seedHistory?: Record<string, StepRunRecord>
+  /** Inclusive stop after this leaf step id (test `runTo`). */
+  stopAfterStepId?: string
+  /** Execute only this leaf step id (test `rerun`). */
+  onlyStepId?: string
 }
 
 /** Runtime executor interface. @category Runtime */

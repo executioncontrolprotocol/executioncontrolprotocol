@@ -50,4 +50,11 @@ describe("CLI flag and arg naming (kebab-case)", () => {
     expect(out).toMatch(/--cors-origin\b/)
     expect(out).not.toMatch(/--token\b/)
   })
+
+  it("test run exposes --to and --session", { timeout: 60_000 }, () => {
+    const out = help("test run")
+    expect(out).toMatch(/--to\b/)
+    expect(out).toMatch(/--session\b/)
+    expect(out).toMatch(/--env\b/)
+  })
 })

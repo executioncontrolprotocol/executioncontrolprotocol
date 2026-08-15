@@ -5,6 +5,7 @@ import type {
   RunResult,
   SearchOptions,
   SearchResult,
+  TestSessionSnapshot,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
@@ -18,6 +19,12 @@ import {
 } from "../encoding/index.js"
 import { createPatchBuilder, type PatchOperationBuilder } from "../patch/index.js"
 import type { InvokeOperationBuilder } from "../invoke/invoke-builder.js"
+import {
+  createTestSessionBuilder,
+  restoreTestSession,
+  type TestSession,
+  type TestSessionBuilder,
+} from "../test-session/index.js"
 
 export type { RunOptions } from "./environment.js"
 
@@ -46,6 +53,13 @@ export interface Ecp {
   run(workflow: WorkflowManifest, options?: RunOptions): Promise<RunResult>
   /** Invoke a registered capability outside workflow execution. */
   invoke(capabilityId: CapabilityId | string): InvokeOperationBuilder
+  /**
+   * Start a workflow test session (run-to / rerun with frozen state).
+   * Distinct from `@executioncontrolprotocol/core/testing` stubs.
+   */
+  test(workflow: WorkflowManifest): TestSessionBuilder
+  /** Restore a test session from a snapshot (e.g. CLI session file). */
+  restoreTestSession(snapshot: TestSessionSnapshot): Promise<TestSession>
   /** Underlying registry. */
   getRegistry(): Registry
   /** Terminate the environment and release resources. */
@@ -97,6 +111,14 @@ export class EcpImpl implements Ecp {
 
   invoke(capabilityId: CapabilityId | string): InvokeOperationBuilder {
     return this.env.ecpInvoke(capabilityId as CapabilityId)
+  }
+
+  test(workflow: WorkflowManifest): TestSessionBuilder {
+    return createTestSessionBuilder(this.env, workflow)
+  }
+
+  restoreTestSession(snapshot: TestSessionSnapshot): Promise<TestSession> {
+    return restoreTestSession(this.env, snapshot)
   }
 
   getRegistry(): Registry {

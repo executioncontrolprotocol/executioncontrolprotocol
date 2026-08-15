@@ -2,6 +2,7 @@ import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
 import type {
   PendingMutation,
   RunResult,
+  RunStatus,
   StepNode,
   StepRunRecord,
   WorkflowManifest,
@@ -25,6 +26,7 @@ import {
   type MutationBuffer,
 } from "./store.js"
 import { commitTransaction } from "./commit.js"
+import { isLastTestStep } from "./test-session-state.js"
 
 function newRunId(): string {
   return globalThis.crypto.randomUUID()
@@ -80,6 +82,8 @@ type StepRunCtx = {
   extensionHooks: import("../definitions/types.js").HookDefinition[]
   signal?: AbortSignal
   maxConcurrency: number
+  /** Set when inclusive stopAfterStepId completes. */
+  stoppedAfter: boolean
 }
 
 /** Platform-neutral in-memory workflow executor. @category Runtime */
@@ -94,9 +98,14 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       context.maxConcurrency ??
       (context.bindings.runtime.config.maxConcurrency as number | undefined) ??
       4
+    const mode = context.mode ?? "run"
 
-    const state: Record<string, unknown> = { ...context.input }
-    const history: Record<string, StepRunRecord> = {}
+    const state: Record<string, unknown> = context.seedState
+      ? { ...context.seedState }
+      : { ...context.input }
+    const history: Record<string, StepRunRecord> = context.seedHistory
+      ? { ...context.seedHistory }
+      : {}
     const usage = createUsageLedger()
     const logger = createConsoleLogger()
     const extensionHooks = context.bindings.extensionHooks
@@ -116,31 +125,45 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       ...runBase,
     })
 
+    const stepCtx: StepRunCtx = {
+      manifest,
+      runId,
+      state,
+      history,
+      usage,
+      logger,
+      context,
+      extensionHooks,
+      signal,
+      maxConcurrency,
+      stoppedAfter: false,
+    }
+
     try {
       throwIfAborted(signal)
-      await this.runNodes(manifest.steps, {
-        manifest,
-        runId,
-        state,
-        history,
-        usage,
-        logger,
-        context,
-        extensionHooks,
-        signal,
-        maxConcurrency,
-      })
+      await this.runNodes(manifest.steps, stepCtx)
 
-      await emitLifecycle("run:completed", extensionHooks, {
-        event: "run:completed",
-        ...runBase,
-        state,
-      })
+      let status: RunStatus = "completed"
+      if (mode === "test" && stepCtx.stoppedAfter) {
+        const stopId = context.stopAfterStepId
+        status =
+          stopId && isLastTestStep(manifest, stopId) ? "completed" : "paused"
+      } else if (mode === "test" && context.onlyStepId) {
+        status = isLastTestStep(manifest, context.onlyStepId) ? "completed" : "paused"
+      }
+
+      if (status === "completed") {
+        await emitLifecycle("run:completed", extensionHooks, {
+          event: "run:completed",
+          ...runBase,
+          state,
+        })
+      }
 
       return {
         schema: "@executioncontrolprotocol.run.result",
         version: LATEST_ECP_VERSION,
-        run: { id: runId, status: "completed" },
+        run: { id: runId, status },
         state,
         history,
         usage: { ...usage },
@@ -185,12 +208,15 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
 
   private async runNodes(nodes: WorkflowNode[], ctx: StepRunCtx): Promise<void> {
     for (const node of nodes) {
+      if (ctx.stoppedAfter) return
       throwIfAborted(ctx.signal)
       await this.runNode(node, ctx)
     }
   }
 
   private async runNode(node: WorkflowNode, ctx: StepRunCtx): Promise<void> {
+    if (ctx.stoppedAfter) return
+
     if (node.type === "parallel") {
       const tasks = node.branches.map(
         (branch) => () => this.runNodes(branch, ctx)
@@ -210,6 +236,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
     if (node.type === "loop") {
       let rounds = 0
       while (!node.until || !evalExpr(node.until, ctx.state)) {
+        if (ctx.stoppedAfter) return
         throwIfAborted(ctx.signal)
         if (node.maxRounds !== undefined && rounds >= node.maxRounds) break
         await this.runNodes(node.steps, ctx)
@@ -222,7 +249,29 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
     const step = node as StepNode
     if (step.when && !evalExpr(step.when, ctx.state)) return
 
+    const mode = ctx.context.mode ?? "run"
+    const onlyStepId = ctx.context.onlyStepId
+
+    if (mode === "test" && onlyStepId && step.id !== onlyStepId) {
+      return
+    }
+
+    if (
+      mode === "test" &&
+      !onlyStepId &&
+      ctx.history[step.id]?.status === "completed"
+    ) {
+      if (ctx.context.stopAfterStepId === step.id) {
+        ctx.stoppedAfter = true
+      }
+      return
+    }
+
     await this.executeStep(step, ctx)
+
+    if (mode === "test" && ctx.context.stopAfterStepId === step.id) {
+      ctx.stoppedAfter = true
+    }
   }
 
   private async executeStep(step: StepNode, ctx: StepRunCtx): Promise<void> {
@@ -388,12 +437,22 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       }
 
       const pending = buffer.pending()
+      let commitMode = step.mode
+      if (
+        (ctx.context.mode ?? "run") === "test" &&
+        step.as !== undefined &&
+        (commitMode === undefined || commitMode === "create") &&
+        ctx.state[step.as] !== undefined
+      ) {
+        commitMode = "replace"
+      }
+
       commitTransaction({
         state: ctx.state,
         mutations: pending,
         output,
         as: step.as,
-        mode: step.mode,
+        mode: commitMode,
       })
 
       stepRecord.status = "completed"

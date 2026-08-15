@@ -7,6 +7,7 @@ import type {
   RunResult,
   SearchOptions,
   SearchResult,
+  StepRunRecord,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
@@ -451,6 +452,51 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       registry: this.registry,
       bindings,
       signal: options?.signal,
+    })
+  }
+
+  /**
+   * @internal Test-session execution (runTo / rerun).
+   * Does not emit `environment:beforeRun` (session already prepared).
+   */
+  async ecpTestExecute(
+    workflow: WorkflowManifest,
+    options: {
+      input: Record<string, unknown>
+      seedState: Record<string, unknown>
+      seedHistory: Record<string, StepRunRecord>
+      stopAfterStepId?: string
+      onlyStepId?: string
+      signal?: AbortSignal
+    }
+  ): Promise<RunResult> {
+    await this.prepareForRun()
+    const validation = await validateEnvironmentWithWorkflow(
+      workflow,
+      await this.ecpDescribe(),
+      this.resolveBindings()
+    )
+    if (!validation.valid) {
+      throw new Error(
+        `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
+      )
+    }
+
+    const bindings = this.resolveBindings()
+    const rtDef = this.registry.getRuntime(bindings.runtime.id)!
+    const executor: RuntimeExecutor = rtDef.executor
+
+    return executor.execute(workflow, {
+      runId: globalThis.crypto.randomUUID(),
+      input: options.input,
+      registry: this.registry,
+      bindings,
+      signal: options.signal,
+      mode: "test",
+      seedState: options.seedState,
+      seedHistory: options.seedHistory,
+      stopAfterStepId: options.stopAfterStepId,
+      onlyStepId: options.onlyStepId,
     })
   }
 }
