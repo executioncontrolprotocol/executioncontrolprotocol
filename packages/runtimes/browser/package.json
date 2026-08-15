@@ -34,8 +34,8 @@
     "@executioncontrolprotocol/format-toon": "0.11.0",
     "@executioncontrolprotocol/format-mermaid": "0.11.0",
     "@executioncontrolprotocol/harnesses-browser-nano": "0.11.0",
-    "@executioncontrolprotocol/extension-fal": "0.11.0",
-    "@executioncontrolprotocol/extension-image-sharp": "0.11.0",
+    "@executioncontrolprotocol/extension-fal": "0.10.1",
+    "@executioncontrolprotocol/extension-image-sharp": "0.10.1",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

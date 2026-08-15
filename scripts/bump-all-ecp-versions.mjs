@@ -32,9 +32,25 @@ function walkPackageJsonFiles(dir, out = []) {
   return out
 }
 
+const files = walkPackageJsonFiles(root).filter((p) => !p.includes(`${join("archive", "legacy")}`))
+
+/** Package names that live in this workspace (do not bump external/vendor npm deps). */
+const workspacePackageNames = new Set(
+  files
+    .map((p) => {
+      try {
+        return JSON.parse(readFileSync(p, "utf8")).name
+      } catch {
+        return undefined
+      }
+    })
+    .filter((n) => typeof n === "string" && n.startsWith("@executioncontrolprotocol/"))
+)
+
 /** Align workspace @executioncontrolprotocol/* ranges to the new version; keep ^/~ prefix. */
-function bumpInternalDep(version) {
+function bumpInternalDep(name, version) {
   if (typeof version !== "string") return version
+  if (!workspacePackageNames.has(name)) return version
   if (version.startsWith("^")) return `^${newVersion}`
   if (version.startsWith("~")) return `~${newVersion}`
   if (/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(version)) return newVersion
@@ -56,7 +72,7 @@ function bumpFile(path) {
     if (!deps) continue
     for (const [name, version] of Object.entries(deps)) {
       if (name.startsWith("@executioncontrolprotocol/")) {
-        deps[name] = bumpInternalDep(version)
+        deps[name] = bumpInternalDep(name, version)
       }
     }
   }
@@ -65,9 +81,11 @@ function bumpFile(path) {
   console.log(`${path.replace(root + "\\", "").replace(root + "/", "")}: ${old} -> ${newVersion}`)
 }
 
-const files = walkPackageJsonFiles(root).filter((p) => !p.includes(`${join("archive", "legacy")}`))
 for (const file of files) {
   bumpFile(file)
 }
 
 console.log(`\nBumped ${files.length} package.json files to ${newVersion}`)
+console.log(
+  `Left non-workspace @executioncontrolprotocol/* deps unchanged (${workspacePackageNames.size} workspace packages).`
+)
