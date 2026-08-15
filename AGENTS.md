@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Agent skill
+
+For monorepo contribution work, install:
+
+```bash
+npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y
+```
+
+Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotocol.io` (docs skill `ecp`).
+
 ## ECP Fluent API monorepo (`@executioncontrolprotocol/*`)
 
 | Path | Purpose |

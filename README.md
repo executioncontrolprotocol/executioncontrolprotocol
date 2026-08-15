@@ -35,6 +35,9 @@ npm run build
 
 **Install the CLI (recommended):** `npm link` from `packages/cli/` after `npm run build`.
 
+**Agent skill (monorepo work):** `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`  
+Consumer skill: `npx skills add https://executioncontrolprotocol.io`
+
 **Run an example** (from the repo root):
 
 ```bash
