@@ -15,7 +15,7 @@ if (!newVersion || !/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(newVersion)) {
   process.exit(1)
 }
 
-const SKIP_DIRS = new Set(["node_modules", "dist", "archive"])
+const SKIP_DIRS = new Set(["node_modules", "dist", "archive", "fixtures"])
 
 function walkPackageJsonFiles(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
