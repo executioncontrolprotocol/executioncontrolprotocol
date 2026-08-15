@@ -51,10 +51,21 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
-      - name: CLI smoke
-        run: |
-          npx ecp compile examples/01-echo/workflow.ts -o /tmp/ecp-workflow.json
-          npx ecp validate /tmp/ecp-workflow.json --env examples/01-echo/environment.ts
+
+  consumer-cli:
+    name: consumer-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:consumer-cli
 
   unit:
     name: unit
@@ -123,7 +134,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [secrets, build, unit, integration, browser]
+    needs: [secrets, build, unit, integration, browser, consumer-cli]
     permissions:
       contents: read
     steps:

@@ -1,6 +1,22 @@
+import { dirname, isAbsolute } from "node:path"
+
 /** Whether filename indicates TypeScript. */
 export function isTypeScriptFile(filename: string): boolean {
   return /\.tsx?$/i.test(filename)
+}
+
+/**
+ * Directory used for esbuild package resolution.
+ * Absolute filenames resolve from their parent directory (consumer project layout);
+ * relative / in-memory names fall back to `process.cwd()`.
+ * @category Compile
+ */
+export function resolveBundleDir(filename: string): string {
+  if (isAbsolute(filename)) return dirname(filename)
+  if (typeof process !== "undefined" && typeof process.cwd === "function") {
+    return process.cwd()
+  }
+  return "."
 }
 
 async function loadEsbuild(): Promise<typeof import("esbuild")> {
@@ -31,17 +47,15 @@ export async function transpileWorkflowSource(
 
 /**
  * Bundle workflow module with dependencies (Node host).
- * Resolves `@executioncontrolprotocol/core` and extension imports.
+ * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
+ * via normal `node_modules` lookup (no monorepo path aliases).
  */
 export async function bundleWorkflowSource(
   source: string,
   filename: string,
   resolveDir: string
 ): Promise<string> {
-  const { dirname, join } = await import("node:path")
-  const { fileURLToPath } = await import("node:url")
   const esbuild = await loadEsbuild()
-  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..")
   const loader = filename.endsWith(".tsx")
     ? "tsx"
     : filename.endsWith(".ts")
@@ -60,21 +74,6 @@ export async function bundleWorkflowSource(
     target: "node22",
     write: false,
     packages: "bundle",
-    alias: {
-      "@executioncontrolprotocol/core/compile": join(repoRoot, "packages/core/dist/compile/entry.js"),
-      "@executioncontrolprotocol/core/loaders": join(repoRoot, "packages/core/dist/loaders/index.js"),
-      "@executioncontrolprotocol/core/browser": join(repoRoot, "packages/core/dist/browser.js"),
-      "@executioncontrolprotocol/core": join(repoRoot, "packages/core/dist/index.js"),
-      "@executioncontrolprotocol/core/testing": join(repoRoot, "packages/core/dist/testing/index.js"),
-      "@executioncontrolprotocol/node": join(repoRoot, "packages/runtimes/node/dist/index.js"),
-      "@executioncontrolprotocol/browser": join(repoRoot, "packages/runtimes/browser/dist/index.js"),
-      "@executioncontrolprotocol/types": join(repoRoot, "packages/types/dist/index.js"),
-      "@executioncontrolprotocol/policies": join(repoRoot, "packages/policies/dist/index.js"),
-      "@executioncontrolprotocol/format-toon": join(repoRoot, "packages/extensions/format-toon/dist/index.js"),
-      "@executioncontrolprotocol/secrets": join(repoRoot, "packages/extensions/secrets/dist/index.js"),
-      "@executioncontrolprotocol/browser-secrets": join(repoRoot, "packages/extensions/browser-secrets/dist/index.js"),
-      "@executioncontrolprotocol/process-env": join(repoRoot, "packages/extensions/process-env/dist/index.js"),
-    },
     external: ["@napi-rs/keyring"],
     plugins: [
       {

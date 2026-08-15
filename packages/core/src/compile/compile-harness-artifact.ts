@@ -4,7 +4,7 @@ import {
   extractArtifactFromModule,
   type HarnessArtifactSchema,
 } from "./extract-harness-artifact.js"
-import { bundleWorkflowSource, isTypeScriptFile } from "./transpile.js"
+import { bundleWorkflowSource, isTypeScriptFile, resolveBundleDir } from "./transpile.js"
 import type { CompileDiagnostic } from "./types.js"
 
 /** Result of compiling harness artifact TypeScript source. @category Compile */
@@ -47,8 +47,7 @@ export async function compileHarnessArtifactSource<T = unknown>(
   options: CompileHarnessArtifactSourceOptions
 ): Promise<CompileHarnessArtifactResult<T>> {
   const filename = options.filename ?? "artifact.ts"
-  const resolveDir =
-    typeof process !== "undefined" && process.cwd ? process.cwd() : "."
+  const resolveDir = resolveBundleDir(filename)
   try {
     const code =
       isTypeScriptFile(filename) || options.source.includes("@executioncontrolprotocol/")

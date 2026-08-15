@@ -32,6 +32,7 @@
     "test:unit": "npm run generate:schema && vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:e2e": "vitest run --project e2e",
+    "test:consumer-cli": "node scripts/consumer-cli-smoke.mjs",
     "test:eval": "npm run test:eval:matrix",
     "test:eval:smoke": "vitest run --project eval packages/harnesses/browser-nano/test/eval/matrix-chat.eval.test.ts packages/harnesses/browser-nano/test/eval/eval-matrix-count.test.ts packages/evals/test/fixtures/load-eval-cases.test.ts",
     "test:eval:matrix": "vitest run --project eval packages/harnesses/browser-nano/test/eval packages/harnesses/browser-coding/test/eval packages/evals/test/fixtures/load-eval-cases.test.ts",

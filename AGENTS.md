@@ -80,6 +80,7 @@ npm run check    # build + generate:schema + lint + secrets:scan + test:coverage
 npm run secrets:scan  # secretlint on the working tree (also lint-staged on pre-commit)
 npm run test:unit
 npm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config.mts)
+npm run test:consumer-cli  # pack + install into fixtures/consumer-cli layout; ecp compile/validate/run
 npm run test:eval      # full harness matrix (Ollama gemma3:1b; chat + legacy cases; skips when unavailable)
 npm run eval:harness   # alias for test:eval:matrix
 ```

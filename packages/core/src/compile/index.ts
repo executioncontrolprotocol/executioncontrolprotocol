@@ -1,7 +1,7 @@
 import type { EnvironmentDescriptor } from "@executioncontrolprotocol/types"
 import { validateWorkflow } from "../validate/workflow.js"
 import { evaluateWorkflowModule } from "./evaluate.js"
-import { bundleWorkflowSource, isTypeScriptFile } from "./transpile.js"
+import { bundleWorkflowSource, isTypeScriptFile, resolveBundleDir } from "./transpile.js"
 import type {
   CompileWorkflowResult,
   CompileWorkflowSourceOptions,
@@ -21,8 +21,7 @@ export async function compileWorkflowSource(
   options: CompileWorkflowSourceOptions
 ): Promise<CompileWorkflowResult> {
   const filename = options.filename ?? "workflow.ts"
-  const resolveDir =
-    typeof process !== "undefined" && process.cwd ? process.cwd() : "."
+  const resolveDir = resolveBundleDir(filename)
   try {
     const code = isTypeScriptFile(filename) || options.source.includes("@executioncontrolprotocol/")
       ? await bundleWorkflowSource(options.source, filename, resolveDir)
