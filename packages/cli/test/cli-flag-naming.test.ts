@@ -35,4 +35,19 @@ describe("CLI flag and arg naming (kebab-case)", () => {
     expect(help("describe")).toMatch(/--env\b/)
     expect(help("search")).toMatch(/--env\b/)
   })
+
+  it("invoke exposes CAPABILITY-ID, --env, and --uses", { timeout: 60_000 }, () => {
+    const out = help("invoke")
+    expect(out).toMatch(/\bCAPABILITY-ID\b/)
+    expect(out).toMatch(/--env\b/)
+    expect(out).toMatch(/--uses\b/)
+    expect(out).not.toMatch(/--usesProvider\b/)
+  })
+
+  it("serve exposes --env and --cors-origin, not --token", { timeout: 60_000 }, () => {
+    const out = help("serve")
+    expect(out).toMatch(/--env\b/)
+    expect(out).toMatch(/--cors-origin\b/)
+    expect(out).not.toMatch(/--token\b/)
+  })
 })

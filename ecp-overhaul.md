@@ -1336,9 +1336,14 @@ ecp validate workflow.json --env environment.ts
 ecp describe --env environment.ts
 ecp search "send message" --env environment.ts
 ecp run workflow.json --env environment.ts --input input.json
+ecp invoke @executioncontrolprotocol/test.echo --env environment.ts --input input.json
+ecp serve --env environment.ts
+ecp up
 ecp mcp serve --env environment.ts --transport stdio
 ecp mcp serve --env environment.ts --transport http --port 8787
 ```
+
+`ecp invoke` and `ecp serve` (`POST /v1/invoke`) invoke any capability bound in `--env` outside a workflow run. `ecp up` remains the Ollama/PNA demo bridge. MCP does not yet expose capability invoke as a tool.
 
 CLI should use `@executioncontrolprotocol/core` and optional packages as needed.
 

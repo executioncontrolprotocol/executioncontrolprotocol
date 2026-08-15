@@ -1,9 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { Ecp } from "@executioncontrolprotocol/core"
 import { listOllamaModels } from "@executioncontrolprotocol/extension-ollama"
-import { ECP_UP_VERSION, JSON_MIME } from "./constants.js"
+import { handleInvokePost } from "../http/handle-invoke.js"
+import { writeJson } from "../http/write-json.js"
+import { ECP_UP_VERSION } from "./constants.js"
 import { readBearerToken, setCorsAndPna } from "./cors.js"
-import { readRequestBody } from "./read-body.js"
 
 /** Dependencies for {@link createUpRequestHandler}. @category CLI */
 export interface UpRequestHandlerOptions {
@@ -15,12 +16,6 @@ export interface UpRequestHandlerOptions {
   token: string
   /** Ollama base URL used for `/health` reachability. */
   ollamaUrl: string
-}
-
-interface InvokeBody {
-  capability?: string
-  input?: unknown
-  provider?: string
 }
 
 /**
@@ -67,35 +62,10 @@ export function createUpRequestHandler(options: UpRequestHandlerOptions) {
         writeJson(res, 401, { error: "Unauthorized" })
         return
       }
-      let body: InvokeBody
-      try {
-        const raw = await readRequestBody(req)
-        body = raw.trim() ? (JSON.parse(raw) as InvokeBody) : {}
-      } catch {
-        writeJson(res, 400, { error: "Invalid JSON body" })
-        return
-      }
-      if (typeof body.capability !== "string" || !body.capability.trim()) {
-        writeJson(res, 400, { error: "capability is required" })
-        return
-      }
-      try {
-        const builder = ecp.invoke(body.capability).with(body.input ?? {})
-        const result = await (body.provider ? builder.uses(body.provider) : builder).process()
-        writeJson(res, 200, result)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        writeJson(res, 500, { error: message })
-      }
+      await handleInvokePost(ecp, req, res)
       return
     }
 
     writeJson(res, 404, { error: "Not found" })
   }
-}
-
-function writeJson(res: ServerResponse, status: number, body: unknown): void {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, { "Content-Type": JSON_MIME })
-  res.end(payload)
 }

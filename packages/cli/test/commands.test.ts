@@ -195,4 +195,38 @@ describe("ecp CLI commands", () => {
       expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
     }, 30_000)
   })
+
+  describe("invoke", () => {
+    it("invokes a bound capability and prints InvokeResult", async () => {
+      const inputPath = join(tmp, "invoke-input.json")
+      await writeFile(inputPath, JSON.stringify({ value: "cli-hi" }), "utf8")
+      const res = await runCli([
+        "invoke",
+        "@executioncontrolprotocol/test.echo",
+        "--env",
+        ECHO_ENV,
+        "--input",
+        inputPath,
+      ])
+      expect(res.code).toBe(0)
+      const result = JSON.parse(res.stdout) as {
+        schema: string
+        success: boolean
+        result?: { echo?: unknown }
+      }
+      expect(result.schema).toBe("@executioncontrolprotocol.invoke.result")
+      expect(result.success).toBe(true)
+      expect(result.result?.echo).toBe("cli-hi")
+    }, 30_000)
+
+    it("exits non-zero when the capability is missing", async () => {
+      const res = await runCli([
+        "invoke",
+        "@executioncontrolprotocol/test.does-not-exist",
+        "--env",
+        ECHO_ENV,
+      ])
+      expect(res.code).not.toBe(0)
+    }, 30_000)
+  })
 })

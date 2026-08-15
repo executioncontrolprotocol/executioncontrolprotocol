@@ -9,6 +9,8 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Validate workflows against an environment’s registered capabilities
 - Describe/search environment capabilities for agent/UI discovery
 - Run workflows and print structured run results
+- Invoke a single capability outside a workflow (`ecp invoke`)
+- Serve an environment over loopback HTTP for `POST /v1/invoke` (`ecp serve`)
 - Encode/decode workflows using format extensions (TOON, Fluent, JSON)
 
 For the architecture and monorepo package boundaries, start with
@@ -74,9 +76,33 @@ ecp describe --env examples/01-echo/environment.ts
 ecp search "echo" --env examples/01-echo/environment.ts
 ```
 
+### Invoke a capability
+
+Call a single bound capability without a workflow:
+
+```sh
+ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json
+```
+
+Optional `--uses <provider-capability-id>` overrides the harness default provider. Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
+
+### Serve (`ecp serve`)
+
+Expose any `--env` over loopback HTTP (no auth; loopback-only trust):
+
+```sh
+ecp serve --env examples/01-echo/environment.ts
+ecp serve --env environment.ts --port 3090 --cors-origin http://localhost:5173
+```
+
+- `GET /health` — `{ ok, version }`
+- `POST /v1/invoke` — body `{ capability, input?, provider? }` → `ecp.invoke(...).with(...).process()`
+
+Default port **3090** (ECP leet), host `127.0.0.1`.
+
 ### Local daemon (`ecp up`)
 
-Start a loopback HTTP daemon that bridges Ollama for the browser demo (CORS + Private Network Access), then open the demo with a pairing token:
+Ollama/PNA **demo bridge** (fixed local env, not arbitrary `--env`). Prefer `ecp serve` for general HTTP invoke. Start the daemon, then open the demo with a pairing token:
 
 ```sh
 ecp up
@@ -87,9 +113,9 @@ ecp up --no-open
 ```
 
 - `GET /health` — `{ ok, version, ollamaReachable }` (no auth; used by the demo to enable Ollama)
-- `POST /v1/invoke` — Bearer token required; body `{ capability, input?, provider? }`
+- `POST /v1/invoke` — Bearer token required; same body shape as `ecp serve`
 
-Default port **3090** (ECP leet). The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Add extra page origins with `--cors-origin`.
+Default port **3090**. The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Add extra page origins with `--cors-origin`.
 
 ### Encode / decode formats
 

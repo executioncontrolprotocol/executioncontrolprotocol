@@ -84,15 +84,19 @@ ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp compile examples/01-echo/workflow.ts -o /tmp/workflow.json
 ecp describe --env examples/01-echo/environment.ts
 ecp search "echo" --env examples/01-echo/environment.ts
+ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json
+ecp serve --env examples/01-echo/environment.ts
 ecp encode workflow.json --format toon --env examples/01-echo/environment.ts -o workflow.toon
 ecp decode workflow.toon --format toon --env examples/01-echo/environment.ts -o workflow.json
 ecp encode workflow.json --format fluent --env examples/01-echo/environment.ts -o workflow.generated.ts
 ecp run --help
 ```
 
+`ecp invoke` and `ecp serve` (`POST /v1/invoke`) call any bound capability outside a workflow run. MCP does **not** yet expose an `ecp.invoke` tool — use the Fluent API, CLI, or HTTP instead.
+
 ### Operational instance (`env.init()`)
 
-`await env.init()` returns an **`Ecp`** instance for all operational APIs: `run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, and `invoke` (when implemented). Lifecycle: `environment:configuring` → bind extensions → `environment:ready`. Call `ecp.terminate()` to emit `environment:terminate`.
+`await env.init()` returns an **`Ecp`** instance for all operational APIs: `run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, and `invoke`. Lifecycle: `environment:configuring` → bind extensions → `environment:ready`. Call `ecp.terminate()` to emit `environment:terminate`.
 
 ### Environment encoding, decoding, and patch
 
