@@ -32,8 +32,14 @@ export class OsKeychainSecretsStore implements SecretsStore {
     Entry: typeof import("@napi-rs/keyring").Entry
   ): InstanceType<typeof import("@napi-rs/keyring").Entry> {
     const user = canonicalSecretKeyForOsStorage(logicalKey)
-    const target = osKeychainCredentialTarget(logicalKey)
-    return Entry.withTarget(target, ECP_KEYRING_SERVICE, user)
+    // Windows: explicit Credential Manager target `ecp://…` avoids `username.service` synthesis.
+    // macOS/Linux: `withTarget` treats target as a keychain domain (User/System/Common/Dynamic);
+    // `ecp://…` is invalid there — use the default User keychain via plain Entry.
+    if (process.platform === "win32") {
+      const target = osKeychainCredentialTarget(logicalKey)
+      return Entry.withTarget(target, ECP_KEYRING_SERVICE, user)
+    }
+    return new Entry(ECP_KEYRING_SERVICE, user)
   }
 
   private listAccountToKey(account: string): string {

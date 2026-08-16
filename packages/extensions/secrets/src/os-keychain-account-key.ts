@@ -10,7 +10,8 @@ export function canonicalSecretKeyForOsStorage(key: string): string {
 }
 
 /**
- * OS keyring target for `Entry.withTarget`.
+ * Windows Credential Manager target for `Entry.withTarget` (`ecp://` + logical key).
+ * Use only on `win32`; macOS/Linux must use plain `new Entry(service, user)`.
  * @category Secrets
  */
 export function osKeychainCredentialTarget(logicalKey: string): string {
