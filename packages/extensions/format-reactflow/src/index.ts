@@ -4,7 +4,7 @@ import { formatReactflowExtension } from "./extension.js"
 export { formatReactflowExtension } from "./extension.js"
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
-export { portsForStep } from "./ports-from-zod.js"
+export { portsForStep, formatLiteralValue, truncateLiteralPreview, ensureOutputPort } from "./ports-from-zod.js"
 export { layoutReactFlowDocument } from "./layout.js"
 export {
   reactFlowRunProgress,
@@ -19,6 +19,7 @@ export type {
   ReactFlowGroupData,
   ReactFlowNode,
   ReactFlowPort,
+  ReactFlowPortBinding,
   ReactFlowRunLifecycleDetail,
   ReactFlowStepData,
   ReactFlowStepStatus,

@@ -87,6 +87,91 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(edges[0]!.target).toBe(stepB.id)
   })
 
+  it("attaches truncated literal binding metadata on input ports", () => {
+    const longPrompt =
+      "Write a short sample email summarizing the weekly product meeting and action owners for follow-up."
+    const doc = workflowToReactFlow({
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "lit" },
+      steps: [
+        {
+          id: "s1",
+          uses: "@vendor/missing.generate",
+          label: "Summarize",
+          input: { prompt: longPrompt },
+          as: "summary",
+        },
+      ],
+    })
+    const data = doc.nodes[0]!.data as ReactFlowStepData
+    const prompt = data.inputs.find((p) => p.name === "prompt")
+    expect(prompt?.binding).toBe("literal")
+    expect(prompt?.valueTitle).toBe(longPrompt)
+    expect(prompt?.valuePreview).toBeDefined()
+    expect(prompt!.valuePreview!.length).toBeLessThan(longPrompt.length)
+    expect(prompt!.valuePreview!.endsWith("…")).toBe(true)
+  })
+
+  it("wires summary.text refs to prompt with matching output/input handles", () => {
+    const manifest = workflow("Summarize then extract")
+      .run([
+        step("@vendor/missing.generate", "Summarize Email")
+          .id("summarize")
+          .with({ prompt: "Summarize this email" })
+          .as("summary"),
+        step("@vendor/missing.generate", "Extract Action Items")
+          .id("extract")
+          .with({ prompt: ref("summary.text") })
+          .as("actions"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const dataEdge = doc.edges.find((e) => e.data.kind === "data")
+    expect(dataEdge).toBeDefined()
+    expect(dataEdge!.sourceHandle).toBe("text")
+    expect(dataEdge!.targetHandle).toBe("prompt")
+    expect(dataEdge!.source).toBe("summarize")
+    expect(dataEdge!.target).toBe("extract")
+
+    const summarize = doc.nodes.find((n) => n.id === "summarize")!.data as ReactFlowStepData
+    const extract = doc.nodes.find((n) => n.id === "extract")!.data as ReactFlowStepData
+    expect(summarize.outputs.some((p) => p.id === "text")).toBe(true)
+    expect(extract.inputs.find((p) => p.name === "prompt")?.binding).toBe("ref")
+    expect(extract.inputs.find((p) => p.name === "prompt")?.refPath).toBe("summary.text")
+    expect(summarize.inputs.find((p) => p.name === "prompt")?.binding).toBe("literal")
+  })
+
+  it("leaves unbound optional schema inputs without binding fields", async () => {
+    await registerFormatReactflowExtension()
+    await registerTestExtension()
+    const ecp = await initEncodingTestEcp([
+      extension("@executioncontrolprotocol/format-reactflow").with({}),
+      extension("@executioncontrolprotocol/test").with({}),
+    ])
+    const manifest = workflow("Partial generate")
+      .run([
+        step("@executioncontrolprotocol/test.generate", "Gen")
+          .with({ prompt: "hello" })
+          .as("out"),
+      ])
+      .toManifest()
+    const encoded = await ecp
+      .encode(manifest)
+      .uses("@executioncontrolprotocol/format-reactflow")
+      .process()
+    const doc = JSON.parse(String(encoded.result)) as ReactFlowDocument
+    const data = doc.nodes.find((n) => n.type === "ecp-step")!.data as ReactFlowStepData
+    const prompt = data.inputs.find((p) => p.name === "prompt")
+    const system = data.inputs.find((p) => p.name === "system")
+    expect(prompt?.binding).toBe("literal")
+    expect(system).toBeDefined()
+    expect(system?.binding).toBeUndefined()
+    expect(system?.valuePreview).toBeUndefined()
+    expect(system?.refPath).toBeUndefined()
+    await ecp.terminate()
+  })
+
   it("parses state refs", () => {
     expect(parseStateRef("state.a.echo")).toEqual({ asKey: "a", fieldPath: "echo" })
     expect(parseStateRef("a")).toEqual({ asKey: "a", fieldPath: "" })
@@ -163,6 +248,8 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const stepNode = doc.nodes.find((n) => n.type === "ecp-step")!
     const data = stepNode.data as ReactFlowStepData
     expect(data.inputs.some((p) => p.name === "foo" && p.typeLabel === "unknown")).toBe(true)
+    expect(data.inputs.find((p) => p.name === "foo")?.binding).toBe("literal")
+    expect(data.inputs.find((p) => p.name === "foo")?.valueTitle).toBe("1")
     expect(data.outputs.some((p) => p.name === "output")).toBe(true)
   })
 

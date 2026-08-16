@@ -2,7 +2,7 @@ import type { Registry } from "@executioncontrolprotocol/core"
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
 import { extractDataEdges } from "./extract-data-edges.js"
 import { layoutReactFlowDocument } from "./layout.js"
-import { portsForStep } from "./ports-from-zod.js"
+import { portsForStep, ensureOutputPort } from "./ports-from-zod.js"
 import type {
   ReactFlowDocument,
   ReactFlowEdge,
@@ -157,6 +157,15 @@ export function workflowToReactFlow(
 
   const body = renderNodes(manifest.steps, registry)
   const dataEdges = extractDataEdges(manifest.steps)
+
+  for (const edge of dataEdges) {
+    if (!edge.sourceHandle) continue
+    const source = body.nodes.find((n) => n.id === edge.source && n.type === "ecp-step")
+    if (!source || source.type !== "ecp-step") continue
+    const data = source.data as ReactFlowStepData
+    ensureOutputPort(data.outputs, edge.sourceHandle)
+  }
+
   const doc: ReactFlowDocument = {
     nodes: body.nodes,
     edges: [...body.edges, ...dataEdges],

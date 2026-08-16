@@ -1,3 +1,6 @@
+/** How a step input is supplied on the graph. @category Encoding */
+export type ReactFlowPortBinding = "literal" | "ref"
+
 /** Port on a React Flow step node. @category Encoding */
 export interface ReactFlowPort {
   /** Handle id (matches edge sourceHandle / targetHandle). */
@@ -8,6 +11,14 @@ export interface ReactFlowPort {
   typeLabel: string
   /** Whether the field is required (inputs only). */
   required?: boolean
+  /** How this input is supplied (`literal` `.with()` value or `$ref`). */
+  binding?: ReactFlowPortBinding
+  /** Truncated display for literal values. */
+  valuePreview?: string
+  /** Full literal string for tooltip / editor seed. */
+  valueTitle?: string
+  /** Short `$ref` path without `state.` (e.g. `summary.text`). */
+  refPath?: string
 }
 
 /** Step node payload. @category Encoding */
