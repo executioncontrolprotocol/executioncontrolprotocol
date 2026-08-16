@@ -93,7 +93,22 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(parseStateRef("")).toBeUndefined()
   })
 
-  it("builds control edges for sequential steps and groups for parallel/branch/loop", () => {
+  it("lays out sequential steps as flat action nodes with control edges", () => {
+    const manifest = workflow("Two steps")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "Generate").with({ value: "a" }).as("email"),
+        step("@executioncontrolprotocol/test.echo", "Extract").with({ value: "b" }).as("actions"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const steps = doc.nodes.filter((n) => n.type === "ecp-step")
+    expect(steps).toHaveLength(2)
+    expect(doc.nodes.some((n) => n.type === "ecp-group")).toBe(false)
+    expect(doc.edges.some((e) => e.data.kind === "control")).toBe(true)
+    expect(steps[0]!.position.x).not.toBe(steps[1]!.position.x)
+  })
+
+  it("flattens parallel/branch/loop to step nodes without group wrappers", () => {
     const manifest = workflow("Flow")
       .run([
         step("@executioncontrolprotocol/test.echo", "Fetch").with({ value: "x" }).as("fetch"),
@@ -114,25 +129,19 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
-    expect(doc.nodes.some((n) => n.type === "ecp-group" && (n.data as { kind: string }).kind === "parallel")).toBe(
-      true
-    )
-    expect(doc.nodes.some((n) => n.type === "ecp-group" && (n.data as { kind: string }).kind === "branch")).toBe(
-      true
-    )
-    expect(doc.nodes.some((n) => n.type === "ecp-group" && (n.data as { kind: string }).kind === "loop")).toBe(true)
+    expect(doc.nodes.every((n) => n.type === "ecp-step")).toBe(true)
+    expect(doc.nodes).toHaveLength(5)
     expect(doc.edges.some((e) => e.data.kind === "control")).toBe(true)
   })
 
-  it("renders empty workflow as a workflow group only", () => {
+  it("renders empty workflow as an empty document", () => {
     const doc = workflowToReactFlow({
       schema: "@executioncontrolprotocol.workflow",
       version: "1.0",
       workflow: { id: "empty-wf", label: "Empty" },
       steps: [],
     })
-    expect(doc.nodes).toHaveLength(1)
-    expect(doc.nodes[0]!.type).toBe("ecp-group")
+    expect(doc.nodes).toHaveLength(0)
     expect(doc.edges).toHaveLength(0)
   })
 

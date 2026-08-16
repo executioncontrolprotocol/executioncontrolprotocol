@@ -24,7 +24,10 @@ export interface ReactFlowStepData {
   outputs: ReactFlowPort[]
 }
 
-/** Group node payload (parallel / branch / loop). @category Encoding */
+/**
+ * Group node payload (optional viewer type; encoder emits step nodes only).
+ * @category Encoding
+ */
 export interface ReactFlowGroupData {
   /** Display label. */
   label: string
@@ -34,17 +37,15 @@ export interface ReactFlowGroupData {
 
 /** React Flow node. @category Encoding */
 export interface ReactFlowNode {
-  /** Node id (step id or group id). */
+  /** Node id (typically a workflow step id). */
   id: string
   /** Node type for the viewer. */
   type: "ecp-step" | "ecp-group"
-  /** Layout position. */
+  /** Layout position (absolute; canvas is the workflow surface). */
   position: { x: number; y: number }
   /** Node payload. */
   data: ReactFlowStepData | ReactFlowGroupData
-  /** Parent group id when nested. */
-  parentId?: string
-  /** Soft size hint for layout / group bounds. */
+  /** Soft size hint for layout. */
   style?: { width?: number; height?: number }
 }
 
