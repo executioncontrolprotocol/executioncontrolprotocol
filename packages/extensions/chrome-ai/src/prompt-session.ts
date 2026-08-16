@@ -14,8 +14,11 @@ interface ChromeLanguageModelSession {
   prompt(input: string): Promise<unknown>
 }
 
-interface ChromeLanguageModelCreateOptions {
+/** Options accepted by LanguageModel.availability / create. @category Extensions */
+export interface ChromeLanguageModelCreateOptions {
   initialPrompts?: ChromePromptMessage[]
+  /** Newer Prompt API language declaration (get-started docs). */
+  languages?: string[]
   expectedInputs?: Array<{ type: "text"; languages: string[] }>
   expectedOutputs?: Array<{ type: "text"; languages: string[] }>
   monitor?: (monitor: {
@@ -53,14 +56,23 @@ const DEFAULT_SESSION_OPTIONS: Pick<
 /** Create a Prompt API session with optional system instruction. */
 export async function createChromeLanguageModelSession(
   model: ChromeLanguageModelApi,
-  system?: string
+  system?: string,
+  sessionOptions?: ChromeLanguageModelCreateOptions
 ): Promise<ChromeLanguageModelSession> {
-  const options: ChromeLanguageModelCreateOptions = { ...DEFAULT_SESSION_OPTIONS }
+  const preferred = sessionOptions ?? DEFAULT_SESSION_OPTIONS
+  const options: ChromeLanguageModelCreateOptions = { ...preferred }
   if (system?.trim()) {
     options.initialPrompts = [{ role: "system", content: system }]
   }
-  if (model.availability) {
-    await model.availability(options)
+  try {
+    return await model.create(options)
+  } catch (err) {
+    if (!sessionOptions || Object.keys(sessionOptions).length === 0) throw err
+    // Fallback: bare create when option-specific session fails.
+    return model.create(
+      system?.trim()
+        ? { initialPrompts: [{ role: "system", content: system }] }
+        : {}
+    )
   }
-  return model.create(options)
 }
