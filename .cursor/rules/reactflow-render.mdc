@@ -1,0 +1,16 @@
+---
+description: React Flow encode/viewer conventions for format-reactflow and Flow canvas
+globs: packages/extensions/format-reactflow/**/*,**/format-reactflow/**
+alwaysApply: false
+---
+
+# React Flow render
+
+Follow [packages/extensions/format-reactflow/REACTFLOW_RENDER.md](../../packages/extensions/format-reactflow/REACTFLOW_RENDER.md).
+
+Non-negotiables:
+
+- Flat step nodes only (no published workflow/group wrappers).
+- Published edges are **data** (`$ref`) with handles — never visible control source→target lines.
+- Port bindings: literals + refs; ensure output handles exist for edged refs.
+- Fan-out via multiple `$ref`s is supported; do not invent multi-source fan-in on one input key.
