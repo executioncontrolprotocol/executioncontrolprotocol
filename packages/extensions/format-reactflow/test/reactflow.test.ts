@@ -178,7 +178,7 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(parseStateRef("")).toBeUndefined()
   })
 
-  it("lays out sequential steps as flat action nodes with control edges", () => {
+  it("lays out sequential steps without publishing control edges", () => {
     const manifest = workflow("Two steps")
       .run([
         step("@executioncontrolprotocol/test.echo", "Generate").with({ value: "a" }).as("email"),
@@ -189,7 +189,8 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const steps = doc.nodes.filter((n) => n.type === "ecp-step")
     expect(steps).toHaveLength(2)
     expect(doc.nodes.some((n) => n.type === "ecp-group")).toBe(false)
-    expect(doc.edges.some((e) => e.data.kind === "control")).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+    expect(doc.edges.some((e) => e.data.kind === "control")).toBe(false)
     expect(steps[0]!.position.x).not.toBe(steps[1]!.position.x)
   })
 
@@ -216,7 +217,36 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const doc = workflowToReactFlow(manifest)
     expect(doc.nodes.every((n) => n.type === "ecp-step")).toBe(true)
     expect(doc.nodes).toHaveLength(5)
-    expect(doc.edges.some((e) => e.data.kind === "control")).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+  })
+
+  it("fans one output out to multiple downstream inputs", () => {
+    const manifest = workflow("Fan-out")
+      .run([
+        step("@vendor/missing.generate", "Source")
+          .id("source")
+          .with({ prompt: "seed" })
+          .as("email"),
+        step("@vendor/missing.generate", "A")
+          .id("a")
+          .with({ prompt: ref("email.text"), context: ref("email.text") })
+          .as("a"),
+        step("@vendor/missing.generate", "B")
+          .id("b")
+          .with({ context: ref("email.text") })
+          .as("b"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const fromText = doc.edges.filter(
+      (e) => e.data.kind === "data" && e.source === "source" && e.sourceHandle === "text"
+    )
+    expect(fromText.length).toBe(3)
+    expect(fromText.map((e) => `${e.target}:${e.targetHandle}`).sort()).toEqual([
+      "a:context",
+      "a:prompt",
+      "b:context",
+    ])
   })
 
   it("renders empty workflow as an empty document", () => {

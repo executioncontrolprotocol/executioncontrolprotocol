@@ -143,7 +143,8 @@ function renderNodes(nodes: WorkflowNode[], registry: Registry | undefined): Ren
 
 /**
  * Convert a workflow manifest into a positioned React Flow document.
- * Emits step nodes only (no workflow / parallel / branch / loop group wrappers).
+ * Emits step nodes and **data** edges only (`$ref` property mappings).
+ * Sequential control edges are used internally for layout, then discarded.
  * @category Encoding
  */
 export function workflowToReactFlow(
@@ -168,7 +169,13 @@ export function workflowToReactFlow(
 
   const doc: ReactFlowDocument = {
     nodes: body.nodes,
+    // Control edges rank sequential / parallel steps for dagre; they are not
+    // property mappings and are stripped from the published document below.
     edges: [...body.edges, ...dataEdges],
   }
-  return layoutReactFlowDocument(doc, options)
+  const laid = layoutReactFlowDocument(doc, options)
+  return {
+    nodes: laid.nodes,
+    edges: laid.edges.filter((edge) => edge.data.kind === "data"),
+  }
 }
