@@ -21,6 +21,10 @@ function resolverErrorLabel(resolverId: string): string {
   return "Environment variable"
 }
 
+function missingResolverMessage(resolverId: string, name: string): string {
+  return `${resolverErrorLabel(resolverId)} ${name} cannot be resolved; bind extension("${resolverId}") in the environment`
+}
+
 /** Resolves `env("KEY")` and `secrets("KEY")` values for environment bindings. @category Environment */
 export interface EnvironmentConfigResolver {
   /** Resolver identifier (e.g. extension id). */
@@ -54,10 +58,12 @@ export async function resolveConfigName(
   const resolverId = options?.resolverId
   if (resolverId) {
     const resolver = findResolver(resolvers, resolverId)
-    if (resolver) {
-      const value = await resolver.resolve(name)
-      if (value !== undefined) return value
+    if (!resolver) {
+      if (options?.optional) return options.fallback
+      throw new Error(missingResolverMessage(resolverId, name))
     }
+    const value = await resolver.resolve(name)
+    if (value !== undefined) return value
     if (options?.optional) return options.fallback
     throw new Error(`${resolverErrorLabel(resolverId)} ${name} is not set`)
   }

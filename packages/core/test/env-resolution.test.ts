@@ -70,4 +70,34 @@ describe("env resolution chain", () => {
       resolveEnvConfigAsync({ x: env("REQUIRED") }, [])
     ).rejects.toThrow("REQUIRED")
   })
+
+  it("tells the user to bind secrets when the secrets resolver is missing", async () => {
+    await expect(
+      resolveEnvConfigAsync({ x: secrets("azure-blob-storage/connection-string") }, [])
+    ).rejects.toThrow(
+      'Secret azure-blob-storage/connection-string cannot be resolved; bind extension("@executioncontrolprotocol/secrets") in the environment'
+    )
+  })
+
+  it("tells the user to bind browser-secrets when that resolver is missing", async () => {
+    await expect(resolveEnvConfigAsync({ x: browser("OPENAI_API_KEY") }, [])).rejects.toThrow(
+      'Browser secret OPENAI_API_KEY cannot be resolved; bind extension("@executioncontrolprotocol/browser-secrets") in the environment'
+    )
+  })
+
+  it("keeps is-not-set when the secrets resolver is bound but the key is missing", async () => {
+    await expect(
+      resolveEnvConfigAsync({ x: secrets("missing/key") }, [
+        { id: SECRETS_RESOLVER_ID, resolve: () => undefined },
+      ])
+    ).rejects.toThrow("Secret missing/key is not set")
+  })
+
+  it("uses optional fallback when secrets resolver is missing", async () => {
+    const config = await resolveEnvConfigAsync(
+      { x: secrets("missing/key", { optional: true, fallback: "fb" }) },
+      []
+    )
+    expect(config.x).toBe("fb")
+  })
 })
