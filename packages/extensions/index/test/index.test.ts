@@ -13,6 +13,7 @@ describe("@executioncontrolprotocol/extensions registerAllExtensions", () => {
   it("includes the harness format extensions that encode workflows", () => {
     expect(BUNDLED_EXTENSION_IDS).toContain("@executioncontrolprotocol/format-eql")
     expect(BUNDLED_EXTENSION_IDS).toContain("@executioncontrolprotocol/format-mermaid")
+    expect(BUNDLED_EXTENSION_IDS).toContain("@executioncontrolprotocol/format-reactflow")
     expect(BUNDLED_EXTENSION_IDS).toContain("@executioncontrolprotocol/format-toon")
   })
 

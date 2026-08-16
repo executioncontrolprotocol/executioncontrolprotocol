@@ -17,6 +17,7 @@
     { "path": "packages/extensions/format-toon" },
     { "path": "packages/extensions/format-eql" },
     { "path": "packages/extensions/format-mermaid" },
+    { "path": "packages/extensions/format-reactflow" },
     { "path": "packages/extensions/secrets" },
     { "path": "packages/extensions/browser-secrets" },
     { "path": "packages/extensions/process-env" },

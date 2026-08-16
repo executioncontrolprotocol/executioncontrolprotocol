@@ -10,6 +10,7 @@
     { "path": "../telemetry" },
     { "path": "../format-toon" },
     { "path": "../format-eql" },
-    { "path": "../format-mermaid" }
+    { "path": "../format-mermaid" },
+    { "path": "../format-reactflow" }
   ]
 }
