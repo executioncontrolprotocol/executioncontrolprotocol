@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/harnesses-browser-nano",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Browser Nano ECP harness for on-device and small models (demo + eval matrix)",
   "license": "Apache-2.0",
   "type": "module",
@@ -31,20 +31,20 @@
     "eval:matrix": "vitest run --config ../../../vitest.config.mts --project eval packages/harnesses/browser-nano/test/eval"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.11.1",
-    "@executioncontrolprotocol/types": "^0.11.1",
+    "@executioncontrolprotocol/core": "^0.11.2",
+    "@executioncontrolprotocol/types": "^0.11.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/browser": "0.11.1",
-    "@executioncontrolprotocol/chrome-ai": "0.11.1",
-    "@executioncontrolprotocol/core": "0.11.1",
-    "@executioncontrolprotocol/evals": "0.11.1",
-    "@executioncontrolprotocol/extension-ollama": "0.11.1",
-    "@executioncontrolprotocol/format-eql": "0.11.1",
-    "@executioncontrolprotocol/format-toon": "0.11.1",
-    "@executioncontrolprotocol/node": "0.11.1",
-    "@executioncontrolprotocol/types": "0.11.1",
+    "@executioncontrolprotocol/browser": "0.11.2",
+    "@executioncontrolprotocol/chrome-ai": "0.11.2",
+    "@executioncontrolprotocol/core": "0.11.2",
+    "@executioncontrolprotocol/evals": "0.11.2",
+    "@executioncontrolprotocol/extension-ollama": "0.11.2",
+    "@executioncontrolprotocol/format-eql": "0.11.2",
+    "@executioncontrolprotocol/format-toon": "0.11.2",
+    "@executioncontrolprotocol/node": "0.11.2",
+    "@executioncontrolprotocol/types": "0.11.2",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

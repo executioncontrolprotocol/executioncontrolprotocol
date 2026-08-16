@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- **OS secrets / macOS Keychain:** `OsKeychainSecretsStore` no longer passes `ecp://…` to `Entry.withTarget` on non-Windows platforms. That target is Windows Credential Manager naming only; on Apple Keychain it must be a domain (`User` / `System` / `Common` / `Dynamic`), so `ecp config secrets add` failed with “value of key chain is invalid … is not user system common or dynamic”. Darwin/Linux now use plain `new Entry("ecp", key)`.
+
 ### Changed
 
 - **Browser host vs app:** `@executioncontrolprotocol/browser` is harness-independent (`registerBrowserHost` / `createBrowserEnvironment`). Harnesses, providers (including Ollama), and formats are composed by the app (browser-demo) or eval helpers. Compile stays on `@executioncontrolprotocol/core/compile` (Node) and `core/browser` (including `compileHarnessArtifactSource`).
