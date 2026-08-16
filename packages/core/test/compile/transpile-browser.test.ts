@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   isEsbuildAlreadyInitializedError,
+  resolveEsbuildWasmApi,
   transpileWorkflowSource,
   unpkgEsbuildWasmUrl,
 } from "../../src/compile/transpile-browser.js"
@@ -30,8 +31,39 @@ describe("isEsbuildAlreadyInitializedError", () => {
     expect(isEsbuildAlreadyInitializedError(new Error("already initialized"))).toBe(true)
   })
 
-  it("does not match unrelated errors", () => {
+  it("does not match missing-API or unrelated errors", () => {
+    expect(isEsbuildAlreadyInitializedError(new Error("esbuild.initialize is not a function"))).toBe(
+      false
+    )
+    expect(isEsbuildAlreadyInitializedError(new Error("esbuild.transform is not a function"))).toBe(
+      false
+    )
     expect(isEsbuildAlreadyInitializedError(new Error("transform failed"))).toBe(false)
+  })
+})
+
+describe("resolveEsbuildWasmApi", () => {
+  it("accepts named initialize/transform exports", () => {
+    const initialize = vi.fn()
+    const transform = vi.fn()
+    expect(resolveEsbuildWasmApi({ initialize, transform, version: "0.25.12" })).toMatchObject({
+      initialize,
+      transform,
+      version: "0.25.12",
+    })
+  })
+
+  it("falls back to default export when named APIs are missing", () => {
+    const initialize = vi.fn()
+    const transform = vi.fn()
+    expect(resolveEsbuildWasmApi({ default: { initialize, transform } })).toMatchObject({
+      initialize,
+      transform,
+    })
+  })
+
+  it("rejects empty Vite CJS interop modules", () => {
+    expect(() => resolveEsbuildWasmApi({})).toThrow(/without initialize\/transform/)
   })
 })
 
