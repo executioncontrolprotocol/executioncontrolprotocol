@@ -5,6 +5,7 @@ import {
   acceptsReactFlowNode,
   jsonSchemaObjectProperties,
   returnsReactFlowNode,
+  WORKFLOW_ACCEPTS_NODE_ID,
   WORKFLOW_RETURNS_NODE_ID,
 } from "./io-from-schema.js"
 import { layoutReactFlowDocument } from "./layout.js"
@@ -156,12 +157,14 @@ function sourceHandleForStep(data: ReactFlowStepData): string {
 }
 
 /**
- * Edges from steps whose `.as` matches a `returns` property to the Outputs node.
+ * Edges from steps whose `.as` matches a `returns` property, or from Inputs
+ * when the property is an `accepts` key, to the Outputs node.
  */
 function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[]): ReactFlowEdge[] {
   const returnsNode = nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID && n.type === "ecp-io")
   if (!returnsNode) return []
   const fields = jsonSchemaObjectProperties(manifest.workflow.returns)
+  const acceptsKeys = acceptsPropertyKeys(manifest)
   const asToStep = new Map<string, ReactFlowNode>()
   for (const node of nodes) {
     if (node.type !== "ecp-step") continue
@@ -171,14 +174,25 @@ function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[])
   const edges: ReactFlowEdge[] = []
   let i = 0
   for (const field of fields) {
-    const source = asToStep.get(field.name)
-    if (!source || source.type !== "ecp-step") continue
-    const data = source.data as ReactFlowStepData
+    const stepSource = asToStep.get(field.name)
+    if (stepSource && stepSource.type === "ecp-step") {
+      const data = stepSource.data as ReactFlowStepData
+      edges.push({
+        id: `data-returns-${i++}-${stepSource.id}-${field.name}`,
+        source: stepSource.id,
+        target: WORKFLOW_RETURNS_NODE_ID,
+        sourceHandle: sourceHandleForStep(data),
+        targetHandle: field.name,
+        data: { kind: "data" },
+      })
+      continue
+    }
+    if (!acceptsKeys.has(field.name)) continue
     edges.push({
-      id: `data-returns-${i++}-${source.id}-${field.name}`,
-      source: source.id,
+      id: `data-returns-${i++}-${WORKFLOW_ACCEPTS_NODE_ID}-${field.name}`,
+      source: WORKFLOW_ACCEPTS_NODE_ID,
       target: WORKFLOW_RETURNS_NODE_ID,
-      sourceHandle: sourceHandleForStep(data),
+      sourceHandle: field.name,
       targetHandle: field.name,
       data: { kind: "data" },
     })

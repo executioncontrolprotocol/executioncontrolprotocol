@@ -1,4 +1,4 @@
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
 import type { ReactFlowIoData, ReactFlowNode, ReactFlowPort } from "./types.js"
 import { valueSchemaFromEqlLabel, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
 
@@ -84,6 +84,49 @@ export function acceptsReactFlowNode(manifest: WorkflowManifest): ReactFlowNode 
   }
 }
 
+function isStepNode(node: WorkflowNode): node is StepNode {
+  return !node.type || node.type === "step"
+}
+
+function collectCommitKeys(nodes: WorkflowNode[], into: Set<string>): void {
+  for (const node of nodes) {
+    if (isStepNode(node)) {
+      if (node.as) into.add(node.as)
+      continue
+    }
+    if (node.type === "parallel") {
+      for (const branch of node.branches) collectCommitKeys(branch, into)
+      continue
+    }
+    if (node.type === "branch") {
+      for (const arm of node.branches) collectCommitKeys(arm.steps, into)
+      continue
+    }
+    collectCommitKeys(node.steps, into)
+  }
+}
+
+/**
+ * State keys that can source a `returns` port (step `.as` or `accepts` properties).
+ * @category Encoding
+ */
+export function returnsSourceKeys(manifest: WorkflowManifest): Set<string> {
+  const keys = new Set(
+    jsonSchemaObjectProperties(manifest.workflow.accepts).map((field) => field.name)
+  )
+  collectCommitKeys(manifest.steps, keys)
+  return keys
+}
+
+function annotateReturnsPorts(manifest: WorkflowManifest, ports: ReactFlowPort[]): void {
+  const sources = returnsSourceKeys(manifest)
+  for (const port of ports) {
+    if (!sources.has(port.id)) continue
+    port.binding = "ref"
+    port.refPath = port.id
+  }
+}
+
 /**
  * Project workflow `returns` as an input-only Outputs node when it has properties.
  * @category Encoding
@@ -91,6 +134,7 @@ export function acceptsReactFlowNode(manifest: WorkflowManifest): ReactFlowNode 
 export function returnsReactFlowNode(manifest: WorkflowManifest): ReactFlowNode | undefined {
   const inputs = portsFromJsonSchemaObject(manifest.workflow.returns)
   if (inputs.length === 0) return undefined
+  annotateReturnsPorts(manifest, inputs)
   const data: ReactFlowIoData = {
     label: "Outputs",
     kind: "returns",

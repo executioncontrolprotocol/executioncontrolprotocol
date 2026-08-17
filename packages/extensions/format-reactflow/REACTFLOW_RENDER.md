@@ -44,16 +44,18 @@ Keep short **`typeLabel`** (EQL-ish) for display / fallback when `valueSchema` i
   - **literal** — truncated preview on the port (`= …`), full value for tooltip / configure editor.
   - **ref** — show `← asKey.field` (strip `state.`); this is the only source of **data** edges.
 - Unbound schema optionals remain ports without a binding until the user adds them.
+- Returns input ports with a matching step `.as` or `accepts` property use the same **ref** contract (`binding: "ref"`, `refPath` without `state.`).
 
 ## Edges (property mapping only)
 
 - Publish **data edges only**: each `$ref` becomes one edge with `sourceHandle` / `targetHandle` set to the property names (e.g. `text` → `context`).
 - `state.<acceptsKey>` refs source from `ecp:accepts` with `sourceHandle` equal to the property name.
-- `returns` edges are not `$ref`s in steps. Draw from the step whose `.as` matches a `returns` property to `ecp:returns` (`targetHandle` = property name).
+- `returns` edges are not `$ref`s in steps. Draw from the step whose `.as` matches a `returns` property to `ecp:returns` (`targetHandle` = property name). When the property is an `accepts` key (no matching `.as`), draw `ecp:accepts` → `ecp:returns`.
+- Returns ports with a matching source use the same display contract as step inputs: `binding: "ref"` and `refPath` without `state.` (the property name).
 - Layout ranks Inputs left and Outputs right (temporary control edges, then stripped).
 - Never show handle-less “source→target” control connectors in the UI. Viewers must filter to `kind === "data"` with both handles present.
 - **Fan-out** is supported: one output property may feed many inputs via multiple `$ref`s (multiple edges from the same `sourceHandle`).
-- **Fan-in to one field** is still a single value (one `$ref` or one literal per input key).
+- **Fan-in to one field** is still a single value (one `$ref` or one literal per input key). Dropping a new source on an occupied handle **replaces** the previous connection (overwrite `step.input[param]` or remap the `returns` key to the new source `.as`). Do not reject occupied targets in `isValidConnection`.
 
 ## Configure dialog (viewer)
 
@@ -64,6 +66,12 @@ Keep short **`typeLabel`** (EQL-ish) for display / fallback when `valueSchema` i
 - Map **`valueSchema`** (fallback `typeLabel`) to editors (`string` / `number` / `boolean` / `enum` select / `json`).
 - Edit the commit key **`as` (store key)**; on rename, rewrite downstream `state.<oldAs>…` refs to the new key.
 - Persist via `ecp.patch` then `syncFromManifest` so Fluent, Mermaid, JSON, and React Flow stay aligned.
+
+## Selecting and deleting routes (viewer)
+
+- Data edges are selectable (wide hit area). Highlight the selected path.
+- Selected routes show a mid-path ellipsis that opens the same **Delete connection** menu (right-click still works). Click-away or Escape closes it.
+- **Backspace** / **Delete** and **Delete connection** remove the binding (step `$ref` or `returns` property). Never delete workflow step nodes from the canvas.
 
 ## Run progress visuals (viewer)
 

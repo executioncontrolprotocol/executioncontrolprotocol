@@ -445,10 +445,69 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const io = outputs!.data as ReactFlowIoData
     expect(io.kind).toBe("returns")
     expect(io.inputs.map((p) => p.id)).toEqual(["brief"])
+    expect(io.inputs[0]).toMatchObject({ binding: "ref", refPath: "brief" })
     expect(io.outputs).toHaveLength(0)
     const edge = doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)
     expect(edge?.source).toBe("summarize")
     expect(edge?.targetHandle).toBe("brief")
     expect(doc.nodes.find((n) => n.id === "summarize")!.position.x).toBeLessThan(outputs!.position.x)
+  })
+
+  it("annotates returns ports from accepts keys and emits Inputs→Outputs edges", () => {
+    const manifest = workflow("Passthrough")
+      .accepts({
+        type: "object",
+        properties: { prompt: { type: "string" } },
+        required: ["prompt"],
+      })
+      .returns({
+        type: "object",
+        properties: { prompt: { type: "string" } },
+        required: ["prompt"],
+      })
+      .run([])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)
+    const io = outputs!.data as ReactFlowIoData
+    expect(io.inputs[0]).toMatchObject({ id: "prompt", binding: "ref", refPath: "prompt" })
+    const edge = doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.source).toBe(WORKFLOW_ACCEPTS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("prompt")
+    expect(edge?.targetHandle).toBe("prompt")
+  })
+
+  it("leaves unmatched returns ports unbound and without a data edge", () => {
+    const manifest = workflow("Orphan return")
+      .returns({
+        type: "object",
+        properties: { missing: { type: "object" } },
+      })
+      .run([step("@vendor/missing.generate", "Summarize").id("summarize").with({ prompt: "x" }).as("brief")])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(io.inputs[0]?.id).toBe("missing")
+    expect(io.inputs[0]?.binding).toBeUndefined()
+    expect(io.inputs[0]?.refPath).toBeUndefined()
+    expect(doc.edges.some((e) => e.target === WORKFLOW_RETURNS_NODE_ID)).toBe(false)
+  })
+
+  it("annotates returns from nested parallel .as keys", () => {
+    const manifest = workflow("Nested")
+      .returns({
+        type: "object",
+        properties: { inner: { type: "object" } },
+      })
+      .run([
+        parallel([
+          [step("@vendor/missing.generate", "Inner").id("inner").with({ prompt: "x" }).as("inner")],
+        ]),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(io.inputs[0]).toMatchObject({ binding: "ref", refPath: "inner" })
+    expect(doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)?.source).toBe("inner")
   })
 })
