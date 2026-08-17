@@ -1,6 +1,7 @@
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import { renderNodes } from "./render-node.js"
 import { createImportNeeds } from "./render-value.js"
+import { renderJsonSchemaAsFluentArg } from "../schema/json-schema.js"
 
 /** Options for rendering a manifest to Fluent source. @category Fluent */
 export interface RenderWorkflowToFluentOptions {
@@ -41,6 +42,12 @@ export function renderWorkflowToFluent(
   let body = `export default workflow(${JSON.stringify(manifest.workflow.label ?? manifest.workflow.id)})\n`
   if (manifest.workflow.id) {
     body += `  .id(${JSON.stringify(manifest.workflow.id)})\n`
+  }
+  if (manifest.workflow.accepts && Object.keys(manifest.workflow.accepts).length > 0) {
+    body += `  .accepts(${renderJsonSchemaAsFluentArg(manifest.workflow.accepts)})\n`
+  }
+  if (manifest.workflow.returns && Object.keys(manifest.workflow.returns).length > 0) {
+    body += `  .returns(${renderJsonSchemaAsFluentArg(manifest.workflow.returns)})\n`
   }
   body += `  .run([\n${nodes},\n  ]);\n`
   return header + body

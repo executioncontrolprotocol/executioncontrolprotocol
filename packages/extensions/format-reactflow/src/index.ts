@@ -4,6 +4,14 @@ import { formatReactflowExtension } from "./extension.js"
 export { formatReactflowExtension } from "./extension.js"
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
+export {
+  acceptsReactFlowNode,
+  returnsReactFlowNode,
+  portsFromJsonSchemaObject,
+  jsonSchemaObjectProperties,
+  WORKFLOW_ACCEPTS_NODE_ID,
+  WORKFLOW_RETURNS_NODE_ID,
+} from "./io-from-schema.js"
 export { portsForStep, formatLiteralValue, truncateLiteralPreview, ensureOutputPort } from "./ports-from-zod.js"
 export {
   valueSchemaFromZod,
@@ -25,6 +33,8 @@ export type {
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
   ReactFlowGroupData,
+  ReactFlowIoData,
+  ReactFlowIoKind,
   ReactFlowNode,
   ReactFlowPort,
   ReactFlowPortBinding,

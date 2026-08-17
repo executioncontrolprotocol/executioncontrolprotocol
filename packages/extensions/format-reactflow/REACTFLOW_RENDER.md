@@ -10,9 +10,12 @@ Canonical rules for `@executioncontrolprotocol/format-reactflow` and any React F
 
 ## Nodes and ports
 
-- One node per workflow step (capability invocation).
+- One node per workflow step (capability invocation), plus **projected I/O nodes** (`type: "ecp-io"`):
+  - **Inputs** (`id: ecp:accepts`, `data.kind: "accepts"`) is always present. Output ports come from `workflow.accepts.properties` (empty ports if omitted).
+  - **Outputs** (`id: ecp:returns`, `data.kind: "returns"`) is emitted only when `returns` has properties. Input ports come from `workflow.returns.properties`.
+- I/O nodes are encode projections of the workflow contract — not dummy capabilities in `steps[]`.
 - Port list is vertical: **inputs first (left handles), then outputs (right handles)**.
-- Ports come from capability Zod introspection (top-level fields), plus any extra keys present on `step.input`.
+- Step ports come from capability Zod introspection (top-level fields), plus any extra keys present on `step.input`.
 - Each port may include a portable **`valueSchema`** JSON Schema hint (primitives + constraints). Never encode UI widget names.
 - Show a handle for **every** schema port on the node:
   - **Unconnected** — hollow ring (border only).
@@ -45,15 +48,20 @@ Keep short **`typeLabel`** (EQL-ish) for display / fallback when `valueSchema` i
 ## Edges (property mapping only)
 
 - Publish **data edges only**: each `$ref` becomes one edge with `sourceHandle` / `targetHandle` set to the property names (e.g. `text` → `context`).
+- `state.<acceptsKey>` refs source from `ecp:accepts` with `sourceHandle` equal to the property name.
+- `returns` edges are not `$ref`s in steps. Draw from the step whose `.as` matches a `returns` property to `ecp:returns` (`targetHandle` = property name).
+- Layout ranks Inputs left and Outputs right (temporary control edges, then stripped).
 - Never show handle-less “source→target” control connectors in the UI. Viewers must filter to `kind === "data"` with both handles present.
 - **Fan-out** is supported: one output property may feed many inputs via multiple `$ref`s (multiple edges from the same `sourceHandle`).
 - **Fan-in to one field** is still a single value (one `$ref` or one literal per input key).
 
 ## Configure dialog (viewer)
 
-- **Configure** opens a wide dialog for the step.
+- Encode owns schema projection. The viewer owns Configure chrome (widgets, patch write-back).
+- **Configure** opens a wide dialog for the step or projected I/O node.
 - Edit literal params; **Remove** stays available after save (rebuild `step.input`, keep `$ref` keys).
-- **Add parameter** lists unbound Zod inputs; map **`valueSchema`** (fallback `typeLabel`) to editors (`string` / `number` / `boolean` / `enum` select / `json`).
+- **Add parameter** lists unbound Zod inputs on steps; on Inputs/Outputs it patches `workflow.accepts` / `workflow.returns` (not `steps[id]`).
+- Map **`valueSchema`** (fallback `typeLabel`) to editors (`string` / `number` / `boolean` / `enum` select / `json`).
 - Edit the commit key **`as` (store key)**; on rename, rewrite downstream `state.<oldAs>…` refs to the new key.
 - Persist via `ecp.patch` then `syncFromManifest` so Fluent, Mermaid, JSON, and React Flow stay aligned.
 
@@ -78,6 +86,6 @@ Keep short **`typeLabel`** (EQL-ish) for display / fallback when `valueSchema` i
 
 | Encode owns | Viewer owns |
 | ----------- | ----------- |
-| Ports, bindings, `$ref` edges, primitive `valueSchema` (+ constraints), `typeLabel` | Widget choice (e.g. `string`+`enum` → select), validation UX, chrome, patch write-back |
+| Ports, bindings, `$ref` edges, I/O projection from `accepts`/`returns`, primitive `valueSchema` (+ constraints), `typeLabel` | Widget choice (e.g. `string`+`enum` → select), Configure chrome, validation UX, patch write-back |
 
 Keep this file updated when changing React Flow render behavior.

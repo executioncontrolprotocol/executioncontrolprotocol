@@ -1,4 +1,5 @@
 import type { InputValue, StepNode, WorkflowNode } from "@executioncontrolprotocol/types"
+import { WORKFLOW_ACCEPTS_NODE_ID } from "./io-from-schema.js"
 import type { ReactFlowEdge } from "./types.js"
 
 function isStepNode(node: WorkflowNode): node is StepNode {
@@ -50,15 +51,24 @@ export function parseStateRef(
 
 /**
  * Extract data edges from step `.with()` `$ref` values.
+ * `acceptsKeys` maps `state.<key>` refs to the projected Inputs node.
  * @category Encoding
  */
-export function extractDataEdges(nodes: WorkflowNode[]): ReactFlowEdge[] {
+export function extractDataEdges(
+  nodes: WorkflowNode[],
+  acceptsKeys?: ReadonlySet<string>
+): ReactFlowEdge[] {
   const steps: StepNode[] = []
   collectSteps(nodes, steps)
 
   const asToStepId = new Map<string, string>()
   for (const step of steps) {
     if (step.as) asToStepId.set(step.as, step.id)
+  }
+  if (acceptsKeys) {
+    for (const key of acceptsKeys) {
+      if (!asToStepId.has(key)) asToStepId.set(key, WORKFLOW_ACCEPTS_NODE_ID)
+    }
   }
 
   const edges: ReactFlowEdge[] = []
@@ -73,9 +83,12 @@ export function extractDataEdges(nodes: WorkflowNode[]): ReactFlowEdge[] {
       const sourceStepId = asToStepId.get(parsed.asKey)
       if (!sourceStepId) continue
 
-      const sourceHandle = parsed.fieldPath
-        ? parsed.fieldPath.split(".")[0]
-        : "output"
+      const sourceHandle =
+        sourceStepId === WORKFLOW_ACCEPTS_NODE_ID
+          ? parsed.asKey
+          : parsed.fieldPath
+            ? parsed.fieldPath.split(".")[0]
+            : "output"
       edges.push({
         id: `data-${edgeIndex++}-${sourceStepId}-${step.id}-${paramName}`,
         source: sourceStepId,

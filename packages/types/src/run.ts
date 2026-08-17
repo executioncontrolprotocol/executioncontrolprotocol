@@ -32,6 +32,12 @@ export interface RunResult {
     status: RunStatus
   }
   state?: Record<string, unknown>
+  /**
+   * Public output picked from state using `workflow.returns` property names.
+   * Present when the workflow declares `returns` and the run completed (or when
+   * a returns object was assembled before a validation failure).
+   */
+  output?: Record<string, unknown>
   history?: Record<string, StepRunRecord>
   usage?: Record<string, unknown>
 }

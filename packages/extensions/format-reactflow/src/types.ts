@@ -51,16 +51,31 @@ export interface ReactFlowGroupData {
   kind: "parallel" | "branch" | "loop" | "workflow"
 }
 
+/** Workflow I/O projection (`accepts` / `returns`) — not a capability step. @category Encoding */
+export type ReactFlowIoKind = "accepts" | "returns"
+
+/** Payload for projected Inputs / Outputs nodes. @category Encoding */
+export interface ReactFlowIoData {
+  /** Display label (`Inputs` / `Outputs`). */
+  label: string
+  /** Which workflow contract this node edits. */
+  kind: ReactFlowIoKind
+  /** Input handles (Outputs node only). */
+  inputs: ReactFlowPort[]
+  /** Output handles (Inputs node only). */
+  outputs: ReactFlowPort[]
+}
+
 /** React Flow node. @category Encoding */
 export interface ReactFlowNode {
   /** Node id (typically a workflow step id). */
   id: string
   /** Node type for the viewer. */
-  type: "ecp-step" | "ecp-group"
+  type: "ecp-step" | "ecp-group" | "ecp-io"
   /** Layout position (absolute; canvas is the workflow surface). */
   position: { x: number; y: number }
   /** Node payload. */
-  data: ReactFlowStepData | ReactFlowGroupData
+  data: ReactFlowStepData | ReactFlowGroupData | ReactFlowIoData
   /** Soft size hint for layout. */
   style?: { width?: number; height?: number }
 }

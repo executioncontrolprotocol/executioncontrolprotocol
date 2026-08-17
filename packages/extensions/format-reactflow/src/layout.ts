@@ -1,5 +1,11 @@
 import dagre from "@dagrejs/dagre"
-import type { ReactFlowDocument, ReactFlowEncodeOptions, ReactFlowNode, ReactFlowStepData } from "./types.js"
+import type {
+  ReactFlowDocument,
+  ReactFlowEncodeOptions,
+  ReactFlowIoData,
+  ReactFlowNode,
+  ReactFlowStepData,
+} from "./types.js"
 
 const DEFAULT_NODE_WIDTH = 260
 const DEFAULT_NODE_HEIGHT = 160
@@ -7,10 +13,17 @@ const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
 
 function estimateNodeHeight(node: ReactFlowNode, fallback: number): number {
-  if (node.type !== "ecp-step") return fallback
-  const data = node.data as ReactFlowStepData
-  const portRows = Math.max(data.inputs.length, 1) + Math.max(data.outputs.length, 1)
-  return Math.max(fallback, HEADER_ESTIMATE + portRows * PORT_ROW_ESTIMATE)
+  if (node.type === "ecp-step") {
+    const data = node.data as ReactFlowStepData
+    const portRows = Math.max(data.inputs.length, 1) + Math.max(data.outputs.length, 1)
+    return Math.max(fallback, HEADER_ESTIMATE + portRows * PORT_ROW_ESTIMATE)
+  }
+  if (node.type === "ecp-io") {
+    const data = node.data as ReactFlowIoData
+    const portRows = Math.max(data.inputs.length + data.outputs.length, 1)
+    return Math.max(fallback, HEADER_ESTIMATE + portRows * PORT_ROW_ESTIMATE)
+  }
+  return fallback
 }
 
 /**

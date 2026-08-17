@@ -277,6 +277,10 @@ export interface WorkflowManifest {
   workflow: {
     id: string;
     label?: string;
+    /** JSON Schema object for run input. Same verb as Fluent `.accepts()`. */
+    accepts?: Record<string, unknown>;
+    /** JSON Schema object for public output. Same verb as Fluent `.returns()`. */
+    returns?: Record<string, unknown>;
   };
   steps: WorkflowNode[];
 }
@@ -856,6 +860,9 @@ const weeklyBrief = workflow("Weekly leadership brief")
 ```ts
 interface WorkflowBuilder {
   run(nodes: WorkflowBuilderNode[]): WorkflowBuilder;
+  id(id: string): WorkflowBuilder;
+  accepts(schema: ZodType | Record<string, unknown>): WorkflowBuilder;
+  returns(schema: ZodType | Record<string, unknown>): WorkflowBuilder;
   compile(): WorkflowManifest;
   validate(descriptor?: EnvironmentDescriptor): ValidationResult;
   toManifest(): WorkflowManifest;
@@ -871,7 +878,15 @@ interface WorkflowBuilder {
   "version": "1.0",
   "workflow": {
     "id": "weekly-leadership-brief",
-    "label": "Weekly leadership brief"
+    "label": "Weekly leadership brief",
+    "accepts": {
+      "type": "object",
+      "properties": { "query": { "type": "string" } }
+    },
+    "returns": {
+      "type": "object",
+      "properties": { "brief": { "type": "object" } }
+    }
   },
   "steps": [
     {

@@ -16,7 +16,10 @@ import {
   reactFlowRunProgress,
   registerFormatReactflowExtension,
   workflowToReactFlow,
+  WORKFLOW_ACCEPTS_NODE_ID,
+  WORKFLOW_RETURNS_NODE_ID,
   type ReactFlowDocument,
+  type ReactFlowIoData,
   type ReactFlowStepData,
 } from "../src/index.js"
 
@@ -104,7 +107,8 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
         },
       ],
     })
-    const data = doc.nodes[0]!.data as ReactFlowStepData
+    const stepNode = doc.nodes.find((n) => n.type === "ecp-step")!
+    const data = stepNode.data as ReactFlowStepData
     const prompt = data.inputs.find((p) => p.name === "prompt")
     expect(prompt?.binding).toBe("literal")
     expect(prompt?.valueTitle).toBe(longPrompt)
@@ -172,6 +176,32 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     await ecp.terminate()
   })
 
+  it("does not invent data edges for unknown state keys", () => {
+    const manifest = workflow("Missing as")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "B")
+          .with({ value: ref("nope") })
+          .as("b"),
+      ])
+      .toManifest()
+    expect(extractDataEdges(manifest.steps)).toHaveLength(0)
+  })
+
+  it("maps accepts keys to the Inputs node when provided", () => {
+    const manifest = workflow("From input")
+      .run([
+        step("@vendor/missing.generate", "Use")
+          .id("use")
+          .with({ prompt: ref("prompt") })
+          .as("out"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps, new Set(["prompt"]))
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.source).toBe(WORKFLOW_ACCEPTS_NODE_ID)
+    expect(edges[0]!.sourceHandle).toBe("prompt")
+  })
+
   it("parses state refs", () => {
     expect(parseStateRef("state.a.echo")).toEqual({ asKey: "a", fieldPath: "echo" })
     expect(parseStateRef("a")).toEqual({ asKey: "a", fieldPath: "" })
@@ -215,8 +245,9 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
-    expect(doc.nodes.every((n) => n.type === "ecp-step")).toBe(true)
-    expect(doc.nodes).toHaveLength(5)
+    expect(doc.nodes.filter((n) => n.type === "ecp-step")).toHaveLength(5)
+    expect(doc.nodes.some((n) => n.type === "ecp-io")).toBe(true)
+    expect(doc.nodes.some((n) => n.type === "ecp-group")).toBe(false)
     expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
   })
 
@@ -249,14 +280,49 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     ])
   })
 
-  it("renders empty workflow as an empty document", () => {
+  it("always projects an Inputs node even for an empty workflow", () => {
     const doc = workflowToReactFlow({
       schema: "@executioncontrolprotocol.workflow",
       version: "1.0",
       workflow: { id: "empty-wf", label: "Empty" },
       steps: [],
     })
-    expect(doc.nodes).toHaveLength(0)
+    expect(doc.nodes).toHaveLength(1)
+    expect(doc.nodes[0]!.id).toBe("ecp:accepts")
+    expect(doc.nodes[0]!.type).toBe("ecp-io")
+    expect((doc.nodes[0]!.data as { kind: string }).kind).toBe("accepts")
+    expect(doc.edges).toHaveLength(0)
+  })
+
+  it("ranks Inputs left of Outputs when there are no steps", () => {
+    const doc = workflowToReactFlow({
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: {
+        id: "io-only",
+        returns: { type: "object", properties: { brief: { type: "object" } } },
+      },
+      steps: [],
+    })
+    const inputs = doc.nodes.find((n) => n.id === WORKFLOW_ACCEPTS_NODE_ID)!
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!
+    expect(inputs.position.x).toBeLessThan(outputs.position.x)
+    expect(doc.edges).toHaveLength(0)
+  })
+
+  it("ranks Inputs left of Outputs when there are no steps", () => {
+    const doc = workflowToReactFlow({
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: {
+        id: "io-only",
+        returns: { type: "object", properties: { brief: { type: "object" } } },
+      },
+      steps: [],
+    })
+    const inputs = doc.nodes.find((n) => n.id === WORKFLOW_ACCEPTS_NODE_ID)!
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!
+    expect(inputs.position.x).toBeLessThan(outputs.position.x)
     expect(doc.edges).toHaveLength(0)
   })
 
@@ -330,5 +396,59 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(seen).toContain(`${stepId}:completed`)
     expect(onDone).toHaveBeenCalled()
     await ecp.terminate()
+  })
+
+  it("projects accepts ports and $ref edges from the Inputs node", () => {
+    const manifest = workflow("With input")
+      .accepts({
+        type: "object",
+        properties: { prompt: { type: "string" } },
+        required: ["prompt"],
+      })
+      .run([
+        step("@vendor/missing.generate", "Summarize")
+          .id("summarize")
+          .with({ prompt: ref("prompt") })
+          .as("brief"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const inputs = doc.nodes.find((n) => n.id === WORKFLOW_ACCEPTS_NODE_ID)
+    expect(inputs?.type).toBe("ecp-io")
+    const io = inputs!.data as ReactFlowIoData
+    expect(io.kind).toBe("accepts")
+    expect(io.outputs.map((p) => p.id)).toEqual(["prompt"])
+    expect(doc.nodes.some((n) => n.id === WORKFLOW_RETURNS_NODE_ID)).toBe(false)
+    const edge = doc.edges.find((e) => e.target === "summarize" && e.targetHandle === "prompt")
+    expect(edge?.source).toBe(WORKFLOW_ACCEPTS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("prompt")
+    expect(inputs!.position.x).toBeLessThan(doc.nodes.find((n) => n.id === "summarize")!.position.x)
+  })
+
+  it("projects Outputs from returns and wires matching .as steps", () => {
+    const manifest = workflow("With output")
+      .returns({
+        type: "object",
+        properties: { brief: { type: "object" } },
+        required: ["brief"],
+      })
+      .run([
+        step("@vendor/missing.generate", "Summarize")
+          .id("summarize")
+          .with({ prompt: "x" })
+          .as("brief"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)
+    expect(outputs?.type).toBe("ecp-io")
+    const io = outputs!.data as ReactFlowIoData
+    expect(io.kind).toBe("returns")
+    expect(io.inputs.map((p) => p.id)).toEqual(["brief"])
+    expect(io.outputs).toHaveLength(0)
+    const edge = doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.source).toBe("summarize")
+    expect(edge?.targetHandle).toBe("brief")
+    expect(doc.nodes.find((n) => n.id === "summarize")!.position.x).toBeLessThan(outputs!.position.x)
   })
 })

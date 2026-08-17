@@ -10,10 +10,20 @@ Use for:
 
 - Building environments: `environment()`, `extension()`, `runtime()`, `policy()`
 - Operational APIs on **`Ecp`** after `await env.init()`: `run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, `invoke`, `terminate`
-- Workflow authoring: `workflow()`, `step()`, `parallel()`, etc.
+- Workflow authoring: `workflow()`, `step()`, `.accepts()` / `.returns()`, `parallel()`, etc.
 - Fluent output: `ecp.encode(manifest).as("fluent")` (no `@executioncontrolprotocol/format-fluent` extension)
 
 Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) should resolve only `@executioncontrolprotocol/core` for browser apps.
+
+```ts
+import { workflow, step, ref } from "@executioncontrolprotocol/core"
+
+const manifest = workflow("Weekly brief")
+  .accepts({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] })
+  .returns({ type: "object", properties: { echo: { type: "object" } } })
+  .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: ref("prompt") }).as("echo")])
+  .toManifest()
+```
 
 ## Host subpaths
 

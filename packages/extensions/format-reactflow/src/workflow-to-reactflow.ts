@@ -1,6 +1,12 @@
 import type { Registry } from "@executioncontrolprotocol/core"
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
 import { extractDataEdges } from "./extract-data-edges.js"
+import {
+  acceptsReactFlowNode,
+  jsonSchemaObjectProperties,
+  returnsReactFlowNode,
+  WORKFLOW_RETURNS_NODE_ID,
+} from "./io-from-schema.js"
 import { layoutReactFlowDocument } from "./layout.js"
 import { portsForStep, ensureOutputPort } from "./ports-from-zod.js"
 import type {
@@ -141,9 +147,48 @@ function renderNodes(nodes: WorkflowNode[], registry: Registry | undefined): Ren
   return { nodes: outNodes, edges: outEdges, entryIds, exitIds }
 }
 
+function acceptsPropertyKeys(manifest: WorkflowManifest): Set<string> {
+  return new Set(jsonSchemaObjectProperties(manifest.workflow.accepts).map((field) => field.name))
+}
+
+function sourceHandleForStep(data: ReactFlowStepData): string {
+  return data.outputs[0]?.id ?? "output"
+}
+
+/**
+ * Edges from steps whose `.as` matches a `returns` property to the Outputs node.
+ */
+function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[]): ReactFlowEdge[] {
+  const returnsNode = nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID && n.type === "ecp-io")
+  if (!returnsNode) return []
+  const fields = jsonSchemaObjectProperties(manifest.workflow.returns)
+  const asToStep = new Map<string, ReactFlowNode>()
+  for (const node of nodes) {
+    if (node.type !== "ecp-step") continue
+    const data = node.data as ReactFlowStepData
+    if (data.as) asToStep.set(data.as, node)
+  }
+  const edges: ReactFlowEdge[] = []
+  let i = 0
+  for (const field of fields) {
+    const source = asToStep.get(field.name)
+    if (!source || source.type !== "ecp-step") continue
+    const data = source.data as ReactFlowStepData
+    edges.push({
+      id: `data-returns-${i++}-${source.id}-${field.name}`,
+      source: source.id,
+      target: WORKFLOW_RETURNS_NODE_ID,
+      sourceHandle: sourceHandleForStep(data),
+      targetHandle: field.name,
+      data: { kind: "data" },
+    })
+  }
+  return edges
+}
+
 /**
  * Convert a workflow manifest into a positioned React Flow document.
- * Emits step nodes and **data** edges only (`$ref` property mappings).
+ * Emits step nodes, projected Inputs / Outputs (`ecp-io`), and **data** edges.
  * Sequential control edges are used internally for layout, then discarded.
  * @category Encoding
  */
@@ -152,26 +197,43 @@ export function workflowToReactFlow(
   registry?: Registry,
   options?: ReactFlowEncodeOptions
 ): ReactFlowDocument {
-  if (manifest.steps.length === 0) {
-    return { nodes: [], edges: [] }
-  }
+  const acceptsNode = acceptsReactFlowNode(manifest)
+  const returnsNode = returnsReactFlowNode(manifest)
+  const body =
+    manifest.steps.length === 0
+      ? { nodes: [] as ReactFlowNode[], edges: [] as ReactFlowEdge[], entryIds: [] as string[], exitIds: [] as string[] }
+      : renderNodes(manifest.steps, registry)
 
-  const body = renderNodes(manifest.steps, registry)
-  const dataEdges = extractDataEdges(manifest.steps)
+  const nodes: ReactFlowNode[] = [acceptsNode, ...body.nodes]
+  if (returnsNode) nodes.push(returnsNode)
 
-  for (const edge of dataEdges) {
+  const dataEdges = extractDataEdges(manifest.steps, acceptsPropertyKeys(manifest))
+  const returnsEdges = extractReturnsEdges(manifest, nodes)
+  const allDataEdges = [...dataEdges, ...returnsEdges]
+
+  for (const edge of allDataEdges) {
     if (!edge.sourceHandle) continue
-    const source = body.nodes.find((n) => n.id === edge.source && n.type === "ecp-step")
+    const source = nodes.find((n) => n.id === edge.source)
     if (!source || source.type !== "ecp-step") continue
     const data = source.data as ReactFlowStepData
     ensureOutputPort(data.outputs, edge.sourceHandle)
   }
 
+  const layoutEdges: ReactFlowEdge[] = [...body.edges, ...allDataEdges]
+  if (body.entryIds.length > 0) {
+    connectControl(layoutEdges, [acceptsNode.id], body.entryIds, "io-accepts")
+  } else if (returnsNode) {
+    connectControl(layoutEdges, [acceptsNode.id], [returnsNode.id], "io-empty")
+  }
+  if (returnsNode && body.exitIds.length > 0) {
+    connectControl(layoutEdges, body.exitIds, [returnsNode.id], "io-returns")
+  }
+
   const doc: ReactFlowDocument = {
-    nodes: body.nodes,
+    nodes,
     // Control edges rank sequential / parallel steps for dagre; they are not
     // property mappings and are stripped from the published document below.
-    edges: [...body.edges, ...dataEdges],
+    edges: layoutEdges,
   }
   const laid = layoutReactFlowDocument(doc, options)
   return {

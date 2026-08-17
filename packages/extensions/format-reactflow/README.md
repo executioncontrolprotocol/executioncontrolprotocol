@@ -1,6 +1,6 @@
 # `@executioncontrolprotocol/format-reactflow`
 
-Encode-only formatter that turns an `@executioncontrolprotocol.workflow` manifest into React Flow–compatible JSON (flat step nodes with Zod-backed ports, `$ref` data edges, and dagre layout).
+Encode-only formatter that turns an `@executioncontrolprotocol.workflow` manifest into React Flow–compatible JSON (flat step nodes, projected Inputs/Outputs from `accepts`/`returns`, `$ref` data edges, and dagre layout).
 
 **Render contract (required reading):** [REACTFLOW_RENDER.md](./REACTFLOW_RENDER.md) — flat canvas, data edges only, port bindings, fan-out, and viewer run/configure expectations.
 
