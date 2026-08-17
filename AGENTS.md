@@ -97,6 +97,7 @@ Oclif v4 (`@oclif/core`). Commands live in `packages/cli/src/commands/`; build w
 
 ```sh
 ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/07-accepts-returns/workflow.ts --env examples/07-accepts-returns/environment.ts --input examples/07-accepts-returns/input.json
 ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp compile examples/01-echo/workflow.ts -o /tmp/workflow.json
 ecp describe --env examples/01-echo/environment.ts

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
+import { readFile } from "node:fs/promises"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
@@ -13,6 +16,8 @@ import {
 } from "../src/index.js"
 import { compileWorkflowSource } from "../src/compile/index.js"
 import { initTestEcp } from "./helpers.js"
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
 
 describe("workflow accepts / returns", () => {
   it("projects Zod objects onto workflow.accepts and workflow.returns", () => {
@@ -70,6 +75,23 @@ describe("workflow accepts / returns", () => {
     expect(compiled.ok, compiled.compileErrors?.map((e) => e.message).join("; ")).toBe(true)
     expect(compiled.manifest?.workflow.accepts).toEqual(manifest.workflow.accepts)
     expect(compiled.manifest?.workflow.returns).toEqual(manifest.workflow.returns)
+  })
+
+  it("compiles examples/07-accepts-returns workflow source", async () => {
+    const source = await readFile(join(repoRoot, "examples/07-accepts-returns/workflow.ts"), "utf8")
+    const compiled = await compileWorkflowSource({
+      source,
+      filename: "examples/07-accepts-returns/workflow.ts",
+    })
+    expect(compiled.ok, compiled.compileErrors?.map((e) => e.message).join("; ")).toBe(true)
+    expect(compiled.manifest?.workflow.accepts).toMatchObject({
+      type: "object",
+      properties: { value: { type: "string" } },
+    })
+    expect(compiled.manifest?.workflow.returns).toMatchObject({
+      type: "object",
+      properties: { echo: { type: "object" } },
+    })
   })
 
   it("validates run input against accepts", () => {

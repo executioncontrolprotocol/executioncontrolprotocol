@@ -10,5 +10,6 @@ Tree: https://github.com/executioncontrolprotocol/executioncontrolprotocol/tree/
 | `04-encode-decode` | TOON encode/decode round-trip |
 | `05-test-session` | `ecp test start` / `run --to` / `rerun` / `status` |
 | `06-invoke` | `ecp invoke` outside a workflow |
+| `07-accepts-returns` | `.accepts()` / `.returns()` + `ecp run --input` |
 
 See `examples/README.md` in this repo.
