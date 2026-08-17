@@ -5,6 +5,14 @@ export { formatReactflowExtension } from "./extension.js"
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
 export { portsForStep, formatLiteralValue, truncateLiteralPreview, ensureOutputPort } from "./ports-from-zod.js"
+export {
+  valueSchemaFromZod,
+  valueSchemaFromEqlLabel,
+  valueSchemaFromJsonSchemaProp,
+  valueSchemasFromCapabilitySchema,
+  unwrapZodType,
+  type ValueSchemaHint,
+} from "./value-schema-hint.js"
 export { layoutReactFlowDocument } from "./layout.js"
 export {
   reactFlowRunProgress,

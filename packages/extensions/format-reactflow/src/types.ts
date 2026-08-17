@@ -9,6 +9,11 @@ export interface ReactFlowPort {
   name: string
   /** Human-readable type (EQL-ish or `unknown`). */
   typeLabel: string
+  /**
+   * Portable JSON Schema hint for the port value (primitives + constraints).
+   * Never includes UI widget names — viewers map this to controls.
+   */
+  valueSchema?: Record<string, unknown>
   /** Whether the field is required (inputs only). */
   required?: boolean
   /** How this input is supplied (`literal` `.with()` value or `$ref`). */

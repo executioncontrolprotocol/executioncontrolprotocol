@@ -3,6 +3,11 @@ import { introspectCapabilitySchema } from "@executioncontrolprotocol/core"
 import type { InputValue, StepNode } from "@executioncontrolprotocol/types"
 import { parseStateRef } from "./extract-data-edges.js"
 import type { ReactFlowPort } from "./types.js"
+import {
+  valueSchemaFromEqlLabel,
+  valueSchemasFromCapabilitySchema,
+  type ValueSchemaHint,
+} from "./value-schema-hint.js"
 
 const LITERAL_PREVIEW_MAX = 56
 
@@ -14,6 +19,20 @@ function typeLabelFor(
   const raw = eqlTypes?.[name]
   if (raw) return raw
   return required ? "unknown!" : "unknown"
+}
+
+function attachValueSchema(
+  port: ReactFlowPort,
+  schemas: Map<string, ValueSchemaHint>,
+  typeLabel: string
+): void {
+  const fromCap = schemas.get(port.name)
+  if (fromCap) {
+    port.valueSchema = fromCap
+    return
+  }
+  const fromLabel = valueSchemaFromEqlLabel(typeLabel)
+  if (fromLabel) port.valueSchema = fromLabel
 }
 
 function isRefValue(value: InputValue): value is { $ref: string } {
@@ -86,10 +105,7 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
  * Ensure an output port exists for a data-edge source handle.
  * @category Encoding
  */
-export function ensureOutputPort(
-  outputs: ReactFlowPort[],
-  handleId: string
-): void {
+export function ensureOutputPort(outputs: ReactFlowPort[], handleId: string): void {
   if (outputs.some((p) => p.id === handleId)) return
   outputs.push({
     id: handleId,
@@ -110,38 +126,48 @@ export function portsForStep(
   const cap = registry?.getCapability(String(step.uses))
   const inputFields = introspectCapabilitySchema(cap?.inputSchema)
   const outputFields = introspectCapabilitySchema(cap?.outputSchema)
+  const inputSchemas = valueSchemasFromCapabilitySchema(cap?.inputSchema)
+  const outputSchemas = valueSchemasFromCapabilitySchema(cap?.outputSchema)
 
   const inputs: ReactFlowPort[] = []
   const seenInputs = new Set<string>()
 
   for (const name of inputFields.required) {
     seenInputs.add(name)
-    inputs.push({
+    const typeLabel = typeLabelFor(inputFields.eqlTypes, name, true)
+    const port: ReactFlowPort = {
       id: name,
       name,
-      typeLabel: typeLabelFor(inputFields.eqlTypes, name, true),
+      typeLabel,
       required: true,
-    })
+    }
+    attachValueSchema(port, inputSchemas, typeLabel)
+    inputs.push(port)
   }
   for (const name of inputFields.optional) {
     seenInputs.add(name)
-    inputs.push({
+    const typeLabel = typeLabelFor(inputFields.eqlTypes, name, false)
+    const port: ReactFlowPort = {
       id: name,
       name,
-      typeLabel: typeLabelFor(inputFields.eqlTypes, name, false),
+      typeLabel,
       required: false,
-    })
+    }
+    attachValueSchema(port, inputSchemas, typeLabel)
+    inputs.push(port)
   }
 
   if (step.input) {
     for (const name of Object.keys(step.input)) {
       if (seenInputs.has(name)) continue
-      inputs.push({
+      const port: ReactFlowPort = {
         id: name,
         name,
         typeLabel: "unknown",
         required: false,
-      })
+      }
+      attachValueSchema(port, inputSchemas, "unknown")
+      inputs.push(port)
     }
   }
 
@@ -149,15 +175,18 @@ export function portsForStep(
 
   const outputs: ReactFlowPort[] = []
   for (const name of [...outputFields.required, ...outputFields.optional]) {
-    outputs.push({
+    const typeLabel = typeLabelFor(
+      outputFields.eqlTypes,
+      name,
+      outputFields.required.includes(name)
+    )
+    const port: ReactFlowPort = {
       id: name,
       name,
-      typeLabel: typeLabelFor(
-        outputFields.eqlTypes,
-        name,
-        outputFields.required.includes(name)
-      ),
-    })
+      typeLabel,
+    }
+    attachValueSchema(port, outputSchemas, typeLabel)
+    outputs.push(port)
   }
 
   if (outputs.length === 0 && step.as) {

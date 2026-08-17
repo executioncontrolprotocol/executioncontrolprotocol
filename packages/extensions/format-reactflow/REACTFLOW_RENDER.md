@@ -13,10 +13,27 @@ Canonical rules for `@executioncontrolprotocol/format-reactflow` and any React F
 - One node per workflow step (capability invocation).
 - Port list is vertical: **inputs first (left handles), then outputs (right handles)**.
 - Ports come from capability Zod introspection (top-level fields), plus any extra keys present on `step.input`.
+- Each port may include a portable **`valueSchema`** JSON Schema hint (primitives + constraints). Never encode UI widget names.
 - Show a handle for **every** schema port on the node:
   - **Unconnected** — hollow ring (border only).
   - **Connected** (data edge / `$ref`) — solid fill.
 - Input handle accent: tertiary cyan (`--color-tertiary-fixed-dim`). Output accent may stay primary yellow for the handle chrome; **idle route stroke matches the cyan connection color**.
+
+## Type hints (`valueSchema`) — encode stays UI-neutral
+
+Ports project capability types as **JSON Schema fragments**, centered on primitives. Constraints ride on the primitive; viewers choose widgets.
+
+| Capability / Zod | Encode `valueSchema` | Example viewer mapping (demo) |
+| --- | --- | --- |
+| `z.string()` | `{ "type": "string" }` | text / textarea |
+| `z.enum(["a","b"])` | `{ "type": "string", "enum": ["a","b"] }` | **`<select>`** (or radios / chips — viewer’s call) |
+| `z.number()` | `{ "type": "number" }` | number input |
+| `z.boolean()` | `{ "type": "boolean" }` | checkbox |
+| `z.object({…})` | `{ "type": "object", "properties": … }` | JSON textarea (for now) |
+
+Canonical story: **enum → dropdown** happens only in the viewer. Encode never publishes `"widget": "dropdown"`. Another app may map the same schema differently.
+
+Keep short **`typeLabel`** (EQL-ish) for display / fallback when `valueSchema` is absent.
 
 ## Bindings (literals vs refs)
 
@@ -36,7 +53,7 @@ Canonical rules for `@executioncontrolprotocol/format-reactflow` and any React F
 
 - **Configure** opens a wide dialog for the step.
 - Edit literal params; **Remove** stays available after save (rebuild `step.input`, keep `$ref` keys).
-- **Add parameter** lists unbound Zod inputs; map type labels to editors (`string` / `number` / `boolean` / `json`).
+- **Add parameter** lists unbound Zod inputs; map **`valueSchema`** (fallback `typeLabel`) to editors (`string` / `number` / `boolean` / `enum` select / `json`).
 - Edit the commit key **`as` (store key)**; on rename, rewrite downstream `state.<oldAs>…` refs to the new key.
 - Persist via `ecp.patch` then `syncFromManifest` so Fluent, Mermaid, JSON, and React Flow stay aligned.
 
@@ -56,7 +73,11 @@ Canonical rules for `@executioncontrolprotocol/format-reactflow` and any React F
 
 | Concern | Owner |
 | ------- | ----- |
-| Flat nodes, port metadata, data edges, layout, progress bus | `@executioncontrolprotocol/format-reactflow` |
-| Handle hollow/solid, edge colors/ants, configure dialog, inspect control, patch write-back | browser-demo React Flow panel |
+| Flat nodes, port metadata (`typeLabel`, **`valueSchema`**), data edges, layout, progress bus | `@executioncontrolprotocol/format-reactflow` |
+| Handle hollow/solid, edge colors/ants, configure dialog (schema → widget map), inspect control, patch write-back | browser-demo React Flow panel |
+
+| Encode owns | Viewer owns |
+| ----------- | ----------- |
+| Ports, bindings, `$ref` edges, primitive `valueSchema` (+ constraints), `typeLabel` | Widget choice (e.g. `string`+`enum` → select), validation UX, chrome, patch write-back |
 
 Keep this file updated when changing React Flow render behavior.
