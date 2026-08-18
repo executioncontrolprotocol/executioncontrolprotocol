@@ -10,6 +10,8 @@ npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-cor
 
 Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotocol.io` (docs skill `ecp`).
 
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. It breaks CI and consumer installs. For unpublished local packages, use `npm link` after `npm run build`. Keep registry ranges in `package.json`.
+
 ## ECP Fluent API monorepo (`@executioncontrolprotocol/*`)
 
 | Path | Purpose |

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/browser",
-  "version": "0.11.3",
+  "version": "0.12.0",
   "description": "ECP browser runtime and environment extensions",
   "license": "Apache-2.0",
   "type": "module",
@@ -23,18 +23,18 @@
     "zod": "^3.24.0"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "0.11.3",
-    "@executioncontrolprotocol/browser-secrets": "0.11.3",
-    "@executioncontrolprotocol/policies": "0.11.3",
-    "@executioncontrolprotocol/types": "0.11.3"
+    "@executioncontrolprotocol/core": "0.12.0",
+    "@executioncontrolprotocol/browser-secrets": "0.12.0",
+    "@executioncontrolprotocol/policies": "0.12.0",
+    "@executioncontrolprotocol/types": "0.12.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/chrome-ai": "0.11.3",
-    "@executioncontrolprotocol/format-eql": "0.11.3",
-    "@executioncontrolprotocol/format-toon": "0.11.3",
-    "@executioncontrolprotocol/format-mermaid": "0.11.3",
-    "@executioncontrolprotocol/format-reactflow": "0.11.3",
-    "@executioncontrolprotocol/harnesses-browser-nano": "0.11.3",
+    "@executioncontrolprotocol/chrome-ai": "0.12.0",
+    "@executioncontrolprotocol/format-eql": "0.12.0",
+    "@executioncontrolprotocol/format-toon": "0.12.0",
+    "@executioncontrolprotocol/format-mermaid": "0.12.0",
+    "@executioncontrolprotocol/format-reactflow": "0.12.0",
+    "@executioncontrolprotocol/harnesses-browser-nano": "0.12.0",
     "@executioncontrolprotocol/extension-fal": "0.10.1",
     "@executioncontrolprotocol/extension-image-sharp": "0.10.1",
     "typescript": "^5.7.0",

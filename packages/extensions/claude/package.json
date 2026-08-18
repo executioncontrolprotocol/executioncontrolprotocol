@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/claude",
-  "version": "0.11.3",
+  "version": "0.12.0",
   "description": "Anthropic Claude provider for ECP",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,13 +20,13 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.11.3",
-    "@executioncontrolprotocol/types": "^0.11.3",
+    "@executioncontrolprotocol/core": "^0.12.0",
+    "@executioncontrolprotocol/types": "^0.12.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.11.3",
-    "@executioncontrolprotocol/types": "0.11.3",
+    "@executioncontrolprotocol/core": "0.12.0",
+    "@executioncontrolprotocol/types": "0.12.0",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }
