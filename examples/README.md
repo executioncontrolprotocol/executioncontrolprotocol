@@ -12,6 +12,7 @@ Install the CLI: `npm install -g @executioncontrolprotocol/cli` (or build/link f
 | [04-encode-decode](./04-encode-decode) | TOON encode / decode round-trip |
 | [05-test-session](./05-test-session) | `ecp test start` / `run --to` / `rerun` / `status` |
 | [06-invoke](./06-invoke) | `ecp invoke` outside a workflow |
+| [07-accepts-returns](./07-accepts-returns) | `.accepts()` / `.returns()` + `ecp run --input` |
 
 Vendor examples (fal, Slack, Adobe, …): https://github.com/executioncontrolprotocol/extensions/tree/main/examples
 

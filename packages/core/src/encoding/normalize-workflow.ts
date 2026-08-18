@@ -112,6 +112,8 @@ export function normalizeWorkflowManifest(manifest: WorkflowManifest): WorkflowM
     workflow: {
       id: manifest.workflow.id,
       ...(manifest.workflow.label ? { label: manifest.workflow.label } : {}),
+      ...(manifest.workflow.accepts ? { accepts: manifest.workflow.accepts } : {}),
+      ...(manifest.workflow.returns ? { returns: manifest.workflow.returns } : {}),
     },
     steps: manifest.steps.map(normalizeNode),
   }

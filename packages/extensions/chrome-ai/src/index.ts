@@ -15,6 +15,7 @@ import { z } from "zod"
 import {
   assertModelReady,
   getModelInstallState,
+  getPreferredCreateOptions,
   readAvailability,
   startModelDownload,
 } from "./model-install.js"
@@ -43,7 +44,9 @@ async function runChromePrompt(
     throw new Error("Chrome LanguageModel API is not available")
   }
   ctx.usage.increment({ modelCalls: 1 })
-  const session = await createChromeLanguageModelSession(model, input.system)
+  const preferred = getPreferredCreateOptions()
+  const sessionOptions = preferred.kind === "bare" ? {} : preferred.options
+  const session = await createChromeLanguageModelSession(model, input.system, sessionOptions)
   const effectivePrompt = buildChromePromptWithContext(input.prompt, input.context)
   const response = await session.prompt(effectivePrompt)
   return { text: normalizePromptResponse(response) }
@@ -57,6 +60,7 @@ const InstallStateSchema = z.object({
   loaded: z.number().optional(),
   total: z.number().optional(),
   error: z.string().optional(),
+  hint: z.string().optional(),
 })
 
 /** Chrome built-in AI provider. @category Extensions */
@@ -99,10 +103,20 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
 
 catalogExtension(chromeAiExtension)
 
-export type { ChromeAvailabilityStatus, ChromeModelInstallPhase, ChromeModelInstallState } from "./model-install.js"
+export type {
+  ChromeAvailabilityStatus,
+  ChromeModelInstallPhase,
+  ChromeModelInstallState,
+  ChromeModelStallCheckInput,
+  PreferredChromeCreateOptions,
+} from "./model-install.js"
 export {
   assertModelReady,
+  CHROME_MODEL_STALL_HINT,
+  CHROME_MODEL_STALL_MS,
   getModelInstallState,
+  getPreferredCreateOptions,
+  isChromeModelInstallStalled,
   readAvailability,
   resetModelInstallState,
   startModelDownload,

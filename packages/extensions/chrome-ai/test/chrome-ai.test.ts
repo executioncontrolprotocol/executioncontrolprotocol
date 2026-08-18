@@ -57,16 +57,36 @@ describe("@executioncontrolprotocol/chrome-ai", () => {
     expect(result).toEqual({ available: true, supported: true, status: "available" })
   })
 
+  it("startModelDownload fails fast without user activation when downloadable", async () => {
+    ;(globalThis as { LanguageModel?: unknown }).LanguageModel = {
+      availability: vi.fn().mockResolvedValue("downloadable"),
+      create: vi.fn(),
+    }
+    Object.defineProperty(globalThis.navigator, "userActivation", {
+      configurable: true,
+      value: { isActive: false },
+    })
+    try {
+      const started = await startModelDownload()
+      expect(started.started).toBe(false)
+      expect(getModelInstallState().phase).toBe("error")
+      expect(getModelInstallState().error).toMatch(/user click/i)
+      expect(
+        (globalThis as { LanguageModel: { create: ReturnType<typeof vi.fn> } }).LanguageModel.create
+      ).not.toHaveBeenCalled()
+    } finally {
+      Reflect.deleteProperty(globalThis.navigator, "userActivation")
+    }
+  })
+
   it("startModelDownload reports progress and becomes ready", async () => {
-    const availability = vi
-      .fn()
-      .mockResolvedValueOnce("downloadable")
-      .mockResolvedValue("available")
+    const availability = vi.fn().mockResolvedValue("available")
     ;(globalThis as { LanguageModel?: unknown }).LanguageModel = {
       availability,
       create: vi.fn().mockImplementation(async ({ monitor }) => {
         monitor?.({
           addEventListener: (_type: string, fn: (e: { loaded: number; total: number }) => void) => {
+            fn({ loaded: 0, total: 100 })
             fn({ loaded: 50, total: 100 })
             fn({ loaded: 100, total: 100 })
           },
@@ -74,22 +94,56 @@ describe("@executioncontrolprotocol/chrome-ai", () => {
         return { prompt: vi.fn().mockResolvedValue({ text: "ok" }) }
       }),
     }
+    Object.defineProperty(globalThis.navigator, "userActivation", {
+      configurable: true,
+      value: { isActive: true },
+    })
+    try {
+      const started = await startModelDownload()
+      expect(started.started).toBe(true)
 
-    const started = await startModelDownload()
-    expect(started.started).toBe(true)
+      await vi.waitFor(() => {
+        expect(getModelInstallState()).toMatchObject({ phase: "ready", status: "available" })
+      }, { timeout: 2000 })
+    } finally {
+      Reflect.deleteProperty(globalThis.navigator, "userActivation")
+    }
+  })
 
-    await vi.waitFor(() => getModelInstallState().phase === "ready", { timeout: 2000 })
-    expect(getModelInstallState()).toMatchObject({ phase: "ready", status: "available" })
+  it("readAvailability prefers bare options when already available", async () => {
+    const availability = vi.fn().mockImplementation(async (opts?: unknown) => {
+      if (opts === undefined) return "available"
+      return "downloadable"
+    })
+    ;(globalThis as { LanguageModel?: unknown }).LanguageModel = { availability }
+    const result = await readAvailability()
+    expect(result).toEqual({ available: true, supported: true, status: "available" })
+    const { getPreferredCreateOptions } = await import("../src/model-install.js")
+    expect(getPreferredCreateOptions()).toEqual({ kind: "bare" })
   })
 
   it("getModelInstallState capability returns snapshot", async () => {
     ;(globalThis as { LanguageModel?: unknown }).LanguageModel = {
       availability: vi.fn().mockResolvedValue("available"),
+      create: vi.fn().mockResolvedValue({ prompt: vi.fn() }),
     }
-    await startModelDownload()
-    const cap = chromeAiExtension.capabilities.find((c) => c.id === "@executioncontrolprotocol/chrome-ai.getModelInstallState")
-    const result = await cap!.handler!({}, {} as never)
-    expect(result).toMatchObject({ phase: "ready" })
+    Object.defineProperty(globalThis.navigator, "userActivation", {
+      configurable: true,
+      value: { isActive: true },
+    })
+    try {
+      await startModelDownload()
+      await vi.waitFor(() => {
+        expect(getModelInstallState().phase).toBe("ready")
+      }, { timeout: 2000 })
+      const cap = chromeAiExtension.capabilities.find(
+        (c) => c.id === "@executioncontrolprotocol/chrome-ai.getModelInstallState"
+      )
+      const result = await cap!.handler!({}, {} as never)
+      expect(result).toMatchObject({ phase: "ready" })
+    } finally {
+      Reflect.deleteProperty(globalThis.navigator, "userActivation")
+    }
   })
 
   it("generate returns text from LanguageModel session", async () => {
@@ -167,6 +221,35 @@ describe("@executioncontrolprotocol/chrome-ai", () => {
     }
     const result = await readAvailability()
     expect(result.status).toBe("unsupported")
+  })
+
+  it("isChromeModelInstallStalled is false while progress is recent", async () => {
+    const { isChromeModelInstallStalled, CHROME_MODEL_STALL_MS } = await import(
+      "../src/model-install.js"
+    )
+    expect(
+      isChromeModelInstallStalled({
+        phase: "downloading",
+        status: "downloading",
+        loaded: 0,
+        lastProgressAt: 1_000,
+        now: 1_000 + CHROME_MODEL_STALL_MS - 1,
+      })
+    ).toBe(false)
+  })
+
+  it("isChromeModelInstallStalled suggests restart after no progress", async () => {
+    const { isChromeModelInstallStalled, CHROME_MODEL_STALL_MS, CHROME_MODEL_STALL_HINT } =
+      await import("../src/model-install.js")
+    expect(
+      isChromeModelInstallStalled({
+        phase: "downloading",
+        status: "downloading",
+        lastProgressAt: 1_000,
+        now: 1_000 + CHROME_MODEL_STALL_MS,
+      })
+    ).toBe(true)
+    expect(CHROME_MODEL_STALL_HINT).toMatch(/quit and reopen Chrome/i)
   })
 
   it("registers on global registry once", async () => {

@@ -6,8 +6,20 @@ export interface WorkflowManifest {
   schema: "@executioncontrolprotocol.workflow"
   version: EcpVersion
   workflow: {
+    /** Workflow id. */
     id: string
+    /** Display label. */
     label?: string
+    /**
+     * JSON Schema (object) for run input (`ecp.run(..., { input })`).
+     * Property names seed workflow state and are read with `ref("name")`.
+     */
+    accepts?: Record<string, unknown>
+    /**
+     * JSON Schema (object) for public run output.
+     * Property names are top-level state keys (typically a step `.as()`).
+     */
+    returns?: Record<string, unknown>
   }
   steps: WorkflowNode[]
 }

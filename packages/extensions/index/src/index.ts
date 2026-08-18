@@ -6,6 +6,10 @@ export { registerTelemetryExtension, telemetryExtension } from "@executioncontro
 export { registerFormatToonExtension, formatToonExtension } from "@executioncontrolprotocol/format-toon"
 export { registerFormatEqlExtension, formatEqlExtension } from "@executioncontrolprotocol/format-eql"
 export { registerFormatMermaidExtension, formatMermaidExtension } from "@executioncontrolprotocol/format-mermaid"
+export {
+  registerFormatReactflowExtension,
+  formatReactflowExtension,
+} from "@executioncontrolprotocol/format-reactflow"
 
 import { registerMemoryExtension } from "@executioncontrolprotocol/extension-memory"
 import { registerOpenaiExtension } from "@executioncontrolprotocol/extension-openai"
@@ -15,6 +19,7 @@ import { registerTelemetryExtension } from "@executioncontrolprotocol/extension-
 import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
 import { registerFormatEqlExtension } from "@executioncontrolprotocol/format-eql"
 import { registerFormatMermaidExtension } from "@executioncontrolprotocol/format-mermaid"
+import { registerFormatReactflowExtension } from "@executioncontrolprotocol/format-reactflow"
 
 /** Namespaced ids registered by {@link registerAllExtensions}. */
 export const BUNDLED_EXTENSION_IDS = [
@@ -26,6 +31,7 @@ export const BUNDLED_EXTENSION_IDS = [
   "@executioncontrolprotocol/format-toon",
   "@executioncontrolprotocol/format-eql",
   "@executioncontrolprotocol/format-mermaid",
+  "@executioncontrolprotocol/format-reactflow",
 ] as const
 
 /**
@@ -33,7 +39,7 @@ export const BUNDLED_EXTENSION_IDS = [
  *
  * This bundle is host-agnostic and dependency-light: it includes memory, storage,
  * telemetry, local/remote model providers that do not pull heavy SDKs (openai, ollama),
- * and format extensions used by harness encode/decode (toon, eql, mermaid).
+ * and format extensions used by harness encode/decode (toon, eql, mermaid, reactflow).
  *
  * Vendor integrations (fal, slack, image-sharp, adobe) live in the
  * `extensions` monorepo — install and register them explicitly.
@@ -54,4 +60,5 @@ export async function registerAllExtensions(): Promise<void> {
   await registerFormatToonExtension()
   await registerFormatEqlExtension()
   await registerFormatMermaidExtension()
+  await registerFormatReactflowExtension()
 }

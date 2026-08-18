@@ -15,9 +15,11 @@ import {
 } from "@executioncontrolprotocol/harnesses-browser-nano"
 import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
 import { registerFormatMermaidExtension } from "@executioncontrolprotocol/format-mermaid"
+import { registerFormatReactflowExtension } from "@executioncontrolprotocol/format-reactflow"
 import { registerFormatEqlExtension } from "@executioncontrolprotocol/format-eql"
 import "@executioncontrolprotocol/format-toon"
 import "@executioncontrolprotocol/format-mermaid"
+import "@executioncontrolprotocol/format-reactflow"
 import "@executioncontrolprotocol/format-eql"
 import type { HarnessInvokeResult, WorkflowManifest } from "@executioncontrolprotocol/types"
 
@@ -26,11 +28,13 @@ async function authoringEcp() {
   registerBrowserNanoHarnesses()
   await registerFormatToonExtension()
   await registerFormatMermaidExtension()
+  await registerFormatReactflowExtension()
   await registerFormatEqlExtension()
   await registerTestExtension()
   const env = createBrowserEnvironment("authoring-test")
   env.addExtensionBinding("@executioncontrolprotocol/format-toon", {})
   env.addExtensionBinding("@executioncontrolprotocol/format-mermaid", {})
+  env.addExtensionBinding("@executioncontrolprotocol/format-reactflow", {})
   env.addExtensionBinding("@executioncontrolprotocol/format-eql", {})
   env.addExtensionBinding("@executioncontrolprotocol/format-json", {})
   env.addExtensionBinding("@executioncontrolprotocol/test", {})
@@ -61,6 +65,9 @@ describe("BrowserAuthoringService", () => {
     expect(panels.mermaid).toContain("flowchart LR")
     expect(panels.mermaid).not.toContain("no steps")
     expect(panels.mermaid).toContain("Demo Echo")
+    expect(panels.reactflow.length).toBeGreaterThan(0)
+    const rf = JSON.parse(panels.reactflow) as { nodes: unknown[] }
+    expect(rf.nodes.length).toBeGreaterThan(0)
     await ecp.terminate()
   })
 
@@ -81,6 +88,7 @@ describe("BrowserAuthoringService", () => {
     expect(panels.mermaid).not.toContain("root -->")
     expect(panels.toon.length).toBeGreaterThan(0)
     expect(panels.json).toContain('"Echo step"')
+    expect(panels.reactflow).toContain("Echo step")
     await ecp.terminate()
   })
 

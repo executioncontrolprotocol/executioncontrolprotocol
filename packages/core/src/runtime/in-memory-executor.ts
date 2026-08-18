@@ -27,6 +27,7 @@ import {
 } from "./store.js"
 import { commitTransaction } from "./commit.js"
 import { isLastTestStep } from "./test-session-state.js"
+import { applyWorkflowReturns } from "../schema/workflow-io.js"
 
 function newRunId(): string {
   return globalThis.crypto.randomUUID()
@@ -160,14 +161,18 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         })
       }
 
-      return {
-        schema: "@executioncontrolprotocol.run.result",
-        version: LATEST_ECP_VERSION,
-        run: { id: runId, status },
-        state,
-        history,
-        usage: { ...usage },
-      }
+      return applyWorkflowReturns(
+        manifest,
+        {
+          schema: "@executioncontrolprotocol.run.result",
+          version: LATEST_ECP_VERSION,
+          run: { id: runId, status },
+          state,
+          history,
+          usage: { ...usage },
+        },
+        state
+      )
     } catch (err) {
       if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) {
         await emitLifecycle("run:cancelled", extensionHooks, {

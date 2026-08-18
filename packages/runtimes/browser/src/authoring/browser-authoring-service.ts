@@ -12,6 +12,8 @@ export interface AuthoringPanels {
   toon: string
   /** Mermaid flowchart source. */
   mermaid: string
+  /** React Flow document JSON. */
+  reactflow: string
   /** Latest patch TOON (empty when none). */
   patch: string
 }

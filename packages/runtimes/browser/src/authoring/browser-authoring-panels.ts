@@ -17,7 +17,7 @@ export async function encodeAuthoringPanels(
 ): Promise<AuthoringPanels> {
   const canonical = normalizeWorkflowManifest(manifest)
 
-  const [fluent, toon, mermaid] = await Promise.all([
+  const [fluent, toon, mermaid, reactflow] = await Promise.all([
     ecp
       .encode(canonical)
       .uses("@executioncontrolprotocol/format-fluent")
@@ -25,6 +25,11 @@ export async function encodeAuthoringPanels(
       .process(),
     ecp.encode(canonical).uses("@executioncontrolprotocol/format-toon").with({ headers: false, compact: true }).process(),
     ecp.encode(canonical).uses("@executioncontrolprotocol/format-mermaid").with({ direction: "LR" }).process(),
+    ecp
+      .encode(canonical)
+      .uses("@executioncontrolprotocol/format-reactflow")
+      .with({ direction: "LR" })
+      .process(),
   ])
 
   return {
@@ -32,6 +37,7 @@ export async function encodeAuthoringPanels(
     json: JSON.stringify(canonical, null, 2),
     toon: String(toon.result ?? ""),
     mermaid: String(mermaid.result ?? ""),
+    reactflow: String(reactflow.result ?? ""),
     patch: patchToon,
   }
 }

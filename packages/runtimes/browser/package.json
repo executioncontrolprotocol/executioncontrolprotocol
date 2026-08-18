@@ -33,6 +33,7 @@
     "@executioncontrolprotocol/format-eql": "0.11.3",
     "@executioncontrolprotocol/format-toon": "0.11.3",
     "@executioncontrolprotocol/format-mermaid": "0.11.3",
+    "@executioncontrolprotocol/format-reactflow": "0.11.3",
     "@executioncontrolprotocol/harnesses-browser-nano": "0.11.3",
     "@executioncontrolprotocol/extension-fal": "0.10.1",
     "@executioncontrolprotocol/extension-image-sharp": "0.10.1",

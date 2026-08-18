@@ -6,6 +6,22 @@ const ESBUILD_WASM_INIT_KEY = "__ecpEsbuildWasmInit"
 /** Optional browser override for esbuild.wasm URL (e.g. Vite `?url` import). */
 export const ESBUILD_WASM_URL_KEY = "__ecpEsbuildWasmUrl"
 
+/** Preferred ESM entry — Vite's CJS interop for `lib/browser.js` yields an empty module. */
+const ESBUILD_WASM_ESM_BROWSER = "esbuild-wasm/esm/browser.js"
+
+/** Minimal esbuild-wasm API used by browser compile. */
+interface EsbuildWasmApi {
+  /** Package version string when present. */
+  version?: string
+  /** Load the wasm binary (must be awaited before transform). */
+  initialize: (options: { wasmURL: string | URL }) => Promise<void>
+  /** Transpile a single in-memory source string. */
+  transform: (
+    input: string,
+    options: { loader: "ts" | "tsx"; format: "esm"; target: string }
+  ) => Promise<{ code: string }>
+}
+
 /** Whether filename indicates TypeScript. */
 export function isTypeScriptFile(filename: string): boolean {
   return /\.tsx?$/i.test(filename)
@@ -17,7 +33,7 @@ export function unpkgEsbuildWasmUrl(version: string): string {
 }
 
 /** Resolve wasm URL: app override, else unpkg at the installed host version. */
-export function resolveEsbuildWasmInitializeUrl(esbuild: typeof import("esbuild-wasm")): string {
+export function resolveEsbuildWasmInitializeUrl(esbuild: EsbuildWasmApi): string {
   const globalRecord = globalThis as typeof globalThis & {
     [ESBUILD_WASM_URL_KEY]?: string
   }
@@ -30,7 +46,7 @@ export function resolveEsbuildWasmInitializeUrl(esbuild: typeof import("esbuild-
 
 interface EsbuildWasmGlobalState {
   /** In-flight or settled init promise shared across callers and HMR reloads. */
-  initPromise: Promise<typeof import("esbuild-wasm")> | null
+  initPromise: Promise<EsbuildWasmApi> | null
 }
 
 function getEsbuildGlobalState(): EsbuildWasmGlobalState {
@@ -43,24 +59,51 @@ function getEsbuildGlobalState(): EsbuildWasmGlobalState {
   return globalRecord[ESBUILD_WASM_INIT_KEY]
 }
 
-/** Whether an error indicates esbuild-wasm was already initialized in this VM. */
+/**
+ * Whether an error indicates esbuild-wasm was already initialized in this VM.
+ * Must not match missing-API errors such as `initialize is not a function`.
+ */
 export function isEsbuildAlreadyInitializedError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err)
-  return /initialize|already|once/i.test(message)
+  if (/is not a function/i.test(message)) return false
+  return /initialize can only be called once|already been initialized|already initialized/i.test(
+    message
+  )
 }
 
-async function loadEsbuildWasmModule(): Promise<typeof import("esbuild-wasm")> {
+/** Pick initialize/transform from a module namespace or its default export. */
+export function resolveEsbuildWasmApi(mod: unknown): EsbuildWasmApi {
+  const record = mod as Record<string, unknown> | null
+  const candidates: unknown[] = [record, record?.default]
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue
+    const api = candidate as Partial<EsbuildWasmApi>
+    if (typeof api.initialize === "function" && typeof api.transform === "function") {
+      return api as EsbuildWasmApi
+    }
+  }
+  throw new Error(
+    "esbuild-wasm module loaded without initialize/transform APIs (use the ESM browser build)"
+  )
+}
+
+async function loadEsbuildWasmModule(): Promise<EsbuildWasmApi> {
   try {
-    return await import("esbuild-wasm")
+    return resolveEsbuildWasmApi(await import("esbuild-wasm"))
   } catch {
-    throw new Error(
-      "esbuild-wasm is required to compile TypeScript workflow sources in the browser. " +
-        "Run: npm install esbuild-wasm"
-    )
+    try {
+      // Vite CJS interop for lib/browser.js can yield `{}`; the ESM build is reliable.
+      return resolveEsbuildWasmApi(await import(/* @vite-ignore */ ESBUILD_WASM_ESM_BROWSER))
+    } catch {
+      throw new Error(
+        "esbuild-wasm is required to compile TypeScript workflow sources in the browser. " +
+          "Run: npm install esbuild-wasm"
+      )
+    }
   }
 }
 
-async function ensureEsbuildWasm(): Promise<typeof import("esbuild-wasm")> {
+async function ensureEsbuildWasm(): Promise<EsbuildWasmApi> {
   const state = getEsbuildGlobalState()
   if (!state.initPromise) {
     state.initPromise = (async () => {

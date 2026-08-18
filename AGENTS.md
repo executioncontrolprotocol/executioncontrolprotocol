@@ -97,6 +97,7 @@ Oclif v4 (`@oclif/core`). Commands live in `packages/cli/src/commands/`; build w
 
 ```sh
 ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/07-accepts-returns/workflow.ts --env examples/07-accepts-returns/environment.ts --input examples/07-accepts-returns/input.json
 ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp compile examples/01-echo/workflow.ts -o /tmp/workflow.json
 ecp describe --env examples/01-echo/environment.ts
@@ -159,14 +160,16 @@ Local dev: `npm start -w @executioncontrolprotocol/cli` (runs `bin/dev.js` after
 ### Fluent API quickstart
 
 ```ts
-import { workflow, step } from "@executioncontrolprotocol/core"
-import { environment, extension } from "@executioncontrolprotocol/node"
+import { workflow, step, ref } from "@executioncontrolprotocol/core"
 import "@executioncontrolprotocol/core/testing"
 
 const manifest = workflow("My flow")
-  .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: "hi" }).as("echo")])
+  .accepts({ type: "object", properties: { value: { type: "string" } }, required: ["value"] })
+  .returns({ type: "object", properties: { echo: { type: "object" } } })
+  .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: ref("value") }).as("echo")])
   .toManifest()
 // Manifest steps use the same verbs as the fluent API: `.as("echo")` → `as: "echo"`; optional `{ mode }` → `mode: "create" | ...`
+// `.accepts` / `.returns` serialize as `workflow.accepts` / `workflow.returns` (JSON Schema).
 
 const env = (await environment("dev")).withExtensions([extension("@executioncontrolprotocol/test").with({})])
 const ecp = await env.init()

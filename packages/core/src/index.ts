@@ -29,6 +29,14 @@ export { stripMarkdownCodeFences } from "./encoding/strip-markdown-fences.js"
 export { stripHarnessTypeScriptOutput } from "./encoding/strip-harness-typescript-output.js"
 export { workflow, WorkflowBuilder } from "./workflow/builder.js"
 export { parallel, branch, loop } from "./workflow/flow.js"
+export {
+  jsonSchemaFromZod,
+  jsonSchemaObjectProperties,
+  validateAgainstJsonSchema,
+  pickWorkflowReturns,
+  isZodType,
+} from "./schema/json-schema.js"
+export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
 export { environment, Environment } from "./environment/environment.js"
 export { EcpImpl, type Ecp, type RunOptions } from "./environment/ecp.js"

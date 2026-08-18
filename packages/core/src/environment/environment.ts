@@ -38,6 +38,7 @@ import type { HookDefinition } from "../definitions/types.js"
 import type { EncodingEnvironmentHost } from "./encoding-host.js"
 import { EcpImpl, type Ecp } from "./ecp.js"
 import { createInvokeBuilder } from "../invoke/invoke-builder.js"
+import { validateWorkflowAcceptsInput } from "../schema/workflow-io.js"
 
 function resolveId(ref: NamespacedId | { id: NamespacedId } | string): NamespacedId {
   if (typeof ref === "string") return ref as NamespacedId
@@ -431,6 +432,10 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
         `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
       )
     }
+    const acceptsCheck = validateWorkflowAcceptsInput(workflow, options?.input)
+    if (!acceptsCheck.ok) {
+      throw new Error(acceptsCheck.message)
+    }
     if (options?.dryRun) {
       return {
         schema: "@executioncontrolprotocol.run.result",
@@ -480,6 +485,10 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       throw new Error(
         `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
       )
+    }
+    const acceptsCheck = validateWorkflowAcceptsInput(workflow, options.input)
+    if (!acceptsCheck.ok) {
+      throw new Error(acceptsCheck.message)
     }
 
     const bindings = this.resolveBindings()

@@ -150,6 +150,8 @@ export const workflowManifestSchema = z
       .object({
         id: z.string().min(1),
         label: z.string().optional(),
+        accepts: z.record(z.unknown()).optional(),
+        returns: z.record(z.unknown()).optional(),
       })
       .strict(),
     steps: z.array(workflowNodeSchema),

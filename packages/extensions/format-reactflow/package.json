@@ -1,7 +1,7 @@
 {
-  "name": "@executioncontrolprotocol/extensions",
+  "name": "@executioncontrolprotocol/format-reactflow",
   "version": "0.11.3",
-  "description": "Aggregator that registers first-party ECP extensions",
+  "description": "ECP React Flow graph encode extension with run-progress hooks",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,15 +20,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/extension-memory": "0.11.3",
-    "@executioncontrolprotocol/extension-ollama": "0.11.3",
-    "@executioncontrolprotocol/extension-openai": "0.11.3",
-    "@executioncontrolprotocol/extension-storage": "0.11.3",
-    "@executioncontrolprotocol/extension-telemetry": "0.11.3",
-    "@executioncontrolprotocol/format-eql": "0.11.3",
-    "@executioncontrolprotocol/format-mermaid": "0.11.3",
-    "@executioncontrolprotocol/format-reactflow": "0.11.3",
-    "@executioncontrolprotocol/format-toon": "0.11.3"
+    "@dagrejs/dagre": "^1.1.4"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/core": "^0.11.3",
