@@ -87,6 +87,8 @@ npm run test:eval      # full harness matrix (Ollama gemma3:1b; chat + legacy ca
 npm run eval:harness   # alias for test:eval:matrix
 ```
 
+Pre-commit (`.husky/pre-commit`) runs `npm install` and stages `package-lock.json`, then lint-staged, lint, and coverage.
+
 **Coverage:** `npm run build` does not enforce coverage. The ship gate is `npm run test:coverage` (husky pre-commit + CI `unit`). Floors live in `vitest.config.mts` (`coverage.thresholds`); target remains **90%** — raise floors toward 90, never lower them to green CI. New behavior needs **positive**, **negative**, and **edge** tests (see `.cursor/rules/testing-coverage.mdc`). Never use `!` negation in Vitest `test.include` (zeros coverage under projects; vitest#10164).
 
 **Secrets:** Never commit live API keys. Use `.env` (gitignored), OS keychain, or CI secrets. Pre-commit runs Secretlint on staged files; CI `secrets` job runs Secretlint + Gitleaks (full history). Local: `npm run secrets:scan`.

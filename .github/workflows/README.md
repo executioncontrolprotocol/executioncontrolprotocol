@@ -13,6 +13,6 @@ To run the full quality gate locally: `npm run check` (build + lint + **coverage
 
 **Coverage gate:** `npm run build` does **not** enforce coverage. Pre-commit (`.husky/pre-commit`) and CI job `unit` run `npm run test:coverage` against floors in `vitest.config.mts` (ratchet toward 90%; never lower floors to green CI).
 
-**Secret scanning:** Pre-commit runs Secretlint on staged files via `lint-staged`. CI job `secrets` runs `npm run secrets:scan` (working tree) then Gitleaks over full git history (`.gitleaks.toml`). Use env vars / OS keychain / `.env` (gitignored) — never commit live API keys.
+**Pre-commit:** `.husky/pre-commit` runs `npm install` and stages `package-lock.json` so the lockfile cannot drift from `package.json`, then Secretlint (`lint-staged`), lint, and `npm run test:coverage`. CI job `secrets` runs `npm run secrets:scan` (working tree) then Gitleaks over full git history (`.gitleaks.toml`). Use env vars / OS keychain / `.env` (gitignored) — never commit live API keys.
 
 **E2E on GitHub Actions:** The `e2e` job runs **Ollama in Docker** (`ollama/ollama`) so the runner does not run `install.sh` (slow, root-owned paths). Model blobs live in `.ollama-models/`, are **cached** with `actions/cache`, and are **bind-mounted** into the container (`OLLAMA_MODELS=/models`). `docker exec … ollama pull` runs only on cache miss. Bump the `…-v1` cache key when changing the pinned model. **Evals** use the same pattern.
