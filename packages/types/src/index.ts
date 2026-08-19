@@ -97,8 +97,10 @@ export type {
   PatchResultDocument,
   EcpPatchDocumentRecord,
 } from "./patch.js"
-export { ECP_INVOKE_ERROR_CODES } from "./invoke.js"
+export { ECP_INVOKE_ERROR_CODES, httpStatusForInvokeResult } from "./invoke.js"
 export type { EcpInvokeErrorCode, InvokeResult, UsageSummary } from "./invoke.js"
+export { CAPABILITY_EXECUTION } from "./capability-execution.js"
+export type { CapabilityExecution } from "./capability-execution.js"
 export {
   ECP_MODEL_GENERATE_INTERFACE,
   ECP_MODEL_CAPABILITY_NAME,

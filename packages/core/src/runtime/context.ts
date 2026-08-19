@@ -6,6 +6,7 @@ import type {
 } from "@executioncontrolprotocol/types"
 import type { PendingMutation, StoreStateHandle } from "@executioncontrolprotocol/types"
 import type { StoreContext } from "./store.js"
+import type { CapabilityBlobStore } from "./blobs.js"
 
 /** Run-level context. @category Runtime */
 export interface RunContext {
@@ -31,6 +32,8 @@ export interface CapabilityContext {
   capabilities: {
     call(id: string, input: unknown): Promise<unknown>
   }
+  /** Run-scoped browser files keyed by `ecp://browser/<id>` locators. */
+  blobs?: CapabilityBlobStore
 }
 
 /** Host surface exposed on environment lifecycle hooks. @category Environment */

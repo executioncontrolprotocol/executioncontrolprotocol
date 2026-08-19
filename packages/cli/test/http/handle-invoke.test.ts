@@ -117,6 +117,86 @@ describe("handleInvokePost / runHttpInvoke", () => {
     expect(ecp.invoke).toHaveBeenCalledWith("@executioncontrolprotocol/test.echo")
   })
 
+  it("maps CAPABILITY_NOT_FOUND to HTTP 404 with InvokeResult body", async () => {
+    const process = vi.fn().mockResolvedValue({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      capabilityId: "@executioncontrolprotocol/missing.cap",
+      diagnostics: [{ code: "CAPABILITY_NOT_FOUND", message: "missing" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "@executioncontrolprotocol/missing.cap" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(404)
+    expect(JSON.parse(out.body)).toMatchObject({
+      success: false,
+      diagnostics: [{ code: "CAPABILITY_NOT_FOUND" }],
+    })
+  })
+
+  it("maps INVOKE_INPUT_INVALID to HTTP 400", async () => {
+    const process = vi.fn().mockResolvedValue({
+      success: false,
+      diagnostics: [{ code: "INVOKE_INPUT_INVALID", message: "bad" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(400)
+  })
+
+  it("maps INVOKE_FAILED to HTTP 500 with InvokeResult body", async () => {
+    const process = vi.fn().mockResolvedValue({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      capabilityId: "x.y",
+      diagnostics: [{ code: "INVOKE_FAILED", message: "boom" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(500)
+    expect(JSON.parse(out.body)).toMatchObject({
+      success: false,
+      diagnostics: [{ code: "INVOKE_FAILED" }],
+    })
+  })
+
+  it("maps INVOKE_DENIED to HTTP 403", async () => {
+    const process = vi.fn().mockResolvedValue({
+      success: false,
+      diagnostics: [{ code: "INVOKE_DENIED", message: "no" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(403)
+  })
+
   it("applies provider via .uses", async () => {
     const process = vi.fn().mockResolvedValue({ success: true })
     const uses = vi.fn().mockReturnValue({ process })

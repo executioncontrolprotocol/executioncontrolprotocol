@@ -82,4 +82,18 @@ export {
   Environment,
   Registry,
   globalRegistry,
+  BROWSER_FILE_LOCATOR_PREFIX,
+  isBrowserFileLocator,
+  createBrowserFileLocator,
+  createCapabilityBlobStore,
+  stashCapabilityBlob,
+  handleMixedBrowserBlobUpload,
+} from "@executioncontrolprotocol/core"
+export type {
+  CapabilityBlob,
+  CapabilityBlobStore,
+  MixedBlobUploadInput,
+  MixedBlobUploadOutput,
+  RemoteInvokeBinding,
+  RunOptions,
 } from "@executioncontrolprotocol/core"

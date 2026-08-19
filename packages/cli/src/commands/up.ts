@@ -14,11 +14,13 @@ export default class Up extends Command {
   static summary = "Start the local ECP daemon"
 
   static description =
-    "Run a loopback HTTP daemon that exposes ECP invoke for local Ollama " +
-    "(CORS + Private Network Access). Opens the browser demo with ?token= for pairing."
+    "Run a loopback HTTP daemon that exposes ECP invoke for a local environment " +
+    "(CORS + Private Network Access). Default (no --env) hosts Ollama. " +
+    "Opens the browser demo with ?token= for pairing."
 
   static examples = [
     "<%= config.bin %> <%= command.id %>",
+    "<%= config.bin %> <%= command.id %> --env environment.ts",
     "<%= config.bin %> <%= command.id %> --open-url http://localhost:5173/",
     "<%= config.bin %> <%= command.id %> --no-open",
   ]
@@ -40,6 +42,10 @@ export default class Up extends Command {
       description: "Extra allowed CORS origin (repeatable)",
       multiple: true,
       default: [],
+    }),
+    env: Flags.string({
+      description:
+        "Path to environment module (.ts or .js). When omitted, hosts Ollama only.",
     }),
     token: Flags.string({
       description: "Pairing token for /v1/invoke (auto-generated if omitted)",
@@ -71,6 +77,7 @@ export default class Up extends Command {
       ollamaUrl: flags["ollama-url"],
       corsOrigins,
       token,
+      envPath: flags.env,
     })
 
     const bridgeBaseURL = `http://${daemon.host}:${daemon.port}`

@@ -90,6 +90,38 @@ export type {
   StepExecutionContext,
 } from "./runtime/context.js"
 export { createUsageLedger } from "./runtime/context.js"
+export {
+  resolveCapabilityExecution,
+  isBrowserRuntimeId,
+  isNodeRuntimeId,
+} from "./runtime/capability-execution.js"
+export { NODE_RUNTIME_ID, BROWSER_RUNTIME_ID } from "./runtime/runtime-ids.js"
+export {
+  hopRemoteInvoke,
+  invokeFailure,
+  isInvokeResult,
+  type RemoteInvokeBinding,
+} from "./runtime/remote-invoke.js"
+export {
+  dispatchCapability,
+  dispatchCapabilityResult,
+  createDispatchingCall,
+  CapabilityDispatchError,
+} from "./runtime/dispatch-capability.js"
+export {
+  BROWSER_FILE_LOCATOR_PREFIX,
+  isBrowserFileLocator,
+  createBrowserFileLocator,
+  createCapabilityBlobStore,
+  stashCapabilityBlob,
+  type CapabilityBlob,
+  type CapabilityBlobStore,
+} from "./runtime/blobs.js"
+export {
+  handleMixedBrowserBlobUpload,
+  type MixedBlobUploadInput,
+  type MixedBlobUploadOutput,
+} from "./runtime/mixed-blob-upload.js"
 export { registerTestExtension, testExtension } from "./testing/test-extension.js"
 
 export {

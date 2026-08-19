@@ -2,6 +2,7 @@ import type { RunStatus } from "./schema.js"
 import type { EcpVersion } from "./version.js"
 import type { MutationRecord } from "./store.js"
 import type { WorkflowManifest } from "./workflow.js"
+import type { ValidationIssue } from "./validation.js"
 
 /** Run request document. @category Runtime */
 export interface RunRequest {
@@ -21,6 +22,8 @@ export interface StepRunRecord {
   attempts?: number
   usage?: Record<string, unknown>
   mutations?: MutationRecord[]
+  /** Failure diagnostics when the step did not complete. */
+  diagnostics?: ValidationIssue[]
 }
 
 /** Run result document. @category Runtime */

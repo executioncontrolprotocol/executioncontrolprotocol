@@ -15,6 +15,11 @@ import { createUsageLedger, type CapabilityContext, type PolicyContext } from ".
 import { emptyValidationResult } from "../validate/workflow-schema.js"
 import { zodIssuesToValidationIssues } from "../validate/zod-mapper.js"
 import { LATEST_ECP_VERSION as CORE_VERSION } from "@executioncontrolprotocol/types"
+import {
+  CapabilityDispatchError,
+  createDispatchingCall,
+  dispatchCapability,
+} from "../runtime/dispatch-capability.js"
 
 const INVOKE_STUB_WORKFLOW = {
   schema: "@executioncontrolprotocol.workflow" as const,
@@ -157,19 +162,32 @@ export async function executeInvoke(
     logger: utilityCtx.logger,
     usage: policyCtx.usage,
     extensionConfig,
+    blobs: env.getBlobStore(),
     capabilities: {
-      call: async (id, nestedInput) => {
-        const nested = registry.getCapability(id)
-        if (!nested) throw new Error(`Unknown capability: ${id}`)
-        return nested.handler(nestedInput, capCtx)
+      call: async (id) => {
+        throw new Error(`nested call not bound: ${id}`)
       },
     },
   }
+  const dispatchOpts = {
+    ctx: capCtx,
+    registry,
+    runtimeId: env.getRuntimeId(),
+    remoteInvoke: env.getRemoteInvoke(),
+  }
+  capCtx.capabilities.call = createDispatchingCall(dispatchOpts)
 
   let output: unknown
   try {
-    output = await cap.handler(input, capCtx)
+    output = await dispatchCapability({
+      ...dispatchOpts,
+      capabilityId,
+      input,
+    })
   } catch (err) {
+    if (err instanceof CapabilityDispatchError) {
+      return err.result
+    }
     const message = err instanceof Error ? err.message : String(err)
     return invokeFailure(capabilityId, ECP_INVOKE_ERROR_CODES.INVOKE_FAILED, message)
   }

@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http"
 import type { Ecp } from "@executioncontrolprotocol/core"
 import { readRequestBody } from "./read-body.js"
 import { writeJson } from "./write-json.js"
+import { httpStatusForInvokeResult } from "@executioncontrolprotocol/types"
 
 /** JSON body for `POST /v1/invoke`. @category CLI */
 export interface InvokeHttpBody {
@@ -80,7 +81,7 @@ export async function handleInvokePost(
 
   try {
     const result = await runHttpInvoke(ecp, parsed.body)
-    writeJson(res, 200, result)
+    writeJson(res, httpStatusForInvokeResult(result), result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     writeJson(res, 500, { error: message })

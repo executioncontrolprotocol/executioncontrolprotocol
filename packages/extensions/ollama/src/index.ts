@@ -299,6 +299,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     capabilityFor("@executioncontrolprotocol/ollama", "generate")
       .withInput(GenerateInput)
       .withOutput(modelGenerateOutputSchema)
+      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof GenerateInput>
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -322,6 +323,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     capabilityFor("@executioncontrolprotocol/ollama", "listModels")
       .withInput(z.object({ baseURL: z.string().optional() }))
       .withOutput(z.object({ models: z.array(z.string()) }))
+      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const parsed = input as { baseURL?: string }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -343,6 +345,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
+      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =

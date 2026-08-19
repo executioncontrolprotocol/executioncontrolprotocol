@@ -28,6 +28,11 @@ import {
 import { commitTransaction } from "./commit.js"
 import { isLastTestStep } from "./test-session-state.js"
 import { applyWorkflowReturns } from "../schema/workflow-io.js"
+import {
+  CapabilityDispatchError,
+  createDispatchingCall,
+  dispatchCapability,
+} from "./dispatch-capability.js"
 
 function newRunId(): string {
   return globalThis.crypto.randomUUID()
@@ -153,9 +158,20 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         status = isLastTestStep(manifest, context.onlyStepId) ? "completed" : "paused"
       }
 
+      const stepStatuses = Object.values(history).map((h) => h.status)
+      if (stepStatuses.includes("failed")) status = "failed"
+      else if (stepStatuses.includes("cancelled")) status = "cancelled"
+      else if (status === "completed" && stepStatuses.includes("paused")) status = "paused"
+
       if (status === "completed") {
         await emitLifecycle("run:completed", extensionHooks, {
           event: "run:completed",
+          ...runBase,
+          state,
+        })
+      } else if (status === "failed") {
+        await emitLifecycle("run:failed", extensionHooks, {
+          event: "run:failed",
           ...runBase,
           state,
         })
@@ -384,14 +400,20 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         logger: ctx.logger,
         usage: ctx.usage,
         extensionConfig: extBinding?.config,
+        blobs: ctx.context.blobs,
         capabilities: {
-          call: async (id, input) => {
-            const c = ctx.context.registry.getCapability(id)
-            if (!c) throw new Error(`Unknown capability: ${id}`)
-            return c.handler(input, capCtx)
+          call: async (id) => {
+            throw new Error(`nested call not bound: ${id}`)
           },
         },
       }
+      const dispatchOpts = {
+        ctx: capCtx,
+        registry: ctx.context.registry,
+        runtimeId: String(ctx.context.bindings.runtime.id),
+        remoteInvoke: ctx.context.remoteInvoke,
+      }
+      capCtx.capabilities.call = createDispatchingCall(dispatchOpts)
 
       await emitLifecycle("step:started", ctx.extensionHooks, {
         event: "step:started",
@@ -399,14 +421,24 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       })
 
       try {
-        output = await cap.handler(resolvedInput, capCtx)
-      } catch {
+        output = await dispatchCapability({
+          ...dispatchOpts,
+          capabilityId: step.uses,
+          input: resolvedInput,
+        })
+      } catch (err) {
         buffer.discard()
         await emitLifecycle("step:failed", ctx.extensionHooks, {
           event: "step:failed",
           ...lifecycleBase,
         })
         stepRecord.status = "failed"
+        if (err instanceof CapabilityDispatchError) {
+          stepRecord.diagnostics = err.result.diagnostics
+        } else {
+          const message = err instanceof Error ? err.message : String(err)
+          stepRecord.diagnostics = [{ severity: "error", code: "STEP_FAILED", message }]
+        }
         return
       }
 

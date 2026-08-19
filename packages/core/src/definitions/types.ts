@@ -2,6 +2,7 @@ import type {
   CapabilityId,
   LifecycleEvent,
   NamespacedId,
+  CapabilityExecution,
 } from "@executioncontrolprotocol/types"
 import type { z } from "zod"
 import type { ConfigSchema } from "../config-schema/index.js"
@@ -24,6 +25,8 @@ export interface CapabilityDefinition {
   inputSchema?: z.ZodType<unknown>
   outputSchema?: z.ZodType<unknown>
   handler: CapabilityHandler
+  /** Where this capability executes. Omit to infer from the extension. */
+  execution?: CapabilityExecution
 }
 
 /** Hook definition on extension/policy. @category Definitions */
