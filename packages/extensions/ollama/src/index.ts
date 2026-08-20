@@ -1,4 +1,4 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension } from "@executioncontrolprotocol/core"
+import { defineExtension, capabilityFor, globalRegistry, catalogExtension, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
@@ -290,6 +290,7 @@ function envString(name: string): string | undefined {
 
 /** @executioncontrolprotocol/ollama extension. @category Extensions */
 export const ollamaExtension = defineExtension("@executioncontrolprotocol", "ollama")
+  .withSupportedRuntimes([NODE_RUNTIME_ID])
   .withConfig({
     baseURL: z.string().optional(),
     defaultModel: z.string().optional(),
@@ -299,7 +300,6 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     capabilityFor("@executioncontrolprotocol/ollama", "generate")
       .withInput(GenerateInput)
       .withOutput(modelGenerateOutputSchema)
-      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof GenerateInput>
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -323,7 +323,6 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     capabilityFor("@executioncontrolprotocol/ollama", "listModels")
       .withInput(z.object({ baseURL: z.string().optional() }))
       .withOutput(z.object({ models: z.array(z.string()) }))
-      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const parsed = input as { baseURL?: string }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -345,7 +344,6 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
-      .withExecution("host")
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =

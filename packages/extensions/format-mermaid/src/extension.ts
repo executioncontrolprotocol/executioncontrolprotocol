@@ -57,6 +57,7 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
     capabilityFor("@executioncontrolprotocol/format-mermaid", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
+      .withExecution("local")
       .withHandler((input) => encodeToMermaid(input as EcpEncodeInput)),
   ])
   .build()

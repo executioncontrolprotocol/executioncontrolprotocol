@@ -83,6 +83,7 @@ export const formatReactflowExtension = defineExtension(
     capabilityFor("@executioncontrolprotocol/format-reactflow", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
+      .withExecution("local")
       .withHandler((input, ctx) => {
         const utilityCtx = ctx as unknown as UtilityCapabilityContext
         return encodeToReactFlow(input as EcpEncodeInput, utilityCtx)

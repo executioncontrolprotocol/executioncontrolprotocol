@@ -1,4 +1,4 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension, type Registry } from "@executioncontrolprotocol/core"
+import { defineExtension, capabilityFor, globalRegistry, catalogExtension, type Registry, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import { resolveOpenaiApiKey } from "./resolve-api-key.js"
@@ -37,6 +37,7 @@ async function chatComplete(
 
 /** @executioncontrolprotocol/openai extension. @category Extensions */
 export const openaiExtension = defineExtension("@executioncontrolprotocol", "openai")
+  .withSupportedRuntimes([NODE_RUNTIME_ID])
   .withConfig({
     apiKey: z.string().optional(),
     defaultModel: z.string().optional(),

@@ -15,6 +15,7 @@ export interface ExecutionCapabilityHint {
 
 /**
  * Resolve capability execution, defaulting from extension `supportedRuntimes`.
+ * Unrestricted capabilities default to **host**; browser-only extensions default to **local**.
  * @category Runtime
  */
 export function resolveCapabilityExecution(
@@ -25,7 +26,7 @@ export function resolveCapabilityExecution(
   const supported = ext?.supportedRuntimes
   if (supported?.length === 1 && supported[0] === NODE_RUNTIME_ID) return "host"
   if (supported?.length === 1 && supported[0] === BROWSER_RUNTIME_ID) return "local"
-  return "local"
+  return "host"
 }
 
 /** Whether this runtime id is the browser host. @category Runtime */

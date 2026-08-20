@@ -20,30 +20,36 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
     capabilityFor("@executioncontrolprotocol/test", "echo")
       .withInput(z.object({ value: z.unknown().optional() }))
       .withOutput(z.object({ echo: z.unknown() }))
+      .withExecution("local")
       .withHandler(async (input) => ({
         echo: (input as { value?: unknown }).value ?? "hi",
       })),
     capabilityFor("@executioncontrolprotocol/test", "generate")
       .withInput(modelGenerateInputSchema)
       .withOutput(modelGenerateOutputSchema)
+      .withExecution("local")
       .withHandler(async (input) =>
         testModelGenerateHandler(input as { prompt?: string; system?: string })
       ),
     capabilityFor("@executioncontrolprotocol/test", "summarize")
       .withInput(TestStubInput)
       .withOutput(TestStubOutput)
+      .withExecution("local")
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
     capabilityFor("@executioncontrolprotocol/test", "translate")
       .withInput(TestStubInput)
       .withOutput(TestStubOutput)
+      .withExecution("local")
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
     capabilityFor("@executioncontrolprotocol/test", "notify")
       .withInput(TestStubInput)
       .withOutput(TestStubOutput)
+      .withExecution("local")
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
     capabilityFor("@executioncontrolprotocol/test", "validate")
       .withInput(TestStubInput)
       .withOutput(TestStubOutput)
+      .withExecution("local")
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
   ])
   .build()

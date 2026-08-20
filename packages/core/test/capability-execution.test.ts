@@ -22,10 +22,10 @@ describe("resolveCapabilityExecution", () => {
     )
   })
 
-  it("defaults unrestricted extensions to local", () => {
-    expect(resolveCapabilityExecution({}, {})).toBe("local")
+  it("defaults unrestricted extensions to host", () => {
+    expect(resolveCapabilityExecution({}, {})).toBe("host")
     expect(resolveCapabilityExecution({}, { supportedRuntimes: [NODE_RUNTIME_ID, BROWSER_RUNTIME_ID] })).toBe(
-      "local"
+      "host"
     )
   })
 })

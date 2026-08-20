@@ -2,6 +2,7 @@ import {
   defineExtension,
   hook,
   globalRegistry,
+  BROWSER_RUNTIME_ID,
   type EnvironmentConfigResolver,
   type LifecycleContext,
 } from "@executioncontrolprotocol/core"
@@ -54,6 +55,7 @@ function attachLocalConfigResolver(ctx: LifecycleContext): void {
 
 /** Browser localStorage config extension (non-secret keys only). @category Extensions */
 export const browserLocalConfigExtension = defineExtension("@executioncontrolprotocol", "browser-local-config")
+  .withSupportedRuntimes([BROWSER_RUNTIME_ID])
   .withConfig({
     prefix: z.string().default("ecp:"),
     allowedKeys: z.array(z.string()).default([]),
