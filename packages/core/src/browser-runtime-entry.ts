@@ -80,6 +80,11 @@ export {
   type SerializedCapabilityBlob,
 } from "./runtime/blobs.js"
 export {
+  createCapabilityArtifactStore,
+  type CapabilityArtifact,
+  type CapabilityArtifactStore,
+} from "./runtime/artifacts.js"
+export {
   handleMixedBrowserBlobUpload,
   type MixedBlobUploadInput,
   type MixedBlobUploadOutput,

@@ -6,6 +6,7 @@ import type {
 } from "@executioncontrolprotocol/types"
 import type { PendingMutation, StoreStateHandle } from "@executioncontrolprotocol/types"
 import type { StoreContext } from "./store.js"
+import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
 
 /** Run-level context. @category Runtime */
@@ -34,6 +35,8 @@ export interface CapabilityContext {
   }
   /** Run-scoped browser files keyed by `ecp://browser/<id>` locators. */
   blobs?: CapabilityBlobStore
+  /** Environment-scoped host artifacts keyed by `ecp://…` URIs. */
+  artifacts?: CapabilityArtifactStore
 }
 
 /** Host surface exposed on environment lifecycle hooks. @category Environment */

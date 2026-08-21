@@ -163,6 +163,7 @@ export async function executeInvoke(
     usage: policyCtx.usage,
     extensionConfig,
     blobs: env.getBlobStore(),
+    artifacts: env.ensureArtifactStore(),
     capabilities: {
       call: async (id) => {
         throw new Error(`nested call not bound: ${id}`)

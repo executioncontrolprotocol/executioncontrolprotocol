@@ -29,6 +29,7 @@ import {
   createCapabilityBlobStore,
   type CapabilityBlobStore,
 } from "../runtime/blobs.js"
+import type { CapabilityArtifactStore } from "../runtime/artifacts.js"
 
 export type { RunOptions } from "./environment.js"
 
@@ -68,6 +69,8 @@ export interface Ecp {
   getRegistry(): Registry
   /** Run-scoped browser file blob store (created on first use). */
   getBlobStore(): CapabilityBlobStore
+  /** Environment-scoped host artifact store (created on first use). */
+  getArtifactStore(): CapabilityArtifactStore
   /** Terminate the environment and release resources. */
   terminate(): Promise<void>
 }
@@ -137,6 +140,10 @@ export class EcpImpl implements Ecp {
     const store = createCapabilityBlobStore()
     this.env.withBlobStore(store)
     return store
+  }
+
+  getArtifactStore(): CapabilityArtifactStore {
+    return this.env.ensureArtifactStore()
   }
 
   terminate(): Promise<void> {

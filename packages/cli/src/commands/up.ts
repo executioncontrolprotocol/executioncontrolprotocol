@@ -89,7 +89,7 @@ export default class Up extends Command {
 
     this.log(`ECP daemon on ${bridgeBaseURL}`)
     this.log(`Pairing token: ${daemon.token}`)
-    this.log("GET /health (no auth) · POST /v1/invoke (Bearer token)")
+    this.log("GET /health (no auth) · POST /v1/invoke · GET /v1/artifacts (Bearer or ?token=)")
 
     if (flags.open) {
       this.log(`Opening ${demoUrl}`)

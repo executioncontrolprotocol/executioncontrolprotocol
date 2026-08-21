@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { Ecp } from "@executioncontrolprotocol/core"
 import { listOllamaModels } from "@executioncontrolprotocol/extension-ollama"
+import { handleArtifactGet } from "../http/handle-artifact.js"
 import { handleInvokePost } from "../http/handle-invoke.js"
 import { writeJson } from "../http/write-json.js"
 import { ECP_UP_VERSION } from "./constants.js"
@@ -16,6 +17,15 @@ export interface UpRequestHandlerOptions {
   token: string
   /** Ollama base URL used for `/health` reachability. */
   ollamaUrl: string
+}
+
+function authorizeUpRequest(
+  req: IncomingMessage,
+  url: URL,
+  token: string
+): boolean {
+  const presented = readBearerToken(req) ?? url.searchParams.get("token")?.trim() ?? ""
+  return Boolean(presented) && presented === token
 }
 
 /**
@@ -56,9 +66,17 @@ export function createUpRequestHandler(options: UpRequestHandlerOptions) {
       return
     }
 
+    if (req.method === "GET" && pathname === "/v1/artifacts") {
+      if (!authorizeUpRequest(req, url, token)) {
+        writeJson(res, 401, { error: "Unauthorized" })
+        return
+      }
+      await handleArtifactGet(ecp, req, res)
+      return
+    }
+
     if (req.method === "POST" && pathname === "/v1/invoke") {
-      const presented = readBearerToken(req)
-      if (!presented || presented !== token) {
+      if (!authorizeUpRequest(req, url, token)) {
         writeJson(res, 401, { error: "Unauthorized" })
         return
       }

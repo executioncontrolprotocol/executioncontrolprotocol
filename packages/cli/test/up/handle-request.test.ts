@@ -122,6 +122,54 @@ describe("createUpRequestHandler", () => {
     expect(out.statusCode).toBe(401)
   })
 
+  it("rejects /v1/artifacts without token", async () => {
+    const handler = createUpRequestHandler({
+      ecp: ecp as never,
+      allowOrigins: new Set(),
+      token: "secret",
+      ollamaUrl: "http://127.0.0.1:11434",
+    })
+    const out = createRes()
+    await handler(
+      createReq("GET", "/v1/artifacts?uri=" + encodeURIComponent("ecp://artifacts/x"), {}),
+      out.res
+    )
+    expect(out.statusCode).toBe(401)
+  })
+
+  it("allows /v1/artifacts with query token", async () => {
+    const get = vi.fn().mockReturnValue({
+      mediaType: "image/png",
+      name: "x.png",
+      size: 2,
+      bytes: new Uint8Array([9, 9]),
+    })
+    const ecpWithStore = {
+      invoke: vi.fn(),
+      getArtifactStore: () => ({ get }),
+    }
+    const handler = createUpRequestHandler({
+      ecp: ecpWithStore as never,
+      allowOrigins: new Set(),
+      token: "secret",
+      ollamaUrl: "http://127.0.0.1:11434",
+    })
+    const out = createRes()
+    await handler(
+      createReq(
+        "GET",
+        "/v1/artifacts?uri=" +
+          encodeURIComponent("ecp://artifacts/images/x.png") +
+          "&token=secret",
+        {}
+      ),
+      out.res
+    )
+    expect(out.statusCode).toBe(200)
+    expect(out.headers["content-type"]).toBe("image/png")
+    expect(get).toHaveBeenCalledWith("ecp://artifacts/images/x.png")
+  })
+
   it("invokes a capability with a valid token", async () => {
     const process = vi.fn().mockResolvedValue({
       success: true,

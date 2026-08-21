@@ -22,6 +22,10 @@ import { RegistryRegistrationDeniedError } from "../registry/errors.js"
 import type { RuntimeExecutor } from "../runtime/executor.js"
 import type { EnvironmentLifecycleHost, PolicyContext } from "../runtime/context.js"
 import { createUsageLedger } from "../runtime/context.js"
+import {
+  createCapabilityArtifactStore,
+  type CapabilityArtifactStore,
+} from "../runtime/artifacts.js"
 import type { CapabilityBlobStore } from "../runtime/blobs.js"
 import type { RemoteInvokeBinding } from "../runtime/remote-invoke.js"
 import { evaluatePolicies } from "../runtime/policy-engine.js"
@@ -81,6 +85,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private readonly configResolvers: EnvironmentConfigResolver[] = []
   private remoteInvoke?: RemoteInvokeBinding
   private blobStore?: CapabilityBlobStore
+  private artifactStore?: CapabilityArtifactStore
 
   constructor(
     private readonly envId: string,
@@ -138,6 +143,12 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this
   }
 
+  /** Default artifact store for invoke/run host outputs. */
+  withArtifactStore(store: CapabilityArtifactStore): this {
+    this.artifactStore = store
+    return this
+  }
+
   /** @internal Remote invoke pairing. */
   getRemoteInvoke(): RemoteInvokeBinding | undefined {
     return this.remoteInvoke
@@ -146,6 +157,22 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   /** @internal Blob store. */
   getBlobStore(): CapabilityBlobStore | undefined {
     return this.blobStore
+  }
+
+  /** @internal Artifact store. */
+  getArtifactStore(): CapabilityArtifactStore | undefined {
+    return this.artifactStore
+  }
+
+  /**
+   * Ensure an artifact store exists for invoke/run (host outputs / `GET /v1/artifacts`).
+   * @internal
+   */
+  ensureArtifactStore(): CapabilityArtifactStore {
+    if (!this.artifactStore) {
+      this.artifactStore = createCapabilityArtifactStore()
+    }
+    return this.artifactStore
   }
 
   /** Dynamically add an extension binding (e.g. browser registry auto-bind). */
@@ -504,6 +531,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       signal: options?.signal,
       remoteInvoke: this.remoteInvoke,
       blobs: options?.blobs ?? this.blobStore,
+      artifacts: this.ensureArtifactStore(),
     })
   }
 
@@ -555,6 +583,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       onlyStepId: options.onlyStepId,
       remoteInvoke: this.remoteInvoke,
       blobs: this.blobStore,
+      artifacts: this.ensureArtifactStore(),
     })
   }
 }

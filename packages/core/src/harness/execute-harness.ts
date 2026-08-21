@@ -148,6 +148,7 @@ export async function executeHarnessInvoke(
     usage: policyCtx.usage,
     extensionConfig: extBinding?.config,
     blobs: env.getBlobStore(),
+    artifacts: env.ensureArtifactStore(),
     capabilities: {
       call: async (id) => {
         throw new Error(`nested call not bound: ${id}`)
