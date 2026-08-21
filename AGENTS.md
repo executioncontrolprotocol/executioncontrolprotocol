@@ -33,6 +33,8 @@ Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotoco
 
 ### Package boundaries
 
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. Local unpublished packages use `npm link` after `npm run build`. Gate: `npm run check:no-file-deps`.
+
 **Core is runtime-agnostic.** The main `@executioncontrolprotocol/core` barrel has no Node or browser I/O. Host-specific code is on subpaths:
 
 | Subpath | Host |
