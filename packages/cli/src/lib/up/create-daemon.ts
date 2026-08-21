@@ -46,7 +46,9 @@ export interface EcpUpDaemon {
 
 /**
  * Load the operational ECP instance for `ecp up`.
- * With `--env`, that project's Node environment is used (packages from `node_modules`).
+ * Always hosts Ollama (browser demo model picker / coding harness).
+ * With `--env`, that project's Node environment is loaded and Ollama is added
+ * so host packages (e.g. image-sharp) and Ollama coexist.
  * Without `--env`, the daemon hosts Ollama only.
  * @category CLI
  */
@@ -57,14 +59,17 @@ export async function loadUpDaemonEcp(options: {
   ollamaUrl: string
 }): Promise<Ecp> {
   await registerOllamaExtension()
+  const ollamaConfig = { baseURL: options.ollamaUrl }
   if (options.envPath) {
     const loaded = await loadEnvironmentModule(options.envPath)
+    // Project envs use their own registry instance after module load — register Ollama there.
+    await registerOllamaExtension(loaded.getRegistry())
+    // Project envs (e.g. image-prep) omit Ollama; the demo bridge still needs listModels/generate.
+    loaded.addExtensionBinding("@executioncontrolprotocol/ollama", ollamaConfig)
     return loaded.init()
   }
   const env = (await environment("ecp-up")).withExtensions([
-    extension("@executioncontrolprotocol/ollama").with({
-      baseURL: options.ollamaUrl,
-    }),
+    extension("@executioncontrolprotocol/ollama").with(ollamaConfig),
   ])
   return env.init()
 }

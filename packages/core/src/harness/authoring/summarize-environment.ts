@@ -47,21 +47,52 @@ function toCapabilityRow(
 
 /**
  * Build a compact environment summary from a full describe() result.
+ * Omits app/runtime tooling (formats, browser host extensions) and non-step capabilities.
  * @category Harness
  */
 export function summarizeEnvironmentDescriptor(
   descriptor: EnvironmentDescriptor
 ): CompactEnvironmentSummary {
-  const extensions = [...(descriptor.extensions ?? [])]
+  const authoring = toAuthoringEnvironmentDescriptor(descriptor)
+  const extensions = [...(authoring.extensions ?? [])]
     .sort((a, b) => a.order - b.order)
     .map((ext) => ({
       id: ext.id,
       capabilities: [...(ext.capabilities ?? [])],
     }))
 
-  const capabilities = (descriptor.capabilities ?? []).map((cap) => toCapabilityRow(cap))
+  const capabilities = (authoring.capabilities ?? []).map((cap) => toCapabilityRow(cap))
 
   return { extensions, capabilities }
+}
+
+/**
+ * Project a full {@link EnvironmentDescriptor} to the inventory harnesses/models should see:
+ * workflow-step capabilities and their owning extensions only.
+ * @category Harness
+ */
+export function toAuthoringEnvironmentDescriptor(
+  descriptor: EnvironmentDescriptor
+): EnvironmentDescriptor {
+  const capabilities = (descriptor.capabilities ?? []).filter(
+    (cap) =>
+      isWorkflowStepCapability(cap.id) && isAuthoringInventoryExtension(cap.extension)
+  )
+  const capabilityIds = new Set(capabilities.map((c) => c.id))
+  const extensions = (descriptor.extensions ?? [])
+    .filter((ext) => isAuthoringInventoryExtension(ext.id))
+    .map((ext, order) => ({
+      ...ext,
+      order,
+      capabilities: (ext.capabilities ?? []).filter((id) => capabilityIds.has(id)),
+    }))
+    .filter((ext) => ext.capabilities.length > 0)
+
+  return {
+    ...descriptor,
+    extensions,
+    capabilities,
+  }
 }
 
 /** How to render capability rows in user prompts. @category Harness */
@@ -75,19 +106,33 @@ const NON_STEP_CAPABILITY_SUFFIXES = new Set([
   "getModelInstallState",
   "evaluate",
   "guideChat",
+  "encode",
+  "decode",
+  "listModels",
 ])
 
-function capabilitySuffix(capId: string): string {
-  const parts = capId.split(".")
-  return parts[parts.length - 1] ?? ""
-}
-
-function isWorkflowStepCapability(capId: string): boolean {
+/** True when a capability id is suitable as a workflow STEP USES target. @category Harness */
+export function isWorkflowStepCapability(capId: string): boolean {
   if (isHarnessCapabilityId(capId)) return false
   if (TEST_NON_STEP_CAPABILITY_IDS.has(capId)) return false
   const suffix = capabilitySuffix(capId)
   if (NON_STEP_CAPABILITY_SUFFIXES.has(suffix)) return false
+  if (capId.includes("/format-") || capId.includes("/format-json.")) return false
   return true
+}
+
+/** True when an extension is app/runtime tooling rather than workflow inventory. @category Harness */
+export function isAuthoringInventoryExtension(extensionId: string): boolean {
+  if (extensionId.includes("/format-")) return false
+  if (extensionId === "@executioncontrolprotocol/format-json") return false
+  if (extensionId.startsWith("@executioncontrolprotocol/browser-")) return false
+  if (extensionId === "@executioncontrolprotocol/browser") return false
+  return true
+}
+
+function capabilitySuffix(capId: string): string {
+  const parts = capId.split(".")
+  return parts[parts.length - 1] ?? ""
 }
 
 function workflowStepCapabilities(summary: CompactEnvironmentSummary): CompactCapabilityRow[] {
@@ -197,7 +242,7 @@ export function formatEnvironmentSummaryLines(
   }
 
   const lines = ["Capability ids you may reference (exact strings):"]
-  for (const cap of summary.capabilities) {
+  for (const cap of workflowStepCapabilities(summary)) {
     const io =
       cap.inputs.length > 0 || cap.outputs.length > 0
         ? ` (${formatInputSummary(cap)}; outputs: ${cap.outputs.join(", ") || "none"})`
@@ -205,8 +250,10 @@ export function formatEnvironmentSummaryLines(
     lines.push(`- ${cap.id}${io}`)
   }
   lines.push("Extensions:")
-  for (const ext of summary.extensions) {
-    lines.push(`- ${ext.id}: ${ext.capabilities.join(", ")}`)
+  for (const ext of summary.extensions.filter((e) => isAuthoringInventoryExtension(e.id))) {
+    const caps = ext.capabilities.filter((id) => isWorkflowStepCapability(id))
+    if (caps.length === 0) continue
+    lines.push(`- ${ext.id}: ${caps.join(", ")}`)
   }
   return lines
 }

@@ -56,4 +56,44 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).toContain("ADD STEP <newStepId> USES @executioncontrolprotocol/test.summarize")
     expect(text).toContain("@executioncontrolprotocol/test.echo (already used by an existing step")
   })
+
+  it("omits format encode/decode and browser host extensions from authoring summary", () => {
+    const descriptor: EnvironmentDescriptor = {
+      ...minimalDescriptor,
+      extensions: [
+        ...minimalDescriptor.extensions,
+        {
+          id: "@executioncontrolprotocol/format-eql",
+          order: 2,
+          capabilities: ["@executioncontrolprotocol/format-eql.encode"],
+        },
+        {
+          id: "@executioncontrolprotocol/browser-secrets",
+          order: 3,
+          capabilities: [],
+        },
+      ],
+      capabilities: [
+        ...minimalDescriptor.capabilities,
+        {
+          id: "@executioncontrolprotocol/format-eql.encode",
+          extension: "@executioncontrolprotocol/format-eql",
+        },
+        {
+          id: "@executioncontrolprotocol/ollama.listModels",
+          extension: "@executioncontrolprotocol/ollama",
+        },
+      ],
+    }
+    const summary = summarizeEnvironmentDescriptor(descriptor)
+    expect(summary.capabilities.map((c) => c.id)).toEqual([
+      "@executioncontrolprotocol/test.echo",
+      "@executioncontrolprotocol/test.summarize",
+    ])
+    expect(summary.extensions.every((e) => e.id === "@executioncontrolprotocol/test")).toBe(true)
+    expect(summary.extensions.some((e) => e.id.includes("format-"))).toBe(false)
+    const text = formatEnvironmentSummaryLines(summary, { format: "eql-create" }).join("\n")
+    expect(text).not.toContain("format-eql")
+    expect(text).not.toContain("listModels")
+  })
 })

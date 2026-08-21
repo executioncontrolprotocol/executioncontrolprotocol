@@ -15,7 +15,8 @@ export default class Up extends Command {
 
   static description =
     "Run a loopback HTTP daemon that exposes ECP invoke for a local environment " +
-    "(CORS + Private Network Access). Default (no --env) hosts Ollama. " +
+    "(CORS + Private Network Access). Always hosts Ollama for the browser demo; " +
+    "optional --env adds that project's host extensions alongside Ollama. " +
     "Opens the browser demo with ?token= for pairing."
 
   static examples = [
@@ -45,7 +46,7 @@ export default class Up extends Command {
     }),
     env: Flags.string({
       description:
-        "Path to environment module (.ts or .js). When omitted, hosts Ollama only.",
+        "Path to environment module (.ts or .js). Merged with Ollama (always hosted for the demo bridge).",
     }),
     token: Flags.string({
       description: "Pairing token for /v1/invoke (auto-generated if omitted)",
