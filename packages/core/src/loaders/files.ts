@@ -1,11 +1,10 @@
 import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import type { Environment } from "../environment/environment.js"
 import { compileWorkflowSource } from "../compile/index.js"
-import { bundleWorkflowSource } from "../compile/transpile.js"
+import { bundleEnvironmentSource } from "../compile/transpile.js"
 
 /** Read file as utf-8. */
 export async function readTextFile(path: string): Promise<string> {
@@ -39,8 +38,11 @@ async function loadBundledModule<T extends Record<string, unknown>>(
   filename: string
 ): Promise<T> {
   const abs = resolve(filename)
-  const code = await bundleWorkflowSource(source, abs, dirname(abs))
-  const dir = await mkdtemp(join(tmpdir(), "ecp-bundle-"))
+  const resolveDir = dirname(abs)
+  const code = await bundleEnvironmentSource(source, abs, resolveDir)
+  // Keep the temp module under the project so external package imports resolve
+  // via the project's node_modules (native deps like sharp must stay external).
+  const dir = await mkdtemp(join(resolveDir, ".ecp-env-"))
   const file = join(dir, "module.mjs")
   try {
     await writeFile(file, code, "utf8")

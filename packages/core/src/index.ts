@@ -114,8 +114,12 @@ export {
   createBrowserFileLocator,
   createCapabilityBlobStore,
   stashCapabilityBlob,
+  collectBrowserLocators,
+  serializeCapabilityBlobs,
+  hydrateCapabilityBlobs,
   type CapabilityBlob,
   type CapabilityBlobStore,
+  type SerializedCapabilityBlob,
 } from "./runtime/blobs.js"
 export {
   handleMixedBrowserBlobUpload,

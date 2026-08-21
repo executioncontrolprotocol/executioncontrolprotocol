@@ -210,4 +210,54 @@ describe("handleInvokePost / runHttpInvoke", () => {
     })
     expect(uses).toHaveBeenCalledWith("p.generate")
   })
+
+  it("returns InvokeResult when blobs are present but getBlobStore is missing", async () => {
+    const result = await runHttpInvoke(ecp as never, {
+      capability: "@executioncontrolprotocol/image-sharp.resize",
+      input: {},
+      blobs: {
+        "ecp://browser/x": {
+          name: "x.png",
+          type: "image/png",
+          size: 4,
+          dataBase64: "AQIDBA==",
+        },
+      },
+    })
+    expect(result).toMatchObject({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      diagnostics: [{ code: "INVOKE_FAILED" }],
+    })
+    expect(ecp.invoke).not.toHaveBeenCalled()
+  })
+
+  it("hydrates blobs via getBlobStore before invoke", async () => {
+    const set = vi.fn()
+    const process = vi.fn().mockResolvedValue({ success: true })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    const ecpWithStore = {
+      invoke: vi.fn().mockReturnValue({ with: withFn }),
+      getBlobStore: vi.fn().mockReturnValue({ set }),
+    }
+
+    await runHttpInvoke(ecpWithStore as never, {
+      capability: "@executioncontrolprotocol/image-sharp.inspect",
+      input: { image: { kind: "file", path: "ecp://browser/x" } },
+      blobs: {
+        "ecp://browser/x": {
+          name: "x.png",
+          type: "image/png",
+          size: 4,
+          dataBase64: "AQIDBA==",
+        },
+      },
+    })
+    expect(ecpWithStore.getBlobStore).toHaveBeenCalled()
+    expect(set).toHaveBeenCalledWith(
+      "ecp://browser/x",
+      expect.objectContaining({ name: "x.png", type: "image/png", size: 4 })
+    )
+    expect(ecpWithStore.invoke).toHaveBeenCalled()
+  })
 })

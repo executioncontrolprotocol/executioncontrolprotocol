@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
   BROWSER_FILE_LOCATOR_PREFIX,
+  collectBrowserLocators,
   createBrowserFileLocator,
   createCapabilityBlobStore,
+  hydrateCapabilityBlobs,
   isBrowserFileLocator,
+  serializeCapabilityBlobs,
   stashCapabilityBlob,
 } from "../src/index.js"
 
@@ -45,5 +48,33 @@ describe("browser file locators", () => {
     expect(store.size()).toBe(1)
     store.clear()
     expect(store.size()).toBe(0)
+  })
+
+  it("collects locators from nested payloads", () => {
+    const locator = `${BROWSER_FILE_LOCATOR_PREFIX}abc`
+    expect(
+      collectBrowserLocators({
+        image: { kind: "file", path: locator },
+        source: locator,
+        nested: [{ uri: `${BROWSER_FILE_LOCATOR_PREFIX}def` }],
+      })
+    ).toEqual([locator, `${BROWSER_FILE_LOCATOR_PREFIX}def`])
+  })
+
+  it("serializes and hydrates blobs for host hops", async () => {
+    const store = createCapabilityBlobStore()
+    const locator = stashCapabilityBlob(store, {
+      name: "a.png",
+      type: "image/png",
+      size: 3,
+      arrayBuffer: async () => new Uint8Array([9, 8, 7]).buffer,
+    })
+    const serialized = await serializeCapabilityBlobs(store, [locator])
+    expect(serialized[locator]?.dataBase64).toBeTruthy()
+    const hostStore = createCapabilityBlobStore()
+    hydrateCapabilityBlobs(hostStore, serialized)
+    const restored = hostStore.get(locator)
+    expect(restored?.name).toBe("a.png")
+    expect(new Uint8Array(await restored!.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]))
   })
 })

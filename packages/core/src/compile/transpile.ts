@@ -45,15 +45,13 @@ export async function transpileWorkflowSource(
   return result.code
 }
 
-/**
- * Bundle workflow module with dependencies (Node host).
- * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
- * via normal `node_modules` lookup (no monorepo path aliases).
- */
-export async function bundleWorkflowSource(
+type BundlePackagesMode = "bundle" | "external"
+
+async function bundleModuleSource(
   source: string,
   filename: string,
-  resolveDir: string
+  resolveDir: string,
+  packages: BundlePackagesMode
 ): Promise<string> {
   const esbuild = await loadEsbuild()
   const loader = filename.endsWith(".tsx")
@@ -73,7 +71,7 @@ export async function bundleWorkflowSource(
     platform: "node",
     target: "node22",
     write: false,
-    packages: "bundle",
+    packages,
     external: ["@napi-rs/keyring"],
     plugins: [
       {
@@ -90,4 +88,30 @@ export async function bundleWorkflowSource(
   const file = result.outputFiles?.[0]
   if (!file) throw new Error("esbuild produced no output")
   return file.text
+}
+
+/**
+ * Bundle workflow module with dependencies (Node host).
+ * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
+ * via normal `node_modules` lookup (no monorepo path aliases).
+ */
+export async function bundleWorkflowSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir, "bundle")
+}
+
+/**
+ * Bundle an environment module for Node, keeping `node_modules` as runtime imports.
+ * Native packages (e.g. `sharp`) cannot be inlined; environments must load them live.
+ * @category Compile
+ */
+export async function bundleEnvironmentSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir, "external")
 }

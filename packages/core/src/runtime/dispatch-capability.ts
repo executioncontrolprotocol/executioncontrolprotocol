@@ -13,6 +13,10 @@ import {
   type RemoteInvokeBinding,
 } from "./remote-invoke.js"
 import type { CapabilityDefinition, ExtensionDefinition } from "../definitions/types.js"
+import {
+  collectBrowserLocators,
+  serializeCapabilityBlobs,
+} from "./blobs.js"
 
 /** Error thrown when dispatch cannot produce handler output. @category Runtime */
 export class CapabilityDispatchError extends Error {
@@ -91,7 +95,12 @@ export async function dispatchCapability(options: DispatchCapabilityOptions): Pr
   }
 
   if (hopHost) {
-    const hopped = await hopRemoteInvoke(remoteInvoke!, capabilityId, input)
+    const locators = collectBrowserLocators(input)
+    const blobs =
+      ctx.blobs && locators.length > 0
+        ? await serializeCapabilityBlobs(ctx.blobs, locators)
+        : undefined
+    const hopped = await hopRemoteInvoke(remoteInvoke!, capabilityId, input, blobs)
     if (!hopped.success) {
       throw new CapabilityDispatchError(hopped)
     }

@@ -1,8 +1,19 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
-import type { Ecp } from "@executioncontrolprotocol/core"
+import {
+  hydrateCapabilityBlobs,
+  type CapabilityBlobStore,
+  type Ecp,
+  type SerializedCapabilityBlob,
+} from "@executioncontrolprotocol/core"
 import { readRequestBody } from "./read-body.js"
 import { writeJson } from "./write-json.js"
-import { httpStatusForInvokeResult } from "@executioncontrolprotocol/types"
+import {
+  ECP_INVOKE_ERROR_CODES,
+  LATEST_ECP_VERSION,
+  httpStatusForInvokeResult,
+  type CapabilityId,
+  type InvokeResult,
+} from "@executioncontrolprotocol/types"
 
 /** JSON body for `POST /v1/invoke`. @category CLI */
 export interface InvokeHttpBody {
@@ -12,6 +23,20 @@ export interface InvokeHttpBody {
   input?: unknown
   /** Optional provider capability override (harness `.uses`). */
   provider?: string
+  /** Browser file blobs hopped with locator refs (transport only). */
+  blobs?: Record<string, SerializedCapabilityBlob>
+}
+
+/** Parsed invoke body. @category CLI */
+export interface ParsedInvokeBody {
+  /** Capability id. */
+  capability: string
+  /** Input payload. */
+  input: unknown
+  /** Optional provider override. */
+  provider?: string
+  /** Optional hopped blobs. */
+  blobs?: Record<string, SerializedCapabilityBlob>
 }
 
 /**
@@ -20,7 +45,7 @@ export interface InvokeHttpBody {
  */
 export function parseInvokeBody(
   raw: string
-): { ok: true; body: { capability: string; input: unknown; provider?: string } } | { ok: false; error: string } {
+): { ok: true; body: ParsedInvokeBody } | { ok: false; error: string } {
   let parsed: InvokeHttpBody
   try {
     parsed = raw.trim() ? (JSON.parse(raw) as InvokeHttpBody) : {}
@@ -30,6 +55,10 @@ export function parseInvokeBody(
   if (typeof parsed.capability !== "string" || !parsed.capability.trim()) {
     return { ok: false, error: "capability is required" }
   }
+  const blobs =
+    parsed.blobs && typeof parsed.blobs === "object" && !Array.isArray(parsed.blobs)
+      ? parsed.blobs
+      : undefined
   return {
     ok: true,
     body: {
@@ -38,7 +67,39 @@ export function parseInvokeBody(
       ...(typeof parsed.provider === "string" && parsed.provider.trim()
         ? { provider: parsed.provider }
         : {}),
+      ...(blobs ? { blobs } : {}),
     },
+  }
+}
+
+/**
+ * Resolve the host blob store when the operational ECP supports hop hydration.
+ * Older `@executioncontrolprotocol/core` builds (no {@link Ecp.getBlobStore}) return undefined.
+ * @category CLI
+ */
+export function resolveInvokeBlobStore(ecp: Ecp): CapabilityBlobStore | undefined {
+  if (typeof ecp.getBlobStore !== "function") return undefined
+  return ecp.getBlobStore()
+}
+
+/**
+ * Failed invoke result when the host cannot accept hopped browser blobs.
+ * @category CLI
+ */
+export function blobHopUnsupportedResult(capabilityId: string): InvokeResult {
+  return {
+    schema: "@executioncontrolprotocol.invoke.result",
+    version: LATEST_ECP_VERSION,
+    success: false,
+    capabilityId: capabilityId as CapabilityId,
+    diagnostics: [
+      {
+        severity: "error",
+        code: ECP_INVOKE_ERROR_CODES.INVOKE_FAILED,
+        message:
+          "Host environment does not support browser blob hop (upgrade @executioncontrolprotocol/core / node used by --env).",
+      },
+    ],
   }
 }
 
@@ -46,10 +107,14 @@ export function parseInvokeBody(
  * Run `ecp.invoke` for a parsed invoke body and return the result.
  * @category CLI
  */
-export async function runHttpInvoke(
-  ecp: Ecp,
-  body: { capability: string; input: unknown; provider?: string }
-) {
+export async function runHttpInvoke(ecp: Ecp, body: ParsedInvokeBody) {
+  if (body.blobs) {
+    const store = resolveInvokeBlobStore(ecp)
+    if (!store) {
+      return blobHopUnsupportedResult(body.capability)
+    }
+    hydrateCapabilityBlobs(store, body.blobs)
+  }
   const builder = ecp.invoke(body.capability).with(body.input)
   return (body.provider ? builder.uses(body.provider) : builder).process()
 }

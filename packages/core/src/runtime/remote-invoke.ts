@@ -59,7 +59,8 @@ function trimSlash(url: string): string {
 export async function hopRemoteInvoke(
   binding: RemoteInvokeBinding,
   capabilityId: string,
-  input: unknown
+  input: unknown,
+  blobs?: Record<string, import("./blobs.js").SerializedCapabilityBlob>
 ): Promise<InvokeResult> {
   const url = `${trimSlash(binding.url)}/v1/invoke`
   let res: Response
@@ -70,7 +71,11 @@ export async function hopRemoteInvoke(
         "Content-Type": "application/json",
         Authorization: `Bearer ${binding.token}`,
       },
-      body: JSON.stringify({ capability: capabilityId, input: input ?? {} }),
+      body: JSON.stringify({
+        capability: capabilityId,
+        input: input ?? {},
+        ...(blobs && Object.keys(blobs).length > 0 ? { blobs } : {}),
+      }),
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
