@@ -15,6 +15,20 @@ Use for:
 
 Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) should resolve only `@executioncontrolprotocol/core` for browser apps.
 
+### Media resolve/write (extensions)
+
+Portable `ImageRef` values (`buffer` | `file` | `url` | `artifact`) are resolved by core — not by each vendor package:
+
+```ts
+import { resolveMedia, writeMediaArtifact } from "@executioncontrolprotocol/core"
+
+const { bytes, mediaType } = await resolveMedia(input.image, ctx)
+// …domain processing…
+return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "artifacts/images" }, ctx) }
+```
+
+`file.path` may be a Node path or an `ecp://browser/<id>` locator (`ctx.blobs`). Host hops already walk nested payloads (including ImageRef trees) via `collectBrowserLocators`.
+
 ```ts
 import { workflow, step, ref } from "@executioncontrolprotocol/core"
 

@@ -61,6 +61,17 @@ describe("browser file locators", () => {
     ).toEqual([locator, `${BROWSER_FILE_LOCATOR_PREFIX}def`])
   })
 
+  it("collects ImageRef file.path and artifact.uri browser locators for host hops", () => {
+    const fileLoc = `${BROWSER_FILE_LOCATOR_PREFIX}file-1`
+    const artLoc = `${BROWSER_FILE_LOCATOR_PREFIX}art-1`
+    expect(
+      collectBrowserLocators({
+        image: { kind: "file", path: fileLoc, mediaType: "image/png" },
+        overlay: { kind: "artifact", uri: artLoc },
+      })
+    ).toEqual([fileLoc, artLoc])
+  })
+
   it("serializes and hydrates blobs for host hops", async () => {
     const store = createCapabilityBlobStore()
     const locator = stashCapabilityBlob(store, {

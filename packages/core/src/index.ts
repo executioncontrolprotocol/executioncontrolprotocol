@@ -127,6 +127,15 @@ export {
   type CapabilityArtifactStore,
 } from "./runtime/artifacts.js"
 export {
+  resolveMedia,
+  writeMediaArtifact,
+  STORAGE_ARTIFACT_URI_PREFIX,
+  type ResolvedMedia,
+  type ResolveMediaOptions,
+  type WriteMediaArtifactOptions,
+  type MediaCapabilityContext,
+} from "./media/index.js"
+export {
   handleMixedBrowserBlobUpload,
   type MixedBlobUploadInput,
   type MixedBlobUploadOutput,

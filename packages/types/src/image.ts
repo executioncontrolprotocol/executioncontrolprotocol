@@ -29,7 +29,10 @@ export type ImageOutputFormat = (typeof IMAGE_OUTPUT_FORMATS)[keyof typeof IMAGE
 export interface ArtifactImageRef {
   /** Reference kind. */
   kind: typeof IMAGE_REF_KINDS.ARTIFACT
-  /** Artifact URI (e.g. ecp://artifacts/input). */
+  /**
+   * Artifact URI (`ecp://…` in `ctx.artifacts`, `ecp://storage/…`, or
+   * `ecp://browser/…` when bytes live in `ctx.blobs`).
+   */
   uri: string
   /** Optional MIME type. */
   mediaType?: string
@@ -39,11 +42,14 @@ export interface ArtifactImageRef {
   sizeBytes?: number
 }
 
-/** Filesystem image reference (Node runtime). @category Image */
+/** Filesystem or browser-locator image reference. @category Image */
 export interface FileImageRef {
   /** Reference kind. */
   kind: typeof IMAGE_REF_KINDS.FILE
-  /** Absolute or relative file path. */
+  /**
+   * Absolute or relative file path on Node, or an `ecp://browser/<id>` locator
+   * stashed in `ctx.blobs` for browser/mixed hops.
+   */
   path: string
   /** Optional MIME type. */
   mediaType?: string

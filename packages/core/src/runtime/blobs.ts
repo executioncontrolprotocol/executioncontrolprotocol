@@ -89,6 +89,8 @@ export function stashCapabilityBlob(store: CapabilityBlobStore, blob: Capability
 
 /**
  * Collect `ecp://browser/<id>` locators from an invoke/run payload.
+ * Walks nested objects/arrays, including {@link ImageRef} `file.path` and
+ * `artifact.uri` when they hold browser locators.
  * @category Runtime
  */
 export function collectBrowserLocators(value: unknown, out: string[] = []): string[] {
