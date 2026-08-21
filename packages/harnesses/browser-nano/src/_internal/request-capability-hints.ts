@@ -376,9 +376,14 @@ export function collectCreateStepCountFeedback(
     /\bone step\b/i.test(request) ||
     /\bexactly one\b/i.test(request) ||
     /\bminimal\b/i.test(request)
+  // Empty capability matches mean "unknown", not "require zero steps".
+  const fromMatchedCaps =
+    requiredCapabilityIds !== undefined && requiredCapabilityIds.length > 0
+      ? requiredCapabilityIds.length
+      : undefined
   const requiredCount = explicitSingle
     ? 1
-    : inferRequiredStepCount(request) ?? requiredCapabilityIds?.length
+    : inferRequiredStepCount(request) ?? fromMatchedCaps
   const count = workflow.steps?.length ?? 0
   if (requiredCount === undefined || count <= requiredCount) {
     return undefined
