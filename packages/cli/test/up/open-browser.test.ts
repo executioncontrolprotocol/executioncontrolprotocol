@@ -9,8 +9,8 @@ describe("buildDemoOpenUrl", () => {
       bridgeBaseURL: "http://127.0.0.1:3090",
     })
     const parsed = new URL(url)
-    expect(parsed.origin).toBe("https://executioncontrolprotocol.github.io")
-    expect(parsed.pathname).toBe("/browser-demo/")
+    expect(parsed.origin).toBe("https://demo.executioncontrolprotocol.io")
+    expect(parsed.pathname).toBe("/")
     expect(parsed.searchParams.get("token")).toBe("abc-123")
     expect(parsed.searchParams.get("bridge")).toBe("http://127.0.0.1:3090")
   })
@@ -19,7 +19,7 @@ describe("buildDemoOpenUrl", () => {
 describe("originFromUrl", () => {
   it("returns the origin for CORS allowlisting", () => {
     expect(originFromUrl(DEFAULT_DEMO_OPEN_URL)).toBe(
-      "https://executioncontrolprotocol.github.io"
+      "https://demo.executioncontrolprotocol.io"
     )
   })
 

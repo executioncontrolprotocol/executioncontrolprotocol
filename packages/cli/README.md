@@ -124,7 +124,7 @@ Ollama/PNA **demo bridge** (fixed local env, not arbitrary `--env`). Prefer `ecp
 
 ```sh
 ecp up
-# Opens https://executioncontrolprotocol.github.io/browser-demo/?token=<uuid>&bridge=http://127.0.0.1:3090
+# Opens https://demo.executioncontrolprotocol.io/?token=<uuid>&bridge=http://127.0.0.1:3090
 
 ecp up --open-url http://localhost:5173/
 ecp up --no-open

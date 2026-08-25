@@ -10,13 +10,13 @@ export const DEFAULT_ECP_UP_HOST = "127.0.0.1"
 export const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 
 /** Default browser demo URL opened by `ecp up`. @category CLI */
-export const DEFAULT_DEMO_OPEN_URL = "https://executioncontrolprotocol.github.io/browser-demo/"
+export const DEFAULT_DEMO_OPEN_URL = "https://demo.executioncontrolprotocol.io/"
 
 /** Built-in CORS origins for local Vite + hosted demo. @category CLI */
 export const DEFAULT_CORS_ORIGINS: readonly string[] = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://executioncontrolprotocol.github.io",
+  "https://demo.executioncontrolprotocol.io",
 ]
 
 /** JSON MIME type for daemon responses. @category CLI */
