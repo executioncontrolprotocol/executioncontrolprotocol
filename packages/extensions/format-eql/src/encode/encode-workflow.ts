@@ -1,7 +1,21 @@
 import type { StepNode, WorkflowManifest } from "@executioncontrolprotocol/types"
 import type { EqlFormatOptions } from "../schemas.js"
 import type { EcpFormatOptions } from "@executioncontrolprotocol/types"
+import { jsonSchemaToEqlTypeMap } from "../workflow-io-eql.js"
 import { EqlWriter, formatInputValue, formatLiteral, formatWhen } from "./writer.js"
+
+function writeIoTypeMap(
+  block: "ACCEPTS" | "RETURNS",
+  typeMap: Record<string, string> | undefined,
+  writer: EqlWriter
+): void {
+  if (!typeMap || Object.keys(typeMap).length === 0) return
+  writer.writeln(block)
+  const prefix = block === "ACCEPTS" ? "WITH" : "OUT"
+  for (const [name, type] of Object.entries(typeMap)) {
+    writer.writeln(`${prefix} ${name}:${type}`, 1)
+  }
+}
 
 export function encodeWorkflowToEql(
   manifest: WorkflowManifest,
@@ -17,6 +31,15 @@ export function encodeWorkflowToEql(
     ? `WORKFLOW ${manifest.workflow.id} ${formatLiteral(label, writer.quote)}`
     : `WORKFLOW ${manifest.workflow.id}`
   writer.writeln(wfLine)
+
+  const accepts = jsonSchemaToEqlTypeMap(
+    manifest.workflow.accepts as Record<string, unknown> | undefined
+  )
+  const returns = jsonSchemaToEqlTypeMap(
+    manifest.workflow.returns as Record<string, unknown> | undefined
+  )
+  writeIoTypeMap("ACCEPTS", accepts, writer)
+  writeIoTypeMap("RETURNS", returns, writer)
 
   for (const node of manifest.steps) {
     if (node.type && node.type !== "step") {

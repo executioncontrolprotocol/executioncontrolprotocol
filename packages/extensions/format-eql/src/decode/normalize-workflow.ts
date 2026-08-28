@@ -1,5 +1,6 @@
 import { LATEST_ECP_VERSION, type StepNode, type WorkflowManifest } from "@executioncontrolprotocol/types"
 import type { EqlWorkflowDoc } from "./ast.js"
+import { eqlTypeMapToJsonSchema } from "../workflow-io-eql.js"
 
 export function workflowFromEql(doc: EqlWorkflowDoc): WorkflowManifest {
   const steps: StepNode[] = doc.steps.map((s) => {
@@ -16,12 +17,17 @@ export function workflowFromEql(doc: EqlWorkflowDoc): WorkflowManifest {
     return node
   })
 
+  const accepts = eqlTypeMapToJsonSchema(doc.accepts)
+  const returns = eqlTypeMapToJsonSchema(doc.returns)
+
   return {
     schema: "@executioncontrolprotocol.workflow",
     version: LATEST_ECP_VERSION,
     workflow: {
       id: doc.workflowId,
       ...(doc.workflowLabel ? { label: doc.workflowLabel } : {}),
+      ...(accepts ? { accepts } : {}),
+      ...(returns ? { returns } : {}),
     },
     steps,
   }

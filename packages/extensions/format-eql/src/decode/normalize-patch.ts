@@ -6,6 +6,7 @@ import {
   type StepNode,
 } from "@executioncontrolprotocol/types"
 import type { EqlPatchDoc, EqlStepAdd } from "./ast.js"
+import { eqlTypeMapToJsonSchema } from "../workflow-io-eql.js"
 
 function stepNodeFromAdd(add: EqlStepAdd): StepNode {
   const node: StepNode = {
@@ -29,6 +30,36 @@ export function patchFromEql(doc: EqlPatchDoc): EcpPatchDocument {
       path: "workflow.label",
       mode: "replace",
       value: doc.workflowUpdate.label,
+    })
+  }
+
+  if (doc.workflowUpdate?.clearAccepts) {
+    patches.push({
+      path: "workflow.accepts",
+      mode: "replace",
+      value: null,
+    })
+  } else if (doc.workflowUpdate?.accepts !== undefined) {
+    const schema = eqlTypeMapToJsonSchema(doc.workflowUpdate.accepts)
+    patches.push({
+      path: "workflow.accepts",
+      mode: "replace",
+      value: schema ?? null,
+    })
+  }
+
+  if (doc.workflowUpdate?.clearReturns) {
+    patches.push({
+      path: "workflow.returns",
+      mode: "replace",
+      value: null,
+    })
+  } else if (doc.workflowUpdate?.returns !== undefined) {
+    const schema = eqlTypeMapToJsonSchema(doc.workflowUpdate.returns)
+    patches.push({
+      path: "workflow.returns",
+      mode: "replace",
+      value: schema ?? null,
     })
   }
 

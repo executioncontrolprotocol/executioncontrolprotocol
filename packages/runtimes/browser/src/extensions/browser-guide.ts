@@ -1,4 +1,5 @@
 import {
+  BROWSER_RUNTIME_ID,
   catalogExtension,
   capabilityFor,
   defineExtension,
@@ -101,6 +102,7 @@ function guideReply(message: string): string {
 
 /** Browser guided onboarding chat (no external model). @category Extensions */
 export const browserGuideExtension = defineExtension("@executioncontrolprotocol", "browser")
+  .withSupportedRuntimes([BROWSER_RUNTIME_ID])
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/browser", "guideChat")
       .withInput(GuideChatInput)

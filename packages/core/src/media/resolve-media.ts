@@ -33,14 +33,14 @@ export type MediaCapabilityContext = CapabilityContext & {
 }
 
 async function readFileFromPath(path: string): Promise<Uint8Array> {
-  const fs = await import("node:fs/promises").catch(() => null)
-  if (!fs?.readFile) {
+  try {
+    const mod = await import("../loaders/read-media-file.js")
+    return mod.readMediaFileFromPath(path)
+  } catch {
     throw new Error(
       "File media refs require Node.js (node:fs/promises is not available in this runtime)"
     )
   }
-  const buf = await fs.readFile(path)
-  return new Uint8Array(buf)
 }
 
 async function readBrowserLocator(

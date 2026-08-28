@@ -57,6 +57,7 @@ import {
   collectCreateCapabilityFeedback,
   collectCreateDuplicateStepIdFeedback,
   collectCreateStepCountFeedback,
+  collectCreateWorkflowIoFeedback,
   inferPatchTargetStepId,
   inferRequestedLabel,
   inferRequiredCapabilityIds,
@@ -568,6 +569,10 @@ const evalsWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol",
           )
           if (stepCountFeedback) {
             return { success: false, feedback: [...feedback, ...stepCountFeedback] }
+          }
+          const ioFeedback = collectCreateWorkflowIoFeedback(input.request, wfArtifact)
+          if (ioFeedback) {
+            return { success: false, feedback: [...feedback, ...ioFeedback] }
           }
         }
         if (isPatch && environmentSummary) {

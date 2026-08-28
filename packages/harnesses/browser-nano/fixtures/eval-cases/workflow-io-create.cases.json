@@ -1,0 +1,126 @@
+{
+  "cases": [
+    {
+      "id": "wf-create-io-01",
+      "suite": "workflow-create",
+      "title": "ACCEPTS value with REF from input",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create WORKFLOW echo-from-input with ACCEPTS WITH value:string! and STEP echo USES @executioncontrolprotocol/test.echo with WITH value = REF value."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowAcceptsRefUsed", "property": "value" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-create-io-02",
+      "suite": "workflow-create",
+      "title": "ACCEPTS and RETURNS",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create echo-from-input workflow with ACCEPTS value:string!, RETURNS OUT echo:object!, echo step AS echo wired from REF value."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowReturnsHasProperties", "properties": ["echo"] },
+          { "kind": "workflowReturnsMapsAs", "property": "echo", "asKey": "echo" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-create-io-03",
+      "suite": "workflow-create",
+      "title": "Two-step with ACCEPTS prompt",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create two-step workflow with ACCEPTS prompt:string!, echo then summarize; echo uses REF prompt and summarize uses REF echo.output."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["prompt"] },
+          { "kind": "workflowAcceptsRefUsed", "property": "prompt" },
+          { "kind": "stepCount", "min": 2 }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-create-io-04",
+      "suite": "workflow-create",
+      "title": "RETURNS maps to AS",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create workflow with ACCEPTS value:string!, RETURNS OUT echo:object!, echo step AS echo with REF value input."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowReturnsHasProperties", "properties": ["echo"] },
+          { "kind": "workflowReturnsMapsAs", "property": "echo", "asKey": "echo" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-create-io-05",
+      "suite": "workflow-create",
+      "title": "Numeric ACCEPTS",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create workflow with ACCEPTS WITH count:number! and echo step wired from REF count."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["count"] }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-create-io-06",
+      "suite": "workflow-create",
+      "title": "ACCEPTS without RETURNS",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "input": {
+        "request": "Create single echo step workflow with ACCEPTS value:string! and no RETURNS block."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowReturnsAbsent" },
+          { "kind": "stepCount", "exact": 1 }
+        ],
+        "judge": { "enabled": false }
+      }
+    }
+  ]
+}

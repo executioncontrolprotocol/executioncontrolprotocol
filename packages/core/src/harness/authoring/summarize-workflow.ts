@@ -1,4 +1,5 @@
 import type { StepNode, WorkflowManifest } from "@executioncontrolprotocol/types"
+import { jsonSchemaObjectProperties } from "../../schema/json-schema.js"
 
 function formatInputValueEql(value: unknown): string {
   if (typeof value === "string") return `"${value.replace(/"/g, '\\"')}"`
@@ -32,6 +33,33 @@ export interface CompactWorkflowStepRow {
   inputKeys: string[]
 }
 
+function workflowIoPropertyNames(
+  manifest: WorkflowManifest,
+  field: "accepts" | "returns"
+): string[] {
+  const schema = manifest.workflow?.[field] as Record<string, unknown> | undefined
+  return jsonSchemaObjectProperties(schema).map((p) => p.name)
+}
+
+function formatIoTypeMapEqlLines(
+  block: "ACCEPTS" | "RETURNS",
+  manifest: WorkflowManifest
+): string[] {
+  const field = block === "ACCEPTS" ? "accepts" : "returns"
+  const schema = manifest.workflow?.[field] as Record<string, unknown> | undefined
+  const fields = jsonSchemaObjectProperties(schema)
+  if (fields.length === 0) return []
+  const prefix = block === "ACCEPTS" ? "WITH" : "OUT"
+  const lines: string[] = [block]
+  for (const prop of fields) {
+    const type = prop.schema.type
+    const typeLabel = typeof type === "string" ? type : "unknown"
+    const suffix = prop.required ? "!" : ""
+    lines.push(`  ${prefix} ${prop.name}:${typeLabel}${suffix}`)
+  }
+  return lines
+}
+
 /**
  * Summarize a workflow manifest for harness user prompts.
  * @category Harness
@@ -40,6 +68,8 @@ export function summarizeWorkflowManifest(manifest: WorkflowManifest): {
   workflowId: string
   workflowLabel?: string
   steps: CompactWorkflowStepRow[]
+  accepts: string[]
+  returns: string[]
 } {
   const workflow = manifest.workflow
   const steps: CompactWorkflowStepRow[] = []
@@ -59,6 +89,8 @@ export function summarizeWorkflowManifest(manifest: WorkflowManifest): {
     workflowId: workflow?.id ?? "",
     workflowLabel: workflow?.label,
     steps,
+    accepts: workflowIoPropertyNames(manifest, "accepts"),
+    returns: workflowIoPropertyNames(manifest, "returns"),
   }
 }
 
@@ -78,8 +110,14 @@ export function formatWorkflowSummaryLines(
   const lines = [
     `Workflow: ${summary.workflowId}${summary.workflowLabel ? ` (${summary.workflowLabel})` : ""}`,
     `Existing step ids (patch only these ids): ${summary.steps.map((s) => s.id).join(", ") || "none"}`,
-    "Steps:",
   ]
+  if (summary.accepts.length > 0) {
+    lines.push(`Workflow accepts: ${summary.accepts.join(", ")}`)
+  }
+  if (summary.returns.length > 0) {
+    lines.push(`Workflow returns: ${summary.returns.join(", ")}`)
+  }
+  lines.push("Steps:")
   for (const step of summary.steps) {
     const inputPart =
       step.inputKeys.length > 0 ? ` input keys: ${step.inputKeys.join(", ")}` : ""
@@ -120,6 +158,14 @@ export function formatWorkflowSummaryEqlLines(
         `Workflow label: "${summary.workflowLabel}" (change with UPDATE WORKFLOW LABEL, not UPDATE STEP).`
       )
     }
+    const accepts = workflowIoPropertyNames(manifest, "accepts")
+    const returns = workflowIoPropertyNames(manifest, "returns")
+    if (accepts.length > 0) {
+      lines.push(`Workflow accepts: ${accepts.join(", ")} (change with UPDATE WORKFLOW ACCEPTS).`)
+    }
+    if (returns.length > 0) {
+      lines.push(`Workflow returns: ${returns.join(", ")} (change with UPDATE WORKFLOW RETURNS).`)
+    }
     lines.push(
       "",
       "Patch output rules:",
@@ -133,6 +179,8 @@ export function formatWorkflowSummaryEqlLines(
   }
 
   lines.push("Current workflow as EQL:")
+  lines.push(...formatIoTypeMapEqlLines("ACCEPTS", manifest))
+  lines.push(...formatIoTypeMapEqlLines("RETURNS", manifest))
 
   for (const node of manifest.steps ?? []) {
     if (node.type !== undefined && node.type !== "step") continue

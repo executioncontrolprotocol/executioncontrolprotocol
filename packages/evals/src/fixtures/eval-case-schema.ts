@@ -63,6 +63,16 @@ const deterministicAssertionSchema = z.discriminatedUnion("kind", [
     shotIndex: z.number(),
     value: z.enum(["unfiltered", "contextualized"]),
   }),
+  z.object({ kind: z.literal("workflowAcceptsHasProperties"), properties: z.array(z.string()).min(1) }),
+  z.object({ kind: z.literal("workflowReturnsHasProperties"), properties: z.array(z.string()).min(1) }),
+  z.object({ kind: z.literal("workflowAcceptsAbsent") }),
+  z.object({ kind: z.literal("workflowReturnsAbsent") }),
+  z.object({ kind: z.literal("workflowAcceptsRefUsed"), property: z.string() }),
+  z.object({
+    kind: z.literal("workflowReturnsMapsAs"),
+    property: z.string(),
+    asKey: z.string(),
+  }),
 ])
 
 const judgeAssertionSchema = z.object({

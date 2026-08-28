@@ -1,21 +1,17 @@
 {
   "schema": "@executioncontrolprotocol.workflow",
-  "version": "1.0.0",
+  "version": "1.0",
   "workflow": {
     "id": "echo-from-input",
     "label": "Echo from input",
     "accepts": {
       "type": "object",
-      "properties": {
-        "value": { "type": "string" }
-      },
+      "properties": { "value": { "type": "string" } },
       "required": ["value"]
     },
     "returns": {
       "type": "object",
-      "properties": {
-        "echo": { "type": "object" }
-      },
+      "properties": { "echo": { "type": "object" } },
       "required": ["echo"]
     }
   },
