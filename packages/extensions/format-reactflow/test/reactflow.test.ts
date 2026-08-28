@@ -90,6 +90,35 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(edges[0]!.target).toBe(stepB.id)
   })
 
+  it("extracts data edges when refs use step id instead of as key", () => {
+    const manifest = workflow("Id ref")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "A").id("echo-step").with({ value: "a" }).as("echo"),
+        step("@executioncontrolprotocol/test.echo", "B")
+          .with({ value: { $ref: "state.echo-step.echo" } })
+          .as("b"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.source).toBe("echo-step")
+    expect(edges[0]!.sourceHandle).toBe("echo")
+  })
+
+  it("extracts data edges from $state inputs", () => {
+    const manifest = workflow("State ref")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "A").with({ value: "a" }).as("a"),
+        step("@executioncontrolprotocol/test.echo", "B")
+          .with({ value: { $state: "a.echo" } })
+          .as("b"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.targetHandle).toBe("value")
+  })
+
   it("attaches truncated literal binding metadata on input ports", () => {
     const longPrompt =
       "Write a short sample email summarizing the weekly product meeting and action owners for follow-up."
