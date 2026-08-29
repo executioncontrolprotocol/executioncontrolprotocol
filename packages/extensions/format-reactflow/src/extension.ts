@@ -106,7 +106,13 @@ export const formatReactflowExtension = defineExtension(
       if (ctx.step?.id) reactFlowRunProgress.emitStepStatus(ctx.step.id, "completed")
     }),
     progressHook("step:failed", (ctx) => {
-      if (ctx.step?.id) reactFlowRunProgress.emitStepStatus(ctx.step.id, "failed")
+      if (ctx.step?.id) {
+        reactFlowRunProgress.emitStepStatus(
+          ctx.step.id,
+          "failed",
+          ctx.diagnostics?.[0]?.message
+        )
+      }
     }),
     progressHook("run:completed", (ctx) => {
       reactFlowRunProgress.emitDone({ runId: ctx.run.id, outcome: "completed" })

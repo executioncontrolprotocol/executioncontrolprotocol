@@ -391,6 +391,18 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(statuses).toEqual(["s1:running", "s1:completed"])
   })
 
+  it("includes failure message on step:status when provided", () => {
+    let message: string | undefined
+    const onStatus = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ message?: string }>).detail
+      message = detail.message
+    }
+    reactFlowRunProgress.addEventListener("step:status", onStatus)
+    reactFlowRunProgress.emitStepStatus("s1", "failed", "capability failed")
+    reactFlowRunProgress.removeEventListener("step:status", onStatus)
+    expect(message).toBe("capability failed")
+  })
+
   it("emits progress during ecp.run via extension hooks", async () => {
     await registerFormatReactflowExtension()
     await registerTestExtension()

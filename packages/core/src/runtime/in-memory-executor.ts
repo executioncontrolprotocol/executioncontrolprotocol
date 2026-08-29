@@ -372,6 +372,18 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
 
       if (preDecision.type === "deny") {
         stepRecord.status = "failed"
+        stepRecord.diagnostics = [
+          {
+            severity: "error",
+            code: preDecision.code ?? "POLICY_DENIED",
+            message: preDecision.reason,
+          },
+        ]
+        await emitLifecycle("step:failed", ctx.extensionHooks, {
+          event: "step:failed",
+          ...lifecycleBase,
+          diagnostics: stepRecord.diagnostics,
+        })
         return
       }
       if (preDecision.type === "pause") {
@@ -429,10 +441,6 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         })
       } catch (err) {
         buffer.discard()
-        await emitLifecycle("step:failed", ctx.extensionHooks, {
-          event: "step:failed",
-          ...lifecycleBase,
-        })
         stepRecord.status = "failed"
         if (err instanceof CapabilityDispatchError) {
           stepRecord.diagnostics = err.result.diagnostics
@@ -440,6 +448,11 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           const message = err instanceof Error ? err.message : String(err)
           stepRecord.diagnostics = [{ severity: "error", code: "STEP_FAILED", message }]
         }
+        await emitLifecycle("step:failed", ctx.extensionHooks, {
+          event: "step:failed",
+          ...lifecycleBase,
+          diagnostics: stepRecord.diagnostics,
+        })
         return
       }
 
@@ -461,6 +474,20 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         buffer.discard()
         stepRecord.status = postDecision.type === "pause" ? "paused" : "failed"
         stepRecord.output = output
+        if (postDecision.type === "deny") {
+          stepRecord.diagnostics = [
+            {
+              severity: "error",
+              code: postDecision.code ?? "POLICY_DENIED",
+              message: postDecision.reason,
+            },
+          ]
+          await emitLifecycle("step:failed", ctx.extensionHooks, {
+            event: "step:failed",
+            ...lifecycleBase,
+            diagnostics: stepRecord.diagnostics,
+          })
+        }
         return
       }
 

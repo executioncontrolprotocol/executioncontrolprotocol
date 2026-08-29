@@ -2,6 +2,7 @@ import type {
   LifecycleEvent,
   PolicyEvaluationScope,
   RegistryRegistrationRequest,
+  ValidationIssue,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 import type { PendingMutation, StoreStateHandle } from "@executioncontrolprotocol/types"
@@ -57,6 +58,8 @@ export interface LifecycleContext {
   state: Record<string, unknown>
   /** Step capability output when available (e.g. `step:completed`). */
   output?: unknown
+  /** Failure diagnostics when the step did not complete (e.g. `step:failed`). */
+  diagnostics?: ValidationIssue[]
   /** Present on `environment:*` events. */
   environment?: EnvironmentLifecycleHost
 }
