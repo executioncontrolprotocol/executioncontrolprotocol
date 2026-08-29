@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
+import { fileRefSchema } from "@executioncontrolprotocol/types"
 import {
   portsForStep,
   valueSchemaFromEqlLabel,
@@ -23,14 +24,6 @@ describe("valueSchemaFromZod", () => {
     })
   })
 
-  it("unwraps optional and nullable without changing the hint", () => {
-    expect(valueSchemaFromZod(z.enum(["x", "y"]).optional())).toEqual({
-      type: "string",
-      enum: ["x", "y"],
-    })
-    expect(valueSchemaFromZod(z.string().nullable())).toEqual({ type: "string" })
-  })
-
   it("projects light object and array shapes", () => {
     expect(
       valueSchemaFromZod(
@@ -51,12 +44,34 @@ describe("valueSchemaFromZod", () => {
       items: { type: "string" },
     })
   })
+
+  it("unwraps optional and nullable without changing the hint", () => {
+    expect(valueSchemaFromZod(z.enum(["x", "y"]).optional())).toEqual({
+      type: "string",
+      enum: ["x", "y"],
+    })
+    expect(valueSchemaFromZod(z.string().nullable())).toEqual({ type: "string" })
+  })
+
+  it("projects fileRefSchema with contentMediaType", () => {
+    expect(valueSchemaFromZod(fileRefSchema({ contentMediaType: "image/*" }))).toMatchObject({
+      "x-ecp-file": true,
+      contentMediaType: "image/*",
+    })
+    expect(valueSchemaFromZod(fileRefSchema({ contentMediaType: "image/*" }).optional())).toMatchObject(
+      {
+        "x-ecp-file": true,
+        contentMediaType: "image/*",
+      }
+    )
+  })
 })
 
 describe("valueSchemaFromEqlLabel", () => {
   it("synthesizes primitives from EQL labels", () => {
     expect(valueSchemaFromEqlLabel("string!")).toEqual({ type: "string" })
     expect(valueSchemaFromEqlLabel("integer")).toEqual({ type: "integer" })
+    expect(valueSchemaFromEqlLabel("file!")).toMatchObject({ "x-ecp-file": true })
     expect(valueSchemaFromEqlLabel("unknown")).toBeUndefined()
   })
 })
@@ -88,6 +103,32 @@ describe("portsForStep valueSchema", () => {
     expect(prompt?.valueSchema).toEqual({ type: "string" })
     expect(prompt?.valueSchema).not.toHaveProperty("enum")
     expect(mode?.required).toBe(true)
+  })
+
+  it("attaches file valueSchema and typeLabel from fileRefSchema input", () => {
+    const inputSchema = z.object({
+      image: fileRefSchema({ contentMediaType: "image/*" }),
+    })
+    const registry = {
+      getCapability: () => ({
+        inputSchema,
+        outputSchema: z.object({ ok: z.boolean() }),
+      }),
+    } as unknown as Registry
+
+    const step: StepNode = {
+      id: "s1",
+      uses: "@vendor/sharp.transform",
+      input: {},
+    }
+
+    const { inputs } = portsForStep(step, registry)
+    const image = inputs.find((p) => p.name === "image")
+    expect(image?.typeLabel).toBe("file!")
+    expect(image?.valueSchema).toMatchObject({
+      "x-ecp-file": true,
+      contentMediaType: "image/*",
+    })
   })
 
   it("passes through JSON Schema property nodes", () => {

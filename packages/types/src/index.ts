@@ -166,17 +166,21 @@ export type {
   HarnessWorkflowAssistantInput,
 } from "./harness-tasks.js"
 export {
-  IMAGE_REF_KINDS,
-  IMAGE_OUTPUT_FORMATS,
-  imageRefSchema,
-} from "./image.js"
+  FILE_REF_KINDS,
+  fileRefSchema,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+  fileRefSchemaOptions,
+  isFileRefKind,
+} from "./file-ref.js"
 export type {
-  ImageRefKind,
-  ImageOutputFormat,
-  ArtifactImageRef,
-  FileImageRef,
-  UrlImageRef,
-  BufferImageRef,
-  ImageRef,
-  ImageOutputInfo,
-} from "./image.js"
+  FileRefKind,
+  ArtifactFileRef,
+  FileFileRef,
+  UrlFileRef,
+  BufferFileRef,
+  FileRef,
+  FileRefSchemaOptions,
+} from "./file-ref.js"
+export { IMAGE_OUTPUT_FORMATS } from "./image-output.js"
+export type { ImageOutputFormat, ImageOutputInfo } from "./image-output.js"

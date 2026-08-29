@@ -1,4 +1,9 @@
 import { z } from "zod"
+import {
+  fileRefSchemaOptions,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+} from "@executioncontrolprotocol/types"
 
 function unwrapZodType(type: z.ZodType): z.ZodType {
   if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType)
@@ -49,6 +54,9 @@ export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
   }
   if (inner instanceof z.ZodRecord) return { type: "object" }
   if (inner instanceof z.ZodAny || inner instanceof z.ZodUnknown) return {}
+  if (isFileRefSchema(inner)) {
+    return fileRefValueSchemaHint(fileRefSchemaOptions(inner))
+  }
   return {}
 }
 

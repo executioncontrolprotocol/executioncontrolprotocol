@@ -191,10 +191,11 @@ export type {
   StoreWriteOptions,
 } from "./runtime/store.js"
 export {
-  isImageRef,
-  collectImageRefs,
+  isFileRef,
+  collectFileRefs,
   collectOutputFormatHints,
-  imageRefUrlHostname,
+  fileRefUrlHostname,
   isSvgHint,
-} from "./image/image-ref.js"
-export type { CollectedImageRef, CollectedFormatHint } from "./image/image-ref.js"
+} from "./file/file-ref.js"
+export type { CollectedFileRef, CollectedFormatHint } from "./file/file-ref.js"
+export { assertMediaType, mediaTypeMatches } from "./media/assert-media-type.js"

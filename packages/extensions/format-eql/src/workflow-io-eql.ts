@@ -1,5 +1,7 @@
 /** EQL type map ↔ JSON Schema for workflow `accepts` / `returns`. @category Format */
 
+import { fileRefValueSchemaHint } from "@executioncontrolprotocol/types"
+
 const SUPPORTED_EQL_TYPES = new Set([
   "string",
   "number",
@@ -11,18 +13,6 @@ const SUPPORTED_EQL_TYPES = new Set([
   "unknown",
 ])
 
-const FILE_VALUE_SCHEMA: Record<string, unknown> = {
-  "x-ecp-file": true,
-  type: "object",
-  required: ["kind", "path"],
-  properties: {
-    kind: { type: "string", const: "file" },
-    path: { type: "string" },
-    mediaType: { type: "string" },
-    sizeBytes: { type: "number" },
-  },
-}
-
 function isJsonSchemaObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
@@ -32,7 +22,24 @@ function isFileSchema(prop: Record<string, unknown>): boolean {
   const props = prop.properties
   if (!isJsonSchemaObject(props)) return false
   const kind = props.kind
-  return isJsonSchemaObject(kind) && kind.const === "file"
+  if (isJsonSchemaObject(kind) && kind.const === "file") return true
+  if (isJsonSchemaObject(kind) && Array.isArray(kind.enum)) {
+    return kind.enum.includes("file")
+  }
+  return false
+}
+
+function filePropertyHint(sourceProp?: Record<string, unknown>): Record<string, unknown> {
+  const contentMediaType = sourceProp?.contentMediaType
+  if (typeof contentMediaType === "string" && contentMediaType.length > 0) {
+    return fileRefValueSchemaHint({ contentMediaType })
+  }
+  if (Array.isArray(contentMediaType) && contentMediaType.length > 0) {
+    return fileRefValueSchemaHint({
+      contentMediaType: contentMediaType.filter((v): v is string => typeof v === "string"),
+    })
+  }
+  return fileRefValueSchemaHint()
 }
 
 /**
@@ -52,12 +59,17 @@ export function parseTypeAnnotationSpec(
 
 /**
  * Convert an EQL type map to a JSON Schema object for workflow I/O.
+ * When `sourceSchema` is provided, file properties copy `contentMediaType` hints from it.
  * @category Format
  */
 export function eqlTypeMapToJsonSchema(
-  typeMap: Record<string, string> | undefined
+  typeMap: Record<string, string> | undefined,
+  sourceSchema?: Record<string, unknown>
 ): Record<string, unknown> | undefined {
   if (!typeMap || Object.keys(typeMap).length === 0) return undefined
+  const sourceProps = isJsonSchemaObject(sourceSchema?.properties)
+    ? (sourceSchema.properties as Record<string, unknown>)
+    : undefined
   const properties: Record<string, unknown> = {}
   const required: string[] = []
   for (const [name, eqlType] of Object.entries(typeMap)) {
@@ -65,7 +77,10 @@ export function eqlTypeMapToJsonSchema(
     const base = isRequired ? eqlType.slice(0, -1) : eqlType
     if (isRequired) required.push(name)
     if (base === "file") {
-      properties[name] = { ...FILE_VALUE_SCHEMA }
+      const sourceProp = isJsonSchemaObject(sourceProps?.[name])
+        ? (sourceProps[name] as Record<string, unknown>)
+        : undefined
+      properties[name] = filePropertyHint(sourceProp)
     } else if (base === "unknown") {
       properties[name] = {}
     } else if (SUPPORTED_EQL_TYPES.has(base)) {

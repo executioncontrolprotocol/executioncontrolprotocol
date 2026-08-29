@@ -189,10 +189,11 @@ export { buildSystemPromptFromFixture } from "./harness/prompts/build-system-pro
 export { buildRepairHintFromFixture } from "./harness/prompts/build-repair-hint.js"
 export * from "./harness/authoring/index.js"
 export {
-  isImageRef,
-  collectImageRefs,
+  isFileRef,
+  collectFileRefs,
   collectOutputFormatHints,
-  imageRefUrlHostname,
+  fileRefUrlHostname,
   isSvgHint,
-} from "./image/image-ref.js"
-export type { CollectedImageRef, CollectedFormatHint } from "./image/image-ref.js"
+} from "./file/file-ref.js"
+export type { CollectedFileRef, CollectedFormatHint } from "./file/file-ref.js"
+export { assertMediaType, mediaTypeMatches } from "./media/assert-media-type.js"

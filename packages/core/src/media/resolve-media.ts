@@ -1,6 +1,6 @@
 import {
-  IMAGE_REF_KINDS,
-  type ImageRef,
+  FILE_REF_KINDS,
+  type FileRef,
 } from "@executioncontrolprotocol/types"
 import { isBrowserFileLocator } from "../runtime/blobs.js"
 import type { CapabilityContext } from "../runtime/context.js"
@@ -79,12 +79,12 @@ function readStoredArtifact(
 }
 
 /**
- * Resolve a portable {@link ImageRef} to bytes using blobs, artifacts, fetch, or Node fs.
+ * Resolve a portable {@link FileRef} to bytes using blobs, artifacts, fetch, or Node fs.
  * Extensions should call this instead of reimplementing I/O.
  * @category Media
  */
 export async function resolveMedia(
-  ref: ImageRef,
+  ref: FileRef,
   ctx: MediaCapabilityContext,
   options: ResolveMediaOptions = {}
 ): Promise<ResolvedMedia> {
@@ -93,21 +93,21 @@ export async function resolveMedia(
   const allowRemoteUrls = options.allowRemoteUrls ?? limits.allowRemoteUrls ?? false
 
   switch (ref.kind) {
-    case IMAGE_REF_KINDS.BUFFER: {
+    case FILE_REF_KINDS.BUFFER: {
       const bytes =
         typeof Buffer !== "undefined"
           ? new Uint8Array(Buffer.from(ref.data, "base64"))
           : Uint8Array.from(atob(ref.data), (c) => c.charCodeAt(0))
       return { bytes, mediaType: ref.mediaType, sizeBytes: bytes.byteLength }
     }
-    case IMAGE_REF_KINDS.FILE: {
+    case FILE_REF_KINDS.FILE: {
       if (isBrowserFileLocator(ref.path)) {
         return readBrowserLocator(ref.path, ctx, ref.mediaType)
       }
       const bytes = await readFileFromPath(ref.path)
       return { bytes, mediaType: ref.mediaType, sizeBytes: bytes.byteLength }
     }
-    case IMAGE_REF_KINDS.URL: {
+    case FILE_REF_KINDS.URL: {
       if (!allowRemoteUrls) {
         throw new Error("Remote URL media refs are disabled (allowRemoteUrls)")
       }
@@ -118,7 +118,7 @@ export async function resolveMedia(
       const mediaType = ref.mediaType ?? res.headers.get("content-type") ?? undefined
       return { bytes, mediaType, sizeBytes: bytes.byteLength }
     }
-    case IMAGE_REF_KINDS.ARTIFACT: {
+    case FILE_REF_KINDS.ARTIFACT: {
       if (isBrowserFileLocator(ref.uri)) {
         return readBrowserLocator(ref.uri, ctx, ref.mediaType)
       }

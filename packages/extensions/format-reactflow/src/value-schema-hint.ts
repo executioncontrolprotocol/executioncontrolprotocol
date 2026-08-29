@@ -1,4 +1,9 @@
 import { z } from "zod"
+import {
+  fileRefSchemaOptions,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+} from "@executioncontrolprotocol/types"
 
 /** JSON Schema fragment used as a portable port type hint. @category Encoding */
 export type ValueSchemaHint = Record<string, unknown>
@@ -27,6 +32,10 @@ export function unwrapZodType(type: z.ZodType): z.ZodType {
  */
 export function valueSchemaFromZod(type: z.ZodType): ValueSchemaHint | undefined {
   const inner = unwrapZodType(type)
+
+  if (isFileRefSchema(inner)) {
+    return fileRefValueSchemaHint(fileRefSchemaOptions(type))
+  }
 
   if (inner instanceof z.ZodString) {
     return { type: "string" }
@@ -106,6 +115,7 @@ export function valueSchemaFromEqlLabel(typeLabel: string): ValueSchemaHint | un
   if (base === "boolean" || base === "bool") return { type: "boolean" }
   if (base === "null") return { type: "null" }
   if (base === "array") return { type: "array" }
+  if (base === "file") return fileRefValueSchemaHint()
   if (base === "object" || base === "record" || base === "json") return { type: "object" }
   return undefined
 }

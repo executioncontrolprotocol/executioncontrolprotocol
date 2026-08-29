@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
-import { modelGenerateInputSchema } from "@executioncontrolprotocol/types"
+import { fileRefSchema, modelGenerateInputSchema } from "@executioncontrolprotocol/types"
 import {
   allCapabilityInputNames,
   formatCapabilityInputLabels,
@@ -68,5 +68,28 @@ describe("introspectCapabilitySchema", () => {
     const fields = introspectCapabilitySchema(schema)
     expect(fields.required).toEqual(["value"])
     expect(fields.optional).toEqual(["tag"])
+  })
+
+  it("classifies fileRefSchema fields as file", () => {
+    const schema = z.object({
+      image: fileRefSchema({ contentMediaType: "image/*" }),
+      thumb: fileRefSchema().optional(),
+    })
+    const fields = introspectCapabilitySchema(schema)
+    expect(fields.required).toEqual(["image"])
+    expect(fields.optional).toEqual(["thumb"])
+    expect(fields.eqlTypes?.image).toBe("file!")
+    expect(fields.eqlTypes?.thumb).toBe("file")
+  })
+
+  it("leaves unknown for non-file discriminated unions", () => {
+    const schema = z.object({
+      mode: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("a"), value: z.string() }),
+        z.object({ kind: z.literal("b"), value: z.number() }),
+      ]),
+    })
+    const fields = introspectCapabilitySchema(schema)
+    expect(fields.eqlTypes?.mode).toBe("unknown!")
   })
 })

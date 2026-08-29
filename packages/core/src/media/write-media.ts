@@ -1,4 +1,4 @@
-import { IMAGE_REF_KINDS, type ImageRef } from "@executioncontrolprotocol/types"
+import { FILE_REF_KINDS, type FileRef } from "@executioncontrolprotocol/types"
 import {
   STORAGE_ARTIFACT_URI_PREFIX,
   type MediaCapabilityContext,
@@ -17,14 +17,14 @@ export interface WriteMediaArtifactOptions {
 }
 
 /**
- * Write bytes into the host artifact store (or durable storage) and return an artifact {@link ImageRef}.
+ * Write bytes into the host artifact store (or durable storage) and return an artifact {@link FileRef}.
  * @category Media
  */
 export async function writeMediaArtifact(
   data: Uint8Array,
   options: WriteMediaArtifactOptions,
   ctx: MediaCapabilityContext
-): Promise<ImageRef> {
+): Promise<FileRef> {
   const cfg = ctx.extensionConfig ?? {}
   const storage = (cfg.storage as { outputPrefix?: string; defaultStore?: string } | undefined) ?? {}
   const prefix = options.prefix ?? storage.outputPrefix ?? "artifacts/media"
@@ -38,7 +38,7 @@ export async function writeMediaArtifact(
       value: data,
     })
     return {
-      kind: IMAGE_REF_KINDS.ARTIFACT,
+      kind: FILE_REF_KINDS.ARTIFACT,
       uri: `${STORAGE_ARTIFACT_URI_PREFIX}${key}`,
       mediaType: options.mediaType,
       name,
@@ -61,7 +61,7 @@ export async function writeMediaArtifact(
   })
 
   return {
-    kind: IMAGE_REF_KINDS.ARTIFACT,
+    kind: FILE_REF_KINDS.ARTIFACT,
     uri,
     mediaType: options.mediaType,
     name,
