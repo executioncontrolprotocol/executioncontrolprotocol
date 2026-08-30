@@ -64,10 +64,20 @@ export function valueSchemaFromZod(type: z.ZodType): ValueSchemaHint | undefined
   }
 
   if (inner instanceof z.ZodString) {
-    return { type: "string" }
+    const hint: ValueSchemaHint = { type: "string" }
+    for (const check of inner._def.checks) {
+      if (check.kind === "min") hint.minLength = check.value
+      if (check.kind === "max") hint.maxLength = check.value
+    }
+    return hint
   }
   if (inner instanceof z.ZodNumber) {
-    return { type: "number" }
+    const hint: ValueSchemaHint = { type: "number" }
+    for (const check of inner._def.checks) {
+      if (check.kind === "min") hint.minimum = check.value
+      if (check.kind === "max") hint.maximum = check.value
+    }
+    return hint
   }
   if (inner instanceof z.ZodBoolean) {
     return { type: "boolean" }

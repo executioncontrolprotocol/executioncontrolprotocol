@@ -65,6 +65,27 @@ describe("valueSchemaFromZod", () => {
       }
     )
   })
+
+  it("projects string minLength and maxLength from Zod checks", () => {
+    expect(valueSchemaFromZod(z.string().min(3).max(10))).toEqual({
+      type: "string",
+      minLength: 3,
+      maxLength: 10,
+    })
+    expect(valueSchemaFromZod(z.string().min(3).max(10).optional())).toEqual({
+      type: "string",
+      minLength: 3,
+      maxLength: 10,
+    })
+  })
+
+  it("projects number minimum and maximum from Zod checks", () => {
+    expect(valueSchemaFromZod(z.number().min(0).max(100))).toEqual({
+      type: "number",
+      minimum: 0,
+      maximum: 100,
+    })
+  })
 })
 
 describe("valueSchemaFromEqlLabel", () => {
