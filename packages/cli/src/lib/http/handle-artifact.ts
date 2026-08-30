@@ -1,18 +1,21 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
-import type { Ecp } from "@executioncontrolprotocol/core"
+import { resolveArtifactFilename, parseArtifactFetchPathname, type Ecp } from "@executioncontrolprotocol/core"
 import { writeJson } from "./write-json.js"
 
 /**
  * Sanitize a filename for Content-Disposition (strip quotes / path separators).
  * @category CLI
  */
-export function sanitizeArtifactFilename(name: string | undefined, uri: string): string {
-  const raw = (name?.trim() || uri.split("/").pop() || "artifact").replace(/["\\\r\n]/g, "")
-  return raw.replace(/[/\\]/g, "_") || "artifact"
+export function sanitizeArtifactFilename(
+  name: string | undefined,
+  uri: string,
+  mediaType?: string
+): string {
+  return resolveArtifactFilename(name, uri, mediaType)
 }
 
 /**
- * Handle `GET /v1/artifacts?uri=…` — serve host artifact bytes with Content-Type.
+ * Handle `GET /v1/artifacts` or `GET /v1/artifacts/<filename>?uri=…` — serve host artifact bytes.
  * Caller is responsible for authentication.
  * @category CLI
  */
@@ -36,7 +39,12 @@ export async function handleArtifactGet(
     return
   }
 
-  const filename = sanitizeArtifactFilename(artifact.name, uri)
+  const pathHint = parseArtifactFetchPathname(url.pathname)
+  const filename = sanitizeArtifactFilename(
+    artifact.name ?? pathHint,
+    uri,
+    artifact.mediaType
+  )
   const body = Buffer.from(artifact.bytes)
   res.writeHead(200, {
     "Content-Type": artifact.mediaType || "application/octet-stream",

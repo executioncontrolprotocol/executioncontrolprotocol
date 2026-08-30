@@ -154,7 +154,7 @@ Keep **npm package name** aligned with the **extension id**.
 | Depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` (+ focused third-party libs) | Import `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, `@executioncontrolprotocol/cli`, or `@executioncontrolprotocol/mcp` from an extension package |
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
-| Use `resolveMedia` / `writeMediaArtifact` for image/binary I/O | Reimplement fs/fetch/`ctx.artifacts` maps inside vendor packages |
+| Use `resolveFile` / `writeMediaArtifact` for image/binary I/O | Reimplement fs/fetch/`ctx.artifacts` maps inside vendor packages |
 
 Vendor integrations are **not** in this monorepo — install from npm or link the sibling [extensions](https://github.com/executioncontrolprotocol/extensions) checkout. **Do not** enumerate vendor packages in core docs; link to that repo’s README instead.
 

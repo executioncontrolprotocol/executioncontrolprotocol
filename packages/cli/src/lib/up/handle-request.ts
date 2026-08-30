@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { Ecp } from "@executioncontrolprotocol/core"
+import { isArtifactFetchPathname } from "@executioncontrolprotocol/core"
 import { listOllamaModels } from "@executioncontrolprotocol/extension-ollama"
 import { handleArtifactGet } from "../http/handle-artifact.js"
 import { handleInvokePost } from "../http/handle-invoke.js"
@@ -66,7 +67,7 @@ export function createUpRequestHandler(options: UpRequestHandlerOptions) {
       return
     }
 
-    if (req.method === "GET" && pathname === "/v1/artifacts") {
+    if (req.method === "GET" && isArtifactFetchPathname(pathname)) {
       if (!authorizeUpRequest(req, url, token)) {
         writeJson(res, 401, { error: "Unauthorized" })
         return

@@ -5,11 +5,11 @@ import {
 import { isBrowserFileLocator } from "../runtime/blobs.js"
 import type { CapabilityContext } from "../runtime/context.js"
 
-/** URI prefix for durable storage-backed artifacts. @category Media */
+/** URI prefix for durable storage-backed artifacts. @category File */
 export const STORAGE_ARTIFACT_URI_PREFIX = "ecp://storage/"
 
-/** Resolved media bytes from {@link resolveMedia}. @category Media */
-export interface ResolvedMedia {
+/** Resolved file bytes from {@link resolveFile}. @category File */
+export interface ResolvedFile {
   /** Raw bytes. */
   bytes: Uint8Array
   /** MIME type when known. */
@@ -20,14 +20,14 @@ export interface ResolvedMedia {
   name?: string
 }
 
-/** Options for {@link resolveMedia}. @category Media */
-export interface ResolveMediaOptions {
+/** Options for {@link resolveFile}. @category File */
+export interface ResolveFileOptions {
   /** When false (default), `kind: "url"` refs are rejected. */
   allowRemoteUrls?: boolean
 }
 
-/** Context required to resolve media refs. @category Media */
-export type MediaCapabilityContext = CapabilityContext & {
+/** Context required to resolve {@link FileRef} values. @category File */
+export type FileCapabilityContext = CapabilityContext & {
   /** Bound extension config (limits / storage prefixes). */
   extensionConfig?: Record<string, unknown>
 }
@@ -45,9 +45,9 @@ async function readFileFromPath(path: string): Promise<Uint8Array> {
 
 async function readBrowserLocator(
   locator: string,
-  ctx: MediaCapabilityContext,
+  ctx: FileCapabilityContext,
   mediaType?: string
-): Promise<ResolvedMedia> {
+): Promise<ResolvedFile> {
   const blob = ctx.blobs?.get(locator)
   if (!blob) {
     throw new Error(`No file stashed for locator ${locator}`)
@@ -63,9 +63,9 @@ async function readBrowserLocator(
 
 function readStoredArtifact(
   uri: string,
-  ctx: MediaCapabilityContext,
+  ctx: FileCapabilityContext,
   mediaType?: string
-): ResolvedMedia {
+): ResolvedFile {
   const fromCtx = ctx.artifacts?.get(uri)
   if (!fromCtx) {
     throw new Error(`Artifact not found: ${uri}`)
@@ -81,13 +81,13 @@ function readStoredArtifact(
 /**
  * Resolve a portable {@link FileRef} to bytes using blobs, artifacts, fetch, or Node fs.
  * Extensions should call this instead of reimplementing I/O.
- * @category Media
+ * @category File
  */
-export async function resolveMedia(
+export async function resolveFile(
   ref: FileRef,
-  ctx: MediaCapabilityContext,
-  options: ResolveMediaOptions = {}
-): Promise<ResolvedMedia> {
+  ctx: FileCapabilityContext,
+  options: ResolveFileOptions = {}
+): Promise<ResolvedFile> {
   const cfg = ctx.extensionConfig ?? {}
   const limits = (cfg.limits as { allowRemoteUrls?: boolean } | undefined) ?? {}
   const allowRemoteUrls = options.allowRemoteUrls ?? limits.allowRemoteUrls ?? false
@@ -152,6 +152,6 @@ export async function resolveMedia(
       return readStoredArtifact(ref.uri, ctx, ref.mediaType)
     }
     default:
-      throw new Error("Unsupported media reference kind")
+      throw new Error("Unsupported file reference kind")
   }
 }

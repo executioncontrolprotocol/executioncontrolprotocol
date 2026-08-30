@@ -518,6 +518,32 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(edge?.targetHandle).toBe("prompt")
   })
 
+  it("projects file accepts and returns ports with file type labels", () => {
+    const fileSchema = {
+      "x-ecp-file": true,
+      type: "object",
+      contentMediaType: "image/*",
+    }
+    const manifest = workflow("Image flow")
+      .accepts({
+        type: "object",
+        properties: { image: fileSchema },
+        required: ["image"],
+      })
+      .returns({
+        type: "object",
+        properties: { result: fileSchema },
+        required: ["result"],
+      })
+      .run([])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const inputs = doc.nodes.find((n) => n.id === WORKFLOW_ACCEPTS_NODE_ID)!.data as ReactFlowIoData
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(inputs.outputs[0]).toMatchObject({ id: "image", typeLabel: "file!" })
+    expect(outputs.inputs[0]).toMatchObject({ id: "result", typeLabel: "file!" })
+  })
+
   it("leaves unmatched returns ports unbound and without a data edge", () => {
     const manifest = workflow("Orphan return")
       .returns({

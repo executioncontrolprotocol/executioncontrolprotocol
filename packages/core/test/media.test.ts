@@ -5,7 +5,7 @@ import {
   createCapabilityBlobStore,
   createUsageLedger,
   hydrateCapabilityBlobs,
-  resolveMedia,
+  resolveFile,
   serializeCapabilityBlobs,
   writeMediaArtifact,
   STORAGE_ARTIFACT_URI_PREFIX,
@@ -40,14 +40,14 @@ function makeCtx(overrides: {
   }
 }
 
-describe("resolveMedia / writeMediaArtifact", () => {
+describe("resolveFile / writeMediaArtifact", () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
   it("resolves buffer refs", async () => {
-    const resolved = await resolveMedia(
+    const resolved = await resolveFile(
       { kind: "buffer", data: PNG_1X1_BASE64, mediaType: "image/png" },
       makeCtx()
     )
@@ -66,7 +66,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
       arrayBuffer: async () =>
         bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     })
-    const resolved = await resolveMedia({ kind: "file", path: locator }, makeCtx({ blobs }))
+    const resolved = await resolveFile({ kind: "file", path: locator }, makeCtx({ blobs }))
     expect([...resolved.bytes]).toEqual([1, 2, 3])
     expect(resolved.name).toBe("a.bin")
   })
@@ -81,7 +81,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
       arrayBuffer: async () =>
         bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     })
-    const resolved = await resolveMedia({ kind: "artifact", uri: locator }, makeCtx({ blobs }))
+    const resolved = await resolveFile({ kind: "artifact", uri: locator }, makeCtx({ blobs }))
     expect([...resolved.bytes]).toEqual([4, 5])
   })
 
@@ -94,7 +94,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
       size: 2,
       bytes: new Uint8Array([9, 8]),
     })
-    const resolved = await resolveMedia({ kind: "artifact", uri }, makeCtx({ artifacts }))
+    const resolved = await resolveFile({ kind: "artifact", uri }, makeCtx({ artifacts }))
     expect([...resolved.bytes]).toEqual([9, 8])
     expect(resolved.mediaType).toBe("image/png")
     expect(resolved.name).toBe("in.png")
@@ -102,7 +102,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
 
   it("rejects remote urls unless allowRemoteUrls", async () => {
     await expect(
-      resolveMedia({ kind: "url", url: "https://example.com/x.png" }, makeCtx())
+      resolveFile({ kind: "url", url: "https://example.com/x.png" }, makeCtx())
     ).rejects.toThrow(/allowRemoteUrls/)
   })
 
@@ -115,7 +115,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
         arrayBuffer: async () => new Uint8Array([11, 12]).buffer,
       }))
     )
-    const resolved = await resolveMedia(
+    const resolved = await resolveFile(
       { kind: "url", url: "https://example.com/x.png" },
       makeCtx(),
       { allowRemoteUrls: true }
@@ -133,7 +133,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
         arrayBuffer: async () => new Uint8Array([1]).buffer,
       }))
     )
-    const resolved = await resolveMedia(
+    const resolved = await resolveFile(
       { kind: "url", url: "https://example.com/y.png", mediaType: "image/webp" },
       makeCtx({ extensionConfig: { limits: { allowRemoteUrls: true } } })
     )
@@ -152,14 +152,14 @@ describe("resolveMedia / writeMediaArtifact", () => {
       }))
     )
     await expect(
-      resolveMedia({ kind: "url", url: "https://example.com/missing.png" }, makeCtx(), {
+      resolveFile({ kind: "url", url: "https://example.com/missing.png" }, makeCtx(), {
         allowRemoteUrls: true,
       })
     ).rejects.toThrow(/Failed to fetch media URL: 404/)
   })
 
   it("reads durable storage artifacts via capability hop", async () => {
-    const resolved = await resolveMedia(
+    const resolved = await resolveFile(
       { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}k1`, mediaType: "text/plain" },
       makeCtx({
         call: async (id) => {
@@ -172,7 +172,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
   })
 
   it("reads durable storage artifacts encoded as base64 strings", async () => {
-    const resolved = await resolveMedia(
+    const resolved = await resolveFile(
       { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}k2` },
       makeCtx({
         call: async () => ({ value: Buffer.from([9, 10]).toString("base64") }),
@@ -183,7 +183,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
 
   it("rejects storage artifacts with empty read payloads", async () => {
     await expect(
-      resolveMedia(
+      resolveFile(
         { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}missing` },
         makeCtx({ call: async () => ({}) })
       )
@@ -211,7 +211,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
       { mediaType: "application/octet-stream", name: "rt.bin" },
       ctx
     )
-    const resolved = await resolveMedia(written, ctx)
+    const resolved = await resolveFile(written, ctx)
     expect([...resolved.bytes]).toEqual([21, 22, 23])
   })
 
@@ -225,6 +225,21 @@ describe("resolveMedia / writeMediaArtifact", () => {
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
       expect(ref.uri).toBe("ecp://artifacts/media/default.png")
+    }
+  })
+
+  it("derives default artifact filename extension from mediaType", async () => {
+    const artifacts = createCapabilityArtifactStore()
+    const ref = await writeMediaArtifact(
+      new Uint8Array([1, 2]),
+      { mediaType: "image/webp" },
+      makeCtx({ artifacts })
+    )
+    expect(ref.kind).toBe("artifact")
+    if (ref.kind === "artifact") {
+      expect(ref.uri).toMatch(/\.webp$/)
+      expect(ref.name).toMatch(/\.webp$/)
+      expect(artifacts.get(ref.uri)?.name).toMatch(/\.webp$/)
     }
   })
 
@@ -258,7 +273,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
 
   it("rejects missing browser locator", async () => {
     await expect(
-      resolveMedia(
+      resolveFile(
         { kind: "file", path: "ecp://browser/missing" },
         makeCtx({ blobs: createCapabilityBlobStore() })
       )
@@ -267,7 +282,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
 
   it("rejects missing host artifact", async () => {
     await expect(
-      resolveMedia(
+      resolveFile(
         { kind: "artifact", uri: "ecp://artifacts/gone" },
         makeCtx({ artifacts: createCapabilityArtifactStore() })
       )
@@ -281,7 +296,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
     const file = path.join(os.tmpdir(), `ecp-media-${Date.now()}.bin`)
     await fs.writeFile(file, Buffer.from([10, 20, 30]))
     try {
-      const resolved = await resolveMedia({ kind: "file", path: file }, makeCtx())
+      const resolved = await resolveFile({ kind: "file", path: file }, makeCtx())
       expect([...resolved.bytes]).toEqual([10, 20, 30])
     } finally {
       await fs.unlink(file).catch(() => undefined)
@@ -290,7 +305,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
 
   it("rejects missing Node file paths", async () => {
     await expect(
-      resolveMedia({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
+      resolveFile({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
     ).rejects.toThrow()
   })
 
@@ -314,7 +329,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
     expect(wrote).toMatchObject({ key: "out/x.png" })
   })
 
-  it("host-hop serializes ImageRef browser locators then resolveMedia on hydrate", async () => {
+  it("host-hop serializes ImageRef browser locators then resolveFile on hydrate", async () => {
     const browserStore = createCapabilityBlobStore()
     const bytes = new Uint8Array([42, 43])
     const locator = stashCapabilityBlob(browserStore, {
@@ -330,7 +345,7 @@ describe("resolveMedia / writeMediaArtifact", () => {
     const serialized = await serializeCapabilityBlobs(browserStore, locators)
     const hostStore = createCapabilityBlobStore()
     hydrateCapabilityBlobs(hostStore, serialized)
-    const resolved = await resolveMedia(payload.image, makeCtx({ blobs: hostStore }))
+    const resolved = await resolveFile(payload.image, makeCtx({ blobs: hostStore }))
     expect([...resolved.bytes]).toEqual([42, 43])
     expect(resolved.mediaType).toBe("image/png")
   })

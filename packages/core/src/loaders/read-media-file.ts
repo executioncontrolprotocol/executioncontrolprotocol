@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 
 /**
- * Read a host file path into bytes for {@link resolveMedia} on Node.
+ * Read a host file path into bytes for {@link resolveFile} on Node.
  * @category Loaders
  */
 export async function readMediaFileFromPath(path: string): Promise<Uint8Array> {

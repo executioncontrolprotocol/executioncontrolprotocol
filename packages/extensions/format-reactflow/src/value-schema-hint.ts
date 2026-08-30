@@ -8,6 +8,32 @@ import {
 /** JSON Schema fragment used as a portable port type hint. @category Encoding */
 export type ValueSchemaHint = Record<string, unknown>
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+/**
+ * Whether a JSON Schema hint describes a file ref port (`x-ecp-file`, `contentMediaType`, or FileRef shape).
+ * @category Encoding
+ */
+export function isFileValueSchemaHint(schema: Record<string, unknown>): boolean {
+  if (schema["x-ecp-file"] === true) return true
+  if (typeof schema.contentMediaType === "string" && schema.contentMediaType.length > 0) {
+    return true
+  }
+  if (Array.isArray(schema.contentMediaType) && schema.contentMediaType.length > 0) {
+    return true
+  }
+  if (schema.format === "binary" || schema.format === "byte") return true
+  if (schema.type === "object" && isRecord(schema.properties)) {
+    const kind = schema.properties.kind
+    if (isRecord(kind) && Array.isArray(kind.enum)) {
+      return kind.enum.some((v) => v === "file" || v === "artifact" || v === "buffer" || v === "url")
+    }
+  }
+  return false
+}
+
 /**
  * Unwrap Zod wrappers that do not change the value shape for UI hints.
  * @category Encoding

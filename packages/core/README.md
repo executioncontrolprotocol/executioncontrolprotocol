@@ -20,9 +20,9 @@ Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) sho
 Portable `ImageRef` values (`buffer` | `file` | `url` | `artifact`) are resolved by core — not by each vendor package:
 
 ```ts
-import { resolveMedia, writeMediaArtifact } from "@executioncontrolprotocol/core"
+import { resolveFile, writeMediaArtifact } from "@executioncontrolprotocol/core"
 
-const { bytes, mediaType } = await resolveMedia(input.image, ctx)
+const { bytes, mediaType } = await resolveFile(input.image, ctx)
 // …domain processing…
 return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "artifacts/images" }, ctx) }
 ```

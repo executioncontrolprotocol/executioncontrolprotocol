@@ -1,6 +1,10 @@
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
 import type { ReactFlowIoData, ReactFlowNode, ReactFlowPort } from "./types.js"
-import { valueSchemaFromEqlLabel, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
+import {
+  isFileValueSchemaHint,
+  valueSchemaFromEqlLabel,
+  valueSchemaFromJsonSchemaProp,
+} from "./value-schema-hint.js"
 
 /** Synthetic React Flow node id for `workflow.accepts`. @category Encoding */
 export const WORKFLOW_ACCEPTS_NODE_ID = "ecp:accepts"
@@ -39,6 +43,9 @@ export function jsonSchemaObjectProperties(
 }
 
 function typeLabelFromSchema(schema: Record<string, unknown>, required: boolean): string {
+  if (isFileValueSchemaHint(schema)) {
+    return required ? "file!" : "file"
+  }
   const t = schema.type
   const base = typeof t === "string" ? t : "unknown"
   return required ? `${base}!` : base

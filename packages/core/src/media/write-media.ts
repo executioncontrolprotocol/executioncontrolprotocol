@@ -1,8 +1,9 @@
 import { FILE_REF_KINDS, type FileRef } from "@executioncontrolprotocol/types"
+import { defaultArtifactFilename } from "./artifact-filename.js"
 import {
   STORAGE_ARTIFACT_URI_PREFIX,
-  type MediaCapabilityContext,
-} from "./resolve-media.js"
+  type FileCapabilityContext,
+} from "./resolve-file.js"
 
 /** Options for {@link writeMediaArtifact}. @category Media */
 export interface WriteMediaArtifactOptions {
@@ -23,12 +24,12 @@ export interface WriteMediaArtifactOptions {
 export async function writeMediaArtifact(
   data: Uint8Array,
   options: WriteMediaArtifactOptions,
-  ctx: MediaCapabilityContext
+  ctx: FileCapabilityContext
 ): Promise<FileRef> {
   const cfg = ctx.extensionConfig ?? {}
   const storage = (cfg.storage as { outputPrefix?: string; defaultStore?: string } | undefined) ?? {}
   const prefix = options.prefix ?? storage.outputPrefix ?? "artifacts/media"
-  const name = options.name ?? `media-${Date.now()}.bin`
+  const name = options.name ?? defaultArtifactFilename(options.mediaType)
   const uri = `ecp://${prefix}/${name}`
 
   if (options.store === "storage" || storage.defaultStore === "storage") {

@@ -63,6 +63,12 @@ describe("sanitizeArtifactFilename", () => {
       "out.webp"
     )
   })
+
+  it("upgrades generic .bin names using mediaType", () => {
+    expect(
+      sanitizeArtifactFilename("media-1.bin", "ecp://artifacts/media/media-1.bin", "image/png")
+    ).toBe("media-1.png")
+  })
 })
 
 describe("handleArtifactGet", () => {
@@ -107,5 +113,27 @@ describe("handleArtifactGet", () => {
     expect(out.headers["content-disposition"]).toContain('filename="a.webp"')
     expect(out.headers["cache-control"]).toBe("no-store")
     expect(Buffer.isBuffer(out.body) ? Array.from(out.body) : []).toEqual([1, 2, 3, 4])
+  })
+
+  it("serves artifacts from /v1/artifacts/<filename> paths", async () => {
+    const bytes = new Uint8Array([5, 6])
+    const ecp = {
+      getArtifactStore: () => ({
+        get: (uri: string) =>
+          uri === "ecp://artifacts/images/out.png"
+            ? { mediaType: "image/png", name: "out.png", size: 2, bytes }
+            : undefined,
+      }),
+    }
+    const out = createRes()
+    await handleArtifactGet(
+      ecp as never,
+      createReq(
+        "/v1/artifacts/out.png?uri=" + encodeURIComponent("ecp://artifacts/images/out.png")
+      ),
+      out.res
+    )
+    expect(out.statusCode).toBe(200)
+    expect(out.headers["content-disposition"]).toContain('filename="out.png"')
   })
 })

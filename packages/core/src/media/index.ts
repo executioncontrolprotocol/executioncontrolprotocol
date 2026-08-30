@@ -1,17 +1,27 @@
-/**
- * Unified media resolve/write for extensions.
- * @packageDocumentation
- * @category Media
- */
-
-export {
-  resolveMedia,
-  STORAGE_ARTIFACT_URI_PREFIX,
-  type ResolvedMedia,
-  type ResolveMediaOptions,
-  type MediaCapabilityContext,
-} from "./resolve-media.js"
-export {
-  writeMediaArtifact,
-  type WriteMediaArtifactOptions,
-} from "./write-media.js"
+/**
+ * Unified file resolve/write for extensions.
+ * @packageDocumentation
+ * @category File
+ */
+
+export {
+  resolveFile,
+  STORAGE_ARTIFACT_URI_PREFIX,
+  type ResolvedFile,
+  type ResolveFileOptions,
+  type FileCapabilityContext,
+} from "./resolve-file.js"
+export {
+  writeMediaArtifact,
+  type WriteMediaArtifactOptions,
+} from "./write-media.js"
+export {
+  ARTIFACT_HTTP_PATH_PREFIX,
+  artifactFetchPathname,
+  defaultArtifactFilename,
+  extensionForMediaType,
+  isArtifactFetchPathname,
+  parseArtifactFetchPathname,
+  resolveArtifactFilename,
+  type ArtifactFetchPathnameOptions,
+} from "./artifact-filename.js"

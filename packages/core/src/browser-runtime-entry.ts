@@ -85,13 +85,18 @@ export {
   type CapabilityArtifactStore,
 } from "./runtime/artifacts.js"
 export {
-  resolveMedia,
+  resolveFile,
   writeMediaArtifact,
+  artifactFetchPathname,
+  isArtifactFetchPathname,
+  parseArtifactFetchPathname,
+  ARTIFACT_HTTP_PATH_PREFIX,
   STORAGE_ARTIFACT_URI_PREFIX,
-  type ResolvedMedia,
-  type ResolveMediaOptions,
+  type ResolvedFile,
+  type ResolveFileOptions,
   type WriteMediaArtifactOptions,
-  type MediaCapabilityContext,
+  type FileCapabilityContext,
+  type ArtifactFetchPathnameOptions,
 } from "./media/index.js"
 export {
   handleMixedBrowserBlobUpload,
