@@ -128,7 +128,8 @@ export function returnsSourceKeys(manifest: WorkflowManifest): Set<string> {
 function annotateReturnsPorts(manifest: WorkflowManifest, ports: ReactFlowPort[]): void {
   const sources = returnsSourceKeys(manifest)
   for (const port of ports) {
-    if (!sources.has(port.id)) continue
+    const asKey = port.id.includes(".") ? port.id.slice(0, port.id.indexOf(".")) : port.id
+    if (!sources.has(asKey)) continue
     port.binding = "ref"
     port.refPath = port.id
   }

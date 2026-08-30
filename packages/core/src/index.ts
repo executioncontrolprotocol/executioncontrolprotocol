@@ -33,6 +33,7 @@ export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
   validateAgainstJsonSchema,
+  resolveStatePath,
   pickWorkflowReturns,
   isZodType,
 } from "./schema/json-schema.js"

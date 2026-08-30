@@ -149,7 +149,29 @@ export function validateAgainstJsonSchema(
 }
 
 /**
- * Pick top-level state keys listed in a `returns` object schema.
+ * Walk a dot-separated path against run state (e.g. `inspected.metadata`).
+ * @category Schema
+ */
+export function resolveStatePath(
+  state: Record<string, unknown>,
+  dotPath: string
+): unknown {
+  const segments = dotPath.split(".").filter((segment) => segment.length > 0)
+  if (segments.length === 0) return undefined
+  let current: unknown = state
+  for (const segment of segments) {
+    if (current === null || typeof current !== "object" || Array.isArray(current)) {
+      return undefined
+    }
+    if (!(segment in current)) return undefined
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}
+
+/**
+ * Pick state values listed in a `returns` object schema.
+ * Property names may be dot paths (e.g. `inspected.metadata`).
  * @category Schema
  */
 export function pickWorkflowReturns(
@@ -160,7 +182,8 @@ export function pickWorkflowReturns(
   if (fields.length === 0) return undefined
   const output: Record<string, unknown> = {}
   for (const field of fields) {
-    if (field.name in state) output[field.name] = state[field.name]
+    const value = resolveStatePath(state, field.name)
+    if (value !== undefined) output[field.name] = value
   }
   return output
 }

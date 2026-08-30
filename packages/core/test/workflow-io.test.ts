@@ -7,12 +7,14 @@ import {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
   pickWorkflowReturns,
+  resolveStatePath,
   validateAgainstJsonSchema,
   workflow,
   step,
   renderWorkflowToFluent,
   validateWorkflowAcceptsInput,
   normalizeWorkflowManifest,
+  applyWorkflowReturns,
 } from "../src/index.js"
 import { compileWorkflowSource } from "../src/compile/index.js"
 import { initTestEcp } from "./helpers.js"
@@ -207,5 +209,73 @@ describe("jsonSchema helpers", () => {
         { a: [], b: true, c: null }
       ).ok
     ).toBe(true)
+  })
+
+  it("resolves dot-path returns property names from nested state", () => {
+    const state = {
+      inspected: {
+        image: { locator: "ecp://browser/x" },
+        metadata: { aspectRatio: 1, orientation: "landscape" },
+      },
+      resized: { image: { locator: "ecp://browser/y" } },
+    }
+    const schema = {
+      type: "object",
+      properties: {
+        "inspected.metadata": { type: "object" },
+        resized: { type: "object" },
+      },
+      required: ["inspected.metadata", "resized"],
+    }
+    expect(pickWorkflowReturns(schema, state)).toEqual({
+      "inspected.metadata": { aspectRatio: 1, orientation: "landscape" },
+      resized: { image: { locator: "ecp://browser/y" } },
+    })
+  })
+
+  it("omits returns keys when dot-path segments are missing", () => {
+    const state = { inspected: { image: { locator: "x" } } }
+    expect(
+      pickWorkflowReturns(
+        { type: "object", properties: { "inspected.missing": { type: "object" } } },
+        state
+      )
+    ).toEqual({})
+    expect(
+      pickWorkflowReturns({ type: "object", properties: { missing: { type: "object" } } }, state)
+    ).toEqual({})
+  })
+
+  it("resolveStatePath walks nested keys safely", () => {
+    expect(resolveStatePath({ a: { b: 1 } }, "a.b")).toBe(1)
+    expect(resolveStatePath({ a: { b: 1 } }, "a.missing")).toBeUndefined()
+    expect(resolveStatePath({ a: null }, "a.b")).toBeUndefined()
+    expect(resolveStatePath({}, "")).toBeUndefined()
+  })
+
+  it("applyWorkflowReturns picks nested dot-path output for completed runs", () => {
+    const manifest = workflow("Image prep")
+      .returns({
+        type: "object",
+        properties: {
+          "inspected.metadata": { type: "object" },
+        },
+        required: ["inspected.metadata"],
+      })
+      .run([])
+      .toManifest()
+    const state = {
+      inspected: {
+        image: { locator: "ecp://browser/x" },
+        metadata: { aspectRatio: 1.5 },
+      },
+    }
+    const result = applyWorkflowReturns(
+      manifest,
+      { run: { id: "r1", status: "completed" }, steps: [] },
+      state
+    )
+    expect(result.output).toEqual({ "inspected.metadata": { aspectRatio: 1.5 } })
+    expect(result.run.status).toBe("completed")
   })
 })

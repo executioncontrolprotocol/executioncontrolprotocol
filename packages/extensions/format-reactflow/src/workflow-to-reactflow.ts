@@ -156,6 +156,22 @@ function sourceHandleForStep(data: ReactFlowStepData): string {
   return data.outputs[0]?.id ?? "output"
 }
 
+function returnsAsKey(fieldName: string): string {
+  const dotIndex = fieldName.indexOf(".")
+  return dotIndex === -1 ? fieldName : fieldName.slice(0, dotIndex)
+}
+
+function sourceHandleForReturnsField(fieldName: string, data: ReactFlowStepData): string {
+  const dotIndex = fieldName.indexOf(".")
+  if (dotIndex >= 0) {
+    const fieldPath = fieldName.slice(dotIndex + 1)
+    if (!fieldPath) return "output"
+    return fieldPath.split(".")[0]!
+  }
+  if (data.outputs.some((port) => port.id === "output")) return "output"
+  return sourceHandleForStep(data)
+}
+
 /**
  * Edges from steps whose `.as` matches a `returns` property, or from Inputs
  * when the property is an `accepts` key, to the Outputs node.
@@ -174,14 +190,15 @@ function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[])
   const edges: ReactFlowEdge[] = []
   let i = 0
   for (const field of fields) {
-    const stepSource = asToStep.get(field.name)
+    const asKey = returnsAsKey(field.name)
+    const stepSource = asToStep.get(asKey)
     if (stepSource && stepSource.type === "ecp-step") {
       const data = stepSource.data as ReactFlowStepData
       edges.push({
         id: `data-returns-${i++}-${stepSource.id}-${field.name}`,
         source: stepSource.id,
         target: WORKFLOW_RETURNS_NODE_ID,
-        sourceHandle: sourceHandleForStep(data),
+        sourceHandle: sourceHandleForReturnsField(field.name, data),
         targetHandle: field.name,
         data: { kind: "data" },
       })

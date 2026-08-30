@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { z } from "zod"
 import {
   workflow,
   step,
@@ -8,6 +9,9 @@ import {
   ref,
   extension,
   registerTestExtension,
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
 } from "@executioncontrolprotocol/core"
 import { initEncodingTestEcp } from "../../../core/test/helpers.js"
 import {
@@ -576,5 +580,120 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
     expect(io.inputs[0]).toMatchObject({ binding: "ref", refPath: "inner" })
     expect(doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)?.source).toBe("inner")
+  })
+
+  it("wires dot-path returns keys to nested step output handles", async () => {
+    const multiOutExtension = defineExtension("@executioncontrolprotocol", "multi-out-fixture")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/multi-out-fixture", "inspect")
+          .withInput(z.object({}))
+          .withOutput(
+            z.object({
+              image: z.object({ locator: z.string() }),
+              metadata: z.object({ aspectRatio: z.number() }),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({
+            image: { locator: "ecp://browser/x" },
+            metadata: { aspectRatio: 1 },
+          })),
+      ])
+      .build()
+
+    if (!globalRegistry.getExtension("@executioncontrolprotocol/multi-out-fixture")) {
+      await globalRegistry.registerExtension(multiOutExtension)
+    }
+
+    const manifest = workflow("Sharp-like")
+      .returns({
+        type: "object",
+        properties: {
+          "inspected.metadata": { type: "object" },
+        },
+        required: ["inspected.metadata"],
+      })
+      .run([
+        step("@executioncontrolprotocol/multi-out-fixture.inspect", "Inspect")
+          .id("inspect")
+          .with({})
+          .as("inspected"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest, globalRegistry)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.source).toBe("inspect")
+    expect(edge?.sourceHandle).toBe("metadata")
+    expect(edge?.targetHandle).toBe("inspected.metadata")
+
+    const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(io.inputs[0]).toMatchObject({
+      id: "inspected.metadata",
+      binding: "ref",
+      refPath: "inspected.metadata",
+    })
+  })
+
+  it("falls back to the first output for legacy whole-step returns keys", async () => {
+    const multiOutExtension = defineExtension("@executioncontrolprotocol", "multi-out-legacy")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/multi-out-legacy", "inspect")
+          .withInput(z.object({}))
+          .withOutput(
+            z.object({
+              image: z.object({ locator: z.string() }),
+              metadata: z.object({ aspectRatio: z.number() }),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({
+            image: { locator: "ecp://browser/x" },
+            metadata: { aspectRatio: 1 },
+          })),
+      ])
+      .build()
+
+    if (!globalRegistry.getExtension("@executioncontrolprotocol/multi-out-legacy")) {
+      await globalRegistry.registerExtension(multiOutExtension)
+    }
+
+    const manifest = workflow("Legacy returns")
+      .returns({
+        type: "object",
+        properties: { inspected: { type: "object" } },
+      })
+      .run([
+        step("@executioncontrolprotocol/multi-out-legacy.inspect", "Inspect")
+          .id("inspect")
+          .with({})
+          .as("inspected"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest, globalRegistry)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("image")
+  })
+
+  it("uses the whole-step output handle for single-segment returns on synthetic output ports", () => {
+    const manifest = workflow("Whole step return")
+      .returns({
+        type: "object",
+        properties: { resized: { type: "object" } },
+      })
+      .run([
+        step("@vendor/missing.generate", "Resize")
+          .id("resize")
+          .with({ prompt: "x" })
+          .as("resized"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("output")
   })
 })
