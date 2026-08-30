@@ -68,6 +68,7 @@ describe("workflow accepts / returns", () => {
     const source = renderWorkflowToFluent(manifest)
     expect(source).toContain(".accepts(")
     expect(source).toContain(".returns(")
+    expect(source).toContain('\n    "type": "object"')
     expect(source).not.toContain("from \"zod\"")
 
     const compiled = await compileWorkflowSource({

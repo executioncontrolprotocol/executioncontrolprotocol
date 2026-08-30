@@ -74,6 +74,46 @@ describe("renderWorkflowToFluent", () => {
     ])
     expect(builder.toFluentSource()).toBe(renderWorkflowToFluent(builder.toManifest()))
   })
+
+  it("pretty-prints accepts and returns schemas across multiple lines", async () => {
+    const manifest = workflow("Round")
+      .id("round")
+      .accepts({
+        type: "object",
+        properties: {
+          prompt: { type: "string", minLength: 3 },
+          mode: { type: "string", enum: ["fast", "slow"] },
+        },
+        required: ["prompt"],
+      })
+      .returns({
+        type: "object",
+        properties: { echo: { type: "object" } },
+        required: ["echo"],
+      })
+      .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: "x" }).as("echo")])
+      .toManifest()
+
+    const source = renderWorkflowToFluent(manifest)
+    expect(source).toMatch(/\.accepts\(\{\n/)
+    expect(source).toMatch(/\.returns\(\{\n/)
+    expect(source).toContain('"minLength": 3')
+    expect(source).toContain('"enum": [')
+    expect(source).toContain('"fast"')
+    expect(source).toContain('"slow"')
+
+    const compact = renderWorkflowToFluent(manifest, { compact: true })
+    expect(compact).toContain('.accepts({"type":"object"')
+    expect(compact).not.toMatch(/\.accepts\(\{\n/)
+
+    const compiled = await compileWorkflowSource({
+      source,
+      filename: "pretty-accepts-returns.workflow.ts",
+    })
+    expect(compiled.ok, compiled.compileErrors?.map((e) => e.message).join("; ")).toBe(true)
+    expect(compiled.manifest?.workflow.accepts).toEqual(manifest.workflow.accepts)
+    expect(compiled.manifest?.workflow.returns).toEqual(manifest.workflow.returns)
+  })
 })
 
 describe("encodeFluent", () => {

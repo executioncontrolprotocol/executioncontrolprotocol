@@ -33,9 +33,10 @@ function renderImports(
  */
 export function renderWorkflowToFluent(
   manifest: WorkflowManifest,
-  _options?: RenderWorkflowToFluentOptions
+  options?: RenderWorkflowToFluentOptions
 ): string {
-  const importFrom = _options?.importFrom ?? "@executioncontrolprotocol/core"
+  const importFrom = options?.importFrom ?? "@executioncontrolprotocol/core"
+  const schemaRenderOpts = { compact: options?.compact ?? false }
   const needs = createImportNeeds()
   const nodes = renderNodes(manifest.steps, needs, "    ")
   const header = renderImports(needs, importFrom)
@@ -44,10 +45,10 @@ export function renderWorkflowToFluent(
     body += `  .id(${JSON.stringify(manifest.workflow.id)})\n`
   }
   if (manifest.workflow.accepts && Object.keys(manifest.workflow.accepts).length > 0) {
-    body += `  .accepts(${renderJsonSchemaAsFluentArg(manifest.workflow.accepts)})\n`
+    body += `  .accepts(${renderJsonSchemaAsFluentArg(manifest.workflow.accepts, schemaRenderOpts)})\n`
   }
   if (manifest.workflow.returns && Object.keys(manifest.workflow.returns).length > 0) {
-    body += `  .returns(${renderJsonSchemaAsFluentArg(manifest.workflow.returns)})\n`
+    body += `  .returns(${renderJsonSchemaAsFluentArg(manifest.workflow.returns, schemaRenderOpts)})\n`
   }
   body += `  .run([\n${nodes},\n  ]);\n`
   return header + body

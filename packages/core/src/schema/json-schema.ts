@@ -189,12 +189,21 @@ export function pickWorkflowReturns(
 }
 
 /**
- * Render a JSON Schema fragment as a Zod-like expression for Fluent source.
- * Uses JSON Schema object literals so browser compile does not need `zod`.
+ * Render a JSON Schema fragment as a Fluent `.accepts()` / `.returns()` argument.
+ * Pretty-prints object schemas across multiple lines; use `compact` for a single line.
  * @category Schema
  */
-export function renderJsonSchemaAsFluentArg(schema: Record<string, unknown>): string {
-  return JSON.stringify(schema)
+export function renderJsonSchemaAsFluentArg(
+  schema: Record<string, unknown>,
+  options?: { compact?: boolean }
+): string {
+  if (options?.compact) return JSON.stringify(schema)
+  const pretty = JSON.stringify(schema, null, 2)
+  if (!pretty.includes("\n")) return pretty
+  return pretty
+    .split("\n")
+    .map((line, index) => (index === 0 ? line : `  ${line}`))
+    .join("\n")
 }
 
 /** True when a value looks like a Zod schema instance. @category Schema */
