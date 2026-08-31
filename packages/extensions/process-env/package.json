@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/process-env",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Process environment config extension for ECP",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,13 +20,13 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.12.0",
-    "@executioncontrolprotocol/types": "^0.12.0",
+    "@executioncontrolprotocol/core": "^0.13.0",
+    "@executioncontrolprotocol/types": "^0.13.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.12.0",
-    "@executioncontrolprotocol/types": "0.12.0",
+    "@executioncontrolprotocol/core": "0.13.0",
+    "@executioncontrolprotocol/types": "0.13.0",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }

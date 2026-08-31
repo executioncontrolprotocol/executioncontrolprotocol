@@ -8,7 +8,7 @@
 ## Bump versions (all workspaces)
 
 ```bash
-npm run version:bump -- 0.12.0
+npm run version:bump -- 0.13.0
 ```
 
 Commit the version changes on `development`, then merge to `main` when ready to publish.
