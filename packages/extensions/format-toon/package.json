@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/format-toon",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "ECP TOON format extension using @toon-format/toon (schema-agnostic with optional ECP validation)",
   "license": "Apache-2.0",
   "type": "module",
@@ -23,13 +23,13 @@
     "@toon-format/toon": "^2.3.0"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.13.0",
-    "@executioncontrolprotocol/types": "^0.13.0",
+    "@executioncontrolprotocol/core": "^0.13.1",
+    "@executioncontrolprotocol/types": "^0.13.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.13.0",
-    "@executioncontrolprotocol/types": "0.13.0",
+    "@executioncontrolprotocol/core": "0.13.1",
+    "@executioncontrolprotocol/types": "0.13.1",
     "typescript": "^5.7.0",
     "zod": "^3.24.0"
   }
