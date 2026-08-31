@@ -101,14 +101,7 @@ export async function transpileWorkflowSource(
   return result.code
 }
 
-/**
- * Bundle workflow module with dependencies (Node host).
- * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
- * via normal `node_modules` lookup (no monorepo path aliases).
- * npm packages are left external as absolute paths so CJS SDKs (dynamic `require`)
- * load under Node instead of being inlined into ESM.
- */
-export async function bundleWorkflowSource(
+async function bundleModuleSource(
   source: string,
   filename: string,
   resolveDir: string
@@ -138,4 +131,32 @@ export async function bundleWorkflowSource(
   const file = result.outputFiles?.[0]
   if (!file) throw new Error("esbuild produced no output")
   return file.text
+}
+
+/**
+ * Bundle workflow module with dependencies (Node host).
+ * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
+ * via normal `node_modules` lookup (no monorepo path aliases).
+ * npm packages are left external as absolute paths so CJS SDKs (dynamic `require`)
+ * load under Node instead of being inlined into ESM.
+ */
+export async function bundleWorkflowSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir)
+}
+
+/**
+ * Bundle an environment module for Node, keeping `node_modules` as runtime imports.
+ * Native packages (e.g. `sharp`) cannot be inlined; they resolve to absolute `file:` URLs.
+ * @category Compile
+ */
+export async function bundleEnvironmentSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir)
 }

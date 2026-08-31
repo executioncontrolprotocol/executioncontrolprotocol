@@ -16,6 +16,10 @@ import { getCatalogedHarness, harnessIdFromCapabilityId } from "./harness-catalo
 import { createHarnessCapabilityContext } from "./context.js"
 import { findHarnessBinding } from "./resolve-harness-binding.js"
 import { EcpImpl } from "../environment/ecp.js"
+import {
+  CapabilityDispatchError,
+  createDispatchingCall,
+} from "../runtime/dispatch-capability.js"
 
 const INVOKE_STUB_WORKFLOW = {
   schema: "@executioncontrolprotocol.workflow" as const,
@@ -143,19 +147,20 @@ export async function executeHarnessInvoke(
     logger: utilityCtx.logger,
     usage: policyCtx.usage,
     extensionConfig: extBinding?.config,
+    blobs: env.getBlobStore(),
+    artifacts: env.ensureArtifactStore(),
     capabilities: {
-      call: async (id, nestedInput) => {
-        const nested = registry.getCapability(id)
-        if (!nested) throw new Error(`Unknown capability: ${id}`)
-        const nestedExt = bindings.extensions.find((e) => e.id === id.replace(/\.[^.]+$/, ""))
-        const nestedCtx: CapabilityContext & { extensionConfig?: Record<string, unknown> } = {
-          ...capCtx,
-          extensionConfig: nestedExt?.config,
-        }
-        return nested.handler(nestedInput, nestedCtx)
+      call: async (id) => {
+        throw new Error(`nested call not bound: ${id}`)
       },
     },
   }
+  capCtx.capabilities.call = createDispatchingCall({
+    ctx: capCtx,
+    registry,
+    runtimeId: env.getRuntimeId(),
+    remoteInvoke: env.getRemoteInvoke(),
+  })
 
   const ecp = new EcpImpl(env)
   const harnessCtx = createHarnessCapabilityContext(
@@ -172,6 +177,13 @@ export async function executeHarnessInvoke(
   try {
     output = await def.handler(parsedInput, harnessCtx)
   } catch (err) {
+    if (err instanceof CapabilityDispatchError) {
+      return invokeFailure(
+        capabilityId,
+        err.result.diagnostics[0]?.code ?? ECP_HARNESS_ERROR_CODES.HARNESS_EVALUATE_FAILED,
+        err.result.diagnostics[0]?.message ?? "Harness evaluation failed"
+      )
+    }
     const message = err instanceof Error ? err.message : String(err)
     return invokeFailure(capabilityId, ECP_HARNESS_ERROR_CODES.HARNESS_EVALUATE_FAILED, message)
   }

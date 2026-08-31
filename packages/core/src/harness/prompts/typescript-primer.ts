@@ -16,10 +16,20 @@ export const reply: HarnessReply = {
 
 const WORKFLOW_TEMPLATE = `import { workflow, step, ref } from "@executioncontrolprotocol/core"
 
-export default workflow("Example")
-  .id("example-wf")
+export default workflow("Echo from input")
+  .id("echo-from-input")
+  .accepts({
+    type: "object",
+    properties: { value: { type: "string" } },
+    required: ["value"],
+  })
+  .returns({
+    type: "object",
+    properties: { echo: { type: "object" } },
+    required: ["echo"],
+  })
   .run([
-    step("@executioncontrolprotocol/test.echo", "Echo").id("echo").with({ value: "hello" }).as("echo"),
+    step("@executioncontrolprotocol/test.echo", "Echo").id("echo").with({ value: ref("value") }).as("echo"),
   ])`
 
 /**
@@ -43,6 +53,8 @@ export function typescriptPrimerForOutputSchema(outputSchema: string): string {
       ? [
           "Allowed @executioncontrolprotocol/core imports: workflow, step, ref, branch, parallel, loop.",
           "Use .id(\"stepId\") on steps when ids must stay stable across edits.",
+          "Chain .accepts({...}) and .returns({...}) before .run() for workflow I/O schemas.",
+          "Wire accepts keys with ref(\"key\") — not ref(\"step.output\") for run input.",
           "Never output the word typescript on its own line before imports.",
         ]
       : []

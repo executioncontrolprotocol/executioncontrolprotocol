@@ -33,6 +33,7 @@ export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
   validateAgainstJsonSchema,
+  resolveStatePath,
   pickWorkflowReturns,
   isZodType,
 } from "./schema/json-schema.js"
@@ -90,6 +91,64 @@ export type {
   StepExecutionContext,
 } from "./runtime/context.js"
 export { createUsageLedger } from "./runtime/context.js"
+export {
+  resolveCapabilityExecution,
+  isBrowserRuntimeId,
+  isNodeRuntimeId,
+} from "./runtime/capability-execution.js"
+export { NODE_RUNTIME_ID, BROWSER_RUNTIME_ID } from "./runtime/runtime-ids.js"
+export {
+  hopRemoteInvoke,
+  invokeFailure,
+  isInvokeResult,
+  type RemoteInvokeBinding,
+} from "./runtime/remote-invoke.js"
+export {
+  dispatchCapability,
+  dispatchCapabilityResult,
+  createDispatchingCall,
+  CapabilityDispatchError,
+} from "./runtime/dispatch-capability.js"
+export {
+  BROWSER_FILE_LOCATOR_PREFIX,
+  isBrowserFileLocator,
+  createBrowserFileLocator,
+  createCapabilityBlobStore,
+  stashCapabilityBlob,
+  collectBrowserLocators,
+  serializeCapabilityBlobs,
+  hydrateCapabilityBlobs,
+  type CapabilityBlob,
+  type CapabilityBlobStore,
+  type SerializedCapabilityBlob,
+} from "./runtime/blobs.js"
+export {
+  createCapabilityArtifactStore,
+  type CapabilityArtifact,
+  type CapabilityArtifactStore,
+} from "./runtime/artifacts.js"
+export {
+  resolveFile,
+  writeMediaArtifact,
+  defaultArtifactFilename,
+  extensionForMediaType,
+  resolveArtifactFilename,
+  artifactFetchPathname,
+  isArtifactFetchPathname,
+  parseArtifactFetchPathname,
+  ARTIFACT_HTTP_PATH_PREFIX,
+  STORAGE_ARTIFACT_URI_PREFIX,
+  type ResolvedFile,
+  type ResolveFileOptions,
+  type WriteMediaArtifactOptions,
+  type FileCapabilityContext,
+  type ArtifactFetchPathnameOptions,
+} from "./media/index.js"
+export {
+  handleMixedBrowserBlobUpload,
+  type MixedBlobUploadInput,
+  type MixedBlobUploadOutput,
+} from "./runtime/mixed-blob-upload.js"
 export { registerTestExtension, testExtension } from "./testing/test-extension.js"
 
 export {
@@ -141,10 +200,11 @@ export type {
   StoreWriteOptions,
 } from "./runtime/store.js"
 export {
-  isImageRef,
-  collectImageRefs,
+  isFileRef,
+  collectFileRefs,
   collectOutputFormatHints,
-  imageRefUrlHostname,
+  fileRefUrlHostname,
   isSvgHint,
-} from "./image/image-ref.js"
-export type { CollectedImageRef, CollectedFormatHint } from "./image/image-ref.js"
+} from "./file/file-ref.js"
+export type { CollectedFileRef, CollectedFormatHint } from "./file/file-ref.js"
+export { assertMediaType, mediaTypeMatches } from "./media/assert-media-type.js"

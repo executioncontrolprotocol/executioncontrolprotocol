@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import type { Environment } from "../environment/environment.js"
 import { compileWorkflowSource } from "../compile/index.js"
-import { bundleWorkflowSource } from "../compile/transpile.js"
+import { bundleEnvironmentSource } from "../compile/transpile.js"
 
 /** Read file as utf-8. */
 export async function readTextFile(path: string): Promise<string> {
@@ -39,7 +39,9 @@ async function loadBundledModule<T extends Record<string, unknown>>(
   filename: string
 ): Promise<T> {
   const abs = resolve(filename)
-  const code = await bundleWorkflowSource(source, abs, dirname(abs))
+  const code = await bundleEnvironmentSource(source, abs, dirname(abs))
+  // Absolute file: externals let this temp module load from os.tmpdir()
+  // while native deps (sharp) and linked packages stay as runtime imports.
   const dir = await mkdtemp(join(tmpdir(), "ecp-bundle-"))
   const file = join(dir, "module.mjs")
   try {

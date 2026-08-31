@@ -22,6 +22,12 @@ import { RegistryRegistrationDeniedError } from "../registry/errors.js"
 import type { RuntimeExecutor } from "../runtime/executor.js"
 import type { EnvironmentLifecycleHost, PolicyContext } from "../runtime/context.js"
 import { createUsageLedger } from "../runtime/context.js"
+import {
+  createCapabilityArtifactStore,
+  type CapabilityArtifactStore,
+} from "../runtime/artifacts.js"
+import type { CapabilityBlobStore } from "../runtime/blobs.js"
+import type { RemoteInvokeBinding } from "../runtime/remote-invoke.js"
 import { evaluatePolicies } from "../runtime/policy-engine.js"
 import {
   manifestConfig,
@@ -65,6 +71,8 @@ export interface RunOptions {
   input?: Record<string, unknown>
   dryRun?: boolean
   signal?: AbortSignal
+  /** Run-scoped browser files for mixed upload locators. */
+  blobs?: CapabilityBlobStore
 }
 
 /**
@@ -75,6 +83,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private resolved?: ResolvedBindings
   private discoveryPrepared = false
   private readonly configResolvers: EnvironmentConfigResolver[] = []
+  private remoteInvoke?: RemoteInvokeBinding
+  private blobStore?: CapabilityBlobStore
+  private artifactStore?: CapabilityArtifactStore
 
   constructor(
     private readonly envId: string,
@@ -113,6 +124,55 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     this.harnessBindings = bindings
     this.invalidatePrepared()
     return this
+  }
+
+  /**
+   * Bind a local invoke host for host/mixed capability hops (`POST /v1/invoke`).
+   * Token is never included in `describe()`.
+   * @category Environment
+   */
+  withRemoteInvoke(binding: RemoteInvokeBinding): this {
+    this.remoteInvoke = { url: binding.url.replace(/\/+$/, ""), token: binding.token }
+    this.invalidatePrepared()
+    return this
+  }
+
+  /** Default blob store for invoke/run when options omit `blobs`. */
+  withBlobStore(store: CapabilityBlobStore): this {
+    this.blobStore = store
+    return this
+  }
+
+  /** Default artifact store for invoke/run host outputs. */
+  withArtifactStore(store: CapabilityArtifactStore): this {
+    this.artifactStore = store
+    return this
+  }
+
+  /** @internal Remote invoke pairing. */
+  getRemoteInvoke(): RemoteInvokeBinding | undefined {
+    return this.remoteInvoke
+  }
+
+  /** @internal Blob store. */
+  getBlobStore(): CapabilityBlobStore | undefined {
+    return this.blobStore
+  }
+
+  /** @internal Artifact store. */
+  getArtifactStore(): CapabilityArtifactStore | undefined {
+    return this.artifactStore
+  }
+
+  /**
+   * Ensure an artifact store exists for invoke/run (host outputs / `GET /v1/artifacts`).
+   * @internal
+   */
+  ensureArtifactStore(): CapabilityArtifactStore {
+    if (!this.artifactStore) {
+      this.artifactStore = createCapabilityArtifactStore()
+    }
+    return this.artifactStore
   }
 
   /** Dynamically add an extension binding (e.g. browser registry auto-bind). */
@@ -363,6 +423,14 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.envLabel
   }
 
+  /** Bound runtime id. @category Environment */
+  getRuntimeId(): string {
+    if (!this.runtimeBinding) {
+      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
+    }
+    return String(resolveId(this.runtimeBinding.getRef()))
+  }
+
   /**
    * Initialize environment for operational use and return an {@link Ecp} instance.
    * @category Environment
@@ -375,7 +443,11 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   /** @internal {@link EcpImpl} — describe. */
   async ecpDescribe(query?: DescribeQuery): Promise<EnvironmentDescriptor> {
     await this.prepareForDiscovery()
-    return buildDescriptor(this.registry, this.compile(), query)
+    const descriptor = await buildDescriptor(this.registry, this.compile(), query)
+    if (this.remoteInvoke) {
+      descriptor.remoteInvoke = { url: this.remoteInvoke.url }
+    }
+    return descriptor
   }
 
   /** @internal {@link EcpImpl} — search. */
@@ -457,6 +529,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       registry: this.registry,
       bindings,
       signal: options?.signal,
+      remoteInvoke: this.remoteInvoke,
+      blobs: options?.blobs ?? this.blobStore,
+      artifacts: this.ensureArtifactStore(),
     })
   }
 
@@ -506,6 +581,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       seedHistory: options.seedHistory,
       stopAfterStepId: options.stopAfterStepId,
       onlyStepId: options.onlyStepId,
+      remoteInvoke: this.remoteInvoke,
+      blobs: this.blobStore,
+      artifacts: this.ensureArtifactStore(),
     })
   }
 }

@@ -1,7 +1,7 @@
 {
   "id": "workflow-authoring-patch-coding",
   "role": "You are an ECP workflow editor for coding models. You revise workflows using only the Fluent API (TypeScript).",
-  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript.",
+  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. Preserve .accepts() and .returns() unless the request changes workflow I/O. Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript.",
   "outputSchema": "@executioncontrolprotocol.workflow",
   "promptFormat": "typescript",
   "fewShots": [
@@ -44,6 +44,18 @@
     {
       "message": "Remove the notify step.",
       "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo and notify\")\n  .run([step(\"@executioncontrolprotocol/test.echo\", \"Echo\").id(\"echo\").with({ value: \"hello\" }).as(\"echo\")])"
+    },
+    {
+      "message": "Add workflow accepts with required string value and wire echo from ref(\"value\").",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo test\")\n  .id(\"echo-test\")\n  .accepts({ type: \"object\", properties: { value: { type: \"string\" } }, required: [\"value\"] })\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\")\n      .id(\"echo\")\n      .with({ value: ref(\"value\") })\n      .as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Add workflow returns with echo object property matching echo step as key.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo accepts input\")\n  .id(\"echo-accepts\")\n  .accepts({ type: \"object\", properties: { value: { type: \"string\" } }, required: [\"value\"] })\n  .returns({ type: \"object\", properties: { echo: { type: \"object\" } }, required: [\"echo\"] })\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\")\n      .id(\"echo\")\n      .with({ value: ref(\"value\") })\n      .as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Remove workflow returns but keep accepts value.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo from input\")\n  .id(\"echo-from-input\")\n  .accepts({ type: \"object\", properties: { value: { type: \"string\" } }, required: [\"value\"] })\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\")\n      .id(\"echo\")\n      .with({ value: ref(\"value\") })\n      .as(\"echo\"),\n  ])"
     }
   ],
   "repairHint": "Return the full revised Fluent TypeScript module. Preserve all baseline step .id() values; only change what the request requires."

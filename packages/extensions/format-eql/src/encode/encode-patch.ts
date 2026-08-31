@@ -1,6 +1,7 @@
 import type { EcpPatchDocument, InputValue, StepNode } from "@executioncontrolprotocol/types"
 import type { EqlFormatOptions } from "../schemas.js"
 import type { EcpFormatOptions } from "@executioncontrolprotocol/types"
+import { jsonSchemaToEqlTypeMap } from "../workflow-io-eql.js"
 import { EqlWriter, formatInputValue, formatLiteral } from "./writer.js"
 
 interface StepUpdateFields {
@@ -109,9 +110,44 @@ export function encodePatchToEql(
   const workflowLabelEntry = patch.patches.find(
     (p) => p.path === "workflow.label" && p.mode === "replace"
   )
-  if (workflowLabelEntry?.value !== undefined) {
+  const acceptsEntry = patch.patches.find(
+    (p) => p.path === "workflow.accepts" && p.mode === "replace"
+  )
+  const returnsEntry = patch.patches.find(
+    (p) => p.path === "workflow.returns" && p.mode === "replace"
+  )
+
+  if (workflowLabelEntry?.value !== undefined || acceptsEntry || returnsEntry) {
     writer.writeln("UPDATE WORKFLOW")
-    writer.writeln(`LABEL ${formatLiteral(workflowLabelEntry.value, writer.quote)}`, 1)
+    if (workflowLabelEntry?.value !== undefined) {
+      writer.writeln(`LABEL ${formatLiteral(workflowLabelEntry.value, writer.quote)}`, 1)
+    }
+    if (acceptsEntry) {
+      if (acceptsEntry.value === null) {
+        writer.writeln("CLEAR ACCEPTS", 1)
+      } else if (typeof acceptsEntry.value === "object") {
+        const typeMap = jsonSchemaToEqlTypeMap(acceptsEntry.value as Record<string, unknown>)
+        if (typeMap) {
+          writer.writeln("ACCEPTS", 1)
+          for (const [name, type] of Object.entries(typeMap)) {
+            writer.writeln(`WITH ${name}:${type}`, 2)
+          }
+        }
+      }
+    }
+    if (returnsEntry) {
+      if (returnsEntry.value === null) {
+        writer.writeln("CLEAR RETURNS", 1)
+      } else if (typeof returnsEntry.value === "object") {
+        const typeMap = jsonSchemaToEqlTypeMap(returnsEntry.value as Record<string, unknown>)
+        if (typeMap) {
+          writer.writeln("RETURNS", 1)
+          for (const [name, type] of Object.entries(typeMap)) {
+            writer.writeln(`OUT ${name}:${type}`, 2)
+          }
+        }
+      }
+    }
   }
 
   const stepsReplace = patch.patches.find(
@@ -148,6 +184,8 @@ export function encodePatchToEql(
   for (const entry of patch.patches) {
     if (entry.path === "workflow.id") continue
     if (entry.path === "workflow.label") continue
+    if (entry.path === "workflow.accepts") continue
+    if (entry.path === "workflow.returns") continue
     if (entry.path.match(/^steps\[[^\]]+\]\./)) continue
 
     if (entry.reason === "eql:delete") {

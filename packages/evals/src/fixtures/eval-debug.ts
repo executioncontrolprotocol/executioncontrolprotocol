@@ -1,6 +1,7 @@
 import { appendFileSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import type { HarnessInvokeResult, InvokeResult, WorkflowManifest } from "@executioncontrolprotocol/types"
+import { jsonSchemaObjectProperties } from "@executioncontrolprotocol/core"
 import type { DeterministicAssertion, EvalCase } from "./eval-case-schema.js"
 import { isFlowEvalCase } from "./eval-case-schema.js"
 import { formatHarnessTrace } from "./harness-trace-format.js"
@@ -132,6 +133,18 @@ export function describeAssertionExpectation(assertion: DeterministicAssertion):
       return `descriptor lists extensions: ${assertion.ids.join(", ")}`
     case "descriptorListsCapabilities":
       return `descriptor lists capabilities: ${assertion.ids.join(", ")}`
+    case "workflowAcceptsHasProperties":
+      return `workflow.accepts has properties: ${assertion.properties.join(", ")}`
+    case "workflowReturnsHasProperties":
+      return `workflow.returns has properties: ${assertion.properties.join(", ")}`
+    case "workflowAcceptsAbsent":
+      return "workflow.accepts is absent or empty"
+    case "workflowReturnsAbsent":
+      return "workflow.returns is absent or empty"
+    case "workflowAcceptsRefUsed":
+      return `some step input $ref targets state.${assertion.property}`
+    case "workflowReturnsMapsAs":
+      return `workflow.returns has property ${assertion.property} and step .as("${assertion.asKey}") exists`
     default:
       return JSON.stringify(assertion)
   }
@@ -233,6 +246,69 @@ export async function extractAssertionActual(
         options?.descriptorCapabilityIds ??
         (options?.describeCapabilities ? await options.describeCapabilities() : [])
       return `descriptor capability ids = [${ids.join(", ")}]`
+    }
+    case "workflowAcceptsHasProperties": {
+      const wf = asWorkflowManifest(artifact)
+      const names = jsonSchemaObjectProperties(
+        wf.workflow?.accepts as Record<string, unknown> | undefined
+      ).map((p) => p.name)
+      return `workflow.accepts properties = [${names.join(", ")}]`
+    }
+    case "workflowReturnsHasProperties": {
+      const wf = asWorkflowManifest(artifact)
+      const names = jsonSchemaObjectProperties(
+        wf.workflow?.returns as Record<string, unknown> | undefined
+      ).map((p) => p.name)
+      return `workflow.returns properties = [${names.join(", ")}]`
+    }
+    case "workflowAcceptsAbsent": {
+      const wf = asWorkflowManifest(artifact)
+      const names = jsonSchemaObjectProperties(
+        wf.workflow?.accepts as Record<string, unknown> | undefined
+      ).map((p) => p.name)
+      return names.length === 0 ? "workflow.accepts absent" : `workflow.accepts = ${JSON.stringify(wf.workflow?.accepts)}`
+    }
+    case "workflowReturnsAbsent": {
+      const wf = asWorkflowManifest(artifact)
+      const names = jsonSchemaObjectProperties(
+        wf.workflow?.returns as Record<string, unknown> | undefined
+      ).map((p) => p.name)
+      return names.length === 0 ? "workflow.returns absent" : `workflow.returns = ${JSON.stringify(wf.workflow?.returns)}`
+    }
+    case "workflowAcceptsRefUsed": {
+      const wf = asWorkflowManifest(artifact)
+      const targetRef = `state.${assertion.property}`
+      const refs: string[] = []
+      for (const node of wf.steps ?? []) {
+        if (node.type !== undefined && node.type !== "step") continue
+        const input = node.input as Record<string, unknown> | undefined
+        if (!input) continue
+        for (const [key, value] of Object.entries(input)) {
+          if (
+            value !== null &&
+            typeof value === "object" &&
+            "$ref" in (value as object)
+          ) {
+            refs.push(`${node.id}.${key} -> ${(value as { $ref: string }).$ref}`)
+          }
+        }
+      }
+      const used = refs.some((r) => r.includes(targetRef))
+      return used
+        ? `accepts ref used via ${refs.filter((r) => r.includes(targetRef)).join("; ")}`
+        : `no $ref to ${targetRef}; refs: [${refs.join(", ")}]`
+    }
+    case "workflowReturnsMapsAs": {
+      const wf = asWorkflowManifest(artifact)
+      const returnsProps = jsonSchemaObjectProperties(
+        wf.workflow?.returns as Record<string, unknown> | undefined
+      ).map((p) => p.name)
+      const asKeys =
+        wf.steps
+          ?.filter((s) => s.type === "step")
+          .map((s) => ("as" in s ? s.as : undefined))
+          .filter((k): k is string => typeof k === "string") ?? []
+      return `returns properties = [${returnsProps.join(", ")}], step as keys = [${asKeys.join(", ")}]`
     }
     default:
       return JSON.stringify(artifact ?? null, null, 2).slice(0, 2000)

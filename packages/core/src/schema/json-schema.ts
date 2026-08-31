@@ -1,4 +1,9 @@
 import { z } from "zod"
+import {
+  fileRefSchemaOptions,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+} from "@executioncontrolprotocol/types"
 
 function unwrapZodType(type: z.ZodType): z.ZodType {
   if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType)
@@ -49,6 +54,9 @@ export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
   }
   if (inner instanceof z.ZodRecord) return { type: "object" }
   if (inner instanceof z.ZodAny || inner instanceof z.ZodUnknown) return {}
+  if (isFileRefSchema(inner)) {
+    return fileRefValueSchemaHint(fileRefSchemaOptions(inner))
+  }
   return {}
 }
 
@@ -141,7 +149,29 @@ export function validateAgainstJsonSchema(
 }
 
 /**
- * Pick top-level state keys listed in a `returns` object schema.
+ * Walk a dot-separated path against run state (e.g. `inspected.metadata`).
+ * @category Schema
+ */
+export function resolveStatePath(
+  state: Record<string, unknown>,
+  dotPath: string
+): unknown {
+  const segments = dotPath.split(".").filter((segment) => segment.length > 0)
+  if (segments.length === 0) return undefined
+  let current: unknown = state
+  for (const segment of segments) {
+    if (current === null || typeof current !== "object" || Array.isArray(current)) {
+      return undefined
+    }
+    if (!(segment in current)) return undefined
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}
+
+/**
+ * Pick state values listed in a `returns` object schema.
+ * Property names may be dot paths (e.g. `inspected.metadata`).
  * @category Schema
  */
 export function pickWorkflowReturns(
@@ -152,18 +182,28 @@ export function pickWorkflowReturns(
   if (fields.length === 0) return undefined
   const output: Record<string, unknown> = {}
   for (const field of fields) {
-    if (field.name in state) output[field.name] = state[field.name]
+    const value = resolveStatePath(state, field.name)
+    if (value !== undefined) output[field.name] = value
   }
   return output
 }
 
 /**
- * Render a JSON Schema fragment as a Zod-like expression for Fluent source.
- * Uses JSON Schema object literals so browser compile does not need `zod`.
+ * Render a JSON Schema fragment as a Fluent `.accepts()` / `.returns()` argument.
+ * Pretty-prints object schemas across multiple lines; use `compact` for a single line.
  * @category Schema
  */
-export function renderJsonSchemaAsFluentArg(schema: Record<string, unknown>): string {
-  return JSON.stringify(schema)
+export function renderJsonSchemaAsFluentArg(
+  schema: Record<string, unknown>,
+  options?: { compact?: boolean }
+): string {
+  if (options?.compact) return JSON.stringify(schema)
+  const pretty = JSON.stringify(schema, null, 2)
+  if (!pretty.includes("\n")) return pretty
+  return pretty
+    .split("\n")
+    .map((line, index) => (index === 0 ? line : `  ${line}`))
+    .join("\n")
 }
 
 /** True when a value looks like a Zod schema instance. @category Schema */

@@ -22,12 +22,25 @@ export const EQL_VALUE_EXPRESSIONS = [
   "- \"literal string\"",
   "- 42 or true or false",
   "- {\"field\": \"value\"} JSON object",
+  "- REF <acceptsKey> — read workflow run input (accepts property seeds state.<key>)",
   "- REF <stepId>.output — reference another step's output (chain steps this way)",
+].join("\n")
+
+export const EQL_WORKFLOW_IO = [
+  "Workflow I/O (@executioncontrolprotocol.workflow):",
+  "- ACCEPTS block declares run input fields (type declarations, not assignments):",
+  "    WITH <fieldName>:<type>[!]",
+  "- RETURNS block declares workflow output fields:",
+  "    OUT <fieldName>:<type>[!]",
+  "- Types: string, number, integer, boolean, object, array, file, unknown",
+  "- Suffix ! marks required fields (e.g. value:string!)",
+  "- Place ACCEPTS / RETURNS after WORKFLOW line and before STEP lines.",
 ].join("\n")
 
 export const EQL_WORKFLOW_OPERATIONS = [
   "Supported operations (@executioncontrolprotocol.workflow):",
   "- WORKFLOW <id> [\"optional label\"]",
+  "- ACCEPTS / RETURNS typed-field blocks (see workflow I/O rules above)",
   "- STEP <stepId> USES <capabilityId>",
   "    LABEL \"Human label\"",
   "    WITH <inputField> = <value expression>",
@@ -41,6 +54,12 @@ export const EQL_PATCH_OPERATIONS = [
   "- PATCH WORKFLOW <workflowId>  — required first line; names the target workflow (not a field change)",
   "- UPDATE WORKFLOW  — change workflow metadata on that target",
   "    LABEL \"new workflow label\"",
+  "    ACCEPTS",
+  "      WITH <fieldName>:<type>[!]",
+  "    RETURNS",
+  "      OUT <fieldName>:<type>[!]",
+  "    CLEAR ACCEPTS",
+  "    CLEAR RETURNS",
   "- UPDATE STEP <stepId>  — change fields on an existing step",
   "    LABEL \"new step label\"",
   "    WITH <field> = <value expression>",
@@ -127,6 +146,8 @@ export const EQL_PATCH_CANONICAL_EXAMPLES = [
 export const EQL_WORKFLOW_PRIMER = [
   EQL_ZERO_KNOWLEDGE_INTRO,
   "",
+  EQL_WORKFLOW_IO,
+  "",
   EQL_WORKFLOW_OPERATIONS,
   "",
   EQL_VALUE_EXPRESSIONS,
@@ -134,6 +155,8 @@ export const EQL_WORKFLOW_PRIMER = [
 
 export const EQL_PATCH_PRIMER = [
   EQL_ZERO_KNOWLEDGE_INTRO,
+  "",
+  EQL_WORKFLOW_IO,
   "",
   EQL_PATCH_OPERATIONS,
   "",

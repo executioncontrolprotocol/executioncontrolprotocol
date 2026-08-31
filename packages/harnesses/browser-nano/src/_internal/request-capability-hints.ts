@@ -1,6 +1,45 @@
-import { collectModelOutputFeedback } from "@executioncontrolprotocol/core"
+import { collectModelOutputFeedback, jsonSchemaObjectProperties } from "@executioncontrolprotocol/core"
 import type { HarnessOperationFeedback, WorkflowManifest } from "@executioncontrolprotocol/types"
 import type { CompactEnvironmentSummary } from "@executioncontrolprotocol/core"
+
+function workflowIoNames(manifest: WorkflowManifest, field: "accepts" | "returns"): string[] {
+  const schema = manifest.workflow?.[field] as Record<string, unknown> | undefined
+  return jsonSchemaObjectProperties(schema).map((p) => p.name)
+}
+
+function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boolean {
+  const targetRef = `state.${property}`
+  for (const node of manifest.steps ?? []) {
+    if (!("input" in node) || node.input === undefined) continue
+    const input = node.input as Record<string, unknown>
+    for (const value of Object.values(input)) {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        "$ref" in (value as object) &&
+        (value as { $ref: string }).$ref === targetRef
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function inferAcceptsPropertyFromRequest(request: string): string | undefined {
+  const match =
+    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i) ??
+    request.match(/run\s+input\s+(?:field\s+)?(\w+)/i) ??
+    request.match(/REF\s+(\w+)/i)
+  return match?.[1]
+}
+
+function inferReturnsPropertyFromRequest(request: string): string | undefined {
+  const match =
+    request.match(/returns?\s+(?:an?\s+)?(\w+)\s+(?:object|field|output)/i) ??
+    request.match(/OUT\s+(\w+):/i)
+  return match?.[1]
+}
 
 function stepHasInputRef(step: WorkflowManifest["steps"][number]): boolean {
   if (!("input" in step) || step.input === undefined) return false
@@ -376,9 +415,14 @@ export function collectCreateStepCountFeedback(
     /\bone step\b/i.test(request) ||
     /\bexactly one\b/i.test(request) ||
     /\bminimal\b/i.test(request)
+  // Empty capability matches mean "unknown", not "require zero steps".
+  const fromMatchedCaps =
+    requiredCapabilityIds !== undefined && requiredCapabilityIds.length > 0
+      ? requiredCapabilityIds.length
+      : undefined
   const requiredCount = explicitSingle
     ? 1
-    : inferRequiredStepCount(request) ?? requiredCapabilityIds?.length
+    : inferRequiredStepCount(request) ?? fromMatchedCaps
   const count = workflow.steps?.length ?? 0
   if (requiredCount === undefined || count <= requiredCount) {
     return undefined
@@ -672,6 +716,123 @@ export function collectPatchGoalFeedback(
         )
       )
     }
+  }
+
+  if (baseline && /\baccepts?\b|\breturns?\b/i.test(lower)) {
+    const baselineAccepts = workflowIoNames(baseline, "accepts")
+    const baselineReturns = workflowIoNames(baseline, "returns")
+    const patchedAccepts = workflowIoNames(patched, "accepts")
+    const patchedReturns = workflowIoNames(patched, "returns")
+    const wantsRemoveReturns = /\b(remove|clear|delete)\b.*\breturns?\b/i.test(lower)
+    const wantsAddAccepts = /\badd\b.*\baccepts?\b/i.test(lower)
+    const wantsAddReturns = /\badd\b.*\breturns?\b/i.test(lower)
+
+    if (!wantsRemoveReturns && !wantsAddAccepts) {
+      for (const name of baselineAccepts) {
+        if (!patchedAccepts.includes(name)) {
+          feedback.push(
+            collectModelOutputFeedback(
+              `Preserve ACCEPTS field ${name}:type unless the request removes or renames it.`
+            )
+          )
+        }
+      }
+      for (const name of baselineReturns) {
+        if (!patchedReturns.includes(name) && !wantsAddReturns) {
+          feedback.push(
+            collectModelOutputFeedback(
+              `Preserve RETURNS OUT ${name}:type unless the request removes or renames it.`
+            )
+          )
+        }
+      }
+    }
+
+    if (wantsAddAccepts) {
+      const prop = inferAcceptsPropertyFromRequest(request) ?? "value"
+      if (!patchedAccepts.includes(prop)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Use UPDATE WORKFLOW with ACCEPTS and WITH ${prop}:string! before step lines.`
+          )
+        )
+      }
+    }
+
+    if (wantsAddReturns) {
+      const prop = inferReturnsPropertyFromRequest(request) ?? "echo"
+      if (!patchedReturns.includes(prop)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Use UPDATE WORKFLOW with RETURNS and OUT ${prop}:object! before step lines.`
+          )
+        )
+      }
+    }
+
+    if (wantsRemoveReturns && patchedReturns.length > 0) {
+      feedback.push(
+        collectModelOutputFeedback("Use UPDATE WORKFLOW with CLEAR RETURNS.")
+      )
+    }
+
+    const acceptsProp = inferAcceptsPropertyFromRequest(request)
+    if (acceptsProp && patchedAccepts.includes(acceptsProp) && !stepUsesAcceptsRef(patched, acceptsProp)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Wire run input with WITH field = REF ${acceptsProp} on the target step.`
+        )
+      )
+    }
+  }
+
+  return feedback.length > 0 ? feedback : undefined
+}
+
+/**
+ * Repair feedback for EQL create output when workflow I/O is requested.
+ * @internal
+ */
+export function collectCreateWorkflowIoFeedback(
+  request: string,
+  manifest: WorkflowManifest
+): HarnessOperationFeedback[] | undefined {
+  const lower = request.toLowerCase()
+  if (!/\baccepts?\b|\breturns?\b|\brun\s+input\b/i.test(lower)) {
+    return undefined
+  }
+  const feedback: HarnessOperationFeedback[] = []
+  const acceptsProp = inferAcceptsPropertyFromRequest(request)
+  const returnsProp = inferReturnsPropertyFromRequest(request)
+  const acceptsNames = workflowIoNames(manifest, "accepts")
+  const returnsNames = workflowIoNames(manifest, "returns")
+
+  if (/\baccepts?\b/i.test(lower) && acceptsProp && !acceptsNames.includes(acceptsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Add ACCEPTS block with WITH ${acceptsProp}:string! after WORKFLOW line.`
+      )
+    )
+  }
+
+  if (/\breturns?\b/i.test(lower) && returnsProp && !returnsNames.includes(returnsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Add RETURNS block with OUT ${returnsProp}:object! after ACCEPTS.`
+      )
+    )
+  }
+
+  if (acceptsProp && acceptsNames.includes(acceptsProp) && !stepUsesAcceptsRef(manifest, acceptsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Wire run input with WITH field = REF ${acceptsProp}, not REF step.output.`
+      )
+    )
+  }
+
+  if (/\bno\s+returns?\b/i.test(lower) && returnsNames.length > 0) {
+    feedback.push(collectModelOutputFeedback("Omit RETURNS block for this workflow."))
   }
 
   return feedback.length > 0 ? feedback : undefined

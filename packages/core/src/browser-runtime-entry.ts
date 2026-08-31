@@ -48,6 +48,61 @@ export type {
   EnvironmentLifecycleHost,
 } from "./runtime/context.js"
 export { createUsageLedger } from "./runtime/context.js"
+export {
+  resolveCapabilityExecution,
+  isBrowserRuntimeId,
+  isNodeRuntimeId,
+} from "./runtime/capability-execution.js"
+export { NODE_RUNTIME_ID, BROWSER_RUNTIME_ID } from "./runtime/runtime-ids.js"
+export {
+  hopRemoteInvoke,
+  invokeFailure,
+  isInvokeResult,
+  type RemoteInvokeBinding,
+} from "./runtime/remote-invoke.js"
+export {
+  dispatchCapability,
+  dispatchCapabilityResult,
+  createDispatchingCall,
+  CapabilityDispatchError,
+} from "./runtime/dispatch-capability.js"
+export {
+  BROWSER_FILE_LOCATOR_PREFIX,
+  isBrowserFileLocator,
+  createBrowserFileLocator,
+  createCapabilityBlobStore,
+  stashCapabilityBlob,
+  collectBrowserLocators,
+  serializeCapabilityBlobs,
+  hydrateCapabilityBlobs,
+  type CapabilityBlob,
+  type CapabilityBlobStore,
+  type SerializedCapabilityBlob,
+} from "./runtime/blobs.js"
+export {
+  createCapabilityArtifactStore,
+  type CapabilityArtifact,
+  type CapabilityArtifactStore,
+} from "./runtime/artifacts.js"
+export {
+  resolveFile,
+  writeMediaArtifact,
+  artifactFetchPathname,
+  isArtifactFetchPathname,
+  parseArtifactFetchPathname,
+  ARTIFACT_HTTP_PATH_PREFIX,
+  STORAGE_ARTIFACT_URI_PREFIX,
+  type ResolvedFile,
+  type ResolveFileOptions,
+  type WriteMediaArtifactOptions,
+  type FileCapabilityContext,
+  type ArtifactFetchPathnameOptions,
+} from "./media/index.js"
+export {
+  handleMixedBrowserBlobUpload,
+  type MixedBlobUploadInput,
+  type MixedBlobUploadOutput,
+} from "./runtime/mixed-blob-upload.js"
 export { evaluatePolicies } from "./runtime/policy-engine.js"
 export type {
   ExtensionDefinition,
@@ -139,10 +194,11 @@ export { buildSystemPromptFromFixture } from "./harness/prompts/build-system-pro
 export { buildRepairHintFromFixture } from "./harness/prompts/build-repair-hint.js"
 export * from "./harness/authoring/index.js"
 export {
-  isImageRef,
-  collectImageRefs,
+  isFileRef,
+  collectFileRefs,
   collectOutputFormatHints,
-  imageRefUrlHostname,
+  fileRefUrlHostname,
   isSvgHint,
-} from "./image/image-ref.js"
-export type { CollectedImageRef, CollectedFormatHint } from "./image/image-ref.js"
+} from "./file/file-ref.js"
+export type { CollectedFileRef, CollectedFormatHint } from "./file/file-ref.js"
+export { assertMediaType, mediaTypeMatches } from "./media/assert-media-type.js"

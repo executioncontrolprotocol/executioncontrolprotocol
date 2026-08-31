@@ -1,4 +1,7 @@
 import type { RunResult, StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { RemoteInvokeBinding } from "./remote-invoke.js"
+import type { CapabilityArtifactStore } from "./artifacts.js"
+import type { CapabilityBlobStore } from "./blobs.js"
 
 /** Runtime execution mode. @category Runtime */
 export type RuntimeExecutionMode = "run" | "test"
@@ -23,6 +26,12 @@ export interface RuntimeExecutionContext {
   stopAfterStepId?: string
   /** Execute only this leaf step id (test `rerun`). */
   onlyStepId?: string
+  /** Local invoke host for host/mixed hops. */
+  remoteInvoke?: RemoteInvokeBinding
+  /** Run-scoped browser file map. */
+  blobs?: CapabilityBlobStore
+  /** Environment-scoped host artifact map. */
+  artifacts?: CapabilityArtifactStore
 }
 
 /** Runtime executor interface. @category Runtime */

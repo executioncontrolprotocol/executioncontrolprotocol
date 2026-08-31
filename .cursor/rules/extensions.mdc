@@ -28,7 +28,7 @@ Prefer **npm package name === extension id** (e.g. `@executioncontrolprotocol/fo
 | Package | Use for |
 | ------- | ------- |
 | `@executioncontrolprotocol/types` | Protocol types (`WorkflowManifest`, `EcpSchema`, `EncodedArtifact`, capability IDs, etc.) |
-| `@executioncontrolprotocol/core` | `defineExtension`, `capabilityFor`, `catalogExtension`, shared validation (`validateWorkflow`), encoding error types |
+| `@executioncontrolprotocol/core` | `defineExtension`, `capabilityFor`, `catalogExtension`, shared validation (`validateWorkflow`), encoding error types, **file I/O** (`resolveFile`, `writeMediaArtifact`) |
 | `zod` | Config and capability I/O schemas (`z.object`, `z.string`, etc.) — import directly from `"zod"`, not through `@executioncontrolprotocol/core` |
 | Third-party libs | Format/SDK deps only (e.g. `@toon-format/toon`) scoped to the extension’s job |
 
@@ -73,6 +73,10 @@ export const myExtension = defineExtension("@vendor", "my-ext")
 
 catalogExtension(myExtension)
 ```
+
+If the Node graph imports native modules or Node-only SDKs (`sharp`, Azure SDK, `node:fs`), add `exports["."].browser` → catalog-only `index.browser.ts` (and mixed handlers that stay tab-safe). `catalogExtension` on both entries. Apps import the package root; Vite selects the `browser` condition. Execution stays `local` | `host` | `mixed`.
+
+Binary inputs/outputs: use `resolveFile` / `writeMediaArtifact` from `@executioncontrolprotocol/core` — do not reimplement fs/fetch/`ctx.artifacts` maps per extension.
 
 - Encode/decode/format capabilities: accept `unknown` documents, infer `schema` when present, validate known `EcpSchema` values with diagnostics; do not throw on unknown schemas unless `strict` decode is requested.
 

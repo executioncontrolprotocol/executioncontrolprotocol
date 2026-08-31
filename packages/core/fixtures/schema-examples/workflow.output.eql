@@ -1,5 +1,9 @@
-WORKFLOW minimal-echo "Minimal Echo"
+WORKFLOW echo-from-input "Echo from input"
+ACCEPTS
+  WITH value:string!
+RETURNS
+  OUT echo:object!
 STEP echo USES @executioncontrolprotocol/test.echo
   LABEL "Echo"
-  WITH value = "hello"
+  WITH value = REF value
   AS echo

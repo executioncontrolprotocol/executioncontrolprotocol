@@ -1,4 +1,4 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension } from "@executioncontrolprotocol/core"
+import { defineExtension, capabilityFor, globalRegistry, catalogExtension, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
@@ -290,6 +290,7 @@ function envString(name: string): string | undefined {
 
 /** @executioncontrolprotocol/ollama extension. @category Extensions */
 export const ollamaExtension = defineExtension("@executioncontrolprotocol", "ollama")
+  .withSupportedRuntimes([NODE_RUNTIME_ID])
   .withConfig({
     baseURL: z.string().optional(),
     defaultModel: z.string().optional(),

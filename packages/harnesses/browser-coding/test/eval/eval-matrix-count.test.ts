@@ -4,7 +4,7 @@ import { CODING_MATRIX_EVAL_EXTENSION_IDS } from "./helpers/coding-matrix-extens
 
 describe("coding eval matrix fixtures", () => {
   it("loads 63 Ollama eval cases", () => {
-    expect(countCodingEvalCases()).toBe(63)
+    expect(countCodingEvalCases()).toBe(75)
   })
 
   it("matrix extension binding list has four extensions", () => {

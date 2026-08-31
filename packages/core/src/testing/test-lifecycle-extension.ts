@@ -1,4 +1,4 @@
-import type { LifecycleEvent } from "@executioncontrolprotocol/types"
+import type { LifecycleEvent, ValidationIssue } from "@executioncontrolprotocol/types"
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
 import { hook } from "../definitions/hook.js"
@@ -9,18 +9,25 @@ import { z } from "zod"
 /** Recorded extension lifecycle hook events (reset via `resetLifecycleSpy()`). */
 export const lifecycleSpyEvents: LifecycleEvent[] = []
 
+/** Diagnostics from the most recent `step:failed` hook invocation. */
+export let lifecycleSpyLastStepFailedDiagnostics: ValidationIssue[] | undefined
+
 /** Capability invocation count for spy capabilities. */
 export let capabilityInvokeCount = 0
 
 /** Reset spy state between tests. */
 export function resetLifecycleSpy(): void {
   lifecycleSpyEvents.length = 0
+  lifecycleSpyLastStepFailedDiagnostics = undefined
   capabilityInvokeCount = 0
 }
 
 function spyHook(event: LifecycleEvent) {
-  return hook(event, async () => {
+  return hook(event, async (ctx) => {
     lifecycleSpyEvents.push(event)
+    if (event === "step:failed" && "diagnostics" in ctx) {
+      lifecycleSpyLastStepFailedDiagnostics = ctx.diagnostics
+    }
   })
 }
 

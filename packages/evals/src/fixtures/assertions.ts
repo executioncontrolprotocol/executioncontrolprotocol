@@ -1,6 +1,6 @@
 import { expect } from "vitest"
 import type { Ecp, Environment } from "@executioncontrolprotocol/core"
-import { answerRedirectsToHarnessScope } from "@executioncontrolprotocol/core"
+import { answerRedirectsToHarnessScope, jsonSchemaObjectProperties } from "@executioncontrolprotocol/core"
 import {
   ECP_HARNESS_REPLY_SCHEMA,
   ECP_INTENT_SCHEMA,
@@ -60,6 +60,52 @@ function formatInvokeFailureDetails(result: InvokeResult): string {
 function findStep(workflow: WorkflowManifest, stepId: string): StepNode | undefined {
   const node = workflow.steps?.find((s) => s.type === "step" && s.id === stepId)
   return node?.type === "step" ? node : undefined
+}
+
+function workflowIoPropertyNames(
+  workflow: WorkflowManifest,
+  field: "accepts" | "returns"
+): string[] {
+  const schema = workflow.workflow?.[field] as Record<string, unknown> | undefined
+  return jsonSchemaObjectProperties(schema).map((p) => p.name)
+}
+
+function isWorkflowIoAbsent(workflow: WorkflowManifest, field: "accepts" | "returns"): boolean {
+  const schema = workflow.workflow?.[field] as Record<string, unknown> | undefined
+  if (!schema) return true
+  return workflowIoPropertyNames(workflow, field).length === 0
+}
+
+function stepUsesAcceptsRef(workflow: WorkflowManifest, property: string): boolean {
+  const targetRef = `state.${property}`
+  for (const node of workflow.steps ?? []) {
+    if (node.type !== undefined && node.type !== "step") continue
+    const input = (node as StepNode).input as Record<string, unknown> | undefined
+    if (!input) continue
+    for (const value of Object.values(input)) {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        "$ref" in (value as object) &&
+        (value as { $ref: string }).$ref === targetRef
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function returnsMapsToAsKey(
+  workflow: WorkflowManifest,
+  property: string,
+  asKey: string
+): boolean {
+  const returnsProps = workflowIoPropertyNames(workflow, "returns")
+  if (!returnsProps.includes(property)) return false
+  return (workflow.steps ?? []).some(
+    (s) => s.type === "step" && (s as StepNode).as === asKey
+  )
 }
 
 /**
@@ -266,6 +312,48 @@ export async function assertDeterministic(
         expect(shot?.promptPhase, `${label} prompt phase shot ${assertion.shotIndex}`).toBe(
           assertion.value
         )
+        break
+      }
+      case "workflowAcceptsHasProperties": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        const names = workflowIoPropertyNames(wf, "accepts")
+        for (const prop of assertion.properties) {
+          expect(names, `${label} workflow.accepts properties`).toContain(prop)
+        }
+        break
+      }
+      case "workflowReturnsHasProperties": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        const names = workflowIoPropertyNames(wf, "returns")
+        for (const prop of assertion.properties) {
+          expect(names, `${label} workflow.returns properties`).toContain(prop)
+        }
+        break
+      }
+      case "workflowAcceptsAbsent": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        expect(isWorkflowIoAbsent(wf, "accepts"), `${label} workflow.accepts absent`).toBe(true)
+        break
+      }
+      case "workflowReturnsAbsent": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        expect(isWorkflowIoAbsent(wf, "returns"), `${label} workflow.returns absent`).toBe(true)
+        break
+      }
+      case "workflowAcceptsRefUsed": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        expect(
+          stepUsesAcceptsRef(wf, assertion.property),
+          `${label} accepts ref for ${assertion.property}`
+        ).toBe(true)
+        break
+      }
+      case "workflowReturnsMapsAs": {
+        const wf = harnessOutput.artifact as WorkflowManifest
+        expect(
+          returnsMapsToAsKey(wf, assertion.property, assertion.asKey),
+          `${label} returns maps to as key`
+        ).toBe(true)
         break
       }
       default:

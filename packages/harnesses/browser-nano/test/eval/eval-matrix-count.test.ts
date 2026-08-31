@@ -3,8 +3,8 @@ import { loadNanoEvalCases, countNanoEvalCases } from "./helpers/nano-eval-fixtu
 import { NANO_MATRIX_EVAL_EXTENSION_IDS } from "./helpers/nano-matrix-extensions.js"
 
 describe("nano eval matrix fixtures", () => {
-  it("loads 81 Ollama eval cases", () => {
-    expect(countNanoEvalCases()).toBe(81)
+  it("loads 93 Ollama eval cases", () => {
+    expect(countNanoEvalCases()).toBe(93)
   })
 
   it("matrix extension binding list has four extensions", () => {

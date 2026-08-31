@@ -25,6 +25,11 @@ import {
   type TestSession,
   type TestSessionBuilder,
 } from "../test-session/index.js"
+import {
+  createCapabilityBlobStore,
+  type CapabilityBlobStore,
+} from "../runtime/blobs.js"
+import type { CapabilityArtifactStore } from "../runtime/artifacts.js"
 
 export type { RunOptions } from "./environment.js"
 
@@ -62,6 +67,10 @@ export interface Ecp {
   restoreTestSession(snapshot: TestSessionSnapshot): Promise<TestSession>
   /** Underlying registry. */
   getRegistry(): Registry
+  /** Run-scoped browser file blob store (created on first use). */
+  getBlobStore(): CapabilityBlobStore
+  /** Environment-scoped host artifact store (created on first use). */
+  getArtifactStore(): CapabilityArtifactStore
   /** Terminate the environment and release resources. */
   terminate(): Promise<void>
 }
@@ -123,6 +132,18 @@ export class EcpImpl implements Ecp {
 
   getRegistry(): Registry {
     return this.env.getRegistry()
+  }
+
+  getBlobStore(): CapabilityBlobStore {
+    const existing = this.env.getBlobStore()
+    if (existing) return existing
+    const store = createCapabilityBlobStore()
+    this.env.withBlobStore(store)
+    return store
+  }
+
+  getArtifactStore(): CapabilityArtifactStore {
+    return this.env.ensureArtifactStore()
   }
 
   terminate(): Promise<void> {

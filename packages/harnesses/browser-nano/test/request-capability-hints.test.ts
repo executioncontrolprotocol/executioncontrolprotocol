@@ -456,6 +456,23 @@ describe("request-capability-hints", () => {
     expect(feedback?.[0]?.issues[0]?.message).toContain("exactly one capability step")
   })
 
+  it("collectCreateStepCountFeedback does not require zero steps when no capabilities matched", async () => {
+    const { collectCreateStepCountFeedback } = await import(
+      "../../../harnesses/browser-nano/src/_internal/request-capability-hints.js"
+    )
+    const cap = "@executioncontrolprotocol/image-sharp.inspect"
+    const wf: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0.0",
+      workflow: { id: "resize-image", label: "Resize Image" },
+      steps: [
+        { type: "step", id: "inspect", uses: cap, label: "Inspect Image", as: "inspect" },
+      ],
+    }
+    const feedback = collectCreateStepCountFeedback("Resize this image", wf, [])
+    expect(feedback).toBeUndefined()
+  })
+
   it("buildRequestCapabilityHintLines nudges distinct ids for same-cap reuse", () => {
     const lines = buildRequestCapabilityHintLines(
       "Create a two-step workflow: generate a poem with @executioncontrolprotocol/chrome-ai.generate, then summarize with the same capability.",

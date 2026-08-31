@@ -97,8 +97,10 @@ export type {
   PatchResultDocument,
   EcpPatchDocumentRecord,
 } from "./patch.js"
-export { ECP_INVOKE_ERROR_CODES } from "./invoke.js"
+export { ECP_INVOKE_ERROR_CODES, httpStatusForInvokeResult } from "./invoke.js"
 export type { EcpInvokeErrorCode, InvokeResult, UsageSummary } from "./invoke.js"
+export { CAPABILITY_EXECUTION } from "./capability-execution.js"
+export type { CapabilityExecution } from "./capability-execution.js"
 export {
   ECP_MODEL_GENERATE_INTERFACE,
   ECP_MODEL_CAPABILITY_NAME,
@@ -164,17 +166,21 @@ export type {
   HarnessWorkflowAssistantInput,
 } from "./harness-tasks.js"
 export {
-  IMAGE_REF_KINDS,
-  IMAGE_OUTPUT_FORMATS,
-  imageRefSchema,
-} from "./image.js"
+  FILE_REF_KINDS,
+  fileRefSchema,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+  fileRefSchemaOptions,
+  isFileRefKind,
+} from "./file-ref.js"
 export type {
-  ImageRefKind,
-  ImageOutputFormat,
-  ArtifactImageRef,
-  FileImageRef,
-  UrlImageRef,
-  BufferImageRef,
-  ImageRef,
-  ImageOutputInfo,
-} from "./image.js"
+  FileRefKind,
+  ArtifactFileRef,
+  FileFileRef,
+  UrlFileRef,
+  BufferFileRef,
+  FileRef,
+  FileRefSchemaOptions,
+} from "./file-ref.js"
+export { IMAGE_OUTPUT_FORMATS } from "./image-output.js"
+export type { ImageOutputFormat, ImageOutputInfo } from "./image-output.js"

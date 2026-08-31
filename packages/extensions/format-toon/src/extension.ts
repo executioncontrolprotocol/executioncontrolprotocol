@@ -15,11 +15,13 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
     capabilityFor("@executioncontrolprotocol/format-toon", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
+      .withExecution("local")
       .withHandler((input, ctx) => encodeToToon(input as import("@executioncontrolprotocol/types").EcpEncodeInput, ctx as never)),
 
     capabilityFor("@executioncontrolprotocol/format-toon", "decode")
       .withInput(ecpDecodeInputSchema)
       .withOutput(ecpDecodeResultSchema)
+      .withExecution("local")
       .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/types").EcpDecodeInput, ctx as never)),
   ])
   .build()

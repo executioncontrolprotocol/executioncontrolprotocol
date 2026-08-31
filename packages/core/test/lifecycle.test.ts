@@ -13,6 +13,7 @@ import {
   registerLifecycleSpyExtension,
   resetLifecycleSpy,
   lifecycleSpyEvents,
+  lifecycleSpyLastStepFailedDiagnostics,
   capabilityInvokeCount,
 } from "../src/testing/test-lifecycle-extension.js"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
@@ -83,8 +84,10 @@ describe("step lifecycle ordering", () => {
     )
     expect(capabilityInvokeCount).toBe(0)
     expect(lifecycleSpyEvents).toContain("step:before")
+    expect(lifecycleSpyEvents).toContain("step:failed")
     expect(lifecycleSpyEvents).not.toContain("step:started")
     expect(lifecycleSpyEvents).toContain("step:finally")
+    expect(lifecycleSpyLastStepFailedDiagnostics?.[0]?.message).toBe("blocked")
   })
 
   it("policy:pre pause skips capability and sets paused status", async () => {
@@ -123,6 +126,7 @@ describe("step lifecycle ordering", () => {
     expect(lifecycleSpyEvents).toContain("step:failed")
     expect(lifecycleSpyEvents).toContain("step:finally")
     expect(lifecycleSpyEvents).not.toContain("step:completed")
+    expect(lifecycleSpyLastStepFailedDiagnostics?.[0]?.message).toBe("capability failed")
     expect(result.state?.seed).toBe(1)
     expect(result.state?.out).toBeUndefined()
   })

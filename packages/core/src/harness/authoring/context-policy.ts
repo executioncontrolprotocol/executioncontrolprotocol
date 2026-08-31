@@ -10,6 +10,7 @@ import { isEnvironmentQuestion } from "./environment-question.js"
 import {
   formatEnvironmentSummaryLines,
   summarizeEnvironmentDescriptor,
+  toAuthoringEnvironmentDescriptor,
   type CompactEnvironmentSummary,
   type EnvironmentSummaryFormat,
 } from "./summarize-environment.js"
@@ -185,7 +186,7 @@ export async function buildContextBundle(
         options.descriptorFormat ?? "@executioncontrolprotocol/format-eql"
       const descriptorText = await encodeForPrompt(
         ecp,
-        environmentDescriptor,
+        toAuthoringEnvironmentDescriptor(environmentDescriptor),
         descriptorFormat
       )
       if (descriptorText) {

@@ -2,10 +2,13 @@ import type {
   LifecycleEvent,
   PolicyEvaluationScope,
   RegistryRegistrationRequest,
+  ValidationIssue,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 import type { PendingMutation, StoreStateHandle } from "@executioncontrolprotocol/types"
 import type { StoreContext } from "./store.js"
+import type { CapabilityArtifactStore } from "./artifacts.js"
+import type { CapabilityBlobStore } from "./blobs.js"
 
 /** Run-level context. @category Runtime */
 export interface RunContext {
@@ -31,6 +34,10 @@ export interface CapabilityContext {
   capabilities: {
     call(id: string, input: unknown): Promise<unknown>
   }
+  /** Run-scoped browser files keyed by `ecp://browser/<id>` locators. */
+  blobs?: CapabilityBlobStore
+  /** Environment-scoped host artifacts keyed by `ecp://…` URIs. */
+  artifacts?: CapabilityArtifactStore
 }
 
 /** Host surface exposed on environment lifecycle hooks. @category Environment */
@@ -51,6 +58,8 @@ export interface LifecycleContext {
   state: Record<string, unknown>
   /** Step capability output when available (e.g. `step:completed`). */
   output?: unknown
+  /** Failure diagnostics when the step did not complete (e.g. `step:failed`). */
+  diagnostics?: ValidationIssue[]
   /** Present on `environment:*` events. */
   environment?: EnvironmentLifecycleHost
 }

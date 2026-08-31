@@ -1,7 +1,38 @@
 import { z } from "zod"
+import {
+  fileRefSchemaOptions,
+  fileRefValueSchemaHint,
+  isFileRefSchema,
+} from "@executioncontrolprotocol/types"
 
 /** JSON Schema fragment used as a portable port type hint. @category Encoding */
 export type ValueSchemaHint = Record<string, unknown>
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+/**
+ * Whether a JSON Schema hint describes a file ref port (`x-ecp-file`, `contentMediaType`, or FileRef shape).
+ * @category Encoding
+ */
+export function isFileValueSchemaHint(schema: Record<string, unknown>): boolean {
+  if (schema["x-ecp-file"] === true) return true
+  if (typeof schema.contentMediaType === "string" && schema.contentMediaType.length > 0) {
+    return true
+  }
+  if (Array.isArray(schema.contentMediaType) && schema.contentMediaType.length > 0) {
+    return true
+  }
+  if (schema.format === "binary" || schema.format === "byte") return true
+  if (schema.type === "object" && isRecord(schema.properties)) {
+    const kind = schema.properties.kind
+    if (isRecord(kind) && Array.isArray(kind.enum)) {
+      return kind.enum.some((v) => v === "file" || v === "artifact" || v === "buffer" || v === "url")
+    }
+  }
+  return false
+}
 
 /**
  * Unwrap Zod wrappers that do not change the value shape for UI hints.
@@ -28,11 +59,25 @@ export function unwrapZodType(type: z.ZodType): z.ZodType {
 export function valueSchemaFromZod(type: z.ZodType): ValueSchemaHint | undefined {
   const inner = unwrapZodType(type)
 
+  if (isFileRefSchema(inner)) {
+    return fileRefValueSchemaHint(fileRefSchemaOptions(type))
+  }
+
   if (inner instanceof z.ZodString) {
-    return { type: "string" }
+    const hint: ValueSchemaHint = { type: "string" }
+    for (const check of inner._def.checks) {
+      if (check.kind === "min") hint.minLength = check.value
+      if (check.kind === "max") hint.maxLength = check.value
+    }
+    return hint
   }
   if (inner instanceof z.ZodNumber) {
-    return { type: "number" }
+    const hint: ValueSchemaHint = { type: "number" }
+    for (const check of inner._def.checks) {
+      if (check.kind === "min") hint.minimum = check.value
+      if (check.kind === "max") hint.maximum = check.value
+    }
+    return hint
   }
   if (inner instanceof z.ZodBoolean) {
     return { type: "boolean" }
@@ -106,6 +151,7 @@ export function valueSchemaFromEqlLabel(typeLabel: string): ValueSchemaHint | un
   if (base === "boolean" || base === "bool") return { type: "boolean" }
   if (base === "null") return { type: "null" }
   if (base === "array") return { type: "array" }
+  if (base === "file") return fileRefValueSchemaHint()
   if (base === "object" || base === "record" || base === "json") return { type: "object" }
   return undefined
 }

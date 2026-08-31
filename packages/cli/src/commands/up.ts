@@ -14,11 +14,14 @@ export default class Up extends Command {
   static summary = "Start the local ECP daemon"
 
   static description =
-    "Run a loopback HTTP daemon that exposes ECP invoke for local Ollama " +
-    "(CORS + Private Network Access). Opens the browser demo with ?token= for pairing."
+    "Run a loopback HTTP daemon that exposes ECP invoke for a local environment " +
+    "(CORS + Private Network Access). Always hosts Ollama for the browser demo; " +
+    "optional --env adds that project's host extensions alongside Ollama. " +
+    "Opens the browser demo with ?token= for pairing."
 
   static examples = [
     "<%= config.bin %> <%= command.id %>",
+    "<%= config.bin %> <%= command.id %> --env environment.ts",
     "<%= config.bin %> <%= command.id %> --open-url http://localhost:5173/",
     "<%= config.bin %> <%= command.id %> --no-open",
   ]
@@ -40,6 +43,10 @@ export default class Up extends Command {
       description: "Extra allowed CORS origin (repeatable)",
       multiple: true,
       default: [],
+    }),
+    env: Flags.string({
+      description:
+        "Path to environment module (.ts or .js). Merged with Ollama (always hosted for the demo bridge).",
     }),
     token: Flags.string({
       description: "Pairing token for /v1/invoke (auto-generated if omitted)",
@@ -71,6 +78,7 @@ export default class Up extends Command {
       ollamaUrl: flags["ollama-url"],
       corsOrigins,
       token,
+      envPath: flags.env,
     })
 
     const bridgeBaseURL = `http://${daemon.host}:${daemon.port}`
@@ -81,7 +89,7 @@ export default class Up extends Command {
 
     this.log(`ECP daemon on ${bridgeBaseURL}`)
     this.log(`Pairing token: ${daemon.token}`)
-    this.log("GET /health (no auth) · POST /v1/invoke (Bearer token)")
+    this.log("GET /health (no auth) · POST /v1/invoke · GET /v1/artifacts (Bearer or ?token=)")
 
     if (flags.open) {
       this.log(`Opening ${demoUrl}`)

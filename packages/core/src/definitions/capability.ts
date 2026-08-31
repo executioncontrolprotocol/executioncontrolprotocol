@@ -1,4 +1,4 @@
-import type { CapabilityId, NamespacedId } from "@executioncontrolprotocol/types"
+import type { CapabilityId, NamespacedId, CapabilityExecution } from "@executioncontrolprotocol/types"
 import type { z } from "zod"
 import type { CapabilityDefinition, CapabilityHandler } from "./types.js"
 
@@ -7,6 +7,7 @@ export class CapabilityBuilder {
   private inputSchema?: z.ZodType<unknown>
   private outputSchema?: z.ZodType<unknown>
   private handlerFn?: CapabilityHandler
+  private execution?: CapabilityExecution
 
   constructor(
     private readonly extensionId: NamespacedId,
@@ -25,6 +26,12 @@ export class CapabilityBuilder {
     return this
   }
 
+  /** Declare where this capability executes (`local` | `host` | `mixed`). @category Definitions */
+  withExecution(execution: CapabilityExecution): this {
+    this.execution = execution
+    return this
+  }
+
   /** Set capability handler. */
   withHandler(handler: CapabilityHandler): CapabilityDefinition {
     this.handlerFn = handler
@@ -38,6 +45,7 @@ export class CapabilityBuilder {
       inputSchema: this.inputSchema,
       outputSchema: this.outputSchema,
       handler: this.handlerFn,
+      ...(this.execution ? { execution: this.execution } : {}),
     }
   }
 }

@@ -33,6 +33,21 @@ function isRefValue(value: InputValue): value is { $ref: string } {
   )
 }
 
+function isStateValue(value: InputValue): value is { $state: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "$state" in value &&
+    typeof (value as { $state: unknown }).$state === "string"
+  )
+}
+
+function refPathFromInputValue(value: InputValue): string | undefined {
+  if (isRefValue(value)) return value.$ref
+  if (isStateValue(value)) return value.$state
+  return undefined
+}
+
 /**
  * Parse `state.<asKey>[.<rest>]` into as-key and optional nested path for handles.
  * @category Encoding
@@ -62,7 +77,9 @@ export function extractDataEdges(
   collectSteps(nodes, steps)
 
   const asToStepId = new Map<string, string>()
+  const stepById = new Map<string, StepNode>()
   for (const step of steps) {
+    stepById.set(step.id, step)
     if (step.as) asToStepId.set(step.as, step.id)
   }
   if (acceptsKeys) {
@@ -77,10 +94,14 @@ export function extractDataEdges(
   for (const step of steps) {
     if (!step.input) continue
     for (const [paramName, value] of Object.entries(step.input)) {
-      if (!isRefValue(value)) continue
-      const parsed = parseStateRef(value.$ref)
+      const refPath = refPathFromInputValue(value)
+      if (!refPath) continue
+      const parsed = parseStateRef(refPath)
       if (!parsed) continue
-      const sourceStepId = asToStepId.get(parsed.asKey)
+      let sourceStepId = asToStepId.get(parsed.asKey)
+      if (!sourceStepId && stepById.has(parsed.asKey)) {
+        sourceStepId = parsed.asKey
+      }
       if (!sourceStepId) continue
 
       const sourceHandle =

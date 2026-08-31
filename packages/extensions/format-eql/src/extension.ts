@@ -15,11 +15,13 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
     capabilityFor("@executioncontrolprotocol/format-eql", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
+      .withExecution("local")
       .withHandler((input, ctx) => encodeToEql(input as import("./schemas.js").EqlEncodeInput, ctx as never)),
 
     capabilityFor("@executioncontrolprotocol/format-eql", "decode")
       .withInput(ecpDecodeInputSchema)
       .withOutput(ecpDecodeResultSchema)
+      .withExecution("local")
       .withHandler((input, ctx) => decodeFromEql(input as import("./schemas.js").EqlDecodeInput, ctx as never)),
   ])
   .build()

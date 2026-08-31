@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { Ecp } from "@executioncontrolprotocol/core"
+import { isArtifactFetchPathname } from "@executioncontrolprotocol/core"
+import { handleArtifactGet } from "./handle-artifact.js"
 import { handleInvokePost } from "./handle-invoke.js"
 import { writeJson } from "./write-json.js"
 import { ECP_UP_VERSION } from "../up/constants.js"
@@ -40,6 +42,11 @@ export function createServeRequestHandler(options: ServeRequestHandlerOptions) {
         ok: true,
         version: ECP_UP_VERSION,
       })
+      return
+    }
+
+    if (req.method === "GET" && isArtifactFetchPathname(pathname)) {
+      await handleArtifactGet(ecp, req, res)
       return
     }
 

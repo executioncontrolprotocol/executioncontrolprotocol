@@ -24,6 +24,7 @@ import {
 import {
   buildFluentPatchHintLines,
   collectFluentCompileErrorFeedback,
+  collectCreateWorkflowIoFeedback,
   collectFluentPatchGoalFeedback,
 } from "./fluent-patch-hints.js"
 import {
@@ -259,6 +260,10 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
           const stepCountFeedback = collectCreateStepCountFeedback(input.request, artifact)
           if (stepCountFeedback) {
             return { success: false, feedback: [...feedback, ...stepCountFeedback] }
+          }
+          const ioFeedback = collectCreateWorkflowIoFeedback(input.request, artifact)
+          if (ioFeedback) {
+            return { success: false, feedback: [...feedback, ...ioFeedback] }
           }
         }
         if (isPatch && environmentSummary) {

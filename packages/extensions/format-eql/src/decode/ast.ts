@@ -10,6 +10,8 @@ export interface EqlWorkflowDoc {
   header?: EqlHeader
   workflowId: string
   workflowLabel?: string
+  accepts?: Record<string, string>
+  returns?: Record<string, string>
   steps: EqlStep[]
 }
 
@@ -25,6 +27,10 @@ export interface EqlStep {
 
 export interface EqlWorkflowUpdate {
   label?: string
+  accepts?: Record<string, string>
+  returns?: Record<string, string>
+  clearAccepts?: boolean
+  clearReturns?: boolean
 }
 
 export interface EqlPatchDoc {

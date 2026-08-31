@@ -10,7 +10,7 @@ Browser Coding harness (`@executioncontrolprotocol/harness-browser-coding`) for 
 | Asset | Location |
 | ----- | -------- |
 | Prompt fixtures | `fixtures/harness-prompts/*.prompt.json` |
-| Eval cases | `fixtures/eval-cases/*.cases.json` (63 cases; no chat/flow) |
+| Eval cases | `fixtures/eval-cases/*.cases.json` (75 cases; no chat/flow) |
 | Support fixtures | `fixtures/workflows/`, `fixtures/runs/` |
 | Matrix tests | `test/eval/` |
 

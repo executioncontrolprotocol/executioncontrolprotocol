@@ -1,0 +1,130 @@
+{
+  "cases": [
+    {
+      "id": "wf-patch-io-01",
+      "suite": "workflow-patch",
+      "title": "Add accepts to echo workflow",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-workflow.json",
+      "input": {
+        "request": "Add workflow accepts with required string value and wire echo input from ref(\"value\")."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowAcceptsRefUsed", "property": "value" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-patch-io-02",
+      "suite": "workflow-patch",
+      "title": "Add returns to accepts workflow",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-accepts-workflow.json",
+      "input": {
+        "request": "Add workflow returns with object echo property matching the echo step as key."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowReturnsHasProperties", "properties": ["echo"] },
+          { "kind": "workflowReturnsMapsAs", "property": "echo", "asKey": "echo" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-patch-io-03",
+      "suite": "workflow-patch",
+      "title": "Change returns property name",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-accepts-returns-workflow.json",
+      "input": {
+        "request": "Change workflow returns property from echo to result while keeping echo step as echo."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowReturnsHasProperties", "properties": ["result"] }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-patch-io-04",
+      "suite": "workflow-patch",
+      "title": "Remove returns",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-accepts-returns-workflow.json",
+      "input": {
+        "request": "Remove workflow returns schema but keep accepts value and echo step."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowReturnsAbsent" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-patch-io-05",
+      "suite": "workflow-patch",
+      "title": "Rename accepts property",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-accepts-returns-workflow.json",
+      "input": {
+        "request": "Rename accepts field value to message and update echo ref wiring to ref(\"message\")."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["message"] },
+          { "kind": "workflowAcceptsRefUsed", "property": "message" }
+        ],
+        "judge": { "enabled": false }
+      }
+    },
+    {
+      "id": "wf-patch-io-06",
+      "suite": "workflow-patch",
+      "title": "Preserve I/O on label-only patch",
+      "harness": "workflow-authoring",
+      "model": "default",
+      "baselineWorkflow": "workflows/echo-accepts-returns-workflow.json",
+      "input": {
+        "request": "Change echo step label to Patched Echo only."
+      },
+      "assertions": {
+        "deterministic": [
+          { "kind": "invokeSuccess" },
+          { "kind": "artifactSchema", "value": "@executioncontrolprotocol.workflow" },
+          { "kind": "validationValid" },
+          { "kind": "stepLabel", "stepId": "echo", "value": "Patched Echo" },
+          { "kind": "workflowAcceptsHasProperties", "properties": ["value"] },
+          { "kind": "workflowReturnsHasProperties", "properties": ["echo"] }
+        ],
+        "judge": { "enabled": false }
+      }
+    }
+  ]
+}

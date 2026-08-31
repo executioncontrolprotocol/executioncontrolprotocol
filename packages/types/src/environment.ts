@@ -1,5 +1,6 @@
 import type { NamespacedId } from "./schema.js"
 import type { EcpVersion } from "./version.js"
+import type { CapabilityExecution } from "./capability-execution.js"
 
 /** Environment manifest (bindings only). @category Environment */
 export interface EnvironmentManifest {
@@ -60,6 +61,8 @@ export interface EnvironmentDescriptor {
   extensions: ExtensionDescription[]
   capabilities: CapabilityDescription[]
   policies: PolicyDescription[]
+  /** Local invoke host URL when this environment hops host/mixed capabilities. Token is never included. */
+  remoteInvoke?: { url: string }
 }
 
 /** Runtime section of descriptor. @category Environment */
@@ -88,6 +91,11 @@ export interface CapabilityDescription {
   inputSchema?: unknown
   outputSchema?: unknown
   examples?: unknown[]
+  /**
+   * Where this capability executes (`local` | `host` | `mixed`).
+   * Omitted when not declared and not inferred from the extension.
+   */
+  execution?: CapabilityExecution
 }
 
 /** Policy metadata in descriptor. @category Environment */

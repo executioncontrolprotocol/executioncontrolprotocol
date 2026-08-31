@@ -9,7 +9,7 @@ Used by the browser demo and harness-owned eval matrices (Ollama gemma3:1b, Chro
 | Asset | Location |
 | ----- | -------- |
 | Prompt fixtures | `fixtures/harness-prompts/*.prompt.json` |
-| Eval cases | `fixtures/eval-cases/*.cases.json` (81 cases incl. chat + flow) |
+| Eval cases | `fixtures/eval-cases/*.cases.json` (93 cases incl. chat + flow) |
 | Support fixtures | `fixtures/workflows/`, `fixtures/runs/` |
 | Matrix tests | `test/eval/` (Ollama), `test/eval/browser/` (Chrome Nano) |
 

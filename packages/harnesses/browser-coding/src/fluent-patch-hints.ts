@@ -1,4 +1,4 @@
-import { collectModelOutputFeedback, type CompactEnvironmentSummary } from "@executioncontrolprotocol/core"
+import { collectModelOutputFeedback, jsonSchemaObjectProperties, type CompactEnvironmentSummary } from "@executioncontrolprotocol/core"
 import {
   inferPatchTargetStepId,
   inferRequiredCapabilityIds,
@@ -24,6 +24,45 @@ function flatStepIds(workflow: WorkflowManifest): string[] {
       ?.filter((s) => "uses" in s && typeof s.uses === "string")
       .map((s) => s.id) ?? []
   )
+}
+
+function workflowIoNames(manifest: WorkflowManifest, field: "accepts" | "returns"): string[] {
+  const schema = manifest.workflow?.[field] as Record<string, unknown> | undefined
+  return jsonSchemaObjectProperties(schema).map((p) => p.name)
+}
+
+function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boolean {
+  const targetRef = `state.${property}`
+  for (const node of manifest.steps ?? []) {
+    if (!("input" in node) || node.input === undefined) continue
+    const input = node.input as Record<string, unknown>
+    for (const value of Object.values(input)) {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        "$ref" in (value as object) &&
+        (value as { $ref: string }).$ref === targetRef
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function inferAcceptsPropertyFromRequest(request: string): string | undefined {
+  const match =
+    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i) ??
+    request.match(/run\s+input\s+(?:field\s+)?(\w+)/i) ??
+    request.match(/ref\(["'](\w+)["']\)/i)
+  return match?.[1]
+}
+
+function inferReturnsPropertyFromRequest(request: string): string | undefined {
+  const match =
+    request.match(/returns?\s+(?:an?\s+)?(\w+)\s+(?:object|field|output)/i) ??
+    request.match(/output\s+(?:field\s+)?(\w+)/i)
+  return match?.[1]
 }
 
 function stepHasInputRef(step: WorkflowManifest["steps"][number]): boolean {
@@ -133,6 +172,13 @@ export function buildFluentPatchHintLines(
         `Append step("${required[0]}", ...) to .run([...])${addAfterMatch ? ` after the step with id "${addAfterMatch[1]}"` : ""}; import ref from "@executioncontrolprotocol/core" when chaining outputs.`
       )
     }
+  }
+
+  if (/\baccepts?\b|\breturns?\b|\brun\s+input\b/i.test(lower) && !hasAddIntent) {
+    lines.push(
+      "Preserve existing .accepts({...}) and .returns({...}) unless the request changes workflow I/O.",
+      "Wire accepts keys with ref(\"key\") inside step .with({ ... })."
+    )
   }
 
   if (/\$ref|\bref(erence)?s?\b.*\boutput\b/i.test(lower)) {
@@ -365,6 +411,124 @@ export function collectFluentPatchGoalFeedback(
         )
       )
     }
+  }
+
+  if (baseline && /\baccepts?\b|\breturns?\b/i.test(lower)) {
+    const baselineAccepts = workflowIoNames(baseline, "accepts")
+    const baselineReturns = workflowIoNames(baseline, "returns")
+    const patchedAccepts = workflowIoNames(patched, "accepts")
+    const patchedReturns = workflowIoNames(patched, "returns")
+    const wantsRemoveReturns = /\b(remove|clear|delete)\b.*\breturns?\b/i.test(lower)
+    const wantsAddAccepts = /\badd\b.*\baccepts?\b/i.test(lower)
+    const wantsAddReturns = /\badd\b.*\breturns?\b/i.test(lower)
+    const renameAccepts = request.match(/rename\s+accepts?\s+(?:field\s+)?(\w+)\s+to\s+(\w+)/i)
+
+    if (!wantsRemoveReturns && !wantsAddAccepts && !renameAccepts) {
+      for (const name of baselineAccepts) {
+        if (!patchedAccepts.includes(name)) {
+          feedback.push(
+            collectModelOutputFeedback(
+              `Preserve workflow .accepts() property "${name}" unless the request removes or renames it.`
+            )
+          )
+        }
+      }
+      for (const name of baselineReturns) {
+        if (!patchedReturns.includes(name) && !wantsAddReturns) {
+          feedback.push(
+            collectModelOutputFeedback(
+              `Preserve workflow .returns() property "${name}" unless the request removes or renames it.`
+            )
+          )
+        }
+      }
+    }
+
+    if (wantsAddAccepts) {
+      const prop = inferAcceptsPropertyFromRequest(request) ?? "value"
+      if (!patchedAccepts.includes(prop)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Add .accepts({ type: "object", properties: { ${prop}: { type: "string" } }, required: ["${prop}"] }) before .run().`
+          )
+        )
+      }
+    }
+
+    if (wantsAddReturns) {
+      const prop = inferReturnsPropertyFromRequest(request) ?? "echo"
+      if (!patchedReturns.includes(prop)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Add .returns({ type: "object", properties: { ${prop}: { type: "object" } }, required: ["${prop}"] }) before .run().`
+          )
+        )
+      }
+    }
+
+    if (wantsRemoveReturns && patchedReturns.length > 0) {
+      feedback.push(
+        collectModelOutputFeedback("Remove .returns({...}) from the workflow chain.")
+      )
+    }
+
+    const acceptsProp = inferAcceptsPropertyFromRequest(request)
+    if (acceptsProp && patchedAccepts.includes(acceptsProp) && !stepUsesAcceptsRef(patched, acceptsProp)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Wire accepts key "${acceptsProp}" with ref("${acceptsProp}") in a step .with({ ... }).`
+        )
+      )
+    }
+  }
+
+  return feedback.length > 0 ? feedback : undefined
+}
+
+/**
+ * Repair feedback for Fluent create output when workflow I/O is requested.
+ * @category Harness
+ */
+export function collectCreateWorkflowIoFeedback(
+  request: string,
+  manifest: WorkflowManifest
+): HarnessOperationFeedback[] | undefined {
+  const lower = request.toLowerCase()
+  if (!/\baccepts?\b|\breturns?\b|\brun\s+input\b/i.test(lower)) {
+    return undefined
+  }
+  const feedback: HarnessOperationFeedback[] = []
+  const acceptsProp = inferAcceptsPropertyFromRequest(request)
+  const returnsProp = inferReturnsPropertyFromRequest(request)
+  const acceptsNames = workflowIoNames(manifest, "accepts")
+  const returnsNames = workflowIoNames(manifest, "returns")
+
+  if (/\baccepts?\b/i.test(lower) && acceptsProp && !acceptsNames.includes(acceptsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Add .accepts({ type: "object", properties: { ${acceptsProp}: { type: "string" } }, required: ["${acceptsProp}"] }) before .run().`
+      )
+    )
+  }
+
+  if (/\breturns?\b/i.test(lower) && returnsProp && !returnsNames.includes(returnsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Add .returns({ type: "object", properties: { ${returnsProp}: { type: "object" } }, required: ["${returnsProp}"] }) before .run().`
+      )
+    )
+  }
+
+  if (acceptsProp && acceptsNames.includes(acceptsProp) && !stepUsesAcceptsRef(manifest, acceptsProp)) {
+    feedback.push(
+      collectModelOutputFeedback(
+        `Wire run input with ref("${acceptsProp}") in step .with({ ... }), not ref("step.output").`
+      )
+    )
+  }
+
+  if (/\bno\s+returns?\b/i.test(lower) && returnsNames.length > 0) {
+    feedback.push(collectModelOutputFeedback("Omit .returns({...}) for this workflow."))
   }
 
   return feedback.length > 0 ? feedback : undefined

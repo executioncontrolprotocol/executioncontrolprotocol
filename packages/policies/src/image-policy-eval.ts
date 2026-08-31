@@ -1,10 +1,10 @@
 import {
-  collectImageRefs,
+  collectFileRefs,
   collectOutputFormatHints,
-  imageRefUrlHostname,
+  fileRefUrlHostname,
   isSvgHint,
 } from "@executioncontrolprotocol/core"
-import { IMAGE_REF_KINDS } from "@executioncontrolprotocol/types"
+import { FILE_REF_KINDS } from "@executioncontrolprotocol/types"
 
 /** Image policy configuration shape. @category Policies */
 export interface ImagePolicyConfig {
@@ -28,7 +28,7 @@ export function evaluateImageRefsPre(
   input: Record<string, unknown>,
   config: ImagePolicyConfig
 ): string | undefined {
-  const refs = collectImageRefs(input)
+  const refs = collectFileRefs(input)
   if (config.maxImageRefsPerStep !== undefined && refs.length > config.maxImageRefsPerStep) {
     return `Image ref count ${refs.length} exceeds maxImageRefsPerStep (${config.maxImageRefsPerStep})`
   }
@@ -37,11 +37,11 @@ export function evaluateImageRefsPre(
     if (config.allowedInputKinds && !config.allowedInputKinds.includes(ref.kind)) {
       return `Image ref at ${path} has disallowed kind '${ref.kind}'`
     }
-    if (ref.kind === IMAGE_REF_KINDS.URL) {
+    if (ref.kind === FILE_REF_KINDS.URL) {
       if (config.allowRemoteUrls === false) {
         return `Remote URL image ref at ${path} is not allowed`
       }
-      const host = imageRefUrlHostname(ref)
+      const host = fileRefUrlHostname(ref)
       if (config.allowedUrlDomains?.length && host && !config.allowedUrlDomains.includes(host)) {
         return `URL domain '${host}' at ${path} is not in allowedUrlDomains`
       }
@@ -73,7 +73,7 @@ export function evaluateImageRefsPost(
 ): string | undefined {
   if (output === null || typeof output !== "object") return undefined
 
-  const refs = collectImageRefs(output)
+  const refs = collectFileRefs(output)
   for (const { path, ref } of refs) {
     const sizeBytes = "sizeBytes" in ref ? ref.sizeBytes : undefined
     if (sizeBytes !== undefined && config.maxOutputBytes !== undefined && sizeBytes > config.maxOutputBytes) {

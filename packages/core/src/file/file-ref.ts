@@ -1,55 +1,56 @@
 import {
-  IMAGE_REF_KINDS,
-  type ImageRef,
-  type ImageRefKind,
+  FILE_REF_KINDS,
+  type FileRef,
+  type FileRefKind,
 } from "@executioncontrolprotocol/types"
 
-/** Whether `value` is an {@link ImageRef}. @category Image */
-export function isImageRef(value: unknown): value is ImageRef {
+/** Whether `value` is a {@link FileRef}. @category File */
+export function isFileRef(value: unknown): value is FileRef {
   if (value === null || typeof value !== "object") return false
   const kind = (value as { kind?: unknown }).kind
   return (
-    kind === IMAGE_REF_KINDS.ARTIFACT ||
-    kind === IMAGE_REF_KINDS.FILE ||
-    kind === IMAGE_REF_KINDS.URL ||
-    kind === IMAGE_REF_KINDS.BUFFER
+    kind === FILE_REF_KINDS.ARTIFACT ||
+    kind === FILE_REF_KINDS.FILE ||
+    kind === FILE_REF_KINDS.URL ||
+    kind === FILE_REF_KINDS.BUFFER
   )
 }
 
-/** Collected image reference with JSON path for policy diagnostics. @category Image */
-export interface CollectedImageRef {
+/** Collected file reference with JSON path for policy diagnostics. @category File */
+export interface CollectedFileRef {
   /** Path within the walked object (e.g. `image`, `variants[0].image`). */
   path: string
-  /** The image reference. */
-  ref: ImageRef
+  /** The file reference. */
+  ref: FileRef
 }
 
-const IMAGE_REF_KIND_SET = new Set<string>(Object.values(IMAGE_REF_KINDS))
+const FILE_REF_KIND_SET = new Set<string>(Object.values(FILE_REF_KINDS))
 
-function isImageRefKind(value: unknown): value is ImageRefKind {
-  return typeof value === "string" && IMAGE_REF_KIND_SET.has(value)
+/** Whether a string is a known {@link FileRefKind}. @category File */
+export function isFileRefKind(value: unknown): value is FileRefKind {
+  return typeof value === "string" && FILE_REF_KIND_SET.has(value)
 }
 
-/** Depth-first collect of all {@link ImageRef} values in a payload. @category Image */
-export function collectImageRefs(
+/** Depth-first collect of all {@link FileRef} values in a payload. @category File */
+export function collectFileRefs(
   value: unknown,
   path = "",
-  out: CollectedImageRef[] = []
-): CollectedImageRef[] {
-  if (isImageRef(value)) {
+  out: CollectedFileRef[] = []
+): CollectedFileRef[] {
+  if (isFileRef(value)) {
     out.push({ path: path || "$", ref: value })
     return out
   }
   if (value === null || typeof value !== "object") return out
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
-      collectImageRefs(value[i], path ? `${path}[${i}]` : `[${i}]`, out)
+      collectFileRefs(value[i], path ? `${path}[${i}]` : `[${i}]`, out)
     }
     return out
   }
   for (const [key, child] of Object.entries(value)) {
     const childPath = path ? `${path}.${key}` : key
-    collectImageRefs(child, childPath, out)
+    collectFileRefs(child, childPath, out)
   }
   return out
 }
@@ -87,9 +88,9 @@ export function collectOutputFormatHints(
   return out
 }
 
-/** Parse hostname from a URL image ref for domain policy checks. @category Image */
-export function imageRefUrlHostname(ref: ImageRef): string | undefined {
-  if (ref.kind !== IMAGE_REF_KINDS.URL) return undefined
+/** Parse hostname from a URL file ref for domain policy checks. @category File */
+export function fileRefUrlHostname(ref: FileRef): string | undefined {
+  if (ref.kind !== FILE_REF_KINDS.URL) return undefined
   try {
     return new URL(ref.url).hostname
   } catch {
@@ -103,5 +104,3 @@ export function isSvgHint(mediaTypeOrFormat: string | undefined): boolean {
   const lower = mediaTypeOrFormat.toLowerCase()
   return lower === "svg" || lower === "image/svg+xml" || lower.endsWith("+svg")
 }
-
-export { isImageRefKind }

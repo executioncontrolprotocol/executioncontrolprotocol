@@ -19,8 +19,8 @@ export class ReactFlowRunProgress extends EventTarget {
   }
 
   /** Emit a step status change. */
-  emitStepStatus(stepId: string, status: ReactFlowStepStatus): void {
-    const detail: ReactFlowStepStatusDetail = { stepId, status }
+  emitStepStatus(stepId: string, status: ReactFlowStepStatus, message?: string): void {
+    const detail: ReactFlowStepStatusDetail = { stepId, status, ...(message ? { message } : {}) }
     this.dispatchEvent(new CustomEvent("step:status", { detail }))
   }
 

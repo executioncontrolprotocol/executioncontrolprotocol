@@ -3,6 +3,7 @@ import {
   capabilityFor,
   defineExtension,
   globalRegistry,
+  NODE_RUNTIME_ID,
   type Registry,
 } from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
@@ -37,6 +38,7 @@ async function claudeComplete(
 
 /** Claude model provider. @category Extensions */
 export const claudeExtension = defineExtension("@executioncontrolprotocol", "claude")
+  .withSupportedRuntimes([NODE_RUNTIME_ID])
   .withConfig({
     apiKey: z.string().optional(),
     defaultModel: z.string().optional(),

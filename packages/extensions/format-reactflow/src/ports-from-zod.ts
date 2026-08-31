@@ -44,6 +44,21 @@ function isRefValue(value: InputValue): value is { $ref: string } {
   )
 }
 
+function isStateValue(value: InputValue): value is { $state: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "$state" in value &&
+    typeof (value as { $state: unknown }).$state === "string"
+  )
+}
+
+function refPathFromInputValue(value: InputValue): string | undefined {
+  if (isRefValue(value)) return value.$ref
+  if (isStateValue(value)) return value.$state
+  return undefined
+}
+
 /**
  * Compact string form of a literal input value (for previews / editors).
  * @category Encoding
@@ -80,14 +95,16 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
       byName.set(name, port)
     }
 
-    if (isRefValue(value)) {
-      const parsed = parseStateRef(value.$ref)
+    if (isRefValue(value) || isStateValue(value)) {
+      const rawRef = refPathFromInputValue(value)
+      if (!rawRef) continue
+      const parsed = parseStateRef(rawRef)
       port.binding = "ref"
       port.refPath = parsed
         ? parsed.fieldPath
           ? `${parsed.asKey}.${parsed.fieldPath}`
           : parsed.asKey
-        : value.$ref.replace(/^state\./, "")
+        : rawRef.replace(/^state\./, "")
       delete port.valuePreview
       delete port.valueTitle
       continue

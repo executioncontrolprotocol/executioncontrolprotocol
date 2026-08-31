@@ -126,6 +126,8 @@ export interface ReactFlowStepStatusDetail {
   stepId: string
   /** Status. */
   status: ReactFlowStepStatus
+  /** Optional failure message for hover tooltips. */
+  message?: string
 }
 
 /** Detail for `run:reset` / `run:done`. @category Encoding */

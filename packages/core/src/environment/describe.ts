@@ -4,11 +4,12 @@ import type {
   DescribeQuery,
   DescribeSelection,
   EnvironmentDescriptor,
+  EnvironmentManifest,
   ExtensionDescription,
   PolicyDescription,
 } from "@executioncontrolprotocol/types"
 import type { Registry } from "../registry/registry.js"
-import type { EnvironmentManifest } from "@executioncontrolprotocol/types"
+import { resolveCapabilityExecution } from "../runtime/capability-execution.js"
 
 function fuzzyMatch(haystack: string, needle: string): boolean {
   return haystack.toLowerCase().includes(needle.toLowerCase())
@@ -70,6 +71,7 @@ export async function buildDescriptor(
         extension: def.id,
         inputSchema: cap.inputSchema,
         outputSchema: cap.outputSchema,
+        execution: resolveCapabilityExecution(cap, def),
       }
       caps.push(
         pickFields(desc, query?.capabilities?.include) as CapabilityDescription

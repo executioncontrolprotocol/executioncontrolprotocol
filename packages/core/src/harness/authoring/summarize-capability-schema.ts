@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isFileRefSchema } from "@executioncontrolprotocol/types"
 
 /** Classified capability schema fields for harness prompts. @category Harness */
 export interface CapabilitySchemaFields {
@@ -31,16 +32,18 @@ function parseEqlTypeMap(types: Record<string, string>): CapabilitySchemaFields 
 }
 
 function zodTypeToEql(typeName: z.ZodType, required: boolean): string {
+  const inner = innerZodType(typeName)
   const base = (() => {
-    if (typeName instanceof z.ZodString) return "string"
-    if (typeName instanceof z.ZodNumber) return "number"
-    if (typeName instanceof z.ZodBoolean) return "boolean"
-    if (typeName instanceof z.ZodArray) return "array"
-    if (typeName instanceof z.ZodObject) return "object"
-    if (typeName instanceof z.ZodEnum) return "string"
-    if (typeName instanceof z.ZodRecord) return "object"
-    if (typeName instanceof z.ZodUnknown) return "unknown"
-    if (typeName instanceof z.ZodAny) return "unknown"
+    if (isFileRefSchema(inner)) return "file"
+    if (inner instanceof z.ZodString) return "string"
+    if (inner instanceof z.ZodNumber) return "number"
+    if (inner instanceof z.ZodBoolean) return "boolean"
+    if (inner instanceof z.ZodArray) return "array"
+    if (inner instanceof z.ZodObject) return "object"
+    if (inner instanceof z.ZodEnum) return "string"
+    if (inner instanceof z.ZodRecord) return "object"
+    if (inner instanceof z.ZodUnknown) return "unknown"
+    if (inner instanceof z.ZodAny) return "unknown"
     return "unknown"
   })()
   return required ? `${base}!` : base
@@ -71,7 +74,7 @@ function parseZodObjectSchema(schema: z.ZodObject<z.ZodRawShape>): CapabilitySch
     } else {
       required.push(name)
     }
-    eqlTypes[name] = zodTypeToEql(innerZodType(field), !isOptional)
+    eqlTypes[name] = zodTypeToEql(field, !isOptional)
   }
   return { required, optional, eqlTypes }
 }

@@ -8,6 +8,7 @@ import type {
   EqlStepMove,
   EqlStepUpdate,
   EqlWorkflowDoc,
+  EqlWorkflowUpdate,
   ParsedLine,
 } from "./ast.js"
 import { eqlSyntaxIssue } from "./diagnostics.js"
@@ -15,6 +16,7 @@ import { parseLines, tokenizeLine } from "./lexer.js"
 import { parseDescribeDocument, parseEnvironmentDocument } from "./parser-environment.js"
 import { parseIntentDocument, parseReplyDocument } from "./parser-harness.js"
 import { parseLiteral, parseRefPath, parseStatePath, parseWhenExpr } from "./values.js"
+import { parseTypeAnnotationSpec } from "../workflow-io-eql.js"
 
 export interface ParseResult {
   document?: EqlDocument
@@ -97,12 +99,76 @@ function parseStepBody(
   return { step, nextIndex: i }
 }
 
+function parseIoTypeDeclaration(
+  tokens: string[],
+  line: number,
+  prefix: "WITH" | "OUT",
+  issues: ValidationIssue[]
+): Record<string, string> | undefined {
+  if (tokens[0] !== prefix || !tokens[1]) {
+    issues.push(eqlSyntaxIssue(line, `Expected ${prefix} name:type declaration`))
+    return undefined
+  }
+  if (tokens.length >= 4 && tokens[2] === "=") {
+    issues.push(
+      eqlSyntaxIssue(
+        line,
+        `${prefix} assignments with = are not allowed in ACCEPTS/RETURNS blocks; use ${prefix} name:type`
+      )
+    )
+    return undefined
+  }
+  const spec = tokens.slice(1).join(" ")
+  const parsed = parseTypeAnnotationSpec(spec)
+  if (!parsed) {
+    issues.push(eqlSyntaxIssue(line, `Expected type annotation: ${spec}`))
+    return undefined
+  }
+  return { [parsed.name]: parsed.eqlType }
+}
+
+function parseIoTypeMapBody(
+  lines: ParsedLine[],
+  startIndex: number,
+  baseIndent: number,
+  prefix: "WITH" | "OUT",
+  issues: ValidationIssue[]
+): { typeMap: Record<string, string>; nextIndex: number } {
+  const typeMap: Record<string, string> = {}
+  let i = startIndex
+  while (i < lines.length) {
+    const row = lines[i]!
+    if (row.indent <= baseIndent) break
+    const t = upper(row.tokens)
+    if (t[0] === prefix) {
+      const part = parseIoTypeDeclaration(row.tokens, row.line, prefix, issues)
+      if (part) Object.assign(typeMap, part)
+    }
+    i++
+  }
+  return { typeMap, nextIndex: i }
+}
+
+function mergeWorkflowUpdate(
+  target: EqlWorkflowUpdate | undefined,
+  patch: EqlWorkflowUpdate
+): EqlWorkflowUpdate {
+  const merged: EqlWorkflowUpdate = { ...(target ?? {}) }
+  if (patch.label !== undefined) merged.label = patch.label
+  if (patch.accepts !== undefined) merged.accepts = patch.accepts
+  if (patch.returns !== undefined) merged.returns = patch.returns
+  if (patch.clearAccepts) merged.clearAccepts = true
+  if (patch.clearReturns) merged.clearReturns = true
+  return merged
+}
+
 function parseWorkflowUpdateBody(
   lines: ParsedLine[],
   startIndex: number,
-  baseIndent: number
-): { update: { label?: string }; nextIndex: number } {
-  const update: { label?: string } = {}
+  baseIndent: number,
+  issues: ValidationIssue[]
+): { update: EqlWorkflowUpdate; nextIndex: number } {
+  const update: EqlWorkflowUpdate = {}
   let i = startIndex
   while (i < lines.length) {
     const row = lines[i]!
@@ -111,6 +177,30 @@ function parseWorkflowUpdateBody(
     if (t[0] === "LABEL" && row.tokens[1]) {
       const lit = parseLiteral(row.tokens.slice(1).join(" "), row.line)
       if (lit.value !== undefined) update.label = String(lit.value)
+      i++
+      continue
+    }
+    if (t[0] === "CLEAR" && t[1] === "ACCEPTS") {
+      update.clearAccepts = true
+      i++
+      continue
+    }
+    if (t[0] === "CLEAR" && t[1] === "RETURNS") {
+      update.clearReturns = true
+      i++
+      continue
+    }
+    if (t[0] === "ACCEPTS") {
+      const body = parseIoTypeMapBody(lines, i + 1, row.indent, "WITH", issues)
+      update.accepts = body.typeMap
+      i = body.nextIndex
+      continue
+    }
+    if (t[0] === "RETURNS") {
+      const body = parseIoTypeMapBody(lines, i + 1, row.indent, "OUT", issues)
+      update.returns = body.typeMap
+      i = body.nextIndex
+      continue
     }
     i++
   }
@@ -229,10 +319,24 @@ export function parseEql(text: string): ParseResult {
       if (lit.value !== undefined) workflowLabel = String(lit.value)
     }
     const steps: EqlStep[] = []
+    let accepts: Record<string, string> | undefined
+    let returns: Record<string, string> | undefined
     let i = index + 1
     while (i < lines.length) {
       const row = lines[i]!
       const t = upper(row.tokens)
+      if (t[0] === "ACCEPTS") {
+        const body = parseIoTypeMapBody(lines, i + 1, row.indent, "WITH", issues)
+        accepts = body.typeMap
+        i = body.nextIndex
+        continue
+      }
+      if (t[0] === "RETURNS") {
+        const body = parseIoTypeMapBody(lines, i + 1, row.indent, "OUT", issues)
+        returns = body.typeMap
+        i = body.nextIndex
+        continue
+      }
       if (t[0] === "STEP") {
         const stepId = row.tokens[1]
         const usesIdx = row.tokens.findIndex((x) => x.toUpperCase() === "USES")
@@ -271,6 +375,8 @@ export function parseEql(text: string): ParseResult {
       header,
       workflowId,
       workflowLabel,
+      ...(accepts && Object.keys(accepts).length > 0 ? { accepts } : {}),
+      ...(returns && Object.keys(returns).length > 0 ? { returns } : {}),
       steps,
     }
     return { document: doc, header, issues }
@@ -299,15 +405,15 @@ export function parseEql(text: string): ParseResult {
         if (t[2] === "LABEL" && row.tokens[3]) {
           const lit = parseLiteral(row.tokens.slice(3).join(" "), row.line)
           if (lit.value !== undefined) {
-            doc.workflowUpdate = { label: String(lit.value) }
+            doc.workflowUpdate = mergeWorkflowUpdate(doc.workflowUpdate, {
+              label: String(lit.value),
+            })
           }
           i++
           continue
         }
-        const body = parseWorkflowUpdateBody(lines, i + 1, row.indent)
-        if (body.update.label !== undefined) {
-          doc.workflowUpdate = { label: body.update.label }
-        }
+        const body = parseWorkflowUpdateBody(lines, i + 1, row.indent, issues)
+        doc.workflowUpdate = mergeWorkflowUpdate(doc.workflowUpdate, body.update)
         i = body.nextIndex
         continue
       }

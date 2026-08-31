@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { z } from "zod"
 import {
   workflow,
   step,
@@ -8,6 +9,9 @@ import {
   ref,
   extension,
   registerTestExtension,
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
 } from "@executioncontrolprotocol/core"
 import { initEncodingTestEcp } from "../../../core/test/helpers.js"
 import {
@@ -88,6 +92,35 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const stepB = manifest.steps[1] as { id: string }
     expect(edges[0]!.source).toBe(stepA.id)
     expect(edges[0]!.target).toBe(stepB.id)
+  })
+
+  it("extracts data edges when refs use step id instead of as key", () => {
+    const manifest = workflow("Id ref")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "A").id("echo-step").with({ value: "a" }).as("echo"),
+        step("@executioncontrolprotocol/test.echo", "B")
+          .with({ value: { $ref: "state.echo-step.echo" } })
+          .as("b"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.source).toBe("echo-step")
+    expect(edges[0]!.sourceHandle).toBe("echo")
+  })
+
+  it("extracts data edges from $state inputs", () => {
+    const manifest = workflow("State ref")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "A").with({ value: "a" }).as("a"),
+        step("@executioncontrolprotocol/test.echo", "B")
+          .with({ value: { $state: "a.echo" } })
+          .as("b"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.targetHandle).toBe("value")
   })
 
   it("attaches truncated literal binding metadata on input ports", () => {
@@ -362,6 +395,18 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(statuses).toEqual(["s1:running", "s1:completed"])
   })
 
+  it("includes failure message on step:status when provided", () => {
+    let message: string | undefined
+    const onStatus = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ message?: string }>).detail
+      message = detail.message
+    }
+    reactFlowRunProgress.addEventListener("step:status", onStatus)
+    reactFlowRunProgress.emitStepStatus("s1", "failed", "capability failed")
+    reactFlowRunProgress.removeEventListener("step:status", onStatus)
+    expect(message).toBe("capability failed")
+  })
+
   it("emits progress during ecp.run via extension hooks", async () => {
     await registerFormatReactflowExtension()
     await registerTestExtension()
@@ -477,6 +522,32 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     expect(edge?.targetHandle).toBe("prompt")
   })
 
+  it("projects file accepts and returns ports with file type labels", () => {
+    const fileSchema = {
+      "x-ecp-file": true,
+      type: "object",
+      contentMediaType: "image/*",
+    }
+    const manifest = workflow("Image flow")
+      .accepts({
+        type: "object",
+        properties: { image: fileSchema },
+        required: ["image"],
+      })
+      .returns({
+        type: "object",
+        properties: { result: fileSchema },
+        required: ["result"],
+      })
+      .run([])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const inputs = doc.nodes.find((n) => n.id === WORKFLOW_ACCEPTS_NODE_ID)!.data as ReactFlowIoData
+    const outputs = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(inputs.outputs[0]).toMatchObject({ id: "image", typeLabel: "file!" })
+    expect(outputs.inputs[0]).toMatchObject({ id: "result", typeLabel: "file!" })
+  })
+
   it("leaves unmatched returns ports unbound and without a data edge", () => {
     const manifest = workflow("Orphan return")
       .returns({
@@ -509,5 +580,120 @@ describe("@executioncontrolprotocol/format-reactflow", () => {
     const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
     expect(io.inputs[0]).toMatchObject({ binding: "ref", refPath: "inner" })
     expect(doc.edges.find((e) => e.target === WORKFLOW_RETURNS_NODE_ID)?.source).toBe("inner")
+  })
+
+  it("wires dot-path returns keys to nested step output handles", async () => {
+    const multiOutExtension = defineExtension("@executioncontrolprotocol", "multi-out-fixture")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/multi-out-fixture", "inspect")
+          .withInput(z.object({}))
+          .withOutput(
+            z.object({
+              image: z.object({ locator: z.string() }),
+              metadata: z.object({ aspectRatio: z.number() }),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({
+            image: { locator: "ecp://browser/x" },
+            metadata: { aspectRatio: 1 },
+          })),
+      ])
+      .build()
+
+    if (!globalRegistry.getExtension("@executioncontrolprotocol/multi-out-fixture")) {
+      await globalRegistry.registerExtension(multiOutExtension)
+    }
+
+    const manifest = workflow("Sharp-like")
+      .returns({
+        type: "object",
+        properties: {
+          "inspected.metadata": { type: "object" },
+        },
+        required: ["inspected.metadata"],
+      })
+      .run([
+        step("@executioncontrolprotocol/multi-out-fixture.inspect", "Inspect")
+          .id("inspect")
+          .with({})
+          .as("inspected"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest, globalRegistry)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.source).toBe("inspect")
+    expect(edge?.sourceHandle).toBe("metadata")
+    expect(edge?.targetHandle).toBe("inspected.metadata")
+
+    const io = doc.nodes.find((n) => n.id === WORKFLOW_RETURNS_NODE_ID)!.data as ReactFlowIoData
+    expect(io.inputs[0]).toMatchObject({
+      id: "inspected.metadata",
+      binding: "ref",
+      refPath: "inspected.metadata",
+    })
+  })
+
+  it("falls back to the first output for legacy whole-step returns keys", async () => {
+    const multiOutExtension = defineExtension("@executioncontrolprotocol", "multi-out-legacy")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/multi-out-legacy", "inspect")
+          .withInput(z.object({}))
+          .withOutput(
+            z.object({
+              image: z.object({ locator: z.string() }),
+              metadata: z.object({ aspectRatio: z.number() }),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({
+            image: { locator: "ecp://browser/x" },
+            metadata: { aspectRatio: 1 },
+          })),
+      ])
+      .build()
+
+    if (!globalRegistry.getExtension("@executioncontrolprotocol/multi-out-legacy")) {
+      await globalRegistry.registerExtension(multiOutExtension)
+    }
+
+    const manifest = workflow("Legacy returns")
+      .returns({
+        type: "object",
+        properties: { inspected: { type: "object" } },
+      })
+      .run([
+        step("@executioncontrolprotocol/multi-out-legacy.inspect", "Inspect")
+          .id("inspect")
+          .with({})
+          .as("inspected"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest, globalRegistry)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("image")
+  })
+
+  it("uses the whole-step output handle for single-segment returns on synthetic output ports", () => {
+    const manifest = workflow("Whole step return")
+      .returns({
+        type: "object",
+        properties: { resized: { type: "object" } },
+      })
+      .run([
+        step("@vendor/missing.generate", "Resize")
+          .id("resize")
+          .with({ prompt: "x" })
+          .as("resized"),
+      ])
+      .toManifest()
+
+    const doc = workflowToReactFlow(manifest)
+    const edge = doc.edges.find((item) => item.target === WORKFLOW_RETURNS_NODE_ID)
+    expect(edge?.sourceHandle).toBe("output")
   })
 })

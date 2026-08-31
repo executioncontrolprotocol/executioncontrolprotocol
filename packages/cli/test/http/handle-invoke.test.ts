@@ -117,6 +117,86 @@ describe("handleInvokePost / runHttpInvoke", () => {
     expect(ecp.invoke).toHaveBeenCalledWith("@executioncontrolprotocol/test.echo")
   })
 
+  it("maps CAPABILITY_NOT_FOUND to HTTP 404 with InvokeResult body", async () => {
+    const process = vi.fn().mockResolvedValue({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      capabilityId: "@executioncontrolprotocol/missing.cap",
+      diagnostics: [{ code: "CAPABILITY_NOT_FOUND", message: "missing" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "@executioncontrolprotocol/missing.cap" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(404)
+    expect(JSON.parse(out.body)).toMatchObject({
+      success: false,
+      diagnostics: [{ code: "CAPABILITY_NOT_FOUND" }],
+    })
+  })
+
+  it("maps INVOKE_INPUT_INVALID to HTTP 400", async () => {
+    const process = vi.fn().mockResolvedValue({
+      success: false,
+      diagnostics: [{ code: "INVOKE_INPUT_INVALID", message: "bad" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(400)
+  })
+
+  it("maps INVOKE_FAILED to HTTP 500 with InvokeResult body", async () => {
+    const process = vi.fn().mockResolvedValue({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      capabilityId: "x.y",
+      diagnostics: [{ code: "INVOKE_FAILED", message: "boom" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(500)
+    expect(JSON.parse(out.body)).toMatchObject({
+      success: false,
+      diagnostics: [{ code: "INVOKE_FAILED" }],
+    })
+  })
+
+  it("maps INVOKE_DENIED to HTTP 403", async () => {
+    const process = vi.fn().mockResolvedValue({
+      success: false,
+      diagnostics: [{ code: "INVOKE_DENIED", message: "no" }],
+    })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    ecp.invoke.mockReturnValue({ with: withFn })
+
+    const out = createRes()
+    await handleInvokePost(
+      ecp as never,
+      createReq(JSON.stringify({ capability: "x.y" })),
+      out.res
+    )
+    expect(out.statusCode).toBe(403)
+  })
+
   it("applies provider via .uses", async () => {
     const process = vi.fn().mockResolvedValue({ success: true })
     const uses = vi.fn().mockReturnValue({ process })
@@ -129,5 +209,55 @@ describe("handleInvokePost / runHttpInvoke", () => {
       provider: "p.generate",
     })
     expect(uses).toHaveBeenCalledWith("p.generate")
+  })
+
+  it("returns InvokeResult when blobs are present but getBlobStore is missing", async () => {
+    const result = await runHttpInvoke(ecp as never, {
+      capability: "@executioncontrolprotocol/image-sharp.resize",
+      input: {},
+      blobs: {
+        "ecp://browser/x": {
+          name: "x.png",
+          type: "image/png",
+          size: 4,
+          dataBase64: "AQIDBA==",
+        },
+      },
+    })
+    expect(result).toMatchObject({
+      schema: "@executioncontrolprotocol.invoke.result",
+      success: false,
+      diagnostics: [{ code: "INVOKE_FAILED" }],
+    })
+    expect(ecp.invoke).not.toHaveBeenCalled()
+  })
+
+  it("hydrates blobs via getBlobStore before invoke", async () => {
+    const set = vi.fn()
+    const process = vi.fn().mockResolvedValue({ success: true })
+    const withFn = vi.fn().mockReturnValue({ process, uses: vi.fn() })
+    const ecpWithStore = {
+      invoke: vi.fn().mockReturnValue({ with: withFn }),
+      getBlobStore: vi.fn().mockReturnValue({ set }),
+    }
+
+    await runHttpInvoke(ecpWithStore as never, {
+      capability: "@executioncontrolprotocol/image-sharp.inspect",
+      input: { image: { kind: "file", path: "ecp://browser/x" } },
+      blobs: {
+        "ecp://browser/x": {
+          name: "x.png",
+          type: "image/png",
+          size: 4,
+          dataBase64: "AQIDBA==",
+        },
+      },
+    })
+    expect(ecpWithStore.getBlobStore).toHaveBeenCalled()
+    expect(set).toHaveBeenCalledWith(
+      "ecp://browser/x",
+      expect.objectContaining({ name: "x.png", type: "image/png", size: 4 })
+    )
+    expect(ecpWithStore.invoke).toHaveBeenCalled()
   })
 })

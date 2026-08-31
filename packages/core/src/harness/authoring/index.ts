@@ -1,6 +1,9 @@
 export {
   summarizeEnvironmentDescriptor,
+  toAuthoringEnvironmentDescriptor,
   formatEnvironmentSummaryLines,
+  isWorkflowStepCapability,
+  isAuthoringInventoryExtension,
   type CompactCapabilityRow,
   type CompactEnvironmentSummary,
   type EnvironmentSummaryFormat,

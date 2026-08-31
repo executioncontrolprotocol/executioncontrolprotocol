@@ -2,8 +2,22 @@
   "schema": "@executioncontrolprotocol.workflow",
   "version": "1.0.0",
   "workflow": {
-    "id": "minimal-echo",
-    "label": "Minimal Echo"
+    "id": "echo-from-input",
+    "label": "Echo from input",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "value": { "type": "string" }
+      },
+      "required": ["value"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "echo": { "type": "object" }
+      },
+      "required": ["echo"]
+    }
   },
   "steps": [
     {
@@ -11,7 +25,7 @@
       "id": "echo",
       "label": "Echo",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "hello" },
+      "input": { "value": { "$ref": "state.value" } },
       "as": "echo"
     }
   ]
