@@ -96,4 +96,31 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).not.toContain("format-eql")
     expect(text).not.toContain("listModels")
   })
+
+  it("omits demo bridge extensions from authoring summary", () => {
+    const descriptor: EnvironmentDescriptor = {
+      ...minimalDescriptor,
+      extensions: [
+        ...minimalDescriptor.extensions,
+        {
+          id: "@browser-demo/bridge-ollama",
+          order: 2,
+          capabilities: ["@browser-demo/bridge-ollama.generate"],
+        },
+      ],
+      capabilities: [
+        ...minimalDescriptor.capabilities,
+        {
+          id: "@browser-demo/bridge-ollama.generate",
+          extension: "@browser-demo/bridge-ollama",
+        },
+      ],
+    }
+    const summary = summarizeEnvironmentDescriptor(descriptor)
+    expect(summary.extensions.every((e) => e.id === "@executioncontrolprotocol/test")).toBe(true)
+    expect(summary.capabilities.map((c) => c.id)).toEqual([
+      "@executioncontrolprotocol/test.echo",
+      "@executioncontrolprotocol/test.summarize",
+    ])
+  })
 })

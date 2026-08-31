@@ -127,6 +127,7 @@ export function isAuthoringInventoryExtension(extensionId: string): boolean {
   if (extensionId === "@executioncontrolprotocol/format-json") return false
   if (extensionId.startsWith("@executioncontrolprotocol/browser-")) return false
   if (extensionId === "@executioncontrolprotocol/browser") return false
+  if (extensionId.startsWith("@browser-demo/")) return false
   return true
 }
 
