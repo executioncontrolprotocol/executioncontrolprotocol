@@ -2,8 +2,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 /**
- * Fail if any package.json dependency field or package-lock.json uses a `file:` link.
- * Local unpublished packages must use `npm link`, never committed file: deps.
+ * Fail if any committed package.json uses `file:` or `link:` dependency specs.
+ * Local unpublished packages use junction link scripts (`pnpm link:ecp`), never committed paths.
  */
 function collectPackageJsonFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -28,6 +28,8 @@ const dependencyFields = [
   "optionalDependencies",
 ]
 
+const forbiddenPrefixes = ["file:", "link:"]
+
 const root = process.cwd()
 const files = collectPackageJsonFiles(root)
 const violations = []
@@ -38,29 +40,38 @@ for (const file of files) {
     const deps = pkg[field]
     if (!deps || typeof deps !== "object") continue
     for (const [name, version] of Object.entries(deps)) {
-      if (typeof version === "string" && version.startsWith("file:")) {
-        violations.push(`${file}: ${field}.${name} = ${version}`)
+      if (typeof version !== "string") continue
+      for (const prefix of forbiddenPrefixes) {
+        if (version.startsWith(prefix)) {
+          violations.push(`${file}: ${field}.${name} = ${version}`)
+        }
       }
     }
   }
 }
 
-const lockPath = join(root, "package-lock.json")
+const lockPath = join(root, "pnpm-lock.yaml")
 if (existsSync(lockPath)) {
   const lockText = readFileSync(lockPath, "utf8")
-  if (/"file:/.test(lockText)) {
+  // pnpm records workspace deps as link:../… — only forbid committed file: paths.
+  if (/\bfile:/.test(lockText)) {
     violations.push(
-      `${lockPath}: contains file: entries (regenerate with registry ranges; use npm link locally)`
+      `${lockPath}: contains file: entries (use registry ranges or CI-only overrides)`
     )
   }
 }
 
+const legacyLock = join(root, "package-lock.json")
+if (existsSync(legacyLock)) {
+  violations.push(`${legacyLock}: remove package-lock.json after migrating to pnpm`)
+}
+
 if (violations.length > 0) {
-  console.error("Forbidden file: package links (use npm link or registry ranges):\n")
+  console.error("Forbidden committed package links:\n")
   for (const line of violations) {
     console.error(`  ${line}`)
   }
   process.exit(1)
 }
 
-console.log(`OK: no file: package links in ${files.length} package.json file(s).`)
+console.log(`OK: no file:/link: package links in ${files.length} package.json file(s).`)

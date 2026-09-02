@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile, access } from "node:fs/promises"
+import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -7,6 +8,8 @@ import { bundleWorkflowSource } from "../../src/compile/transpile.js"
 import { loadEnvironmentModule } from "../../src/loaders/files.js"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..")
+const resolveZodDir = (): string =>
+  dirname(createRequire(join(repoRoot, "packages/core/package.json")).resolve("zod/package.json"))
 const temps: string[] = []
 
 afterEach(async () => {
@@ -119,7 +122,7 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
   await writeCjsNetSdk(join(vendorExtDir, "node_modules", "fake-cjs-net-sdk"))
   await linkPkg(vendorExtDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
   await linkPkg(vendorExtDir, "@executioncontrolprotocol/types", join(repoRoot, "packages/types"))
-  await linkPkg(vendorExtDir, "zod", join(repoRoot, "node_modules/zod"))
+  await linkPkg(vendorExtDir, "zod", resolveZodDir())
 
   const consumerDir = join(work, "consumer")
   await mkdir(consumerDir, { recursive: true })
@@ -134,7 +137,7 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
     "@executioncontrolprotocol/process-env",
     join(repoRoot, "packages/extensions/process-env")
   )
-  await linkPkg(consumerDir, "zod", join(repoRoot, "node_modules/zod"))
+  await linkPkg(consumerDir, "zod", resolveZodDir())
 
   const envPath = join(consumerDir, "environment.ts")
   await writeFile(

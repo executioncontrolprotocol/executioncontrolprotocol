@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Bump version in all workspace package.json files and align @executioncontrolprotocol/* ranges.
+ * Bump version in all workspace package.json files.
+ * With workspace:^ internal deps, only the version field needs updating.
  * Usage: node scripts/bump-all-ecp-versions.mjs <semver>
  */
 import { readFileSync, writeFileSync, readdirSync } from "node:fs"
@@ -34,49 +35,11 @@ function walkPackageJsonFiles(dir, out = []) {
 
 const files = walkPackageJsonFiles(root).filter((p) => !p.includes(`${join("archive", "legacy")}`))
 
-/** Package names that live in this workspace (do not bump external/vendor npm deps). */
-const workspacePackageNames = new Set(
-  files
-    .map((p) => {
-      try {
-        return JSON.parse(readFileSync(p, "utf8")).name
-      } catch {
-        return undefined
-      }
-    })
-    .filter((n) => typeof n === "string" && n.startsWith("@executioncontrolprotocol/"))
-)
-
-/** Align workspace @executioncontrolprotocol/* ranges to the new version; keep ^/~ prefix. */
-function bumpInternalDep(name, version) {
-  if (typeof version !== "string") return version
-  if (!workspacePackageNames.has(name)) return version
-  if (version.startsWith("^")) return `^${newVersion}`
-  if (version.startsWith("~")) return `~${newVersion}`
-  if (/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(version)) return newVersion
-  return version
-}
-
 function bumpFile(path) {
   const json = JSON.parse(readFileSync(path, "utf8"))
+  if (typeof json.version !== "string") return
   const old = json.version
   json.version = newVersion
-
-  for (const field of [
-    "dependencies",
-    "devDependencies",
-    "peerDependencies",
-    "optionalDependencies",
-  ]) {
-    const deps = json[field]
-    if (!deps) continue
-    for (const [name, version] of Object.entries(deps)) {
-      if (name.startsWith("@executioncontrolprotocol/")) {
-        deps[name] = bumpInternalDep(name, version)
-      }
-    }
-  }
-
   writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`, "utf8")
   console.log(`${path.replace(root + "\\", "").replace(root + "/", "")}: ${old} -> ${newVersion}`)
 }
@@ -86,6 +49,3 @@ for (const file of files) {
 }
 
 console.log(`\nBumped ${files.length} package.json files to ${newVersion}`)
-console.log(
-  `Left non-workspace @executioncontrolprotocol/* deps unchanged (${workspacePackageNames.size} workspace packages).`
-)

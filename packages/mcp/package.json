@@ -16,19 +16,19 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.13.1",
-    "@executioncontrolprotocol/types": "^0.13.1",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/node": "0.13.1",
+    "@executioncontrolprotocol/node": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/format-toon": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1",
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/format-toon": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

@@ -23,14 +23,14 @@
     "@dagrejs/dagre": "^1.1.4"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.13.1",
-    "@executioncontrolprotocol/types": "^0.13.1",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1",
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Pack workspace packages into a fresh temp consumer project and smoke-test the CLI.
  *
- * Usage (from monorepo root, after `npm run build`):
+ * Usage (from monorepo root, after `pnpm run build`):
  *   node scripts/consumer-cli-smoke.mjs
  *
  * Env:
@@ -21,6 +21,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { listPublishableWorkspaces, topoSortPublishable } from "./list-publishable-workspaces.mjs"
+import { parsePackTarballLine, resolvePackTarballPath } from "./resolve-pack-tarball.mjs"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const fixtureDir = join(root, "fixtures", "consumer-cli")
@@ -48,7 +49,7 @@ function assertBuilt() {
   for (const marker of markers) {
     if (!existsSync(marker)) {
       console.error(`Missing build output: ${marker}`)
-      console.error("Run `npm run build` from the monorepo root first.")
+      console.error("Run `pnpm run build` from the monorepo root first.")
       process.exit(1)
     }
   }
@@ -110,17 +111,17 @@ try {
   const tarballs = []
   for (const pkg of selected) {
     console.log(`pack ${pkg.name}`)
-    const out = execFileSync("npm", ["pack", "--pack-destination", packsDir], {
+    const out = execFileSync("pnpm", ["pack", "--pack-destination", packsDir], {
       cwd: pkg.dir,
       encoding: "utf8",
       env: process.env,
       shell: process.platform === "win32",
     }).trim()
-    const filename = out.split(/\r?\n/).filter(Boolean).at(-1)
+    const filename = parsePackTarballLine(out)
     if (!filename) {
-      throw new Error(`npm pack produced no tarball for ${pkg.name}`)
+      throw new Error(`pnpm pack produced no tarball for ${pkg.name}`)
     }
-    tarballs.push(join(packsDir, filename))
+    tarballs.push(resolvePackTarballPath(packsDir, filename))
   }
 
   for (const name of ["workflow.ts", "environment.ts"]) {

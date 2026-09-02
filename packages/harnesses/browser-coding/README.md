@@ -14,7 +14,7 @@ Browser Coding harness (`@executioncontrolprotocol/harness-browser-coding`) for 
 | Support fixtures | `fixtures/workflows/`, `fixtures/runs/` |
 | Matrix tests | `test/eval/` |
 
-Run matrix: `npm run eval:matrix -w @executioncontrolprotocol/harnesses-browser-coding`
+Run matrix from repo root: `pnpm run test:eval:matrix:coding`
 
 ```ts
 import { registerBrowserCodingHarnesses, BROWSER_CODING_HARNESS_CAPABILITY } from "@executioncontrolprotocol/harnesses-browser-coding"

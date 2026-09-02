@@ -189,7 +189,7 @@ export default defineConfig({
             "scripts/**/*.test.ts",
           ],
           // Positive exclude only — never `!` in include (breaks coverage; vitest#10164).
-          exclude: ["packages/harnesses/*/test/eval/**"],
+          exclude: ["packages/harnesses/*/test/eval/**", "**/node_modules/**"],
         },
       },
       {

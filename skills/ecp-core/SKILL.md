@@ -26,10 +26,14 @@ Also respect local `AGENTS.md` and `.cursor/rules/` when the clone is already op
 ## Quick commands
 
 ```sh
-npm install
-npm run build
-npm run check
-npm run test:unit
+pnpm install
+pnpm run build
+pnpm run check
+pnpm run test:unit
 ```
 
-CLI after build: `npm start -w @executioncontrolprotocol/cli` or `npm link` in `packages/cli`.
+**Published CLI:** `npm install -g @executioncontrolprotocol/cli`
+
+**Monorepo dev:** `pnpm --filter @executioncontrolprotocol/cli start` or `pnpm link --global` from `packages/cli/` after `pnpm run build`.
+
+**Consumer repos** (browser-demo, extensions): `pnpm run link:ecp` after building the sibling core monorepo — not `npm link`.

@@ -1,6 +1,8 @@
 set -e
-npm install
-git add package-lock.json
-npx lint-staged
-npm run check:no-file-deps
-npm run lint && npm run test:coverage:clean
+if git diff --cached --name-only | grep -qE '^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml)$'; then
+  pnpm install
+  git add pnpm-lock.yaml
+fi
+pnpm exec lint-staged
+pnpm run check:no-file-deps
+pnpm run lint && pnpm run test:coverage:clean

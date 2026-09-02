@@ -4,7 +4,7 @@ import * as espree from "espree";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/", "**/node_modules/", "**/coverage/", "archive/**"],
+    ignores: ["**/dist/", "**/node_modules/", "**/coverage/", "archive/**", "pnpm-lock.yaml"],
   },
   ...tseslint.configs.recommended,
   {

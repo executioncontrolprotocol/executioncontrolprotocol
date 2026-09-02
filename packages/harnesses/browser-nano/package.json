@@ -27,25 +27,24 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -b",
-    "eval:matrix": "vitest run --config ../../../vitest.config.mts --project eval packages/harnesses/browser-nano/test/eval"
+    "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.13.1",
-    "@executioncontrolprotocol/types": "^0.13.1",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/browser": "0.13.1",
-    "@executioncontrolprotocol/chrome-ai": "0.13.1",
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/evals": "0.13.1",
-    "@executioncontrolprotocol/extension-ollama": "0.13.1",
-    "@executioncontrolprotocol/format-eql": "0.13.1",
-    "@executioncontrolprotocol/format-toon": "0.13.1",
-    "@executioncontrolprotocol/node": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1",
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/browser": "workspace:^",
+    "@executioncontrolprotocol/chrome-ai": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/evals": "workspace:^",
+    "@executioncontrolprotocol/extension-ollama": "workspace:^",
+    "@executioncontrolprotocol/format-eql": "workspace:^",
+    "@executioncontrolprotocol/format-toon": "workspace:^",
+    "@executioncontrolprotocol/node": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

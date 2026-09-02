@@ -43,8 +43,8 @@ This package depends on `@executioncontrolprotocol/core`, `@executioncontrolprot
 ## Tests
 
 ```sh
-npm run test:browser:install   # once
-npm run test:browser
+pnpm run test:browser:install   # once
+pnpm run test:browser
 ```
 
 See [AGENTS.md](../../AGENTS.md) and the [browser demo repo](https://github.com/executioncontrolprotocol/browser-demo).
