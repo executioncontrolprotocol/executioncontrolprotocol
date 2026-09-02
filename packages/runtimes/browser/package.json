@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/browser",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "ECP browser runtime and environment extensions",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/claude",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Anthropic Claude provider for ECP",
   "license": "Apache-2.0",
   "type": "module",

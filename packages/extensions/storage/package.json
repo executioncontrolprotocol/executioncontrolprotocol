@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extension-storage",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Key-value blob storage extension for ECP",
   "license": "Apache-2.0",
   "type": "module",

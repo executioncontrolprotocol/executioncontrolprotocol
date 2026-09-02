@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/mcp",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "MCP server adapter for ECP environments",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extension-ollama",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Ollama model provider extension for ECP",
   "license": "Apache-2.0",
   "type": "module",

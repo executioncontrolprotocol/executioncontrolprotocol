@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/process-env",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Process environment config extension for ECP",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/runtime-temporal",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Pre-release Temporal runtime scaffold for ECP. Durable execution is not yet implemented; binding and running throws a descriptive error.",
   "license": "Apache-2.0",
   "type": "module",

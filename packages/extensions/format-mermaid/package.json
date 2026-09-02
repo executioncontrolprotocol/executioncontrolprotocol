@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/format-mermaid",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "ECP Mermaid diagram encode extension (encode-only)",
   "license": "Apache-2.0",
   "type": "module",

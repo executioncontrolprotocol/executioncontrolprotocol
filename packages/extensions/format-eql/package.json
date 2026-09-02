@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/format-eql",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "ECP EQL format extension — SQL-like workflow and patch authoring",
   "license": "Apache-2.0",
   "type": "module",

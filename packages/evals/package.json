@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/evals",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Harness and provider evaluation tests for ECP",
   "private": true,
   "license": "Apache-2.0",

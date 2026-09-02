@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extensions",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Aggregator that registers first-party ECP extensions",
   "license": "Apache-2.0",
   "type": "module",

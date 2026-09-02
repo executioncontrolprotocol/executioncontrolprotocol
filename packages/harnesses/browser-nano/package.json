@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/harnesses-browser-nano",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Browser Nano ECP harness for on-device and small models (demo + eval matrix)",
   "license": "Apache-2.0",
   "type": "module",

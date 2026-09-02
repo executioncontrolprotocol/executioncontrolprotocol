@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/chrome-ai",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Chrome built-in AI provider for ECP browser demo",
   "license": "Apache-2.0",
   "type": "module",

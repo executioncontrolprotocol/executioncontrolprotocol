@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/core",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "ECP fluent API, environment, registry, and local runtime",
   "license": "Apache-2.0",
   "type": "module",

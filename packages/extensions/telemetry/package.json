@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/extension-telemetry",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Lifecycle telemetry hooks extension for ECP",
   "license": "Apache-2.0",
   "type": "module",

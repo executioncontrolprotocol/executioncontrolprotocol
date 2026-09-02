@@ -55,8 +55,8 @@ my-ext-1.2.3.ecp-ext.zip
   "id": "@vendor/my-ext",
   "packageVersion": "1.2.3",
   "ecp": {
-    "types": "^0.13.0",
-    "core": "^0.13.0"
+    "types": "^0.13.2",
+    "core": "^0.13.2"
   },
   "entries": {
     "node": "./dist/index.js",
