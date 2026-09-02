@@ -2,14 +2,14 @@
 
 Isolated **non-workspace** project that mimics a greenfield consumer of `@executioncontrolprotocol/cli` and related packages.
 
-It is **not** listed in the monorepo `workspaces` array. In-repo `examples/` and workspace `npm ci` hide pack/install resolution bugs; this fixture does not.
+It is **not** listed in the pnpm workspace. In-repo `examples/` and workspace `pnpm install` hide pack/install resolution bugs; this fixture does not.
 
 ## Run
 
-From the monorepo root (after `npm run build`):
+From the monorepo root (after `pnpm run build`):
 
 ```sh
-npm run test:consumer-cli
+pnpm run test:consumer-cli
 ```
 
 That packs the required workspace packages, installs them into a fresh temp directory with these sources, then runs `ecp compile`, `validate`, and `run`.

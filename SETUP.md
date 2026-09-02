@@ -14,7 +14,7 @@ For architecture and the current spec, see:
 ## Prerequisites
 
 - **Node.js** 22+
-- **npm** (workspaces)
+- **pnpm** (monorepo package manager; see `packageManager` in root `package.json`)
 - For **OpenAI** (optional): an API key via `OPENAI_API_KEY`
 - For **Ollama** (optional): [Ollama](https://ollama.com/) running locally
 
@@ -25,23 +25,39 @@ For architecture and the current spec, see:
 ```bash
 git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
 cd executioncontrolprotocol
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
+
+Always run `pnpm install` from the repo root, not inside individual packages.
 
 ------------------------------------------------------------------------
 
-## Install the CLI (recommended)
+## Install the CLI
 
-From the repo root (after `npm run build`):
+### Published (recommended for consumers)
+
+```bash
+npm install -g @executioncontrolprotocol/cli
+```
+
+### Monorepo development
+
+From the repo root (after `pnpm run build`):
 
 ```bash
 cd packages/cli
-npm link
+pnpm link --global
 cd ../..
 ```
 
 Now `ecp --help` should work.
+
+Alternatively, run the dev entry without linking:
+
+```bash
+pnpm --filter @executioncontrolprotocol/cli start
+```
 
 ------------------------------------------------------------------------
 
@@ -95,7 +111,16 @@ The browser demo app lives in a **separate repository**:
 
 [https://github.com/executioncontrolprotocol/browser-demo](https://github.com/executioncontrolprotocol/browser-demo)
 
-Clone it as a sibling of this repo and follow its README (`npm install`, `npm run dev`). For local ECP development, use `npm link` as documented there.
+Clone it as a sibling of this repo. For local ECP development:
+
+```bash
+cd ../browser-demo
+pnpm install
+pnpm run link:ecp   # junction-links built @executioncontrolprotocol/* from sibling core
+pnpm run dev
+```
+
+On `main` / GitHub Pages, the demo installs published packages from the registry only. On `development`, CI checks out siblings, builds core, and runs `link:ecp` (see **Two-track CI** in [`AGENTS.md`](AGENTS.md)).
 
 ------------------------------------------------------------------------
 
@@ -104,5 +129,5 @@ Clone it as a sibling of this repo and follow its README (`npm install`, `npm ru
 From the repo root:
 
 ```bash
-npm run check
+pnpm run check
 ```

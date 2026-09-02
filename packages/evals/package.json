@@ -17,18 +17,19 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/browser": "0.13.1",
-    "@executioncontrolprotocol/chrome-ai": "0.13.1",
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/harnesses-browser-nano": "0.13.1",
-    "@executioncontrolprotocol/harnesses-browser-coding": "0.13.1",
-    "@executioncontrolprotocol/extension-ollama": "0.13.1",
-    "@executioncontrolprotocol/format-eql": "0.13.1",
-    "@executioncontrolprotocol/format-toon": "0.13.1",
-    "@executioncontrolprotocol/node": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1"
+    "@executioncontrolprotocol/browser": "workspace:^",
+    "@executioncontrolprotocol/chrome-ai": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/harnesses-browser-nano": "workspace:^",
+    "@executioncontrolprotocol/harnesses-browser-coding": "workspace:^",
+    "@executioncontrolprotocol/extension-ollama": "workspace:^",
+    "@executioncontrolprotocol/format-eql": "workspace:^",
+    "@executioncontrolprotocol/format-toon": "workspace:^",
+    "@executioncontrolprotocol/node": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "catalog:"
   }
 }

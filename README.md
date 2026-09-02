@@ -24,16 +24,18 @@ Think of ECP as:
 
 ## Getting Started
 
-**Prerequisites:** Node.js 22+, npm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
+**Prerequisites:** Node.js 22+, pnpm. For OpenAI: set `OPENAI_API_KEY`. For Ollama: [install Ollama](https://ollama.com/) and run it locally.
 
 ```bash
 git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
 cd executioncontrolprotocol
-npm install   # or pnpm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
-**Install the CLI (recommended):** `npm link` from `packages/cli/` after `npm run build`.
+**Install the CLI (monorepo dev):** from `packages/cli/` after `pnpm run build`, run `pnpm link --global`.
+
+**Install the CLI (published):** `npm install -g @executioncontrolprotocol/cli`
 
 **Agent skill (monorepo work):** `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`  
 Consumer skill: `npx skills add https://executioncontrolprotocol.io`

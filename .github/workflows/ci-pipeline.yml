@@ -1,6 +1,6 @@
 # Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser, and (on main push only) npm publish.
 # Called from `ci.yml`.
-# Coverage is enforced on the `unit` job (`npm run test:coverage`), not on `npm run build`.
+# Coverage is enforced on the `unit` job (`pnpm run test:coverage`), not on `pnpm run build`.
 
 name: ci
 
@@ -18,15 +18,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # Full history so gitleaks can scan prior commits, not only HEAD.
           fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Secretlint (working tree)
-        run: npm run secrets:scan
+        run: pnpm run secrets:scan
       - name: Install gitleaks
         env:
           GITLEAKS_VERSION: "8.24.3"
@@ -44,13 +46,16 @@ jobs:
     needs: secrets
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run lint
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run lint
 
   consumer-cli:
     name: consumer-cli
@@ -59,13 +64,16 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:consumer-cli
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:consumer-cli
 
   unit:
     name: unit
@@ -74,14 +82,16 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      # Coverage thresholds (vitest.config.mts) are the ship gate — not part of `npm run build`.
-      - run: npm run test:coverage
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:coverage
       - name: Upload coverage summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,35 +109,40 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:integration
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:integration
 
   browser:
     name: browser
     runs-on: ubuntu-latest
-    # Fail fast: Vitest browser hangs do not exit cleanly without a job timeout.
     timeout-minutes: 20
     needs: build
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npm run test:browser:install
-      - run: npm run test:browser
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm run test:browser:install
+      - run: pnpm run test:browser
 
   publish:
     name: publish
@@ -139,15 +154,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
           registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - run: npm run build
-      - run: npm run generate:schema
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run generate:schema
       - name: Publish @executioncontrolprotocol/* workspaces
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run publish:workspaces
+        run: pnpm run publish:workspaces

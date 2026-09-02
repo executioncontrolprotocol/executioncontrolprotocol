@@ -2,13 +2,23 @@
 
 ## Branches
 
-- **`development`** — Open PRs here first. CI runs **version vs npm**: every non-private workspace package must use the **same** version, and that version must be **strictly greater** than the latest version on npm for each package (`npm run version:check-vs-npm`).
-- **`main`** — After CI passes (build, lint, unit, integration, browser), **`npm run publish:workspaces`** publishes all non-private `@executioncontrolprotocol/*` packages to npm in dependency order (skips versions already on the registry).
+- **`development`** — Open PRs here first. CI runs **version vs npm**: every non-private workspace package must use the **same** version, and that version must be **strictly greater** than the latest version on npm for each package (`pnpm run version:check-vs-npm`).
+- **`main`** — After CI passes (build, lint, unit, integration, browser), **`pnpm run publish:workspaces`** publishes all non-private `@executioncontrolprotocol/*` packages to npm in dependency order (skips versions already on the registry).
+
+## Merge and publish order
+
+When releasing a coordinated change across repos:
+
+1. **Core** (`executioncontrolprotocol`) — bump, merge `development` → `main`, publish
+2. **Extensions** ([extensions](https://github.com/executioncontrolprotocol/extensions)) — bump peer ranges, merge, publish
+3. **Browser demo** ([browser-demo](https://github.com/executioncontrolprotocol/browser-demo)) — bump dependency ranges, merge (Pages deploy from `main` uses registry only)
+
+Consumer repos on `development` link unpublished core via `pnpm run link:ecp`; on `main` they install from npm.
 
 ## Bump versions (all workspaces)
 
 ```bash
-npm run version:bump -- 0.13.0
+pnpm run version:bump -- 0.13.0
 ```
 
 Commit the version changes on `development`, then merge to `main` when ready to publish.
@@ -16,7 +26,7 @@ Commit the version changes on `development`, then merge to `main` when ready to 
 Check locally (same as development CI):
 
 ```bash
-npm run version:check-vs-npm
+pnpm run version:check-vs-npm
 ```
 
 ## Published packages (`@executioncontrolprotocol/*`)
@@ -37,7 +47,7 @@ Core surface:
 - `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser` — runtime hosts
 - `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, format/extension packages, and harness packages as needed
 
-Run **`npm run build`** and **`npm run generate:schema`** from the repo root before a manual release; CI does this in the publish job. Packages ship compiled **`dist/`** JS.
+Run **`pnpm run build`** and **`pnpm run generate:schema`** from the repo root before a manual release; CI does this in the publish job. Packages ship compiled **`dist/`** JS.
 
 **Node:** use **≥ 22** locally and in CI.
 

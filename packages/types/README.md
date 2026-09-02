@@ -1,6 +1,6 @@
 # @executioncontrolprotocol/types
 
-Protocol types, constants, and generated JSON Schema (`npm run generate:schema` from repo root).
+Protocol types, constants, and generated JSON Schema (`pnpm run generate:schema` from repo root).
 
 Shared by all `@executioncontrolprotocol/*` packages. No runtime or host dependencies.
 

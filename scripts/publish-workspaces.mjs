@@ -67,7 +67,7 @@ for (const pkg of packages) {
     continue
   }
 
-  execSync(`npm publish --workspace=${pkg.name} --access public`, {
+  execSync(`pnpm publish --filter ${pkg.name} --access public --no-git-checks`, {
     cwd: root,
     stdio: "inherit",
     env: process.env,

@@ -21,14 +21,14 @@ Do not ship only a single happy-path test.
 ## Coverage commands
 
 ```sh
-npm run build            # compile only — no coverage gate
-npm run test:coverage    # unit project + V8 report + thresholds (ship gate)
-npm run clean:coverage   # remove coverage/ (and related dump dirs)
-npm run test:coverage:clean  # run gate then delete local coverage artifacts
-npm run check            # includes test:coverage
+pnpm run build            # compile only — no coverage gate
+pnpm run test:coverage    # unit project + V8 report + thresholds (ship gate)
+pnpm run clean:coverage   # remove coverage/ (and related dump dirs)
+pnpm run test:coverage:clean  # run gate then delete local coverage artifacts
+pnpm run check            # includes test:coverage
 ```
 
-Coverage JSON/HTML under `coverage/` is gitignored. CI uploads a summary artifact; local trees are removed with `npm run clean` / `npm run clean:coverage`.
+Coverage JSON/HTML under `coverage/` is gitignored. CI uploads a summary artifact; local trees are removed with `pnpm run clean` / `pnpm run clean:coverage`.
 
 ## Thresholds
 

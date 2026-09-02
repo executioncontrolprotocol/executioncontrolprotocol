@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
+import { existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -23,9 +24,37 @@ async function linkPkg(projectRoot: string, name: string, target: string): Promi
 }
 
 describe("resolveBundleDir", () => {
-  it("uses dirname for absolute paths and cwd otherwise", () => {
+  const temps: string[] = []
+
+  afterEach(async () => {
+    await Promise.all(temps.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+  })
+
+  it("uses dirname for absolute paths", () => {
     const abs = join(tmpdir(), "proj", "src", "workflow.ts")
     expect(resolveBundleDir(abs)).toBe(dirname(abs))
+  })
+
+  it("walks up from a nested relative path to the nearest node_modules", async () => {
+    const project = await mkdtemp(join(tmpdir(), "ecp-resolve-dir-"))
+    temps.push(project)
+    const nested = join(project, "apps", "bot", "workflows")
+    await mkdir(join(project, "node_modules"), { recursive: true })
+    await mkdir(nested, { recursive: true })
+
+    const prevCwd = process.cwd()
+    try {
+      process.chdir(project)
+      expect(resolveBundleDir(join("apps", "bot", "workflows", "workflow.ts"))).toBe(project)
+      expect(
+        existsSync(join(resolveBundleDir(join("apps", "bot", "workflows", "workflow.ts")), "node_modules")),
+      ).toBe(true)
+    } finally {
+      process.chdir(prevCwd)
+    }
+  })
+
+  it("uses cwd for bare filenames", () => {
     expect(resolveBundleDir("workflow.ts")).toBe(process.cwd())
   })
 })

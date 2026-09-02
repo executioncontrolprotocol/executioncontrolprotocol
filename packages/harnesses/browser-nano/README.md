@@ -13,7 +13,7 @@ Used by the browser demo and harness-owned eval matrices (Ollama gemma3:1b, Chro
 | Support fixtures | `fixtures/workflows/`, `fixtures/runs/` |
 | Matrix tests | `test/eval/` (Ollama), `test/eval/browser/` (Chrome Nano) |
 
-Run matrix: `npm run eval:matrix -w @executioncontrolprotocol/harnesses-browser-nano`
+Run matrix from repo root: `pnpm run test:eval:matrix`
 
 For stronger cloud models, add a separate harness package (e.g. `@executioncontrolprotocol/harnesses-browser-nano-standard`) with its own prompts and output shaping.
 

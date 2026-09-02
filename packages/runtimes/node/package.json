@@ -20,17 +20,17 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "zod": "^3.24.0"
+    "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1",
-    "@executioncontrolprotocol/policies": "0.13.1",
-    "@executioncontrolprotocol/secrets": "0.13.1",
-    "@executioncontrolprotocol/process-env": "0.13.1"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "@executioncontrolprotocol/policies": "workspace:^",
+    "@executioncontrolprotocol/secrets": "workspace:^",
+    "@executioncontrolprotocol/process-env": "workspace:^"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

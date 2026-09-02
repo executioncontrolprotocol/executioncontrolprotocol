@@ -10,7 +10,7 @@ npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-cor
 
 Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotocol.io` (docs skill `ecp`).
 
-**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. It breaks CI and consumer installs. For unpublished local packages, use `npm link` after `npm run build`. Keep registry ranges in `package.json`.
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. It breaks CI and consumer installs. For unpublished local packages in consumer repos (browser-demo, extensions), use `pnpm run link:ecp` after building the sibling core monorepo. Keep registry ranges in `package.json`.
 
 ## ECP Fluent API monorepo (`@executioncontrolprotocol/*`)
 
@@ -35,7 +35,7 @@ Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotoco
 
 ### Package boundaries
 
-**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. Local unpublished packages use `npm link` after `npm run build`. Gate: `npm run check:no-file-deps`.
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. Consumer repos link unpublished `@executioncontrolprotocol/*` via `pnpm run link:ecp` after building the sibling core monorepo. Gate: `pnpm run check:no-file-deps`.
 
 **Core is runtime-agnostic.** The main `@executioncontrolprotocol/core` barrel has no Node or browser I/O. Host-specific code is on subpaths:
 
@@ -74,32 +74,44 @@ Do not add demo UI types (e.g. `ProviderMode`) to `@executioncontrolprotocol/bro
 
 **Fluent rendering is in core** — `ecp.encode(...).as("fluent")`; there is no `@executioncontrolprotocol/format-fluent` extension.
 
+### Two-track CI
+
+| Track | When | Consumer install |
+| ----- | ---- | ---------------- |
+| **development** | PRs and pushes to `development` | Checkout sibling repos at `development`, build core, `pnpm run link:ecp` |
+| **main / Pages** | `main` branch, GitHub Pages deploy | Registry install only (`pnpm install` from published `@executioncontrolprotocol/*`) |
+
+Consumer repos (browser-demo, extensions) use `scripts/ci-setup-ecp.mjs` to detect the track. This monorepo is always built from source; it does not link siblings.
+
 ### Commands
 
 ```sh
-npm install
-npm run build
-npm run generate:schema   # writes packages/types/dist/schemas/*.json
-npm run check    # build + generate:schema + lint + secrets:scan + test:coverage + test:integration + test:e2e
-npm run secrets:scan  # secretlint on the working tree (also lint-staged on pre-commit)
-npm run test:unit
-npm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config.mts)
-npm run test:consumer-cli  # pack + install into fixtures/consumer-cli layout; ecp compile/validate/run
-npm run test:eval      # full harness matrix (Ollama gemma3:1b; chat + legacy cases; skips when unavailable)
-npm run eval:harness   # alias for test:eval:matrix
+pnpm install
+pnpm run build
+pnpm run generate:schema   # writes packages/types/dist/schemas/*.json
+pnpm run check    # build + generate:schema + lint + secrets:scan + test:coverage + test:integration + test:e2e
+pnpm run secrets:scan  # secretlint on the working tree (also lint-staged on pre-commit)
+pnpm run test:unit
+pnpm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config.mts)
+pnpm run test:consumer-cli  # pack + install into fixtures/consumer-cli layout; ecp compile/validate/run
+pnpm run test:eval:matrix  # full harness matrix (Ollama gemma3:1b + qwen coder; skips when unavailable)
 ```
 
-Pre-commit (`.husky/pre-commit`) runs `npm install` and stages `package-lock.json`, then lint-staged, lint, and coverage.
+Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change and stages `pnpm-lock.yaml`, then lint-staged, lint, and coverage.
 
-**Coverage:** `npm run build` does not enforce coverage. The ship gate is `npm run test:coverage` (husky pre-commit + CI `unit`). Floors live in `vitest.config.mts` (`coverage.thresholds`); target remains **90%** — raise floors toward 90, never lower them to green CI. New behavior needs **positive**, **negative**, and **edge** tests (see `.cursor/rules/testing-coverage.mdc`). Never use `!` negation in Vitest `test.include` (zeros coverage under projects; vitest#10164).
+**Coverage:** `pnpm run build` does not enforce coverage. The ship gate is `pnpm run test:coverage` (husky pre-commit + CI `unit`). Floors live in `vitest.config.mts` (`coverage.thresholds`); target remains **90%** — raise floors toward 90, never lower them to green CI. New behavior needs **positive**, **negative**, and **edge** tests (see `.cursor/rules/testing-coverage.mdc`). Never use `!` negation in Vitest `test.include` (zeros coverage under projects; vitest#10164).
 
-**Secrets:** Never commit live API keys. Use `.env` (gitignored), OS keychain, or CI secrets. Pre-commit runs Secretlint on staged files; CI `secrets` job runs Secretlint + Gitleaks (full history). Local: `npm run secrets:scan`.
+**Secrets:** Never commit live API keys. Use `.env` (gitignored), OS keychain, or CI secrets. Pre-commit runs Secretlint on staged files; CI `secrets` job runs Secretlint + Gitleaks (full history). Local: `pnpm run secrets:scan`.
 
 Harness eval profile is baked in `packages/evals/src/profiles/ollama-gemma.ts` (not `OLLAMA_MODEL` env).
 
 ### CLI
 
-Oclif v4 (`@oclif/core`). Commands live in `packages/cli/src/commands/`; build with `npm run build` before `npm link` or tests.
+Oclif v4 (`@oclif/core`). Commands live in `packages/cli/src/commands/`; build with `pnpm run build` before linking or tests.
+
+**Published consumers:** `npm install -g @executioncontrolprotocol/cli`
+
+**Monorepo dev:** from `packages/cli/` after `pnpm run build`, run `pnpm link --global`.
 
 ```sh
 ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
@@ -162,7 +174,7 @@ Keep **npm package name** aligned with the **extension id**.
 
 Vendor integrations are **not** in this monorepo — install from npm or link the sibling [extensions](https://github.com/executioncontrolprotocol/extensions) checkout. **Do not** enumerate vendor packages in core docs; link to that repo’s README instead.
 
-Local dev: `npm start -w @executioncontrolprotocol/cli` (runs `bin/dev.js` after build).
+Local dev: `pnpm --filter @executioncontrolprotocol/cli start` (runs `bin/dev.js` after build).
 
 ### Fluent API quickstart
 
@@ -185,7 +197,7 @@ await ecp.run(manifest)
 
 ### Browser
 
-Browser demo: [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `npm link`).
+Browser demo: [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `pnpm run link:ecp`).
 
 **Browser demo chat:** FAQ and assistant replies must come from the bound model provider via the selected harness (`chat` task). Do not route user-facing chat through template capabilities (`@executioncontrolprotocol/browser.guideChat`) or other non-model stand-ins. Defaults: **Chrome AI** + nano harness (EQL); **Ollama** + coding harness (Fluent/TS). The app resolves provider and harness independently (`resolveDemoSession`) and may override the provider via `.uses(...)` at invoke.
 
@@ -207,11 +219,11 @@ await ecp.run(workflow)
 **Tests:**
 
 ```sh
-npm run test:browser:install   # once per machine
-npm run test:browser           # Vitest browser project (Chromium); separate from test:unit
+pnpm run test:browser:install   # once per machine
+pnpm run test:browser           # Vitest browser project (Chromium); separate from test:unit
 ```
 
-CI runs the `browser` job in `.github/workflows/ci-pipeline.yml` (not part of `npm run check`).
+CI runs the `browser` job in `.github/workflows/ci-pipeline.yml` (not part of `pnpm run check`).
 
 Build order: `tsc -b tsconfig.build.json` (types → core → … → cli).
 
@@ -221,8 +233,8 @@ Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `de
 
 | Harness | Package | Id | Model surface | Eval profile |
 | ------- | ------- | -- | ------------- | ------------ |
-| Browser Nano | `@executioncontrolprotocol/harnesses-browser-nano` | `@executioncontrolprotocol/harness-browser-nano` | EQL multi-shot **chat** orchestrator | `ollama-gemma-1b` (`gemma3:1b`) — demo + `npm run eval:matrix` |
-| Browser Coding | `@executioncontrolprotocol/harnesses-browser-coding` | `@executioncontrolprotocol/harness-browser-coding` | TypeScript (Fluent + typed intent/reply) | `ollama-qwen-coder-1.5b` (`qwen2.5-coder:1.5b`) — `npm run eval:matrix:coding` only |
+| Browser Nano | `@executioncontrolprotocol/harnesses-browser-nano` | `@executioncontrolprotocol/harness-browser-nano` | EQL multi-shot **chat** orchestrator | `ollama-gemma-1b` (`gemma3:1b`) — demo + `pnpm run test:eval:matrix` |
+| Browser Coding | `@executioncontrolprotocol/harnesses-browser-coding` | `@executioncontrolprotocol/harness-browser-coding` | TypeScript (Fluent + typed intent/reply) | `ollama-qwen-coder-1.5b` (`qwen2.5-coder:1.5b`) — `pnpm run test:eval:matrix:coding` only |
 
 `compileHarnessArtifactSource` in `@executioncontrolprotocol/core/compile` evaluates intent/reply TS modules. Workflow create/patch use `compileWorkflowSource`. The **`workflow-assistant`** task is the unified assistant (ECP FAQ, identity, environment help, run Q&A). Optional `identity: true` on prompt fixtures prepends `ECP_ASSISTANT_IDENTITY_PRIMER`.
 

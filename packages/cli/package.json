@@ -19,21 +19,21 @@
     "start": "node ./bin/dev.js"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "^0.13.1",
-    "@executioncontrolprotocol/types": "^0.13.1",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/node": "0.13.1",
-    "@executioncontrolprotocol/secrets": "0.13.1",
-    "@executioncontrolprotocol/extension-ollama": "0.13.1",
+    "@executioncontrolprotocol/node": "workspace:^",
+    "@executioncontrolprotocol/secrets": "workspace:^",
+    "@executioncontrolprotocol/extension-ollama": "workspace:^",
     "@oclif/core": "^4.10.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1",
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
   },
   "oclif": {
     "bin": "ecp",

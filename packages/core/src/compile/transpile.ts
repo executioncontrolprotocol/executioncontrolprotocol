@@ -1,5 +1,6 @@
 import { isBuiltin } from "node:module"
-import { dirname, isAbsolute } from "node:path"
+import { existsSync } from "node:fs"
+import { dirname, isAbsolute, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import type { Plugin } from "esbuild"
 
@@ -10,16 +11,27 @@ export function isTypeScriptFile(filename: string): boolean {
 
 /**
  * Directory used for esbuild package resolution.
- * Absolute filenames resolve from their parent directory (consumer project layout);
- * relative / in-memory names fall back to `process.cwd()`.
+ * Absolute filenames resolve from their parent directory; relative paths walk up
+ * to the nearest `node_modules` ancestor (consumer project layout).
+ * Bare filenames use `process.cwd()` with the same walk-up.
  * @category Compile
  */
 export function resolveBundleDir(filename: string): string {
-  if (isAbsolute(filename)) return dirname(filename)
-  if (typeof process !== "undefined" && typeof process.cwd === "function") {
-    return process.cwd()
+  const cwd =
+    typeof process !== "undefined" && typeof process.cwd === "function"
+      ? process.cwd()
+      : "."
+  const startDir = isAbsolute(filename)
+    ? dirname(filename)
+    : resolve(cwd, dirname(filename) || ".")
+
+  let dir = startDir
+  while (true) {
+    if (existsSync(join(dir, "node_modules"))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return startDir
+    dir = parent
   }
-  return "."
 }
 
 async function loadEsbuild(): Promise<typeof import("esbuild")> {

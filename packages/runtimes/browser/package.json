@@ -20,22 +20,22 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "zod": "^3.24.0"
+    "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "0.13.1",
-    "@executioncontrolprotocol/browser-secrets": "0.13.1",
-    "@executioncontrolprotocol/policies": "0.13.1",
-    "@executioncontrolprotocol/types": "0.13.1"
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/browser-secrets": "workspace:^",
+    "@executioncontrolprotocol/policies": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/chrome-ai": "0.13.1",
-    "@executioncontrolprotocol/format-eql": "0.13.1",
-    "@executioncontrolprotocol/format-toon": "0.13.1",
-    "@executioncontrolprotocol/format-mermaid": "0.13.1",
-    "@executioncontrolprotocol/format-reactflow": "0.13.1",
-    "@executioncontrolprotocol/harnesses-browser-nano": "0.13.1",
-    "typescript": "^5.7.0",
-    "zod": "^3.24.0"
+    "@executioncontrolprotocol/chrome-ai": "workspace:^",
+    "@executioncontrolprotocol/format-eql": "workspace:^",
+    "@executioncontrolprotocol/format-toon": "workspace:^",
+    "@executioncontrolprotocol/format-mermaid": "workspace:^",
+    "@executioncontrolprotocol/format-reactflow": "workspace:^",
+    "@executioncontrolprotocol/harnesses-browser-nano": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }
