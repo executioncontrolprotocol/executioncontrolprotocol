@@ -291,6 +291,13 @@ export function collectFluentPatchGoalFeedback(
         )
       )
     }
+    if (isClearAndRebuildRequest(request) && remaining.length === 0) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must not leave .run([]). Rebuild .run([step("<capability>", ...)]) with only the newly requested steps.`
+        )
+      )
+    }
   } else if (removeMatch) {
     const stepId = removeMatch[1]!
     const still = patched.steps?.find((s) => s.id === stepId)
@@ -347,17 +354,27 @@ export function collectFluentPatchGoalFeedback(
   )
   const uses = stepUsesList(patched)
   const missing = required.filter((id) => !uses.includes(id))
-  if (missing.length > 0 && hasAddIntent) {
+  const needsMissingCaps =
+    missing.length > 0 && (hasAddIntent || isClearAndRebuildRequest(request))
+  if (needsMissingCaps) {
     const baselineIds = baselineStepIds.join(", ")
     const afterMatch = request.match(/\bafter\s+(\w+)\b/i)
     const anchor = afterMatch?.[1]
-    feedback.push(
-      collectModelOutputFeedback(
-        `Append step("${missing.join('" or "')}", ...) to .run([...])` +
-          `${anchor ? ` after the step with id "${anchor}"` : ""}. ` +
-          `Keep existing step ids: ${baselineIds || "none"}.`
+    if (isClearAndRebuildRequest(request)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must include step("${missing.join('" or "')}", ...) in .run([...]). Do not leave .run([]).`
+        )
       )
-    )
+    } else {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Append step("${missing.join('" or "')}", ...) to .run([...])` +
+            `${anchor ? ` after the step with id "${anchor}"` : ""}. ` +
+            `Keep existing step ids: ${baselineIds || "none"}.`
+        )
+      )
+    }
   }
 
   if (removeMatch && hasAddIntent && !missing.length) {

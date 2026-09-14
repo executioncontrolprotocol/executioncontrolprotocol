@@ -131,6 +131,26 @@ describe("collectFluentPatchGoalFeedback", () => {
     expect(text).toContain(".run([])")
   })
 
+  it("flags empty .run([]) after clear-and-rebuild", () => {
+    const baseline = loadWorkflow("haiku-explain-workflow.json")
+    const patched: WorkflowManifest = {
+      ...baseline,
+      steps: [],
+    }
+    const feedback = collectFluentPatchGoalFeedback(
+      "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
+      patched,
+      {
+        capabilities: [{ id: "@executioncontrolprotocol/ollama.generate" }],
+        extensions: [],
+      } as import("@executioncontrolprotocol/core").CompactEnvironmentSummary,
+      baseline
+    )
+    const text = (feedback ?? []).flatMap((f) => f.issues.map((i) => i.message)).join("\n")
+    expect(text).toMatch(/must not leave \.run\(\[\]\)/i)
+    expect(text).toContain("@executioncontrolprotocol/ollama.generate")
+  })
+
   it("flags string returns on chrome-ai.generate .as key", () => {
     const patched: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",

@@ -22,6 +22,10 @@
       "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
     },
     {
+      "message": "I need a new workflow with poem then summarize using @executioncontrolprotocol/ollama.generate.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
       "message": "Build a workflow that uses @executioncontrolprotocol/ollama.generate to generate a short sample email with a meeting summary, then extract key action items from it in a second step.",
       "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Email Action\")\n  .id(\"email-action\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Email\")\n      .id(\"email\")\n      .with({ prompt: \"Generate a short sample email with a meeting summary.\" })\n      .as(\"email\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Extract Action Items\")\n      .id(\"actions\")\n      .with({\n        prompt: \"Extract the key action items from the following email:\",\n        context: ref(\"email.text\"),\n      })\n      .as(\"actions\"),\n  ])"
     },

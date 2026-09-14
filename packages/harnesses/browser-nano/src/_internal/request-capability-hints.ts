@@ -605,6 +605,13 @@ export function collectPatchGoalFeedback(
         )
       )
     }
+    if (isClearAndRebuildRequest(request) && remaining.length === 0) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must not leave an empty workflow. DELETE every baseline step, then ADD STEP for only the newly requested capabilities.`
+        )
+      )
+    }
   } else if (removeMatch) {
     const stepId = removeMatch[1]!
     const still = patched.steps?.find((s) => s.id === stepId)
@@ -674,7 +681,7 @@ export function collectPatchGoalFeedback(
   )
   const uses = stepUsesList(patched)
   const missing = required.filter((id) => !uses.includes(id))
-  if (missing.length > 0 && hasAddIntent) {
+  if (missing.length > 0 && (hasAddIntent || isClearAndRebuildRequest(request))) {
     const baselineIds = baselineStepIds.join(", ")
     const afterMatch = request.match(/\bafter\s+(\w+)\b/i)
     const beforeMatch = request.match(/\bbefore\s+(\w+)\b/i)
@@ -688,12 +695,20 @@ export function collectPatchGoalFeedback(
       removeMatch && hasAddIntent
         ? ` Also DELETE STEP ${removeMatch[1]} if the request removes it.`
         : ""
-    feedback.push(
-      collectModelOutputFeedback(
-        `Use ADD STEP with USES ${missing.join(" or ")}${anchorClause}. ` +
-          `Keep existing step(s): ${baselineIds || "none"}.${deletePart}`
+    if (isClearAndRebuildRequest(request)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must ADD STEP with USES ${missing.join(" or ")} after deleting baseline steps. Do not leave an empty workflow.`
+        )
       )
-    )
+    } else {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Use ADD STEP with USES ${missing.join(" or ")}${anchorClause}. ` +
+            `Keep existing step(s): ${baselineIds || "none"}.${deletePart}`
+        )
+      )
+    }
   }
 
   if (removeMatch && hasAddIntent && !missing.length) {

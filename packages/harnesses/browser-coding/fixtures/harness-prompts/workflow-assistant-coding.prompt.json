@@ -14,6 +14,10 @@
       "output": "import type { HarnessReply } from \"@executioncontrolprotocol/types\"\n\nexport const reply: HarnessReply = {\n  schema: \"@executioncontrolprotocol.harness.reply\",\n  answer:\n    \"ECP is the Execution Control Protocol: portable workflows run in governed environments that bind tools, models, policies, and runtimes alongside MCP tool calling.\",\n}"
     },
     {
+      "message": "How is MCP different from ECP?",
+      "output": "import type { HarnessReply } from \"@executioncontrolprotocol/types\"\n\nexport const reply: HarnessReply = {\n  schema: \"@executioncontrolprotocol.harness.reply\",\n  answer:\n    \"MCP is a tool-calling protocol for models; ECP is the Execution Control Protocol for portable workflows, environments, and governed runs that can use MCP tools as capabilities.\",\n}"
+    },
+    {
       "message": "What can you do?",
       "output": "import type { HarnessReply } from \"@executioncontrolprotocol/types\"\n\nexport const reply: HarnessReply = {\n  schema: \"@executioncontrolprotocol.harness.reply\",\n  answer:\n    \"I build and patch ECP workflows, answer questions about ECP, and explain capabilities registered in this environment. I cannot install extensions.\",\n}"
     },

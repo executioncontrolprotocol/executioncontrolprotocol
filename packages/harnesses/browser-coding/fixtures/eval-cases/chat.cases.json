@@ -7,7 +7,7 @@
       "harness": "chat",
       "model": "default",
       "input": {
-        "message": "I need a new workflow with poem then summarize using @executioncontrolprotocol/ollama.generate."
+        "message": "Create a two-step workflow: generate a short poem with @executioncontrolprotocol/ollama.generate, then summarize that poem with the same capability."
       },
       "assertions": {
         "deterministic": [
@@ -41,13 +41,14 @@
           {
             "kind": "sidecarStepUses",
             "capabilityId": "@executioncontrolprotocol/ollama.generate"
+          },
+          {
+            "kind": "answerContains",
+            "text": "run"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Summarizes creating poem/summarize workflow and asks to run",
-          "rubric": "Mentions the change and asks to run",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },

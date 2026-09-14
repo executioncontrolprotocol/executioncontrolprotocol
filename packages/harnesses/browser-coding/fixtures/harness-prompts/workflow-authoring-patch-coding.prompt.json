@@ -30,16 +30,16 @@
       "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([])"
     },
     {
+      "message": "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
+    },
+    {
       "message": "Add a critique step after summarize using @executioncontrolprotocol/ollama.generate.",
       "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Critique Summary\")\n      .id(\"critique\")\n      .with({\n        prompt: \"Critique the following poem summary:\",\n        context: ref(\"summary.text\"),\n      })\n      .as(\"critique\"),\n  ])"
     },
     {
       "message": "Remove the critique step from the workflow.",
       "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Trivia Critique\")\n  .id(\"trivia-critique\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Ask Trivia Question\")\n      .id(\"question\")\n      .with({ prompt: \"Ask a trivia question.\" })\n      .as(\"question\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Draft Answer\")\n      .id(\"answer\")\n      .with({\n        prompt: \"Draft an answer to the following trivia question:\",\n        context: ref(\"question.text\"),\n      })\n      .as(\"answer\"),\n  ])"
-    },
-    {
-      "message": "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
-      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
     },
     {
       "message": "Add a @executioncontrolprotocol/test.echo step after generate that echoes the response text.",

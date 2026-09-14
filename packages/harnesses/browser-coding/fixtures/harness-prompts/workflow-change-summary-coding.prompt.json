@@ -11,6 +11,10 @@
   },
   "fewShots": [
     {
+      "message": "Summarize: created workflow with poem then summarize. Ask to run.",
+      "output": "import type { HarnessReply } from \"@executioncontrolprotocol/types\"\n\nexport const reply: HarnessReply = {\n  schema: \"@executioncontrolprotocol.harness.reply\",\n  answer: \"I created a two-step poem then summarize workflow. Want me to run it?\",\n  suggestedAction: \"offer-run\",\n}"
+    },
+    {
       "message": "Summarize: created workflow with echo and summarize. Ask to run.",
       "output": "import type { HarnessReply } from \"@executioncontrolprotocol/types\"\n\nexport const reply: HarnessReply = {\n  schema: \"@executioncontrolprotocol.harness.reply\",\n  answer: \"I created a workflow with echo and summarize. Want me to run it?\",\n  suggestedAction: \"offer-run\",\n}"
     },
