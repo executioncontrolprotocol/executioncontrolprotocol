@@ -31,7 +31,9 @@ import {
 import {
   HARNESS_TASKS,
   getHarnessCodingConfig,
-  HARNESS_CODING_CHAT_REPAIR,
+  codingRepairForProfile,
+  normalizeHarnessCodingProfile,
+  resolveEffectiveCodingProfile,
 } from "./harness-coding-config.js"
 import { BROWSER_CODING_HARNESS_ID } from "./harness-ids.js"
 import { invokeIntentClassificationCoding } from "./intent-classification-coding.js"
@@ -130,15 +132,21 @@ export async function invokeMultiShotChatCoding(
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   const probeContext = parseProbeContext(input.probeContext)
-  const intentDefaults = getHarnessCodingConfig(HARNESS_TASKS.INTENT_CLASSIFICATION) as Record<
-    string,
-    Record<string, unknown>
-  >
+  const profile = resolveEffectiveCodingProfile(
+    normalizeHarnessCodingProfile(ctx.config.harnessProfile),
+    input.model
+  )
+  const chatRepair = codingRepairForProfile(profile).chat
+  const intentDefaults = getHarnessCodingConfig(
+    HARNESS_TASKS.INTENT_CLASSIFICATION,
+    profile
+  ) as Record<string, Record<string, unknown>>
   const intentCtx: HarnessCapabilityContext<Record<string, unknown>> = {
     ...ctx,
     config: {
       ...intentDefaults,
       ...ctx.config,
+      harnessProfile: profile,
       context: {
         ...intentDefaults.context,
         ...(ctx.config.context as Record<string, unknown> | undefined),
@@ -149,7 +157,7 @@ export async function invokeMultiShotChatCoding(
       repair: {
         ...intentDefaults.repair,
         ...(ctx.config.repair as Record<string, unknown> | undefined),
-        ...HARNESS_CODING_CHAT_REPAIR,
+        ...chatRepair,
       },
       trace: { ...intentDefaults.trace, ...(ctx.config.trace as Record<string, unknown> | undefined) },
     },
@@ -165,11 +173,15 @@ export async function invokeMultiShotChatCoding(
     task: typeof HARNESS_TASKS.WORKFLOW_AUTHORING | typeof HARNESS_TASKS.WORKFLOW_ASSISTANT,
     overrides?: Record<string, unknown>
   ): Record<string, unknown> => {
-    const taskDefaults = getHarnessCodingConfig(task) as Record<string, Record<string, unknown>>
+    const taskDefaults = getHarnessCodingConfig(task, profile) as Record<
+      string,
+      Record<string, unknown>
+    >
     return {
       ...taskDefaults,
       ...ctx.config,
       ...overrides,
+      harnessProfile: profile,
       context: {
         ...taskDefaults.context,
         ...(ctx.config.context as Record<string, unknown> | undefined),
@@ -179,7 +191,7 @@ export async function invokeMultiShotChatCoding(
       repair: {
         ...taskDefaults.repair,
         ...(ctx.config.repair as Record<string, unknown> | undefined),
-        ...HARNESS_CODING_CHAT_REPAIR,
+        ...chatRepair,
         ...((overrides?.repair as Record<string, unknown> | undefined) ?? {}),
       },
       trace: {
@@ -244,8 +256,13 @@ export async function invokeMultiShotChatCoding(
         : undefined
 
     if (authored) {
+      const chatDefaults = getHarnessCodingConfig(HARNESS_TASKS.CHAT, profile) as {
+        promptFixtureChangeSummary?: string
+      }
       const summaryConfig = buildTaskConfig(HARNESS_TASKS.WORKFLOW_ASSISTANT, {
-        promptFixture: CODING_PROMPT_FIXTURE_IDS.WORKFLOW_CHANGE_SUMMARY,
+        promptFixture:
+          chatDefaults.promptFixtureChangeSummary ??
+          CODING_PROMPT_FIXTURE_IDS.WORKFLOW_CHANGE_SUMMARY,
       })
       let summaryResult: HarnessEvaluateOutput
       try {

@@ -117,6 +117,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           criteria: z.unknown().optional(),
           goal: z.string().optional(),
           classifiedIntent: z.string().optional(),
+          model: z.string().optional(),
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
@@ -129,6 +130,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           criteria?: unknown
           goal?: string
           classifiedIntent?: string
+          model?: string
         }
         const prompt = [
           "You are an eval judge for ECP harness outputs.",
@@ -142,7 +144,10 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           .join("\n")
         ctx.usage.increment({ modelCalls: 1 })
         const content = await anthropicMessages(apiKey, {
-          model: (cfg.defaultModel as string | undefined) ?? ANTHROPIC_DEFAULT_MODEL,
+          model:
+            row.model ??
+            (cfg.defaultModel as string | undefined) ??
+            ANTHROPIC_DEFAULT_MODEL,
           max_tokens: 1024,
           messages: [{ role: "user", content: prompt }],
         })

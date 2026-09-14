@@ -7,7 +7,7 @@
       "harness": "chat",
       "model": "default",
       "input": {
-        "message": "I need a new workflow with poem then summarize using generate."
+        "message": "I need a new workflow with poem then summarize using @executioncontrolprotocol/ollama.generate."
       },
       "assertions": {
         "deterministic": [
@@ -216,12 +216,17 @@
           },
           {
             "kind": "shotCount",
-            "value": 2
+            "value": 3
           },
           {
             "kind": "shotTask",
             "shotIndex": 1,
-            "task": "workflow-assistant"
+            "task": "workflow-authoring"
+          },
+          {
+            "kind": "shotTask",
+            "shotIndex": 2,
+            "task": "workflow-change-summary"
           },
           {
             "kind": "replySchema"

@@ -1,0 +1,38 @@
+{
+  "id": "workflow-authoring-patch-coding-frontier",
+  "role": "You are an ECP workflow editor for a frontier coding model. Emit Fluent TypeScript only — never prose, never markdown fences.",
+  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For remove-all / clear / start-fresh, rebuild .run([]) or .run([...]) with only the new steps while keeping the same workflow .id(). Preserve .accepts() and .returns() on label-only and clear-steps patches unless the request changes workflow I/O. Accepts and returns use object JSON Schema shaped as { type: \"object\", properties: {...}, required: [\"...\"] } — required is a sibling array of properties, never nested inside properties. Model *.generate returns are typed as object (never string). Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript. Output a single TypeScript module only — no prose outside the export.",
+  "outputSchema": "@executioncontrolprotocol.workflow",
+  "promptFormat": "typescript",
+  "fewShots": [
+    {
+      "message": "Change generate step label to Patched Generate only.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Patched Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Add workflow accepts with required string topic and wire poem prompt from ref(\"topic\").",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .accepts({ type: \"object\", properties: { topic: { type: \"string\" } }, required: [\"topic\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: ref(\"topic\") })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Add workflow returns with object response property matching the generate step as key.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Change workflow returns property from response to result while keeping generate step as response.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { result: { type: \"object\" } }, required: [\"result\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Clear the steps but keep accepts and returns.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([])"
+    },
+    {
+      "message": "Add a @executioncontrolprotocol/test.echo step after generate that echoes the response text.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo Response\")\n      .id(\"echo\")\n      .with({ value: ref(\"response.text\") })\n      .as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
+    }
+  ],
+  "repairHint": "Return corrected TypeScript only. No prose outside the module. Preserve accepts/returns on label-only and clear-steps patches."
+}

@@ -1,7 +1,7 @@
 {
-  "id": "workflow-authoring-patch-coding",
-  "role": "You are an ECP workflow editor for coding models. You revise workflows using only the Fluent API (TypeScript).",
-  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For remove-all / clear / start-fresh, rebuild .run([]) or .run([...]) with only the new steps while keeping the same workflow .id(). Preserve .accepts() and .returns() on label-only and clear-steps patches unless the request changes workflow I/O. Accepts and returns use object JSON Schema shaped as { type: \"object\", properties: {...}, required: [\"...\"] } — required is a sibling array of properties, never nested inside properties. Model *.generate returns are typed as object (never string). Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript. Fluent TypeScript only.",
+  "id": "workflow-authoring-patch-coding-medium",
+  "role": "You are an ECP workflow editor for a capable coding model. Emit Fluent TypeScript only — never prose, never markdown fences.",
+  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For remove-all / clear / start-fresh, rebuild .run([]) or .run([...]) with only the new steps while keeping the same workflow .id(). Preserve .accepts() and .returns() on label-only and clear-steps patches unless the request changes workflow I/O. Accepts and returns use object JSON Schema shaped as { type: \"object\", properties: {...}, required: [\"...\"] } — required is a sibling array of properties, never nested inside properties. Model *.generate returns are typed as object (never string). Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript. Output a single TypeScript module only — no prose outside the export.",
   "outputSchema": "@executioncontrolprotocol.workflow",
   "promptFormat": "typescript",
   "fewShots": [
@@ -66,5 +66,5 @@
       "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Updated Poem Chain\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
     }
   ],
-  "repairHint": "Return the full revised Fluent TypeScript module. Preserve all baseline step .id() values; only change what the request requires. Preserve accepts/returns on label-only and clear-steps patches."
+  "repairHint": "Return corrected TypeScript only. No prose outside the module. Preserve accepts/returns on label-only and clear-steps patches."
 }

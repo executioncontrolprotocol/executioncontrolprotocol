@@ -23,14 +23,14 @@
             "text": "poem"
           },
           {
-            "kind": "answerContains",
-            "text": "error"
+            "kind": "citationStepId",
+            "value": "poem"
           }
         ],
         "judge": {
           "enabled": true,
           "goal": "Explains generate failure",
-          "rubric": "Mentions poem step and describes the error from run context",
+          "rubric": "Mentions the poem step and explains the failure from run context using failure/error language; does not invent unrelated capabilities.",
           "requireApproved": true
         }
       }
@@ -110,7 +110,7 @@
           },
           {
             "kind": "answerContains",
-            "text": "ecp"
+            "text": "executioncontrolprotocol"
           }
         ],
         "judge": {
@@ -170,7 +170,8 @@
         ],
         "judge": {
           "enabled": true,
-          "goal": "Fix suggest",
+          "goal": "Suggest a concrete fix for the failed poem step",
+          "rubric": "Answer cites or clearly refers to step poem, uses the failed run context, and suggests patching or fixing the poem step input or binding. Do not invent unrelated extensions.",
           "requireApproved": true
         }
       }
@@ -219,13 +220,17 @@
           },
           {
             "kind": "answerContains",
-            "text": "error"
+            "text": "poem"
+          },
+          {
+            "kind": "citationStepId",
+            "value": "poem"
           }
         ],
         "judge": {
           "enabled": true,
           "goal": "Professional helpful tone",
-          "rubric": "Polite explanation of the generate error with actionable guidance",
+          "rubric": "Polite explanation of the poem step failure with actionable guidance. Naming the failed step matters more than using the literal word error.",
           "requireApproved": true
         }
       }

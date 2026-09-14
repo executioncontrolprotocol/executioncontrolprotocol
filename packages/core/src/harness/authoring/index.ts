@@ -32,6 +32,7 @@ export {
   truncatePriorModelOutput,
   HARNESS_REPAIR_PRIOR_OUTPUT_MAX_CHARS,
   type ModelRepairDialogOptions,
+  type HarnessRepairSurface,
   isRepairTemplateEcho,
   isRepairFeedbackEcho,
   isIssuesOnlyOutput,

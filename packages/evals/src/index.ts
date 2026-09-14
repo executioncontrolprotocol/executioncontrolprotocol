@@ -46,9 +46,15 @@ export {
   registerBrowserCodingHarnesses,
   resetBrowserCodingHarnessRegistrationForTests,
   HARNESS_CODING_BINDING,
+  HARNESS_CODING_BINDING_SMALL,
+  HARNESS_CODING_BINDING_MEDIUM,
+  HARNESS_CODING_BINDING_FRONTIER,
   HARNESS_CODING_REPAIR,
   HARNESS_CODING_TRACE,
   getHarnessCodingConfig,
+  codingHarnessBindingForProfile,
+  resolveEffectiveCodingProfile,
+  type HarnessCodingProfile,
 } from "./harness-coding-bindings.js"
 export {
   ollamaEvalReady,

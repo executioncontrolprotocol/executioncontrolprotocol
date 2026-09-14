@@ -10,16 +10,20 @@ function formatRepairExample(outputSchema: string, eql: boolean): string {
 
 /**
  * Build repair-line text from an in-memory harness prompt fixture.
+ * TypeScript / JSON return prose only (no EQL example shapes). EQL appends an example shape.
  * @category Harness
  */
 export function buildRepairHintFromFixture(fixture: HarnessPromptFixture): string {
-  const eql = fixture.promptFormat !== "json"
-  const parts = [
-    fixture.repairHint ??
-      (eql ? "Return corrected EQL only." : "Return corrected JSON only."),
-  ]
-  if (eql && fixture.outputSchema !== "@executioncontrolprotocol.patch") {
-    const example = formatRepairExample(fixture.outputSchema, eql)
+  const format = fixture.promptFormat ?? "eql"
+  if (format === "typescript") {
+    return fixture.repairHint ?? "Return corrected TypeScript only."
+  }
+  if (format === "json") {
+    return fixture.repairHint ?? "Return corrected JSON only."
+  }
+  const parts = [fixture.repairHint ?? "Return corrected EQL only."]
+  if (fixture.outputSchema !== "@executioncontrolprotocol.patch") {
+    const example = formatRepairExample(fixture.outputSchema, true)
     parts.push(`Example shape:\n${example}`)
   }
   return parts.join(" ")

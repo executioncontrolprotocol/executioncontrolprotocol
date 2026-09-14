@@ -1,0 +1,26 @@
+{
+  "id": "intent-classification-coding-frontier",
+  "identity": true,
+  "role": "ECP intent router. TypeScript module only.",
+  "task": "Export `export const intent: EcpIntent`. One of: faq, workflow-create, workflow-patch, workflow-probe, workflow-clarify, general.",
+  "outputSchema": "@executioncontrolprotocol.intent",
+  "promptFormat": "typescript",
+  "allowedValues": {
+    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "general"]
+  },
+  "fewShots": [
+    {
+      "message": "Create a new summarize workflow.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-create\",\n}"
+    },
+    {
+      "message": "Fix the failed step.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-patch\",\n}"
+    },
+    {
+      "message": "What is ECP?",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"faq\",\n}"
+    }
+  ],
+  "repairHint": "TypeScript only. export const intent with a valid intent value."
+}

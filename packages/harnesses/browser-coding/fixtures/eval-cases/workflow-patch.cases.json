@@ -298,7 +298,7 @@
       "model": "default",
       "baselineWorkflow": "workflows/two-step-generate-chain.json",
       "input": {
-        "request": "Improve poem label to be user friendly."
+        "request": "Change the poem step label to Draft Poem."
       },
       "assertions": {
         "deterministic": [
@@ -311,12 +311,15 @@
           },
           {
             "kind": "validationValid"
+          },
+          {
+            "kind": "stepLabel",
+            "stepId": "poem",
+            "value": "Draft Poem"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Patch is minimal and correct",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },

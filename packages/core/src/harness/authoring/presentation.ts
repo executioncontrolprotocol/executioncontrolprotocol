@@ -16,11 +16,25 @@ export function formatFeedbackForModel(feedback: HarnessOperationFeedback[]): st
 }
 
 /**
+ * Model output surface for structured repair lead-ins.
+ * @category Harness
+ */
+export type HarnessRepairSurface = "eql" | "typescript" | "json"
+
+const REPAIR_SURFACE_LEAD: Record<HarnessRepairSurface, string> = {
+  eql: "Fix the document (EQL only — do not repeat these lines):",
+  typescript: "Fix the TypeScript module (do not repeat these lines):",
+  json: "Fix the JSON document (do not repeat these lines):",
+}
+
+/**
  * Compact repair instructions for small models (avoids echoing long prose).
+ * Defaults to {@link HarnessRepairSurface} `"eql"` for Browser Nano callers.
  * @category Harness
  */
 export function formatStructuredRepairForModel(
-  feedback: HarnessOperationFeedback[]
+  feedback: HarnessOperationFeedback[],
+  surface: HarnessRepairSurface = "eql"
 ): string | undefined {
   const issues = feedback.flatMap((f) => f.issues)
   if (issues.length === 0) return undefined
@@ -29,7 +43,7 @@ export function formatStructuredRepairForModel(
     const path = issue.path ? `${issue.path}: ` : ""
     return `- ${path}${issue.message}${code}`
   })
-  return ["Fix the document (EQL only — do not repeat these lines):", ...bullets].join("\n")
+  return [REPAIR_SURFACE_LEAD[surface], ...bullets].join("\n")
 }
 
 /** Default max chars for prior assistant output in repair dialog prompts. @category Harness */

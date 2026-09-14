@@ -16,6 +16,8 @@ Browser Coding harness (`@executioncontrolprotocol/harness-browser-coding`) for 
 
 Run matrix from repo root: `pnpm run test:eval:matrix:coding`
 
+For Anthropic / Sonnet context flow (system prompts, multi-shot chat, repair, pass/fail matrix notes), see [docs/sonnet-coding-interaction-loop.md](./docs/sonnet-coding-interaction-loop.md).
+
 ```ts
 import { registerBrowserCodingHarnesses, BROWSER_CODING_HARNESS_CAPABILITY } from "@executioncontrolprotocol/harnesses-browser-coding"
 ```

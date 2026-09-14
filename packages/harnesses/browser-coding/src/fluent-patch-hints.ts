@@ -13,7 +13,7 @@ import {
 import type { HarnessOperationFeedback, StepNode, WorkflowManifest } from "@executioncontrolprotocol/types"
 
 const FLUENT_ANTI_PATTERNS =
-  "Do not use EQL, PATCH WORKFLOW, UPDATE STEP, DELETE STEP, MOVE STEP, ADD STEP, .remove(), .after(), or moveStep."
+  "Fluent TypeScript module only — do not emit patch DSL keywords or invent methods (.remove, .after, moveStep)."
 
 function stepUsesList(workflow: WorkflowManifest): string[] {
   const uses: string[] = []
@@ -59,14 +59,21 @@ function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boole
 
 function inferAcceptsPropertyFromRequest(request: string): string | undefined {
   const match =
-    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i) ??
+    request.match(/ref\(["'](\w+)["']\)/i) ??
+    request.match(
+      /accepts?\s+(?:a\s+)?(?:required\s+)?(?:string|number|boolean|object)\s+(\w+)/i
+    ) ??
     request.match(/run\s+input\s+(?:field\s+)?(\w+)/i) ??
-    request.match(/ref\(["'](\w+)["']\)/i)
+    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i)
   return match?.[1]
 }
 
 function inferReturnsPropertyFromRequest(request: string): string | undefined {
   const match =
+    request.match(/returns?\s+property\s+from\s+\w+\s+to\s+(\w+)/i) ??
+    request.match(/returns?\s+with\s+(?:object\s+)?(\w+)\s+property/i) ??
+    request.match(/returns?\s+(?:an?\s+)?object\s+(\w+)/i) ??
+    request.match(/\.as\(["'](\w+)["']\)/i) ??
     request.match(/returns?\s+(?:an?\s+)?(\w+)\s+(?:object|field|output)/i) ??
     request.match(/output\s+(?:field\s+)?(\w+)/i)
   return match?.[1]
@@ -466,12 +473,18 @@ export function collectFluentPatchGoalFeedback(
     const baselineReturns = workflowIoNames(baseline, "returns")
     const patchedAccepts = workflowIoNames(patched, "accepts")
     const patchedReturns = workflowIoNames(patched, "returns")
-    const wantsRemoveReturns = /\b(remove|clear|delete)\b.*\breturns?\b/i.test(lower)
+    const wantsRemoveReturns =
+      !/\bkeep\b.{0,48}\breturns?\b/i.test(lower) &&
+      (/\b(remove|delete)\b.{0,40}\breturns?\b/i.test(lower) ||
+        /\bclear\b.{0,20}\breturns?\b/i.test(lower))
     const wantsAddAccepts = /\badd\b.*\baccepts?\b/i.test(lower)
     const wantsAddReturns = /\badd\b.*\breturns?\b/i.test(lower)
     const renameAccepts = request.match(/rename\s+accepts?\s+(?:field\s+)?(\w+)\s+to\s+(\w+)/i)
+    const renameReturns = request.match(
+      /(?:change|rename)\s+(?:workflow\s+)?returns?\s+property\s+from\s+(\w+)\s+to\s+(\w+)/i
+    )
 
-    if (!wantsRemoveReturns && !wantsAddAccepts && !renameAccepts) {
+    if (!wantsRemoveReturns && !wantsAddAccepts && !renameAccepts && !renameReturns) {
       for (const name of baselineAccepts) {
         if (!patchedAccepts.includes(name)) {
           feedback.push(
@@ -489,6 +502,18 @@ export function collectFluentPatchGoalFeedback(
             )
           )
         }
+      }
+    }
+
+    if (renameReturns) {
+      const fromName = renameReturns[1]!
+      const toName = renameReturns[2]!
+      if (patchedReturns.includes(fromName) || !patchedReturns.includes(toName)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Rename .returns() property from "${fromName}" to "${toName}" (keep step .as("${fromName}") unless the request changes it).`
+          )
+        )
       }
     }
 
@@ -623,7 +648,7 @@ export function collectFluentCompileErrorFeedback(
     return [
       collectModelOutputFeedback(
         "Use only @executioncontrolprotocol/core Fluent API: workflow, step, ref, branch, parallel, loop. " +
-          "Never use identifiers named typescript, moveStep, UPDATE STEP, or chained .remove() / .after(). " +
+          "Never use identifiers named typescript, moveStep, or chained .remove() / .after(). " +
           FLUENT_ANTI_PATTERNS
       ),
     ]

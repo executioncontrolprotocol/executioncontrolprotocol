@@ -12,7 +12,8 @@ import { z } from "zod"
 import {
   getHarnessCodingConfig,
   HARNESS_TASKS,
-  type HarnessCodingProfile,
+  normalizeHarnessCodingProfile,
+  resolveEffectiveCodingProfile,
   type HarnessTask,
 } from "./harness-coding-config.js"
 import { invokeIntentClassificationCoding } from "./intent-classification-coding.js"
@@ -55,7 +56,7 @@ export type BrowserCodingHarnessInput = z.infer<typeof harnessInputSchema>
 
 const harnessBindingSchema = z
   .object({
-    harnessProfile: z.enum(["coding"]).optional(),
+    harnessProfile: z.enum(["small", "medium", "frontier"]).optional(),
     repair: z.record(z.string(), z.unknown()).optional(),
     trace: z.record(z.string(), z.unknown()).optional(),
     context: z.record(z.string(), z.unknown()).optional(),
@@ -64,9 +65,11 @@ const harnessBindingSchema = z
 
 function handlerContextForTask(
   task: HarnessTask,
-  ctx: HarnessCapabilityContext<Record<string, unknown>>
+  ctx: HarnessCapabilityContext<Record<string, unknown>>,
+  model?: string
 ): HarnessCapabilityContext<Record<string, unknown>> {
-  const profile = (ctx.config.harnessProfile as HarnessCodingProfile | undefined) ?? "coding"
+  const configured = normalizeHarnessCodingProfile(ctx.config.harnessProfile)
+  const profile = resolveEffectiveCodingProfile(configured, model)
   const taskConfig = getHarnessCodingConfig(task, profile) as Record<string, Record<string, unknown>>
   const envConfig = ctx.config as Record<string, Record<string, unknown> | undefined>
   return {
@@ -75,7 +78,7 @@ function handlerContextForTask(
       ...taskConfig,
       ...ctx.config,
       harnessProfile: profile,
-      repair: { ...taskConfig.repair, ...envConfig.repair },
+      repair: { ...envConfig.repair, ...taskConfig.repair },
       trace: { ...taskConfig.trace, ...envConfig.trace },
       context: { ...taskConfig.context, ...envConfig.context },
     },
@@ -88,7 +91,7 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
   .withOutput(harnessEvaluateOutputSchema)
   .usesProviderInterface(ECP_MODEL_GENERATE_INTERFACE)
   .withHandler(async (input, ctx): Promise<HarnessEvaluateOutput> => {
-    const taskCtx = handlerContextForTask(input.task, ctx)
+    const taskCtx = handlerContextForTask(input.task, ctx, input.model)
     switch (input.task) {
       case HARNESS_TASKS.INTENT_CLASSIFICATION:
         return invokeIntentClassificationCoding(

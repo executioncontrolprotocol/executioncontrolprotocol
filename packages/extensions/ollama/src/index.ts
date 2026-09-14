@@ -346,6 +346,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           criteria: z.unknown().optional(),
           goal: z.string().optional(),
           classifiedIntent: z.string().optional(),
+          model: z.string().optional(),
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
@@ -360,6 +361,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           criteria?: string
           artifact?: { answer?: string }
           classifiedIntent?: string
+          model?: string
         }
         const goal = row.goal ?? "review"
         const rubric = String(row.criteria ?? "Accurate, on-topic, and actionable.")
@@ -379,10 +381,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           ...(row.classifiedIntent ? [`Classified intent: ${row.classifiedIntent}`] : []),
           formatted,
         ].join("\n")
+        const judgeModel =
+          row.model ?? (cfg.defaultModel as string | undefined) ?? "gemma3:1b"
         try {
           const content = await ollamaChat(
             baseURL,
-            "gemma3:1b",
+            judgeModel,
             prompt,
             EVALUATE_SYSTEM_PROMPT
           )

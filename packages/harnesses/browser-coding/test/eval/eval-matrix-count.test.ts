@@ -7,10 +7,9 @@ describe("coding eval matrix fixtures", () => {
     expect(countCodingEvalCases()).toBe(100)
   })
 
-  it("matrix extension binding list has four extensions", () => {
+  it("matrix extension binding list excludes format-eql", () => {
     expect(CODING_MATRIX_EVAL_EXTENSION_IDS).toEqual([
       "@executioncontrolprotocol/format-toon",
-      "@executioncontrolprotocol/format-eql",
       "@executioncontrolprotocol/format-json",
       "@executioncontrolprotocol/test",
     ])

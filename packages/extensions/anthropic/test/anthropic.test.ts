@@ -185,12 +185,18 @@ describe("@executioncontrolprotocol/anthropic", () => {
   })
 
   it("generate fails without api key", async () => {
-    const cap = anthropicExtension.capabilities.find(
-      (c) => c.id === "@executioncontrolprotocol/anthropic.generate"
-    )
-    await expect(
-      cap!.handler!({ prompt: "hello" }, { extensionConfig: {}, usage: { increment: vi.fn() } } as never)
-    ).rejects.toThrow("Anthropic API key required")
+    const prev = process.env.ANTHROPIC_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+    try {
+      const cap = anthropicExtension.capabilities.find(
+        (c) => c.id === "@executioncontrolprotocol/anthropic.generate"
+      )
+      await expect(
+        cap!.handler!({ prompt: "hello" }, { extensionConfig: {}, usage: { increment: vi.fn() } } as never)
+      ).rejects.toThrow("Anthropic API key required")
+    } finally {
+      if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev
+    }
   })
 
   it("evaluate parses JSON approval", async () => {

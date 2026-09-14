@@ -110,10 +110,14 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
       : undefined
 
     const promptFixtureId =
-      config.promptFixture ??
+      (typeof config.promptFixture === "string" ? config.promptFixture : undefined) ??
       (isPatch
-        ? CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_PATCH
-        : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_CREATE)
+        ? (typeof config.promptFixturePatch === "string"
+            ? config.promptFixturePatch
+            : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_PATCH)
+        : (typeof config.promptFixtureCreate === "string"
+            ? config.promptFixtureCreate
+            : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_CREATE))
 
     const system =
       config.system ?? buildCodingSystemPrompt(promptFixtureId)
@@ -137,6 +141,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
         environmentSummary !== undefined
           ? buildRequestCapabilityHintLines(input.request, environmentSummary, {
               mode: isPatch ? "patch" : "create",
+              surface: "fluent",
             })
           : []
       const patchHints =
@@ -190,7 +195,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
       generate: async ({ attempt, priorFeedback }) => {
         const repairText =
           attempt > 0 && config.repair.includeValidationErrors
-            ? formatStructuredRepairForModel(priorFeedback)
+            ? formatStructuredRepairForModel(priorFeedback, "typescript")
             : undefined
         lastPrompt = buildPrompt(repairText)
         const generated = await callModelGenerate(
@@ -209,7 +214,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
       },
       evaluate: async (raw, { priorFeedback }) => {
         const feedback: HarnessOperationFeedback[] = []
-        const structuredPrior = formatStructuredRepairForModel(priorFeedback)
+        const structuredPrior = formatStructuredRepairForModel(priorFeedback, "typescript")
         if (
           config.repair.includeValidationErrors &&
           isRepairFeedbackEcho(raw, structuredPrior)
@@ -260,12 +265,18 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
           const capFeedback = collectCreateCapabilityFeedback(
             input.request,
             environmentSummary,
-            artifact
+            artifact,
+            "fluent"
           )
           if (capFeedback) {
             return { success: false, feedback: [...feedback, ...capFeedback] }
           }
-          const stepCountFeedback = collectCreateStepCountFeedback(input.request, artifact)
+          const stepCountFeedback = collectCreateStepCountFeedback(
+            input.request,
+            artifact,
+            undefined,
+            "fluent"
+          )
           if (stepCountFeedback) {
             return { success: false, feedback: [...feedback, ...stepCountFeedback] }
           }

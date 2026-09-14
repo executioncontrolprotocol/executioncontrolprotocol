@@ -454,6 +454,7 @@ export async function assertJudge(
         criteria: judge.rubric,
         classifiedIntent:
           judge.classifiedIntent ?? harnessOutput.trace?.classifiedIntent?.intent,
+        ...(provider.model ? { model: provider.model } : {}),
       })
       .process()
     if (!evalInvoke.success) {
