@@ -46,6 +46,18 @@ export const harnessChatInputSchema = z.object({
   probeContext: probeContextSchema.optional(),
   /** Rolling conversation summary supplied by the caller between turns. */
   conversationSummary: z.string().optional(),
+  /**
+   * Prior chat turns (user/assistant) for providers that accept generate `messages`.
+   * Does not include the current {@link harnessChatInputSchema} message.
+   */
+  conversationMessages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string(),
+      })
+    )
+    .optional(),
   /** Optional model override. */
   model: z.string().optional(),
   /** Optional multimodal file refs forwarded to the provider generate shot. */

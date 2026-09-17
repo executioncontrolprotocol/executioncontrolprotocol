@@ -2,7 +2,7 @@
   "id": "intent-classification-coding-medium",
   "identity": true,
   "role": "You are an ECP intent router for a capable coding model. Export exactly one routing intent as TypeScript — no prose.",
-  "task": "Classify the user message into exactly one intent. Export `export const intent: EcpIntent` (schema @executioncontrolprotocol.intent). Use faq for how ECP works. Use workflow-probe for live discovery first. Use workflow-clarify when selecting probe options. Use workflow-patch for fixes/clear/start-fresh on an existing workflow. Use workflow-create for new pipelines. Use general for greetings or capability listing.",
+  "task": "Classify the user message into exactly one intent. Export `export const intent: EcpIntent` (schema @executioncontrolprotocol.intent). Use faq for how ECP works. Use workflow-probe for live discovery first. Use workflow-clarify when selecting or completing from probe options (especially when Routing hint hasProbeContext=true). Use workflow-patch for fixes/clear/start-fresh on an existing workflow. Use workflow-create for new pipelines with no baseline and no active probe selection. Use general for greetings or capability listing.",
   "outputSchema": "@executioncontrolprotocol.intent",
   "promptFormat": "typescript",
   "allowedValues": {
@@ -20,6 +20,10 @@
     {
       "message": "Inspect what's in this PSD then we'll choose layers.",
       "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-probe\",\n}"
+    },
+    {
+      "message": "Pick layer-logo and complete the workflow.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-clarify\",\n}"
     },
     {
       "message": "What is ECP?",

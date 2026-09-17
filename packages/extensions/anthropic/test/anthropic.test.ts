@@ -78,6 +78,44 @@ describe("@executioncontrolprotocol/anthropic", () => {
     )
   })
 
+  it("generate maps prior messages as native Anthropic turns", async () => {
+    await registerAnthropicExtension()
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: [{ type: "text", text: "fixed" }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const cap = anthropicExtension.capabilities.find(
+      (c) => c.id === "@executioncontrolprotocol/anthropic.generate"
+    )
+    await cap!.handler!(
+      {
+        prompt: "Fix the TypeScript module",
+        system: "Fluent only",
+        messages: [
+          { role: "user", content: "Create a workflow" },
+          { role: "assistant", content: "export default workflow(\"x\")" },
+        ],
+      },
+      {
+        extensionConfig: { apiKey: "test-key", defaultModel: ANTHROPIC_DEFAULT_MODEL },
+        usage: { increment: vi.fn() },
+      } as never
+    )
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+      system: string
+      messages: Array<{ role: string; content: unknown }>
+    }
+    expect(body.system).toContain("Fluent only")
+    expect(body.messages).toEqual([
+      { role: "user", content: "Create a workflow" },
+      { role: "assistant", content: "export default workflow(\"x\")" },
+      { role: "user", content: [{ type: "text", text: "Fix the TypeScript module" }] },
+    ])
+  })
+
   it("generate maps image buffer files to Messages image blocks", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

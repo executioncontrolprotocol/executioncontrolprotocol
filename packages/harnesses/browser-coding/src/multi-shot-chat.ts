@@ -40,6 +40,11 @@ import { invokeIntentClassificationCoding } from "./intent-classification-coding
 import { invokeWorkflowAssistantCoding } from "./workflow-assistant-coding.js"
 import { invokeWorkflowAuthoringCoding } from "./workflow-authoring-coding.js"
 import { CODING_PROMPT_FIXTURE_IDS } from "./prompts/index.js"
+import {
+  normalizeCodingConversationMessages,
+  previousUserMessageFromConversation,
+  type CodingConversationMessage,
+} from "./conversation-messages.js"
 
 function shotFromTrace(
   task: string,
@@ -126,12 +131,15 @@ export async function invokeMultiShotChatCoding(
     runContext?: unknown
     probeContext?: unknown
     conversationSummary?: string
+    conversationMessages?: CodingConversationMessage[]
     model?: string
     files?: unknown[]
   },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   const probeContext = parseProbeContext(input.probeContext)
+  const conversationMessages = normalizeCodingConversationMessages(input.conversationMessages)
+  const previousUserMessage = previousUserMessageFromConversation(conversationMessages)
   const profile = resolveEffectiveCodingProfile(
     normalizeHarnessCodingProfile(ctx.config.harnessProfile),
     input.model
@@ -164,7 +172,13 @@ export async function invokeMultiShotChatCoding(
   }
 
   const intentResult = await invokeIntentClassificationCoding(
-    { message: input.message, model: input.model },
+    {
+      message: input.message,
+      model: input.model,
+      hasBaselineWorkflow: input.manifest !== undefined,
+      hasProbeContext: probeContext !== undefined && probeContext.options.length > 0,
+      previousUserMessage,
+    },
     intentCtx
   )
   const classifiedIntent = intentResult.artifact as EcpIntent
@@ -232,6 +246,7 @@ export async function invokeMultiShotChatCoding(
           model: input.model,
           probeContext: opts.probe,
           files: input.files,
+          conversationMessages,
         },
         { ...ctx, config: buildTaskConfig(HARNESS_TASKS.WORKFLOW_AUTHORING) }
       )
@@ -273,6 +288,7 @@ export async function invokeMultiShotChatCoding(
             model: input.model,
             classifiedIntent,
             conversationSummary: input.conversationSummary,
+            conversationMessages,
             runContext: input.runContext,
             probeContext: opts.probe,
           },
@@ -341,6 +357,7 @@ export async function invokeMultiShotChatCoding(
         model: input.model,
         classifiedIntent,
         conversationSummary: input.conversationSummary,
+        conversationMessages,
         runContext: input.runContext,
         workflow: input.manifest as Record<string, unknown> | undefined,
         probeContext: opts.probe,
@@ -388,6 +405,7 @@ export async function invokeMultiShotChatCoding(
           model: input.model,
           classifiedIntent,
           conversationSummary: input.conversationSummary,
+          conversationMessages,
           runContext: input.runContext,
           workflow: input.manifest as Record<string, unknown> | undefined,
         },
@@ -410,6 +428,7 @@ export async function invokeMultiShotChatCoding(
           model: input.model,
           classifiedIntent,
           conversationSummary: input.conversationSummary,
+          conversationMessages,
           runContext: input.runContext,
           workflow: input.manifest as Record<string, unknown> | undefined,
           probeContext,
@@ -466,6 +485,7 @@ export async function invokeMultiShotChatCoding(
         model: input.model,
         classifiedIntent,
         conversationSummary: input.conversationSummary,
+        conversationMessages,
         probeContext,
         files: input.files,
       },

@@ -2,6 +2,7 @@ import {
   ANTHROPIC_CLAUDE_SONNET_45_EVAL,
   type AnthropicClaudeSonnetEvalProfile,
 } from "../profiles/anthropic-sonnet.js"
+import { ensureEvalEnvLoaded } from "./load-eval-env.js"
 
 /** Anthropic coding-matrix readiness result. @category Evals */
 export interface AnthropicEvalReadiness {
@@ -17,11 +18,13 @@ export interface AnthropicEvalReadiness {
 
 /**
  * Coding matrix readiness for Anthropic — ready when `ANTHROPIC_API_KEY` is set.
+ * Loads repo-root `.env` / `.env.local` first when the key is not already in the process env.
  * @category Evals
  */
 export async function anthropicEvalReady(
   profile: AnthropicClaudeSonnetEvalProfile = ANTHROPIC_CLAUDE_SONNET_45_EVAL
 ): Promise<AnthropicEvalReadiness> {
+  ensureEvalEnvLoaded()
   const { id: profileId, model } = profile
   const key =
     typeof process !== "undefined" && typeof process.env?.ANTHROPIC_API_KEY === "string"

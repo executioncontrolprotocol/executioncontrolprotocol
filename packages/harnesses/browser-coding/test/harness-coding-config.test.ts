@@ -45,6 +45,8 @@ describe("getHarnessCodingConfig", () => {
   it("uses lighter repair and medium prompt fixtures for medium profile", () => {
     const repair = codingRepairForProfile("medium")
     expect(repair.task.maxAttempts).toBe(2)
+    expect(repair.task.includePriorOutput).toBe(true)
+    expect(repair.task.strictGoalChecks).toBe(false)
     const prompts = codingPromptFixturesForProfile("medium")
     expect(prompts.intent).toBe("intent-classification-coding-medium")
     const intent = getHarnessCodingConfig(HARNESS_TASKS.INTENT_CLASSIFICATION, "medium") as {
@@ -53,6 +55,25 @@ describe("getHarnessCodingConfig", () => {
     }
     expect(intent.promptFixture).toBe(prompts.intent)
     expect(intent.repair.maxAttempts).toBe(2)
+    const authoring = getHarnessCodingConfig(HARNESS_TASKS.WORKFLOW_AUTHORING, "medium") as {
+      context: { environmentSummaryFormat?: string }
+    }
+    expect(authoring.context.environmentSummaryFormat).toBe("fluent")
+  })
+
+  it("keeps small profile on plain inventory and strict goal checks", () => {
+    const repair = codingRepairForProfile("small")
+    expect(repair.task.includePriorOutput).toBe(true)
+    expect(repair.task.strictGoalChecks).toBe(true)
+    const authoring = getHarnessCodingConfig(HARNESS_TASKS.WORKFLOW_AUTHORING, "small") as {
+      context: { environmentSummaryFormat?: string }
+    }
+    expect(authoring.context.environmentSummaryFormat).toBe("plain")
+  })
+
+  it("thins medium create fixtures to grammar few-shots", () => {
+    const fixture = loadCodingHarnessPromptFixture("workflow-authoring-create-coding-medium")
+    expect(fixture.fewShots?.length).toBeLessThanOrEqual(3)
   })
 
   it("uses frontier repair and prompt fixtures", () => {

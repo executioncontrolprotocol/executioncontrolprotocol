@@ -68,6 +68,12 @@ export {
   type AnthropicEvalReadiness,
 } from "./helpers/anthropic.js"
 export {
+  ensureEvalEnvLoaded,
+  findEvalRepoRoot,
+  parseDotEnvFile,
+  resetEvalEnvLoadedForTests,
+} from "./helpers/load-eval-env.js"
+export {
   chromeNanoEvalReady,
   type ChromeNanoEvalReadiness,
 } from "./helpers/chrome-ai.js"

@@ -1,4 +1,11 @@
 export {
+  toProviderChatTurns,
+  flattenProviderChatTurns,
+  type ProviderChatPriorMessage,
+  type ProviderChatTurn,
+  type ToProviderChatTurnsOptions,
+} from "./to-provider-chat-turns.js"
+export {
   summarizeEnvironmentDescriptor,
   toAuthoringEnvironmentDescriptor,
   formatEnvironmentSummaryLines,

@@ -5,6 +5,9 @@ Implemented in `@executioncontrolprotocol/core` (framework only):
 - Harness framework: `defineHarness`, `catalogHarness`, `executeHarnessInvoke`, `runModelRepairLoop`
 - Operation feedback: `collectDecodeFeedback`, `collectPatchFeedback`, `collectValidationFeedback` (`HarnessOperationFeedback` in `@executioncontrolprotocol/types`)
 - Provider capability: `@executioncontrolprotocol/<provider>.generate` (`@executioncontrolprotocol/model.generate` contract)
+  - Required: `prompt` (current user turn)
+  - Optional: `system`, `messages` (prior `{ role: "user" | "assistant", content }` turns only — no system role in the array), `files` (attach to the current turn), `model`, `options`, `context`, `responseFormat`
+  - Empty/omitted `messages` = single-shot (legacy behavior). Providers map natively via `toProviderChatTurns` in `@executioncontrolprotocol/core`.
 - Core formatters: `@executioncontrolprotocol/format-json`, `@executioncontrolprotocol/format-fluent` (cataloged from core, not workspace extension packages)
 - Environment: `harness(id).uses(provider.generate).with(config)` via `withHarnesses([...])`
 - Invoke: `ecp.invoke(harnessId.evaluate).uses(override?).with(input)`
@@ -14,6 +17,7 @@ Product harnesses (prompts, eval-specific normalization) live outside core:
 | Harness id | Package | Role |
 | ---------- | ------- | ---- |
 | `@executioncontrolprotocol/harness-browser-nano` | `@executioncontrolprotocol/harnesses-browser-nano` | Browser demo + Ollama/matrix evals (routes by input `task`) |
+| `@executioncontrolprotocol/harness-browser-coding` | `@executioncontrolprotocol/harnesses-browser-coding` | Fluent/TS coding harness (`small` / `medium` / `frontier` profiles) |
 
 See [harness-eval.md](harness-eval.md) for local Ollama evaluation.
 

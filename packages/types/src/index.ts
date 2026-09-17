@@ -106,6 +106,7 @@ export {
   ECP_MODEL_CAPABILITY_NAME,
   ECP_MODEL_RESPONSE_FORMATS,
   modelGenerateInputSchema,
+  modelGenerateMessageSchema,
   modelGenerateOutputSchema,
 } from "./model.js"
 export type {

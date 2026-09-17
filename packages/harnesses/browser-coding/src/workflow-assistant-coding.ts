@@ -37,6 +37,12 @@ import {
 import { z } from "zod"
 import { BROWSER_CODING_HARNESS_ID } from "./harness-ids.js"
 import {
+  buildCodingRepairGenerateMessages,
+  codingConversationMessageSchema,
+  normalizeCodingConversationMessages,
+  type CodingConversationMessage,
+} from "./conversation-messages.js"
+import {
   buildCodingRepairHint,
   buildCodingSystemPrompt,
   CODING_PROMPT_FIXTURE_IDS,
@@ -102,6 +108,7 @@ const harnessConfigSchema = z.object({
       maxAttempts: z.number().default(1),
       includeValidationErrors: z.boolean().default(true),
       safeReplyFallback: z.boolean().default(true),
+      includePriorOutput: z.boolean().default(false),
     })
     .default({}),
   trace: z
@@ -128,6 +135,7 @@ const harnessInputSchema = z.object({
     })
     .optional(),
   conversationSummary: z.string().optional(),
+  conversationMessages: z.array(codingConversationMessageSchema).optional(),
   files: z.array(fileRefSchema()).optional(),
 })
 
@@ -156,6 +164,8 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
     const config = ctx.config
     const format = config.output.format
     const system = config.system ?? buildCodingSystemPrompt(config.promptFixture)
+    const conversationMessages = normalizeCodingConversationMessages(input.conversationMessages)
+    const useRepairTurns = config.repair.includePriorOutput === true
 
     let environmentSummaryLines = ""
     if (config.context.includeEnvironmentDescriptor) {
@@ -181,8 +191,11 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
       }).join("\n")
     }
 
-    const buildPrompt = (repairText?: string) => {
+    const buildAssistantPrompt = () => {
       const lines = [`User message: ${input.message}`]
+      if (input.conversationSummary?.trim() && conversationMessages.length === 0) {
+        lines.unshift("Conversation summary:", input.conversationSummary.trim(), "")
+      }
       if (environmentSummaryLines) {
         lines.unshift("Environment capabilities:", environmentSummaryLines, "")
       }
@@ -192,30 +205,56 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
       if (workflowText) {
         lines.push("Workflow (summary):", workflowText, "")
       }
-      if (repairText) {
-        lines.push(
-          "Previous attempt failed. Return corrected TypeScript only:",
-          repairText,
-          buildCodingRepairHint(config.promptFixture)
-        )
-      }
       return lines.join("\n")
     }
 
+    const buildLegacyRepairPrompt = (repairText: string) =>
+      [
+        buildAssistantPrompt(),
+        "Previous attempt failed. Return corrected TypeScript only:",
+        repairText,
+        buildCodingRepairHint(config.promptFixture),
+      ].join("\n")
+
+    const buildRepairUserPrompt = (repairText: string) =>
+      [
+        "Fix the previous TypeScript reply module. Do not echo validation errors.",
+        "Return corrected TypeScript only.",
+        repairText,
+        buildCodingRepairHint(config.promptFixture),
+      ].join("\n")
+
     const maxAttempts = config.repair.enabled ? 1 + config.repair.maxAttempts : 1
-    let lastPrompt = buildPrompt()
+    const originalUserPrompt = buildAssistantPrompt()
+    let lastPrompt = originalUserPrompt
     let validation = decodedValidationStub()
     let lastRaw = ""
 
     try {
       const loopResult = await runModelRepairLoop({
         maxAttempts,
-        generate: async ({ attempt, priorFeedback }) => {
+        generate: async ({ attempt, priorFeedback, priorRaw }) => {
           const repairText =
             attempt > 0 && config.repair.includeValidationErrors
               ? formatFeedbackForModel(priorFeedback)
               : undefined
-          lastPrompt = buildPrompt(repairText)
+
+          let messages: CodingConversationMessage[] | undefined
+          if (attempt > 0 && repairText && useRepairTurns && priorRaw) {
+            messages = buildCodingRepairGenerateMessages({
+              conversationMessages,
+              originalUserPrompt,
+              priorRaw,
+            })
+            lastPrompt = buildRepairUserPrompt(repairText)
+          } else if (attempt > 0 && repairText) {
+            lastPrompt = buildLegacyRepairPrompt(repairText)
+            messages = conversationMessages.length > 0 ? conversationMessages : undefined
+          } else {
+            lastPrompt = originalUserPrompt
+            messages = conversationMessages.length > 0 ? conversationMessages : undefined
+          }
+
           const generated = await callModelGenerate(
             ctx.uses,
             {
@@ -224,6 +263,7 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
               model: input.model,
               responseFormat: inferResponseFormatFromFormatter(format),
               files: input.files,
+              ...(messages ? { messages } : {}),
             },
             ctx.capabilityContext,
             format
@@ -407,6 +447,7 @@ export async function invokeWorkflowAssistantCoding(
     workflow?: Record<string, unknown>
     classifiedIntent?: { schema: string; intent: string; topic?: string; summary?: string }
     conversationSummary?: string
+    conversationMessages?: CodingConversationMessage[]
     probeContext?: unknown
     files?: unknown[]
   },
@@ -420,6 +461,7 @@ export async function invokeWorkflowAssistantCoding(
       workflow: input.workflow,
       classifiedIntent: input.classifiedIntent,
       conversationSummary: input.conversationSummary,
+      conversationMessages: input.conversationMessages,
       files: input.files as never,
     },
     ctx

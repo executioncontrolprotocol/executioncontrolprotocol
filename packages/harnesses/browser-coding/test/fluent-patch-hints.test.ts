@@ -8,6 +8,7 @@ import {
   collectCreateWorkflowIoFeedback,
   collectFluentCompileErrorFeedback,
   collectFluentPatchGoalFeedback,
+  restoreBaselineIoOnClearKeepRequest,
 } from "../src/fluent-patch-hints.js"
 
 const fixturesRoot = path.resolve(
@@ -244,5 +245,44 @@ describe("collectCreateWorkflowIoFeedback generate returns", () => {
       ],
     }
     expect(collectCreateWorkflowIoFeedback("Create chrome generate", wf)).toBeUndefined()
+  })
+})
+
+describe("restoreBaselineIoOnClearKeepRequest", () => {
+  it("restores accepts/returns when clear-steps keep I/O drops them", () => {
+    const baseline = loadWorkflow("generate-accepts-returns-workflow.json")
+    const cleared: WorkflowManifest = {
+      ...baseline,
+      workflow: {
+        ...baseline.workflow!,
+        accepts: undefined,
+        returns: undefined,
+      },
+      steps: [],
+    }
+    const restored = restoreBaselineIoOnClearKeepRequest(
+      "Clear the steps but keep accepts and returns.",
+      cleared,
+      baseline
+    )
+    expect(restored.steps).toEqual([])
+    expect(restored.workflow?.accepts).toEqual(baseline.workflow?.accepts)
+    expect(restored.workflow?.returns).toEqual(baseline.workflow?.returns)
+  })
+
+  it("does not restore when the request does not ask to keep I/O", () => {
+    const baseline = loadWorkflow("generate-accepts-returns-workflow.json")
+    const cleared: WorkflowManifest = {
+      ...baseline,
+      workflow: {
+        ...baseline.workflow!,
+        accepts: undefined,
+        returns: undefined,
+      },
+      steps: [],
+    }
+    const restored = restoreBaselineIoOnClearKeepRequest("Clear the steps.", cleared, baseline)
+    expect(restored.workflow?.accepts).toBeUndefined()
+    expect(restored.workflow?.returns).toBeUndefined()
   })
 })

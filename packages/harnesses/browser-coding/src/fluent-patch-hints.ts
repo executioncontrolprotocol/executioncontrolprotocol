@@ -38,6 +38,62 @@ function workflowIoNames(manifest: WorkflowManifest, field: "accepts" | "returns
   return jsonSchemaObjectProperties(schema).map((p) => p.name)
 }
 
+/**
+ * When the user clears steps but asks to keep accepts/returns, restore missing
+ * baseline I/O onto a compiled patch that dropped them.
+ * @category Harness
+ */
+export function restoreBaselineIoOnClearKeepRequest(
+  request: string,
+  patched: WorkflowManifest,
+  baseline: WorkflowManifest | undefined
+): WorkflowManifest {
+  if (!baseline?.workflow || !isClearAllStepsRequest(request)) {
+    return patched
+  }
+  const lower = request.toLowerCase()
+  const keepAccepts =
+    /\bkeep\b[\s\S]{0,64}\baccepts?\b/i.test(lower) ||
+    /\bkeep accepts and returns\b/i.test(lower)
+  const keepReturns =
+    /\bkeep\b[\s\S]{0,64}\breturns?\b/i.test(lower) ||
+    /\bkeep accepts and returns\b/i.test(lower)
+  if (!keepAccepts && !keepReturns) {
+    return patched
+  }
+
+  const workflow = { ...(patched.workflow ?? {}) }
+  let changed = false
+
+  if (keepAccepts && baseline.workflow.accepts) {
+    const baselineNames = workflowIoNames(baseline, "accepts")
+    const patchedNames = workflowIoNames(patched, "accepts")
+    if (baselineNames.some((name) => !patchedNames.includes(name))) {
+      workflow.accepts = baseline.workflow.accepts
+      changed = true
+    }
+  }
+  if (keepReturns && baseline.workflow.returns) {
+    const baselineNames = workflowIoNames(baseline, "returns")
+    const patchedNames = workflowIoNames(patched, "returns")
+    if (baselineNames.some((name) => !patchedNames.includes(name))) {
+      workflow.returns = baseline.workflow.returns
+      changed = true
+    }
+  }
+
+  if (!changed) {
+    return patched
+  }
+  return {
+    ...patched,
+    workflow: {
+      ...baseline.workflow,
+      ...workflow,
+    },
+  }
+}
+
 function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boolean {
   const targetRef = `state.${property}`
   for (const node of manifest.steps ?? []) {
@@ -506,7 +562,7 @@ export function collectFluentPatchGoalFeedback(
         if (!patchedAccepts.includes(name)) {
           feedback.push(
             collectModelOutputFeedback(
-              `Preserve workflow .accepts() property "${name}" unless the request removes or renames it.`
+              `Preserve workflow .accepts() property "${name}" unless the request removes or renames it. Re-emit the baseline .accepts({...}) chain before .run().`
             )
           )
         }
@@ -515,7 +571,7 @@ export function collectFluentPatchGoalFeedback(
         if (!patchedReturns.includes(name) && !wantsAddReturns) {
           feedback.push(
             collectModelOutputFeedback(
-              `Preserve workflow .returns() property "${name}" unless the request removes or renames it.`
+              `Preserve workflow .returns() property "${name}" unless the request removes or renames it. Re-emit the baseline .returns({...}) chain before .run().`
             )
           )
         }

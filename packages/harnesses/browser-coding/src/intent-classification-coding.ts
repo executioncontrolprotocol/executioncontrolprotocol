@@ -71,7 +71,49 @@ const harnessConfigSchema = z.object({
 const harnessInputSchema = z.object({
   message: z.string(),
   model: z.string().optional(),
+  hasBaselineWorkflow: z.boolean().optional(),
+  /** True when the host already has live probe options (clarify / complete turns). */
+  hasProbeContext: z.boolean().optional(),
+  previousUserMessage: z.string().optional(),
 })
+
+/**
+ * Thin routing lines for coding intent (no env inventory, no Fluent source).
+ * @category Harness
+ */
+export function buildCodingIntentRoutingLines(input: {
+  message: string
+  hasBaselineWorkflow?: boolean
+  hasProbeContext?: boolean
+  previousUserMessage?: string
+}): string[] {
+  const lines = [`User message: ${input.message}`]
+  if (input.hasProbeContext === true) {
+    lines.push(
+      "Routing hint: hasProbeContext=true (live probe options are available — prefer workflow-clarify when the user selects or completes from those options)."
+    )
+  }
+  if (input.hasBaselineWorkflow === true) {
+    lines.push("Routing hint: hasBaselineWorkflow=true (a workflow already exists).")
+  } else if (input.hasBaselineWorkflow === false) {
+    lines.push("Routing hint: hasBaselineWorkflow=false (no workflow yet).")
+  }
+  if (input.previousUserMessage?.trim()) {
+    lines.push(`Previous user message: ${input.previousUserMessage.trim()}`)
+  }
+  if (
+    /^how\s+(?:does|do)\b/i.test(input.message.trim()) &&
+    /\bwork\b/i.test(input.message)
+  ) {
+    lines.push(
+      "Routing hint: how-does questions about ECP features -> intent faq (not workflow-patch)."
+    )
+  }
+  if (/^what is ecp\b/i.test(input.message.trim())) {
+    lines.push("Routing hint: definitional questions about ECP -> intent faq.")
+  }
+  return lines
+}
 
 const codingIntentHarness = defineHarness("@executioncontrolprotocol", "browser-coding-intent-classification")
   .withConfig(harnessConfigSchema)
@@ -93,18 +135,12 @@ const codingIntentHarness = defineHarness("@executioncontrolprotocol", "browser-
     }
 
     const buildPrompt = (repairText?: string) => {
-      const lines = [`User message: ${input.message}`]
-      if (
-        /^how\s+(?:does|do)\b/i.test(input.message.trim()) &&
-        /\bwork\b/i.test(input.message)
-      ) {
-        lines.push(
-          "Routing hint: how-does questions about ECP features -> intent faq (not workflow-patch)."
-        )
-      }
-      if (/^what is ecp\b/i.test(input.message.trim())) {
-        lines.push("Routing hint: definitional questions about ECP -> intent faq.")
-      }
+      const lines = buildCodingIntentRoutingLines({
+        message: input.message,
+        hasBaselineWorkflow: input.hasBaselineWorkflow,
+        hasProbeContext: input.hasProbeContext,
+        previousUserMessage: input.previousUserMessage,
+      })
       if (environmentSummaryLines) {
         lines.unshift("Environment capabilities:", environmentSummaryLines, "")
       }
@@ -236,7 +272,13 @@ function decodedValidationStub(valid = true): ValidationResult {
 
 /** Intent classification for Browser Coding harness. @category Harness */
 export async function invokeIntentClassificationCoding(
-  input: { message: string; model?: string },
+  input: {
+    message: string
+    model?: string
+    hasBaselineWorkflow?: boolean
+    hasProbeContext?: boolean
+    previousUserMessage?: string
+  },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   return codingIntentHarness.handler(input, ctx) as Promise<HarnessEvaluateOutput>

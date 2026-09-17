@@ -1,4 +1,11 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
+import {
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
+  catalogExtension,
+  NODE_RUNTIME_ID,
+  toProviderChatTurns,
+} from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
@@ -237,15 +244,15 @@ async function ollamaChat(
   prompt: string,
   system?: string,
   context?: unknown,
-  requestOptions?: Record<string, unknown>
+  requestOptions?: Record<string, unknown>,
+  priorMessages?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<string> {
-  const messages = [
-    ...(system ? [{ role: "system" as const, content: system }] : []),
-    ...(context
-      ? [{ role: "system" as const, content: JSON.stringify(context) }]
-      : []),
-    { role: "user" as const, content: prompt },
-  ]
+  const messages = toProviderChatTurns({
+    system,
+    messages: priorMessages,
+    prompt,
+    context,
+  })
   const res = await fetch(`${baseURL.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -321,7 +328,8 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           parsed.prompt,
           parsed.system,
           parsed.context,
-          parsed.options as Record<string, unknown> | undefined
+          parsed.options as Record<string, unknown> | undefined,
+          parsed.messages
         )
         return { text }
       }),

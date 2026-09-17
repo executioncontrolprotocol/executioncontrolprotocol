@@ -1,8 +1,8 @@
 # Sonnet + Browser Coding harness: what the model sees
 
-This note walks through **exactly what Claude Sonnet** (`claude-sonnet-4-5`) receives on each generate call when running the **Browser Coding** harness (`@executioncontrolprotocol/harness-browser-coding`) in the Anthropic coding eval matrix — so failures can be traced to a specific prompt surface.
+This note walks through **exactly what Claude Sonnet** (`claude-sonnet-4-5`) receives on each generate call when running the **Browser Coding** harness (`@executioncontrolprotocol/harness-browser-coding`) — so failures can be traced to a specific prompt surface.
 
-Audience: harness / prompt authors tuning medium-capability models. Nano (EQL) is out of scope.
+Audience: harness / prompt authors tuning **medium** and **frontier** coding profiles. Nano (EQL) and the **small** profile (plain inventory + few-shot heavy) are out of scope except where noted.
 
 ---
 
@@ -13,12 +13,13 @@ Audience: harness / prompt authors tuning medium-capability models. Nano (EQL) i
 | Harness | `@executioncontrolprotocol/harness-browser-coding.evaluate` |
 | Provider | `@executioncontrolprotocol/anthropic.generate` (+ `.evaluate` judge) |
 | Model | `claude-sonnet-4-5` |
-| Capability profile | **`medium`** (prompt fixtures + repair intensity) |
-| Authoring surface | Fluent **TypeScript** only (no EQL primer, no EQL repair lead-in, Fluent capability hints) |
-| Matrix env step inventory | Active provider generate + `@executioncontrolprotocol/test` (formats bound for host encode/decode but **stripped** from authoring `describe` summaries; **`format-eql` unbound**) |
-| Latest matrix | **98 passed / 0 failed** of 98 (`pnpm run test:eval:matrix:coding:anthropic`) |
+| Capability profile | **`medium`** (prompt fixtures + repair intensity; Opus → `frontier`) |
+| Authoring surface | Fluent **TypeScript** only |
+| Generate contract | `system` + optional prior `messages[]` + current `prompt` (+ optional `files` on the current turn) |
+| Env inventory (authoring) | **`fluent`** catalog (id, label, typed I/O, `.with({...})` example) |
+| Matrix env step inventory | Active provider generate + `@executioncontrolprotocol/test` (formats bound for host encode/decode but **stripped** from authoring `describe` summaries) |
 
-**Important split:** profile (`small` / `medium` / `frontier`) only changes prompts and repair knobs. The **same** model is used for authoring generate and the LLM judge.
+**Important split:** profile (`small` / `medium` / `frontier`) only changes prompts and repair knobs. The **same** model is used for authoring generate and the LLM judge when the matrix uses Anthropic for both.
 
 ---
 
@@ -26,10 +27,9 @@ Audience: harness / prompt authors tuning medium-capability models. Nano (EQL) i
 
 | Case harness | Generate sequence |
 | --- | --- |
-| `intent-classification` | 1× intent (+ up to 2 repair retries on medium) |
+| `intent-classification` | 1× intent (+ repairs) |
 | `workflow-assistant` | 1× assistant (+ repairs) |
-| `workflow-authoring` (create) | 1× create (+ repairs) |
-| `workflow-authoring` (patch) | 1× patch (+ repairs) |
+| `workflow-authoring` (create/patch) | 1× create/patch (+ repair turns) |
 | `chat` (create/patch/probe) | intent → authoring → change-summary (**3 shots**) |
 | `chat` (faq/general) | intent → assistant |
 | After any case with `judge.enabled` | separate `anthropic.evaluate` (not authoring context) |
@@ -40,18 +40,16 @@ flowchart TD
   Task -->|intent| I[intent generate]
   Task -->|assistant| A[assistant generate]
   Task -->|workflow-authoring| W[create or patch generate]
-  Task -->|chat| C1[intent generate]
+  Task -->|chat| C1[intent generate thin]
   C1 -->|authoring intent| C2[authoring generate]
   C1 -->|faq or general| C3[assistant generate]
   C2 --> C4[change-summary generate]
-  I --> Rep[optional repair loop]
-  A --> Rep
-  W --> Rep
-  C2 --> Rep
+  C2 -->|compile fail| R[repair: assistant prior TS then user diagnostics]
+  R --> C2
   Case -->|judge.enabled| J[anthropic.evaluate]
 ```
 
-Medium repair: up to **3** model calls per shot (`1 + maxAttempts` with `maxAttempts: 2`).
+Medium repair: up to **3** model calls per shot (`1 + maxAttempts` with `maxAttempts: 2`). Repair retries are **extra generate turns**, not a concatenated “error bullets only” rewrite.
 
 ---
 
@@ -60,8 +58,8 @@ Medium repair: up to **3** model calls per shot (`1 + maxAttempts` with `maxAtte
 Every coding shot builds `system` via `buildCodingSystemPrompt(fixtureId)` → `buildSystemPromptFromFixture`:
 
 1. Optional **identity primer** (`identity: true` on some fixtures).
-2. **TypeScript primer** for the output schema (intent / workflow / harness.reply) — includes Fluent I/O contract for workflows (object schema, `required` sibling array, generate returns as `object`).
-3. **Few-shots** from the medium fixture (Fluent / reply examples using `ollama.generate` + `test.echo`).
+2. **TypeScript primer** for the output schema (intent / workflow / harness.reply) — Fluent I/O contract for workflows.
+3. **Few-shots** — medium/frontier create/patch use **short Fluent grammar** (≤3 examples), not long ollama/echo clones. Live catalog replaces vendor teaching.
 4. Fixture **`role`** + **`task`**.
 5. Allowed values / intent definitions when present.
 6. Closing: TypeScript only — no markdown fences.
@@ -80,177 +78,132 @@ Medium fixture ids:
 
 ---
 
-## Per-shot: what Sonnet sees
+## Generate payload shape
 
 Every shot calls `callModelGenerate` → `anthropic.generate` with:
 
-| Field | Source |
+| Field | Meaning |
 | --- | --- |
 | `system` | Fixture assembly above |
-| `prompt` | Task-specific user string (below) |
-| `model` | `claude-sonnet-4-5` |
-| `temperature` / `top_p` | Coding defaults (`0.1` / `0.9`) |
-| `files` | Chat attachments only (not on intent) |
+| `messages` | **Prior** user/assistant turns only (omit/empty = single-shot) |
+| `prompt` | **Current** user turn |
+| `model` | e.g. `claude-sonnet-4-5` |
+| `files` | Attach to the current user turn only (chat attachments) |
 
-### 1. Intent classification
+Providers map natively (Anthropic `/v1/messages`, Ollama `/api/chat`, OpenAI chat completions, Chrome `initialPrompts` + `session.prompt`). There is **no** vendor thread id / live session across UI turns — the host resends `messages[]`.
+
+### 1. Intent classification (thin)
 
 **Fixture:** `intent-classification-coding-medium`  
-**Compile:** TypeScript `export const intent: EcpIntent`
+**Chat path:** `includeEnvironmentDescriptor: false` (forced in `multi-shot-chat.ts`).
 
-**Chat path:** `includeEnvironmentDescriptor: false` (forced in `multi-shot-chat.ts`).  
-**Standalone intent eval:** may include env lines when config enables them.
+**`messages`:** omitted (intent stays single-shot).
 
-**User prompt outline:**
+**`prompt` outline:**
 
 ```text
 User message: <case message>
+Routing hint: hasProbeContext=true (when live probe options exist)
+Routing hint: hasBaselineWorkflow=true|false
+Previous user message: <optional prior user turn>
 ```
 
-Optional (standalone only):
+No environment catalog. No Fluent source.
 
-```text
-Environment capabilities:
-- @executioncontrolprotocol/anthropic.generate ...
-- @executioncontrolprotocol/test.echo ...
-```
+**On repair (small-style bullets):** feedback appended to the same prompt. Intent does not use repair-as-turns.
 
-**On repair:**
+### 2. Workflow authoring — create / patch
 
-```text
-Previous attempt failed. Return corrected TypeScript only:
-<formatFeedbackForModel issues>
-<fixture repairHint>
-```
-
-### 2. Workflow authoring — create
-
-**Fixture:** `workflow-authoring-create-coding-medium`  
+**Fixtures:** create/patch coding-medium  
 **Compile:** `compileWorkflowSource` → `@executioncontrolprotocol.workflow`
 
-**User prompt outline (excerpt structure):**
+**`messages`:** host `conversationMessages` when present (demo: last N UI turns).
+
+**`prompt` outline (create):**
 
 ```text
-User request: Create a minimal ... one step ... @executioncontrolprotocol/ollama.generate ...
+User request: <request>
 Required import: import { workflow, step, ref } from "@executioncontrolprotocol/core" ...
-Required: exactly ONE step(...) entry in .run([...]). Do not copy multi-step examples from the system prompt.
-Pick a workflow .id() that matches this request ...
-Required: 1 step(s) in .run([...]) in order (one step() per capability):
-1. step("@executioncontrolprotocol/anthropic.generate", ...)
+<optional request capability hints>
 Environment capabilities:
-- @executioncontrolprotocol/anthropic.generate ...
-- @executioncontrolprotocol/test.echo ...
-(formats omitted from authoring inventory; format-eql not bound)
+Fluent capability catalog (exact ids — copy step("...") values verbatim):
+
+- @executioncontrolprotocol/anthropic.generate (generate) — inputs: prompt: string (required), ...; outputs: text: string
+  example: step("@executioncontrolprotocol/anthropic.generate", "generate").id("generate").with({ prompt: "..." }).as("generate")
 ```
 
-**On repair (TypeScript surface — not EQL):**
+**`prompt` outline (patch):** same, plus Fluent edit rules and:
 
 ```text
-Previous attempt failed. Output only corrected TypeScript:
-Fix the TypeScript module (do not repeat these lines):
-- Request requires exactly one step in .run([...]) but output has 2. Export exactly one step(...).
-Return corrected TypeScript only. ...
-```
-
-### 3. Workflow authoring — patch
-
-**Fixture:** `workflow-authoring-patch-coding-medium`
-
-**User prompt outline:**
-
-```text
-User request: Change the poem step label to Draft Poem.
-Required import: import { workflow, step, ref } from "..."
-Fluent edit rules:
-- <deterministic Fluent hints from fluent-patch-hints.ts>
 Current workflow:
 import { workflow, step, ref } from "..."
 export default workflow("...")
   .id("...")
   .run([ ... ])
-Environment capabilities:
-- ...
 ```
 
-Baseline is rendered with `renderWorkflowToFluent` (Fluent source, not EQL).
+**On repair (medium/frontier):**
 
-### 4. Workflow assistant
+| Field | Content |
+| --- | --- |
+| `messages` | prior conversation + original authoring user prompt + `{ role: "assistant", content: <failed TypeScript> }` |
+| `prompt` | compile/validation diagnostics (“Fix the previous TypeScript module…”) + fixture `repairHint` |
 
-**Fixture:** `workflow-assistant-coding-medium`  
+Failed source is **not** truncated for medium/frontier. Small profile may still concatenate repair bullets into one prompt without prior raw.
+
+**Goal checks:** medium/frontier set `strictGoalChecks: false` — regex capability/label heuristics do not fail the repair loop (compile + schema validation still do).
+
+### 3. Workflow assistant / change summary
+
+**Fixture:** assistant or change-summary medium  
 **Compile:** TypeScript `export const reply: HarnessReply`
 
-**User prompt outline:**
+**`messages`:** prior conversation when supplied.
+
+**`prompt` outline:**
 
 ```text
 Environment capabilities:
-- ...
-User message: Why did step poem fail?
-Run context (summary):
-- status, failed step ids, ...
-Workflow (summary):
-- plain-text step list (eql: false)
+- ... (plain listing for assistant)
+User message: <message or synthetic change-summary ask>
+Run context (summary): ...
+Workflow (summary): ...
 ```
 
-### 5. Change summary (chat shot 3)
+If only a legacy `conversationSummary` string is supplied (no `conversationMessages`), it is prepended as “Conversation summary:”.
 
-Same assistant handler with change-summary fixture / synthetic message built by `buildChangeSummaryMessage` (before/after workflow + offer-run or offer-probe). Shot task recorded as `workflow-change-summary` in the chat trace.
+**On repair (medium/frontier):** same turn pattern as authoring (assistant = prior reply module, user = diagnostics).
 
-### 6. Judge (`anthropic.evaluate`)
+### 4. Judge (`anthropic.evaluate`)
 
-Separate from authoring. Receives:
-
-- harness **artifact** (workflow or reply)
-- `goal` / `criteria` (rubric) from the case
-- optional `classifiedIntent`
-- **same** `model: claude-sonnet-4-5`
-
-Does **not** receive the authoring system prompt or few-shots.
+Separate from authoring. Receives artifact + rubric. Does **not** receive authoring system prompt, few-shots, or `messages`.
 
 ---
 
-## Between attempts / between shots
+## Between attempts / between shots / between UI turns
 
 | Transition | What carries | What resets |
 | --- | --- | --- |
-| Repair retry within a shot | Same system; user prompt gains repair block + hint | Prior raw output **not** reinjected in coding authoring today |
-| Chat intent → authoring | Classified intent in host only | New system (create/patch fixture); new user prompt with env + request |
-| Chat authoring → summary | Authored workflow artifact | New system (change-summary); synthetic summary user message |
+| Repair retry (medium/frontier authoring) | Same system; `messages` gain failed TS; `prompt` = diagnostics | Nothing reinjected as a fake transcript blob |
+| Chat intent → authoring | Classified intent in host; conversation `messages` | New system (create/patch fixture); new user prompt with Fluent catalog |
+| Chat authoring → summary | Authored workflow artifact; conversation `messages` | New system (change-summary); synthetic summary user message |
+| Next UI turn | Host transcript → `conversationMessages` (demo: last 12 turns) | New chat = empty `messages` |
 | Next eval case | Nothing | Fresh env invoke |
+
+**What we do not send:** vendor conversation/thread ids, live Chrome LanguageModel sessions, full env inventory on intent, format-* / browser host caps in authoring inventory.
 
 ---
 
 ## Failure → surface map
 
-| Theme (pre-fix) | Surface / fix |
+| Theme | Surface / fix |
 | --- | --- |
-| Chrome fixture skew | Create cases/few-shots now use `ollama.generate` (+ Anthropic substitution) |
-| Over-building + test.summarize | Fluent one-step hints; do not map verb “summarize” to `test.summarize` when a `*.generate` id is already named |
-| Bad `.accepts` / `.returns` | TypeScript primer I/O contract + create/patch few-shots; fixed property inference / rename-returns preserve logic |
-| Brittle `error` substring | Prefer `citationStepId` / step mention; tone via judge rubric |
-| Same-model judge-only patch | `wf-patch-10` now deterministic `stepLabel` |
-| EQL in repair / hints | `formatStructuredRepairForModel(..., "typescript")`; Fluent `surface` on capability hints |
-| Probe shotCount 3≠2 | Fixture expects 3 shots (intent → authoring → change-summary) |
-
----
-
-## Matrix results (post-change)
-
-**98 passed / 0 failed** of 98.
-
-### Passing classes
-
-- Intent routing (full suite)
-- Assistant Q&A (env-available caps; no Chrome / format-eql listing)
-- Create/patch including I/O and clear-steps-keep-I/O
-- Chat create/patch/probe with 3-shot authoring graph
-
-### Themes fixed in this pass
-
-1. Chrome create cases rewritten to `ollama.generate` (Anthropic substitution → live generate).
-2. Few-shots use `ollama.generate` + `test.echo`; no Chrome / format-eql teaching.
-3. Fluent I/O contract in TypeScript primer + create/patch tasks + I/O few-shots.
-4. EQL removed from coding repair lead-in and Fluent capability/step-count hints; `format-eql` unbound from coding matrix.
-5. Softened brittle `error` asserts; hardened `wf-patch-10`; probe shot-count aligned to orchestrator.
-6. Capability inference no longer pulls `test.summarize` when a generate id is already explicit.
+| Model ignores corrections | Ensure demo/host passes `conversationMessages`; authoring/assistant forward them to generate `messages` |
+| Repair regenerates from scratch | Confirm `includePriorOutput` and repair-as-turns path (assistant = priorRaw) |
+| Wrong capability / invented APIs | Fluent catalog in authoring prompt; thin few-shots |
+| Over-constrained by regex goals | medium/frontier `strictGoalChecks: false` |
+| Bad `.accepts` / `.returns` | TypeScript primer I/O contract + grammar few-shots |
+| EQL leaking into coding | Fluent surface hints; no format-eql binding |
 
 ---
 
@@ -261,14 +214,12 @@ Does **not** receive the authoring system prompt or few-shots.
 | Task dispatch | `packages/harnesses/browser-coding/src/browser-coding-harness.ts` |
 | Profiles / repair | `packages/harnesses/browser-coding/src/harness-coding-config.ts` |
 | Multi-shot chat | `packages/harnesses/browser-coding/src/multi-shot-chat.ts` |
+| Conversation helpers | `packages/harnesses/browser-coding/src/conversation-messages.ts` |
 | Intent / authoring / assistant | `*-coding.ts` under `src/` |
-| Fluent patch / I/O feedback | `packages/harnesses/browser-coding/src/fluent-patch-hints.ts` |
+| Fluent catalog format | `packages/core/src/harness/authoring/summarize-environment.ts` (`format: "fluent"`) |
+| Generate `messages` | `packages/types/src/model.ts`; providers map via `toProviderChatTurns` |
 | Prompt fixtures | `packages/harnesses/browser-coding/fixtures/harness-prompts/` |
-| TypeScript primer / I/O contract | `packages/core/src/harness/prompts/typescript-primer.ts` |
-| Structured repair surface | `packages/core/src/harness/authoring/presentation.ts` |
-| Capability hints (Fluent surface) | `packages/harnesses/browser-nano/src/_internal/request-capability-hints.ts` |
-| Repair loop | `packages/core/src/harness/run-model-repair-loop.ts` |
-| Anthropic matrix helpers | `packages/harnesses/browser-coding/test/eval/helpers/coding-*.ts` |
+| Demo transcript | `browser-demo/src/lib/demo-conversation-messages.ts` |
 
 Re-run:
 

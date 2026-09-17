@@ -1,4 +1,12 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension, type Registry, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
+import {
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
+  catalogExtension,
+  toProviderChatTurns,
+  type Registry,
+  NODE_RUNTIME_ID,
+} from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import { resolveOpenaiApiKey } from "./resolve-api-key.js"
@@ -8,17 +16,17 @@ async function chatComplete(
   model: string,
   prompt: string,
   system?: string,
-  context?: unknown
+  context?: unknown,
+  priorMessages?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<string> {
   const body = {
     model,
-    messages: [
-      ...(system ? [{ role: "system" as const, content: system }] : []),
-      ...(context
-        ? [{ role: "system" as const, content: JSON.stringify(context) }]
-        : []),
-      { role: "user" as const, content: prompt },
-    ],
+    messages: toProviderChatTurns({
+      system,
+      messages: priorMessages,
+      prompt,
+      context,
+    }),
   }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -63,7 +71,8 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           model,
           parsed.prompt,
           parsed.system,
-          parsed.context
+          parsed.context,
+          parsed.messages
         )
         return { text }
       }),

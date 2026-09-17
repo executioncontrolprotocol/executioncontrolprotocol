@@ -1,4 +1,5 @@
 import { OLLAMA_GEMMA_1B_BASE_URL, OLLAMA_GEMMA_1B_EVAL, type OllamaGemmaEvalProfile } from "../profiles/ollama-gemma.js"
+import { ensureEvalEnvLoaded } from "./load-eval-env.js"
 
 /** @category Evals */
 export type OllamaEvalReadiness = {
@@ -59,6 +60,7 @@ export async function ollamaHasModel(
 export async function ollamaEvalReady(
   profile: OllamaGemmaEvalProfile = OLLAMA_GEMMA_1B_EVAL
 ): Promise<OllamaEvalReadiness> {
+  ensureEvalEnvLoaded()
   const { id: profileId, model, extensionBinding } = profile
   const baseURL = (extensionBinding?.baseURL as string | undefined) ?? OLLAMA_GEMMA_1B_BASE_URL
   if (!(await ollamaReachable(baseURL))) {

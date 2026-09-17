@@ -53,11 +53,13 @@ ollama pull gemma3:1b
 npm run eval:matrix
 ```
 
-Coding harness with Anthropic (skips when `ANTHROPIC_API_KEY` is unset):
+Coding harness with Anthropic (skips when `ANTHROPIC_API_KEY` is unset after loading repo-root `.env` / `.env.local`):
 
 ```sh
 pnpm run test:eval:matrix:coding:anthropic
 ```
+
+Vitest also loads those dotenv files from the repo root via `vitest.config.mts`, and `anthropicEvalReady` loads them as a fallback — you do not need to export the key into the shell first.
 
 Quick smoke (chat orchestrator + fixture count):
 

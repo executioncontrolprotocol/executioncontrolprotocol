@@ -3,6 +3,7 @@ import {
   capabilityFor,
   defineExtension,
   globalRegistry,
+  toProviderChatTurns,
   type CapabilityContext,
   type Registry,
 } from "@executioncontrolprotocol/core"
@@ -49,8 +50,27 @@ async function runChromePrompt(
   ctx.usage.increment({ modelCalls: 1 })
   const preferred = getPreferredCreateOptions()
   const sessionOptions = preferred.kind === "bare" ? {} : preferred.options
-  const session = await createChromeLanguageModelSession(model, input.system, sessionOptions)
-  const effectivePrompt = buildChromePromptWithContext(input.prompt, input.context)
+  const turns = toProviderChatTurns({
+    system: input.system,
+    messages: input.messages,
+    prompt: input.prompt,
+  })
+  const systemParts = turns
+    .filter((turn) => turn.role === "system")
+    .map((turn) => turn.content)
+  const prior = turns.slice(0, -1).filter((turn) => turn.role !== "system")
+  const current = turns[turns.length - 1]
+  const session = await createChromeLanguageModelSession(
+    model,
+    systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
+    sessionOptions,
+    prior
+  )
+  // Chrome Prompt API takes a single current-turn string; keep context on that turn.
+  const effectivePrompt = buildChromePromptWithContext(
+    current?.content ?? input.prompt,
+    input.context
+  )
   const response = await session.prompt(effectivePrompt)
   return { text: normalizePromptResponse(response) }
 }

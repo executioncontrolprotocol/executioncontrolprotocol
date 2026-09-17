@@ -15,6 +15,8 @@ export const HARNESS_CODING_REPAIR_SMALL = {
   enabled: true,
   maxAttempts: 3,
   includeValidationErrors: true,
+  includePriorOutput: true,
+  strictGoalChecks: true,
 } as const
 
 /** Repair loop for medium cloud coding models (e.g. Sonnet). @category Harness */
@@ -22,6 +24,8 @@ export const HARNESS_CODING_REPAIR_MEDIUM = {
   enabled: true,
   maxAttempts: 2,
   includeValidationErrors: true,
+  includePriorOutput: true,
+  strictGoalChecks: false,
 } as const
 
 /** Repair loop for frontier coding models (e.g. Opus). @category Harness */
@@ -29,6 +33,8 @@ export const HARNESS_CODING_REPAIR_FRONTIER = {
   enabled: true,
   maxAttempts: 1,
   includeValidationErrors: true,
+  includePriorOutput: true,
+  strictGoalChecks: false,
 } as const
 
 /** Alias for {@link HARNESS_CODING_REPAIR_SMALL}. @category Harness */
@@ -55,10 +61,18 @@ export const HARNESS_CODING_CHAT_REPAIR_FRONTIER = {
 /** Alias for {@link HARNESS_CODING_CHAT_REPAIR_SMALL}. @category Harness */
 export const HARNESS_CODING_CHAT_REPAIR = HARNESS_CODING_CHAT_REPAIR_SMALL
 
-const SHARED_CONTEXT = {
+const SHARED_CONTEXT_SMALL = {
   includeEnvironmentDescriptor: true,
   includeEncodedDescriptor: false,
   descriptorFormat: "@executioncontrolprotocol/format-json",
+  environmentSummaryFormat: "plain" as const,
+} as const
+
+const SHARED_CONTEXT_CODING = {
+  includeEnvironmentDescriptor: true,
+  includeEncodedDescriptor: false,
+  descriptorFormat: "@executioncontrolprotocol/format-json",
+  environmentSummaryFormat: "fluent" as const,
 } as const
 
 /** Harness task ids (match {@link EVAL_HARNESS_NAMES} in `@executioncontrolprotocol/evals`). */
@@ -135,12 +149,15 @@ export function codingRepairForProfile(profile: HarnessCodingProfile): {
     enabled: boolean
     maxAttempts: number
     includeValidationErrors: boolean
+    includePriorOutput: boolean
+    strictGoalChecks: boolean
   }
   chat: {
     enabled: boolean
     maxAttempts: number
     includeValidationErrors: boolean
     includePriorOutput: boolean
+    strictGoalChecks: boolean
   }
 } {
   switch (profile) {
@@ -184,9 +201,14 @@ export function normalizeHarnessCodingProfile(value: unknown): HarnessCodingProf
   return "small"
 }
 
+function sharedContextForProfile(profile: HarnessCodingProfile) {
+  return profile === "small" ? SHARED_CONTEXT_SMALL : SHARED_CONTEXT_CODING
+}
+
 function baseTaskConfig(profile: HarnessCodingProfile) {
   const prompts = codingPromptFixturesForProfile(profile)
   const repair = codingRepairForProfile(profile).task
+  const sharedContext = sharedContextForProfile(profile)
   return {
     intent: {
       promptFixture: prompts.intent,
@@ -195,7 +217,7 @@ function baseTaskConfig(profile: HarnessCodingProfile) {
         format: HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
         validate: true,
       },
-      context: { ...SHARED_CONTEXT },
+      context: { ...sharedContext },
       repair,
       trace: HARNESS_CODING_TRACE,
     },
@@ -208,7 +230,7 @@ function baseTaskConfig(profile: HarnessCodingProfile) {
         validate: true,
       },
       context: {
-        ...SHARED_CONTEXT,
+        ...sharedContext,
         includeRunContext: true,
         runContextFormat: "@executioncontrolprotocol/format-json",
       },
@@ -223,7 +245,7 @@ function baseTaskConfig(profile: HarnessCodingProfile) {
         validate: true,
       },
       context: {
-        ...SHARED_CONTEXT,
+        ...sharedContext,
         includeRunContext: true,
         runContextFormat: "@executioncontrolprotocol/format-json",
       },
@@ -233,7 +255,7 @@ function baseTaskConfig(profile: HarnessCodingProfile) {
     chat: {
       promptFixtureChangeSummary: prompts.changeSummary,
       context: {
-        ...SHARED_CONTEXT,
+        ...sharedContext,
         promptPhase: "contextualized",
       },
       repair: codingRepairForProfile(profile).chat,
@@ -266,7 +288,7 @@ function bindingFor(profile: HarnessCodingProfile) {
   return {
     harnessProfile: profile,
     trace: HARNESS_CODING_TRACE,
-    context: SHARED_CONTEXT,
+    context: sharedContextForProfile(profile),
   } as const
 }
 

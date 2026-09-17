@@ -5,6 +5,7 @@ import {
   globalRegistry,
   BROWSER_RUNTIME_ID,
   NODE_RUNTIME_ID,
+  toProviderChatTurns,
   type FileCapabilityContext,
   type Registry,
 } from "@executioncontrolprotocol/core"
@@ -90,22 +91,40 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
         const sampling = resolveAnthropicSamplingOptions(
           input.options as Record<string, unknown> | undefined
         )
-        const systemParts: string[] = []
-        if (input.system) systemParts.push(input.system)
-        if (input.context !== undefined) {
-          systemParts.push(JSON.stringify(input.context))
+        const turns = toProviderChatTurns({
+          system: input.system,
+          messages: input.messages,
+          prompt: input.prompt,
+          context: input.context,
+        })
+        const systemParts = turns
+          .filter((turn) => turn.role === "system")
+          .map((turn) => turn.content)
+        const priorAndCurrent = turns.filter((turn) => turn.role !== "system")
+        const messages: Array<{ role: "user" | "assistant"; content: unknown }> = []
+        for (let i = 0; i < priorAndCurrent.length; i++) {
+          const turn = priorAndCurrent[i]!
+          const isLast = i === priorAndCurrent.length - 1
+          if (turn.role !== "user" && turn.role !== "assistant") {
+            continue
+          }
+          if (isLast && turn.role === "user") {
+            const content = await buildAnthropicUserContent(
+              turn.content,
+              input.files,
+              ctx as FileCapabilityContext
+            )
+            messages.push({ role: "user", content })
+          } else {
+            messages.push({ role: turn.role, content: turn.content })
+          }
         }
-        const content = await buildAnthropicUserContent(
-          input.prompt,
-          input.files,
-          ctx as FileCapabilityContext
-        )
         ctx.usage.increment({ modelCalls: 1 })
         const text = await anthropicMessages(apiKey, {
           model,
           ...sampling,
           ...(systemParts.length > 0 ? { system: systemParts.join("\n\n") } : {}),
-          messages: [{ role: "user", content }],
+          messages,
         })
         return { text }
       }),
