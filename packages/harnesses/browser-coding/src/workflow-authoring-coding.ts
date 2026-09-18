@@ -4,6 +4,7 @@ import {
   collectModelOutputFeedback,
   collectValidationFeedback,
   defineHarness,
+  DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
   formatEnvironmentSummaryLines,
   formatStructuredRepairForModel,
   HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
@@ -13,6 +14,7 @@ import {
   runModelRepairLoop,
   stripHarnessTypeScriptOutput,
   summarizeEnvironmentDescriptor,
+  type EnvironmentSummaryFormat,
   type HarnessCapabilityContext,
   type CompactEnvironmentSummary,
 } from "@executioncontrolprotocol/core"
@@ -26,9 +28,11 @@ import {
   collectFluentCompileErrorFeedback,
   collectCreateWorkflowIoFeedback,
   collectFluentPatchGoalFeedback,
+  restoreBaselineIoOnClearKeepRequest,
 } from "./fluent-patch-hints.js"
 import {
   ECP_MODEL_GENERATE_INTERFACE,
+  fileRefSchema,
   harnessEvaluateOutputSchema,
   type HarnessEvaluateOutput,
   type HarnessInvokeResult,
@@ -38,10 +42,20 @@ import {
 import { z } from "zod"
 import { BROWSER_CODING_HARNESS_ID } from "./harness-ids.js"
 import {
+  buildCodingRepairGenerateMessages,
+  codingConversationMessageSchema,
+  normalizeCodingConversationMessages,
+  type CodingConversationMessage,
+} from "./conversation-messages.js"
+import {
   buildCodingRepairHint,
   buildCodingSystemPrompt,
   CODING_PROMPT_FIXTURE_IDS,
 } from "./prompts/index.js"
+import {
+  normalizeHarnessCodingProfile,
+  resolveEffectiveCodingProfile,
+} from "./harness-coding-config.js"
 
 function existingCapabilityUses(manifest: WorkflowManifest | undefined): Set<string> {
   const uses = new Set<string>()
@@ -54,6 +68,16 @@ function existingCapabilityUses(manifest: WorkflowManifest | undefined): Set<str
   return uses
 }
 
+function resolveEnvironmentSummaryFormat(
+  value: unknown,
+  profile: "small" | "medium" | "frontier"
+): EnvironmentSummaryFormat {
+  if (value === "fluent" || value === "plain" || value === "eql-create" || value === "eql-patch") {
+    return value
+  }
+  return profile === "small" ? "plain" : "fluent"
+}
+
 const outputConfigSchema = z.object({
   schema: z.string().default("@executioncontrolprotocol.workflow"),
   format: z.string().default(HARNESS_OUTPUT_FORMAT_TYPESCRIPT),
@@ -63,11 +87,15 @@ const outputConfigSchema = z.object({
 const harnessConfigSchema = z.object({
   promptFixture: z.string().optional(),
   system: z.string().optional(),
+  harnessProfile: z.enum(["small", "medium", "frontier"]).optional(),
   context: z
     .object({
       includeEnvironmentDescriptor: z.boolean().default(true),
       includeEncodedDescriptor: z.boolean().default(false),
       descriptorFormat: z.string().default("@executioncontrolprotocol/format-json"),
+      environmentSummaryFormat: z
+        .enum(["plain", "fluent", "eql-create", "eql-patch"])
+        .optional(),
     })
     .default({}),
   output: outputConfigSchema.default({}),
@@ -76,6 +104,8 @@ const harnessConfigSchema = z.object({
       enabled: z.boolean().default(true),
       maxAttempts: z.number().default(1),
       includeValidationErrors: z.boolean().default(true),
+      includePriorOutput: z.boolean().default(false),
+      strictGoalChecks: z.boolean().default(true),
     })
     .default({}),
   trace: z
@@ -92,6 +122,8 @@ const harnessInputSchema = z.object({
   request: z.string(),
   manifest: z.unknown().optional(),
   model: z.string().optional(),
+  files: z.array(fileRefSchema()).optional(),
+  conversationMessages: z.array(codingConversationMessageSchema).optional(),
 })
 
 const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol", "browser-coding-workflow-authoring")
@@ -106,35 +138,51 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
     const baselineManifest = isPatch
       ? (input.manifest as WorkflowManifest | undefined)
       : undefined
+    const profile = resolveEffectiveCodingProfile(
+      normalizeHarnessCodingProfile(config.harnessProfile),
+      input.model
+    )
+    const conversationMessages = normalizeCodingConversationMessages(input.conversationMessages)
+    const useRepairTurns = config.repair.includePriorOutput === true
+    const strictGoalChecks = config.repair.strictGoalChecks !== false
 
     const promptFixtureId =
-      config.promptFixture ??
+      (typeof config.promptFixture === "string" ? config.promptFixture : undefined) ??
       (isPatch
-        ? CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_PATCH
-        : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_CREATE)
+        ? (typeof config.promptFixturePatch === "string"
+            ? config.promptFixturePatch
+            : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_PATCH)
+        : (typeof config.promptFixtureCreate === "string"
+            ? config.promptFixtureCreate
+            : CODING_PROMPT_FIXTURE_IDS.WORKFLOW_AUTHORING_CREATE))
 
     const system =
       config.system ?? buildCodingSystemPrompt(promptFixtureId)
 
     let environmentSummaryLines = ""
     let environmentSummary: CompactEnvironmentSummary | undefined
+    const envFormat = resolveEnvironmentSummaryFormat(
+      config.context.environmentSummaryFormat,
+      profile
+    )
 
     if (config.context.includeEnvironmentDescriptor) {
-      const descriptor = await ctx.ecp.describe()
+      const descriptor = await ctx.ecp.describe(DESCRIBE_AUTHORING_CAPABILITIES_QUERY)
       environmentSummary = summarizeEnvironmentDescriptor(descriptor)
       environmentSummaryLines = formatEnvironmentSummaryLines(environmentSummary, {
-        format: "plain",
+        format: envFormat,
         existingCapabilityUses: isPatch
           ? existingCapabilityUses(baselineManifest)
           : undefined,
       }).join("\n")
     }
 
-    const buildPrompt = (repairText?: string) => {
+    const buildAuthoringPrompt = () => {
       const requestHints =
         environmentSummary !== undefined
           ? buildRequestCapabilityHintLines(input.request, environmentSummary, {
               mode: isPatch ? "patch" : "create",
+              surface: "fluent",
             })
           : []
       const patchHints =
@@ -169,31 +217,87 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
             ...envBlock,
           ]
 
-      if (repairText) {
-        lines.push(
-          "Previous attempt failed. Output only corrected TypeScript:",
-          repairText,
-          buildCodingRepairHint(promptFixtureId)
-        )
-      }
       return lines.filter((l) => l.length > 0).join("\n")
+    }
+
+    const buildLegacyRepairPrompt = (repairText: string, priorRaw?: string) => {
+      const parts = [
+        buildAuthoringPrompt(),
+        "Previous attempt failed. Output only corrected TypeScript:",
+      ]
+      if (priorRaw?.trim()) {
+        parts.push("Previous TypeScript module:", priorRaw.trim())
+      }
+      parts.push(repairText, buildCodingRepairHint(promptFixtureId))
+      return parts.filter((l) => l.length > 0).join("\n")
+    }
+
+    const buildRepairUserPrompt = (repairText: string) => {
+      return [
+        "Fix the previous TypeScript module. Do not rewrite from scratch unless required.",
+        "Do not echo validation errors. Return corrected TypeScript only.",
+        repairText,
+        buildCodingRepairHint(promptFixtureId),
+      ]
+        .filter((l) => l.length > 0)
+        .join("\n")
     }
 
     const responseFormat = inferResponseFormatFromFormatter(format)
     const maxAttempts = config.repair.enabled ? 1 + config.repair.maxAttempts : 1
-    let lastPrompt = buildPrompt()
+    const originalUserPrompt = buildAuthoringPrompt()
+    let lastPrompt = originalUserPrompt
+    let lastMessages: CodingConversationMessage[] | undefined
 
     const loopResult = await runModelRepairLoop({
       maxAttempts,
-      generate: async ({ attempt, priorFeedback }) => {
+      generate: async ({ attempt, priorFeedback, priorRaw }) => {
         const repairText =
           attempt > 0 && config.repair.includeValidationErrors
-            ? formatStructuredRepairForModel(priorFeedback)
+            ? formatStructuredRepairForModel(priorFeedback, "typescript")
             : undefined
-        lastPrompt = buildPrompt(repairText)
+
+        if (attempt > 0 && repairText && useRepairTurns && priorRaw) {
+          lastMessages = buildCodingRepairGenerateMessages({
+            conversationMessages,
+            originalUserPrompt,
+            priorRaw,
+          })
+          lastPrompt = buildRepairUserPrompt(repairText)
+          const generated = await callModelGenerate(
+            ctx.uses,
+            {
+              prompt: lastPrompt,
+              system,
+              model: input.model,
+              responseFormat,
+              files: input.files,
+              messages: lastMessages,
+            },
+            ctx.capabilityContext,
+            format
+          )
+          return { raw: stripHarnessTypeScriptOutput(generated.text) }
+        }
+
+        if (attempt > 0 && repairText) {
+          lastMessages = conversationMessages.length > 0 ? conversationMessages : undefined
+          lastPrompt = buildLegacyRepairPrompt(repairText, priorRaw)
+        } else {
+          lastMessages = conversationMessages.length > 0 ? conversationMessages : undefined
+          lastPrompt = originalUserPrompt
+        }
+
         const generated = await callModelGenerate(
           ctx.uses,
-          { prompt: lastPrompt, system, model: input.model, responseFormat },
+          {
+            prompt: lastPrompt,
+            system,
+            model: input.model,
+            responseFormat,
+            files: input.files,
+            ...(lastMessages ? { messages: lastMessages } : {}),
+          },
           ctx.capabilityContext,
           format
         )
@@ -201,7 +305,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
       },
       evaluate: async (raw, { priorFeedback }) => {
         const feedback: HarnessOperationFeedback[] = []
-        const structuredPrior = formatStructuredRepairForModel(priorFeedback)
+        const structuredPrior = formatStructuredRepairForModel(priorFeedback, "typescript")
         if (
           config.repair.includeValidationErrors &&
           isRepairFeedbackEcho(raw, structuredPrior)
@@ -238,7 +342,13 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
           return { success: false, feedback }
         }
 
-        const artifact: WorkflowManifest = compiled.manifest
+        const artifact: WorkflowManifest = isPatch
+          ? restoreBaselineIoOnClearKeepRequest(
+              input.request,
+              compiled.manifest,
+              baselineManifest
+            )
+          : compiled.manifest
 
         if (config.output.validate) {
           const validation = await ctx.ecp.validate(artifact)
@@ -252,17 +362,23 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
           const capFeedback = collectCreateCapabilityFeedback(
             input.request,
             environmentSummary,
-            artifact
+            artifact,
+            "fluent"
           )
-          if (capFeedback) {
+          if (capFeedback && strictGoalChecks) {
             return { success: false, feedback: [...feedback, ...capFeedback] }
           }
-          const stepCountFeedback = collectCreateStepCountFeedback(input.request, artifact)
-          if (stepCountFeedback) {
+          const stepCountFeedback = collectCreateStepCountFeedback(
+            input.request,
+            artifact,
+            undefined,
+            "fluent"
+          )
+          if (stepCountFeedback && strictGoalChecks) {
             return { success: false, feedback: [...feedback, ...stepCountFeedback] }
           }
           const ioFeedback = collectCreateWorkflowIoFeedback(input.request, artifact)
-          if (ioFeedback) {
+          if (ioFeedback && strictGoalChecks) {
             return { success: false, feedback: [...feedback, ...ioFeedback] }
           }
         }
@@ -273,7 +389,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
             environmentSummary,
             baselineManifest
           )
-          if (patchFeedback) {
+          if (patchFeedback && strictGoalChecks) {
             return { success: false, feedback: [...feedback, ...patchFeedback] }
           }
         }
@@ -313,11 +429,19 @@ export async function invokeWorkflowAuthoringCoding(
     manifest?: unknown
     model?: string
     probeContext?: unknown
+    files?: unknown[]
+    conversationMessages?: CodingConversationMessage[]
   },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   return codingWorkflowAuthoringHarness.handler(
-    { request: input.request, manifest: input.manifest, model: input.model },
+    {
+      request: input.request,
+      manifest: input.manifest,
+      model: input.model,
+      files: input.files as never,
+      conversationMessages: input.conversationMessages,
+    },
     ctx
   ) as Promise<HarnessEvaluateOutput>
 }

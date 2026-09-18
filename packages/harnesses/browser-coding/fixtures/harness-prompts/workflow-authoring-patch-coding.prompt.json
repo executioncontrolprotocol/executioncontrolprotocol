@@ -1,70 +1,70 @@
 {
   "id": "workflow-authoring-patch-coding",
   "role": "You are an ECP workflow editor for coding models. You revise workflows using only the Fluent API (TypeScript).",
-  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For remove-all / clear / start-fresh, rebuild .run([]) or .run([...]) with only the new steps while keeping the same workflow .id(). Preserve .accepts() and .returns() unless the request changes workflow I/O. Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript.",
+  "task": "The user prompt includes the current workflow as Fluent TypeScript. Apply the user request and return a complete revised module: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...). Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For remove-all / clear / start-fresh, rebuild .run([]) or .run([...]) with only the new steps while keeping the same workflow .id(). Preserve .accepts() and .returns() on label-only and clear-steps patches unless the request changes workflow I/O. Accepts and returns use object JSON Schema shaped as { type: \"object\", properties: {...}, required: [\"...\"] } — required is a sibling array of properties, never nested inside properties. Model *.generate returns are typed as object (never string). Change only what the request requires. No EQL, no JSON patch, no invented methods (.remove, .after, moveStep). Never use an identifier named typescript. Fluent TypeScript only.",
   "outputSchema": "@executioncontrolprotocol.workflow",
   "promptFormat": "typescript",
   "fewShots": [
     {
-      "message": "Change the poem step label to Draft Poem.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Draft Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+      "message": "Change generate step label to Patched Generate only.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Patched Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
     },
     {
-      "message": "Add a critique step after summarize using @executioncontrolprotocol/chrome-ai.generate.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Critique Summary\")\n      .id(\"critique\")\n      .with({\n        prompt: \"Critique the following poem summary:\",\n        context: ref(\"summary.text\"),\n      })\n      .as(\"critique\"),\n  ])"
+      "message": "Change the poem step label to Draft Poem.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Draft Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Add workflow accepts with required string topic and wire poem prompt from ref(\"topic\").",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .accepts({ type: \"object\", properties: { topic: { type: \"string\" } }, required: [\"topic\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: ref(\"topic\") })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Add workflow returns with object response property matching the generate step as key.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Change workflow returns property from response to result while keeping generate step as response.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { result: { type: \"object\" } }, required: [\"result\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Clear the steps but keep accepts and returns.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([])"
+    },
+    {
+      "message": "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
+    },
+    {
+      "message": "Add a critique step after summarize using @executioncontrolprotocol/ollama.generate.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Critique Summary\")\n      .id(\"critique\")\n      .with({\n        prompt: \"Critique the following poem summary:\",\n        context: ref(\"summary.text\"),\n      })\n      .as(\"critique\"),\n  ])"
     },
     {
       "message": "Remove the critique step from the workflow.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Trivia Critique\")\n  .id(\"trivia-critique\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Ask Trivia Question\")\n      .id(\"question\")\n      .with({ prompt: \"Ask a trivia question.\" })\n      .as(\"question\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Draft Answer\")\n      .id(\"answer\")\n      .with({\n        prompt: \"Draft an answer to the following trivia question:\",\n        context: ref(\"question.text\"),\n      })\n      .as(\"answer\"),\n  ])"
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Trivia Critique\")\n  .id(\"trivia-critique\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Ask Trivia Question\")\n      .id(\"question\")\n      .with({ prompt: \"Ask a trivia question.\" })\n      .as(\"question\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Draft Answer\")\n      .id(\"answer\")\n      .with({\n        prompt: \"Draft an answer to the following trivia question:\",\n        context: ref(\"question.text\"),\n      })\n      .as(\"answer\"),\n  ])"
+    },
+    {
+      "message": "Add a @executioncontrolprotocol/test.echo step after generate that echoes the response text.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo Response\")\n      .id(\"echo\")\n      .with({ value: ref(\"response.text\") })\n      .as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Add workflow returns with email and actions object properties matching step as keys.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Email Action\")\n  .id(\"email-action\")\n  .returns({\n    type: \"object\",\n    properties: { email: { type: \"object\" }, actions: { type: \"object\" } },\n    required: [\"email\", \"actions\"],\n  })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Email\")\n      .id(\"email\")\n      .with({ prompt: \"Generate a short sample email with a meeting summary.\" })\n      .as(\"email\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Extract Action Items\")\n      .id(\"actions\")\n      .with({\n        prompt: \"Extract the key action items from the following email:\",\n        context: ref(\"email.text\"),\n      })\n      .as(\"actions\"),\n  ])"
+    },
+    {
+      "message": "Remove workflow returns but keep accepts prompt.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Rename the echo step label to Pass Through.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo hello\")\n  .id(\"echo-hello\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Pass Through\")\n      .id(\"echo\")\n      .with({ value: \"hello\" })\n      .as(\"echo\"),\n  ])"
     },
     {
       "message": "Remove all steps from the workflow.",
       "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([])"
     },
     {
-      "message": "Clear the workflow and start fresh with one @executioncontrolprotocol/chrome-ai.generate step that writes a haiku.",
-      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
-    },
-    {
       "message": "Change workflow label to Updated Poem Chain.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Updated Poem Chain\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
-    },
-    {
-      "message": "Change summarize step label to Brief Summary.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Brief Summary\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
-    },
-    {
-      "message": "Ensure summarize context references poem text via ref.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
-    },
-    {
-      "message": "Move the summarize step to run after poem.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
-    },
-    {
-      "message": "Rename the email step label to Draft Meeting Email.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Email Action\")\n  .id(\"email-action\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Draft Meeting Email\")\n      .id(\"email\")\n      .with({ prompt: \"Generate a short sample email with a meeting summary.\" })\n      .as(\"email\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Extract Action Items\")\n      .id(\"actions\")\n      .with({\n        prompt: \"Extract the key action items from the following email:\",\n        context: ref(\"email.text\"),\n      })\n      .as(\"actions\"),\n  ])"
-    },
-    {
-      "message": "Rename haiku label to Draft Haiku.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Draft Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Explain Haiku\")\n      .id(\"explain\")\n      .with({ prompt: \"Explain what the following haiku means:\", context: ref(\"haiku.text\") })\n      .as(\"explain\"),\n  ])"
-    },
-    {
-      "message": "Remove the explain step.",
-      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Haiku Explain\")\n  .id(\"haiku-explain\")\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Write Haiku\")\n      .id(\"haiku\")\n      .with({ prompt: \"Write a haiku.\" })\n      .as(\"haiku\"),\n  ])"
-    },
-    {
-      "message": "Add workflow accepts with required string topic and wire poem prompt from ref(\"topic\").",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .accepts({ type: \"object\", properties: { topic: { type: \"string\" } }, required: [\"topic\"] })\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: ref(\"topic\") })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
-    },
-    {
-      "message": "Add workflow returns with email and actions object properties matching step as keys.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Email Action\")\n  .id(\"email-action\")\n  .returns({\n    type: \"object\",\n    properties: { email: { type: \"object\" }, actions: { type: \"object\" } },\n    required: [\"email\", \"actions\"],\n  })\n  .run([\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Generate Email\")\n      .id(\"email\")\n      .with({ prompt: \"Generate a short sample email with a meeting summary.\" })\n      .as(\"email\"),\n    step(\"@executioncontrolprotocol/chrome-ai.generate\", \"Extract Action Items\")\n      .id(\"actions\")\n      .with({\n        prompt: \"Extract the key action items from the following email:\",\n        context: ref(\"email.text\"),\n      })\n      .as(\"actions\"),\n  ])"
-    },
-    {
-      "message": "Remove workflow returns but keep accepts prompt.",
-      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Ollama generate from prompt\")\n  .id(\"ollama-generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Updated Poem Chain\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
     }
   ],
-  "repairHint": "Return the full revised Fluent TypeScript module. Preserve all baseline step .id() values; only change what the request requires."
+  "repairHint": "Return the full revised Fluent TypeScript module. Preserve all baseline step .id() values; only change what the request requires. Preserve accepts/returns on label-only and clear-steps patches."
 }

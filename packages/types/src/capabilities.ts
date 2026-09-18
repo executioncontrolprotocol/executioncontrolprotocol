@@ -6,6 +6,11 @@ export interface GenerateCapabilityInput {
   system?: string
   context?: unknown
   options?: Record<string, unknown>
+  /**
+   * Prior conversation turns (user/assistant only). The current user turn is always {@link GenerateCapabilityInput.prompt}.
+   * System instructions stay in {@link GenerateCapabilityInput.system}.
+   */
+  messages?: Array<{ role: "user" | "assistant"; content: string }>
 }
 
 /** Minimum model generate capability output. @category Capabilities */

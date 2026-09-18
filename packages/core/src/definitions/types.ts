@@ -3,6 +3,8 @@ import type {
   LifecycleEvent,
   NamespacedId,
   CapabilityExecution,
+  CapabilityMetadata,
+  ExtensionMetadata,
 } from "@executioncontrolprotocol/types"
 import type { z } from "zod"
 import type { ConfigSchema } from "../config-schema/index.js"
@@ -27,6 +29,8 @@ export interface CapabilityDefinition {
   handler: CapabilityHandler
   /** Where this capability executes. Omit to infer from the extension. */
   execution?: CapabilityExecution
+  /** Agent-facing docs from {@code .withMetadata()}. */
+  metadata?: CapabilityMetadata
 }
 
 /** Hook definition on extension/policy. @category Definitions */
@@ -47,6 +51,8 @@ export interface ExtensionDefinition {
   hooks: HookDefinition[]
   /** When set, extension may only be bound to these runtimes. Omit = all runtimes. */
   supportedRuntimes?: NamespacedId[]
+  /** Agent-facing docs from {@code .withMetadata()}. */
+  metadata?: ExtensionMetadata
 }
 
 /** Runtime definition. @category Definitions */

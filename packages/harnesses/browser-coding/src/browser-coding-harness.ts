@@ -6,13 +6,15 @@ import {
 import {
   ECP_MODEL_GENERATE_INTERFACE,
   harnessEvaluateOutputSchema,
+  probeContextSchema,
   type HarnessEvaluateOutput,
 } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import {
   getHarnessCodingConfig,
   HARNESS_TASKS,
-  type HarnessCodingProfile,
+  normalizeHarnessCodingProfile,
+  resolveEffectiveCodingProfile,
   type HarnessTask,
 } from "./harness-coding-config.js"
 import { invokeIntentClassificationCoding } from "./intent-classification-coding.js"
@@ -25,6 +27,10 @@ const harnessInputSchema = z.discriminatedUnion("task", [
     task: z.literal(HARNESS_TASKS.INTENT_CLASSIFICATION),
     message: z.string(),
     model: z.string().optional(),
+    hasBaselineWorkflow: z.boolean().optional(),
+    hasProbeContext: z.boolean().optional(),
+    probeContext: z.unknown().optional(),
+    previousUserMessage: z.string().optional(),
   }),
   z.object({
     task: z.literal(HARNESS_TASKS.WORKFLOW_AUTHORING),
@@ -45,7 +51,16 @@ const harnessInputSchema = z.discriminatedUnion("task", [
     runContext: z.unknown().optional(),
     probeContext: z.unknown().optional(),
     conversationSummary: z.string().optional(),
+    conversationMessages: z
+      .array(
+        z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string(),
+        })
+      )
+      .optional(),
     model: z.string().optional(),
+    files: z.array(z.unknown()).optional(),
   }),
 ])
 
@@ -54,7 +69,7 @@ export type BrowserCodingHarnessInput = z.infer<typeof harnessInputSchema>
 
 const harnessBindingSchema = z
   .object({
-    harnessProfile: z.enum(["coding"]).optional(),
+    harnessProfile: z.enum(["small", "medium", "frontier"]).optional(),
     repair: z.record(z.string(), z.unknown()).optional(),
     trace: z.record(z.string(), z.unknown()).optional(),
     context: z.record(z.string(), z.unknown()).optional(),
@@ -63,9 +78,11 @@ const harnessBindingSchema = z
 
 function handlerContextForTask(
   task: HarnessTask,
-  ctx: HarnessCapabilityContext<Record<string, unknown>>
+  ctx: HarnessCapabilityContext<Record<string, unknown>>,
+  model?: string
 ): HarnessCapabilityContext<Record<string, unknown>> {
-  const profile = (ctx.config.harnessProfile as HarnessCodingProfile | undefined) ?? "coding"
+  const configured = normalizeHarnessCodingProfile(ctx.config.harnessProfile)
+  const profile = resolveEffectiveCodingProfile(configured, model)
   const taskConfig = getHarnessCodingConfig(task, profile) as Record<string, Record<string, unknown>>
   const envConfig = ctx.config as Record<string, Record<string, unknown> | undefined>
   return {
@@ -74,7 +91,7 @@ function handlerContextForTask(
       ...taskConfig,
       ...ctx.config,
       harnessProfile: profile,
-      repair: { ...taskConfig.repair, ...envConfig.repair },
+      repair: { ...envConfig.repair, ...taskConfig.repair },
       trace: { ...taskConfig.trace, ...envConfig.trace },
       context: { ...taskConfig.context, ...envConfig.context },
     },
@@ -87,13 +104,23 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
   .withOutput(harnessEvaluateOutputSchema)
   .usesProviderInterface(ECP_MODEL_GENERATE_INTERFACE)
   .withHandler(async (input, ctx): Promise<HarnessEvaluateOutput> => {
-    const taskCtx = handlerContextForTask(input.task, ctx)
+    const taskCtx = handlerContextForTask(input.task, ctx, input.model)
     switch (input.task) {
-      case HARNESS_TASKS.INTENT_CLASSIFICATION:
+      case HARNESS_TASKS.INTENT_CLASSIFICATION: {
+        const probeParsed = probeContextSchema.safeParse(input.probeContext)
+        const hasProbeFromContext =
+          probeParsed.success && probeParsed.data.options.length > 0
         return invokeIntentClassificationCoding(
-          { message: input.message, model: input.model },
+          {
+            message: input.message,
+            model: input.model,
+            hasBaselineWorkflow: input.hasBaselineWorkflow,
+            hasProbeContext: input.hasProbeContext === true || hasProbeFromContext,
+            previousUserMessage: input.previousUserMessage,
+          },
           taskCtx
         )
+      }
       case HARNESS_TASKS.WORKFLOW_AUTHORING:
         return invokeWorkflowAuthoringCoding(
           { request: input.request, manifest: input.manifest, model: input.model },
@@ -112,7 +139,9 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
             runContext: input.runContext,
             probeContext: input.probeContext,
             conversationSummary: input.conversationSummary,
+            conversationMessages: input.conversationMessages,
             model: input.model,
+            files: input.files,
           },
           taskCtx
         )

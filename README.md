@@ -58,7 +58,6 @@ ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
 **Implementation spec (source of truth):** [`ecp-overhaul.md`](ecp-overhaul.md)  
 **Docs:** [https://executioncontrolprotocol.io/](https://executioncontrolprotocol.io/) (in-repo [`docs/`](docs/) is maintainer notes)
-------------------------------------------------------------------------
 
 ## Why ECP Exists
 

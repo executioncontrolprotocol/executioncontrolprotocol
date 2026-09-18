@@ -26,6 +26,19 @@ describe("harness prompt assembly", () => {
     expect(system).toContain("no prior knowledge of EQL")
   })
 
+  it("buildRepairHintFromFixture returns TypeScript hint without EQL", () => {
+    const fixture = harnessPromptFixtureSchema.parse({
+      id: "test-ts",
+      role: "Author workflows.",
+      task: "Emit Fluent TypeScript.",
+      outputSchema: "@executioncontrolprotocol.workflow",
+      promptFormat: "typescript",
+    })
+    const hint = buildRepairHintFromFixture(fixture)
+    expect(hint).toContain("TypeScript")
+    expect(hint).not.toMatch(/EQL/i)
+  })
+
   it("buildRepairHintFromFixture includes repair prose", () => {
     const fixture = harnessPromptFixtureSchema.parse({
       ...minimalIntentFixture,

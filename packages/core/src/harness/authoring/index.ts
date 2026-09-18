@@ -1,4 +1,11 @@
 export {
+  toProviderChatTurns,
+  flattenProviderChatTurns,
+  type ProviderChatPriorMessage,
+  type ProviderChatTurn,
+  type ToProviderChatTurnsOptions,
+} from "./to-provider-chat-turns.js"
+export {
   summarizeEnvironmentDescriptor,
   toAuthoringEnvironmentDescriptor,
   formatEnvironmentSummaryLines,
@@ -8,6 +15,11 @@ export {
   type CompactEnvironmentSummary,
   type EnvironmentSummaryFormat,
 } from "./summarize-environment.js"
+export {
+  DESCRIBE_DETAIL_ID_LIMIT,
+  extractMentionedEntityIds,
+  loadEnvironmentDescribeForPrompt,
+} from "./describe-for-prompt.js"
 export {
   introspectCapabilitySchema,
   formatCapabilityInputLabels,
@@ -32,6 +44,7 @@ export {
   truncatePriorModelOutput,
   HARNESS_REPAIR_PRIOR_OUTPUT_MAX_CHARS,
   type ModelRepairDialogOptions,
+  type HarnessRepairSurface,
   isRepairTemplateEcho,
   isRepairFeedbackEcho,
   isIssuesOnlyOutput,

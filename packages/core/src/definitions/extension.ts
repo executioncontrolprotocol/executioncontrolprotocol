@@ -1,4 +1,5 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { ExtensionMetadata, NamespacedId } from "@executioncontrolprotocol/types"
+import { parseExtensionMetadata } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import type {
   CapabilityDefinition,
@@ -18,6 +19,7 @@ export class ExtensionDefinitionBuilder {
   private capabilities: CapabilityDefinition[] = []
   private hooks: HookDefinition[] = []
   private supportedRuntimes?: NamespacedId[]
+  private metadata?: ExtensionMetadata
 
   constructor(
     private readonly namespace: string,
@@ -37,6 +39,15 @@ export class ExtensionDefinitionBuilder {
     } else {
       this.configSchema = z.object(schema) as ConfigSchema
     }
+    return this
+  }
+
+  /**
+   * Attach agent-facing extension docs.
+   * @category Definitions
+   */
+  withMetadata(metadata: ExtensionMetadata): this {
+    this.metadata = parseExtensionMetadata(metadata)
     return this
   }
 
@@ -63,6 +74,7 @@ export class ExtensionDefinitionBuilder {
       capabilities: this.capabilities,
       hooks: this.hooks,
       supportedRuntimes: this.supportedRuntimes,
+      ...(this.metadata ? { metadata: this.metadata } : {}),
     }
   }
 }

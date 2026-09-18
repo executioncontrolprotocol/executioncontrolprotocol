@@ -64,6 +64,13 @@ Profile: `ollama-qwen-coder-1.5b` in [`packages/evals/src/profiles/ollama-qwen.t
 
 Browser Coding uses **Fluent TypeScript only** (full revised `export default workflow(...)` modules). Patch/create user prompts use [`buildFluentPatchHintLines`](../packages/harnesses/browser-coding/src/fluent-patch-hints.ts), not EQL `UPDATE STEP` / `DELETE STEP` vocabulary. Baselines rendered with [`renderWorkflowToFluent`](../packages/core/src/fluent/render-workflow.ts) emit stable `.id("stepId")` on steps.
 
+**Medium / frontier (Sonnet-class) scaffolding:**
+
+- Authoring inventory uses `formatEnvironmentSummaryLines(..., { format: "fluent" })` (typed I/O + `.with({...})` examples).
+- Host may pass `conversationMessages` on chat; those become generate `messages[]` on authoring/assistant shots. Intent stays thin (`hasBaselineWorkflow` + optional previous user message; no env catalog).
+- Repair retries send the failed TypeScript as an assistant turn and diagnostics as the current `prompt` (`includePriorOutput: true`). Regex goal checks are soft (`strictGoalChecks: false`).
+- Prompt dumps and shot tables: [`packages/harnesses/browser-coding/docs/sonnet-coding-interaction-loop.md`](../packages/harnesses/browser-coding/docs/sonnet-coding-interaction-loop.md).
+
 Recent matrix snapshot (`qwen2.5-coder:1.5b`, 63 deterministic cases across patch/create/assistant/intent): **72/73 passed** (remaining failures are occasional model flakiness, e.g. `asst-04`).
 
 Chrome Nano (same fixture matrix, Vitest browser + installed Chrome):

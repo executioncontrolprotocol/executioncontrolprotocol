@@ -48,6 +48,11 @@ function attachSecretsResolver(ctx: LifecycleContext): void {
 export const secretsExtension = defineExtension("@executioncontrolprotocol", "secrets")
   .withSupportedRuntimes(["@executioncontrolprotocol/node"])
   .withConfig(z.object({}))
+  .withMetadata({
+    summary: "OS keychain-backed secret resolution for Node hosts.",
+    description:
+      "Registers a config resolver that reads secrets from the operating system keychain during environment configuration. Extensions resolve secret refs without embedding values in manifests.",
+  })
   .withHooks([
     hook("environment:configuring", attachSecretsResolver),
     hook("environment:terminate", () => undefined),

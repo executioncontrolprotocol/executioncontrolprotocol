@@ -13,7 +13,7 @@ import {
 import type { HarnessOperationFeedback, StepNode, WorkflowManifest } from "@executioncontrolprotocol/types"
 
 const FLUENT_ANTI_PATTERNS =
-  "Do not use EQL, PATCH WORKFLOW, UPDATE STEP, DELETE STEP, MOVE STEP, ADD STEP, .remove(), .after(), or moveStep."
+  "Fluent TypeScript module only — do not emit patch DSL keywords or invent methods (.remove, .after, moveStep)."
 
 function stepUsesList(workflow: WorkflowManifest): string[] {
   const uses: string[] = []
@@ -38,6 +38,62 @@ function workflowIoNames(manifest: WorkflowManifest, field: "accepts" | "returns
   return jsonSchemaObjectProperties(schema).map((p) => p.name)
 }
 
+/**
+ * When the user clears steps but asks to keep accepts/returns, restore missing
+ * baseline I/O onto a compiled patch that dropped them.
+ * @category Harness
+ */
+export function restoreBaselineIoOnClearKeepRequest(
+  request: string,
+  patched: WorkflowManifest,
+  baseline: WorkflowManifest | undefined
+): WorkflowManifest {
+  if (!baseline?.workflow || !isClearAllStepsRequest(request)) {
+    return patched
+  }
+  const lower = request.toLowerCase()
+  const keepAccepts =
+    /\bkeep\b[\s\S]{0,64}\baccepts?\b/i.test(lower) ||
+    /\bkeep accepts and returns\b/i.test(lower)
+  const keepReturns =
+    /\bkeep\b[\s\S]{0,64}\breturns?\b/i.test(lower) ||
+    /\bkeep accepts and returns\b/i.test(lower)
+  if (!keepAccepts && !keepReturns) {
+    return patched
+  }
+
+  const workflow = { ...(patched.workflow ?? {}) }
+  let changed = false
+
+  if (keepAccepts && baseline.workflow.accepts) {
+    const baselineNames = workflowIoNames(baseline, "accepts")
+    const patchedNames = workflowIoNames(patched, "accepts")
+    if (baselineNames.some((name) => !patchedNames.includes(name))) {
+      workflow.accepts = baseline.workflow.accepts
+      changed = true
+    }
+  }
+  if (keepReturns && baseline.workflow.returns) {
+    const baselineNames = workflowIoNames(baseline, "returns")
+    const patchedNames = workflowIoNames(patched, "returns")
+    if (baselineNames.some((name) => !patchedNames.includes(name))) {
+      workflow.returns = baseline.workflow.returns
+      changed = true
+    }
+  }
+
+  if (!changed) {
+    return patched
+  }
+  return {
+    ...patched,
+    workflow: {
+      ...baseline.workflow,
+      ...workflow,
+    },
+  }
+}
+
 function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boolean {
   const targetRef = `state.${property}`
   for (const node of manifest.steps ?? []) {
@@ -59,14 +115,21 @@ function stepUsesAcceptsRef(manifest: WorkflowManifest, property: string): boole
 
 function inferAcceptsPropertyFromRequest(request: string): string | undefined {
   const match =
-    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i) ??
+    request.match(/ref\(["'](\w+)["']\)/i) ??
+    request.match(
+      /accepts?\s+(?:a\s+)?(?:required\s+)?(?:string|number|boolean|object)\s+(\w+)/i
+    ) ??
     request.match(/run\s+input\s+(?:field\s+)?(\w+)/i) ??
-    request.match(/ref\(["'](\w+)["']\)/i)
+    request.match(/accepts?\s+(?:a\s+)?(?:required\s+)?(\w+)\s+(?:string|number|field|input)/i)
   return match?.[1]
 }
 
 function inferReturnsPropertyFromRequest(request: string): string | undefined {
   const match =
+    request.match(/returns?\s+property\s+from\s+\w+\s+to\s+(\w+)/i) ??
+    request.match(/returns?\s+with\s+(?:object\s+)?(\w+)\s+property/i) ??
+    request.match(/returns?\s+(?:an?\s+)?object\s+(\w+)/i) ??
+    request.match(/\.as\(["'](\w+)["']\)/i) ??
     request.match(/returns?\s+(?:an?\s+)?(\w+)\s+(?:object|field|output)/i) ??
     request.match(/output\s+(?:field\s+)?(\w+)/i)
   return match?.[1]
@@ -284,6 +347,13 @@ export function collectFluentPatchGoalFeedback(
         )
       )
     }
+    if (isClearAndRebuildRequest(request) && remaining.length === 0) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must not leave .run([]). Rebuild .run([step("<capability>", ...)]) with only the newly requested steps.`
+        )
+      )
+    }
   } else if (removeMatch) {
     const stepId = removeMatch[1]!
     const still = patched.steps?.find((s) => s.id === stepId)
@@ -340,17 +410,27 @@ export function collectFluentPatchGoalFeedback(
   )
   const uses = stepUsesList(patched)
   const missing = required.filter((id) => !uses.includes(id))
-  if (missing.length > 0 && hasAddIntent) {
+  const needsMissingCaps =
+    missing.length > 0 && (hasAddIntent || isClearAndRebuildRequest(request))
+  if (needsMissingCaps) {
     const baselineIds = baselineStepIds.join(", ")
     const afterMatch = request.match(/\bafter\s+(\w+)\b/i)
     const anchor = afterMatch?.[1]
-    feedback.push(
-      collectModelOutputFeedback(
-        `Append step("${missing.join('" or "')}", ...) to .run([...])` +
-          `${anchor ? ` after the step with id "${anchor}"` : ""}. ` +
-          `Keep existing step ids: ${baselineIds || "none"}.`
+    if (isClearAndRebuildRequest(request)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must include step("${missing.join('" or "')}", ...) in .run([...]). Do not leave .run([]).`
+        )
       )
-    )
+    } else {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Append step("${missing.join('" or "')}", ...) to .run([...])` +
+            `${anchor ? ` after the step with id "${anchor}"` : ""}. ` +
+            `Keep existing step ids: ${baselineIds || "none"}.`
+        )
+      )
+    }
   }
 
   if (removeMatch && hasAddIntent && !missing.length) {
@@ -466,17 +546,23 @@ export function collectFluentPatchGoalFeedback(
     const baselineReturns = workflowIoNames(baseline, "returns")
     const patchedAccepts = workflowIoNames(patched, "accepts")
     const patchedReturns = workflowIoNames(patched, "returns")
-    const wantsRemoveReturns = /\b(remove|clear|delete)\b.*\breturns?\b/i.test(lower)
+    const wantsRemoveReturns =
+      !/\bkeep\b.{0,48}\breturns?\b/i.test(lower) &&
+      (/\b(remove|delete)\b.{0,40}\breturns?\b/i.test(lower) ||
+        /\bclear\b.{0,20}\breturns?\b/i.test(lower))
     const wantsAddAccepts = /\badd\b.*\baccepts?\b/i.test(lower)
     const wantsAddReturns = /\badd\b.*\breturns?\b/i.test(lower)
     const renameAccepts = request.match(/rename\s+accepts?\s+(?:field\s+)?(\w+)\s+to\s+(\w+)/i)
+    const renameReturns = request.match(
+      /(?:change|rename)\s+(?:workflow\s+)?returns?\s+property\s+from\s+(\w+)\s+to\s+(\w+)/i
+    )
 
-    if (!wantsRemoveReturns && !wantsAddAccepts && !renameAccepts) {
+    if (!wantsRemoveReturns && !wantsAddAccepts && !renameAccepts && !renameReturns) {
       for (const name of baselineAccepts) {
         if (!patchedAccepts.includes(name)) {
           feedback.push(
             collectModelOutputFeedback(
-              `Preserve workflow .accepts() property "${name}" unless the request removes or renames it.`
+              `Preserve workflow .accepts() property "${name}" unless the request removes or renames it. Re-emit the baseline .accepts({...}) chain before .run().`
             )
           )
         }
@@ -485,10 +571,22 @@ export function collectFluentPatchGoalFeedback(
         if (!patchedReturns.includes(name) && !wantsAddReturns) {
           feedback.push(
             collectModelOutputFeedback(
-              `Preserve workflow .returns() property "${name}" unless the request removes or renames it.`
+              `Preserve workflow .returns() property "${name}" unless the request removes or renames it. Re-emit the baseline .returns({...}) chain before .run().`
             )
           )
         }
+      }
+    }
+
+    if (renameReturns) {
+      const fromName = renameReturns[1]!
+      const toName = renameReturns[2]!
+      if (patchedReturns.includes(fromName) || !patchedReturns.includes(toName)) {
+        feedback.push(
+          collectModelOutputFeedback(
+            `Rename .returns() property from "${fromName}" to "${toName}" (keep step .as("${fromName}") unless the request changes it).`
+          )
+        )
       }
     }
 
@@ -623,7 +721,7 @@ export function collectFluentCompileErrorFeedback(
     return [
       collectModelOutputFeedback(
         "Use only @executioncontrolprotocol/core Fluent API: workflow, step, ref, branch, parallel, loop. " +
-          "Never use identifiers named typescript, moveStep, UPDATE STEP, or chained .remove() / .after(). " +
+          "Never use identifiers named typescript, moveStep, or chained .remove() / .after(). " +
           FLUENT_ANTI_PATTERNS
       ),
     ]

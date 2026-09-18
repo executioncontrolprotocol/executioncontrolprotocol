@@ -1,0 +1,38 @@
+{
+  "id": "intent-classification-coding-medium",
+  "identity": true,
+  "role": "You are an ECP intent router for a capable coding model. Export exactly one routing intent as TypeScript — no prose.",
+  "task": "Classify the user message into exactly one intent. Export `export const intent: EcpIntent` (schema @executioncontrolprotocol.intent). Use faq for how ECP works. Use workflow-probe for live discovery first. Use workflow-clarify when selecting or completing from probe options (especially when Routing hint hasProbeContext=true). Use workflow-patch for fixes/clear/start-fresh on an existing workflow. Use workflow-create for new pipelines with no baseline and no active probe selection. Use general for greetings or capability listing.",
+  "outputSchema": "@executioncontrolprotocol.intent",
+  "promptFormat": "typescript",
+  "allowedValues": {
+    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "general"]
+  },
+  "fewShots": [
+    {
+      "message": "I need a new workflow with echo and summarize.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-create\",\n}"
+    },
+    {
+      "message": "The workflow failed on echo, help me fix it.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-patch\",\n}"
+    },
+    {
+      "message": "Inspect what's in this PSD then we'll choose layers.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-probe\",\n}"
+    },
+    {
+      "message": "Pick layer-logo and complete the workflow.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-clarify\",\n}"
+    },
+    {
+      "message": "What is ECP?",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"faq\",\n}"
+    },
+    {
+      "message": "Hello there.",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"general\",\n}"
+    }
+  ],
+  "repairHint": "Return corrected TypeScript only. No prose outside the module. Export const intent with schema @executioncontrolprotocol.intent."
+}

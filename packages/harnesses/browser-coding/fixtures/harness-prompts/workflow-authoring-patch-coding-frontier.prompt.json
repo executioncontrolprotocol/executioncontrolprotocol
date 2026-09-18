@@ -1,0 +1,22 @@
+{
+  "id": "workflow-authoring-patch-coding-frontier",
+  "role": "You are an ECP workflow editor for a frontier coding model. Emit Fluent TypeScript only — never prose, never markdown fences.",
+  "task": "The user prompt includes the current workflow as Fluent TypeScript plus a Fluent capability catalog. Apply the user request and return a complete revised module. Preserve workflow .id() and every existing step .id() unless the request adds or removes steps. For clear/start-fresh, rebuild .run([]) or new steps while keeping workflow .id(). Preserve .accepts()/.returns() on label-only and clear-steps patches unless I/O changes. No EQL, no invented methods. Output a single TypeScript module only.",
+  "outputSchema": "@executioncontrolprotocol.workflow",
+  "promptFormat": "typescript",
+  "fewShots": [
+    {
+      "message": "Change the poem step label to Draft Poem.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Draft Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n  ])"
+    },
+    {
+      "message": "Clear the steps but keep accepts and returns.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Generate from prompt\")\n  .id(\"generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([])"
+    },
+    {
+      "message": "Add a critique step after summarize using @executioncontrolprotocol/ollama.generate.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Poem Summarization\")\n  .id(\"poem-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate Poem\")\n      .id(\"poem\")\n      .with({ prompt: \"Write a short poem about the ocean.\" })\n      .as(\"poem\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize Poem\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize the following poem:\", context: ref(\"poem.text\") })\n      .as(\"summary\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Critique Summary\")\n      .id(\"critique\")\n      .with({\n        prompt: \"Critique the following poem summary:\",\n        context: ref(\"summary.text\"),\n      })\n      .as(\"critique\"),\n  ])"
+    }
+  ],
+  "repairHint": "Return a complete corrected Fluent module. Fix the previous TypeScript in place. Preserve .id() values unless the request adds or removes steps."
+}

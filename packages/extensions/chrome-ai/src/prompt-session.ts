@@ -53,26 +53,36 @@ const DEFAULT_SESSION_OPTIONS: Pick<
   "expectedInputs" | "expectedOutputs"
 > = CHROME_LANGUAGE_MODEL_TEXT_OPTIONS
 
-/** Create a Prompt API session with optional system instruction. */
+/** Create a Prompt API session with optional system + prior turns as initialPrompts. */
 export async function createChromeLanguageModelSession(
   model: ChromeLanguageModelApi,
   system?: string,
-  sessionOptions?: ChromeLanguageModelCreateOptions
+  sessionOptions?: ChromeLanguageModelCreateOptions,
+  priorMessages?: Array<{ role: "system" | "user" | "assistant"; content: string }>
 ): Promise<ChromeLanguageModelSession> {
   const preferred = sessionOptions ?? DEFAULT_SESSION_OPTIONS
   const options: ChromeLanguageModelCreateOptions = { ...preferred }
+  const initial: ChromePromptMessage[] = []
   if (system?.trim()) {
-    options.initialPrompts = [{ role: "system", content: system }]
+    initial.push({ role: "system", content: system })
+  }
+  for (const message of priorMessages ?? []) {
+    if (message.role === "system" && !system?.trim()) {
+      initial.push(message)
+      continue
+    }
+    if (message.role === "user" || message.role === "assistant") {
+      initial.push(message)
+    }
+  }
+  if (initial.length > 0) {
+    options.initialPrompts = initial
   }
   try {
     return await model.create(options)
   } catch (err) {
     if (!sessionOptions || Object.keys(sessionOptions).length === 0) throw err
     // Fallback: bare create when option-specific session fails.
-    return model.create(
-      system?.trim()
-        ? { initialPrompts: [{ role: "system", content: system }] }
-        : {}
-    )
+    return model.create(initial.length > 0 ? { initialPrompts: initial } : {})
   }
 }

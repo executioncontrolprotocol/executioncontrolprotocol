@@ -31,13 +31,20 @@ import {
 import {
   HARNESS_TASKS,
   getHarnessCodingConfig,
-  HARNESS_CODING_CHAT_REPAIR,
+  codingRepairForProfile,
+  normalizeHarnessCodingProfile,
+  resolveEffectiveCodingProfile,
 } from "./harness-coding-config.js"
 import { BROWSER_CODING_HARNESS_ID } from "./harness-ids.js"
 import { invokeIntentClassificationCoding } from "./intent-classification-coding.js"
 import { invokeWorkflowAssistantCoding } from "./workflow-assistant-coding.js"
 import { invokeWorkflowAuthoringCoding } from "./workflow-authoring-coding.js"
 import { CODING_PROMPT_FIXTURE_IDS } from "./prompts/index.js"
+import {
+  normalizeCodingConversationMessages,
+  previousUserMessageFromConversation,
+  type CodingConversationMessage,
+} from "./conversation-messages.js"
 
 function shotFromTrace(
   task: string,
@@ -124,20 +131,30 @@ export async function invokeMultiShotChatCoding(
     runContext?: unknown
     probeContext?: unknown
     conversationSummary?: string
+    conversationMessages?: CodingConversationMessage[]
     model?: string
+    files?: unknown[]
   },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   const probeContext = parseProbeContext(input.probeContext)
-  const intentDefaults = getHarnessCodingConfig(HARNESS_TASKS.INTENT_CLASSIFICATION) as Record<
-    string,
-    Record<string, unknown>
-  >
+  const conversationMessages = normalizeCodingConversationMessages(input.conversationMessages)
+  const previousUserMessage = previousUserMessageFromConversation(conversationMessages)
+  const profile = resolveEffectiveCodingProfile(
+    normalizeHarnessCodingProfile(ctx.config.harnessProfile),
+    input.model
+  )
+  const chatRepair = codingRepairForProfile(profile).chat
+  const intentDefaults = getHarnessCodingConfig(
+    HARNESS_TASKS.INTENT_CLASSIFICATION,
+    profile
+  ) as Record<string, Record<string, unknown>>
   const intentCtx: HarnessCapabilityContext<Record<string, unknown>> = {
     ...ctx,
     config: {
       ...intentDefaults,
       ...ctx.config,
+      harnessProfile: profile,
       context: {
         ...intentDefaults.context,
         ...(ctx.config.context as Record<string, unknown> | undefined),
@@ -148,14 +165,20 @@ export async function invokeMultiShotChatCoding(
       repair: {
         ...intentDefaults.repair,
         ...(ctx.config.repair as Record<string, unknown> | undefined),
-        ...HARNESS_CODING_CHAT_REPAIR,
+        ...chatRepair,
       },
       trace: { ...intentDefaults.trace, ...(ctx.config.trace as Record<string, unknown> | undefined) },
     },
   }
 
   const intentResult = await invokeIntentClassificationCoding(
-    { message: input.message, model: input.model },
+    {
+      message: input.message,
+      model: input.model,
+      hasBaselineWorkflow: input.manifest !== undefined,
+      hasProbeContext: probeContext !== undefined && probeContext.options.length > 0,
+      previousUserMessage,
+    },
     intentCtx
   )
   const classifiedIntent = intentResult.artifact as EcpIntent
@@ -164,11 +187,15 @@ export async function invokeMultiShotChatCoding(
     task: typeof HARNESS_TASKS.WORKFLOW_AUTHORING | typeof HARNESS_TASKS.WORKFLOW_ASSISTANT,
     overrides?: Record<string, unknown>
   ): Record<string, unknown> => {
-    const taskDefaults = getHarnessCodingConfig(task) as Record<string, Record<string, unknown>>
+    const taskDefaults = getHarnessCodingConfig(task, profile) as Record<
+      string,
+      Record<string, unknown>
+    >
     return {
       ...taskDefaults,
       ...ctx.config,
       ...overrides,
+      harnessProfile: profile,
       context: {
         ...taskDefaults.context,
         ...(ctx.config.context as Record<string, unknown> | undefined),
@@ -178,7 +205,7 @@ export async function invokeMultiShotChatCoding(
       repair: {
         ...taskDefaults.repair,
         ...(ctx.config.repair as Record<string, unknown> | undefined),
-        ...HARNESS_CODING_CHAT_REPAIR,
+        ...chatRepair,
         ...((overrides?.repair as Record<string, unknown> | undefined) ?? {}),
       },
       trace: {
@@ -218,6 +245,8 @@ export async function invokeMultiShotChatCoding(
           manifest: isPatch ? input.manifest : undefined,
           model: input.model,
           probeContext: opts.probe,
+          files: input.files,
+          conversationMessages,
         },
         { ...ctx, config: buildTaskConfig(HARNESS_TASKS.WORKFLOW_AUTHORING) }
       )
@@ -242,8 +271,13 @@ export async function invokeMultiShotChatCoding(
         : undefined
 
     if (authored) {
+      const chatDefaults = getHarnessCodingConfig(HARNESS_TASKS.CHAT, profile) as {
+        promptFixtureChangeSummary?: string
+      }
       const summaryConfig = buildTaskConfig(HARNESS_TASKS.WORKFLOW_ASSISTANT, {
-        promptFixture: CODING_PROMPT_FIXTURE_IDS.WORKFLOW_CHANGE_SUMMARY,
+        promptFixture:
+          chatDefaults.promptFixtureChangeSummary ??
+          CODING_PROMPT_FIXTURE_IDS.WORKFLOW_CHANGE_SUMMARY,
       })
       let summaryResult: HarnessEvaluateOutput
       try {
@@ -254,6 +288,7 @@ export async function invokeMultiShotChatCoding(
             model: input.model,
             classifiedIntent,
             conversationSummary: input.conversationSummary,
+            conversationMessages,
             runContext: input.runContext,
             probeContext: opts.probe,
           },
@@ -322,6 +357,7 @@ export async function invokeMultiShotChatCoding(
         model: input.model,
         classifiedIntent,
         conversationSummary: input.conversationSummary,
+        conversationMessages,
         runContext: input.runContext,
         workflow: input.manifest as Record<string, unknown> | undefined,
         probeContext: opts.probe,
@@ -369,6 +405,7 @@ export async function invokeMultiShotChatCoding(
           model: input.model,
           classifiedIntent,
           conversationSummary: input.conversationSummary,
+          conversationMessages,
           runContext: input.runContext,
           workflow: input.manifest as Record<string, unknown> | undefined,
         },
@@ -391,6 +428,7 @@ export async function invokeMultiShotChatCoding(
           model: input.model,
           classifiedIntent,
           conversationSummary: input.conversationSummary,
+          conversationMessages,
           runContext: input.runContext,
           workflow: input.manifest as Record<string, unknown> | undefined,
           probeContext,
@@ -447,7 +485,9 @@ export async function invokeMultiShotChatCoding(
         model: input.model,
         classifiedIntent,
         conversationSummary: input.conversationSummary,
+        conversationMessages,
         probeContext,
+        files: input.files,
       },
       { ...ctx, config: buildTaskConfig(HARNESS_TASKS.WORKFLOW_ASSISTANT) }
     )

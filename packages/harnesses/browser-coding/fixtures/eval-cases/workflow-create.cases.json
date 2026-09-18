@@ -25,7 +25,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -69,7 +68,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -95,7 +93,7 @@
       "harness": "workflow-authoring",
       "model": "default",
       "input": {
-        "request": "Build a workflow that uses Chrome AI to generate a short sample email with a meeting summary, then extract key action items from it in a second step."
+        "request": "Build a workflow that uses @executioncontrolprotocol/ollama.generate to generate a short sample email with a meeting summary, then extract key action items from it in a second step with the same capability."
       },
       "assertions": {
         "deterministic": [
@@ -113,7 +111,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -124,7 +121,7 @@
           },
           {
             "kind": "stepUses",
-            "capabilityId": "@executioncontrolprotocol/chrome-ai.generate"
+            "capabilityId": "@executioncontrolprotocol/ollama.generate"
           }
         ],
         "judge": {
@@ -139,7 +136,7 @@
       "harness": "workflow-authoring",
       "model": "default",
       "input": {
-        "request": "Create a two-step workflow: Chrome AI writes a haiku, then Chrome AI explains what it means."
+        "request": "Create a two-step workflow: @executioncontrolprotocol/ollama.generate writes a haiku, then the same capability explains what it means."
       },
       "assertions": {
         "deterministic": [
@@ -157,7 +154,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -168,7 +164,7 @@
           },
           {
             "kind": "stepUses",
-            "capabilityId": "@executioncontrolprotocol/chrome-ai.generate"
+            "capabilityId": "@executioncontrolprotocol/ollama.generate"
           }
         ],
         "judge": {
@@ -183,7 +179,7 @@
       "harness": "workflow-authoring",
       "model": "default",
       "input": {
-        "request": "Build a three-step Chrome AI workflow: ask a trivia question, draft an answer, then critique the answer."
+        "request": "Build a three-step workflow with @executioncontrolprotocol/ollama.generate: ask a trivia question, draft an answer, then critique the answer."
       },
       "assertions": {
         "deterministic": [
@@ -201,7 +197,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -212,7 +207,7 @@
           },
           {
             "kind": "stepUses",
-            "capabilityId": "@executioncontrolprotocol/chrome-ai.generate"
+            "capabilityId": "@executioncontrolprotocol/ollama.generate"
           }
         ],
         "judge": {
@@ -245,7 +240,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -285,7 +279,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -325,7 +318,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -365,7 +357,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -409,7 +400,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -453,7 +443,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]
@@ -491,7 +480,6 @@
             "kind": "descriptorListsExtensions",
             "ids": [
               "@executioncontrolprotocol/format-toon",
-              "@executioncontrolprotocol/format-eql",
               "@executioncontrolprotocol/format-json",
               "@executioncontrolprotocol/test"
             ]

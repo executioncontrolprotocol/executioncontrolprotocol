@@ -8,6 +8,7 @@ import {
   collectCreateWorkflowIoFeedback,
   collectFluentCompileErrorFeedback,
   collectFluentPatchGoalFeedback,
+  restoreBaselineIoOnClearKeepRequest,
 } from "../src/fluent-patch-hints.js"
 
 const fixturesRoot = path.resolve(
@@ -131,6 +132,26 @@ describe("collectFluentPatchGoalFeedback", () => {
     expect(text).toContain(".run([])")
   })
 
+  it("flags empty .run([]) after clear-and-rebuild", () => {
+    const baseline = loadWorkflow("haiku-explain-workflow.json")
+    const patched: WorkflowManifest = {
+      ...baseline,
+      steps: [],
+    }
+    const feedback = collectFluentPatchGoalFeedback(
+      "Clear the workflow and start fresh with one @executioncontrolprotocol/ollama.generate step that writes a haiku.",
+      patched,
+      {
+        capabilities: [{ id: "@executioncontrolprotocol/ollama.generate" }],
+        extensions: [],
+      } as import("@executioncontrolprotocol/core").CompactEnvironmentSummary,
+      baseline
+    )
+    const text = (feedback ?? []).flatMap((f) => f.issues.map((i) => i.message)).join("\n")
+    expect(text).toMatch(/must not leave \.run\(\[\]\)/i)
+    expect(text).toContain("@executioncontrolprotocol/ollama.generate")
+  })
+
   it("flags string returns on chrome-ai.generate .as key", () => {
     const patched: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",
@@ -224,5 +245,44 @@ describe("collectCreateWorkflowIoFeedback generate returns", () => {
       ],
     }
     expect(collectCreateWorkflowIoFeedback("Create chrome generate", wf)).toBeUndefined()
+  })
+})
+
+describe("restoreBaselineIoOnClearKeepRequest", () => {
+  it("restores accepts/returns when clear-steps keep I/O drops them", () => {
+    const baseline = loadWorkflow("generate-accepts-returns-workflow.json")
+    const cleared: WorkflowManifest = {
+      ...baseline,
+      workflow: {
+        ...baseline.workflow!,
+        accepts: undefined,
+        returns: undefined,
+      },
+      steps: [],
+    }
+    const restored = restoreBaselineIoOnClearKeepRequest(
+      "Clear the steps but keep accepts and returns.",
+      cleared,
+      baseline
+    )
+    expect(restored.steps).toEqual([])
+    expect(restored.workflow?.accepts).toEqual(baseline.workflow?.accepts)
+    expect(restored.workflow?.returns).toEqual(baseline.workflow?.returns)
+  })
+
+  it("does not restore when the request does not ask to keep I/O", () => {
+    const baseline = loadWorkflow("generate-accepts-returns-workflow.json")
+    const cleared: WorkflowManifest = {
+      ...baseline,
+      workflow: {
+        ...baseline.workflow!,
+        accepts: undefined,
+        returns: undefined,
+      },
+      steps: [],
+    }
+    const restored = restoreBaselineIoOnClearKeepRequest("Clear the steps.", cleared, baseline)
+    expect(restored.workflow?.accepts).toBeUndefined()
+    expect(restored.workflow?.returns).toBeUndefined()
   })
 })

@@ -40,6 +40,10 @@ export {
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
 export { environment, Environment } from "./environment/environment.js"
+export {
+  buildDescriptor,
+  DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
+} from "./environment/describe.js"
 export { EcpImpl, type Ecp, type RunOptions } from "./environment/ecp.js"
 export {
   createTestSessionBuilder,

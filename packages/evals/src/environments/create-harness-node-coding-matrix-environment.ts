@@ -2,12 +2,15 @@ import { environment, harness, runtime, registerCoreFormats, registerTestExtensi
 import {
   registerBrowserCodingHarnesses,
   BROWSER_CODING_HARNESS_ID,
-  HARNESS_CODING_BINDING,
+  codingHarnessBindingForProfile,
+  type HarnessCodingProfile,
 } from "../harness-coding-bindings.js"
 import { registerNodeRuntime, NODE_RUNTIME_ID } from "@executioncontrolprotocol/node"
 import { registerOllamaExtension } from "@executioncontrolprotocol/extension-ollama"
+import { registerAnthropicExtension } from "@executioncontrolprotocol/anthropic"
 import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
 import type { EvalProviderProfile } from "../profiles/eval-provider.js"
+import { setActiveEvalProvider } from "../profiles/eval-provider-context.js"
 import { matrixExtensionBindings, providerExtensionBinding } from "./shared-eval-extensions.js"
 
 async function registerNodeCodingMatrixEval(provider: EvalProviderProfile): Promise<void> {
@@ -17,6 +20,9 @@ async function registerNodeCodingMatrixEval(provider: EvalProviderProfile): Prom
   if (provider.providerId === "@executioncontrolprotocol/ollama") {
     await registerOllamaExtension()
   }
+  if (provider.providerId === "@executioncontrolprotocol/anthropic") {
+    await registerAnthropicExtension()
+  }
   await registerFormatToonExtension()
   await registerTestExtension()
 }
@@ -25,13 +31,18 @@ async function registerNodeCodingMatrixEval(provider: EvalProviderProfile): Prom
  * Matrix harness eval environment for Node providers with Browser Coding harness.
  * @category Evals
  */
-export async function createHarnessNodeCodingMatrixEnvironment(provider: EvalProviderProfile) {
+export async function createHarnessNodeCodingMatrixEnvironment(
+  provider: EvalProviderProfile,
+  codingProfile: HarnessCodingProfile = "small"
+) {
   if (provider.runtime !== "node") {
     throw new Error(
       `createHarnessNodeCodingMatrixEnvironment expects runtime "node", got ${provider.runtime}`
     )
   }
+  setActiveEvalProvider(provider)
   await registerNodeCodingMatrixEval(provider)
+  const binding = codingHarnessBindingForProfile(codingProfile)
   return environment(
     `harness-${provider.id}-coding-matrix-eval`,
     `Harness ${provider.id} Coding Matrix Eval`
@@ -41,6 +52,6 @@ export async function createHarnessNodeCodingMatrixEnvironment(provider: EvalPro
     .withHarnesses([
       harness(BROWSER_CODING_HARNESS_ID)
         .uses(provider.generateCapability)
-        .with({ ...HARNESS_CODING_BINDING }),
+        .with({ ...binding }),
     ])
 }

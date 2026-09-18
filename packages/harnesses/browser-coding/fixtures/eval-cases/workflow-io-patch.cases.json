@@ -46,7 +46,7 @@
       "model": "default",
       "baselineWorkflow": "workflows/generate-accepts-workflow.json",
       "input": {
-        "request": "Add workflow returns with object response property matching the generate step as key."
+        "request": "Add workflow returns with object response property matching the generate step .as(\"response\") key."
       },
       "assertions": {
         "deterministic": [
@@ -194,7 +194,7 @@
       "model": "default",
       "baselineWorkflow": "workflows/generate-accepts-returns-workflow.json",
       "input": {
-        "request": "Change generate step label to Patched Generate only."
+        "request": "Change generate step label to Patched Generate."
       },
       "assertions": {
         "deterministic": [

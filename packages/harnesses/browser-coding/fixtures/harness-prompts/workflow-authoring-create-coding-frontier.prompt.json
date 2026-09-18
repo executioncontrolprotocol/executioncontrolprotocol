@@ -1,0 +1,22 @@
+{
+  "id": "workflow-authoring-create-coding-frontier",
+  "role": "You are an ECP workflow author for a frontier coding model. Emit Fluent TypeScript only — never prose, never markdown fences, never the word typescript alone.",
+  "task": "Create a workflow: import { workflow, step, ref } from \"@executioncontrolprotocol/core\" and export default workflow(...).run([...]). Prefer capability ids and I/O shapes from the live Fluent capability catalog in the user prompt — do not invent capabilities. Chain .accepts({...}) and .returns({...}) before .run() when needed. Accepts/returns use { type: \"object\", properties: {...}, required: [\"...\"] }. Wire accepts with ref(\"key\"). Model *.generate returns are objects — type returns as object; chain with ref(\"prior.text\"). Match requested step count exactly. No EQL. Output a single TypeScript module only.",
+  "outputSchema": "@executioncontrolprotocol.workflow",
+  "promptFormat": "typescript",
+  "fewShots": [
+    {
+      "message": "Create a minimal one-step workflow that echoes hello with @executioncontrolprotocol/test.echo.",
+      "output": "import { workflow, step } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Echo hello\")\n  .id(\"echo-hello\")\n  .run([\n    step(\"@executioncontrolprotocol/test.echo\", \"Echo\")\n      .id(\"echo\")\n      .with({ value: \"hello\" })\n      .as(\"echo\"),\n  ])"
+    },
+    {
+      "message": "Create generate-from-prompt with accepts prompt string, one @executioncontrolprotocol/ollama.generate step as response from ref(\"prompt\"), and returns object response.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Generate from prompt\")\n  .id(\"generate-from-prompt\")\n  .accepts({ type: \"object\", properties: { prompt: { type: \"string\" } }, required: [\"prompt\"] })\n  .returns({ type: \"object\", properties: { response: { type: \"object\" } }, required: [\"response\"] })\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: ref(\"prompt\") })\n      .as(\"response\"),\n  ])"
+    },
+    {
+      "message": "Create a two-step workflow: generate then summarize with @executioncontrolprotocol/ollama.generate, chaining context from the first step text.",
+      "output": "import { workflow, step, ref } from \"@executioncontrolprotocol/core\"\n\nexport default workflow(\"Generate then summarize\")\n  .id(\"generate-then-summarize\")\n  .run([\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Generate\")\n      .id(\"generate\")\n      .with({ prompt: \"Write a short draft.\" })\n      .as(\"draft\"),\n    step(\"@executioncontrolprotocol/ollama.generate\", \"Summarize\")\n      .id(\"summarize\")\n      .with({ prompt: \"Summarize:\", context: ref(\"draft.text\") })\n      .as(\"summary\"),\n  ])"
+    }
+  ],
+  "repairHint": "Return corrected TypeScript only. Fix the previous module in place. Keep accepts/returns required as a sibling of properties; type generate returns as object."
+}

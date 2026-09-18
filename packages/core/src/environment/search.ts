@@ -1,5 +1,10 @@
 import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-import type { EnvironmentDescriptor, SearchOptions, SearchResult, SearchResultItem } from "@executioncontrolprotocol/types"
+import type {
+  EnvironmentDescriptor,
+  SearchOptions,
+  SearchResult,
+  SearchResultItem,
+} from "@executioncontrolprotocol/types"
 
 function tokenize(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean)
@@ -15,6 +20,31 @@ function scoreText(text: string, tokens: string[]): number {
   return matched / tokens.length
 }
 
+function capabilityHaystack(cap: EnvironmentDescriptor["capabilities"][number]): string {
+  const meta = cap.metadata
+  return [
+    cap.id,
+    cap.label ?? "",
+    cap.extension ?? "",
+    cap.summary ?? "",
+    meta?.description ?? "",
+    ...(meta?.useCases ?? []),
+    ...(meta?.samplePrompts ?? []),
+  ].join(" ")
+}
+
+function extensionHaystack(ext: EnvironmentDescriptor["extensions"][number]): string {
+  const meta = ext.metadata
+  return [
+    ext.id,
+    ext.label ?? "",
+    ext.summary ?? "",
+    meta?.description ?? "",
+    ...(meta?.useCases ?? []),
+    ...(meta?.samplePrompts ?? []),
+  ].join(" ")
+}
+
 /** Fuzzy search over environment descriptor sections. */
 export function searchCapabilities(
   query: string,
@@ -27,17 +57,15 @@ export function searchCapabilities(
 
   if (types.includes("capability")) {
     for (const cap of descriptor.capabilities) {
-      const text = `${cap.id} ${cap.label ?? ""} ${cap.extension ?? ""}`
-      const score = scoreText(text, tokens)
+      const score = scoreText(capabilityHaystack(cap), tokens)
       if (score > 0) {
-        const base = {
-          type: "capability" as const,
+        const item: SearchResultItem = {
+          type: "capability",
           id: cap.id,
           label: cap.label,
           score,
           reason: `Matched ${Math.round(score * 100)}% of query tokens`,
         }
-        const item: SearchResultItem = { ...base }
         if (options?.include?.includes("inputSchema")) item.inputSchema = cap.inputSchema
         if (options?.include?.includes("outputSchema")) item.outputSchema = cap.outputSchema
         results.push(item)
@@ -47,8 +75,7 @@ export function searchCapabilities(
 
   if (types.includes("extension")) {
     for (const ext of descriptor.extensions) {
-      const text = `${ext.id} ${ext.label ?? ""}`
-      const score = scoreText(text, tokens)
+      const score = scoreText(extensionHaystack(ext), tokens)
       if (score > 0) {
         results.push({
           type: "extension",

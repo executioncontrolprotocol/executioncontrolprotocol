@@ -103,10 +103,28 @@ function guideReply(message: string): string {
 /** Browser guided onboarding chat (no external model). @category Extensions */
 export const browserGuideExtension = defineExtension("@executioncontrolprotocol", "browser")
   .withSupportedRuntimes([BROWSER_RUNTIME_ID])
+  .withMetadata({
+    summary: "Offline guided chat for the browser demo.",
+    description:
+      "Answers common ECP and editor questions from curated help text when no model provider is ready. Not a substitute for harness chat once a model is bound.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/browser", "guideChat")
       .withInput(GuideChatInput)
       .withOutput(GuideChatOutput)
+      .withMetadata({
+        summary: "Reply with offline help text for demo onboarding.",
+        description:
+          "Pattern-matches the user message against curated topics such as workflows, validation, graphs, and on-device model install. Does not call an external model.",
+        useCases: [
+          "Demo shows helpful replies before on-device model download completes.",
+          "First-run tour answers what ECP is without API credentials.",
+        ],
+        samplePrompts: [
+          "What can you do in this editor?",
+          "How do I create a demo echo workflow?",
+        ],
+      })
       .withHandler(async (raw) => {
         const input = raw as z.infer<typeof GuideChatInput>
         return { text: guideReply(input.message) }

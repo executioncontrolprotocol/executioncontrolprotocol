@@ -97,6 +97,42 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).not.toContain("listModels")
   })
 
+  it("formatEnvironmentSummaryLines fluent emits typed I/O and .with examples", () => {
+    const summary = summarizeEnvironmentDescriptor({
+      ...minimalDescriptor,
+      capabilities: [
+        {
+          id: "@executioncontrolprotocol/test.echo",
+          label: "echo",
+          extension: "@executioncontrolprotocol/test",
+          inputSchema: {
+            type: "object",
+            properties: { value: { type: "string" } },
+            required: ["value"],
+          },
+          outputSchema: { type: "object", properties: { text: { type: "string" } } },
+        },
+      ],
+    })
+    const text = formatEnvironmentSummaryLines(summary, { format: "fluent" }).join("\n")
+    expect(text).toContain("Fluent capability catalog")
+    expect(text).toContain("@executioncontrolprotocol/test.echo (echo)")
+    expect(text).toContain("value: string (required)")
+    expect(text).toContain('step("@executioncontrolprotocol/test.echo"')
+    expect(text).toContain(".with({ value: \"hello\" })")
+  })
+
+  it("formatEnvironmentSummaryLines fluent marks caps already in workflow", () => {
+    const summary = summarizeEnvironmentDescriptor(minimalDescriptor)
+    const text = formatEnvironmentSummaryLines(summary, {
+      format: "fluent",
+      existingCapabilityUses: new Set(["@executioncontrolprotocol/test.echo"]),
+    }).join("\n")
+    expect(text).toContain("@executioncontrolprotocol/test.echo")
+    expect(text).toContain("already used by an existing step")
+    expect(text).toContain('step("@executioncontrolprotocol/test.summarize"')
+  })
+
   it("omits demo bridge extensions from authoring summary", () => {
     const descriptor: EnvironmentDescriptor = {
       ...minimalDescriptor,

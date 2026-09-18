@@ -10,6 +10,10 @@ export {
   type OllamaQwenCoderEvalProfile,
 } from "./profiles/ollama-qwen.js"
 export { CHROME_NANO_EVAL } from "./profiles/chrome-nano.js"
+export {
+  ANTHROPIC_CLAUDE_SONNET_45_EVAL,
+  type AnthropicClaudeSonnetEvalProfile,
+} from "./profiles/anthropic-sonnet.js"
 export type { EvalProviderProfile } from "./profiles/eval-provider.js"
 export {
   getActiveEvalProvider,
@@ -42,9 +46,15 @@ export {
   registerBrowserCodingHarnesses,
   resetBrowserCodingHarnessRegistrationForTests,
   HARNESS_CODING_BINDING,
+  HARNESS_CODING_BINDING_SMALL,
+  HARNESS_CODING_BINDING_MEDIUM,
+  HARNESS_CODING_BINDING_FRONTIER,
   HARNESS_CODING_REPAIR,
   HARNESS_CODING_TRACE,
   getHarnessCodingConfig,
+  codingHarnessBindingForProfile,
+  resolveEffectiveCodingProfile,
+  type HarnessCodingProfile,
 } from "./harness-coding-bindings.js"
 export {
   ollamaEvalReady,
@@ -53,6 +63,16 @@ export {
   type OllamaEvalReadiness,
 } from "./helpers/ollama.js"
 export { ollamaQwenEvalReady } from "./helpers/ollama-qwen.js"
+export {
+  anthropicEvalReady,
+  type AnthropicEvalReadiness,
+} from "./helpers/anthropic.js"
+export {
+  ensureEvalEnvLoaded,
+  findEvalRepoRoot,
+  parseDotEnvFile,
+  resetEvalEnvLoadedForTests,
+} from "./helpers/load-eval-env.js"
 export {
   chromeNanoEvalReady,
   type ChromeNanoEvalReadiness,

@@ -33,6 +33,37 @@ describe("@executioncontrolprotocol/openai", () => {
     )
     expect(result).toEqual({ text: "openai reply" })
   })
+  it("generate maps prior messages as native chat turns", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "openai reply" } }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const ext = globalRegistry.getExtension("@executioncontrolprotocol/openai")
+    const generate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.generate")
+    await generate?.handler(
+      {
+        prompt: "fix it",
+        system: "be brief",
+        messages: [
+          { role: "user", content: "hi" },
+          { role: "assistant", content: "hello" },
+        ],
+      },
+      { extensionConfig: {}, usage: { increment: vi.fn() } } as never
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(body.messages).toEqual([
+      { role: "system", content: "be brief" },
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "fix it" },
+    ])
+  })
 })
 
 describe("@executioncontrolprotocol/openai.evaluate", () => {

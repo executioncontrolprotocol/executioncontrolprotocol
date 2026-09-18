@@ -112,8 +112,18 @@ export function inferRequiredCapabilityIds(
       /\bsummarize\s+input\b/i.test(request)
     const isAnchorOnly =
       /\bafter\s+summarize\b/i.test(request) || /\bbefore\s+summarize\b/i.test(request)
+    // Verb "summarize" must not pull test.summarize when the request already names a *.generate id.
+    const alreadyHasGenerate = [...matched].some((id) => id.endsWith(".generate"))
     const cap = bySuffix("summarize")
-    if (cap && !isRemovalTarget && !isAnchorOnly && !isConfigureExisting) matched.add(cap)
+    if (
+      cap &&
+      !isRemovalTarget &&
+      !isAnchorOnly &&
+      !isConfigureExisting &&
+      !alreadyHasGenerate
+    ) {
+      matched.add(cap)
+    }
   }
   if (/\bnotify\b/.test(lower)) {
     const isRemovalTarget = /\bremove\b[^.]*\bnotify\b/i.test(request)
@@ -187,18 +197,24 @@ export function inferRequiredStepCount(request: string): number | undefined {
 export function buildRequestCapabilityHintLines(
   request: string,
   summary: CompactEnvironmentSummary,
-  options?: { mode?: "create" | "patch" }
+  options?: { mode?: "create" | "patch"; surface?: "eql" | "fluent" }
 ): string[] {
   const ids = summary.capabilities.map((c) => c.id)
   const required = inferRequiredCapabilityIds(request, ids)
   const stepCount = inferRequiredStepCount(request)
   const lines: string[] = []
   const mode = options?.mode ?? "create"
+  const surface = options?.surface ?? "eql"
+  const fluent = surface === "fluent"
 
   if (mode === "create" && (/\bone step\b/i.test(request) || /\bexactly one\b/i.test(request) || /\bminimal\b/i.test(request))) {
     lines.push(
-      "Required: exactly ONE STEP line in EQL output. Do not copy multi-step examples from the system prompt.",
-      'Pick a workflow id that matches this request (e.g. "minimal-echo"), not a multi-step example id.',
+      fluent
+        ? "Required: exactly ONE step(...) entry in .run([...]). Do not copy multi-step examples from the system prompt."
+        : "Required: exactly ONE STEP line in EQL output. Do not copy multi-step examples from the system prompt.",
+      fluent
+        ? 'Pick a workflow .id() that matches this request (e.g. "minimal-echo"), not a multi-step example id.'
+        : 'Pick a workflow id that matches this request (e.g. "minimal-echo"), not a multi-step example id.',
       ""
     )
   }
@@ -206,7 +222,9 @@ export function buildRequestCapabilityHintLines(
   const stepIdMatch = request.match(/\bstep id\s+(\w+)/i)
   if (stepIdMatch && mode === "create") {
     lines.push(
-      `Step id must be "${stepIdMatch[1]}" (short name, not a capability id). Format: STEP ${stepIdMatch[1]} USES @executioncontrolprotocol/...`,
+      fluent
+        ? `Step .id() must be "${stepIdMatch[1]}" (short name, not a capability id): step("...", "...").id("${stepIdMatch[1]}")`
+        : `Step id must be "${stepIdMatch[1]}" (short name, not a capability id). Format: STEP ${stepIdMatch[1]} USES @executioncontrolprotocol/...`,
       ""
     )
   }
@@ -225,17 +243,27 @@ export function buildRequestCapabilityHintLines(
 
   if (stepCount !== undefined && stepCount > 1 && sameCapReuse) {
     lines.push(
-      `Required: ${stepCount} STEP lines with distinct step ids (e.g. poem, summarize).`,
-      ...required.map((id, index) => `${index + 1}. STEP ... USES ${id}`),
-      "Reusing the same USES capability twice still requires unique step ids — do not repeat the capability suffix.",
+      fluent
+        ? `Required: ${stepCount} steps in .run([...]) with distinct .id() values (e.g. poem, summarize).`
+        : `Required: ${stepCount} STEP lines with distinct step ids (e.g. poem, summarize).`,
+      ...required.map((id, index) =>
+        fluent ? `${index + 1}. step("${id}", ...).id("...")` : `${index + 1}. STEP ... USES ${id}`
+      ),
+      fluent
+        ? "Reusing the same capability twice still requires unique .id() values — do not repeat the capability suffix as the id."
+        : "Reusing the same USES capability twice still requires unique step ids — do not repeat the capability suffix.",
       ""
     )
     return lines
   }
 
   lines.push(
-    `Required: ${required.length} step(s) in order (one STEP line per capability):`,
-    ...required.map((id, index) => `${index + 1}. STEP ... USES ${id}`),
+    fluent
+      ? `Required: ${required.length} step(s) in .run([...]) in order (one step() per capability):`
+      : `Required: ${required.length} step(s) in order (one STEP line per capability):`,
+    ...required.map((id, index) =>
+      fluent ? `${index + 1}. step("${id}", ...)` : `${index + 1}. STEP ... USES ${id}`
+    ),
     "Use only these capability ids; do not substitute summarize/notify/translate unless listed.",
     ""
   )
@@ -391,7 +419,8 @@ function stepUsesList(workflow: WorkflowManifest): string[] {
 export function collectCreateCapabilityFeedback(
   request: string,
   summary: CompactEnvironmentSummary,
-  workflow: WorkflowManifest
+  workflow: WorkflowManifest,
+  surface: "eql" | "fluent" = "eql"
 ): HarnessOperationFeedback[] | undefined {
   const required = inferRequiredCapabilityIds(
     request,
@@ -401,13 +430,16 @@ export function collectCreateCapabilityFeedback(
   const uses = stepUsesList(workflow)
   const missing = required.filter((id) => !uses.includes(id))
   const feedback: HarnessOperationFeedback[] = []
+  const fluent = surface === "fluent"
   if (missing.length > 0) {
-    const allStepsList = required.map((id, i) => `${i + 1}. STEP ... USES ${id}`).join(", ")
+    const allStepsList = required
+      .map((id, i) => (fluent ? `${i + 1}. step("${id}", ...)` : `${i + 1}. STEP ... USES ${id}`))
+      .join(", ")
     feedback.push(
       collectModelOutputFeedback(
-        `Workflow has ${uses.length} STEP(s) but needs ${required.length}. ` +
-          `Include ALL required steps in EQL: ${allStepsList}. ` +
-          `Missing USES: ${missing.join(", ")}.`
+        fluent
+          ? `Workflow has ${uses.length} step(s) but needs ${required.length}. Include ALL required steps: ${allStepsList}. Missing: ${missing.join(", ")}.`
+          : `Workflow has ${uses.length} STEP(s) but needs ${required.length}. Include ALL required steps in EQL: ${allStepsList}. Missing USES: ${missing.join(", ")}.`
       )
     )
   }
@@ -415,8 +447,9 @@ export function collectCreateCapabilityFeedback(
   if (required.length > 0 && extra.length > 0) {
     feedback.push(
       collectModelOutputFeedback(
-        `Output exactly ${required.length} STEP line(s) for capabilities named in the request: ${required.join(", ")}. ` +
-          `Remove extra steps (not requested: ${extra.join(", ")}).`
+        fluent
+          ? `Export exactly ${required.length} step(s) for capabilities named in the request: ${required.join(", ")}. Remove extra steps (not requested: ${extra.join(", ")}).`
+          : `Output exactly ${required.length} STEP line(s) for capabilities named in the request: ${required.join(", ")}. Remove extra steps (not requested: ${extra.join(", ")}).`
       )
     )
   } else if (required.length > 0 && uses.length > required.length) {
@@ -425,7 +458,9 @@ export function collectCreateCapabilityFeedback(
     if (!(allUsesAreRequired && uses.length === expectedSteps)) {
       feedback.push(
         collectModelOutputFeedback(
-          `Output exactly ${required.length} STEP line(s) for: ${required.join(", ")}. Remove extra STEP lines.`
+          fluent
+            ? `Export exactly ${required.length} step(s) for: ${required.join(", ")}. Remove extra steps.`
+            : `Output exactly ${required.length} STEP line(s) for: ${required.join(", ")}. Remove extra STEP lines.`
         )
       )
     }
@@ -440,7 +475,8 @@ export function collectCreateCapabilityFeedback(
 export function collectCreateStepCountFeedback(
   request: string,
   workflow: WorkflowManifest,
-  requiredCapabilityIds?: readonly string[]
+  requiredCapabilityIds?: readonly string[],
+  surface: "eql" | "fluent" = "eql"
 ): HarnessOperationFeedback[] | undefined {
   const explicitSingle =
     /\bone step\b/i.test(request) ||
@@ -458,16 +494,21 @@ export function collectCreateStepCountFeedback(
   if (requiredCount === undefined || count <= requiredCount) {
     return undefined
   }
+  const fluent = surface === "fluent"
   if (requiredCount === 1) {
     return [
       collectModelOutputFeedback(
-        `Request requires exactly one capability step but output has ${count} STEP lines. Output only one STEP ... USES line.`
+        fluent
+          ? `Request requires exactly one step in .run([...]) but output has ${count}. Export exactly one step(...).`
+          : `Request requires exactly one capability step but output has ${count} STEP lines. Output only one STEP ... USES line.`
       ),
     ]
   }
   return [
     collectModelOutputFeedback(
-      `Request requires ${requiredCount} STEP lines but output has ${count}. Output exactly ${requiredCount} STEP ... USES lines.`
+      fluent
+        ? `Request requires ${requiredCount} steps in .run([...]) but output has ${count}. Export exactly ${requiredCount} step(...) entries.`
+        : `Request requires ${requiredCount} STEP lines but output has ${count}. Output exactly ${requiredCount} STEP ... USES lines.`
     ),
   ]
 }
@@ -564,6 +605,13 @@ export function collectPatchGoalFeedback(
         )
       )
     }
+    if (isClearAndRebuildRequest(request) && remaining.length === 0) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must not leave an empty workflow. DELETE every baseline step, then ADD STEP for only the newly requested capabilities.`
+        )
+      )
+    }
   } else if (removeMatch) {
     const stepId = removeMatch[1]!
     const still = patched.steps?.find((s) => s.id === stepId)
@@ -633,7 +681,7 @@ export function collectPatchGoalFeedback(
   )
   const uses = stepUsesList(patched)
   const missing = required.filter((id) => !uses.includes(id))
-  if (missing.length > 0 && hasAddIntent) {
+  if (missing.length > 0 && (hasAddIntent || isClearAndRebuildRequest(request))) {
     const baselineIds = baselineStepIds.join(", ")
     const afterMatch = request.match(/\bafter\s+(\w+)\b/i)
     const beforeMatch = request.match(/\bbefore\s+(\w+)\b/i)
@@ -647,12 +695,20 @@ export function collectPatchGoalFeedback(
       removeMatch && hasAddIntent
         ? ` Also DELETE STEP ${removeMatch[1]} if the request removes it.`
         : ""
-    feedback.push(
-      collectModelOutputFeedback(
-        `Use ADD STEP with USES ${missing.join(" or ")}${anchorClause}. ` +
-          `Keep existing step(s): ${baselineIds || "none"}.${deletePart}`
+    if (isClearAndRebuildRequest(request)) {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Start-fresh rebuild must ADD STEP with USES ${missing.join(" or ")} after deleting baseline steps. Do not leave an empty workflow.`
+        )
       )
-    )
+    } else {
+      feedback.push(
+        collectModelOutputFeedback(
+          `Use ADD STEP with USES ${missing.join(" or ")}${anchorClause}. ` +
+            `Keep existing step(s): ${baselineIds || "none"}.${deletePart}`
+        )
+      )
+    }
   }
 
   if (removeMatch && hasAddIntent && !missing.length) {

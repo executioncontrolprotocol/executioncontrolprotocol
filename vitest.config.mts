@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { defineConfig } from "vitest/config"
@@ -5,6 +6,35 @@ import { playwright } from "@vitest/browser-playwright"
 import { browserPromptLoaderPlugin } from "./packages/runtimes/browser/test/vite-browser-prompts-plugin.js"
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url))
+
+/** Load repo `.env` / `.env.local` into process.env without clobbering existing values. */
+function loadRepoDotEnv(root: string): void {
+  for (const name of [".env", ".env.local"] as const) {
+    const filePath = path.join(root, name)
+    if (!existsSync(filePath)) continue
+    for (const rawLine of readFileSync(filePath, "utf8").split(/\r?\n/)) {
+      const line = rawLine.trim()
+      if (!line || line.startsWith("#")) continue
+      const eq = line.indexOf("=")
+      if (eq <= 0) continue
+      const key = line.slice(0, eq).trim()
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue
+      let value = line.slice(eq + 1).trim()
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+      const current = process.env[key]
+      if (current === undefined || current.trim() === "") {
+        process.env[key] = value
+      }
+    }
+  }
+}
+
+loadRepoDotEnv(repoRoot)
 const corePromptsDir = path.join(repoRoot, "packages/core/src/harness/prompts")
 const promptLoaderStubDir = path.join(repoRoot, "packages/evals/test/stubs")
 const browserPromptPlugins = [
@@ -80,7 +110,7 @@ export default defineConfig({
       "@executioncontrolprotocol/format-mermaid": path.resolve(repoRoot, "packages/extensions/format-mermaid/src/index.ts"),
       "@executioncontrolprotocol/format-eql": path.resolve(repoRoot, "packages/extensions/format-eql/src/index.ts"),
       "@executioncontrolprotocol/chrome-ai": path.resolve(repoRoot, "packages/extensions/chrome-ai/src/index.ts"),
-      "@executioncontrolprotocol/claude": path.resolve(repoRoot, "packages/extensions/claude/src/index.ts"),
+      "@executioncontrolprotocol/anthropic": path.resolve(repoRoot, "packages/extensions/anthropic/src/index.ts"),
       "@executioncontrolprotocol/extension-ollama": path.resolve(
         repoRoot,
         "packages/extensions/ollama/src/index.ts"
@@ -184,6 +214,7 @@ export default defineConfig({
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",
             "packages/harnesses/*/test/**/*.test.ts",
+            "packages/evals/test/helpers/**/*.test.ts",
             "packages/runtimes/node/**/*.test.ts",
             "packages/runtimes/browser/test/*.test.ts",
             "scripts/**/*.test.ts",

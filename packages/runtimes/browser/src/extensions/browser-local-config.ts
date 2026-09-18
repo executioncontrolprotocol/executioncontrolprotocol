@@ -56,6 +56,11 @@ function attachLocalConfigResolver(ctx: LifecycleContext): void {
 /** Browser localStorage config extension (non-secret keys only). @category Extensions */
 export const browserLocalConfigExtension = defineExtension("@executioncontrolprotocol", "browser-local-config")
   .withSupportedRuntimes([BROWSER_RUNTIME_ID])
+  .withMetadata({
+    summary: "localStorage-backed config for non-secret browser settings.",
+    description:
+      "Registers a config resolver that reads allowlisted keys from localStorage with a configurable prefix. Denies common secret-like key names by default.",
+  })
   .withConfig({
     prefix: z.string().default("ecp:"),
     allowedKeys: z.array(z.string()).default([]),

@@ -1,4 +1,11 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
+import {
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
+  catalogExtension,
+  NODE_RUNTIME_ID,
+  toProviderChatTurns,
+} from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
@@ -237,15 +244,15 @@ async function ollamaChat(
   prompt: string,
   system?: string,
   context?: unknown,
-  requestOptions?: Record<string, unknown>
+  requestOptions?: Record<string, unknown>,
+  priorMessages?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<string> {
-  const messages = [
-    ...(system ? [{ role: "system" as const, content: system }] : []),
-    ...(context
-      ? [{ role: "system" as const, content: JSON.stringify(context) }]
-      : []),
-    { role: "user" as const, content: prompt },
-  ]
+  const messages = toProviderChatTurns({
+    system,
+    messages: priorMessages,
+    prompt,
+    context,
+  })
   const res = await fetch(`${baseURL.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -296,12 +303,35 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     defaultModel: z.string().optional(),
     timeoutMs: z.number().optional(),
   })
+  .withMetadata({
+    summary: "Local Ollama server integration for Node hosts.",
+    description:
+      "Connects to a locally hosted Ollama instance for chat completion, model listing, and harness evaluation. Ideal for development, eval matrices, and air-gapped deployments.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/ollama", "generate")
       .withInput(GenerateInput)
       .withOutput(modelGenerateOutputSchema)
+      .withMetadata({
+        summary: "Generate text via a local Ollama server.",
+        description:
+          "Runs chat completion against an Ollama instance on the configured base URL. Suited for local development and offline Node workloads. Does not accept file attachments yet. Override the model per call or set a default in extension config.",
+        useCases: [
+          "Harness or CLI workflow needs a local model without cloud credentials.",
+          "Eval matrix runs chat turns against a pinned local model tag.",
+        ],
+        samplePrompts: [
+          "Generate a reply using the local Ollama model.",
+          "Run this prompt against gemma3:1b on localhost.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof GenerateInput>
+        if (parsed.files && parsed.files.length > 0) {
+          throw new Error(
+            "@executioncontrolprotocol/ollama.generate does not support files yet"
+          )
+        }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =
           (cfg.baseURL as string | undefined) ??
@@ -316,13 +346,27 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           parsed.prompt,
           parsed.system,
           parsed.context,
-          parsed.options as Record<string, unknown> | undefined
+          parsed.options as Record<string, unknown> | undefined,
+          parsed.messages
         )
         return { text }
       }),
     capabilityFor("@executioncontrolprotocol/ollama", "listModels")
       .withInput(z.object({ baseURL: z.string().optional() }))
       .withOutput(z.object({ models: z.array(z.string()) }))
+      .withMetadata({
+        summary: "List models available on the Ollama server.",
+        description:
+          "Returns model tags reported by the Ollama tags API. Use before generate to pick an installed model or to populate a model picker in local dev tools.",
+        useCases: [
+          "Settings UI shows which models are pulled locally.",
+          "Script verifies a required model tag exists before a harness run.",
+        ],
+        samplePrompts: [
+          "What Ollama models are installed?",
+          "List available local models on this machine.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const parsed = input as { baseURL?: string }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -341,9 +385,23 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           criteria: z.unknown().optional(),
           goal: z.string().optional(),
           classifiedIntent: z.string().optional(),
+          model: z.string().optional(),
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
+      .withMetadata({
+        summary: "Judge harness outputs with a local model.",
+        description:
+          "Approves or rejects harness artifacts against a goal and rubric. Applies deterministic shortcuts for common eval patterns before calling a local judge model. Used by harness eval matrices, not end-user chat.",
+        useCases: [
+          "Harness eval case needs an automated quality gate after generate.",
+          "CI matrix scores workflow patch outputs against a rubric.",
+        ],
+        samplePrompts: [
+          "Evaluate whether this harness answer satisfies the goal.",
+          "Run the eval judge on the latest workflow artifact.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =
@@ -355,6 +413,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           criteria?: string
           artifact?: { answer?: string }
           classifiedIntent?: string
+          model?: string
         }
         const goal = row.goal ?? "review"
         const rubric = String(row.criteria ?? "Accurate, on-topic, and actionable.")
@@ -374,10 +433,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           ...(row.classifiedIntent ? [`Classified intent: ${row.classifiedIntent}`] : []),
           formatted,
         ].join("\n")
+        const judgeModel =
+          row.model ?? (cfg.defaultModel as string | undefined) ?? "gemma3:1b"
         try {
           const content = await ollamaChat(
             baseURL,
-            "gemma3:1b",
+            judgeModel,
             prompt,
             EVALUATE_SYSTEM_PROMPT
           )

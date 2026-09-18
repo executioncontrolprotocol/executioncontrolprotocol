@@ -32,6 +32,7 @@ import {
   formatModelRepairDialogLines,
   isRepairFeedbackEcho,
   isRepairTemplateEcho,
+  DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
   summarizeEnvironmentDescriptor,
   type CompactEnvironmentSummary,
 } from "@executioncontrolprotocol/core"
@@ -179,7 +180,9 @@ const evalsWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol",
       : undefined
 
     if (config.context.includeEnvironmentDescriptor) {
-      environmentSummary = summarizeEnvironmentDescriptor(await ctx.ecp.describe())
+      environmentSummary = summarizeEnvironmentDescriptor(
+        await ctx.ecp.describe(DESCRIBE_AUTHORING_CAPABILITIES_QUERY)
+      )
     }
 
     const contextBundle = await buildContextBundle(ctx.ecp, {

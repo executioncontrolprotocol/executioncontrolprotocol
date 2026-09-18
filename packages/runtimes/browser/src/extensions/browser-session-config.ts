@@ -78,6 +78,11 @@ export function getBrowserSessionValue(name: string): unknown {
 
 /** Browser session-only config extension. @category Extensions */
 export const browserSessionConfigExtension = defineExtension("@executioncontrolprotocol", "browser-session-config")
+  .withMetadata({
+    summary: "In-memory session config for browser environments.",
+    description:
+      "Registers a config resolver backed by a session map cleared on environment terminate. Optional filtering hides secret-like keys when allowSecrets is false.",
+  })
   .withConfig({
     allowSecrets: z.boolean().default(true),
     persist: z.boolean().default(false),

@@ -116,6 +116,11 @@ export function exposeBrowserRegistry(): BrowserEcpGlobal | undefined {
 
 /** Hook-only dynamic registry extension for browser. @category Extensions */
 export const browserRegistryExtension = defineExtension("@executioncontrolprotocol", "browser-registry")
+  .withMetadata({
+    summary: "Browser global registry and dynamic extension registration.",
+    description:
+      "Exposes optional globalThis.ecp registration, registry freeze timing, and policy-governed runtime extension binding for browser hosts.",
+  })
   .withConfig({
     freezeOn: z.string().default("environment:beforeRun"),
     allowRuntimeRegistration: z.boolean().default(true),

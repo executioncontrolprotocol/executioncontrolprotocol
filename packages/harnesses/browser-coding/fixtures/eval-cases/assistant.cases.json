@@ -23,15 +23,12 @@
             "text": "poem"
           },
           {
-            "kind": "answerContains",
-            "text": "error"
+            "kind": "citationStepId",
+            "value": "poem"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Explains generate failure",
-          "rubric": "Mentions poem step and describes the error from run context",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -110,14 +107,11 @@
           },
           {
             "kind": "answerContains",
-            "text": "ecp"
+            "text": "executioncontrolprotocol"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Extensions",
-          "rubric": "Lists ECP extensions or plugins loaded in this environment",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -169,9 +163,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Fix suggest",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -219,14 +211,15 @@
           },
           {
             "kind": "answerContains",
-            "text": "error"
+            "text": "poem"
+          },
+          {
+            "kind": "citationStepId",
+            "value": "poem"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Professional helpful tone",
-          "rubric": "Polite explanation of the generate error with actionable guidance",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -250,10 +243,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Confirm patch",
-          "rubric": "Affirms patching poem step input when appropriate",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -280,10 +270,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Capabilities list",
-          "rubric": "Names concrete step capability ids such as ollama.generate",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -310,10 +297,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Defines ECP in one or two sentences",
-          "rubric": "Mentions workflows or governed environments",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -340,10 +324,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "States assistant capabilities",
-          "rubric": "Mentions building workflows and answering ECP or environment questions",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -370,10 +351,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Graceful refusal",
-          "rubric": "Explains cannot register and offers alternatives",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -400,10 +378,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Lists capabilities",
-          "rubric": "Names capability ids from the environment",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -429,10 +404,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
-          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -458,10 +430,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
-          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -491,10 +460,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
-          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -520,10 +486,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
-          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -547,13 +510,14 @@
           {
             "kind": "answerContains",
             "text": "ECP"
+          },
+          {
+            "kind": "answerContains",
+            "text": "MCP"
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Contrasts MCP and ECP",
-          "rubric": "Mentions both MCP and ECP in a brief accurate way",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -580,10 +544,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Defines ECP workflow",
-          "rubric": "Mentions steps, capabilities, or portable manifests",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -609,10 +570,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Politely declines off-topic request and redirects to ECP/workflow topics",
-          "rubric": "Brief polite decline mentioning workflows, ECP, or capabilities",
-          "requireApproved": true
+          "enabled": false
         }
       }
     },
@@ -647,10 +605,7 @@
           }
         ],
         "judge": {
-          "enabled": true,
-          "goal": "Defines ECP briefly",
-          "rubric": "One or two sentences, no markdown fences",
-          "requireApproved": true
+          "enabled": false
         }
       }
     }

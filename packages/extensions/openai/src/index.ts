@@ -1,4 +1,12 @@
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension, type Registry, NODE_RUNTIME_ID } from "@executioncontrolprotocol/core"
+import {
+  defineExtension,
+  capabilityFor,
+  globalRegistry,
+  catalogExtension,
+  toProviderChatTurns,
+  type Registry,
+  NODE_RUNTIME_ID,
+} from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import { resolveOpenaiApiKey } from "./resolve-api-key.js"
@@ -8,17 +16,17 @@ async function chatComplete(
   model: string,
   prompt: string,
   system?: string,
-  context?: unknown
+  context?: unknown,
+  priorMessages?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<string> {
   const body = {
     model,
-    messages: [
-      ...(system ? [{ role: "system" as const, content: system }] : []),
-      ...(context
-        ? [{ role: "system" as const, content: JSON.stringify(context) }]
-        : []),
-      { role: "user" as const, content: prompt },
-    ],
+    messages: toProviderChatTurns({
+      system,
+      messages: priorMessages,
+      prompt,
+      context,
+    }),
   }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -42,12 +50,35 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
     apiKey: z.string().optional(),
     defaultModel: z.string().optional(),
   })
+  .withMetadata({
+    summary: "Hosted cloud chat completion for Node hosts.",
+    description:
+      "Calls the OpenAI Chat Completions API for text generation and harness evaluation. Requires a configured API key and runs on Node runtimes.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/openai", "generate")
       .withInput(modelGenerateInputSchema)
       .withOutput(modelGenerateOutputSchema)
+      .withMetadata({
+        summary: "Generate text via a hosted cloud chat API.",
+        description:
+          "Runs chat completion against a remote model endpoint. Suited for production Node workloads that need widely available frontier models. Requires a configured API key. Does not accept file attachments yet.",
+        useCases: [
+          "Server-side workflow step drafts content with a cloud model.",
+          "CLI or harness invokes a hosted model for integration tests.",
+        ],
+        samplePrompts: [
+          "Generate a summary of this workflow using the cloud model.",
+          "Complete this chat turn with gpt-4o-mini.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const parsed = modelGenerateInputSchema.parse(input)
+        if (parsed.files && parsed.files.length > 0) {
+          throw new Error(
+            "@executioncontrolprotocol/openai.generate does not support files yet"
+          )
+        }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const apiKey = resolveOpenaiApiKey(cfg)
         if (!apiKey) throw new Error("OpenAI API key required")
@@ -58,7 +89,8 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           model,
           parsed.prompt,
           parsed.system,
-          parsed.context
+          parsed.context,
+          parsed.messages
         )
         return { text }
       }),
@@ -71,6 +103,19 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
+      .withMetadata({
+        summary: "Judge harness outputs with a hosted cloud model.",
+        description:
+          "Scores an artifact against a goal and optional criteria, returning approved and feedback fields. Skips when no API key is configured. Used by harness quality gates, not end-user chat.",
+        useCases: [
+          "Harness eval needs a cloud judge when local models are unavailable.",
+          "Quality gate approves generated workflow patches before merge.",
+        ],
+        samplePrompts: [
+          "Evaluate this artifact against the harness rubric.",
+          "Did the model output meet the stated goal?",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const prompt = `Evaluate: ${(input as { goal?: string }).goal ?? "quality check"}. Reply JSON {approved:boolean,feedback:string}`
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}

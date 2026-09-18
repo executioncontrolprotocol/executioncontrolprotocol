@@ -9,6 +9,7 @@ function unwrapZodType(type: z.ZodType): z.ZodType {
   if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType)
   if (type instanceof z.ZodDefault) return unwrapZodType(type.removeDefault() as z.ZodType)
   if (type instanceof z.ZodNullable) return unwrapZodType(type.unwrap() as z.ZodType)
+  if (type instanceof z.ZodEffects) return unwrapZodType(type._def.schema as z.ZodType)
   return type
 }
 
@@ -16,31 +17,65 @@ function isOptionalField(type: z.ZodType): boolean {
   return type instanceof z.ZodOptional || type instanceof z.ZodDefault
 }
 
+function zodDescription(type: z.ZodType): string | undefined {
+  const desc = (type as z.ZodType & { description?: string }).description
+  return typeof desc === "string" && desc.trim() ? desc : undefined
+}
+
+function applyZodStringChecks(
+  schema: Record<string, unknown>,
+  type: z.ZodString
+): Record<string, unknown> {
+  const checks = (type._def as { checks?: Array<{ kind: string; value?: number }> }).checks ?? []
+  for (const check of checks) {
+    if (check.kind === "min" && typeof check.value === "number") schema.minLength = check.value
+    if (check.kind === "max" && typeof check.value === "number") schema.maxLength = check.value
+  }
+  return schema
+}
+
+function applyZodNumberChecks(
+  schema: Record<string, unknown>,
+  type: z.ZodNumber
+): Record<string, unknown> {
+  const checks = (type._def as { checks?: Array<{ kind: string; value?: number }> }).checks ?? []
+  for (const check of checks) {
+    if (check.kind === "min" && typeof check.value === "number") schema.minimum = check.value
+    if (check.kind === "max" && typeof check.value === "number") schema.maximum = check.value
+    if (check.kind === "int") schema.type = "integer"
+  }
+  return schema
+}
+
 /**
  * Project a Zod type to a JSON Schema fragment (primitives + object/array).
+ * Includes common constraints (min/max length, min/max number, int) and field descriptions.
  * @category Schema
  */
 export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
+  const description = zodDescription(type)
   const inner = unwrapZodType(type)
 
-  if (inner instanceof z.ZodString) return { type: "string" }
-  if (inner instanceof z.ZodNumber) return { type: "number" }
-  if (inner instanceof z.ZodBoolean) return { type: "boolean" }
-  if (inner instanceof z.ZodNull) return { type: "null" }
-  if (inner instanceof z.ZodEnum) {
-    return { type: "string", enum: [...(inner.options as string[])] }
-  }
-  if (inner instanceof z.ZodLiteral) {
+  let schema: Record<string, unknown>
+  if (inner instanceof z.ZodString) {
+    schema = applyZodStringChecks({ type: "string" }, inner)
+  } else if (inner instanceof z.ZodNumber) {
+    schema = applyZodNumberChecks({ type: "number" }, inner)
+  } else if (inner instanceof z.ZodBoolean) {
+    schema = { type: "boolean" }
+  } else if (inner instanceof z.ZodNull) {
+    schema = { type: "null" }
+  } else if (inner instanceof z.ZodEnum) {
+    schema = { type: "string", enum: [...(inner.options as string[])] }
+  } else if (inner instanceof z.ZodLiteral) {
     const value = inner.value
-    if (typeof value === "string") return { type: "string", enum: [value] }
-    if (typeof value === "number") return { type: "number", enum: [value] }
-    if (typeof value === "boolean") return { type: "boolean", enum: [value] }
-    return {}
-  }
-  if (inner instanceof z.ZodArray) {
-    return { type: "array", items: jsonSchemaFromZod(inner.element as z.ZodType) }
-  }
-  if (inner instanceof z.ZodObject) {
+    if (typeof value === "string") schema = { type: "string", enum: [value] }
+    else if (typeof value === "number") schema = { type: "number", enum: [value] }
+    else if (typeof value === "boolean") schema = { type: "boolean", enum: [value] }
+    else schema = {}
+  } else if (inner instanceof z.ZodArray) {
+    schema = { type: "array", items: jsonSchemaFromZod(inner.element as z.ZodType) }
+  } else if (inner instanceof z.ZodObject) {
     const properties: Record<string, Record<string, unknown>> = {}
     const required: string[] = []
     for (const [name, field] of Object.entries(inner.shape)) {
@@ -48,16 +83,20 @@ export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
       properties[name] = jsonSchemaFromZod(fieldType)
       if (!isOptionalField(fieldType)) required.push(name)
     }
-    const schema: Record<string, unknown> = { type: "object", properties }
+    schema = { type: "object", properties }
     if (required.length > 0) schema.required = required
-    return schema
+  } else if (inner instanceof z.ZodRecord) {
+    schema = { type: "object" }
+  } else if (inner instanceof z.ZodAny || inner instanceof z.ZodUnknown) {
+    schema = {}
+  } else if (isFileRefSchema(inner)) {
+    schema = fileRefValueSchemaHint(fileRefSchemaOptions(inner))
+  } else {
+    schema = {}
   }
-  if (inner instanceof z.ZodRecord) return { type: "object" }
-  if (inner instanceof z.ZodAny || inner instanceof z.ZodUnknown) return {}
-  if (isFileRefSchema(inner)) {
-    return fileRefValueSchemaHint(fileRefSchemaOptions(inner))
-  }
-  return {}
+
+  if (description) schema.description = description
+  return schema
 }
 
 function isJsonSchemaObject(schema: unknown): schema is Record<string, unknown> {
