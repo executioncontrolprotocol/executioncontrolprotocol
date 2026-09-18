@@ -18,7 +18,7 @@ Consumer repos on `development` link unpublished core via `pnpm run link:ecp`; o
 ## Bump versions (all workspaces)
 
 ```bash
-pnpm run version:bump -- 0.13.2
+pnpm run version:bump -- 0.14.0
 ```
 
 Commit the version changes on `development`, then merge to `main` when ready to publish.

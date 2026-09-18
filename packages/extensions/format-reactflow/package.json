@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/format-reactflow",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "ECP React Flow graph encode extension with run-progress hooks",
   "license": "Apache-2.0",
   "type": "module",
