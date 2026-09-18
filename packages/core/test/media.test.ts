@@ -194,7 +194,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([4, 5]),
-      { mediaType: "image/png", name: "out.png", prefix: "artifacts/images" },
+      { mediaType: "image/png", name: "out.png", prefix: "artifacts/images", store: "memory" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
@@ -208,7 +208,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const ctx = makeCtx({ artifacts })
     const written = await writeMediaArtifact(
       new Uint8Array([21, 22, 23]),
-      { mediaType: "application/octet-stream", name: "rt.bin" },
+      { mediaType: "application/octet-stream", name: "rt.bin", store: "memory" },
       ctx
     )
     const resolved = await resolveFile(written, ctx)
@@ -219,7 +219,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([1]),
-      { mediaType: "image/png", name: "default.png" },
+      { mediaType: "image/png", name: "default.png", store: "memory" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
@@ -232,7 +232,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([1, 2]),
-      { mediaType: "image/webp" },
+      { mediaType: "image/webp", store: "memory" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
@@ -254,21 +254,82 @@ describe("resolveFile / writeMediaArtifact", () => {
         },
         call: async (_id, input) => {
           wrote = input
-          return {}
+          return { ok: true, uri: `${STORAGE_ARTIFACT_URI_PREFIX}temp/uploads/cfg.png`, tier: "temp" }
         },
       })
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}uploads/cfg.png`)
+      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}temp/uploads/cfg.png`)
     }
-    expect(wrote).toMatchObject({ key: "uploads/cfg.png" })
+    expect(wrote).toMatchObject({ key: "uploads/cfg.png", tier: "temp", encoding: "base64" })
   })
 
   it("fails write when artifact store is missing", async () => {
     await expect(
-      writeMediaArtifact(new Uint8Array([1]), { mediaType: "image/png" }, makeCtx())
+      writeMediaArtifact(new Uint8Array([1]), { mediaType: "image/png", store: "memory" }, makeCtx())
     ).rejects.toThrow(/artifact store/)
+  })
+
+  it("defaults to temp storage tier when storage.write succeeds", async () => {
+    let wrote: unknown
+    const artifacts = createCapabilityArtifactStore()
+    const ref = await writeMediaArtifact(
+      new Uint8Array([7, 8]),
+      { mediaType: "image/png", name: "t.png", prefix: "artifacts/images" },
+      makeCtx({
+        artifacts,
+        call: async (id, input) => {
+          expect(id).toBe("@executioncontrolprotocol/storage.write")
+          wrote = input
+          return { ok: true, uri: "ecp://storage/temp/artifacts/images/t.png", tier: "temp" }
+        },
+      })
+    )
+    expect(ref.kind).toBe("artifact")
+    if (ref.kind === "artifact") {
+      expect(ref.uri).toBe("ecp://storage/temp/artifacts/images/t.png")
+    }
+    expect(wrote).toMatchObject({ tier: "temp", encoding: "base64", key: "artifacts/images/t.png" })
+    expect(artifacts.get("ecp://storage/temp/artifacts/images/t.png")?.size).toBe(2)
+  })
+
+  it("writes durable when store is durable", async () => {
+    let wrote: unknown
+    const ref = await writeMediaArtifact(
+      new Uint8Array([1]),
+      { mediaType: "image/png", name: "d.png", store: "durable" },
+      makeCtx({
+        call: async (_id, input) => {
+          wrote = input
+          return { ok: true, uri: "ecp://storage/artifacts/artifacts/media/d.png", tier: "durable" }
+        },
+      })
+    )
+    expect(ref.kind).toBe("artifact")
+    if (ref.kind === "artifact") {
+      expect(ref.uri).toContain("ecp://storage/artifacts/")
+    }
+    expect(wrote).toMatchObject({ tier: "durable" })
+  })
+
+  it("falls back to memory when storage is unavailable", async () => {
+    const artifacts = createCapabilityArtifactStore()
+    const ref = await writeMediaArtifact(
+      new Uint8Array([3]),
+      { mediaType: "image/png", name: "fb.png" },
+      makeCtx({
+        artifacts,
+        call: async () => {
+          throw new Error("storage not bound")
+        },
+      })
+    )
+    expect(ref.kind).toBe("artifact")
+    if (ref.kind === "artifact") {
+      expect(ref.uri).toBe("ecp://artifacts/media/fb.png")
+    }
+    expect(artifacts.get("ecp://artifacts/media/fb.png")?.size).toBe(1)
   })
 
   it("rejects missing browser locator", async () => {
@@ -318,15 +379,15 @@ describe("resolveFile / writeMediaArtifact", () => {
         call: async (id, input) => {
           expect(id).toBe("@executioncontrolprotocol/storage.write")
           wrote = input
-          return {}
+          return { ok: true, uri: `${STORAGE_ARTIFACT_URI_PREFIX}temp/out/x.png`, tier: "temp" }
         },
       })
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}out/x.png`)
+      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}temp/out/x.png`)
     }
-    expect(wrote).toMatchObject({ key: "out/x.png" })
+    expect(wrote).toMatchObject({ key: "out/x.png", tier: "temp", encoding: "base64" })
   })
 
   it("host-hop serializes ImageRef browser locators then resolveFile on hydrate", async () => {

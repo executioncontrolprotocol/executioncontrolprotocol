@@ -126,13 +126,22 @@ export async function resolveFile(
         const key = ref.uri.slice(STORAGE_ARTIFACT_URI_PREFIX.length)
         const result = (await ctx.capabilities.call("@executioncontrolprotocol/storage.read", {
           key,
-        })) as { value?: unknown }
+        })) as { value?: unknown; mediaType?: string; name?: string }
         if (result.value instanceof Uint8Array) {
           return {
             bytes: result.value,
-            mediaType: ref.mediaType,
+            mediaType: ref.mediaType ?? result.mediaType,
             sizeBytes: result.value.byteLength,
-            name: ref.name,
+            name: ref.name ?? result.name,
+          }
+        }
+        if (typeof Buffer !== "undefined" && Buffer.isBuffer(result.value)) {
+          const bytes = new Uint8Array(result.value)
+          return {
+            bytes,
+            mediaType: ref.mediaType ?? result.mediaType,
+            sizeBytes: bytes.byteLength,
+            name: ref.name ?? result.name,
           }
         }
         if (typeof result.value === "string") {
@@ -142,9 +151,9 @@ export async function resolveFile(
               : Uint8Array.from(atob(result.value), (c) => c.charCodeAt(0))
           return {
             bytes,
-            mediaType: ref.mediaType,
+            mediaType: ref.mediaType ?? result.mediaType,
             sizeBytes: bytes.byteLength,
-            name: ref.name,
+            name: ref.name ?? result.name,
           }
         }
         throw new Error(`Artifact not found: ${ref.uri}`)

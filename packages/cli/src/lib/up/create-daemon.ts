@@ -4,6 +4,12 @@ import type { Ecp } from "@executioncontrolprotocol/core"
 import { loadEnvironmentModule } from "@executioncontrolprotocol/core/loaders"
 import "@executioncontrolprotocol/extension-ollama"
 import { registerOllamaExtension } from "@executioncontrolprotocol/extension-ollama"
+import "@executioncontrolprotocol/extension-storage"
+import {
+  registerStorageExtension,
+  wipeEcpTemp,
+  ensureEcpHomeLayout,
+} from "@executioncontrolprotocol/extension-storage"
 import {
   DEFAULT_CORS_ORIGINS,
   DEFAULT_ECP_UP_HOST,
@@ -46,10 +52,10 @@ export interface EcpUpDaemon {
 
 /**
  * Load the operational ECP instance for `ecp up`.
- * Always hosts Ollama (browser demo model picker / coding harness).
- * With `--env`, that project's Node environment is loaded and Ollama is added
+ * Always hosts Ollama (browser demo model picker / coding harness) and disk storage.
+ * With `--env`, that project's Node environment is loaded and Ollama + storage are added
  * so host packages (e.g. image-sharp) and Ollama coexist.
- * Without `--env`, the daemon hosts Ollama only.
+ * Without `--env`, the daemon hosts Ollama + storage only.
  * @category CLI
  */
 export async function loadUpDaemonEcp(options: {
@@ -59,23 +65,28 @@ export async function loadUpDaemonEcp(options: {
   ollamaUrl: string
 }): Promise<Ecp> {
   await registerOllamaExtension()
+  await registerStorageExtension()
   const ollamaConfig = { baseURL: options.ollamaUrl }
   if (options.envPath) {
     const loaded = await loadEnvironmentModule(options.envPath)
-    // Project envs use their own registry instance after module load — register Ollama there.
+    // Project envs use their own registry instance after module load — register there.
     await registerOllamaExtension(loaded.getRegistry())
+    await registerStorageExtension(loaded.getRegistry())
     // Project envs (e.g. image-prep) omit Ollama; the demo bridge still needs listModels/generate.
     loaded.addExtensionBinding("@executioncontrolprotocol/ollama", ollamaConfig)
+    loaded.addExtensionBinding("@executioncontrolprotocol/storage", {})
     return loaded.init()
   }
   const env = (await environment("ecp-up")).withExtensions([
     extension("@executioncontrolprotocol/ollama").with(ollamaConfig),
+    extension("@executioncontrolprotocol/storage").with({}),
   ])
   return env.init()
 }
 
 /**
  * Start the local ECP daemon (`ecp up`).
+ * Wipes `~/.ecp/temp` on start; leaves `artifacts/` and `workflows/` intact.
  * @category CLI
  */
 export async function startEcpUpDaemon(
@@ -85,6 +96,9 @@ export async function startEcpUpDaemon(
   const host = options.host ?? DEFAULT_ECP_UP_HOST
   const ollamaUrl = options.ollamaUrl ?? DEFAULT_OLLAMA_URL
   const token = options.token
+
+  await ensureEcpHomeLayout()
+  await wipeEcpTemp()
 
   const ecp = await loadUpDaemonEcp({
     envPath: options.envPath,

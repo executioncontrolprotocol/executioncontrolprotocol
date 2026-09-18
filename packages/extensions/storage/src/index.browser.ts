@@ -3,16 +3,20 @@ import {
   globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
-import { handleStorageRead, handleStorageWrite } from "./handlers.js"
-import { buildStorageExtension, EXT_ID } from "./shared.js"
+import { buildStorageExtension, EXT_ID, HOST_HOP_MESSAGE } from "./shared.js"
+
+async function hostHop(): Promise<never> {
+  throw new Error(HOST_HOP_MESSAGE)
+}
 
 /**
- * `@executioncontrolprotocol/storage` — disk-backed temp/durable blob storage (Node).
+ * Browser catalog: storage write/read hop to the host (`ecp up`).
+ * Does not import `node:fs`.
  * @category Storage
  */
 export const storageExtension = buildStorageExtension({
-  write: handleStorageWrite,
-  read: handleStorageRead,
+  write: hostHop,
+  read: hostHop,
 })
 
 catalogExtension(storageExtension)
@@ -30,31 +34,20 @@ export async function registerStorageExtension(
 }
 
 export {
-  ensureEcpHomeLayout,
-  resolveEcpHome,
-  wipeEcpTemp,
-  resolveSafeStoragePath,
-  writeStorageFile,
-  readStorageFile,
-} from "./home.js"
-export type { StorageSidecar } from "./home.js"
-export {
-  STORAGE_TIER_DIR,
-  ECP_WORKFLOWS_DIR,
-  STORAGE_URI_PREFIX,
-  storageUri,
-  parseStorageKey,
-  type StorageTier,
-} from "./uri.js"
-export { handleStorageWrite, handleStorageRead } from "./handlers.js"
-export type { StorageExtensionConfig } from "./handlers.js"
-export {
   storageWriteInputSchema,
   storageWriteOutputSchema,
   storageReadInputSchema,
   storageReadOutputSchema,
   storageTier,
 } from "./schemas.js"
+export {
+  STORAGE_URI_PREFIX,
+  storageUri,
+  parseStorageKey,
+  STORAGE_TIER_DIR,
+  ECP_WORKFLOWS_DIR,
+  type StorageTier,
+} from "./uri.js"
 export { EXT_ID, HOST_HOP_MESSAGE, buildStorageExtension, buildStorageCapabilities } from "./shared.js"
 
 export default storageExtension
