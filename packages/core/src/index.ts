@@ -145,6 +145,7 @@ export {
   type ResolvedFile,
   type ResolveFileOptions,
   type WriteMediaArtifactOptions,
+  type MediaArtifactStore,
   type FileCapabilityContext,
   type ArtifactFetchPathnameOptions,
 } from "./media/index.js"

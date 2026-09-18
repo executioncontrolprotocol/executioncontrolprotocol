@@ -111,6 +111,9 @@ importers:
       '@executioncontrolprotocol/extension-ollama':
         specifier: workspace:^
         version: link:../extensions/ollama
+      '@executioncontrolprotocol/extension-storage':
+        specifier: workspace:^
+        version: link:../extensions/storage
       '@executioncontrolprotocol/node':
         specifier: workspace:^
         version: link:../runtimes/node

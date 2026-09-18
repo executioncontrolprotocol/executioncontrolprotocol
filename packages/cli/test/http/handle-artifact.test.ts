@@ -136,4 +136,36 @@ describe("handleArtifactGet", () => {
     expect(out.statusCode).toBe(200)
     expect(out.headers["content-disposition"]).toContain('filename="out.png"')
   })
+
+  it("serves ecp://storage/… URIs via storage.read when not in memory", async () => {
+    const bytes = new Uint8Array([9, 8, 7])
+    const ecp = {
+      getArtifactStore: () => ({ get: () => undefined }),
+      invoke: () => ({
+        with() {
+          return this
+        },
+        process: async () => ({
+          success: true,
+          result: {
+            value: bytes,
+            mediaType: "image/png",
+            name: "s.png",
+          },
+        }),
+      }),
+    }
+    const out = createRes()
+    await handleArtifactGet(
+      ecp as never,
+      createReq(
+        "/v1/artifacts?uri=" +
+          encodeURIComponent("ecp://storage/temp/artifacts/media/s.png")
+      ),
+      out.res
+    )
+    expect(out.statusCode).toBe(200)
+    expect(out.headers["content-type"]).toBe("image/png")
+    expect(Buffer.isBuffer(out.body) ? Array.from(out.body) : []).toEqual([9, 8, 7])
+  })
 })

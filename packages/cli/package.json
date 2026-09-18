@@ -27,6 +27,7 @@
     "@executioncontrolprotocol/node": "workspace:^",
     "@executioncontrolprotocol/secrets": "workspace:^",
     "@executioncontrolprotocol/extension-ollama": "workspace:^",
+    "@executioncontrolprotocol/extension-storage": "workspace:^",
     "@oclif/core": "^4.10.0"
   },
   "devDependencies": {
