@@ -3,16 +3,27 @@ import {
   globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
-import { handleStorageRead, handleStorageWrite } from "./handlers.js"
+import {
+  handleStorageRead,
+  handleStorageWrite,
+  handleWorkflowDelete,
+  handleWorkflowList,
+  handleWorkflowLoad,
+  handleWorkflowSave,
+} from "./handlers.js"
 import { buildStorageExtension, EXT_ID } from "./shared.js"
 
 /**
- * `@executioncontrolprotocol/storage` — disk-backed temp/durable blob storage (Node).
+ * `@executioncontrolprotocol/storage` — disk-backed temp/durable blob + workflow storage (Node).
  * @category Storage
  */
 export const storageExtension = buildStorageExtension({
   write: handleStorageWrite,
   read: handleStorageRead,
+  workflowSave: handleWorkflowSave,
+  workflowList: handleWorkflowList,
+  workflowLoad: handleWorkflowLoad,
+  workflowDelete: handleWorkflowDelete,
 })
 
 catalogExtension(storageExtension)
@@ -36,6 +47,8 @@ export {
   resolveSafeStoragePath,
   writeStorageFile,
   readStorageFile,
+  deleteStorageFile,
+  listStorageKeys,
 } from "./home.js"
 export type { StorageSidecar } from "./home.js"
 export {
@@ -46,7 +59,18 @@ export {
   parseStorageKey,
   type StorageTier,
 } from "./uri.js"
-export { handleStorageWrite, handleStorageRead } from "./handlers.js"
+export {
+  handleStorageWrite,
+  handleStorageRead,
+  handleWorkflowSave,
+  handleWorkflowList,
+  handleWorkflowLoad,
+  handleWorkflowDelete,
+  sanitizeWorkflowId,
+  workflowFluentFileKey,
+  workflowLegacyBundleFileKey,
+  workflowIdFromFileKey,
+} from "./handlers.js"
 export type { StorageExtensionConfig } from "./handlers.js"
 export {
   storageWriteInputSchema,
@@ -54,6 +78,19 @@ export {
   storageReadInputSchema,
   storageReadOutputSchema,
   storageTier,
+  WORKFLOW_BUNDLE_SCHEMA,
+  WORKFLOW_FLUENT_SUFFIX,
+  workflowBundleSchema,
+  workflowSaveInputSchema,
+  workflowSaveOutputSchema,
+  workflowListInputSchema,
+  workflowListOutputSchema,
+  workflowListEntrySchema,
+  workflowLoadInputSchema,
+  workflowLoadOutputSchema,
+  workflowDeleteInputSchema,
+  workflowDeleteOutputSchema,
+  type WorkflowBundle,
 } from "./schemas.js"
 export { EXT_ID, HOST_HOP_MESSAGE, buildStorageExtension, buildStorageCapabilities } from "./shared.js"
 

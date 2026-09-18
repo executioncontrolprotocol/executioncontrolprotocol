@@ -13,6 +13,10 @@ import {
   storageUri,
   handleStorageWrite,
   handleStorageRead,
+  handleWorkflowSave,
+  handleWorkflowList,
+  handleWorkflowLoad,
+  handleWorkflowDelete,
 } from "../src/index.js"
 
 describe("@executioncontrolprotocol/storage", () => {
@@ -126,5 +130,110 @@ describe("@executioncontrolprotocol/storage", () => {
       key: "a/b.png",
     })
     expect(parseStorageKey("plain", "durable")).toEqual({ tier: "durable", key: "plain" })
+  })
+
+  it("positive: workflow save/list/load/delete round-trip (Fluent)", async () => {
+    const fluent = 'export default workflow("My flow")'
+    const saved = await handleWorkflowSave(
+      { id: "my-flow", label: "My flow", fluent },
+      ctx()
+    )
+    expect(saved).toMatchObject({ ok: true, id: "my-flow" })
+    await access(join(home, "workflows", "my-flow.workflow.ts"))
+
+    const listed = (await handleWorkflowList({}, ctx())) as {
+      workflows: Array<{ id: string; label: string }>
+    }
+    expect(listed.workflows.some((w) => w.id === "my-flow" && w.label === "My flow")).toBe(true)
+
+    const loaded = (await handleWorkflowLoad({ id: "my-flow" }, ctx())) as {
+      fluent?: string
+      label?: string
+      id?: string
+    }
+    expect(loaded.id).toBe("my-flow")
+    expect(loaded.label).toBe("My flow")
+    expect(loaded.fluent).toContain("My flow")
+
+    const deleted = await handleWorkflowDelete({ id: "my-flow" }, ctx())
+    expect(deleted).toEqual({ ok: true, deleted: true })
+    await expect(access(join(home, "workflows", "my-flow.workflow.ts"))).rejects.toThrow()
+  })
+
+  it("positive: load unwraps legacy dual-bundle JSON", async () => {
+    await ensureEcpHomeLayout(home)
+    const bundle = {
+      schema: "@executioncontrolprotocol.workflow.bundle",
+      version: "1.0",
+      id: "legacy-flow",
+      label: "Legacy",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      fluent: 'export default workflow("Legacy")',
+      manifest: {
+        schema: "@executioncontrolprotocol.workflow",
+        version: "1.0",
+        workflow: { id: "legacy-flow", label: "Legacy" },
+        steps: [],
+      },
+    }
+    await writeFile(join(home, "workflows", "legacy-flow.json"), JSON.stringify(bundle), "utf8")
+    await writeFile(
+      join(home, "workflows", "legacy-flow.json.meta.json"),
+      JSON.stringify({ encoding: "json" }),
+      "utf8"
+    )
+
+    const listed = (await handleWorkflowList({}, ctx())) as {
+      workflows: Array<{ id: string; label: string }>
+    }
+    expect(listed.workflows.some((w) => w.id === "legacy-flow")).toBe(true)
+
+    const loaded = (await handleWorkflowLoad({ id: "legacy-flow" }, ctx())) as {
+      fluent?: string
+      label?: string
+    }
+    expect(loaded.label).toBe("Legacy")
+    expect(loaded.fluent).toContain("Legacy")
+  })
+
+  it("edge: Fluent save replaces legacy JSON for same id", async () => {
+    await ensureEcpHomeLayout(home)
+    await writeFile(
+      join(home, "workflows", "dup.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.workflow.bundle",
+        version: "1.0",
+        id: "dup",
+        label: "Old",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        fluent: "old",
+        manifest: { schema: "@executioncontrolprotocol.workflow" },
+      }),
+      "utf8"
+    )
+    await handleWorkflowSave({ id: "dup", label: "New", fluent: "new fluent" }, ctx())
+    await access(join(home, "workflows", "dup.workflow.ts"))
+    await expect(access(join(home, "workflows", "dup.json"))).rejects.toThrow()
+    const listed = (await handleWorkflowList({}, ctx())) as {
+      workflows: Array<{ id: string; label: string }>
+    }
+    expect(listed.workflows.filter((w) => w.id === "dup")).toHaveLength(1)
+    expect(listed.workflows.find((w) => w.id === "dup")?.label).toBe("New")
+  })
+
+  it("negative: workflow id path traversal rejected", async () => {
+    await expect(
+      handleWorkflowSave({ id: "../escape", label: "Bad", fluent: "" }, ctx())
+    ).rejects.toThrow(/path/)
+  })
+
+  it("edge: wipeEcpTemp leaves workflows intact", async () => {
+    await ensureEcpHomeLayout(home)
+    await writeFile(join(home, "workflows", "keep.workflow.ts"), "export default workflow()")
+    await writeFile(join(home, "temp", "scratch.bin"), Buffer.from([1]))
+    await wipeEcpTemp(home)
+    const kept = await readFile(join(home, "workflows", "keep.workflow.ts"), "utf8")
+    expect(kept).toContain("workflow")
+    await expect(access(join(home, "temp", "scratch.bin"))).rejects.toThrow()
   })
 })

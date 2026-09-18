@@ -6,7 +6,20 @@ import {
   type ExtensionDefinition,
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
-import { storageReadInputSchema, storageReadOutputSchema, storageWriteInputSchema, storageWriteOutputSchema } from "./schemas.js"
+import {
+  storageReadInputSchema,
+  storageReadOutputSchema,
+  storageWriteInputSchema,
+  storageWriteOutputSchema,
+  workflowDeleteInputSchema,
+  workflowDeleteOutputSchema,
+  workflowListInputSchema,
+  workflowListOutputSchema,
+  workflowLoadInputSchema,
+  workflowLoadOutputSchema,
+  workflowSaveInputSchema,
+  workflowSaveOutputSchema,
+} from "./schemas.js"
 
 /** Extension id. @category Storage */
 export const EXT_ID = "@executioncontrolprotocol/storage"
@@ -19,6 +32,10 @@ export const HOST_HOP_MESSAGE =
 export interface StorageCapabilityHandlers {
   write: CapabilityHandler
   read: CapabilityHandler
+  workflowSave: CapabilityHandler
+  workflowList: CapabilityHandler
+  workflowLoad: CapabilityHandler
+  workflowDelete: CapabilityHandler
 }
 
 /**
@@ -65,6 +82,77 @@ export function buildStorageCapabilities(
         ],
       })
       .withHandler(handlers.read),
+    capabilityFor(EXT_ID, "workflow-save")
+      .withInput(workflowSaveInputSchema)
+      .withOutput(workflowSaveOutputSchema)
+      .withExecution("host")
+      .withMetadata({
+        summary: "Save Fluent workflow source under ~/.ecp/workflows",
+        description:
+          "Persists Fluent TypeScript (`.workflow.ts`) to disk so it survives ecp up restarts. Open compiles it back into the editor.",
+        useCases: [
+          "Save the current browser-demo workflow to the local host library",
+          "Overwrite an existing saved workflow by id",
+        ],
+        samplePrompts: [
+          "Save this workflow as my-recolor-flow",
+          "Persist the current Fluent workflow to disk",
+        ],
+      })
+      .withHandler(handlers.workflowSave),
+    capabilityFor(EXT_ID, "workflow-list")
+      .withInput(workflowListInputSchema)
+      .withOutput(workflowListOutputSchema)
+      .withExecution("host")
+      .withMetadata({
+        summary: "List saved workflows",
+        description:
+          "Returns id, label, and updatedAt for each Fluent (or legacy bundle) file under ~/.ecp/workflows.",
+        useCases: [
+          "Populate an Open recent workflows menu in the browser demo",
+          "Discover workflows saved on this machine",
+        ],
+        samplePrompts: [
+          "List saved workflows on the host",
+          "Show my local ECP workflow library",
+        ],
+      })
+      .withHandler(handlers.workflowList),
+    capabilityFor(EXT_ID, "workflow-load")
+      .withInput(workflowLoadInputSchema)
+      .withOutput(workflowLoadOutputSchema)
+      .withExecution("host")
+      .withMetadata({
+        summary: "Load a saved Fluent workflow by id",
+        description:
+          "Reads Fluent source from ~/.ecp/workflows (or unwraps a legacy dual-bundle JSON).",
+        useCases: [
+          "Reload a previously saved workflow into the editor",
+          "Restore Fluent and canvas from host disk",
+        ],
+        samplePrompts: [
+          "Load the workflow named my-recolor-flow",
+          "Open the saved workflow by id",
+        ],
+      })
+      .withHandler(handlers.workflowLoad),
+    capabilityFor(EXT_ID, "workflow-delete")
+      .withInput(workflowDeleteInputSchema)
+      .withOutput(workflowDeleteOutputSchema)
+      .withExecution("host")
+      .withMetadata({
+        summary: "Delete a saved workflow by id",
+        description: "Removes Fluent and/or legacy bundle files from ~/.ecp/workflows.",
+        useCases: [
+          "Remove an obsolete saved workflow from the local library",
+          "Clean up a misnamed save",
+        ],
+        samplePrompts: [
+          "Delete the saved workflow my-recolor-flow",
+          "Remove this workflow from host storage",
+        ],
+      })
+      .withHandler(handlers.workflowDelete),
   ]
 }
 
@@ -81,11 +169,12 @@ export function buildStorageExtension(
       home: z.string().optional(),
       tempRoot: z.string().optional(),
       artifactsRoot: z.string().optional(),
+      workflowsRoot: z.string().optional(),
     })
     .withMetadata({
-      summary: "Disk-backed key-value blob storage under ~/.ecp",
+      summary: "Disk-backed blob and workflow storage under ~/.ecp",
       description:
-        "Stores workflow media and values on disk. Default writes go to ~/.ecp/temp (wiped on ecp up). Opt into ~/.ecp/artifacts for durable retention. Browser calls hop to the host daemon.",
+        "Stores media under temp/artifacts and Fluent workflows (`.workflow.ts`) under ~/.ecp/workflows. Temp is wiped on ecp up; workflows and durable artifacts survive. Browser calls hop to the host daemon.",
     })
     .withCapabilities(buildStorageCapabilities(handlers))
     .build()

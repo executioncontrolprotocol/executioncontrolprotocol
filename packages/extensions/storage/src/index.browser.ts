@@ -10,13 +10,17 @@ async function hostHop(): Promise<never> {
 }
 
 /**
- * Browser catalog: storage write/read hop to the host (`ecp up`).
+ * Browser catalog: storage + workflow caps hop to the host (`ecp up`).
  * Does not import `node:fs`.
  * @category Storage
  */
 export const storageExtension = buildStorageExtension({
   write: hostHop,
   read: hostHop,
+  workflowSave: hostHop,
+  workflowList: hostHop,
+  workflowLoad: hostHop,
+  workflowDelete: hostHop,
 })
 
 catalogExtension(storageExtension)
@@ -39,6 +43,19 @@ export {
   storageReadInputSchema,
   storageReadOutputSchema,
   storageTier,
+  WORKFLOW_BUNDLE_SCHEMA,
+  WORKFLOW_FLUENT_SUFFIX,
+  workflowBundleSchema,
+  workflowSaveInputSchema,
+  workflowSaveOutputSchema,
+  workflowListInputSchema,
+  workflowListOutputSchema,
+  workflowListEntrySchema,
+  workflowLoadInputSchema,
+  workflowLoadOutputSchema,
+  workflowDeleteInputSchema,
+  workflowDeleteOutputSchema,
+  type WorkflowBundle,
 } from "./schemas.js"
 export {
   STORAGE_URI_PREFIX,
