@@ -1,4 +1,10 @@
-import type { CapabilityId, NamespacedId, CapabilityExecution } from "@executioncontrolprotocol/types"
+import type {
+  CapabilityId,
+  CapabilityMetadata,
+  NamespacedId,
+  CapabilityExecution,
+} from "@executioncontrolprotocol/types"
+import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
 import type { z } from "zod"
 import type { CapabilityDefinition, CapabilityHandler } from "./types.js"
 
@@ -8,6 +14,7 @@ export class CapabilityBuilder {
   private outputSchema?: z.ZodType<unknown>
   private handlerFn?: CapabilityHandler
   private execution?: CapabilityExecution
+  private metadata?: CapabilityMetadata
 
   constructor(
     private readonly extensionId: NamespacedId,
@@ -32,6 +39,15 @@ export class CapabilityBuilder {
     return this
   }
 
+  /**
+   * Attach agent-facing docs (summary, description, useCases, samplePrompts, …).
+   * @category Definitions
+   */
+  withMetadata(metadata: CapabilityMetadata): this {
+    this.metadata = parseCapabilityMetadata(metadata)
+    return this
+  }
+
   /** Set capability handler. */
   withHandler(handler: CapabilityHandler): CapabilityDefinition {
     this.handlerFn = handler
@@ -46,6 +62,7 @@ export class CapabilityBuilder {
       outputSchema: this.outputSchema,
       handler: this.handlerFn,
       ...(this.execution ? { execution: this.execution } : {}),
+      ...(this.metadata ? { metadata: this.metadata } : {}),
     }
   }
 }

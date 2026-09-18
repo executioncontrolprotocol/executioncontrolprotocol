@@ -107,6 +107,11 @@ function attachBrowserSecretsResolver(ctx: LifecycleContext): void {
 export const browserSecretsExtension = defineExtension("@executioncontrolprotocol", "browser-secrets")
   .withSupportedRuntimes(["@executioncontrolprotocol/browser"])
   .withConfig(z.object({}))
+  .withMetadata({
+    summary: "Passphrase-protected encrypted secrets vault for browsers.",
+    description:
+      "Registers a config resolver backed by a client-side encrypted vault. Secrets are available only while the vault is unlocked; the vault locks on environment terminate.",
+  })
   .withHooks([
     hook("environment:configuring", attachBrowserSecretsResolver),
     hook("environment:terminate", () => {

@@ -1,6 +1,7 @@
 import type { NamespacedId } from "./schema.js"
 import type { EcpVersion } from "./version.js"
 import type { CapabilityExecution } from "./capability-execution.js"
+import type { CapabilityMetadata, ExtensionMetadata } from "./capability-metadata.js"
 
 /** Environment manifest (bindings only). @category Environment */
 export interface EnvironmentManifest {
@@ -76,9 +77,13 @@ export interface RuntimeDescription {
 export interface ExtensionDescription {
   id: string
   label?: string
+  /** One-line summary from extension metadata (inventory). */
+  summary?: string
   order: number
   configSchema?: unknown
   capabilities: string[]
+  /** Full extension metadata (exact-id describe only). */
+  metadata?: ExtensionMetadata
   /** Runtimes this extension supports when restricted; omitted when universal. */
   supportedRuntimes?: string[]
 }
@@ -87,10 +92,18 @@ export interface ExtensionDescription {
 export interface CapabilityDescription {
   id: string
   label?: string
+  /** One-line summary from capability metadata (inventory). */
+  summary?: string
   extension: string
   inputSchema?: unknown
   outputSchema?: unknown
+  /**
+   * @deprecated Prefer {@link CapabilityDescription.metadata}.examples on exact-id describe.
+   * Kept for older fixtures; new emitters nest examples under metadata.
+   */
   examples?: unknown[]
+  /** Full capability metadata (exact-id describe only). */
+  metadata?: CapabilityMetadata
   /**
    * Where this capability executes (`local` | `host` | `mixed`).
    * Omitted when not declared and not inferred from the extension.

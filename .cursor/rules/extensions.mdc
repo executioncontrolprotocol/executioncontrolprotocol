@@ -15,6 +15,17 @@ protocol/platform extensions only (formats, secrets, memory, model providers, et
 
 Prefer **npm package name === extension id** (e.g. `@executioncontrolprotocol/format-toon`).
 
+## Capability / extension metadata (`.withMetadata`)
+
+Authors attach agent-facing docs once via `.withMetadata({ summary, description, useCases, samplePrompts, … })` on capabilities (and lighter metadata on extensions).
+
+| Do | Don't |
+| ---- | ----- |
+| Write product prose: behavior, when to use, limits | Paraphrase Zod/JSON Schema fields or say “read inputSchema” |
+| Keep inventory light: hosts use bare `ecp.describe()` for id + summary | Dump useCases / samplePrompts into authoring catalogs |
+| Let search + exact-id `ecp.describe({ match, mode: "exact" })` supply detail | Cross-advertise sibling packages (“prefer ollama over chrome-ai”) |
+| Name sibling capabilities **inside the same extension** when useful | Invent a second “detail” API — detail is always describe + exact id |
+
 ## Documentation ownership (vendor packages)
 
 - **Canonical vendor package inventory** lives only in the extensions repo

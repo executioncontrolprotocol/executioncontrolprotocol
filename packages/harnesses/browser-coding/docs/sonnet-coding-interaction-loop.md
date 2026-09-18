@@ -128,9 +128,12 @@ Required import: import { workflow, step, ref } from "@executioncontrolprotocol/
 Environment capabilities:
 Fluent capability catalog (exact ids — copy step("...") values verbatim):
 
-- @executioncontrolprotocol/anthropic.generate (generate) — inputs: prompt: string (required), ...; outputs: text: string
+- @executioncontrolprotocol/anthropic.generate (generate) — On-device / cloud text generation for short authoring turns.
+  inputs: prompt: string (required), ...; outputs: text: string
   example: step("@executioncontrolprotocol/anthropic.generate", "generate").id("generate").with({ prompt: "..." }).as("generate")
 ```
+
+Catalog lines use **summary** plus typed I/O from inventory describe (schemas included for typing). Full useCases / samplePrompts / description arrive only when the assistant (or CLI) calls exact-id `ecp.describe` for a named capability.
 
 **`prompt` outline (patch):** same, plus Fluent edit rules and:
 
@@ -164,11 +167,13 @@ Failed source is **not** truncated for medium/frontier. Small profile may still 
 
 ```text
 Environment capabilities:
-- ... (plain listing for assistant)
+- ... (plain listing: id — summary; ask which id to inspect for detail)
 User message: <message or synthetic change-summary ask>
 Run context (summary): ...
 Workflow (summary): ...
 ```
+
+When the user names a capability or extension id, the assistant loads exact-id `ecp.describe` detail (metadata + JSON Schema) for up to a few ids. Unmatched environment questions stay inventory-only.
 
 If only a legacy `conversationSummary` string is supplied (no `conversationMessages`), it is prepended as “Conversation summary:”.
 

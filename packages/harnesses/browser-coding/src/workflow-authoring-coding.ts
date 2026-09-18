@@ -4,6 +4,7 @@ import {
   collectModelOutputFeedback,
   collectValidationFeedback,
   defineHarness,
+  DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
   formatEnvironmentSummaryLines,
   formatStructuredRepairForModel,
   HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
@@ -166,7 +167,7 @@ const codingWorkflowAuthoringHarness = defineHarness("@executioncontrolprotocol"
     )
 
     if (config.context.includeEnvironmentDescriptor) {
-      const descriptor = await ctx.ecp.describe()
+      const descriptor = await ctx.ecp.describe(DESCRIBE_AUTHORING_CAPABILITIES_QUERY)
       environmentSummary = summarizeEnvironmentDescriptor(descriptor)
       environmentSummaryLines = formatEnvironmentSummaryLines(environmentSummary, {
         format: envFormat,

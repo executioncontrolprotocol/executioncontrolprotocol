@@ -16,6 +16,11 @@ export {
   type EnvironmentSummaryFormat,
 } from "./summarize-environment.js"
 export {
+  DESCRIBE_DETAIL_ID_LIMIT,
+  extractMentionedEntityIds,
+  loadEnvironmentDescribeForPrompt,
+} from "./describe-for-prompt.js"
+export {
   introspectCapabilitySchema,
   formatCapabilityInputLabels,
   allCapabilityInputNames,

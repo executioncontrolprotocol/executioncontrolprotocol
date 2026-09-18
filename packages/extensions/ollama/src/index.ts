@@ -303,10 +303,28 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     defaultModel: z.string().optional(),
     timeoutMs: z.number().optional(),
   })
+  .withMetadata({
+    summary: "Local Ollama server integration for Node hosts.",
+    description:
+      "Connects to a locally hosted Ollama instance for chat completion, model listing, and harness evaluation. Ideal for development, eval matrices, and air-gapped deployments.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/ollama", "generate")
       .withInput(GenerateInput)
       .withOutput(modelGenerateOutputSchema)
+      .withMetadata({
+        summary: "Generate text via a local Ollama server.",
+        description:
+          "Runs chat completion against an Ollama instance on the configured base URL. Suited for local development and offline Node workloads. Does not accept file attachments yet. Override the model per call or set a default in extension config.",
+        useCases: [
+          "Harness or CLI workflow needs a local model without cloud credentials.",
+          "Eval matrix runs chat turns against a pinned local model tag.",
+        ],
+        samplePrompts: [
+          "Generate a reply using the local Ollama model.",
+          "Run this prompt against gemma3:1b on localhost.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof GenerateInput>
         if (parsed.files && parsed.files.length > 0) {
@@ -336,6 +354,19 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
     capabilityFor("@executioncontrolprotocol/ollama", "listModels")
       .withInput(z.object({ baseURL: z.string().optional() }))
       .withOutput(z.object({ models: z.array(z.string()) }))
+      .withMetadata({
+        summary: "List models available on the Ollama server.",
+        description:
+          "Returns model tags reported by the Ollama tags API. Use before generate to pick an installed model or to populate a model picker in local dev tools.",
+        useCases: [
+          "Settings UI shows which models are pulled locally.",
+          "Script verifies a required model tag exists before a harness run.",
+        ],
+        samplePrompts: [
+          "What Ollama models are installed?",
+          "List available local models on this machine.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const parsed = input as { baseURL?: string }
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -358,6 +389,19 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
+      .withMetadata({
+        summary: "Judge harness outputs with a local model.",
+        description:
+          "Approves or rejects harness artifacts against a goal and rubric. Applies deterministic shortcuts for common eval patterns before calling a local judge model. Used by harness eval matrices, not end-user chat.",
+        useCases: [
+          "Harness eval case needs an automated quality gate after generate.",
+          "CI matrix scores workflow patch outputs against a rubric.",
+        ],
+        samplePrompts: [
+          "Evaluate whether this harness answer satisfies the goal.",
+          "Run the eval judge on the latest workflow artifact.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const baseURL =

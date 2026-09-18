@@ -39,10 +39,28 @@ function validateDecodedDocument(
 
 /** Core JSON format extension. @category Formats */
 export const formatJsonExtension = defineExtension("@executioncontrolprotocol", "format-json")
+  .withMetadata({
+    summary: "Canonical JSON encode and decode for ECP documents.",
+    description:
+      "Passthrough JSON serialization and parsing with optional target validation for workflows, patches, and intent documents.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-json", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
+      .withMetadata({
+        summary: "Serialize an ECP document to JSON text.",
+        description:
+          "Encodes a source document as formatted JSON. Used when no specialized format is selected or for canonical manifest export.",
+        useCases: [
+          "CLI writes a compiled workflow manifest to disk.",
+          "API returns a JSON snapshot of the current document.",
+        ],
+        samplePrompts: [
+          "Export this workflow as JSON.",
+          "Encode the manifest to pretty-printed JSON.",
+        ],
+      })
       .withHandler((input) =>
         encodeJson((input as EcpEncodeInput).source, {
           ...(input as EcpEncodeInput).options,
@@ -53,6 +71,19 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
     capabilityFor("@executioncontrolprotocol/format-json", "decode")
       .withInput(ecpDecodeInputSchema)
       .withOutput(ecpDecodeResultSchema)
+      .withMetadata({
+        summary: "Parse JSON text into an ECP document.",
+        description:
+          "Parses JSON input and optionally validates against a target document type. Returns validation diagnostics when the parsed object fails checks.",
+        useCases: [
+          "Loader imports a workflow.json file into the editor.",
+          "Patch step parses JSON model output before applying changes.",
+        ],
+        samplePrompts: [
+          "Decode this JSON file into a workflow manifest.",
+          "Parse the JSON patch document from the model.",
+        ],
+      })
       .withHandler((input) => {
         const decoded = input as EcpDecodeInput
         const target = decoded.targetSchema

@@ -8,6 +8,7 @@ import type {
 } from "@executioncontrolprotocol/types"
 import { encodeForPrompt } from "./encode-prompt-text.js"
 import { isEnvironmentQuestion } from "./environment-question.js"
+import { loadEnvironmentDescribeForPrompt } from "./describe-for-prompt.js"
 import {
   formatEnvironmentSummaryLines,
   summarizeEnvironmentDescriptor,
@@ -193,14 +194,21 @@ export async function buildContextBundle(
   let environmentSummary: CompactEnvironmentSummary | undefined
   let environmentDescriptor: Awaited<ReturnType<Ecp["describe"]>> | undefined
   if (shouldIncludeEnvironment(options, envQuestion)) {
-    environmentDescriptor = await ecp.describe()
-    environmentSummary = summarizeEnvironmentDescriptor(environmentDescriptor)
+    const { inventory, detailLines } = await loadEnvironmentDescribeForPrompt(
+      ecp,
+      options.message
+    )
+    environmentDescriptor = inventory
+    environmentSummary = summarizeEnvironmentDescriptor(inventory)
     const envLines = formatEnvironmentSummaryLines(environmentSummary, {
       format: envFormatForIntent(options.intent, outputIsEql, options.isPatch ?? false),
       existingCapabilityUses: options.existingCapabilityUses,
     })
     if (envLines.length > 0) {
       lines.push("Environment capabilities:", ...envLines, "")
+    }
+    if (detailLines.length > 0) {
+      lines.push("Capability / extension detail:", ...detailLines)
     }
 
     if (

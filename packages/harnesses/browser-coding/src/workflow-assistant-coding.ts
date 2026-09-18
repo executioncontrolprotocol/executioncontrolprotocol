@@ -13,6 +13,7 @@ import {
   HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
   inferResponseFormatFromFormatter,
   isRepairFeedbackEcho,
+  loadEnvironmentDescribeForPrompt,
   runModelRepairLoop,
   stripHarnessTypeScriptOutput,
   summarizeEnvironmentDescriptor,
@@ -169,11 +170,17 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
 
     let environmentSummaryLines = ""
     if (config.context.includeEnvironmentDescriptor) {
-      const descriptor = await ctx.ecp.describe()
-      const summary = summarizeEnvironmentDescriptor(descriptor)
-      environmentSummaryLines = formatEnvironmentSummaryLines(summary, {
-        format: "plain",
-      }).join("\n")
+      const { inventory, detailLines } = await loadEnvironmentDescribeForPrompt(
+        ctx.ecp,
+        input.message
+      )
+      const summary = summarizeEnvironmentDescriptor(inventory)
+      environmentSummaryLines = [
+        ...formatEnvironmentSummaryLines(summary, { format: "plain" }),
+        ...(detailLines.length > 0
+          ? ["", "Capability / extension detail:", ...detailLines]
+          : []),
+      ].join("\n")
     }
 
     let runContextText = ""

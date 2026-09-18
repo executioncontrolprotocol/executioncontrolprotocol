@@ -77,11 +77,29 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
     apiKey: z.string().optional(),
     defaultModel: z.string().optional(),
   })
+  .withMetadata({
+    summary: "Anthropic Messages API for browser and Node hosts.",
+    description:
+      "Calls the Anthropic Messages API for multimodal chat completion and harness evaluation. Supports images and documents on the final user turn when files are supplied.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/anthropic", "generate")
       .withExecution("local")
       .withInput(modelGenerateInputSchema)
       .withOutput(modelGenerateOutputSchema)
+      .withMetadata({
+        summary: "Generate text with multimodal Anthropic Messages.",
+        description:
+          "Runs chat completion against the Anthropic Messages API. Accepts images and documents on the final user turn in browser and Node hosts. Requires a configured API key. Supports system prompts, prior turns, and sampling options.",
+        useCases: [
+          "Workflow step analyzes an uploaded image alongside a user question.",
+          "Browser or server harness needs long-context chat with document attachments.",
+        ],
+        samplePrompts: [
+          "Describe this image and answer the user's question.",
+          "Generate a reply using Claude with the attached PDF.",
+        ],
+      })
       .withHandler(async (raw, ctx) => {
         const input = modelGenerateInputSchema.parse(raw)
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -140,6 +158,19 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
+      .withMetadata({
+        summary: "Judge harness outputs with an Anthropic model.",
+        description:
+          "Scores harness artifacts against a goal, rubric, and optional classified intent. Returns approved and feedback. Skips when no API key is configured. Used by harness eval gates, not end-user chat.",
+        useCases: [
+          "Harness matrix uses a cloud judge with intent-aware rubrics.",
+          "Eval approves FAQ answers separately from workflow patch outputs.",
+        ],
+        samplePrompts: [
+          "Evaluate whether this harness artifact passes the rubric.",
+          "Judge the classified intent output for this eval case.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
         const apiKey = resolveAnthropicApiKey(cfg)

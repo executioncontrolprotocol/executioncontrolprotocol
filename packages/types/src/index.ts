@@ -24,6 +24,18 @@ export type {
   LoopNode,
 } from "./workflow.js"
 export type {
+  CapabilityMetadata,
+  ExtensionMetadata,
+} from "./capability-metadata.js"
+export {
+  METADATA_PROSE_BANNED_PHRASES,
+  capabilityMetadataSchema,
+  extensionMetadataSchema,
+  findBannedMetadataProsePhrase,
+  parseCapabilityMetadata,
+  parseExtensionMetadata,
+} from "./capability-metadata.js"
+export type {
   EnvironmentManifest,
   RuntimeBindingManifest,
   ExtensionBindingManifest,

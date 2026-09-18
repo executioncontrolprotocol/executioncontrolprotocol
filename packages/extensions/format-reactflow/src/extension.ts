@@ -79,11 +79,29 @@ export const formatReactflowExtension = defineExtension(
   "@executioncontrolprotocol",
   "format-reactflow"
 )
+  .withMetadata({
+    summary: "React Flow graph encoding and live run progress.",
+    description:
+      "Encodes workflow manifests into React Flow JSON for interactive editors. Lifecycle hooks emit step status updates during workflow runs.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-reactflow", "encode")
       .withInput(ecpEncodeInputSchema)
       .withOutput(ecpEncodeResultSchema)
       .withExecution("local")
+      .withMetadata({
+        summary: "Convert a workflow manifest to React Flow JSON.",
+        description:
+          "Builds nodes, edges, and port metadata from a validated workflow using registry capability schemas. Returns encoded JSON suitable for React Flow viewers.",
+        useCases: [
+          "Interactive editor loads a workflow as draggable nodes.",
+          "Demo app renders data edges between step outputs.",
+        ],
+        samplePrompts: [
+          "Encode this workflow for the React Flow viewer.",
+          "Build the React Flow graph from the current manifest.",
+        ],
+      })
       .withHandler((input, ctx) => {
         const utilityCtx = ctx as unknown as UtilityCapabilityContext
         return encodeToReactFlow(input as EcpEncodeInput, utilityCtx)

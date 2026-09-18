@@ -21,6 +21,7 @@ import {
   formatFeedbackForModel,
   formatModelRepairDialogLines,
   summarizeEnvironmentDescriptor,
+  loadEnvironmentDescribeForPrompt,
   type CompactEnvironmentSummary,
 } from "@executioncontrolprotocol/core"
 import {
@@ -137,7 +138,8 @@ export const evalsWorkflowAssistantHarness = defineHarness("@executioncontrolpro
 
     let environmentSummary: CompactEnvironmentSummary | undefined
     if (capabilitiesQuestion && ctx.ecp) {
-      environmentSummary = summarizeEnvironmentDescriptor(await ctx.ecp.describe())
+      const loaded = await loadEnvironmentDescribeForPrompt(ctx.ecp, input.message)
+      environmentSummary = summarizeEnvironmentDescriptor(loaded.inventory)
     }
 
     const contextBundle = await buildContextBundle(ctx.ecp, {

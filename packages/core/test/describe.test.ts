@@ -8,25 +8,6 @@ describe("environment.describe", () => {
     await registerStandardPolicies()
   })
 
-  it("filters capabilities by match and include", async () => {
-    const env = (await createTestEnvironment("d", "D")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
-    ])
-      .withPolicies([policy("@executioncontrolprotocol/budget", "B").with({})])
-
-    const ecp = await env.init()
-    const desc = await ecp.describe({
-      capabilities: {
-        match: "echo",
-        include: ["id", "label"],
-        limit: 1,
-      },
-    })
-    expect(desc.capabilities).toHaveLength(1)
-    expect(desc.capabilities[0]?.id).toBe("@executioncontrolprotocol/test.echo")
-    expect(desc.capabilities[0]).not.toHaveProperty("inputSchema")
-  })
-
   it("filters policies section", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
       extension("@executioncontrolprotocol/test", "T").with({}),

@@ -34,10 +34,28 @@ function spyHook(event: LifecycleEvent) {
 /** Lifecycle spy extension for conformance tests. @category Testing */
 export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol", "lifecycle-spy")
   .withConfig({})
+  .withMetadata({
+    summary: "Lifecycle hook spy and fault-injection capabilities.",
+    description:
+      "Records lifecycle events and exposes echo, throw, and merge-state capabilities for engine conformance and store tests.",
+  })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/lifecycle-spy", "echo")
       .withInput(z.object({ value: z.unknown().optional() }))
       .withOutput(z.object({ echo: z.unknown() }))
+      .withMetadata({
+        summary: "Echo input while incrementing invoke telemetry.",
+        description:
+          "Mirrors test.echo but increments capabilityInvokeCount so tests can assert step invocation order alongside hook events.",
+        useCases: [
+          "Lifecycle test verifies step:started fires before handler runs.",
+          "Conformance suite counts capability invocations per run.",
+        ],
+        samplePrompts: [
+          "Run lifecycle-spy echo with value probe.",
+          "Invoke spy echo to trigger step hooks.",
+        ],
+      })
       .withHandler(async (input) => {
         capabilityInvokeCount++
         return { echo: (input as { value?: unknown }).value ?? "hi" }
@@ -45,6 +63,19 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
     capabilityFor("@executioncontrolprotocol/lifecycle-spy", "throw")
       .withInput(z.object({}))
       .withOutput(z.object({}))
+      .withMetadata({
+        summary: "Always fail to exercise step:failed hooks.",
+        description:
+          "Throws a fixed error on every invoke. Used to assert failure diagnostics and finally hooks without external dependencies.",
+        useCases: [
+          "Test asserts step:failed captures handler errors.",
+          "Run cancellation path after a forced step failure.",
+        ],
+        samplePrompts: [
+          "Run the lifecycle-spy throw step.",
+          "Trigger a failing capability for hook tests.",
+        ],
+      })
       .withHandler(async () => {
         capabilityInvokeCount++
         throw new Error("capability failed")
@@ -52,6 +83,19 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
     capabilityFor("@executioncontrolprotocol/lifecycle-spy", "merge-state")
       .withInput(z.object({ target: z.unknown() }))
       .withOutput(z.object({ ok: z.boolean() }))
+      .withMetadata({
+        summary: "Merge test state via the capability store API.",
+        description:
+          "Calls ctx.store.merge on a supplied state handle. Verifies store wiring from capability handlers during integration tests.",
+        useCases: [
+          "Store test confirms merge from a step handler.",
+          "Multi-step run accumulates shared state through spy merge.",
+        ],
+        samplePrompts: [
+          "Merge { merged: true } into the run state handle.",
+          "Invoke lifecycle-spy merge-state on the shared target.",
+        ],
+      })
       .withHandler(async (input, ctx) => {
         capabilityInvokeCount++
         const handle = (input as { target: import("@executioncontrolprotocol/types").StoreStateHandle<Record<string, unknown>> })

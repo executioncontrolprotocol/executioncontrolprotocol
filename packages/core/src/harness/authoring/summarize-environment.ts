@@ -14,6 +14,8 @@ export interface CompactCapabilityRow {
   extension: string
   /** Human-readable capability label when present on describe(). */
   label?: string
+  /** One-line summary from capability metadata. */
+  summary?: string
   /** Required input field names. */
   requiredInputs: string[]
   /** Optional input field names. */
@@ -41,6 +43,7 @@ function toCapabilityRow(
     id: string
     extension: string
     label?: string
+    summary?: string
     inputSchema?: unknown
     outputSchema?: unknown
   }
@@ -51,6 +54,7 @@ function toCapabilityRow(
     id: cap.id,
     extension: cap.extension,
     ...(cap.label ? { label: cap.label } : {}),
+    ...(cap.summary ? { summary: cap.summary } : {}),
     requiredInputs: inputFields.required,
     optionalInputs: inputFields.optional,
     inputs: allCapabilityInputNames(inputFields),
@@ -246,8 +250,12 @@ function capabilityFluentSnippet(cap: CompactCapabilityRow): string[] {
   const stepId = capabilityStepId(cap.id)
   const label = cap.label ?? stepId
   const withObj = sampleFluentWithObject(cap)
+  const head = `- ${cap.id}${cap.label ? ` (${cap.label})` : ""}${
+    cap.summary ? ` — ${cap.summary}` : ""
+  }`
   return [
-    `- ${cap.id}${cap.label ? ` (${cap.label})` : ""} — ${formatFluentIoSummary(cap)}`,
+    head,
+    `  ${formatFluentIoSummary(cap)}`,
     `  example: step("${cap.id}", "${label}").id("${stepId}").with(${withObj}).as("${stepId}")`,
   ]
 }
@@ -347,11 +355,12 @@ export function formatEnvironmentSummaryLines(
 
   const lines = ["Capability ids you may reference (exact strings):"]
   for (const cap of workflowStepCapabilities(summary)) {
+    const summaryBit = cap.summary ? ` — ${cap.summary}` : ""
     const io =
       cap.inputs.length > 0 || cap.outputs.length > 0
         ? ` (${formatInputSummary(cap)}; outputs: ${cap.outputs.join(", ") || "none"})`
         : ""
-    lines.push(`- ${cap.id}${io}`)
+    lines.push(`- ${cap.id}${summaryBit}${io}`)
   }
   lines.push("Extensions:")
   for (const ext of summary.extensions.filter((e) => isAuthoringInventoryExtension(e.id))) {

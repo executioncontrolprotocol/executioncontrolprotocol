@@ -452,7 +452,10 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
   /** @internal {@link EcpImpl} — search. */
   async ecpSearch(query: string, options?: SearchOptions): Promise<SearchResult> {
-    const descriptor = await this.ecpDescribe()
+    await this.prepareForDiscovery()
+    const descriptor = await buildDescriptor(this.registry, this.compile(), undefined, {
+      searchIndex: true,
+    })
     return searchCapabilities(query, descriptor, options)
   }
 
