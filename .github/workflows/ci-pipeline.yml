@@ -173,18 +173,19 @@ jobs:
           cache-dependency-path: |
             executioncontrolprotocol/pnpm-lock.yaml
             extensions/pnpm-lock.yaml
-      - name: Build core
-        working-directory: executioncontrolprotocol
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm run build
-      - name: Link core into extensions and build
+      - name: Setup extensions against this core (pack/link peers)
         working-directory: extensions
         env:
           ECP_ROOT: ${{ github.workspace }}/executioncontrolprotocol
+          CI_LINK_PACKAGES: "@executioncontrolprotocol/core,@executioncontrolprotocol/types"
+          GITHUB_REF: refs/heads/development
         run: |
-          pnpm install --frozen-lockfile
-          pnpm run link:ecp
+          if [ -f scripts/install-ecp-from-siblings.mjs ]; then
+            pnpm run ci:setup
+          else
+            pnpm install --frozen-lockfile
+            pnpm run link:ecp
+          fi
           pnpm run build
           pnpm run lint
           pnpm run test

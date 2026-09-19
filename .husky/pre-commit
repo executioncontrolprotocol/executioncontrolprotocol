@@ -1,8 +1,10 @@
 set -e
-if git diff --cached --name-only | grep -qE '^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml)$'; then
+# Refresh lockfile when any workspace package.json or root lock/workspace yaml is staged.
+if git diff --cached --name-only | grep -qE '(^|/)(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml)$'; then
   pnpm install
   git add pnpm-lock.yaml
 fi
 pnpm exec lint-staged
 pnpm run check:no-file-deps
+pnpm run build
 pnpm run lint && pnpm run test:coverage:clean
