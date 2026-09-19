@@ -144,6 +144,51 @@ jobs:
       - run: pnpm run test:browser:install
       - run: pnpm run test:browser
 
+  # Catch core API breaks in vendor extensions before they only fail in browser-demo CI.
+  # Extensions CI does not re-run when only this monorepo changes.
+  vendor-extensions:
+    name: vendor-extensions
+    if: github.ref != 'refs/heads/main' && github.base_ref != 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    steps:
+      - name: Checkout core
+        uses: actions/checkout@v5
+        with:
+          path: executioncontrolprotocol
+      - name: Checkout extensions (development)
+        uses: actions/checkout@v5
+        with:
+          repository: executioncontrolprotocol/extensions
+          ref: development
+          path: extensions
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            executioncontrolprotocol/pnpm-lock.yaml
+            extensions/pnpm-lock.yaml
+      - name: Build core
+        working-directory: executioncontrolprotocol
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: Link core into extensions and build
+        working-directory: extensions
+        env:
+          ECP_ROOT: ${{ github.workspace }}/executioncontrolprotocol
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run link:ecp
+          pnpm run build
+          pnpm run lint
+          pnpm run test
+
   publish:
     name: publish
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
