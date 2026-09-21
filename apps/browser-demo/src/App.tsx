@@ -1,0 +1,1871 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  BrowserAuthoringService,
+  installBrowserWorkflowShim,
+  type BrowserOperationalEcp,
+} from "@executioncontrolprotocol/browser"
+import {
+  HARNESS_TASKS as NANO_HARNESS_TASKS,
+  chatResultAnswer,
+  chatResultSuggestedAction,
+  chatResultWorkflow,
+} from "@executioncontrolprotocol/harnesses-browser-nano"
+import type {
+  EnvironmentDescriptor,
+  HarnessInvokeResult,
+  ProbeContext,
+  RunResult,
+  StepNode,
+  TestSessionSnapshot,
+  ValidationResult,
+  WorkflowManifest,
+} from "@executioncontrolprotocol/types"
+import { toHarnessRunContext } from "@executioncontrolprotocol/types"
+import type { Ecp, CapabilityBlobStore } from "@executioncontrolprotocol/core"
+import { compileWorkflowSource } from "@executioncontrolprotocol/core/browser"
+import type {
+  ReactFlowDocument,
+  ReactFlowIoData,
+  ReactFlowStepData,
+} from "@executioncontrolprotocol/format-reactflow"
+import { findStepById, replaceStepById, rewriteWorkflowAsRefs, type StepConfigureSavePayload } from "./lib/step-configure.js"
+import {
+  OUTPUT_HANDLE_ID,
+  applyPortConnection,
+  removePortBinding,
+  resolveAcceptsConnectionKey,
+  resolvePortConnection,
+} from "./lib/step-connect.js"
+import {
+  WORKFLOW_ACCEPTS_NODE_ID,
+  WORKFLOW_RETURNS_NODE_ID,
+  applyAcceptsConnection,
+  applyReturnsConnection,
+  enrichAcceptsSchemaFromReactFlow,
+  ioFieldsFromSchema,
+  renameAcceptsProperty,
+  renameReturnsProperty,
+  removeReturnsProperty,
+  schemaFromIoFields,
+  workflowIoPatchOps,
+  withNormalizedFileAccepts,
+  withWorkflowIoSchema,
+  workflowContract,
+} from "./lib/workflow-io.js"
+import { ChatPanel } from "./components/ChatPanel.js"
+import { ChromeInstallDialog } from "./components/ChromeInstallDialog.js"
+import { CodePanel } from "./components/CodePanel.js"
+import { FirstRunModal } from "./components/FirstRunModal.js"
+import { VaultSetupModal } from "./components/VaultSetupModal.js"
+import { VaultUnlockModal } from "./components/VaultUnlockModal.js"
+import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
+import { RunResultModal, type RunModalMode } from "./components/RunResultModal.js"
+import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
+import { IoConfigureDialog, type IoConfigureSavePayload } from "./components/IoConfigureDialog.js"
+import { StatusFooter } from "./components/StatusFooter.js"
+import { TopAppBar } from "./components/TopAppBar.js"
+import { OpenWorkflowDialog } from "./components/OpenWorkflowDialog.js"
+import { DownloadWorkflowDialog } from "./components/DownloadWorkflowDialog.js"
+import { SaveWorkflowDialog } from "./components/SaveWorkflowDialog.js"
+import { WorkspaceColumn } from "./components/WorkspaceColumn.js"
+import { useChatHistory } from "./hooks/useChatHistory.js"
+import { useChromeModelInstall } from "./hooks/useChromeModelInstall.js"
+import { readAvailability } from "@executioncontrolprotocol/chrome-ai"
+import { useViewLayout } from "./hooks/useViewLayout.js"
+import { installEsbuildWasmUrl } from "./lib/esbuild-wasm-bootstrap.js"
+import { createDemoAppEnvironment } from "./lib/demo-environment.js"
+import { buildDemoConversationMessages } from "./lib/demo-conversation-messages.js"
+import { capabilityExecutionMap } from "./lib/capability-execution-badge.js"
+import { shouldBlockForVault } from "./lib/vault-gate.js"
+import {
+  harnessInvokeChatError,
+  logHarnessInvoke,
+  logHarnessSuccess,
+} from "./lib/harness-invoke-debug.js"
+import { environmentSourceFromDescriptor } from "./lib/environment-source.js"
+import { logUserPrompt } from "./lib/log-user-prompt.js"
+import {
+  logFluentChangeReceived,
+  logFluentCompileResult,
+  logFluentCompileScheduled,
+  logFluentCompileSkipped,
+  logFluentCompileStale,
+  logFluentCompileStart,
+  logFluentPipelineError,
+  logFluentSyncComplete,
+  logFluentSyncSkipped,
+  logFluentSyncStart,
+} from "./lib/fluent-edit-debug.js"
+import {
+  beautifyFluentWorkflowSource,
+  shouldBeautifyFluentSource,
+} from "./lib/fluent-beautify.js"
+import {
+  downloadWorkflowFluent,
+  downloadWorkflowManifest,
+  parseDroppedWorkflowFile,
+  sanitizeWorkflowFilename,
+  type WorkflowDownloadFormat,
+  type WorkflowListEntry,
+} from "./lib/workflow-bundle.js"
+import {
+  hostDeleteWorkflow,
+  hostListWorkflows,
+  hostLoadWorkflow,
+  hostSaveWorkflow,
+} from "./lib/host-workflows.js"
+import { columnWidthClass } from "./lib/view-layout.js"
+import {
+  harnessCapabilityId,
+  preferredModalProviderMode,
+  providerCapabilityId,
+  readStoredProviderMode,
+  resolveDemoSession,
+  storeProviderMode,
+  type AssistantMode,
+  type ChromeInstallUi,
+  type ProviderMode,
+} from "./lib/provider-mode.js"
+import {
+  readOllamaSettings,
+  storeOllamaSettings,
+  type OllamaSettings,
+} from "./lib/ollama-settings.js"
+import {
+  ANTHROPIC_CHAT_FILE_ACCEPT,
+  isAnthropicChatFileMediaType,
+  readAnthropicSettings,
+  storeAnthropicSettings,
+  type AnthropicSettings,
+} from "./lib/anthropic-settings.js"
+import {
+  detectEcpBridge,
+  isOllamaBridgeUsable,
+  consumeBridgeQueryParams,
+  readBridgeSettings,
+  storeBridgeSettings,
+  describeViaBridge,
+  type BridgeDetectResult,
+  type BridgeSettings,
+} from "./lib/ecp-bridge.js"
+import {
+  checkHostMixedCompatibility,
+  mergeValidationResults,
+} from "./lib/host-compatibility.js"
+import {
+  parseDemoEnvPresetQuery,
+  readDemoEnvPreset,
+  storeDemoEnvPreset,
+  type DemoEnvPreset,
+} from "./lib/demo-env-preset.js"
+import {
+  WORKFLOW_QUICK_STARTS,
+  shouldShowWorkflowQuickStarts,
+} from "./lib/workflow-quick-starts.js"
+import {
+  emitRunProgressFailed,
+  isFailedRunResult,
+  syncRunProgressFromResult,
+} from "./lib/run-progress-sync.js"
+import {
+  CHAT_TROUBLESHOOT_PROMPT,
+  canAutoTroubleshoot,
+  formatChatRunFailureMessage,
+  formatChatRunSuccessMessage,
+  isHarnessRunResultDocument,
+  resolvePendingOfferAction,
+  resolvePendingProbeOfferAction,
+} from "./lib/chat-run-loop.js"
+import {
+  formatProbeOptionsMessage,
+  runProbeSession,
+} from "./lib/probe-session.js"
+import type { CodeEditorTab, FormatTab } from "./types/workspace.js"
+
+const EMPTY_MERMAID = "flowchart TD\n  empty[No workflow]"
+
+function ollamaBridgeHintFromDetect(result: BridgeDetectResult): string {
+  if (!result.available) {
+    return "Run ecp up locally to enable Ollama (Chromium required for hosted HTTPS)."
+  }
+  if (!result.ollamaReachable) {
+    return "ecp up is running but Ollama is unreachable — start Ollama and retry."
+  }
+  return ""
+}
+
+export function App() {
+  const layout = useViewLayout()
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>("authoring")
+  const {
+    messages: chatMessages,
+    setStatus: setChatStatus,
+    appendAgent,
+    appendAgentError,
+    appendUser,
+    clearOfferProbeFlags,
+    clearOfferRunFlags,
+    setGuidedWelcome,
+  } = useChatHistory(assistantMode)
+  const [ecp, setEcp] = useState<Ecp | null>(null)
+  const [providerMode, setProviderMode] = useState<ProviderMode>(
+    () => readStoredProviderMode() ?? "chrome-ai"
+  )
+  const [ollamaSettings, setOllamaSettings] = useState<OllamaSettings>(() => readOllamaSettings())
+  const [anthropicSettings, setAnthropicSettings] = useState<AnthropicSettings>(() =>
+    readAnthropicSettings()
+  )
+  const [chatAttachFiles, setChatAttachFiles] = useState<
+    Array<{ name: string; mediaType: string; data: string }>
+  >([])
+  const [bridgeSettings, setBridgeSettings] = useState<BridgeSettings>(() =>
+    consumeBridgeQueryParams()
+  )
+  const [demoEnvPreset, setDemoEnvPreset] = useState<DemoEnvPreset>(() => {
+    const fromQuery = parseDemoEnvPresetQuery(
+      typeof window !== "undefined" ? window.location.search : ""
+    )
+    if (fromQuery) {
+      storeDemoEnvPreset(fromQuery)
+      return fromQuery
+    }
+    return readDemoEnvPreset()
+  })
+  const [ollamaBridgeAvailable, setOllamaBridgeAvailable] = useState(false)
+  const [ollamaBridgeHint, setOllamaBridgeHint] = useState(
+    "Checking for local ecp up daemon…"
+  )
+  const [showProviderModal, setShowProviderModal] = useState(false)
+  const [showVaultSetup, setShowVaultSetup] = useState(false)
+  const [vaultGate, setVaultGate] = useState<"locked" | "ready">("ready")
+  const [chromeSupported, setChromeSupported] = useState(false)
+  const [chromeReady, setChromeReady] = useState(false)
+  const [chromeInstallUi, setChromeInstallUi] = useState<ChromeInstallUi>("idle")
+  const [manifest, setManifest] = useState<WorkflowManifest | null>(null)
+  const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null)
+  const [savedWorkflows, setSavedWorkflows] = useState<WorkflowListEntry[]>([])
+  const [openWorkflowOpen, setOpenWorkflowOpen] = useState(false)
+  const [openWorkflowBusy, setOpenWorkflowBusy] = useState(false)
+  const [openWorkflowError, setOpenWorkflowError] = useState<string | null>(null)
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null)
+  const [downloadWorkflowOpen, setDownloadWorkflowOpen] = useState(false)
+  const [saveWorkflowOpen, setSaveWorkflowOpen] = useState(false)
+  const [saveWorkflowError, setSaveWorkflowError] = useState<string | null>(null)
+  const [saveBusy, setSaveBusy] = useState(false)
+  const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const [hostCompat, setHostCompat] = useState<ValidationResult | null>(null)
+  const [descriptor, setDescriptor] = useState<EnvironmentDescriptor | null>(null)
+  const [editorTab, setEditorTab] = useState<CodeEditorTab>("workflow")
+  const [formatTab, setFormatTab] = useState<FormatTab>("fluent")
+  const [fluent, setFluent] = useState("// Fluent API will appear here")
+  const [fluentEditorKey, setFluentEditorKey] = useState(0)
+  const [json, setJson] = useState("{}")
+  const [toon, setToon] = useState("")
+  const [, setPatch] = useState("")
+  const [mermaid, setMermaid] = useState(EMPTY_MERMAID)
+  const [reactflow, setReactflow] = useState("")
+  const [prompt, setPrompt] = useState("")
+  const [compileError, setCompileError] = useState<string | null>(null)
+  const [beautifyBusy, setBeautifyBusy] = useState(false)
+  const [runOutput, setRunOutput] = useState("")
+  const [runPublicOutput, setRunPublicOutput] = useState("")
+  const [runBusy, setRunBusy] = useState(false)
+  const [runModalOpen, setRunModalOpen] = useState(false)
+  const [runModalMode, setRunModalMode] = useState<RunModalMode>("inspect")
+  const [lastRunResult, setLastRunResult] = useState<unknown>(null)
+  const lastRunBlobs = useRef<CapabilityBlobStore | undefined>(undefined)
+  const [configureStepId, setConfigureStepId] = useState<string | null>(null)
+  const [configureBusy, setConfigureBusy] = useState(false)
+  const [configureError, setConfigureError] = useState<string | null>(null)
+  const [chatBusy, setChatBusy] = useState(false)
+  const [pendingOfferRun, setPendingOfferRun] = useState(false)
+  const [pendingOfferProbe, setPendingOfferProbe] = useState(false)
+  const [probeContext, setProbeContext] = useState<ProbeContext | undefined>()
+  const [, setTestSessionSnapshot] = useState<TestSessionSnapshot | undefined>()
+  const [autoTroubleshootRound, setAutoTroubleshootRound] = useState(0)
+  const [lastChatRunInput, setLastChatRunInput] = useState<Record<string, unknown> | undefined>()
+  const [runFormDrafts, setRunFormDrafts] = useState<Record<string, string> | undefined>()
+  const compileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const compileGeneration = useRef(0)
+  const syncFromManifestRef = useRef<
+    (
+      nextManifest: WorkflowManifest,
+      options: {
+        refreshFluent: boolean
+        patchToon?: string
+        validation?: ValidationResult | null
+        fluentOverride?: string
+      }
+    ) => Promise<void>
+  >(async () => {})
+  const ecpRef = useRef<Ecp | null>(null)
+  const ecpBootstrapped = useRef(false)
+
+  const environmentSource = useMemo(
+    () => environmentSourceFromDescriptor(descriptor),
+    [descriptor]
+  )
+
+  const footerValidation = useMemo(
+    () => mergeValidationResults(validation, hostCompat),
+    [validation, hostCompat]
+  )
+
+  const refreshHostCompat = useCallback(
+    async (desc: EnvironmentDescriptor | null, bridge: BridgeSettings) => {
+      if (!desc?.remoteInvoke?.url || !bridge.token.trim()) {
+        setHostCompat(null)
+        return
+      }
+      try {
+        const hostDesc = await describeViaBridge(bridge)
+        setHostCompat(checkHostMixedCompatibility(desc, hostDesc))
+      } catch (err) {
+        setHostCompat({
+          schema: "@executioncontrolprotocol.validation.result",
+          version: "1.0",
+          valid: false,
+          errors: [
+            {
+              code: "HOST_DESCRIBE_FAILED",
+              message:
+                err instanceof Error
+                  ? err.message
+                  : "Could not fetch host describe — check ecp up pairing.",
+              severity: "error",
+            },
+          ],
+          warnings: [],
+        })
+      }
+    },
+    []
+  )
+
+  const widthClass = columnWidthClass(layout.paired)
+
+  const reloadEcp = useCallback(
+    async (
+      nextOllama?: OllamaSettings,
+      nextBridge?: BridgeSettings,
+      nextPreset?: DemoEnvPreset,
+      nextAnthropic?: AnthropicSettings,
+      nextProviderMode?: ProviderMode
+    ) => {
+      if (ecpRef.current) {
+        await ecpRef.current.terminate()
+      }
+      const settings = nextOllama ?? readOllamaSettings()
+      const anthropic = nextAnthropic ?? readAnthropicSettings()
+      const bridge = nextBridge ?? readBridgeSettings()
+      const preset = nextPreset ?? readDemoEnvPreset()
+      const mode = nextProviderMode ?? providerMode
+      const { ecp: operational, descriptor: desc } = await createDemoAppEnvironment({
+        ollama: settings,
+        anthropic,
+        bridge,
+        preset,
+        providerMode: mode,
+      })
+      ecpRef.current = operational
+      setEcp(operational)
+      setDescriptor(desc)
+      setDemoEnvPreset(preset)
+      await refreshHostCompat(desc, bridge)
+      return operational
+    },
+    [refreshHostCompat, providerMode]
+  )
+
+  const refreshBridgeDetect = useCallback(async (baseURL?: string) => {
+    const result = await detectEcpBridge(baseURL ?? readBridgeSettings().baseURL)
+    setOllamaBridgeAvailable(isOllamaBridgeUsable(result))
+    setOllamaBridgeHint(ollamaBridgeHintFromDetect(result))
+    return result
+  }, [])
+
+  const upgradeToChromeAi = useCallback(async () => {
+    await reloadEcp()
+    storeProviderMode("chrome-ai")
+    setProviderMode("chrome-ai")
+    setAssistantMode("authoring")
+    setChromeReady(true)
+    setChromeInstallUi("done")
+    appendAgent("Chrome AI is ready. Authoring now uses the on-device model.")
+    setChatStatus("Ready (chrome-ai).")
+  }, [reloadEcp, appendAgent, setChatStatus])
+
+  const chromeInstall = useChromeModelInstall(() => {
+    void upgradeToChromeAi()
+  })
+  const { installState: chromeInstallState, startInstall, startPolling, stopPolling } =
+    chromeInstall
+
+  const beginChromeInstall = useCallback((surface: "dialog" | "toast") => {
+    // create() must run before any other work so user activation survives.
+    startInstall()
+    setChromeInstallUi(surface)
+    setShowProviderModal(false)
+  }, [startInstall])
+
+  const bootstrapAfterVault = useCallback(async () => {
+    if (ecpBootstrapped.current) return
+    ecpBootstrapped.current = true
+
+    const { ecp: operational, descriptor: desc } = await createDemoAppEnvironment({
+      ollama: readOllamaSettings(),
+      anthropic: readAnthropicSettings(),
+      bridge: readBridgeSettings(),
+      preset: readDemoEnvPreset(),
+      providerMode: readStoredProviderMode() ?? "chrome-ai",
+    })
+    ecpRef.current = operational
+    setEcp(operational)
+    setDescriptor(desc)
+    await refreshHostCompat(desc, readBridgeSettings())
+
+    const bridgeDetect = await refreshBridgeDetect()
+    const bridgeOk = isOllamaBridgeUsable(bridgeDetect)
+
+    const result = await readAvailability()
+    const supported = result.supported
+    const ready = result.available
+    setChromeSupported(supported)
+    setChromeReady(ready)
+
+    const stored = readStoredProviderMode()
+    const modalMode = preferredModalProviderMode(stored, {
+      chromeSupported: supported,
+      ollamaBridgeAvailable: bridgeOk,
+    })
+
+    // Ollama saved but ecp up is down — open provider picker on a usable fallback.
+    if (stored === "ollama" && !bridgeOk) {
+      setProviderMode(modalMode)
+      setShowProviderModal(true)
+      setChatStatus("Ollama bridge unavailable — run ecp up or continue with Chrome AI.")
+      // Resume an in-flight Nano download without requiring another click first.
+      if (supported && result.status === "downloading") {
+        setChromeInstallUi("toast")
+        startPolling()
+        setChatStatus("Chrome AI model download already in progress…")
+      }
+      return
+    }
+
+    if (stored) {
+      setProviderMode(stored)
+      setAssistantMode("authoring")
+      const resolved = resolveDemoSession(stored)
+      setChatStatus(`Ready (${stored} / ${resolved.harness}).`)
+      // Do not call LanguageModel.create() here — Chrome requires a user gesture
+      // to start Gemini Nano download; auto-start hangs with no progress.
+      if (stored === "chrome-ai" && supported && result.status === "downloading") {
+        setChromeInstallUi("dialog")
+        startPolling()
+        setChatStatus("Chrome AI model download in progress…")
+      } else if (stored === "chrome-ai" && supported && !ready) {
+        setShowProviderModal(true)
+        setChatStatus("Chrome AI needs a one-click download. Click Continue to start.")
+      }
+      return
+    }
+
+    setProviderMode(modalMode)
+    setShowProviderModal(true)
+  }, [setChatStatus, refreshBridgeDetect, startPolling, refreshHostCompat])
+
+  useEffect(() => {
+    installEsbuildWasmUrl()
+    installBrowserWorkflowShim()
+    if (shouldBlockForVault()) {
+      setVaultGate("locked")
+      return
+    }
+    void bootstrapAfterVault()
+  }, [bootstrapAfterVault])
+
+  const syncFromManifest = useCallback(
+    async (
+      nextManifest: WorkflowManifest,
+      options: {
+        refreshFluent: boolean
+        patchToon?: string
+        validation?: ValidationResult | null
+        /** Prefer bundle Fluent over re-encode when loading a saved file. */
+        fluentOverride?: string
+      }
+    ) => {
+      const operational = ecpRef.current
+      if (!operational) {
+        logFluentSyncSkipped("ecpRef.current is null")
+        return
+      }
+
+      logFluentSyncStart(
+        options.refreshFluent ? "assistant" : "user-compile",
+        options.refreshFluent,
+        nextManifest.workflow.label ?? nextManifest.workflow.id
+      )
+
+      setManifest(nextManifest)
+
+      const service = new BrowserAuthoringService(operational as BrowserOperationalEcp)
+      const panels = await service.encodePanels(nextManifest, options.patchToon ?? "")
+      if (options.refreshFluent) {
+        // Invalidate any pending user-compile debounce and prevent the old
+        // Monaco instance from flushing stale source back into React state.
+        if (compileTimer.current) clearTimeout(compileTimer.current)
+        compileGeneration.current += 1
+        setFluent(
+          typeof options.fluentOverride === "string" && options.fluentOverride.length > 0
+            ? options.fluentOverride
+            : panels.fluent
+        )
+        setFluentEditorKey((key) => key + 1)
+      }
+      setJson(panels.json)
+      setToon(panels.toon)
+      setMermaid(panels.mermaid || EMPTY_MERMAID)
+      const panelsReactflow =
+        "reactflow" in panels && typeof (panels as { reactflow?: unknown }).reactflow === "string"
+          ? (panels as { reactflow: string }).reactflow
+          : ""
+      if (panelsReactflow) {
+        setReactflow(panelsReactflow)
+      } else {
+        try {
+          const encoded = await operational
+            .encode(nextManifest)
+            .uses("@executioncontrolprotocol/format-reactflow")
+            .with({ direction: "LR" })
+            .process()
+          setReactflow(encoded.success ? String(encoded.result ?? "") : "")
+        } catch {
+          setReactflow("")
+        }
+      }
+      setPatch(panels.patch)
+      const val = options.validation ?? (await operational.validate(nextManifest))
+      setValidation(val)
+      logFluentSyncComplete({
+        jsonLength: panels.json.length,
+        toonLength: panels.toon.length,
+        mermaidLength: (panels.mermaid || EMPTY_MERMAID).length,
+        validationValid: val.valid,
+      })
+    },
+    []
+  )
+
+  syncFromManifestRef.current = syncFromManifest
+
+  const applyFluentWorkflow = useCallback(
+    async (input: { fluent: string; id?: string; label?: string }) => {
+      setProbeContext(undefined)
+      setTestSessionSnapshot(undefined)
+      setPendingOfferRun(false)
+      setPendingOfferProbe(false)
+      if (input.id) setSavedWorkflowId(input.id)
+      layout.openWorkspace()
+      const compiled = await compileWorkflowSource({
+        source: input.fluent,
+        filename: "workflow.ts",
+        resolveImports: "browser-global",
+      })
+      if (!compiled.ok || !compiled.manifest) {
+        const msg =
+          compiled.compileErrors?.[0]?.message ||
+          compiled.validation?.errors?.[0]?.message ||
+          "Fluent compile failed"
+        throw new Error(msg)
+      }
+      await syncFromManifestRef.current(compiled.manifest, {
+        refreshFluent: true,
+        fluentOverride: input.fluent,
+      })
+      const label =
+        input.label ||
+        compiled.manifest.workflow.label ||
+        compiled.manifest.workflow.id ||
+        input.id ||
+        "workflow"
+      setChatStatus(`Loaded ${label}`)
+    },
+    [layout, setChatStatus]
+  )
+
+  const applyManifestWorkflow = useCallback(
+    async (nextManifest: WorkflowManifest, options?: { id?: string }) => {
+      setProbeContext(undefined)
+      setTestSessionSnapshot(undefined)
+      setPendingOfferRun(false)
+      setPendingOfferProbe(false)
+      if (options?.id) setSavedWorkflowId(options.id)
+      layout.openWorkspace()
+      await syncFromManifestRef.current(nextManifest, { refreshFluent: true })
+      const label = nextManifest.workflow.label ?? nextManifest.workflow.id
+      setChatStatus(`Loaded ${label}`)
+    },
+    [layout, setChatStatus]
+  )
+
+  const refreshSavedWorkflows = useCallback(async (): Promise<string | null> => {
+    const operational = ecpRef.current
+    if (!operational || !descriptor?.remoteInvoke?.url) {
+      setSavedWorkflows([])
+      return "Pair with ecp up to list host-saved workflows."
+    }
+    try {
+      const list = await hostListWorkflows(operational)
+      setSavedWorkflows(list)
+      return null
+    } catch (err) {
+      setSavedWorkflows([])
+      return err instanceof Error ? err.message : String(err)
+    }
+  }, [descriptor?.remoteInvoke?.url])
+
+  useEffect(() => {
+    void refreshSavedWorkflows()
+  }, [refreshSavedWorkflows])
+
+  const performHostSave = useCallback(
+    async (id: string, label: string) => {
+      const operational = ecpRef.current
+      if (!operational || !manifest) return
+      setSaveBusy(true)
+      setSaveWorkflowError(null)
+      try {
+        const saved = await hostSaveWorkflow(operational, {
+          id,
+          label,
+          fluent,
+        })
+        setSavedWorkflowId(saved.id)
+        await refreshSavedWorkflows()
+        setSaveWorkflowOpen(false)
+        setChatStatus(`Saved ${label} to host`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        setSaveWorkflowError(msg)
+        appendAgentError(`Save failed: ${msg}`)
+        setChatStatus("Save failed")
+      } finally {
+        setSaveBusy(false)
+      }
+    },
+    [appendAgentError, fluent, manifest, refreshSavedWorkflows, setChatStatus]
+  )
+
+  const onSaveWorkflow = useCallback(() => {
+    if (!manifest) return
+    if (savedWorkflowId) {
+      const label = manifest.workflow.label ?? manifest.workflow.id
+      void performHostSave(savedWorkflowId, label)
+      return
+    }
+    setSaveWorkflowError(null)
+    setSaveWorkflowOpen(true)
+  }, [manifest, performHostSave, savedWorkflowId])
+
+  const onDownloadWorkflow = useCallback(
+    (format: WorkflowDownloadFormat) => {
+      if (!manifest) return
+      const id = savedWorkflowId ?? sanitizeWorkflowFilename(manifest.workflow.id || "workflow")
+      const label = manifest.workflow.label ?? id
+      if (format === "fluent") {
+        downloadWorkflowFluent(fluent, label || id)
+      } else {
+        downloadWorkflowManifest(manifest, label || id)
+      }
+      setChatStatus(`Downloaded ${label}`)
+    },
+    [fluent, manifest, savedWorkflowId, setChatStatus]
+  )
+
+  const onOpenWorkflowSelect = useCallback(
+    async (id: string) => {
+      const operational = ecpRef.current
+      if (!operational) return
+      setOpenWorkflowBusy(true)
+      setOpenWorkflowError(null)
+      try {
+        const record = await hostLoadWorkflow(operational, id)
+        await applyFluentWorkflow({
+          fluent: record.fluent,
+          id: record.id,
+          label: record.label,
+        })
+        setOpenWorkflowOpen(false)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        setOpenWorkflowError(msg)
+      } finally {
+        setOpenWorkflowBusy(false)
+      }
+    },
+    [applyFluentWorkflow]
+  )
+
+  const onOpenWorkflowDelete = useCallback(
+    async (id: string) => {
+      const operational = ecpRef.current
+      if (!operational) return
+      setDeletingWorkflowId(id)
+      setOpenWorkflowError(null)
+      try {
+        await hostDeleteWorkflow(operational, id)
+        if (savedWorkflowId === id) setSavedWorkflowId(null)
+        await refreshSavedWorkflows()
+        setChatStatus(`Deleted ${id} from host`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        setOpenWorkflowError(msg)
+      } finally {
+        setDeletingWorkflowId(null)
+      }
+    },
+    [refreshSavedWorkflows, savedWorkflowId, setChatStatus]
+  )
+
+  const onWorkflowFileDrop = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text()
+        const parsed = parseDroppedWorkflowFile(text, file.name)
+        if (parsed.kind === "fluent") {
+          await applyFluentWorkflow({ fluent: parsed.fluent })
+          return
+        }
+        if (parsed.kind === "manifest") {
+          await applyManifestWorkflow(parsed.manifest)
+          return
+        }
+        setSavedWorkflowId(parsed.id)
+        await applyFluentWorkflow({
+          fluent: parsed.fluent,
+          id: parsed.id,
+          label: parsed.label,
+        })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        appendAgentError(`Could not open dropped file: ${msg}`)
+        setChatStatus("Drop failed")
+      }
+    },
+    [appendAgentError, applyFluentWorkflow, applyManifestWorkflow, setChatStatus]
+  )
+
+  const configureStepData = useMemo((): ReactFlowStepData | null => {
+    if (!configureStepId || !reactflow.trim()) return null
+    try {
+      const doc = JSON.parse(reactflow) as ReactFlowDocument
+      const node = doc.nodes.find((n) => n.id === configureStepId && n.type === "ecp-step")
+      return node ? (node.data as ReactFlowStepData) : null
+    } catch {
+      return null
+    }
+  }, [configureStepId, reactflow])
+
+  const configureIoData = useMemo((): ReactFlowIoData | null => {
+    if (!configureStepId || !reactflow.trim()) return null
+    try {
+      const doc = JSON.parse(reactflow) as ReactFlowDocument
+      const node = doc.nodes.find((n) => n.id === configureStepId && n.type === "ecp-io")
+      return node ? (node.data as ReactFlowIoData) : null
+    } catch {
+      return null
+    }
+  }, [configureStepId, reactflow])
+
+  const configureIoFields = useMemo(() => {
+    if (!manifest || !configureIoData) return []
+    const contract = workflowContract(manifest)
+    return ioFieldsFromSchema(
+      configureIoData.kind === "accepts" ? contract.accepts : contract.returns
+    )
+  }, [manifest, configureIoData])
+
+  const configureOriginalInput = useMemo(() => {
+    if (!configureStepId || !manifest) return undefined
+    const step = findStepById(manifest.steps, configureStepId)
+    return step?.input as Record<string, unknown> | undefined
+  }, [configureStepId, manifest])
+
+  const onConfigureStep = useCallback((stepId: string) => {
+    setConfigureError(null)
+    setConfigureStepId(stepId)
+  }, [])
+
+  const patchTargetStep = useCallback(
+    async (targetStepId: string, nextStep: StepNode) => {
+      const operational = ecpRef.current
+      if (!operational || !manifest) return false
+      const patched = await operational
+        .patch(manifest)
+        .with([
+          {
+            path: `steps[${targetStepId}]`,
+            mode: "replace",
+            value: nextStep,
+          },
+        ])
+        .process()
+      if (!patched.success || !patched.result) {
+        const message =
+          patched.diagnostics?.[0]?.message ??
+          patched.validation?.errors?.[0]?.message ??
+          "Failed to patch step"
+        setChatStatus(message)
+        return false
+      }
+      await syncFromManifestRef.current(patched.result as WorkflowManifest, {
+        refreshFluent: true,
+      })
+      return true
+    },
+    [manifest]
+  )
+
+  const patchWorkflowMeta = useCallback(
+    async (nextManifest: WorkflowManifest): Promise<string | null> => {
+      const operational = ecpRef.current
+      if (!operational || !manifest) return "Environment is not ready"
+      const ops = workflowIoPatchOps(manifest, nextManifest)
+      if (ops.length === 0) return null
+      const patched = await operational.patch(manifest).with(ops).process()
+      if (!patched.success || !patched.result) {
+        return (
+          patched.diagnostics?.[0]?.message ??
+          patched.validation?.errors?.[0]?.message ??
+          "Failed to patch workflow"
+        )
+      }
+      await syncFromManifestRef.current(patched.result as WorkflowManifest, {
+        refreshFluent: true,
+      })
+      return null
+    },
+    [manifest]
+  )
+
+  const onConnectPorts = useCallback(
+    async (connection: {
+      sourceStepId: string
+      targetStepId: string
+      sourceHandle: string
+      targetHandle: string
+      valueSchema?: Record<string, unknown>
+      targetRequired?: boolean
+    }) => {
+      if (!manifest) return
+
+      if (connection.targetStepId === WORKFLOW_RETURNS_NODE_ID) {
+        const sourceAs =
+          connection.sourceStepId === WORKFLOW_ACCEPTS_NODE_ID
+            ? connection.sourceHandle
+            : findStepById(manifest.steps, connection.sourceStepId)?.as
+        if (!sourceAs) {
+          setChatStatus("Set a store key (as) on the source step before connecting.")
+          return
+        }
+        const next = withWorkflowIoSchema(
+          manifest,
+          "returns",
+          applyReturnsConnection(
+            workflowContract(manifest).returns,
+            sourceAs,
+            connection.targetHandle,
+            connection.valueSchema,
+            connection.sourceHandle
+          )
+        )
+        const error = await patchWorkflowMeta(next)
+        if (error) setChatStatus(error)
+        return
+      }
+
+      if (connection.sourceStepId === WORKFLOW_ACCEPTS_NODE_ID) {
+        const target = findStepById(manifest.steps, connection.targetStepId)
+        if (!target) {
+          setChatStatus("Step not found in workflow")
+          return
+        }
+
+        const acceptsKey = resolveAcceptsConnectionKey(
+          connection.sourceHandle,
+          connection.targetHandle
+        )
+        if (!acceptsKey) {
+          setChatStatus("Missing accepts parameter name")
+          return
+        }
+
+        const resolved = resolvePortConnection({
+          sourceAs: acceptsKey,
+          sourceHandle: OUTPUT_HANDLE_ID,
+          targetHandle: connection.targetHandle,
+        })
+        if (!resolved.ok) {
+          setChatStatus(resolved.error)
+          return
+        }
+
+        const next = withWorkflowIoSchema(
+          manifest,
+          "accepts",
+          applyAcceptsConnection(
+            workflowContract(manifest).accepts,
+            connection.sourceHandle,
+            connection.targetHandle,
+            connection.valueSchema,
+            connection.targetRequired
+          )
+        )
+        const nextTarget = findStepById(next.steps, connection.targetStepId)
+        if (!nextTarget) {
+          setChatStatus("Step not found in workflow")
+          return
+        }
+        const nextWithStep: WorkflowManifest = {
+          ...next,
+          steps: replaceStepById(
+            next.steps,
+            connection.targetStepId,
+            applyPortConnection(nextTarget, resolved.paramName, resolved.refPath)
+          ),
+        }
+        const error = await patchWorkflowMeta(nextWithStep)
+        if (error) setChatStatus(error)
+        return
+      }
+
+      const target = findStepById(manifest.steps, connection.targetStepId)
+      if (!target) {
+        setChatStatus("Step not found in workflow")
+        return
+      }
+
+      const sourceAs = findStepById(manifest.steps, connection.sourceStepId)?.as
+      const sourceHandle = connection.sourceHandle
+
+      const resolved = resolvePortConnection({
+        sourceAs,
+        sourceHandle,
+        targetHandle: connection.targetHandle,
+      })
+      if (!resolved.ok) {
+        setChatStatus(resolved.error)
+        return
+      }
+
+      const nextStep = applyPortConnection(target, resolved.paramName, resolved.refPath)
+      await patchTargetStep(connection.targetStepId, nextStep)
+    },
+    [manifest, patchTargetStep, patchWorkflowMeta]
+  )
+
+  const onDisconnectPorts = useCallback(
+    async (connection: { targetStepId: string; targetHandle: string }) => {
+      if (!manifest) return
+      if (connection.targetStepId === WORKFLOW_RETURNS_NODE_ID) {
+        const next = withWorkflowIoSchema(
+          manifest,
+          "returns",
+          removeReturnsProperty(workflowContract(manifest).returns, connection.targetHandle)
+        )
+        const error = await patchWorkflowMeta(next)
+        if (error) setChatStatus(error)
+        return
+      }
+      const target = findStepById(manifest.steps, connection.targetStepId)
+      if (!target) {
+        setChatStatus("Step not found in workflow")
+        return
+      }
+      const nextStep = removePortBinding(target, connection.targetHandle)
+      await patchTargetStep(connection.targetStepId, nextStep)
+    },
+    [manifest, patchTargetStep, patchWorkflowMeta]
+  )
+
+  const onSaveStepConfigure = useCallback(
+    async (payload: StepConfigureSavePayload) => {
+      const operational = ecpRef.current
+      if (!operational || !manifest || !configureStepId) return
+      setConfigureBusy(true)
+      setConfigureError(null)
+      try {
+        const step = findStepById(manifest.steps, configureStepId)
+        if (!step) {
+          setConfigureError("Step not found in workflow")
+          return
+        }
+        const previousAs = step.as
+        const previousInput = (step.input ?? {}) as Record<string, unknown>
+
+        const nextInput: Record<string, unknown> = { ...previousInput }
+        for (const key of payload.removedKeys) {
+          delete nextInput[key]
+        }
+        for (const [param, value] of Object.entries(payload.literals)) {
+          nextInput[param] = value
+        }
+
+        const nextStep = {
+          ...step,
+          input: nextInput as typeof step.input,
+        }
+        if (payload.asKey) {
+          nextStep.as = payload.asKey
+        } else {
+          delete nextStep.as
+        }
+
+        const patched = await operational
+          .patch(manifest)
+          .with([
+            {
+              path: `steps[${configureStepId}]`,
+              mode: "replace",
+              value: nextStep,
+            },
+          ])
+          .process()
+        if (!patched.success || !patched.result) {
+          const message =
+            patched.diagnostics?.[0]?.message ??
+            patched.validation?.errors?.[0]?.message ??
+            "Failed to patch step"
+          setConfigureError(message)
+          return
+        }
+
+        let nextManifest = patched.result as WorkflowManifest
+        if (previousAs && payload.asKey && previousAs !== payload.asKey) {
+          nextManifest = {
+            ...nextManifest,
+            steps: rewriteWorkflowAsRefs(nextManifest.steps, previousAs, payload.asKey),
+          }
+        }
+
+        await syncFromManifestRef.current(nextManifest, {
+          refreshFluent: true,
+        })
+        setConfigureStepId(null)
+      } catch (err) {
+        setConfigureError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setConfigureBusy(false)
+      }
+    },
+    [manifest, configureStepId]
+  )
+
+  const onSaveIoConfigure = useCallback(
+    async (payload: IoConfigureSavePayload) => {
+      if (!manifest) return
+      setConfigureBusy(true)
+      setConfigureError(null)
+      try {
+        let next = withWorkflowIoSchema(
+          manifest,
+          payload.kind,
+          schemaFromIoFields(payload.fields)
+        )
+        if (payload.kind === "accepts") {
+          for (const rename of payload.renames) {
+            next = renameAcceptsProperty(next, rename.from, rename.to)
+          }
+        } else {
+          for (const rename of payload.renames) {
+            next = renameReturnsProperty(next, rename.from, rename.to)
+          }
+        }
+        const error = await patchWorkflowMeta(next)
+        if (error) {
+          setConfigureError(error)
+          setChatStatus(error)
+          return
+        }
+        setConfigureStepId(null)
+      } catch (err) {
+        setConfigureError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setConfigureBusy(false)
+      }
+    },
+    [manifest, patchWorkflowMeta]
+  )
+
+  const onProviderComplete = (mode: ProviderMode, nextOllama?: OllamaSettings) => {
+    storeProviderMode(mode)
+    setProviderMode(mode)
+    setAssistantMode("authoring")
+    setShowProviderModal(false)
+    storeBridgeSettings(bridgeSettings)
+    storeDemoEnvPreset(demoEnvPreset)
+    storeAnthropicSettings(anthropicSettings)
+    if (nextOllama) {
+      storeOllamaSettings(nextOllama)
+      setOllamaSettings(nextOllama)
+      void reloadEcp(nextOllama, bridgeSettings, demoEnvPreset, anthropicSettings, mode).then(() => {
+        const resolved = resolveDemoSession(mode)
+        setChatStatus(`Ready (${mode} / ${resolved.harness} / ${demoEnvPreset}).`)
+      })
+      return
+    }
+    void reloadEcp(undefined, bridgeSettings, demoEnvPreset, anthropicSettings, mode).then(() => {
+      const resolved = resolveDemoSession(mode)
+      setChatStatus(`Ready (${mode} / ${resolved.harness} / ${demoEnvPreset}).`)
+    })
+  }
+
+  const onExplore = () => {
+    setAssistantMode("guided")
+    setProviderMode("chrome-ai")
+    setShowProviderModal(false)
+    setGuidedWelcome()
+    setChatStatus("Guided mode — explore the editor.")
+  }
+
+  const onChromeInstallFromModal = () => {
+    // First line after the Continue click — preserve user activation for create().
+    beginChromeInstall("dialog")
+    setAssistantMode("guided")
+    setProviderMode("chrome-ai")
+    setGuidedWelcome()
+    setChatStatus("Installing Chrome AI...")
+  }
+
+  const runChat = async (userRequest: string) => {
+    if (!ecp) return
+    const { provider, harness } = resolveDemoSession(providerMode)
+    const runContext =
+      isHarnessRunResultDocument(lastRunResult) && manifest
+        ? toHarnessRunContext(lastRunResult as RunResult, manifest)
+        : undefined
+    const files =
+      provider === "anthropic" && chatAttachFiles.length > 0
+        ? chatAttachFiles.map((f) => ({
+            kind: "buffer" as const,
+            data: f.data,
+            mediaType: f.mediaType,
+          }))
+        : undefined
+    const conversationMessages = buildDemoConversationMessages(chatMessages)
+    const invoked = await ecp
+      .invoke(harnessCapabilityId(harness))
+      .uses(providerCapabilityId(provider))
+      .with({
+        task: NANO_HARNESS_TASKS.CHAT,
+        message: userRequest,
+        ...(manifest ? { manifest } : {}),
+        ...(conversationMessages.length > 0 ? { conversationMessages } : {}),
+        ...(runContext ? { runContext } : {}),
+        ...(probeContext ? { probeContext } : {}),
+        ...(provider === "ollama" ? { model: ollamaSettings.model } : {}),
+        ...(provider === "anthropic" ? { model: anthropicSettings.model } : {}),
+        ...(files ? { files } : {}),
+      })
+      .process()
+
+    if (files) {
+      setChatAttachFiles([])
+    }
+
+    logHarnessInvoke("chat", invoked)
+
+    if (!invoked.success || !invoked.result) {
+      throw new Error(harnessInvokeChatError(invoked))
+    }
+
+    const harnessResult = invoked.result as HarnessInvokeResult
+    logHarnessSuccess("chat", harnessResult)
+
+    const nextWorkflow = chatResultWorkflow(harnessResult)
+    if (nextWorkflow) {
+      const hadWorkflow = manifest !== null
+      const harnessValidation = harnessResult.validation as ValidationResult | undefined
+      await syncFromManifest(nextWorkflow, {
+        refreshFluent: true,
+        patchToon: harnessResult.raw,
+        ...(harnessValidation ? { validation: harnessValidation } : {}),
+      })
+      if (!hadWorkflow) layout.onFirstWorkflow()
+      else layout.openWorkspace()
+      const val = harnessValidation as { valid?: boolean } | undefined
+      const suggestedAction = chatResultSuggestedAction(harnessResult)
+      const answer =
+        chatResultAnswer(harnessResult) ??
+        (val?.valid === false
+          ? "Workflow updated but has validation issues. See console for raw model output."
+          : suggestedAction === "offer-probe"
+            ? "I built the discovery steps. Want me to inspect the available options?"
+            : "I updated the workflow. Want me to run it?")
+      const offerRun = suggestedAction === "offer-run"
+      const offerProbe = suggestedAction === "offer-probe"
+      setChatStatus(offerProbe ? "Offer probe" : offerRun ? "Offer run" : "Ready")
+      clearOfferRunFlags()
+      clearOfferProbeFlags()
+      appendAgent(answer, { offerRun, offerProbe })
+      setPendingOfferRun(offerRun)
+      setPendingOfferProbe(offerProbe)
+      if (offerProbe) {
+        setProbeContext(undefined)
+        setTestSessionSnapshot(undefined)
+      }
+      return
+    }
+
+    const answer = chatResultAnswer(harnessResult)
+    if (answer) {
+      clearOfferRunFlags()
+      clearOfferProbeFlags()
+      setPendingOfferRun(false)
+      setPendingOfferProbe(false)
+      appendAgent(answer)
+      setChatStatus(assistantMode === "guided" ? "Guided mode" : "Ready")
+    }
+  }
+
+  const showChatRunForm = () => {
+    clearOfferRunFlags()
+    clearOfferProbeFlags()
+    setPendingOfferRun(false)
+    setPendingOfferProbe(false)
+    const drafts: Record<string, string> = {}
+    if (lastChatRunInput) {
+      for (const [key, value] of Object.entries(lastChatRunInput)) {
+        drafts[key] =
+          typeof value === "string" ? value : JSON.stringify(value, null, 2)
+      }
+    }
+    setRunFormDrafts(Object.keys(drafts).length > 0 ? drafts : undefined)
+    appendAgent("Provide any run inputs, then click Run workflow.", { runForm: true })
+  }
+
+  const onOfferRunConfirm = () => {
+    appendUser("Yes, run it")
+    showChatRunForm()
+  }
+
+  const onOfferRunDecline = () => {
+    appendUser("Not now")
+    clearOfferRunFlags()
+    setPendingOfferRun(false)
+    appendAgent("Okay — say when you want to run it, or ask for another change.")
+  }
+
+  const runPendingProbe = async () => {
+    clearOfferProbeFlags()
+    setPendingOfferProbe(false)
+    if (!ecp || !manifest) {
+      appendAgent("I could not start the probe because there is no workflow to inspect.")
+      return
+    }
+
+    setChatBusy(true)
+    setChatStatus("Probing workflow")
+    try {
+      const result = await runProbeSession(ecp, manifest, lastChatRunInput)
+      if (!result) {
+        appendAgent("The workflow probe could not find or run a discovery step.")
+        setChatStatus("Ready")
+        return
+      }
+      setTestSessionSnapshot(result.snapshot)
+      setProbeContext(result.probeContext)
+      appendAgent(formatProbeOptionsMessage(result.probeContext))
+      setChatStatus("Probe complete")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      appendAgentError(`The workflow probe failed: ${msg}`)
+      setChatStatus("Error")
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const onOfferProbeConfirm = () => {
+    appendUser("Yes, inspect it")
+    void runPendingProbe()
+  }
+
+  const onOfferProbeDecline = () => {
+    appendUser("Not now")
+    clearOfferProbeFlags()
+    setPendingOfferProbe(false)
+    appendAgent("Okay — ask me to inspect the workflow when you are ready.")
+  }
+
+  const submitMessage = async (userRequest: string) => {
+    const text = userRequest.trim()
+    if (!ecp || !text) return
+
+    if (pendingOfferProbe) {
+      const action = resolvePendingProbeOfferAction(text)
+      appendUser(text)
+      if (action === "confirm") {
+        await runPendingProbe()
+        setPrompt("")
+        return
+      }
+      if (action === "decline") {
+        clearOfferProbeFlags()
+        setPendingOfferProbe(false)
+        appendAgent("Okay — ask me to inspect the workflow when you are ready.")
+        setPrompt("")
+        return
+      }
+      clearOfferProbeFlags()
+      setPendingOfferProbe(false)
+    } else if (pendingOfferRun) {
+      const action = resolvePendingOfferAction(text)
+      appendUser(text)
+      if (action === "confirm") {
+        showChatRunForm()
+        setPrompt("")
+        return
+      }
+      if (action === "decline") {
+        clearOfferRunFlags()
+        setPendingOfferRun(false)
+        appendAgent("Okay — say when you want to run it, or ask for another change.")
+        setPrompt("")
+        return
+      }
+      clearOfferRunFlags()
+      setPendingOfferRun(false)
+    } else {
+      appendUser(text)
+    }
+
+    void logUserPrompt(text, {
+      assistantMode,
+      providerMode,
+    })
+    setChatBusy(true)
+
+    try {
+      await runChat(text)
+      if (assistantMode === "guided") {
+        setAssistantMode("authoring")
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error("[ecp] chat request failed:", err)
+      setChatStatus("Error")
+      appendAgentError(msg)
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const onSubmit = () => {
+    void submitMessage(prompt)
+    setPrompt("")
+  }
+
+  const autoTroubleshootAfterFailure = async (result: unknown) => {
+    if (!canAutoTroubleshoot(autoTroubleshootRound)) {
+      appendAgent(
+        `${formatChatRunFailureMessage(result)} I reached the automatic fix limit — describe the change you want, or inspect the canvas.`
+      )
+      return
+    }
+    appendAgent(`${formatChatRunFailureMessage(result)} I will try to fix the workflow.`)
+    setAutoTroubleshootRound((n) => n + 1)
+    setChatBusy(true)
+    try {
+      await runChat(CHAT_TROUBLESHOOT_PROMPT)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      appendAgentError(msg)
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const onRun = async (
+    input?: Record<string, unknown>,
+    blobs?: CapabilityBlobStore,
+    options?: { source?: "modal" | "chat" }
+  ) => {
+    if (!ecp || !manifest) return
+    const fromChat = options?.source === "chat"
+    setRunBusy(true)
+    setRunModalOpen(false)
+    setRunOutput("")
+    setRunPublicOutput("")
+    lastRunBlobs.current = blobs
+    if (fromChat && input) {
+      setLastChatRunInput(input)
+    }
+    layout.ensureWorkflowVisible()
+    let result: RunResult | undefined
+    try {
+      result = (await ecp.run(withNormalizedFileAccepts(manifest), {
+        ...(input ? { input } : {}),
+        ...(blobs ? { blobs } : {}),
+      })) as RunResult
+      setLastRunResult(result)
+      setRunOutput(JSON.stringify(result, null, 2))
+      const output = result.output
+      setRunPublicOutput(output ? JSON.stringify(output, null, 2) : "")
+      if (fromChat) {
+        if (isFailedRunResult(result)) {
+          void autoTroubleshootAfterFailure(result)
+        } else {
+          setAutoTroubleshootRound(0)
+          appendAgent(formatChatRunSuccessMessage(result), { runOutput: true })
+        }
+      } else {
+        setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
+        setRunModalOpen(true)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      const errorResult = { error: message }
+      setLastRunResult(errorResult)
+      setRunOutput(message)
+      setRunPublicOutput("")
+      emitRunProgressFailed()
+      if (fromChat) {
+        void autoTroubleshootAfterFailure(errorResult)
+      } else {
+        setRunModalMode("inspect")
+        setRunModalOpen(true)
+      }
+    } finally {
+      if (result) syncRunProgressFromResult(result)
+      setRunBusy(false)
+    }
+  }
+
+  const onRunFromModal = (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => {
+    setRunModalOpen(false)
+    void onRun(input, blobs, { source: "modal" })
+  }
+
+  const onRunFromChat = (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => {
+    void onRun(input, blobs, { source: "chat" })
+  }
+
+  const onExecute = () => {
+    if (!manifest) return
+    const accepts = workflowContract(manifest).accepts
+    if (ioFieldsFromSchema(accepts).length > 0) {
+      setRunModalMode("input")
+      setRunModalOpen(true)
+      return
+    }
+    void onRun(undefined, undefined, { source: "modal" })
+  }
+
+  const onFluentChange = useCallback(
+    (value: string | undefined) => {
+      if (value === undefined) {
+        logFluentCompileSkipped("onChange value is undefined")
+        return
+      }
+      const trimmed = value.trim()
+      if (!trimmed || trimmed.startsWith("// Fluent API will appear here")) {
+        logFluentCompileSkipped("placeholder or empty source", {
+          sourceLength: value.length,
+        })
+        return
+      }
+
+      // Persist draft for remount (Monaco is uncontrolled; defaultValue is read only on mount).
+      setFluent(value)
+
+      if (compileTimer.current) clearTimeout(compileTimer.current)
+      const generation = ++compileGeneration.current
+      logFluentChangeReceived(value.length, generation)
+      logFluentCompileScheduled(generation, 400)
+      compileTimer.current = setTimeout(() => {
+        void (async () => {
+          try {
+            logFluentCompileStart(generation, value.length)
+            const compiled = await compileWorkflowSource({
+              source: value,
+              filename: "workflow.ts",
+              resolveImports: "browser-global",
+            })
+            if (generation !== compileGeneration.current) {
+              logFluentCompileStale(generation, compileGeneration.current)
+              return
+            }
+            logFluentCompileResult(generation, {
+              ok: compiled.ok,
+              hasManifest: Boolean(compiled.manifest),
+              workflowLabel: compiled.manifest?.workflow.label ?? compiled.manifest?.workflow.id,
+              stepCount: compiled.manifest?.steps.length,
+              compileErrors: compiled.compileErrors?.map((e) => e.message),
+              validationErrors: compiled.validation?.errors?.map((e) => e.message),
+            })
+            if (!compiled.manifest || !ecpRef.current) {
+              const validationMsg = compiled.validation?.errors?.[0]?.message
+              logFluentSyncSkipped(
+                !ecpRef.current ? "ecpRef.current is null after compile" : "no manifest from compile"
+              )
+              setCompileError(
+                compiled.compileErrors?.map((e) => e.message).join("; ") ??
+                  validationMsg ??
+                  "Compile failed"
+              )
+              return
+            }
+            setCompileError(null)
+            await syncFromManifestRef.current(compiled.manifest, {
+              refreshFluent: false,
+              ...(compiled.validation ? { validation: compiled.validation } : {}),
+            })
+            layout.openWorkspace()
+          } catch (err) {
+            if (generation !== compileGeneration.current) {
+              logFluentCompileStale(generation, compileGeneration.current)
+              return
+            }
+            logFluentPipelineError("compile/sync", err)
+            setCompileError(err instanceof Error ? err.message : String(err))
+          }
+        })()
+      }, 400)
+    },
+    [layout]
+  )
+
+  const onBeautifyFluent = useCallback(async () => {
+    if (!shouldBeautifyFluentSource(fluent)) return
+    setBeautifyBusy(true)
+    try {
+      if (compileTimer.current) clearTimeout(compileTimer.current)
+      compileGeneration.current += 1
+
+      const result = await beautifyFluentWorkflowSource(fluent)
+      if (!result.ok) {
+        setCompileError(result.error)
+        return
+      }
+
+      setCompileError(null)
+      setFluent(result.fluent)
+      setFluentEditorKey((key) => key + 1)
+      await syncFromManifestRef.current(result.manifest, {
+        refreshFluent: false,
+        ...(result.validation ? { validation: result.validation } : {}),
+      })
+    } catch (err) {
+      setCompileError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBeautifyBusy(false)
+    }
+  }, [fluent])
+
+  const chatBlocked = (showProviderModal && chromeInstallUi === "dialog") || vaultGate === "locked"
+  const hasWorkflow = manifest !== null
+  const runAcceptsSchema = useMemo(
+    () =>
+      manifest
+        ? enrichAcceptsSchemaFromReactFlow(workflowContract(manifest).accepts, reactflow)
+        : undefined,
+    [manifest, reactflow]
+  )
+  const runReturnsSchema = useMemo(
+    () => (manifest ? workflowContract(manifest).returns : undefined),
+    [manifest]
+  )
+  const runMappedOutput = useMemo(() => {
+    if (!lastRunResult || typeof lastRunResult !== "object") return undefined
+    return (lastRunResult as { output?: unknown }).output
+  }, [lastRunResult])
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <TopAppBar
+        views={layout.views}
+        onToggleView={layout.toggleView}
+        onExecute={onExecute}
+        executeDisabled={!ecp || !hasWorkflow}
+        executeBusy={runBusy}
+        onSettings={() => setShowProviderModal(true)}
+        hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
+        hasWorkflow={hasWorkflow}
+        onSave={() => void onSaveWorkflow()}
+        onDownload={() => setDownloadWorkflowOpen(true)}
+        onOpen={() => {
+          setOpenWorkflowError(null)
+          setOpenWorkflowOpen(true)
+          setOpenWorkflowBusy(true)
+          void (async () => {
+            const err = await refreshSavedWorkflows()
+            setOpenWorkflowError(err)
+            setOpenWorkflowBusy(false)
+          })()
+        }}
+        saveBusy={saveBusy}
+      />
+
+      <main className="flex min-h-0 w-full flex-1 overflow-hidden">
+        {layout.views.chat ? (
+          <ChatPanel
+            visible
+            widthClass={widthClass}
+            paired={layout.paired}
+            messages={chatMessages}
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            onSubmit={onSubmit}
+            disabled={!ecp || chatBlocked}
+            busy={chatBusy}
+            showQuickStarts={shouldShowWorkflowQuickStarts(chatMessages)}
+            quickStarts={WORKFLOW_QUICK_STARTS}
+            onQuickStartClick={(text) => void submitMessage(text)}
+            onOfferRunConfirm={onOfferRunConfirm}
+            onOfferRunDecline={onOfferRunDecline}
+            onOfferProbeConfirm={onOfferProbeConfirm}
+            onOfferProbeDecline={onOfferProbeDecline}
+            onChatRun={onRunFromChat}
+            runBusy={runBusy}
+            hasWorkflow={hasWorkflow}
+            acceptsSchema={runAcceptsSchema}
+            returnsSchema={runReturnsSchema}
+            runOutputValue={runMappedOutput}
+            bridge={bridgeSettings}
+            runBlobs={lastRunBlobs.current}
+            filePickerEnabled={Boolean(descriptor?.remoteInvoke?.url)}
+            runFormDrafts={runFormDrafts}
+            anthropicAttachEnabled={providerMode === "anthropic"}
+            anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
+            attachedFileNames={chatAttachFiles.map((f) => f.name)}
+            onAttachFiles={(list) => {
+              if (!list || list.length === 0) return
+              void (async () => {
+                const next: Array<{ name: string; mediaType: string; data: string }> = []
+                for (const file of Array.from(list)) {
+                  const mediaType = file.type || "application/octet-stream"
+                  if (!isAnthropicChatFileMediaType(mediaType)) {
+                    appendAgentError(
+                      `Unsupported attachment type: ${mediaType || file.name}. Use JPEG, PNG, GIF, WEBP, or PDF.`
+                    )
+                    continue
+                  }
+                  const buffer = await file.arrayBuffer()
+                  const bytes = new Uint8Array(buffer)
+                  let binary = ""
+                  for (const byte of bytes) binary += String.fromCharCode(byte)
+                  next.push({
+                    name: file.name,
+                    mediaType: mediaType === "image/jpg" ? "image/jpeg" : mediaType,
+                    data: btoa(binary),
+                  })
+                }
+                if (next.length > 0) {
+                  setChatAttachFiles((prev) => [...prev, ...next])
+                }
+              })()
+            }}
+            onRemoveAttachedFile={(index) => {
+              setChatAttachFiles((prev) => prev.filter((_, i) => i !== index))
+            }}
+          />
+        ) : null}
+
+        {layout.workspaceVisible ? (
+          <WorkspaceColumn visible widthClass={widthClass}>
+            {layout.views.workflow ? (
+              <ReactFlowCanvas
+                reactflowJson={reactflow}
+                runBusy={runBusy}
+                onOpenRunModal={() => {
+                  setRunModalMode("inspect")
+                  setRunModalOpen(true)
+                }}
+                hasWorkflow={hasWorkflow}
+                capabilityExecution={capabilityExecutionMap(descriptor)}
+                hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
+                onConfigureStep={onConfigureStep}
+                onConnectPorts={onConnectPorts}
+                onDisconnectPorts={onDisconnectPorts}
+                onWorkflowFileDrop={onWorkflowFileDrop}
+              />
+            ) : null}
+            {layout.views.code ? (
+              <CodePanel
+                editorTab={editorTab}
+                onEditorTabChange={setEditorTab}
+                formatTab={formatTab}
+                onFormatTabChange={setFormatTab}
+                fluent={fluent}
+                fluentEditorKey={fluentEditorKey}
+                json={json}
+                toon={toon}
+                mermaid={mermaid}
+                environmentSource={environmentSource}
+                compileError={compileError}
+                onFluentChange={onFluentChange}
+                onBeautifyFluent={onBeautifyFluent}
+                beautifyBusy={beautifyBusy}
+              />
+            ) : null}
+          </WorkspaceColumn>
+        ) : null}
+      </main>
+
+      <StatusFooter
+        validation={footerValidation}
+        chromeInstallUi={chromeInstallUi}
+        chromeInstallState={chromeInstallState}
+      />
+
+      <RunResultModal
+        open={runModalOpen}
+        onClose={() => setRunModalOpen(false)}
+        mode={runModalMode}
+        runResult={lastRunResult}
+        runOutputJson={runOutput}
+        runPublicOutput={runPublicOutput || undefined}
+        returnsSchema={runReturnsSchema}
+        bridge={bridgeSettings}
+        blobs={lastRunBlobs.current}
+        runBusy={runBusy}
+        onRun={onRunFromModal}
+        hasWorkflow={hasWorkflow}
+        acceptsSchema={runAcceptsSchema}
+        filePickerEnabled={Boolean(descriptor?.remoteInvoke?.url)}
+      />
+
+      {showProviderModal ? (
+        <FirstRunModal
+          chromeSupported={chromeSupported}
+          chromeReady={chromeReady}
+          ollamaBridgeAvailable={ollamaBridgeAvailable}
+          ollamaBridgeHint={ollamaBridgeHint}
+          initialMode={providerMode}
+          onExplore={onExplore}
+          onComplete={onProviderComplete}
+          onChromeInstall={onChromeInstallFromModal}
+          ollamaSettings={ollamaSettings}
+          onOllamaSettingsChange={setOllamaSettings}
+          anthropicSettings={anthropicSettings}
+          onAnthropicSettingsChange={setAnthropicSettings}
+          bridgeSettings={bridgeSettings}
+          onBridgeSettingsChange={(next) => {
+            setBridgeSettings(next)
+            void refreshBridgeDetect(next.baseURL)
+          }}
+          demoEnvPreset={demoEnvPreset}
+          onDemoEnvPresetChange={setDemoEnvPreset}
+          onRequestVaultSetup={() => {
+            setShowProviderModal(false)
+            setShowVaultSetup(true)
+          }}
+        />
+      ) : null}
+
+      {vaultGate === "locked" ? (
+        <VaultUnlockModal
+          onUnlocked={() => {
+            setVaultGate("ready")
+            void bootstrapAfterVault()
+          }}
+          onSkip={() => {
+            setVaultGate("ready")
+            void bootstrapAfterVault()
+          }}
+        />
+      ) : null}
+
+      {showVaultSetup ? (
+        <VaultSetupModal
+          onComplete={() => {
+            setShowVaultSetup(false)
+            setShowProviderModal(true)
+          }}
+          onCancel={() => {
+            setShowVaultSetup(false)
+            setShowProviderModal(true)
+          }}
+        />
+      ) : null}
+
+      <OpenWorkflowDialog
+        open={openWorkflowOpen}
+        workflows={savedWorkflows}
+        busy={openWorkflowBusy}
+        error={openWorkflowError}
+        deletingId={deletingWorkflowId}
+        onClose={() => setOpenWorkflowOpen(false)}
+        onSelect={(id) => void onOpenWorkflowSelect(id)}
+        onDelete={(id) => void onOpenWorkflowDelete(id)}
+      />
+
+      <SaveWorkflowDialog
+        open={saveWorkflowOpen}
+        defaultId={sanitizeWorkflowFilename(
+          manifest?.workflow.label ?? manifest?.workflow.id ?? "workflow"
+        )}
+        defaultLabel={manifest?.workflow.label ?? manifest?.workflow.id ?? "workflow"}
+        busy={saveBusy}
+        error={saveWorkflowError}
+        onClose={() => {
+          if (!saveBusy) setSaveWorkflowOpen(false)
+        }}
+        onSave={({ id, label }) => void performHostSave(id, label)}
+      />
+
+      <DownloadWorkflowDialog
+        open={downloadWorkflowOpen}
+        onClose={() => setDownloadWorkflowOpen(false)}
+        onDownload={onDownloadWorkflow}
+      />
+
+      {chromeInstallUi === "dialog" ? (
+        <ChromeInstallDialog
+          state={chromeInstallState}
+          onContinueInBackground={() => setChromeInstallUi("toast")}
+          onCancel={() => {
+            setChromeInstallUi("idle")
+            stopPolling()
+            setShowProviderModal(true)
+          }}
+        />
+      ) : null}
+
+      {configureStepId && configureIoData ? (
+        <IoConfigureDialog
+          kind={configureIoData.kind}
+          data={configureIoData}
+          fields={configureIoFields}
+          busy={configureBusy}
+          error={configureError}
+          onClose={() => {
+            if (configureBusy) return
+            setConfigureStepId(null)
+            setConfigureError(null)
+          }}
+          onSave={onSaveIoConfigure}
+        />
+      ) : null}
+
+      {configureStepId && configureStepData ? (
+        <StepConfigureDialog
+          stepId={configureStepId}
+          step={configureStepData}
+          originalInput={configureOriginalInput}
+          busy={configureBusy}
+          error={configureError}
+          onClose={() => {
+            if (configureBusy) return
+            setConfigureStepId(null)
+            setConfigureError(null)
+          }}
+          onSave={onSaveStepConfigure}
+        />
+      ) : null}
+    </div>
+  )
+}

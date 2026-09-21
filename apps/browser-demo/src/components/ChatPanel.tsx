@@ -1,0 +1,331 @@
+import { useEffect, useRef } from "react"
+import type { CapabilityBlobStore } from "@executioncontrolprotocol/core"
+import type { BridgeSettings } from "../lib/ecp-bridge.js"
+import type { WorkflowQuickStart } from "../lib/workflow-quick-starts.js"
+import type { ChatMessage } from "../types/workspace.js"
+import { PanelHeader } from "./PanelHeader.js"
+import { RunInputForm } from "./RunInputForm.js"
+import { RunOutputView } from "./RunOutputView.js"
+
+/** Props for {@link ChatPanel}. */
+export interface ChatPanelProps {
+  visible: boolean
+  widthClass: "is-half" | "is-full"
+  paired: boolean
+  messages: ChatMessage[]
+  prompt: string
+  onPromptChange: (value: string) => void
+  onSubmit: () => void
+  disabled?: boolean
+  /** When true, show typing indicator in the message area. */
+  busy?: boolean
+  /** When true, render workflow quick-start bubbles below messages. */
+  showQuickStarts?: boolean
+  quickStarts?: WorkflowQuickStart[]
+  onQuickStartClick?: (prompt: string) => void
+  /** Confirm an offer-run chip. */
+  onOfferRunConfirm?: () => void
+  /** Decline an offer-run chip. */
+  onOfferRunDecline?: () => void
+  /** Confirm an offer-probe chip. */
+  onOfferProbeConfirm?: () => void
+  /** Decline an offer-probe chip. */
+  onOfferProbeDecline?: () => void
+  /** Run from an embedded chat form. */
+  onChatRun?: (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => void
+  runBusy?: boolean
+  hasWorkflow?: boolean
+  acceptsSchema?: Record<string, unknown>
+  /** Workflow `returns` schema for embedded run output. */
+  returnsSchema?: Record<string, unknown>
+  /** Latest `result.output` for messages flagged `runOutput`. */
+  runOutputValue?: unknown
+  bridge?: BridgeSettings
+  runBlobs?: CapabilityBlobStore
+  filePickerEnabled?: boolean
+  /** Prefill drafts for the in-chat run form. */
+  runFormDrafts?: Record<string, string>
+  /** Show Anthropic multimodal attach control. */
+  anthropicAttachEnabled?: boolean
+  /** HTML accept list for Anthropic attachments. */
+  anthropicFileAccept?: string
+  /** Attached file names shown as chips. */
+  attachedFileNames?: string[]
+  /** User picked files to attach. */
+  onAttachFiles?: (files: FileList | null) => void
+  /** Remove an attached file by index. */
+  onRemoveAttachedFile?: (index: number) => void
+}
+
+/** Full-height chat column (Logic Assistant). */
+export function ChatPanel({
+  visible,
+  widthClass,
+  paired,
+  messages,
+  prompt,
+  onPromptChange,
+  onSubmit,
+  disabled,
+  busy = false,
+  showQuickStarts = false,
+  quickStarts = [],
+  onQuickStartClick,
+  onOfferRunConfirm,
+  onOfferRunDecline,
+  onOfferProbeConfirm,
+  onOfferProbeDecline,
+  onChatRun,
+  runBusy = false,
+  hasWorkflow = false,
+  acceptsSchema,
+  returnsSchema,
+  runOutputValue,
+  bridge,
+  runBlobs,
+  filePickerEnabled = false,
+  runFormDrafts,
+  anthropicAttachEnabled = false,
+  anthropicFileAccept,
+  attachedFileNames = [],
+  onAttachFiles,
+  onRemoveAttachedFile,
+}: ChatPanelProps) {
+  const messageEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!busy) return
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [busy, messages])
+
+  if (!visible) return null
+
+  const offerPending =
+    !busy && messages.some((m) => m.role === "agent" && m.offerRun === true)
+  const probeOfferPending =
+    !busy && messages.some((m) => m.role === "agent" && m.offerProbe === true)
+
+  return (
+    <section
+      className={`chat-drawer flex h-full min-w-0 flex-col overflow-hidden border-outline-variant bg-surface-container ${widthClass}${paired ? " shrink-0" : ""}`}
+      id="chat-drawer"
+      aria-label="Logic Assistant"
+    >
+      <PanelHeader icon="forum" label="Logic Assistant" />
+
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-surface-container/50 p-6">
+        {messages.length === 0 && !busy ? (
+          <p className="text-body text-on-surface-variant">Describe a workflow or change to get started.</p>
+        ) : (
+          messages.map((m, index) => {
+            const attachQuickStarts =
+              showQuickStarts &&
+              !busy &&
+              quickStarts.length > 0 &&
+              index === 0 &&
+              m.role === "agent"
+
+            if (m.role === "user") {
+              return (
+                <div key={m.id} className="ml-auto flex max-w-[90%] flex-row-reverse items-start gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant">
+                    <span className="material-symbols-outlined text-[14px] text-on-surface-variant">person</span>
+                  </div>
+                  <div className="min-w-0 max-w-full rounded-lg rounded-tr-none border border-primary/20 bg-primary/10 p-3">
+                    <p className="chat-bubble-text text-body text-on-surface">{m.text}</p>
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <div key={m.id} className="flex max-w-[90%] items-start gap-3">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container-highest">
+                  <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+                </div>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <div
+                    className={`min-w-0 max-w-full rounded-lg rounded-tl-none border p-3 ${
+                      m.variant === "error"
+                        ? "border-error/40 bg-error-container/30"
+                        : "border-outline-variant/30 bg-surface-container-high"
+                    }`}
+                  >
+                    {m.text ? (
+                      <p
+                        className={`chat-bubble-text text-body ${
+                          m.variant === "error" ? "text-on-error-container" : "text-on-surface"
+                        }`}
+                      >
+                        {m.text}
+                      </p>
+                    ) : null}
+                    {m.runForm && onChatRun ? (
+                      <div className={m.text ? "mt-3" : undefined}>
+                        <RunInputForm
+                          runBusy={runBusy}
+                          onRun={onChatRun}
+                          hasWorkflow={hasWorkflow}
+                          acceptsSchema={acceptsSchema}
+                          filePickerEnabled={filePickerEnabled}
+                          initialDrafts={runFormDrafts}
+                        />
+                      </div>
+                    ) : null}
+                    {m.runOutput ? (
+                      <div className={m.text || m.runForm ? "mt-3" : undefined}>
+                        <RunOutputView
+                          returnsSchema={returnsSchema}
+                          output={runOutputValue}
+                          bridge={bridge}
+                          blobs={runBlobs}
+                          compact
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  {m.offerRun && offerPending ? (
+                    <div className="flex min-w-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={disabled || busy || runBusy}
+                        onClick={() => onOfferRunConfirm?.()}
+                        className="rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-2 text-label text-on-surface transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Yes, run it
+                      </button>
+                      <button
+                        type="button"
+                        disabled={disabled || busy || runBusy}
+                        onClick={() => onOfferRunDecline?.()}
+                        className="rounded-lg border border-outline-variant/30 bg-surface-container-high px-2.5 py-2 text-label text-on-surface transition-colors hover:border-primary/40 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Not now
+                      </button>
+                    </div>
+                  ) : null}
+                  {m.offerProbe && probeOfferPending ? (
+                    <div className="flex min-w-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={disabled || busy || runBusy}
+                        onClick={() => onOfferProbeConfirm?.()}
+                        className="rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-2 text-label text-on-surface transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Yes, inspect it
+                      </button>
+                      <button
+                        type="button"
+                        disabled={disabled || busy || runBusy}
+                        onClick={() => onOfferProbeDecline?.()}
+                        className="rounded-lg border border-outline-variant/30 bg-surface-container-high px-2.5 py-2 text-label text-on-surface transition-colors hover:border-primary/40 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Not now
+                      </button>
+                    </div>
+                  ) : null}
+                  {attachQuickStarts ? (
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                      <p className="text-label text-on-surface-variant">Quickstart:</p>
+                      <div className="flex min-w-0 flex-wrap gap-2">
+                        {quickStarts.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            disabled={disabled || busy}
+                            onClick={() => onQuickStartClick?.(item.prompt)}
+                            aria-label={item.prompt}
+                            className="quick-start-bubble shrink-0 rounded-lg rounded-tl-none border border-outline-variant/30 bg-surface-container-high px-2.5 py-2 text-label text-on-surface transition-colors hover:border-primary/40 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )
+          })
+        )}
+        {busy ? (
+          <div className="flex max-w-[90%] items-start gap-3">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container-highest">
+              <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+            </div>
+            <div className="rounded-lg rounded-tl-none border border-outline-variant/30 bg-surface-container-high p-3">
+              <span className="typing-indicator font-mono text-label text-on-surface-variant">Thinking...</span>
+            </div>
+          </div>
+        ) : null}
+        <div ref={messageEndRef} aria-hidden="true" />
+      </div>
+
+      <div className="composer-bar">
+        {anthropicAttachEnabled && attachedFileNames.length > 0 ? (
+          <div className="mb-2 flex flex-wrap gap-2 px-1">
+            {attachedFileNames.map((name, index) => (
+              <button
+                key={`${name}-${index}`}
+                type="button"
+                className="rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-label text-on-surface"
+                onClick={() => onRemoveAttachedFile?.(index)}
+                title="Remove attachment"
+              >
+                {name} x
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="composer-bar-row relative">
+          {anthropicAttachEnabled ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={anthropicFileAccept}
+                className="hidden"
+                onChange={(e) => {
+                  onAttachFiles?.(e.target.files)
+                  e.target.value = ""
+                }}
+              />
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute left-3 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-on-surface-variant transition-colors hover:text-primary disabled:opacity-50"
+                aria-label="Attach image or PDF"
+              >
+                <span className="material-symbols-outlined text-[18px]">attach_file</span>
+              </button>
+            </>
+          ) : null}
+          <input
+            value={prompt}
+            disabled={disabled}
+            onChange={(e) => onPromptChange(e.target.value)}
+            placeholder="Ask assistant to modify logic..."
+            className={`w-full rounded border border-outline-variant bg-surface-container-lowest py-3 ${anthropicAttachEnabled ? "pl-12" : "pl-4"} pr-14 text-body text-on-surface outline-none placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSubmit()
+            }}
+          />
+          <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onSubmit}
+              className="flex h-8 w-8 items-center justify-center rounded bg-primary text-on-primary transition-transform hover:brightness-110 active:scale-90 disabled:opacity-50"
+              aria-label="Send"
+            >
+              <span className="material-symbols-outlined text-[18px]">send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}

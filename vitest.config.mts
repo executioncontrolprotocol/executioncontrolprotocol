@@ -213,6 +213,7 @@ export default defineConfig({
             "packages/cli/test/**/*.test.ts",
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",
+            "packages/vendor/*/test/**/*.test.ts",
             "packages/harnesses/*/test/**/*.test.ts",
             "packages/evals/test/helpers/**/*.test.ts",
             "packages/runtimes/node/**/*.test.ts",

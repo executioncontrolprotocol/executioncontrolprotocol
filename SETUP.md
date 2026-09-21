@@ -107,20 +107,15 @@ ollama pull gemma3:1b
 
 ## Browser demo
 
-The browser demo app lives in a **separate repository**:
-
-[https://github.com/executioncontrolprotocol/browser-demo](https://github.com/executioncontrolprotocol/browser-demo)
-
-Clone it as a sibling of this repo. For local ECP development:
+The browser demo app lives in this monorepo at [`apps/browser-demo`](apps/browser-demo).
 
 ```bash
-cd ../browser-demo
 pnpm install
-pnpm run link:ecp   # junction-links built @executioncontrolprotocol/* from sibling core
-pnpm run dev
+pnpm run build
+pnpm run dev:demo
 ```
 
-On `main` / GitHub Pages, the demo installs published packages from the registry only. On `development`, CI checks out siblings, builds core, and runs `link:ecp` (see **Two-track CI** in [`AGENTS.md`](AGENTS.md)).
+GitHub Pages deploys that app from `main` (`.github/workflows/pages.yml`) after a workspace install and `pnpm run build`.
 
 ------------------------------------------------------------------------
 

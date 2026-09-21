@@ -259,7 +259,7 @@ Out of scope for this proposal: replacing npm publish for public packages; CDN â
 | Extract, load, serve, persist | `packages/cli/src/lib/up/` (daemon) + small core helper if reusable |
 | Register / policy | Existing registry + `@executioncontrolprotocol/registry-control` |
 | Browser client helper | `@executioncontrolprotocol/browser` or app-owned thin client (`installExtensionBundle(file)`) |
-| Author docs | Public docs guide + extensions repo README; link from `AGENTS.md` |
+| Author docs | Public docs guide + [`packages/vendor/README.md`](../packages/vendor/README.md); link from `AGENTS.md` |
 
 Core stays free of Node zip I/O on the main barrel; pack/install I/O stays in CLI/node. Types and validation schemas can live in `types` / shared zod modules.
 

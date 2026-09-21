@@ -53,7 +53,7 @@ ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-**Prefer the browser?** Open the [hosted Graph Editor](https://demo.executioncontrolprotocol.io/) or clone [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (`pnpm install` + `pnpm run dev`).
+**Prefer the browser?** Open the [hosted Graph Editor](https://demo.executioncontrolprotocol.io/) or run `pnpm run dev:demo` from this repo (`apps/browser-demo`).
 
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
 **Implementation spec (source of truth):** [`ecp-overhaul.md`](ecp-overhaul.md)  
@@ -304,8 +304,8 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, session config (`@executioncontrolprotocol/browser`) — **not** the demo UI |
 | [`packages/runtimes/temporal/`](packages/runtimes/temporal/) | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
-| [Browser demo (standalone repo)](https://github.com/executioncontrolprotocol/browser-demo) | Reference browser demo app (Vite + React): chat, panels, provider picker |
-| [Vendor extensions (standalone repo)](https://github.com/executioncontrolprotocol/extensions) | Vendor integrations (fal, Slack, image-sharp, Adobe, …) — canonical package list in that README |
+| [`apps/browser-demo/`](apps/browser-demo/) | Reference browser demo app (Vite + React): chat, panels, provider picker. Private; not published. |
+| [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, Slack, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp encode`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
 | [`packages/harnesses/`](packages/harnesses/) | Harnesses (agent-facing author/repair/invoke flows); used by demo + evals |

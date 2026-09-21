@@ -1,0 +1,40 @@
+{
+  "name": "@executioncontrolprotocol/adobe-firefly-services",
+  "version": "0.14.0",
+  "description": "Adobe Firefly Services extension for ECP (family-prefixed kebab capability ids)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "openapi"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "fetch:specs": "node ./scripts/fetch-specs.mjs",
+    "generate": "node ./scripts/generate-capabilities.mjs",
+    "codegen": "npm run fetch:specs && npm run generate"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "yaml": "^2.9.0",
+    "zod": "catalog:",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "firefly/firefly-api.json": [
+    {
+      "path": ["components", "schemas", "ValidationErrorDetail", "properties", "ctx"],
+      "value": {
+        "type": "object",
+        "description": "Additional context about the error (typed overlay).",
+        "additionalProperties": { "type": "string" }
+      }
+    }
+  ],
+  "audio-video/audio-video-api.json": [
+    {
+      "path": [
+        "components",
+        "schemas",
+        "JobStatus",
+        "properties",
+        "output",
+        "properties",
+        "elements",
+        "items",
+        "properties",
+        "controls",
+        "items",
+        "properties",
+        "options"
+      ],
+      "value": {
+        "description": "Available options (object for dropdown; array for checkbox).",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        ]
+      }
+    }
+  ],
+  "substance3d/openapi.yaml": [
+    {
+      "path": [
+        "components",
+        "schemas",
+        "ffapierrors.FFAPIErrorDetail",
+        "properties",
+        "error_context"
+      ],
+      "value": {
+        "type": "object",
+        "description": "Additional context for the error (typed overlay).",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    {
+      "path": ["components", "schemas", "rest_base.Space", "properties", "archiveUrl"],
+      "value": {
+        "type": "string",
+        "format": "uri",
+        "description": "URL to fetch the whole space as an archive (usually a ZIP file)."
+      }
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "types.MaterialAssign",
+        "properties",
+        "assignByDefault"
+      ],
+      "value": {
+        "type": "boolean",
+        "description": "Set to true to assign this material by default to all geometric primitives."
+      }
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "types.MaterialAssign",
+        "properties",
+        "excludeFromDefault"
+      ],
+      "value": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of nodes to exclude from default assignment."
+      }
+    }
+  ]
+}

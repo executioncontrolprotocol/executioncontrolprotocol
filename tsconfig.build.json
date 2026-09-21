@@ -3,6 +3,12 @@
   "references": [
     { "path": "packages/types" },
     { "path": "packages/core" },
+    { "path": "packages/vendor/fal" },
+    { "path": "packages/vendor/slack" },
+    { "path": "packages/vendor/jsonata" },
+    { "path": "packages/vendor/image-sharp" },
+    { "path": "packages/vendor/adobe-firefly-services" },
+    { "path": "packages/vendor/azure-blob-storage" },
     { "path": "packages/runtimes/node" },
     { "path": "packages/runtimes/browser" },
     { "path": "packages/harnesses/browser-nano" },

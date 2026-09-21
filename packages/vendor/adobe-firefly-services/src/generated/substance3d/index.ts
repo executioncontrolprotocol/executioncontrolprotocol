@@ -1,0 +1,2 @@
+/** Generated — do not edit. */
+export { substance3d_v1_composites_compose, substance3d_v1_scenes_assemble, substance3d_v1_scenes_convert, substance3d_v1_scenes_describe, substance3d_v1_scenes_render, substance3d_v1_scenes_render_basic, substance3d_create_space_v1, substance3d_create_space_v2, substance3d_create_space_from_frame_io_v2, substance3d_create_space_from_next_frame_io_v2, substance3d_create_space_url_v2 } from "./capabilities.js"

@@ -6,8 +6,7 @@
 | **`ci-pipeline.yml`** | Reusable workflow `ci`: jobs `secrets` (secretlint + gitleaks), `build`, `unit`, `integration`, `browser`; **publish** on **push to `main`** only (`npm run publish:workspaces`). |
 | **`development.yml`** | Workflow `devversion`: on `development` (push + PR), checks workspace versions are above published npm (job `version`). |
 | **`evals.yml`** | Daily / manual **eval** runs: installs Ollama, pulls `gemma3:1b` (or dispatch input), runs `examples/single-executor` and `examples/controller-specialist` with `--provider ollama`. |
-
-Browser demo Pages deploy lives in [browser-demo](https://github.com/executioncontrolprotocol/browser-demo).
+| **`pages.yml`** | GitHub Pages: on push to `main`, workspace install, build, `apps/browser-demo` Pages artifact, deploy. |
 
 To run the full quality gate locally: `npm run check` (build + lint + **coverage** + integration + e2e). Browser tests: `npm run test:browser:install` then `npm run test:browser`.
 

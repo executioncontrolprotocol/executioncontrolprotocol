@@ -1,17 +1,14 @@
 ---
 description: How to build ECP extensions (first-party and third-party) without host/runtime coupling
-globs: packages/extensions/**/*
+globs: packages/{extensions,vendor}/**/*
 alwaysApply: false
 ---
 
 # ECP extension packages
 
-Treat every extension under `packages/extensions/` as if it were published for **third-party** authors: environment-agnostic, minimal dependencies, no imports from Node/Browser host packages unless the extension *is* a runtime or host adapter.
+Treat every extension under `packages/extensions/` and `packages/vendor/` as if it were published for **third-party** authors: environment-agnostic, minimal dependencies, no imports from Node/Browser host packages unless the extension *is* a runtime or host adapter.
 
-**Vendor integrations** live in the sibling
-[`extensions`](https://github.com/executioncontrolprotocol/extensions)
-monorepo and follow the same authoring rules — this folder is for
-protocol/platform extensions only (formats, secrets, memory, model providers, etc.).
+**Vendor integrations** live in [`packages/vendor`](../../packages/vendor) (inventory: [`packages/vendor/README.md`](../../packages/vendor/README.md)). `packages/extensions/` is protocol/platform only (formats, secrets, memory, model providers, etc.). Vendor packages may import only the public `@executioncontrolprotocol/core` and `@executioncontrolprotocol/types` entry points. `pnpm run test:vendor-pack` typechecks a packed vendor package against packed core and types.
 
 Prefer **npm package name === extension id** (e.g. `@executioncontrolprotocol/format-toon`).
 
@@ -28,11 +25,9 @@ Authors attach agent-facing docs once via `.withMetadata({ summary, description,
 
 ## Documentation ownership (vendor packages)
 
-- **Canonical vendor package inventory** lives only in the extensions repo
-  ([README Packages](https://github.com/executioncontrolprotocol/extensions#packages)).
-- Core monorepo docs (`AGENTS.md`, `ecp-overhaul.md`, `RELEASING.md`, `packages/extensions/index/README.md`, …)
-  may **link** to that repo; they must **not** enumerate or maintain a per-package vendor list.
-- When adding/removing a vendor extension, update the extensions repo README (and package docs) — not core inventories.
+- **Canonical vendor package inventory** lives in [`packages/vendor/README.md`](../../packages/vendor/README.md).
+- Other docs may link to that README; they must not keep a second per-package vendor list.
+- When adding or removing a vendor extension, update `packages/vendor/README.md` and the package docs.
 
 ## Dependencies
 
