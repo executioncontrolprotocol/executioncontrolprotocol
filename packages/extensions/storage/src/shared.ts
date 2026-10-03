@@ -175,6 +175,7 @@ export function buildStorageExtension(
       summary: "Disk-backed blob and workflow storage under ~/.ecp",
       description:
         "Stores media under temp/artifacts and Fluent workflows (`.workflow.ts`) under ~/.ecp/workflows. Temp is wiped on ecp up; workflows and durable artifacts survive. Browser calls hop to the host daemon.",
+      isAuthorable: false,
     })
     .withCapabilities(buildStorageCapabilities(handlers))
     .build()

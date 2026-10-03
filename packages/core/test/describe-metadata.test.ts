@@ -2,13 +2,15 @@ import { describe, expect, it, beforeEach } from "vitest"
 import { z } from "zod"
 import {
   capabilityFor,
+  catalogExtension,
+  defineExtension,
   extension,
   jsonSchemaFromZod,
   parseCapabilityMetadata,
   policy,
 } from "../src/index.js"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
-import { createTestEnvironment } from "./helpers.js"
+import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 import { extractMentionedEntityIds } from "../src/harness/authoring/describe-for-prompt.js"
 
 describe("environment.describe progressive disclosure", () => {
@@ -224,6 +226,50 @@ describe("extractMentionedEntityIds", () => {
       "@executioncontrolprotocol/test.echo",
     ])
     expect(ids).toEqual([])
+  })
+})
+
+describe("extension isAuthorable inventory", () => {
+  it("surfaces isAuthorable false on bare describe when metadata opts out", async () => {
+    const def = defineExtension("@executioncontrolprotocol", "host-tooling")
+      .withMetadata({
+        summary: "Host-only tooling",
+        description: "Not offered as workflow step inventory.",
+        isAuthorable: false,
+      })
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/host-tooling", "ping").withHandler(async () => ({
+          ok: true,
+        })),
+      ])
+      .build()
+    catalogExtension(def)
+    const ecp = await initEncodingTestEcp([
+      extension("@executioncontrolprotocol/host-tooling").with({}),
+    ])
+    const desc = await ecp.describe()
+    const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/host-tooling")
+    expect(ext?.isAuthorable).toBe(false)
+    expect(ext?.metadata).toBeUndefined()
+  })
+
+  it("omits isAuthorable on inventory when default authorable", async () => {
+    const env = (await createTestEnvironment("d")).withExtensions([
+      extension("@executioncontrolprotocol/test", "T").with({}),
+    ])
+    const ecp = await env.init()
+    const desc = await ecp.describe()
+    const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/test")
+    expect(ext?.isAuthorable).toBeUndefined()
+  })
+
+  it("surfaces isAuthorable false for bound format-json", async () => {
+    const ecp = await initEncodingTestEcp([
+      extension("@executioncontrolprotocol/format-json").with({}),
+    ])
+    const desc = await ecp.describe()
+    const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/format-json")
+    expect(ext?.isAuthorable).toBe(false)
   })
 })
 

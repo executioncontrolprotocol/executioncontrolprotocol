@@ -57,6 +57,7 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
     summary: "Mermaid diagram rendering for workflows.",
     description:
       "Encodes validated workflow manifests into Mermaid graph text for documentation and editor canvas views. Encode-only; does not parse Mermaid back into workflows.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-mermaid", "encode")

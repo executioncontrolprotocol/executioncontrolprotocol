@@ -1,0 +1,2 @@
+/** Generated — do not edit. */
+export { indesign_data_merge, indesign_data_merge_tags, indesign_remap_links, indesign_rendition_job, indesign_list_custom_scripts, indesign_submit_custom_script, indesign_execute_custom_script, indesign_get_custom_script_details, indesign_delete_custom_script, indesign_update_script_app_version, indesign_list_app_versions, indesign_get_document_info, indesign_get_document_info_job_status, indesign_convert_pdfto_in_design, indesign_get_convert_pdfto_in_design_job_status, indesign_get_job_status } from "./capabilities.js"

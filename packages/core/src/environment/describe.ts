@@ -87,6 +87,7 @@ const EXTENSION_INVENTORY_KEYS = [
   "order",
   "capabilities",
   "summary",
+  "isAuthorable",
   "supportedRuntimes",
 ] as const
 
@@ -236,6 +237,8 @@ function buildExtensionDescription(
     order: e.order ?? i,
     capabilities: def?.capabilities.map((c) => c.id) ?? [],
     ...(meta?.summary ? { summary: meta.summary } : {}),
+    // Default authorable; only surface the opt-out on inventory rows.
+    ...(meta?.isAuthorable === false ? { isAuthorable: false } : {}),
     ...(def?.supportedRuntimes?.length
       ? { supportedRuntimes: [...def.supportedRuntimes] }
       : {}),

@@ -1,0 +1,2 @@
+/** Generated — do not edit. */
+export { audio_video_voices, audio_video_generate_speech, audio_video_status, audio_video_template_describe, audio_video_get_presets, audio_video_template_render, audio_video_cancel_render_job, audio_video_list_render_jobs, audio_video_generate_reframed_video, audio_video_transcribe, audio_video_dub, audio_video_avatars, audio_video_generate_reframed_video_v2, audio_video_job_result_v2, audio_video_generate_avatar, audio_video_transcribe__v1_transcribe, audio_video_dub__v1_dub, audio_video_job_result } from "./capabilities.js"

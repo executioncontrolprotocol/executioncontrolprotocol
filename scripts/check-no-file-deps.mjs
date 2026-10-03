@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 /**
  * Fail if any committed package.json uses `file:` or `link:` dependency specs.
- * Local unpublished packages use junction link scripts (`pnpm link:ecp`), never committed paths.
+ * Local unpublished packages stay on `workspace:` inside this monorepo, never committed `file:` paths.
  */
 function collectPackageJsonFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {

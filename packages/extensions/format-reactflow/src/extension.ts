@@ -83,6 +83,7 @@ export const formatReactflowExtension = defineExtension(
     summary: "React Flow graph encoding and live run progress.",
     description:
       "Encodes workflow manifests into React Flow JSON for interactive editors. Lifecycle hooks emit step status updates during workflow runs.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-reactflow", "encode")

@@ -11,6 +11,7 @@ export {
   formatEnvironmentSummaryLines,
   isWorkflowStepCapability,
   isAuthoringInventoryExtension,
+  type AuthoringInventoryExtensionOptions,
   type CompactCapabilityRow,
   type CompactEnvironmentSummary,
   type EnvironmentSummaryFormat,

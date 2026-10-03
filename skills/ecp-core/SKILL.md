@@ -36,4 +36,4 @@ pnpm run test:unit
 
 **Monorepo dev:** `pnpm --filter @executioncontrolprotocol/cli start` or `pnpm link --global` from `packages/cli/` after `pnpm run build`.
 
-**Consumer repos** (browser-demo, extensions): `pnpm run link:ecp` after building the sibling core monorepo — not `npm link`.
+**Demo and vendor packages** live in this repo (`apps/browser-demo`, `packages/vendor`). Use `workspace:*` deps. Do not add `file:` links or sibling junction scripts.

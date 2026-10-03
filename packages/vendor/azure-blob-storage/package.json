@@ -1,0 +1,38 @@
+{
+  "name": "@executioncontrolprotocol/azure-blob-storage",
+  "version": "0.14.0",
+  "description": "Azure Blob Storage extension for ECP (upload, SAS URLs, download)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.27.0"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "zod": "catalog:",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^"
+  }
+}

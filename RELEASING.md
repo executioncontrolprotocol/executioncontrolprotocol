@@ -3,17 +3,19 @@
 ## Branches
 
 - **`development`** — Open PRs here first. CI runs **version vs npm**: every non-private workspace package must use the **same** version, and that version must be **strictly greater** than the latest version on npm for each package (`pnpm run version:check-vs-npm`).
-- **`main`** — After CI passes (build, lint, unit, integration, browser), **`pnpm run publish:workspaces`** publishes all non-private `@executioncontrolprotocol/*` packages to npm in dependency order (skips versions already on the registry).
+- **`main`** — After CI passes (build, lint, unit, integration, browser, demo), npm publish runs **only when** the repository variable **`ENABLE_NPM_PUBLISH`** is set to `true`. Otherwise merges to `main` build/test only (no npm deploy).
+- **`feat/**`** — Push CI runs the same build/test pipeline (no publish). Open PRs into `development` or `main` as usual.
 
 ## Merge and publish order
 
-When releasing a coordinated change across repos:
+Publish from this monorepo only, and only when you intend a release:
 
-1. **Core** (`executioncontrolprotocol`) — bump, merge `development` → `main`, publish
-2. **Extensions** ([extensions](https://github.com/executioncontrolprotocol/extensions)) — bump peer ranges, merge, publish
-3. **Browser demo** ([browser-demo](https://github.com/executioncontrolprotocol/browser-demo)) — bump dependency ranges, merge (Pages deploy from `main` uses registry only)
+1. Bump versions (`pnpm run version:bump`).
+2. Merge `development` → `main` (CI always builds and tests).
+3. To publish: set Actions variable **`ENABLE_NPM_PUBLISH=true`**, then push/merge to `main` (or re-run the publish job). CI runs **`pnpm run publish:workspaces`** for every non-private package under `packages/`, including `packages/vendor/*` (skips versions already on the registry). Clear or set the variable back to `false` afterward if you want main merges to stay publish-silent.
+4. GitHub Pages builds [`apps/browser-demo`](apps/browser-demo) from `main` separately (not npm). The demo package is private and is not published.
 
-Consumer repos on `development` link unpublished core via `pnpm run link:ecp`; on `main` they install from npm.
+External authors depend on the published npm versions. `pnpm run test:vendor-pack` checks that a vendor package typechecks against packed core and types.
 
 ## Bump versions (all workspaces)
 
@@ -31,13 +33,9 @@ pnpm run version:check-vs-npm
 
 ## Published packages (`@executioncontrolprotocol/*`)
 
-All non-private packages under `packages/` (including protocol/platform `extensions/*`, `runtimes/*`, and `harnesses/*`). `@executioncontrolprotocol/evals` stays private and is not published.
+All non-private packages under `packages/` (including protocol/platform `extensions/*`, vendor `vendor/*`, `runtimes/*`, and `harnesses/*`). `@executioncontrolprotocol/evals` and `apps/browser-demo` stay private and are not published.
 
-**Vendor extensions** publish from the sibling
-[extensions](https://github.com/executioncontrolprotocol/extensions) repo
-(independent versioning; not included in this repo’s `publish:workspaces`). See that repo’s
-[package list](https://github.com/executioncontrolprotocol/extensions#packages) — do not maintain a
-vendor inventory here.
+Vendor package names are listed in [`packages/vendor/README.md`](packages/vendor/README.md).
 
 Core surface:
 
@@ -53,4 +51,4 @@ Run **`pnpm run build`** and **`pnpm run generate:schema`** from the repo root b
 
 ## GitHub secret
 
-Configure **`NPM_TOKEN`** on the repository (Settings → Secrets and variables → Actions) with publish access for the `@executioncontrolprotocol` org/scope. The publish job only runs on **push to `main`**.
+Configure **`NPM_TOKEN`** on the repository (Settings → Secrets and variables → Actions) with publish access for the `@executioncontrolprotocol` org/scope. The publish job runs only on **push to `main`** when **`ENABLE_NPM_PUBLISH`** is `true` (Actions variable). Leave that variable unset/`false` during monorepo cutover and routine merges.

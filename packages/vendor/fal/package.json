@@ -1,0 +1,36 @@
+{
+  "name": "@executioncontrolprotocol/fal",
+  "version": "0.14.0",
+  "description": "FAL model provider extension for ECP",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@fal-ai/client": "^1.10.1"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "zod": "catalog:",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/types": "workspace:^"
+  }
+}

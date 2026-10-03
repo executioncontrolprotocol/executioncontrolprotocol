@@ -4,3 +4,6 @@ globs:
 ignores:
   - "**/node_modules/**"
   - "docs/ecp-implementation-assessment.md"
+  - "apps/browser-demo/DESIGN.md"
+  - "apps/browser-demo/docs/**"
+  - "packages/vendor/**/openapi/**"

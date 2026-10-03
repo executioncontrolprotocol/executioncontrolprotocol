@@ -7,7 +7,12 @@ packages:
   - packages/evals
   - packages/harnesses/*
   - packages/extensions/*
+  - packages/vendor/*
   - packages/runtimes/*
+  - apps/*
+
+onlyBuiltDependencies:
+  - sharp
 
 catalog:
   typescript: ^5.7.0

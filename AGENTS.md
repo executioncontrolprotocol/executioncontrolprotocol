@@ -10,7 +10,7 @@ npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-cor
 
 Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotocol.io` (docs skill `ecp`).
 
-**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. It breaks CI and consumer installs. For unpublished local packages in consumer repos (browser-demo, extensions), use `pnpm run link:ecp` after building the sibling core monorepo. Keep registry ranges in `package.json`.
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. In-repo packages use `workspace:*` / `workspace:^`. Gate: `pnpm run check:no-file-deps`.
 
 ## ECP Fluent API monorepo (`@executioncontrolprotocol/*`)
 
@@ -21,7 +21,7 @@ Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotoco
 | `packages/runtimes/node/` | Node runtime host (`@executioncontrolprotocol/node`) — [README](packages/runtimes/node/README.md) |
 | `packages/runtimes/browser/` | Browser runtime host (`@executioncontrolprotocol/browser`) — [README](packages/runtimes/browser/README.md) |
 | `packages/runtimes/temporal/` | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
-| [Browser demo (standalone)](https://github.com/executioncontrolprotocol/browser-demo) | Reference browser demo app (UI only) |
+| `apps/browser-demo/` | Reference browser demo app (UI only; private) |
 | `packages/mcp/` | MCP adapter (`@executioncontrolprotocol/mcp`) |
 | `packages/cli/` | `ecp` CLI (`@executioncontrolprotocol/cli`) |
 | `packages/policies/` | Budget, approval, state-control (`@executioncontrolprotocol/policies`) |
@@ -29,13 +29,13 @@ Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotoco
 | `packages/harnesses/browser-nano/` | Browser Nano harness (`@executioncontrolprotocol/harnesses-browser-nano`) — small-model demo + eval matrix |
 | `packages/harnesses/browser-coding/` | Browser Coding harness (`@executioncontrolprotocol/harnesses-browser-coding`) — TypeScript/Fluent surface; Qwen 4B eval matrix |
 | `packages/extensions/*/` | Protocol/platform first-party extensions (formats, secrets, memory, model providers) |
-| [Vendor extensions (standalone)](https://github.com/executioncontrolprotocol/extensions) | Vendor integrations — dogfoods the extension package boundary; [canonical package list](https://github.com/executioncontrolprotocol/extensions#packages) |
+| `packages/vendor/*/` | Third-party vendor extensions (fal, image-sharp, …) — [inventory](packages/vendor/README.md) |
 | `archive/legacy-v0.5/` | Archived v0.5 Oclif CLI and snippets |
 | `ecp-overhaul.md` | Implementation spec (source of truth) |
 
 ### Package boundaries
 
-**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. Consumer repos link unpublished `@executioncontrolprotocol/*` via `pnpm run link:ecp` after building the sibling core monorepo. Gate: `pnpm run check:no-file-deps`.
+**No `file:` package links.** Never put `"file:..."` in `package.json` dependency fields. Workspace packages use `workspace:*` / `workspace:^`. Gate: `pnpm run check:no-file-deps`.
 
 **Core is runtime-agnostic.** The main `@executioncontrolprotocol/core` barrel has no Node or browser I/O. Host-specific code is on subpaths:
 
@@ -62,7 +62,7 @@ Consumer Fluent / CLI / secrets: `npx skills add https://executioncontrolprotoco
 
 **Browser runtime vs browser demo app:**
 
-| `@executioncontrolprotocol/browser` (runtime) | [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (app) |
+| `@executioncontrolprotocol/browser` (runtime) | [`apps/browser-demo`](apps/browser-demo) (app) |
 | ------------------------ | ------------------------- |
 | Executor, registry, session config, `createEcp`, workflow shim | React/Vite UI, chat layout, panels, Mermaid viewer |
 | Slim `createBrowserEnvironment` / `registerBrowserHost` | `createDemoAppEnvironment` — formats, providers, harnesses, registry-control allowlist |
@@ -74,14 +74,11 @@ Do not add demo UI types (e.g. `ProviderMode`) to `@executioncontrolprotocol/bro
 
 **Fluent rendering is in core** — `ecp.encode(...).as("fluent")`; there is no `@executioncontrolprotocol/format-fluent` extension.
 
-### Two-track CI
+### CI
 
-| Track | When | Consumer install |
-| ----- | ---- | ---------------- |
-| **development** | PRs and pushes to `development` | Checkout sibling repos at `development`, build core, `pnpm run link:ecp` |
-| **main / Pages** | `main` branch, GitHub Pages deploy | Registry install only (`pnpm install` from published `@executioncontrolprotocol/*`) |
+One checkout and `pnpm install --frozen-lockfile`. The demo, first-party extensions, and vendor extensions are workspace packages. GitHub Pages builds `apps/browser-demo` from this repo after `pnpm run build`.
 
-Consumer repos (browser-demo, extensions) use `scripts/ci-setup-ecp.mjs` to detect the track. This monorepo is always built from source; it does not link siblings.
+`pnpm run test:vendor-pack` installs packed `@executioncontrolprotocol/types`, `core`, and `jsonata` tarballs into a temp project and typechecks public imports. That is the external-author install check.
 
 ### Commands
 
@@ -94,6 +91,8 @@ pnpm run secrets:scan  # secretlint on the working tree (also lint-staged on pre
 pnpm run test:unit
 pnpm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config.mts)
 pnpm run test:consumer-cli  # pack + install into fixtures/consumer-cli layout; ecp compile/validate/run
+pnpm run test:vendor-pack    # pack core/types/jsonata; typecheck against tarballs
+pnpm run dev:demo             # Vite app at apps/browser-demo
 pnpm run test:eval:matrix  # full harness matrix (Ollama gemma3:1b + qwen coder; skips when unavailable)
 ```
 
@@ -198,7 +197,7 @@ await ecp.run(manifest)
 
 ### Browser
 
-Browser demo: [browser-demo](https://github.com/executioncontrolprotocol/browser-demo) (standalone repo; uses `@executioncontrolprotocol/*` from npm or `pnpm run link:ecp`).
+Browser demo: [`apps/browser-demo`](apps/browser-demo) (private workspace app; `pnpm run dev:demo`).
 
 **Browser demo chat:** FAQ and assistant replies must come from the bound model provider via the selected harness (`chat` task). Do not route user-facing chat through template capabilities (`@executioncontrolprotocol/browser.guideChat`) or other non-model stand-ins. Defaults: **Chrome AI** + nano harness (EQL); **Ollama** + coding harness (Fluent/TS). The app resolves provider and harness independently (`resolveDemoSession`) and may override the provider via `.uses(...)` at invoke.
 

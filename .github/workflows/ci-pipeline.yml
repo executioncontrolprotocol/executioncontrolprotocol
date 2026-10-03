@@ -1,4 +1,5 @@
-# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser, and (on main push only) npm publish.
+# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser/demo.
+# npm publish runs only on push to `main` when repo variable `ENABLE_NPM_PUBLISH` is `true`.
 # Called from `ci.yml`.
 # Coverage is enforced on the `unit` job (`pnpm run test:coverage`), not on `pnpm run build`.
 
@@ -74,6 +75,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run test:consumer-cli
+      - run: pnpm run test:vendor-pack
 
   unit:
     name: unit
@@ -144,12 +146,36 @@ jobs:
       - run: pnpm run test:browser:install
       - run: pnpm run test:browser
 
+  demo:
+    name: demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:demo
+      - run: pnpm run build:demo
+
   publish:
     name: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Opt-in: Settings → Secrets and variables → Actions → Variables → ENABLE_NPM_PUBLISH=true
+    # Leave unset/false so merges to main (including monorepo cutover) do not publish.
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [secrets, build, unit, integration, browser, consumer-cli]
+    needs: [secrets, build, unit, integration, browser, consumer-cli, demo]
     permissions:
       contents: read
     steps:

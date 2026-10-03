@@ -82,6 +82,7 @@ export const browserSessionConfigExtension = defineExtension("@executioncontrolp
     summary: "In-memory session config for browser environments.",
     description:
       "Registers a config resolver backed by a session map cleared on environment terminate. Optional filtering hides secret-like keys when allowSecrets is false.",
+    isAuthorable: false,
   })
   .withConfig({
     allowSecrets: z.boolean().default(true),

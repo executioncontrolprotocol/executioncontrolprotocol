@@ -120,6 +120,7 @@ export const browserRegistryExtension = defineExtension("@executioncontrolprotoc
     summary: "Browser global registry and dynamic extension registration.",
     description:
       "Exposes optional globalThis.ecp registration, registry freeze timing, and policy-governed runtime extension binding for browser hosts.",
+    isAuthorable: false,
   })
   .withConfig({
     freezeOn: z.string().default("environment:beforeRun"),

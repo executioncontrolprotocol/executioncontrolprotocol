@@ -49,6 +49,7 @@ export const processEnvExtension = defineExtension("@executioncontrolprotocol", 
     summary: "Process environment variable resolution for Node hosts.",
     description:
       "Registers a config resolver that reads allowlisted keys from process.env during environment configuration. Supports optional key prefixing and explicit deny lists.",
+    isAuthorable: false,
   })
   .withHooks([hook("environment:configuring", attachProcessEnvResolver)])
   .build()

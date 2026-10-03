@@ -15,6 +15,7 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
     summary: "TOON encode and decode for ECP documents.",
     description:
       "Converts workflows, environments, and patch documents to and from the token-oriented TOON text format with optional header and compaction settings.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-toon", "encode")

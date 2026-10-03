@@ -60,6 +60,7 @@ export const browserLocalConfigExtension = defineExtension("@executioncontrolpro
     summary: "localStorage-backed config for non-secret browser settings.",
     description:
       "Registers a config resolver that reads allowlisted keys from localStorage with a configurable prefix. Denies common secret-like key names by default.",
+    isAuthorable: false,
   })
   .withConfig({
     prefix: z.string().default("ecp:"),

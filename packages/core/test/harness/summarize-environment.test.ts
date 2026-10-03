@@ -57,7 +57,7 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).toContain("@executioncontrolprotocol/test.echo (already used by an existing step")
   })
 
-  it("omits format encode/decode and browser host extensions from authoring summary", () => {
+  it("omits format encode/decode and non-authorable host extensions from authoring summary", () => {
     const descriptor: EnvironmentDescriptor = {
       ...minimalDescriptor,
       extensions: [
@@ -65,11 +65,13 @@ describe("summarizeEnvironmentDescriptor", () => {
         {
           id: "@executioncontrolprotocol/format-eql",
           order: 2,
+          isAuthorable: false,
           capabilities: ["@executioncontrolprotocol/format-eql.encode"],
         },
         {
           id: "@executioncontrolprotocol/browser-secrets",
           order: 3,
+          isAuthorable: false,
           capabilities: [],
         },
       ],
@@ -133,7 +135,7 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).toContain('step("@executioncontrolprotocol/test.summarize"')
   })
 
-  it("omits demo bridge extensions from authoring summary", () => {
+  it("omits demo bridge extensions when they set isAuthorable false", () => {
     const descriptor: EnvironmentDescriptor = {
       ...minimalDescriptor,
       extensions: [
@@ -141,6 +143,7 @@ describe("summarizeEnvironmentDescriptor", () => {
         {
           id: "@browser-demo/bridge-ollama",
           order: 2,
+          isAuthorable: false,
           capabilities: ["@browser-demo/bridge-ollama.generate"],
         },
       ],
@@ -157,6 +160,78 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(summary.capabilities.map((c) => c.id)).toEqual([
       "@executioncontrolprotocol/test.echo",
       "@executioncontrolprotocol/test.summarize",
+    ])
+  })
+
+  it("omits extensions with isAuthorable false from authoring summary", () => {
+    const descriptor: EnvironmentDescriptor = {
+      ...minimalDescriptor,
+      extensions: [
+        ...minimalDescriptor.extensions,
+        {
+          id: "@executioncontrolprotocol/storage",
+          order: 2,
+          isAuthorable: false,
+          capabilities: [
+            "@executioncontrolprotocol/storage.write",
+            "@executioncontrolprotocol/storage.workflow-save",
+          ],
+        },
+      ],
+      capabilities: [
+        ...minimalDescriptor.capabilities,
+        {
+          id: "@executioncontrolprotocol/storage.write",
+          extension: "@executioncontrolprotocol/storage",
+        },
+        {
+          id: "@executioncontrolprotocol/storage.workflow-save",
+          extension: "@executioncontrolprotocol/storage",
+        },
+      ],
+    }
+    const summary = summarizeEnvironmentDescriptor(descriptor)
+    expect(summary.extensions.some((e) => e.id === "@executioncontrolprotocol/storage")).toBe(false)
+    expect(summary.capabilities.some((c) => c.id.startsWith("@executioncontrolprotocol/storage."))).toBe(
+      false,
+    )
+    expect(summary.capabilities.map((c) => c.id)).toEqual([
+      "@executioncontrolprotocol/test.echo",
+      "@executioncontrolprotocol/test.summarize",
+    ])
+  })
+
+  it("keeps extensions when isAuthorable is omitted or true", () => {
+    const descriptor: EnvironmentDescriptor = {
+      ...minimalDescriptor,
+      extensions: [
+        {
+          id: "@executioncontrolprotocol/test",
+          order: 0,
+          capabilities: ["@executioncontrolprotocol/test.echo"],
+        },
+        {
+          id: "@executioncontrolprotocol/openai",
+          order: 1,
+          isAuthorable: true,
+          capabilities: ["@executioncontrolprotocol/openai.generate"],
+        },
+      ],
+      capabilities: [
+        {
+          id: "@executioncontrolprotocol/test.echo",
+          extension: "@executioncontrolprotocol/test",
+        },
+        {
+          id: "@executioncontrolprotocol/openai.generate",
+          extension: "@executioncontrolprotocol/openai",
+        },
+      ],
+    }
+    const summary = summarizeEnvironmentDescriptor(descriptor)
+    expect(summary.extensions.map((e) => e.id).sort()).toEqual([
+      "@executioncontrolprotocol/openai",
+      "@executioncontrolprotocol/test",
     ])
   })
 })

@@ -36,6 +36,11 @@ export interface ExtensionMetadata {
   samplePrompts?: string[]
   /** Optional distinct display title. */
   label?: string
+  /**
+   * When `false`, harness authoring inventory omits this extension.
+   * Default / omit is `true` (workflow-facing packages stay visible).
+   */
+  isAuthorable?: boolean
   /** Non-standard extensions. */
   _meta?: Record<string, unknown>
 }
@@ -113,6 +118,7 @@ export const extensionMetadataSchema = z
     useCases: z.array(z.string().min(1)).optional(),
     samplePrompts: z.array(z.string().min(1)).optional(),
     label: z.string().min(1).optional(),
+    isAuthorable: z.boolean().optional(),
     _meta: z.record(z.string(), z.unknown()).optional(),
   })
   .superRefine((value, ctx) => {
