@@ -52,6 +52,7 @@ export const secretsExtension = defineExtension("@executioncontrolprotocol", "se
     summary: "OS keychain-backed secret resolution for Node hosts.",
     description:
       "Registers a config resolver that reads secrets from the operating system keychain during environment configuration. Extensions resolve secret refs without embedding values in manifests.",
+    isAuthorable: false,
   })
   .withHooks([
     hook("environment:configuring", attachSecretsResolver),

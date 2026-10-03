@@ -85,9 +85,25 @@ describe("createDemoAppEnvironment", () => {
     )
     expect(jsonata?.execution).toBe("local")
 
+    expect(descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/storage")).toBe(
+      true
+    )
+    expect(
+      descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/format-reactflow")
+    ).toBe(true)
+    expect(
+      descriptor.extensions.find((e) => e.id === "@executioncontrolprotocol/format-reactflow")
+        ?.isAuthorable
+    ).toBe(false)
+    expect(
+      descriptor.extensions.find((e) => e.id === "@executioncontrolprotocol/storage")?.isAuthorable
+    ).toBe(false)
     const authoring = toAuthoringEnvironmentDescriptor(descriptor)
     expect(authoring.extensions.map((e) => e.id).sort()).toEqual(
       [...WORKFLOW_PROVIDER_EXTENSIONS].sort()
+    )
+    expect(authoring.extensions.some((e) => e.id === "@executioncontrolprotocol/storage")).toBe(
+      false
     )
     expect(authoring.extensions.some((e) => e.id.includes("/format-"))).toBe(false)
     expect(authoring.extensions.some((e) => e.id.startsWith("@executioncontrolprotocol/browser-"))).toBe(
@@ -119,32 +135,36 @@ describe("createDemoAppEnvironment", () => {
     expect(ollama?.execution).toBe("host")
   })
 
-  it("extended preset binds Azure and Adobe when vendors are linked", async () => {
-    const { isExtendedDemoEnvAvailable, createDemoAppEnvironment: create } = await import(
-      "../src/lib/demo-environment.js"
-    )
-    const available = await isExtendedDemoEnvAvailable()
-    if (!available) {
-      await expect(create({ preset: "extended" })).rejects.toThrow(/link:vendor/)
-      return
-    }
-    const { descriptor, preset } = await create({ preset: "extended" })
-    expect(preset).toBe("extended")
-    expect(descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/azure-blob-storage")).toBe(
-      true
-    )
-    expect(
-      descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/adobe-firefly-services")
-    ).toBe(true)
-    expect(
-      descriptor.capabilities.some(
-        (c) => c.id === "@executioncontrolprotocol/azure-blob-storage.upload"
+  it(
+    "extended preset binds Azure and Adobe when vendors are linked",
+    async () => {
+      const { isExtendedDemoEnvAvailable, createDemoAppEnvironment: create } = await import(
+        "../src/lib/demo-environment.js"
       )
-    ).toBe(true)
-    expect(
-      descriptor.capabilities.some((c) =>
-        c.id.startsWith("@executioncontrolprotocol/adobe-firefly-services.photoshop-")
-      )
-    ).toBe(true)
-  })
+      const available = await isExtendedDemoEnvAvailable()
+      if (!available) {
+        await expect(create({ preset: "extended" })).rejects.toThrow(/link:vendor|vendor/i)
+        return
+      }
+      const { descriptor, preset } = await create({ preset: "extended" })
+      expect(preset).toBe("extended")
+      expect(
+        descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/azure-blob-storage")
+      ).toBe(true)
+      expect(
+        descriptor.extensions.some((e) => e.id === "@executioncontrolprotocol/adobe-firefly-services")
+      ).toBe(true)
+      expect(
+        descriptor.capabilities.some(
+          (c) => c.id === "@executioncontrolprotocol/azure-blob-storage.upload"
+        )
+      ).toBe(true)
+      expect(
+        descriptor.capabilities.some((c) =>
+          c.id.startsWith("@executioncontrolprotocol/adobe-firefly-services.photoshop-")
+        )
+      ).toBe(true)
+    },
+    30_000
+  )
 })

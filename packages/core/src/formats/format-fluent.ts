@@ -9,6 +9,7 @@ export const formatFluentExtension = defineExtension("@executioncontrolprotocol"
     summary: "Fluent TypeScript source generation from ECP documents.",
     description:
       "Renders workflow manifests into Fluent API TypeScript source for authoring panels and round-trip editing. Encode-only in v1.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-fluent", "encode")

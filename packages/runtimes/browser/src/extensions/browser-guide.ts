@@ -107,6 +107,7 @@ export const browserGuideExtension = defineExtension("@executioncontrolprotocol"
     summary: "Offline guided chat for the browser demo.",
     description:
       "Answers common ECP and editor questions from curated help text when no model provider is ready. Not a substitute for harness chat once a model is bound.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/browser", "guideChat")

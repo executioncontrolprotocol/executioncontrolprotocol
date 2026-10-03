@@ -43,6 +43,7 @@ describe("@executioncontrolprotocol/storage", () => {
     expect(ext).toBe(storageExtension)
     const write = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/storage.write")
     expect(write?.execution).toBe("host")
+    expect(ext?.metadata?.isAuthorable).toBe(false)
   })
 
   it("positive: write/read round-trip on temp tier", async () => {

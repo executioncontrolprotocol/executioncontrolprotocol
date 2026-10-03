@@ -43,6 +43,7 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
     summary: "Canonical JSON encode and decode for ECP documents.",
     description:
       "Passthrough JSON serialization and parsing with optional target validation for workflows, patches, and intent documents.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-json", "encode")

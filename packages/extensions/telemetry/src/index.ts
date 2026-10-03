@@ -7,6 +7,7 @@ export const telemetryExtension = defineExtension("@executioncontrolprotocol", "
     summary: "Lifecycle hook placeholders for run and step telemetry.",
     description:
       "Registers no-op hooks on run and step lifecycle events so hosts can swap in observability backends without changing workflow manifests.",
+    isAuthorable: false,
   })
   .withCapabilities([])
   .withHooks([

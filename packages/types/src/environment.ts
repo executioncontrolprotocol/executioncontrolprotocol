@@ -82,6 +82,11 @@ export interface ExtensionDescription {
   order: number
   configSchema?: unknown
   capabilities: string[]
+  /**
+   * From extension metadata. Present only when `false` (default authorable).
+   * Harness authoring inventory omits extensions with `isAuthorable: false`.
+   */
+  isAuthorable?: boolean
   /** Full extension metadata (exact-id describe only). */
   metadata?: ExtensionMetadata
   /** Runtimes this extension supports when restricted; omitted when universal. */

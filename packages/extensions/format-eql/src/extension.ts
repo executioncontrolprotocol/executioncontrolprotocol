@@ -15,6 +15,7 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
     summary: "EQL encode and decode for ECP documents.",
     description:
       "Converts workflows, environments, patches, and harness artifacts to and from the compact EQL text format used by small-model harnesses.",
+    isAuthorable: false,
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-eql", "encode")

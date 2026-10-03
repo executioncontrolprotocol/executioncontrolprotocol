@@ -93,13 +93,21 @@ export function summarizeEnvironmentDescriptor(
 export function toAuthoringEnvironmentDescriptor(
   descriptor: EnvironmentDescriptor
 ): EnvironmentDescriptor {
+  const authorableById = new Map(
+    (descriptor.extensions ?? []).map((ext) => [ext.id, ext.isAuthorable] as const)
+  )
   const capabilities = (descriptor.capabilities ?? []).filter(
     (cap) =>
-      isWorkflowStepCapability(cap.id) && isAuthoringInventoryExtension(cap.extension)
+      isWorkflowStepCapability(cap.id) &&
+      isAuthoringInventoryExtension(cap.extension, {
+        isAuthorable: authorableById.get(cap.extension),
+      })
   )
   const capabilityIds = new Set(capabilities.map((c) => c.id))
   const extensions = (descriptor.extensions ?? [])
-    .filter((ext) => isAuthoringInventoryExtension(ext.id))
+    .filter((ext) =>
+      isAuthoringInventoryExtension(ext.id, { isAuthorable: ext.isAuthorable })
+    )
     .map((ext, order) => ({
       ...ext,
       order,
@@ -140,14 +148,28 @@ export function isWorkflowStepCapability(capId: string): boolean {
   return true
 }
 
-/** True when an extension is app/runtime tooling rather than workflow inventory. @category Harness */
-export function isAuthoringInventoryExtension(extensionId: string): boolean {
-  if (extensionId.includes("/format-")) return false
-  if (extensionId === "@executioncontrolprotocol/format-json") return false
-  if (extensionId.startsWith("@executioncontrolprotocol/browser-")) return false
-  if (extensionId === "@executioncontrolprotocol/browser") return false
-  if (extensionId.startsWith("@browser-demo/")) return false
-  return true
+/**
+ * Options for {@link isAuthoringInventoryExtension}.
+ * @category Harness
+ */
+export interface AuthoringInventoryExtensionOptions {
+  /**
+   * From {@link ExtensionDescription.isAuthorable} / extension metadata.
+   * `false` opts out; omit / `true` keeps the default (authorable).
+   */
+  isAuthorable?: boolean
+}
+
+/**
+ * True when an extension belongs in harness authoring inventory.
+ * Extensions opt out with metadata / describe `isAuthorable: false` (default authorable).
+ * @category Harness
+ */
+export function isAuthoringInventoryExtension(
+  _extensionId: string,
+  options?: AuthoringInventoryExtensionOptions
+): boolean {
+  return options?.isAuthorable !== false
 }
 
 function capabilitySuffix(capId: string): string {
@@ -363,7 +385,7 @@ export function formatEnvironmentSummaryLines(
     lines.push(`- ${cap.id}${summaryBit}${io}`)
   }
   lines.push("Extensions:")
-  for (const ext of summary.extensions.filter((e) => isAuthoringInventoryExtension(e.id))) {
+  for (const ext of summary.extensions) {
     const caps = ext.capabilities.filter((id) => isWorkflowStepCapability(id))
     if (caps.length === 0) continue
     lines.push(`- ${ext.id}: ${caps.join(", ")}`)
