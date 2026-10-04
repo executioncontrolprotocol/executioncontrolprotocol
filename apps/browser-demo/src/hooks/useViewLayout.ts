@@ -2,10 +2,12 @@ import { useCallback, useState } from "react"
 import type { ViewLayoutState, ViewPanel } from "../types/workspace.js"
 import {
   DEFAULT_VIEW_STATE,
+  ensureWorkflowVisibleState,
   isPairedLayout,
   isWorkspaceVisible,
+  openUiPanel,
   toggleViewPanel,
-  viewStateAfterFirstWorkflow,
+  viewStateOpenAuthoringWorkspace,
 } from "../lib/view-layout.js"
 
 /** Manage view panel toggles and layout flags for the app shell. */
@@ -16,20 +18,16 @@ export function useViewLayout() {
     setViews((current) => toggleViewPanel(current, panel))
   }, [])
 
-  const onFirstWorkflow = useCallback(() => {
-    setViews((current) => viewStateAfterFirstWorkflow(current))
+  const openWorkspace = useCallback(() => {
+    setViews((current) => viewStateOpenAuthoringWorkspace(current))
   }, [])
 
-  const openWorkspace = useCallback(() => {
-    setViews((current) =>
-      current.workflow || current.code ? current : viewStateAfterFirstWorkflow(current)
-    )
+  const openUi = useCallback(() => {
+    setViews((current) => openUiPanel(current))
   }, [])
 
   const ensureWorkflowVisible = useCallback(() => {
-    setViews((current) =>
-      current.workflow ? current : { ...current, workflow: true, code: false }
-    )
+    setViews((current) => ensureWorkflowVisibleState(current))
   }, [])
 
   const workspaceVisible = isWorkspaceVisible(views)
@@ -38,8 +36,8 @@ export function useViewLayout() {
   return {
     views,
     toggleView,
-    onFirstWorkflow,
     openWorkspace,
+    openUi,
     ensureWorkflowVisible,
     workspaceVisible,
     paired,

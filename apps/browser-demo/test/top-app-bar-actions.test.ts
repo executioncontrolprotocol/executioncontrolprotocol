@@ -8,7 +8,7 @@ describe("resolveHostIoActions", () => {
     ).toEqual({ canOpen: true, canSave: true })
   })
 
-  it("disables open and save when disconnected", () => {
+  it("disables open and save when disconnected even with an authored workflow", () => {
     expect(
       resolveHostIoActions({ hostConnected: false, hasWorkflow: true })
     ).toEqual({ canOpen: false, canSave: false })

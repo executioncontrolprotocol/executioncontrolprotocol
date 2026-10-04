@@ -184,8 +184,19 @@
   }
 
   .header-action-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.28;
+    color: var(--color-on-surface-variant);
+    border-color: var(--color-outline-variant);
+    background-color: transparent;
     cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .header-action-btn--primary:disabled {
+    opacity: 0.35;
+    color: var(--color-on-primary);
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
   }
 
   .header-action-btn .material-symbols-outlined {
@@ -354,6 +365,20 @@
     line-height: 1;
     border: 1px solid transparent;
     cursor: default;
+  }
+
+  /* Keep pill look when the status control is a <button> (Invalid / Not connected). */
+  button.status-pill {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    font: inherit;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
   }
 
   .status-pill--valid {

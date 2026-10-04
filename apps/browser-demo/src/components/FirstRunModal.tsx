@@ -9,6 +9,10 @@ import { canContinueFirstRun, preferredModalProviderMode } from "../lib/provider
 import type { OllamaSettings } from "../lib/ollama-settings.js"
 import type { AnthropicSettings } from "../lib/anthropic-settings.js"
 import type { BridgeSettings } from "../lib/ecp-bridge.js"
+import {
+  DEMO_PROVIDERS_DOCS_URL,
+  DEMO_PROVIDERS_OLLAMA_DOCS_URL,
+} from "../lib/external-links.js"
 import { ProviderApiKeyFields } from "./ProviderApiKeyFields.js"
 import { OllamaSettingsFields } from "./OllamaSettingsFields.js"
 import { AnthropicSettingsFields } from "./AnthropicSettingsFields.js"
@@ -21,8 +25,6 @@ export interface FirstRunModalProps {
   chromeReady: boolean
   /** Local `ecp up` is reachable and Ollama is up. */
   ollamaBridgeAvailable: boolean
-  /** Optional status hint when Ollama is disabled. */
-  ollamaBridgeHint?: string
   /** Last selected provider (from app state / localStorage). */
   initialMode?: ProviderMode
   onExplore: () => void
@@ -46,7 +48,6 @@ export function FirstRunModal({
   chromeSupported,
   chromeReady,
   ollamaBridgeAvailable,
-  ollamaBridgeHint,
   initialMode = "chrome-ai",
   onExplore,
   onComplete,
@@ -65,6 +66,17 @@ export function FirstRunModal({
   const [ollamaReady, setOllamaReady] = useState(false)
   const [anthropicVaultReady, setAnthropicVaultReady] = useState(false)
   const [anthropicKeyPresent, setAnthropicKeyPresent] = useState(false)
+
+  useEffect(() => {
+    if (!ollamaBridgeAvailable && mode === "ollama") {
+      setMode(
+        preferredModalProviderMode("ollama", {
+          chromeSupported,
+          ollamaBridgeAvailable: false,
+        })
+      )
+    }
+  }, [ollamaBridgeAvailable, mode, chromeSupported])
 
   useEffect(() => {
     let cancelled = false
@@ -125,65 +137,95 @@ export function FirstRunModal({
             type="button"
             onClick={onExplore}
             className="modal-close-btn"
-            aria-label="Explore without choosing a provider"
+            aria-label="Close provider settings"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
           <h2 id="first-run-title" className="pr-8 font-display text-headline text-on-surface">
-            Choose a model provider
+            Select a model provider
           </h2>
         </header>
 
         <div className="modal-panel-scroll flex flex-col gap-4">
           <p className="text-body text-on-surface-variant">
-            {ollamaBridgeAvailable
-              ? "Chrome requires a click to start the Gemini Nano download. Choose a provider and click Continue, or close this dialog to explore without a provider."
-              : "Local Ollama (`ecp up`) is not reachable. Chrome AI or Claude (Anthropic) can still be used."}
+            Select a model provider using hosted models or local models.{" "}
+            <a
+              href={DEMO_PROVIDERS_DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              Learn More
+            </a>
           </p>
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-center gap-2 text-body">
-              <input
-                type="radio"
-                name="provider"
-                checked={mode === "chrome-ai"}
-                disabled={!chromeSupported}
-                onChange={() => setMode("chrome-ai")}
-              />
-              Chrome built-in AI
-              {!chromeSupported
-                ? " (unavailable)"
-                : !chromeReady
-                  ? " (download required)"
-                  : ""}
-            </label>
+          <div className="space-y-3">
             <label
-              className={`flex items-center gap-2 text-body ${ollamaBridgeAvailable ? "cursor-pointer" : "text-on-surface-variant"}`}
+              className={`flex items-start gap-2 text-body ${chromeSupported ? "cursor-pointer" : "text-on-surface-variant"}`}
             >
               <input
                 type="radio"
                 name="provider"
-                checked={mode === "ollama"}
-                disabled={!ollamaBridgeAvailable}
-                onChange={() => setMode("ollama")}
+                className="mt-1"
+                checked={mode === "chrome-ai"}
+                disabled={!chromeSupported}
+                onChange={() => setMode("chrome-ai")}
               />
-              Ollama (Fluent / TypeScript harness)
-              {!ollamaBridgeAvailable ? " (unavailable)" : ""}
+              <span>
+                Chrome AI (Basic Demo)
+                {!chromeSupported
+                  ? " (unavailable)"
+                  : !chromeReady
+                    ? " (download required)"
+                    : ""}
+              </span>
             </label>
-            {!ollamaBridgeAvailable && ollamaBridgeHint ? (
-              <p className="pl-6 text-body text-on-surface-variant">{ollamaBridgeHint}</p>
-            ) : null}
-            <label className="flex cursor-pointer items-center gap-2 text-body">
+            <div className="space-y-1">
+              <label
+                className={`flex items-start gap-2 text-body ${ollamaBridgeAvailable ? "cursor-pointer" : "text-on-surface-variant"}`}
+              >
+                <input
+                  type="radio"
+                  name="provider"
+                  className="mt-1"
+                  checked={mode === "ollama"}
+                  disabled={!ollamaBridgeAvailable}
+                  onChange={() => setMode("ollama")}
+                />
+                <span>
+                  Ollama (Stronger local Model, requires local installation)
+                  {!ollamaBridgeAvailable ? " (unavailable)" : ""}
+                </span>
+              </label>
+              <p className="pl-6 text-body text-on-surface-variant">
+                <a
+                  href={DEMO_PROVIDERS_OLLAMA_DOCS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  Learn More
+                </a>
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-start gap-2 text-body">
               <input
                 type="radio"
                 name="provider"
+                className="mt-1"
                 checked={mode === "anthropic"}
                 onChange={() => setMode("anthropic")}
               />
-              Claude (Anthropic / coding harness)
+              <span>Claude (Faster and Stronger, Advanced Demo)</span>
             </label>
-            <label className="flex items-center gap-2 text-body text-on-surface-variant">
-              <input type="radio" name="provider" checked={mode === "openai"} disabled />
-              OpenAI (coming soon)
+            <label className="flex items-start gap-2 text-body text-on-surface-variant">
+              <input
+                type="radio"
+                name="provider"
+                className="mt-1"
+                checked={mode === "openai"}
+                disabled
+              />
+              <span>OpenAI (Coming Soon)</span>
             </label>
           </div>
           {mode === "ollama" && ollamaBridgeAvailable ? (

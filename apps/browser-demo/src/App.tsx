@@ -59,6 +59,7 @@ import { FirstRunModal } from "./components/FirstRunModal.js"
 import { VaultSetupModal } from "./components/VaultSetupModal.js"
 import { VaultUnlockModal } from "./components/VaultUnlockModal.js"
 import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
+import { RunPanel, type RunPanelPhase } from "./components/RunPanel.js"
 import { RunResultModal, type RunModalMode } from "./components/RunResultModal.js"
 import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
 import { IoConfigureDialog, type IoConfigureSavePayload } from "./components/IoConfigureDialog.js"
@@ -67,9 +68,11 @@ import { TopAppBar } from "./components/TopAppBar.js"
 import { OpenWorkflowDialog } from "./components/OpenWorkflowDialog.js"
 import { DownloadWorkflowDialog } from "./components/DownloadWorkflowDialog.js"
 import { SaveWorkflowDialog } from "./components/SaveWorkflowDialog.js"
+import { SplitPane } from "./components/SplitPane.js"
 import { WorkspaceColumn } from "./components/WorkspaceColumn.js"
 import { useChatHistory } from "./hooks/useChatHistory.js"
 import { useChromeModelInstall } from "./hooks/useChromeModelInstall.js"
+import { useSplitPane } from "./hooks/useSplitPane.js"
 import { readAvailability } from "@executioncontrolprotocol/chrome-ai"
 import { useViewLayout } from "./hooks/useViewLayout.js"
 import { installEsbuildWasmUrl } from "./lib/esbuild-wasm-bootstrap.js"
@@ -116,6 +119,7 @@ import {
 } from "./lib/host-workflows.js"
 import { columnWidthClass } from "./lib/view-layout.js"
 import {
+  didDemoModelChange,
   harnessCapabilityId,
   preferredModalProviderMode,
   providerCapabilityId,
@@ -124,6 +128,7 @@ import {
   storeProviderMode,
   type AssistantMode,
   type ChromeInstallUi,
+  type DemoModelSession,
   type ProviderMode,
 } from "./lib/provider-mode.js"
 import {
@@ -146,7 +151,6 @@ import {
   readBridgeSettings,
   storeBridgeSettings,
   describeViaBridge,
-  type BridgeDetectResult,
   type BridgeSettings,
 } from "./lib/ecp-bridge.js"
 import { checkHostMixedCompatibility } from "./lib/host-compatibility.js"
@@ -184,18 +188,9 @@ const EMPTY_MERMAID = "flowchart TD\n  empty[No workflow]"
 const HOST_NOT_CONNECTED_MSG = "Connect ecp up to use host-saved workflows."
 const BRIDGE_POLL_MS = 5_000
 
-function ollamaBridgeHintFromDetect(result: BridgeDetectResult): string {
-  if (!result.available) {
-    return "Run ecp up locally to enable Ollama (Chromium required for hosted HTTPS)."
-  }
-  if (!result.ollamaReachable) {
-    return "ecp up is running but Ollama is unreachable — start Ollama and retry."
-  }
-  return ""
-}
-
 export function App() {
   const layout = useViewLayout()
+  const split = useSplitPane()
   const [assistantMode, setAssistantMode] = useState<AssistantMode>("authoring")
   const {
     messages: chatMessages,
@@ -206,6 +201,7 @@ export function App() {
     clearOfferProbeFlags,
     clearOfferRunFlags,
     setGuidedWelcome,
+    resetWelcome,
   } = useChatHistory(assistantMode)
   const [ecp, setEcp] = useState<Ecp | null>(null)
   const [providerMode, setProviderMode] = useState<ProviderMode>(
@@ -225,10 +221,9 @@ export function App() {
   })
   const [ollamaBridgeAvailable, setOllamaBridgeAvailable] = useState(false)
   const [bridgeAvailable, setBridgeAvailable] = useState(false)
-  const [ollamaBridgeHint, setOllamaBridgeHint] = useState(
-    "Checking for local ecp up daemon…"
-  )
   const [showProviderModal, setShowProviderModal] = useState(false)
+  /** Provider/model at modal open — used so dismiss / unchanged Continue keep chat. */
+  const providerModalSessionRef = useRef<DemoModelSession | null>(null)
   const [showVaultSetup, setShowVaultSetup] = useState(false)
   const [vaultGate, setVaultGate] = useState<"locked" | "ready">("ready")
   const [chromeSupported, setChromeSupported] = useState(false)
@@ -263,6 +258,7 @@ export function App() {
   const [runOutput, setRunOutput] = useState("")
   const [runPublicOutput, setRunPublicOutput] = useState("")
   const [runBusy, setRunBusy] = useState(false)
+  const [runPanelPhase, setRunPanelPhase] = useState<RunPanelPhase>("input")
   const [runModalOpen, setRunModalOpen] = useState(false)
   const [runModalMode, setRunModalMode] = useState<RunModalMode>("inspect")
   const [lastRunResult, setLastRunResult] = useState<unknown>(null)
@@ -374,9 +370,29 @@ export function App() {
     const result = await detectEcpBridge(baseURL ?? readBridgeSettings().baseURL)
     setBridgeAvailable(result.available)
     setOllamaBridgeAvailable(isOllamaBridgeUsable(result))
-    setOllamaBridgeHint(ollamaBridgeHintFromDetect(result))
     return result
   }, [])
+
+  const openProviderModal = useCallback(() => {
+    providerModalSessionRef.current = {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    void refreshBridgeDetect()
+    setShowProviderModal(true)
+  }, [refreshBridgeDetect, providerMode, ollamaSettings.model, anthropicSettings.model])
+
+  // Snapshot when bootstrap (or other paths) opens the modal without openProviderModal.
+  useEffect(() => {
+    if (!showProviderModal) return
+    if (providerModalSessionRef.current) return
+    providerModalSessionRef.current = {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+  }, [showProviderModal, providerMode, ollamaSettings.model, anthropicSettings.model])
 
   useEffect(() => {
     if (vaultGate === "locked") return
@@ -1130,12 +1146,28 @@ export function App() {
   )
 
   const onProviderComplete = (mode: ProviderMode, nextOllama?: OllamaSettings) => {
+    const previous = providerModalSessionRef.current ?? {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const nextSession: DemoModelSession = {
+      mode,
+      ollamaModel: nextOllama?.model ?? ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const modelChanged = didDemoModelChange(previous, nextSession)
+    providerModalSessionRef.current = null
+
     storeProviderMode(mode)
     setProviderMode(mode)
     setAssistantMode("authoring")
     setShowProviderModal(false)
     storeBridgeSettings(bridgeSettings)
     storeAnthropicSettings(anthropicSettings)
+    if (modelChanged) {
+      resetWelcome("authoring")
+    }
     const preset = readDemoEnvPreset()
     if (nextOllama) {
       storeOllamaSettings(nextOllama)
@@ -1152,20 +1184,37 @@ export function App() {
     })
   }
 
-  const onExplore = () => {
-    setAssistantMode("guided")
-    setProviderMode("chrome-ai")
+  const onProviderModalDismiss = () => {
+    providerModalSessionRef.current = null
     setShowProviderModal(false)
-    setGuidedWelcome()
-    setChatStatus("Guided mode — explore the editor.")
+    // First-run only: no stored provider yet → explore without binding a model.
+    if (!readStoredProviderMode()) {
+      setAssistantMode("guided")
+      setProviderMode("chrome-ai")
+      setGuidedWelcome()
+      setChatStatus("Guided mode — explore the editor.")
+    }
   }
 
   const onChromeInstallFromModal = () => {
     // First line after the Continue click — preserve user activation for create().
     beginChromeInstall("dialog")
+    const previous = providerModalSessionRef.current ?? {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const modelChanged = didDemoModelChange(previous, {
+      mode: "chrome-ai",
+      ollamaModel: previous.ollamaModel,
+      anthropicModel: previous.anthropicModel,
+    })
+    providerModalSessionRef.current = null
     setAssistantMode("guided")
     setProviderMode("chrome-ai")
-    setGuidedWelcome()
+    if (modelChanged || !readStoredProviderMode()) {
+      setGuidedWelcome()
+    }
     setChatStatus("Installing Chrome AI...")
   }
 
@@ -1216,15 +1265,13 @@ export function App() {
 
     const nextWorkflow = chatResultWorkflow(harnessResult)
     if (nextWorkflow) {
-      const hadWorkflow = manifest !== null
       const harnessValidation = harnessResult.validation as ValidationResult | undefined
       await syncFromManifest(nextWorkflow, {
         refreshFluent: true,
         patchToon: harnessResult.raw,
         ...(harnessValidation ? { validation: harnessValidation } : {}),
       })
-      if (!hadWorkflow) layout.onFirstWorkflow()
-      else layout.openWorkspace()
+      // Stay on chat after authoring — do not auto-open workflow/code/ui.
       const val = harnessValidation as { valid?: boolean } | undefined
       const suggestedAction = chatResultSuggestedAction(harnessResult)
       const answer =
@@ -1418,22 +1465,41 @@ export function App() {
     }
   }
 
+  const draftsFromLastChatRun = (): Record<string, string> | undefined => {
+    if (!lastChatRunInput) return runFormDrafts
+    const drafts: Record<string, string> = {}
+    for (const [key, value] of Object.entries(lastChatRunInput)) {
+      drafts[key] = typeof value === "string" ? value : JSON.stringify(value, null, 2)
+    }
+    return Object.keys(drafts).length > 0 ? drafts : runFormDrafts
+  }
+
   const onRun = async (
     input?: Record<string, unknown>,
     blobs?: CapabilityBlobStore,
-    options?: { source?: "modal" | "chat" }
+    options?: { source?: "modal" | "chat" | "ui" }
   ) => {
     if (!ecp || !manifest) return
     const fromChat = options?.source === "chat"
+    const fromUi = options?.source === "ui"
     setRunBusy(true)
     setRunModalOpen(false)
     setRunOutput("")
     setRunPublicOutput("")
     lastRunBlobs.current = blobs
-    if (fromChat && input) {
+    if ((fromChat || fromUi) && input) {
       setLastChatRunInput(input)
+      const drafts: Record<string, string> = {}
+      for (const [key, value] of Object.entries(input)) {
+        drafts[key] = typeof value === "string" ? value : JSON.stringify(value, null, 2)
+      }
+      setRunFormDrafts(Object.keys(drafts).length > 0 ? drafts : undefined)
     }
-    layout.ensureWorkflowVisible()
+    if (fromUi) {
+      layout.openUi()
+      setRunPanelPhase("running")
+    }
+    // Chat / UI runs stay put — do not force the workflow graph open.
     let result: RunResult | undefined
     try {
       result = (await ecp.run(withNormalizedFileAccepts(manifest), {
@@ -1457,6 +1523,8 @@ export function App() {
               : {}),
           })
         }
+      } else if (fromUi) {
+        setRunPanelPhase("output")
       } else {
         setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
         setRunModalOpen(true)
@@ -1470,6 +1538,8 @@ export function App() {
       emitRunProgressFailed()
       if (fromChat) {
         void autoTroubleshootAfterFailure(errorResult)
+      } else if (fromUi) {
+        setRunPanelPhase("output")
       } else {
         setRunModalMode("inspect")
         setRunModalOpen(true)
@@ -1489,15 +1559,21 @@ export function App() {
     void onRun(input, blobs, { source: "chat" })
   }
 
+  const onRunFromUi = (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => {
+    void onRun(input, blobs, { source: "ui" })
+  }
+
+  const openRunUi = (phase: RunPanelPhase = "input") => {
+    if (phase === "input") {
+      setRunFormDrafts(draftsFromLastChatRun())
+    }
+    setRunPanelPhase(phase)
+    layout.openUi()
+  }
+
   const onExecute = () => {
     if (!manifest) return
-    const accepts = workflowContract(manifest).accepts
-    if (ioFieldsFromSchema(accepts).length > 0) {
-      setRunModalMode("input")
-      setRunModalOpen(true)
-      return
-    }
-    void onRun(undefined, undefined, { source: "modal" })
+    openRunUi("input")
   }
 
   const onFluentChange = useCallback(
@@ -1622,7 +1698,7 @@ export function App() {
         onExecute={onExecute}
         executeDisabled={!ecp || !hasWorkflow}
         executeBusy={runBusy}
-        onSettings={() => setShowProviderModal(true)}
+        onSettings={openProviderModal}
         hostConnected={hostConnected}
         hasWorkflow={hasWorkflow}
         onSave={() => void onSaveWorkflow()}
@@ -1646,107 +1722,149 @@ export function App() {
       />
 
       <main className="flex min-h-0 w-full flex-1 overflow-hidden">
-        {layout.views.chat ? (
-          <ChatPanel
-            visible
-            widthClass={widthClass}
-            paired={layout.paired}
-            messages={chatMessages}
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            onSubmit={onSubmit}
-            disabled={!ecp || chatBlocked}
-            busy={chatBusy}
-            showQuickStarts={shouldShowWorkflowQuickStarts(chatMessages)}
-            quickStarts={WORKFLOW_QUICK_STARTS}
-            onQuickStartClick={(text) => void submitMessage(text)}
-            onOfferRunConfirm={onOfferRunConfirm}
-            onOfferRunDecline={onOfferRunDecline}
-            onOfferProbeConfirm={onOfferProbeConfirm}
-            onOfferProbeDecline={onOfferProbeDecline}
-            onChatRun={onRunFromChat}
-            runBusy={runBusy}
-            hasWorkflow={hasWorkflow}
-            acceptsSchema={runAcceptsSchema}
-            returnsSchema={runReturnsSchema}
-            bridge={bridgeSettings}
-            filePickerEnabled={hostConnected}
-            runFormDrafts={runFormDrafts}
-            anthropicAttachEnabled={providerMode === "anthropic"}
-            anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
-            attachedFileNames={chatAttachFiles.map((f) => f.name)}
-            onAttachFiles={(list) => {
-              if (!list || list.length === 0) return
-              void (async () => {
-                const next: Array<{ name: string; mediaType: string; data: string }> = []
-                for (const file of Array.from(list)) {
-                  const mediaType = file.type || "application/octet-stream"
-                  if (!isAnthropicChatFileMediaType(mediaType)) {
-                    appendAgentError(
-                      `Unsupported attachment type: ${mediaType || file.name}. Use JPEG, PNG, GIF, WEBP, or PDF.`
-                    )
-                    continue
+        {(() => {
+          const chat = (
+            <ChatPanel
+              visible
+              widthClass={layout.paired ? "is-full" : widthClass}
+              paired={false}
+              messages={chatMessages}
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              onSubmit={onSubmit}
+              disabled={!ecp || chatBlocked}
+              busy={chatBusy}
+              showQuickStarts={shouldShowWorkflowQuickStarts(chatMessages)}
+              quickStarts={WORKFLOW_QUICK_STARTS}
+              onQuickStartClick={(text) => void submitMessage(text)}
+              onOfferRunConfirm={onOfferRunConfirm}
+              onOfferRunDecline={onOfferRunDecline}
+              onOfferProbeConfirm={onOfferProbeConfirm}
+              onOfferProbeDecline={onOfferProbeDecline}
+              onChatRun={onRunFromChat}
+              onOpenRunUi={(phase) => openRunUi(phase)}
+              runBusy={runBusy}
+              hasWorkflow={hasWorkflow}
+              acceptsSchema={runAcceptsSchema}
+              returnsSchema={runReturnsSchema}
+              bridge={bridgeSettings}
+              filePickerEnabled={hostConnected}
+              runFormDrafts={runFormDrafts}
+              anthropicAttachEnabled={providerMode === "anthropic"}
+              anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
+              attachedFileNames={chatAttachFiles.map((f) => f.name)}
+              onAttachFiles={(list) => {
+                if (!list || list.length === 0) return
+                void (async () => {
+                  const next: Array<{ name: string; mediaType: string; data: string }> = []
+                  for (const file of Array.from(list)) {
+                    const mediaType = file.type || "application/octet-stream"
+                    if (!isAnthropicChatFileMediaType(mediaType)) {
+                      appendAgentError(
+                        `Unsupported attachment type: ${mediaType || file.name}. Use JPEG, PNG, GIF, WEBP, or PDF.`
+                      )
+                      continue
+                    }
+                    const buffer = await file.arrayBuffer()
+                    const bytes = new Uint8Array(buffer)
+                    let binary = ""
+                    for (const byte of bytes) binary += String.fromCharCode(byte)
+                    next.push({
+                      name: file.name,
+                      mediaType: mediaType === "image/jpg" ? "image/jpeg" : mediaType,
+                      data: btoa(binary),
+                    })
                   }
-                  const buffer = await file.arrayBuffer()
-                  const bytes = new Uint8Array(buffer)
-                  let binary = ""
-                  for (const byte of bytes) binary += String.fromCharCode(byte)
-                  next.push({
-                    name: file.name,
-                    mediaType: mediaType === "image/jpg" ? "image/jpeg" : mediaType,
-                    data: btoa(binary),
-                  })
-                }
-                if (next.length > 0) {
-                  setChatAttachFiles((prev) => [...prev, ...next])
-                }
-              })()
-            }}
-            onRemoveAttachedFile={(index) => {
-              setChatAttachFiles((prev) => prev.filter((_, i) => i !== index))
-            }}
-          />
-        ) : null}
+                  if (next.length > 0) {
+                    setChatAttachFiles((prev) => [...prev, ...next])
+                  }
+                })()
+              }}
+              onRemoveAttachedFile={(index) => {
+                setChatAttachFiles((prev) => prev.filter((_, i) => i !== index))
+              }}
+            />
+          )
+          const workspace = (
+            <WorkspaceColumn visible widthClass="is-full">
+              {layout.views.workflow ? (
+                <ReactFlowCanvas
+                  reactflowJson={reactflow}
+                  runBusy={runBusy}
+                  onOpenRunModal={() => {
+                    setRunModalMode("inspect")
+                    setRunModalOpen(true)
+                  }}
+                  hasWorkflow={hasWorkflow}
+                  capabilityExecution={capabilityExecutionMap(descriptor)}
+                  hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
+                  onConfigureStep={onConfigureStep}
+                  onConnectPorts={onConnectPorts}
+                  onDisconnectPorts={onDisconnectPorts}
+                  onWorkflowFileDrop={onWorkflowFileDrop}
+                />
+              ) : null}
+              {layout.views.code ? (
+                <CodePanel
+                  editorTab={editorTab}
+                  onEditorTabChange={setEditorTab}
+                  formatTab={formatTab}
+                  onFormatTabChange={setFormatTab}
+                  fluent={fluent}
+                  fluentEditorKey={fluentEditorKey}
+                  json={json}
+                  toon={toon}
+                  mermaid={mermaid}
+                  environmentSource={environmentSource}
+                  compileError={compileError}
+                  onFluentChange={onFluentChange}
+                  onBeautifyFluent={onBeautifyFluent}
+                  beautifyBusy={beautifyBusy}
+                />
+              ) : null}
+              {layout.views.ui ? (
+                <RunPanel
+                  phase={runPanelPhase}
+                  runBusy={runBusy}
+                  onRun={onRunFromUi}
+                  onRunAgain={() => {
+                    setRunFormDrafts(draftsFromLastChatRun())
+                    setRunPanelPhase("input")
+                  }}
+                  hasWorkflow={hasWorkflow}
+                  acceptsSchema={runAcceptsSchema}
+                  returnsSchema={runReturnsSchema}
+                  bridge={bridgeSettings}
+                  filePickerEnabled={hostConnected}
+                  initialDrafts={runFormDrafts}
+                  runResult={lastRunResult}
+                  runOutputData={
+                    lastRunResult &&
+                    typeof lastRunResult === "object" &&
+                    "output" in lastRunResult
+                      ? (lastRunResult as { output?: unknown }).output
+                      : undefined
+                  }
+                  blobs={lastRunBlobs.current}
+                />
+              ) : null}
+            </WorkspaceColumn>
+          )
 
-        {layout.workspaceVisible ? (
-          <WorkspaceColumn visible widthClass={widthClass}>
-            {layout.views.workflow ? (
-              <ReactFlowCanvas
-                reactflowJson={reactflow}
-                runBusy={runBusy}
-                onOpenRunModal={() => {
-                  setRunModalMode("inspect")
-                  setRunModalOpen(true)
-                }}
-                hasWorkflow={hasWorkflow}
-                capabilityExecution={capabilityExecutionMap(descriptor)}
-                hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
-                onConfigureStep={onConfigureStep}
-                onConnectPorts={onConnectPorts}
-                onDisconnectPorts={onDisconnectPorts}
-                onWorkflowFileDrop={onWorkflowFileDrop}
+          if (layout.paired) {
+            return (
+              <SplitPane
+                left={chat}
+                right={workspace}
+                leftWidth={split.leftWidth}
+                onDividerPointerDown={split.onPointerDown}
               />
-            ) : null}
-            {layout.views.code ? (
-              <CodePanel
-                editorTab={editorTab}
-                onEditorTabChange={setEditorTab}
-                formatTab={formatTab}
-                onFormatTabChange={setFormatTab}
-                fluent={fluent}
-                fluentEditorKey={fluentEditorKey}
-                json={json}
-                toon={toon}
-                mermaid={mermaid}
-                environmentSource={environmentSource}
-                compileError={compileError}
-                onFluentChange={onFluentChange}
-                onBeautifyFluent={onBeautifyFluent}
-                beautifyBusy={beautifyBusy}
-              />
-            ) : null}
-          </WorkspaceColumn>
-        ) : null}
+            )
+          }
+          if (layout.views.chat) return chat
+          if (layout.workspaceVisible) return workspace
+          return null
+        })()}
       </main>
 
       <StatusFooter
@@ -1779,9 +1897,8 @@ export function App() {
           chromeSupported={chromeSupported}
           chromeReady={chromeReady}
           ollamaBridgeAvailable={ollamaBridgeAvailable}
-          ollamaBridgeHint={ollamaBridgeHint}
           initialMode={providerMode}
-          onExplore={onExplore}
+          onExplore={onProviderModalDismiss}
           onComplete={onProviderComplete}
           onChromeInstall={onChromeInstallFromModal}
           ollamaSettings={ollamaSettings}
@@ -1817,11 +1934,11 @@ export function App() {
         <VaultSetupModal
           onComplete={() => {
             setShowVaultSetup(false)
-            setShowProviderModal(true)
+            openProviderModal()
           }}
           onCancel={() => {
             setShowVaultSetup(false)
-            setShowProviderModal(true)
+            openProviderModal()
           }}
         />
       ) : null}
@@ -1864,7 +1981,7 @@ export function App() {
           onCancel={() => {
             setChromeInstallUi("idle")
             stopPolling()
-            setShowProviderModal(true)
+            openProviderModal()
           }}
         />
       ) : null}

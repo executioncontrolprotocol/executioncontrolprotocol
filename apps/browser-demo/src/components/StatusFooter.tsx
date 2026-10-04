@@ -1,7 +1,7 @@
 import type { ValidationResult } from "@executioncontrolprotocol/types"
 import { useState } from "react"
 import { shouldShowChromeInstallFooter } from "../lib/chrome-install-ui.js"
-import { GITHUB_REPO_URL } from "../lib/external-links.js"
+import { ECP_UP_DOCS_URL, GITHUB_REPO_URL } from "../lib/external-links.js"
 import type { ChromeInstallSnapshot, ChromeInstallUi } from "../lib/provider-mode.js"
 import { ChromeInstallStatusPill } from "./ChromeInstallStatusPill.js"
 import { ValidationView } from "./ValidationView.js"
@@ -46,6 +46,7 @@ export function StatusFooter({
 }: StatusFooterProps) {
   const [showValidation, setShowValidation] = useState(false)
   const [showHostCompat, setShowHostCompat] = useState(false)
+  const [showEcpUpHelp, setShowEcpUpHelp] = useState(false)
   const isValid = validation?.valid ?? true
   const hasResult = validation !== null
   const hostCompatInvalid = Boolean(hostCompat && !hostCompat.valid)
@@ -90,13 +91,15 @@ export function StatusFooter({
                 <span>Connected</span>
               </div>
             ) : (
-              <div
+              <button
+                type="button"
                 className="status-pill status-pill--invalid"
-                aria-label="ECP host not connected"
+                onClick={() => setShowEcpUpHelp(true)}
+                aria-label="ECP host not connected — learn how to connect"
               >
                 <span aria-hidden className="status-pill-dot status-pill-dot--invalid" />
                 <span>Not connected</span>
-              </div>
+              </button>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -164,6 +167,58 @@ export function StatusFooter({
               </button>
             </div>
             <ValidationView validation={hostCompat} />
+          </div>
+        </div>
+      ) : null}
+
+      {showEcpUpHelp ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-auto bg-background/70 p-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ecp-up-help-title"
+        >
+          <div className="w-full max-w-lg rounded-xl border border-outline-variant bg-surface-container p-6 glow-primary">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="ecp-up-help-title" className="font-display text-headline text-on-surface">
+                Connect a local ECP host
+              </h2>
+              <button
+                type="button"
+                className="material-symbols-outlined cursor-pointer text-on-surface-variant hover:text-on-surface"
+                onClick={() => setShowEcpUpHelp(false)}
+                aria-label="Close"
+              >
+                close
+              </button>
+            </div>
+            <p className="mb-3 text-body text-on-surface-variant">
+              Run <code className="font-mono text-label">ecp up</code> locally to unlock host
+              features: open and save workflows on disk, the Ollama bridge, and host-only
+              capabilities (for example Sharp hops).
+            </p>
+            <p className="mb-6 text-body text-on-surface-variant">
+              The daemon prints a pairing token and can open this demo with{" "}
+              <code className="font-mono text-label">?token=</code> so Open, Save, and Ollama work
+              in the Graph Editor.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={ECP_UP_DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded bg-primary px-4 py-2.5 font-mono text-label font-bold text-on-primary transition-[filter] hover:brightness-110"
+              >
+                Learn More
+              </a>
+              <button
+                type="button"
+                className="rounded border border-outline-variant px-4 py-2.5 font-mono text-label text-on-surface transition-colors hover:border-primary/40"
+                onClick={() => setShowEcpUpHelp(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

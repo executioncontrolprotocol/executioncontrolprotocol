@@ -12,17 +12,20 @@ describe("split-pane", () => {
 describe("split-pane storage", () => {
   beforeEach(() => {
     const store = new Map<string, string>()
-    vi.stubGlobal("sessionStorage", {
+    vi.stubGlobal("localStorage", {
       getItem: (key: string) => store.get(key) ?? null,
       setItem: (key: string, value: string) => {
         store.set(key, value)
       },
+      removeItem: (key: string) => {
+        store.delete(key)
+      },
     })
   })
 
-  it("round-trips stored width in sessionStorage", () => {
+  it("round-trips stored width in localStorage", () => {
     storeSplitWidth(420)
-    expect(sessionStorage.getItem(SPLIT_STORAGE_KEY)).toBe("420")
+    expect(localStorage.getItem(SPLIT_STORAGE_KEY)).toBe("420")
     expect(readStoredSplitWidth()).toBe(420)
   })
 })

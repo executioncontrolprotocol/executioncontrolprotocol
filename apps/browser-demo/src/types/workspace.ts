@@ -1,7 +1,7 @@
 import type { CapabilityBlobStore } from "@executioncontrolprotocol/core"
 
-/** Toggleable main view panel (chat, workflow graph, or code editor). */
-export type ViewPanel = "chat" | "workflow" | "code"
+/** Toggleable main view panel (chat, workflow graph, code editor, or run UI). */
+export type ViewPanel = "chat" | "workflow" | "code" | "ui"
 
 /** Boolean flags for which view panels are active. */
 export interface ViewLayoutState {
@@ -9,8 +9,10 @@ export interface ViewLayoutState {
   chat: boolean
   /** Workflow graph column (React Flow). */
   workflow: boolean
-  /** Code editor column (mutually exclusive with workflow). */
+  /** Code editor column (mutually exclusive with workflow / ui). */
   code: boolean
+  /** Full-size run UI column (mutually exclusive with workflow / code). */
+  ui: boolean
 }
 
 /** Left sidebar code editor tab. */
