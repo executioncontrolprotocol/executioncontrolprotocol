@@ -120,7 +120,7 @@ Default port **3090** (ECP leet), host `127.0.0.1`.
 
 ### Local daemon (`ecp up`)
 
-Ollama/PNA **demo bridge** (fixed local env, not arbitrary `--env`). Prefer `ecp serve` for general HTTP invoke. Start the daemon, then open the demo with a pairing token:
+Loopback **demo bridge** for the browser Graph Editor: always hosts **Ollama** + **storage**, optional `--env` merges a project Node environment (e.g. Sharp) alongside them. Prefer `ecp serve` for general HTTP invoke without the demo pairing flow.
 
 ```sh
 ecp up
@@ -128,12 +128,24 @@ ecp up
 
 ecp up --open-url http://localhost:5173/
 ecp up --no-open
+ecp up --env ./host/environment.ts --open-url http://localhost:5173/
 ```
+
+**Monorepo (browser-demo):** from the repo root after `pnpm run build`:
+
+```sh
+pnpm run dev:demo          # terminal 1 — Vite on :5173
+pnpm run up:demo           # terminal 2 — host env + Ollama; opens local demo with ?token=
+pnpm run up:demo -- --ollama-only   # Ollama + storage only
+```
+
+See [`apps/browser-demo/README.md`](../../apps/browser-demo/README.md#local-startup-options) and [`apps/browser-demo/host/README.md`](../../apps/browser-demo/host/README.md).
 
 - `GET /health` — `{ ok, version, ollamaReachable }` (no auth; used by the demo to enable Ollama)
 - `POST /v1/invoke` — Bearer token required; same body shape as `ecp serve`
+- `GET /v1/describe` — Bearer or `?token=`
 
-Default port **3090**. The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Add extra page origins with `--cors-origin`.
+Default port **3090**. The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Extra page origins: `--cors-origin` (also inferred from `--open-url`).
 
 ### Encode / decode formats
 

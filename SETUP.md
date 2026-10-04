@@ -107,7 +107,9 @@ ollama pull gemma3:1b
 
 ## Browser demo
 
-The browser demo app lives in this monorepo at [`apps/browser-demo`](apps/browser-demo).
+The browser demo app lives in this monorepo at [`apps/browser-demo`](apps/browser-demo). Full startup matrix: [`apps/browser-demo/README.md`](apps/browser-demo/README.md#local-startup-options).
+
+### Chrome AI / UI only
 
 ```bash
 pnpm install
@@ -115,7 +117,28 @@ pnpm run build
 pnpm run dev:demo
 ```
 
-GitHub Pages deploys that app from `main` (`.github/workflows/pages.yml`) after a workspace install and `pnpm run build`.
+Open `http://localhost:5173` (or the URL Vite prints).
+
+### With local `ecp up` (Ollama / host hops)
+
+Use two terminals from the monorepo root after `pnpm run build`:
+
+```bash
+# Terminal 1 — Vite
+pnpm run dev:demo
+
+# Terminal 2 — daemon (host env + Ollama); opens the demo with ?token=
+pnpm run up:demo
+```
+
+| Command | What it hosts |
+| ------- | ------------- |
+| `pnpm run up:demo` | [`apps/browser-demo/host`](apps/browser-demo/host) (Sharp, fal, OpenAI, Anthropic, …) **plus** Ollama + storage |
+| `pnpm run up:demo -- --ollama-only` | Ollama + storage only (no Sharp/fal host bindings) |
+
+Daemon default: `http://127.0.0.1:3090`. Pairing URL includes `?token=` and `?bridge=`. Details: [`apps/browser-demo/host/README.md`](apps/browser-demo/host/README.md).
+
+GitHub Pages deploys the app from `main` (`.github/workflows/pages.yml`) after a workspace install and `pnpm run build` (not npm publish).
 
 ------------------------------------------------------------------------
 

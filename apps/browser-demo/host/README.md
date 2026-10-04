@@ -12,13 +12,39 @@ Binds Node-only capabilities the demo also binds so pairing passes host-compat:
 | `@executioncontrolprotocol/openai` | OpenAI generate/evaluate hops from the browser |
 | `@executioncontrolprotocol/anthropic` | Anthropic generate (local; vault or host env key) |
 
-`ecp up` always adds Ollama on top of `--env` (model picker / coding harness).
+`ecp up` always adds Ollama + storage on top of `--env` (model picker / coding harness).
 
 Optional secrets from the host process env: `FAL_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`.
 
+## Start from the monorepo root
+
+Build once, then use two terminals:
+
 ```sh
-pnpm run link:host
-npx ecp up --env host/environment.ts --open-url http://127.0.0.1:5173/
+# Terminal 1 — Vite app
+pnpm run build
+pnpm run dev:demo
+
+# Terminal 2 — host daemon (this env + Ollama), opens http://localhost:5173/?token=…
+pnpm run up:demo
 ```
 
-Vendor Sharp-only smoke lives in [extensions/examples/04-image-prep](https://github.com/executioncontrolprotocol/extensions/tree/main/examples/04-image-prep).
+Ollama-only (no Sharp/fal/OpenAI host bindings):
+
+```sh
+pnpm run up:demo -- --ollama-only
+```
+
+Equivalent without the helper script (path must resolve; prefer absolute when using `pnpm --filter … exec`):
+
+```sh
+# From apps/browser-demo (global or linked CLI)
+ecp up --env ./host/environment.ts --open-url http://localhost:5173/
+
+# From monorepo root
+pnpm run up:demo
+```
+
+See the [browser-demo README](../README.md#local-startup-options) for the full matrix (Chrome AI vs Ollama vs host hops).
+
+Vendor Sharp-only smoke: [`examples/vendor/04-image-prep`](../../../examples/vendor/04-image-prep).

@@ -53,7 +53,7 @@ ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-**Prefer the browser?** Open the [hosted Graph Editor](https://demo.executioncontrolprotocol.io/) or run `pnpm run dev:demo` from this repo (`apps/browser-demo`).
+**Prefer the browser?** Open the [hosted Graph Editor](https://demo.executioncontrolprotocol.io/) or, from this repo: `pnpm run build` → `pnpm run dev:demo` (Chrome AI). For Ollama / host hops: second terminal `pnpm run up:demo` — see [`apps/browser-demo/README.md`](apps/browser-demo/README.md#local-startup-options).
 
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
 **Implementation spec (source of truth):** [`ecp-overhaul.md`](ecp-overhaul.md)  

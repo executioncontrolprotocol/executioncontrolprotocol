@@ -93,6 +93,7 @@ pnpm run test:coverage  # unit project + V8 coverage + thresholds (vitest.config
 pnpm run test:consumer-cli  # pack + install into fixtures/consumer-cli layout; ecp compile/validate/run
 pnpm run test:vendor-pack    # pack core/types/jsonata; typecheck against tarballs
 pnpm run dev:demo             # Vite app at apps/browser-demo
+pnpm run up:demo              # ecp up with apps/browser-demo/host (+ Ollama); use -- --ollama-only for Ollama alone
 pnpm run test:eval:matrix  # full harness matrix (Ollama gemma3:1b + qwen coder; skips when unavailable)
 ```
 
