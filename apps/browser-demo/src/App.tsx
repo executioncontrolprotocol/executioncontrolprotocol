@@ -184,16 +184,6 @@ const EMPTY_MERMAID = "flowchart TD\n  empty[No workflow]"
 const HOST_NOT_CONNECTED_MSG = "Connect ecp up to use host-saved workflows."
 const BRIDGE_POLL_MS = 5_000
 
-function ollamaBridgeHintFromDetect(result: BridgeDetectResult): string {
-  if (!result.available) {
-    return "Run ecp up locally to enable Ollama (Chromium required for hosted HTTPS)."
-  }
-  if (!result.ollamaReachable) {
-    return "ecp up is running but Ollama is unreachable — start Ollama and retry."
-  }
-  return ""
-}
-
 export function App() {
   const layout = useViewLayout()
   const [assistantMode, setAssistantMode] = useState<AssistantMode>("authoring")
@@ -225,9 +215,6 @@ export function App() {
   })
   const [ollamaBridgeAvailable, setOllamaBridgeAvailable] = useState(false)
   const [bridgeAvailable, setBridgeAvailable] = useState(false)
-  const [ollamaBridgeHint, setOllamaBridgeHint] = useState(
-    "Checking for local ecp up daemon…"
-  )
   const [showProviderModal, setShowProviderModal] = useState(false)
   const [showVaultSetup, setShowVaultSetup] = useState(false)
   const [vaultGate, setVaultGate] = useState<"locked" | "ready">("ready")
@@ -374,9 +361,13 @@ export function App() {
     const result = await detectEcpBridge(baseURL ?? readBridgeSettings().baseURL)
     setBridgeAvailable(result.available)
     setOllamaBridgeAvailable(isOllamaBridgeUsable(result))
-    setOllamaBridgeHint(ollamaBridgeHintFromDetect(result))
     return result
   }, [])
+
+  const openProviderModal = useCallback(() => {
+    void refreshBridgeDetect()
+    setShowProviderModal(true)
+  }, [refreshBridgeDetect])
 
   useEffect(() => {
     if (vaultGate === "locked") return
@@ -1622,7 +1613,7 @@ export function App() {
         onExecute={onExecute}
         executeDisabled={!ecp || !hasWorkflow}
         executeBusy={runBusy}
-        onSettings={() => setShowProviderModal(true)}
+        onSettings={openProviderModal}
         hostConnected={hostConnected}
         hasWorkflow={hasWorkflow}
         onSave={() => void onSaveWorkflow()}
@@ -1779,7 +1770,6 @@ export function App() {
           chromeSupported={chromeSupported}
           chromeReady={chromeReady}
           ollamaBridgeAvailable={ollamaBridgeAvailable}
-          ollamaBridgeHint={ollamaBridgeHint}
           initialMode={providerMode}
           onExplore={onExplore}
           onComplete={onProviderComplete}
@@ -1817,11 +1807,11 @@ export function App() {
         <VaultSetupModal
           onComplete={() => {
             setShowVaultSetup(false)
-            setShowProviderModal(true)
+            openProviderModal()
           }}
           onCancel={() => {
             setShowVaultSetup(false)
-            setShowProviderModal(true)
+            openProviderModal()
           }}
         />
       ) : null}
@@ -1864,7 +1854,7 @@ export function App() {
           onCancel={() => {
             setChromeInstallUi("idle")
             stopPolling()
-            setShowProviderModal(true)
+            openProviderModal()
           }}
         />
       ) : null}

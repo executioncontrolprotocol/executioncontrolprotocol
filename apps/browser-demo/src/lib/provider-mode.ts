@@ -120,15 +120,15 @@ export function canContinueFirstRun(
 
 /**
  * Preferred provider radio when opening the first-run / settings modal.
- * If the stored choice is Ollama but `ecp up` is down, fall back to Chrome AI
- * so Continue is usable instead of stuck on a disabled Ollama option.
+ * If the stored choice is Ollama but `ecp up` is down, never keep Ollama selected —
+ * fall back to Chrome AI when supported, otherwise Anthropic.
  */
 export function preferredModalProviderMode(
   stored: ProviderMode | null | undefined,
   options: Pick<FirstRunContinueOptions, "chromeSupported" | "ollamaBridgeAvailable">
 ): ProviderMode {
-  if (stored === "ollama" && !options.ollamaBridgeAvailable && options.chromeSupported) {
-    return "chrome-ai"
+  if (stored === "ollama" && !options.ollamaBridgeAvailable) {
+    return options.chromeSupported ? "chrome-ai" : "anthropic"
   }
   if (stored && isProviderModeSelectable(stored)) return stored
   if (options.chromeSupported) return "chrome-ai"

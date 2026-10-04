@@ -118,6 +118,24 @@ describe("preferredModalProviderMode", () => {
     ).toBe("chrome-ai")
   })
 
+  it("falls back to anthropic when ollama is stored, bridge is down, and chrome is unsupported", () => {
+    expect(
+      preferredModalProviderMode("ollama", {
+        chromeSupported: false,
+        ollamaBridgeAvailable: false,
+      })
+    ).toBe("anthropic")
+  })
+
+  it("never keeps ollama selected when the bridge is down", () => {
+    expect(
+      preferredModalProviderMode("ollama", {
+        chromeSupported: false,
+        ollamaBridgeAvailable: false,
+      })
+    ).not.toBe("ollama")
+  })
+
   it("keeps ollama when the bridge is usable", () => {
     expect(
       preferredModalProviderMode("ollama", {
