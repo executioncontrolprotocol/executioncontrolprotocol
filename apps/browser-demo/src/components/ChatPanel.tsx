@@ -34,6 +34,11 @@ export interface ChatPanelProps {
   onOfferProbeDecline?: () => void
   /** Run from an embedded chat form. */
   onChatRun?: (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => void
+  /**
+   * Open the full-size run UI panel.
+   * Pass `output` when expanding from a completed run bubble.
+   */
+  onOpenRunUi?: (phase?: "input" | "output") => void
   runBusy?: boolean
   hasWorkflow?: boolean
   acceptsSchema?: Record<string, unknown>
@@ -74,6 +79,7 @@ export function ChatPanel({
   onOfferProbeConfirm,
   onOfferProbeDecline,
   onChatRun,
+  onOpenRunUi,
   runBusy = false,
   hasWorkflow = false,
   acceptsSchema,
@@ -156,15 +162,29 @@ export function ChatPanel({
                 </div>
                 <div className="flex min-w-0 flex-col gap-2">
                   <div
-                    className={`min-w-0 max-w-full rounded-lg rounded-tl-none border p-3 ${
+                    className={`relative min-w-0 max-w-full rounded-lg rounded-tl-none border p-3 ${
                       m.variant === "error"
                         ? "border-error/40 bg-error-container/30"
                         : "border-outline-variant/30 bg-surface-container-high"
                     }`}
                   >
+                    {(m.runForm || m.runOutput) && onOpenRunUi ? (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded border border-outline-variant/40 bg-surface-container text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
+                        title="Open in UI panel"
+                        aria-label="Open in UI panel"
+                        disabled={disabled || busy || runBusy}
+                        onClick={() => onOpenRunUi(m.runOutput ? "output" : "input")}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">open_in_full</span>
+                      </button>
+                    ) : null}
                     {m.text ? (
                       <p
                         className={`chat-bubble-text text-body ${
+                          (m.runForm || m.runOutput) && onOpenRunUi ? "pr-8" : ""
+                        } ${
                           m.variant === "error" ? "text-on-error-container" : "text-on-surface"
                         }`}
                       >

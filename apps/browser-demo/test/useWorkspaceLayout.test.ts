@@ -12,8 +12,8 @@ describe("useViewLayout state shape", () => {
     const stateKeys = [
       "views",
       "toggleView",
-      "onFirstWorkflow",
       "openWorkspace",
+      "openUi",
       "ensureWorkflowVisible",
       "workspaceVisible",
       "paired",

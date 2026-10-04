@@ -7,7 +7,7 @@ export interface WorkspaceColumnProps {
   children: ReactNode
 }
 
-/** Right-hand workspace column hosting workflow or code views. */
+/** Right-hand workspace column hosting workflow, code, or run UI views. */
 export function WorkspaceColumn({ visible, widthClass, children }: WorkspaceColumnProps) {
   if (!visible) return null
 

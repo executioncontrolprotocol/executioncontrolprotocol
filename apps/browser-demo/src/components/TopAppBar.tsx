@@ -82,6 +82,15 @@ export function TopAppBar({
             >
               <span className="material-symbols-outlined">code</span>
             </button>
+            <button
+              type="button"
+              className={`view-nav-btn${views.ui ? " active-btn" : ""}`}
+              id="btn-view-ui"
+              title="UI"
+              onClick={() => onToggleView("ui")}
+            >
+              <span className="material-symbols-outlined">web_asset</span>
+            </button>
           </div>
         </div>
       </nav>

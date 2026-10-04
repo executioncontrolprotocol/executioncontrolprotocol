@@ -59,6 +59,7 @@ import { FirstRunModal } from "./components/FirstRunModal.js"
 import { VaultSetupModal } from "./components/VaultSetupModal.js"
 import { VaultUnlockModal } from "./components/VaultUnlockModal.js"
 import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
+import { RunPanel, type RunPanelPhase } from "./components/RunPanel.js"
 import { RunResultModal, type RunModalMode } from "./components/RunResultModal.js"
 import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
 import { IoConfigureDialog, type IoConfigureSavePayload } from "./components/IoConfigureDialog.js"
@@ -150,7 +151,6 @@ import {
   readBridgeSettings,
   storeBridgeSettings,
   describeViaBridge,
-  type BridgeDetectResult,
   type BridgeSettings,
 } from "./lib/ecp-bridge.js"
 import { checkHostMixedCompatibility } from "./lib/host-compatibility.js"
@@ -258,6 +258,7 @@ export function App() {
   const [runOutput, setRunOutput] = useState("")
   const [runPublicOutput, setRunPublicOutput] = useState("")
   const [runBusy, setRunBusy] = useState(false)
+  const [runPanelPhase, setRunPanelPhase] = useState<RunPanelPhase>("input")
   const [runModalOpen, setRunModalOpen] = useState(false)
   const [runModalMode, setRunModalMode] = useState<RunModalMode>("inspect")
   const [lastRunResult, setLastRunResult] = useState<unknown>(null)
@@ -1264,15 +1265,13 @@ export function App() {
 
     const nextWorkflow = chatResultWorkflow(harnessResult)
     if (nextWorkflow) {
-      const hadWorkflow = manifest !== null
       const harnessValidation = harnessResult.validation as ValidationResult | undefined
       await syncFromManifest(nextWorkflow, {
         refreshFluent: true,
         patchToon: harnessResult.raw,
         ...(harnessValidation ? { validation: harnessValidation } : {}),
       })
-      if (!hadWorkflow) layout.onFirstWorkflow()
-      else layout.openWorkspace()
+      // Stay on chat after authoring — do not auto-open workflow/code/ui.
       const val = harnessValidation as { valid?: boolean } | undefined
       const suggestedAction = chatResultSuggestedAction(harnessResult)
       const answer =
@@ -1466,22 +1465,41 @@ export function App() {
     }
   }
 
+  const draftsFromLastChatRun = (): Record<string, string> | undefined => {
+    if (!lastChatRunInput) return runFormDrafts
+    const drafts: Record<string, string> = {}
+    for (const [key, value] of Object.entries(lastChatRunInput)) {
+      drafts[key] = typeof value === "string" ? value : JSON.stringify(value, null, 2)
+    }
+    return Object.keys(drafts).length > 0 ? drafts : runFormDrafts
+  }
+
   const onRun = async (
     input?: Record<string, unknown>,
     blobs?: CapabilityBlobStore,
-    options?: { source?: "modal" | "chat" }
+    options?: { source?: "modal" | "chat" | "ui" }
   ) => {
     if (!ecp || !manifest) return
     const fromChat = options?.source === "chat"
+    const fromUi = options?.source === "ui"
     setRunBusy(true)
     setRunModalOpen(false)
     setRunOutput("")
     setRunPublicOutput("")
     lastRunBlobs.current = blobs
-    if (fromChat && input) {
+    if ((fromChat || fromUi) && input) {
       setLastChatRunInput(input)
+      const drafts: Record<string, string> = {}
+      for (const [key, value] of Object.entries(input)) {
+        drafts[key] = typeof value === "string" ? value : JSON.stringify(value, null, 2)
+      }
+      setRunFormDrafts(Object.keys(drafts).length > 0 ? drafts : undefined)
     }
-    layout.ensureWorkflowVisible()
+    if (fromUi) {
+      layout.openUi()
+      setRunPanelPhase("running")
+    }
+    // Chat / UI runs stay put — do not force the workflow graph open.
     let result: RunResult | undefined
     try {
       result = (await ecp.run(withNormalizedFileAccepts(manifest), {
@@ -1505,6 +1523,8 @@ export function App() {
               : {}),
           })
         }
+      } else if (fromUi) {
+        setRunPanelPhase("output")
       } else {
         setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
         setRunModalOpen(true)
@@ -1518,6 +1538,8 @@ export function App() {
       emitRunProgressFailed()
       if (fromChat) {
         void autoTroubleshootAfterFailure(errorResult)
+      } else if (fromUi) {
+        setRunPanelPhase("output")
       } else {
         setRunModalMode("inspect")
         setRunModalOpen(true)
@@ -1537,15 +1559,21 @@ export function App() {
     void onRun(input, blobs, { source: "chat" })
   }
 
+  const onRunFromUi = (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => {
+    void onRun(input, blobs, { source: "ui" })
+  }
+
+  const openRunUi = (phase: RunPanelPhase = "input") => {
+    if (phase === "input") {
+      setRunFormDrafts(draftsFromLastChatRun())
+    }
+    setRunPanelPhase(phase)
+    layout.openUi()
+  }
+
   const onExecute = () => {
     if (!manifest) return
-    const accepts = workflowContract(manifest).accepts
-    if (ioFieldsFromSchema(accepts).length > 0) {
-      setRunModalMode("input")
-      setRunModalOpen(true)
-      return
-    }
-    void onRun(undefined, undefined, { source: "modal" })
+    openRunUi("input")
   }
 
   const onFluentChange = useCallback(
@@ -1714,6 +1742,7 @@ export function App() {
               onOfferProbeConfirm={onOfferProbeConfirm}
               onOfferProbeDecline={onOfferProbeDecline}
               onChatRun={onRunFromChat}
+              onOpenRunUi={(phase) => openRunUi(phase)}
               runBusy={runBusy}
               hasWorkflow={hasWorkflow}
               acceptsSchema={runAcceptsSchema}
@@ -1791,6 +1820,32 @@ export function App() {
                   onFluentChange={onFluentChange}
                   onBeautifyFluent={onBeautifyFluent}
                   beautifyBusy={beautifyBusy}
+                />
+              ) : null}
+              {layout.views.ui ? (
+                <RunPanel
+                  phase={runPanelPhase}
+                  runBusy={runBusy}
+                  onRun={onRunFromUi}
+                  onRunAgain={() => {
+                    setRunFormDrafts(draftsFromLastChatRun())
+                    setRunPanelPhase("input")
+                  }}
+                  hasWorkflow={hasWorkflow}
+                  acceptsSchema={runAcceptsSchema}
+                  returnsSchema={runReturnsSchema}
+                  bridge={bridgeSettings}
+                  filePickerEnabled={hostConnected}
+                  initialDrafts={runFormDrafts}
+                  runResult={lastRunResult}
+                  runOutputData={
+                    lastRunResult &&
+                    typeof lastRunResult === "object" &&
+                    "output" in lastRunResult
+                      ? (lastRunResult as { output?: unknown }).output
+                      : undefined
+                  }
+                  blobs={lastRunBlobs.current}
                 />
               ) : null}
             </WorkspaceColumn>
