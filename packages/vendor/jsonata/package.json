@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/jsonata",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "JSONata expression transform extension for ECP",
   "license": "Apache-2.0",
   "type": "module",

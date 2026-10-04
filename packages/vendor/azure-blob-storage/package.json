@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/azure-blob-storage",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "Azure Blob Storage extension for ECP (upload, SAS URLs, download)",
   "license": "Apache-2.0",
   "type": "module",
