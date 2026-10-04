@@ -118,6 +118,7 @@ import {
 } from "./lib/host-workflows.js"
 import { columnWidthClass } from "./lib/view-layout.js"
 import {
+  didDemoModelChange,
   harnessCapabilityId,
   preferredModalProviderMode,
   providerCapabilityId,
@@ -126,6 +127,7 @@ import {
   storeProviderMode,
   type AssistantMode,
   type ChromeInstallUi,
+  type DemoModelSession,
   type ProviderMode,
 } from "./lib/provider-mode.js"
 import {
@@ -199,6 +201,7 @@ export function App() {
     clearOfferProbeFlags,
     clearOfferRunFlags,
     setGuidedWelcome,
+    resetWelcome,
   } = useChatHistory(assistantMode)
   const [ecp, setEcp] = useState<Ecp | null>(null)
   const [providerMode, setProviderMode] = useState<ProviderMode>(
@@ -219,6 +222,8 @@ export function App() {
   const [ollamaBridgeAvailable, setOllamaBridgeAvailable] = useState(false)
   const [bridgeAvailable, setBridgeAvailable] = useState(false)
   const [showProviderModal, setShowProviderModal] = useState(false)
+  /** Provider/model at modal open — used so dismiss / unchanged Continue keep chat. */
+  const providerModalSessionRef = useRef<DemoModelSession | null>(null)
   const [showVaultSetup, setShowVaultSetup] = useState(false)
   const [vaultGate, setVaultGate] = useState<"locked" | "ready">("ready")
   const [chromeSupported, setChromeSupported] = useState(false)
@@ -368,9 +373,25 @@ export function App() {
   }, [])
 
   const openProviderModal = useCallback(() => {
+    providerModalSessionRef.current = {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
     void refreshBridgeDetect()
     setShowProviderModal(true)
-  }, [refreshBridgeDetect])
+  }, [refreshBridgeDetect, providerMode, ollamaSettings.model, anthropicSettings.model])
+
+  // Snapshot when bootstrap (or other paths) opens the modal without openProviderModal.
+  useEffect(() => {
+    if (!showProviderModal) return
+    if (providerModalSessionRef.current) return
+    providerModalSessionRef.current = {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+  }, [showProviderModal, providerMode, ollamaSettings.model, anthropicSettings.model])
 
   useEffect(() => {
     if (vaultGate === "locked") return
@@ -1124,12 +1145,28 @@ export function App() {
   )
 
   const onProviderComplete = (mode: ProviderMode, nextOllama?: OllamaSettings) => {
+    const previous = providerModalSessionRef.current ?? {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const nextSession: DemoModelSession = {
+      mode,
+      ollamaModel: nextOllama?.model ?? ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const modelChanged = didDemoModelChange(previous, nextSession)
+    providerModalSessionRef.current = null
+
     storeProviderMode(mode)
     setProviderMode(mode)
     setAssistantMode("authoring")
     setShowProviderModal(false)
     storeBridgeSettings(bridgeSettings)
     storeAnthropicSettings(anthropicSettings)
+    if (modelChanged) {
+      resetWelcome("authoring")
+    }
     const preset = readDemoEnvPreset()
     if (nextOllama) {
       storeOllamaSettings(nextOllama)
@@ -1146,20 +1183,37 @@ export function App() {
     })
   }
 
-  const onExplore = () => {
-    setAssistantMode("guided")
-    setProviderMode("chrome-ai")
+  const onProviderModalDismiss = () => {
+    providerModalSessionRef.current = null
     setShowProviderModal(false)
-    setGuidedWelcome()
-    setChatStatus("Guided mode — explore the editor.")
+    // First-run only: no stored provider yet → explore without binding a model.
+    if (!readStoredProviderMode()) {
+      setAssistantMode("guided")
+      setProviderMode("chrome-ai")
+      setGuidedWelcome()
+      setChatStatus("Guided mode — explore the editor.")
+    }
   }
 
   const onChromeInstallFromModal = () => {
     // First line after the Continue click — preserve user activation for create().
     beginChromeInstall("dialog")
+    const previous = providerModalSessionRef.current ?? {
+      mode: providerMode,
+      ollamaModel: ollamaSettings.model,
+      anthropicModel: anthropicSettings.model,
+    }
+    const modelChanged = didDemoModelChange(previous, {
+      mode: "chrome-ai",
+      ollamaModel: previous.ollamaModel,
+      anthropicModel: previous.anthropicModel,
+    })
+    providerModalSessionRef.current = null
     setAssistantMode("guided")
     setProviderMode("chrome-ai")
-    setGuidedWelcome()
+    if (modelChanged || !readStoredProviderMode()) {
+      setGuidedWelcome()
+    }
     setChatStatus("Installing Chrome AI...")
   }
 
@@ -1789,7 +1843,7 @@ export function App() {
           chromeReady={chromeReady}
           ollamaBridgeAvailable={ollamaBridgeAvailable}
           initialMode={providerMode}
-          onExplore={onExplore}
+          onExplore={onProviderModalDismiss}
           onComplete={onProviderComplete}
           onChromeInstall={onChromeInstallFromModal}
           ollamaSettings={ollamaSettings}

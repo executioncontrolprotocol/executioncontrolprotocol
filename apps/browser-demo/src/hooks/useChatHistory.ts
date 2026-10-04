@@ -94,6 +94,16 @@ export function useChatHistory(initialMode: AssistantMode = "authoring") {
     setMessages([{ id: nextId(), role: "agent", text: GUIDED_WELCOME }])
   }, [])
 
+  const resetWelcome = useCallback((mode: AssistantMode = "authoring") => {
+    setMessages([
+      {
+        id: nextId(),
+        role: "agent",
+        text: mode === "guided" ? GUIDED_WELCOME : AUTHORING_WELCOME,
+      },
+    ])
+  }, [])
+
   return {
     messages,
     status,
@@ -104,5 +114,6 @@ export function useChatHistory(initialMode: AssistantMode = "authoring") {
     clearOfferRunFlags,
     clearOfferProbeFlags,
     setGuidedWelcome,
+    resetWelcome,
   }
 }

@@ -170,6 +170,37 @@ export function storeProviderMode(mode: ProviderMode): void {
   localStorage.setItem(PROVIDER_MODE_STORAGE_KEY, mode)
 }
 
+/**
+ * Provider + model identity used to decide whether chat should reset
+ * after the model picker closes.
+ */
+export interface DemoModelSession {
+  /** Selected provider mode. */
+  mode: ProviderMode
+  /** Ollama model tag (relevant when {@link DemoModelSession.mode} is `ollama`). */
+  ollamaModel: string
+  /** Anthropic model tag (relevant when {@link DemoModelSession.mode} is `anthropic`). */
+  anthropicModel: string
+}
+
+/**
+ * Whether the picker selection changes the active provider or model.
+ * Chat history should reset only when this returns true.
+ */
+export function didDemoModelChange(
+  previous: DemoModelSession,
+  next: DemoModelSession
+): boolean {
+  if (previous.mode !== next.mode) return true
+  if (next.mode === "ollama") {
+    return previous.ollamaModel.trim() !== next.ollamaModel.trim()
+  }
+  if (next.mode === "anthropic") {
+    return previous.anthropicModel.trim() !== next.anthropicModel.trim()
+  }
+  return false
+}
+
 /** Chrome install UI surface. */
 export type ChromeInstallUi = "idle" | "dialog" | "toast" | "done"
 

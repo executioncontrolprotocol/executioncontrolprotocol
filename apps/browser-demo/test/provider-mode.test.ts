@@ -1,6 +1,7 @@
 ﻿import { describe, expect, it, beforeEach } from "vitest"
 import {
   canContinueFirstRun,
+  didDemoModelChange,
   harnessCapabilityId,
   isProviderModeSelectable,
   preferredModalProviderMode,
@@ -176,5 +177,52 @@ describe("readStoredProviderMode", () => {
     expect(readStoredProviderMode()).toBe(null)
     localStorage.setItem(PROVIDER_MODE_STORAGE_KEY, "claude")
     expect(readStoredProviderMode()).toBe(null)
+  })
+})
+
+describe("didDemoModelChange", () => {
+  it("is false when provider and model are unchanged", () => {
+    expect(
+      didDemoModelChange(
+        { mode: "chrome-ai", ollamaModel: "gemma3:1b", anthropicModel: "claude-sonnet-4-5" },
+        { mode: "chrome-ai", ollamaModel: "gemma3:1b", anthropicModel: "claude-sonnet-4-5" }
+      )
+    ).toBe(false)
+    expect(
+      didDemoModelChange(
+        { mode: "ollama", ollamaModel: "gemma3:1b", anthropicModel: "" },
+        { mode: "ollama", ollamaModel: "gemma3:1b", anthropicModel: "ignored" }
+      )
+    ).toBe(false)
+    expect(
+      didDemoModelChange(
+        { mode: "anthropic", ollamaModel: "", anthropicModel: "claude-sonnet-4-5" },
+        { mode: "anthropic", ollamaModel: "ignored", anthropicModel: "claude-sonnet-4-5" }
+      )
+    ).toBe(false)
+  })
+
+  it("is true when provider changes", () => {
+    expect(
+      didDemoModelChange(
+        { mode: "chrome-ai", ollamaModel: "", anthropicModel: "" },
+        { mode: "ollama", ollamaModel: "gemma3:1b", anthropicModel: "" }
+      )
+    ).toBe(true)
+  })
+
+  it("is true when the active model tag changes", () => {
+    expect(
+      didDemoModelChange(
+        { mode: "ollama", ollamaModel: "gemma3:1b", anthropicModel: "" },
+        { mode: "ollama", ollamaModel: "qwen2.5-coder:1.5b", anthropicModel: "" }
+      )
+    ).toBe(true)
+    expect(
+      didDemoModelChange(
+        { mode: "anthropic", ollamaModel: "", anthropicModel: "claude-sonnet-4-5" },
+        { mode: "anthropic", ollamaModel: "", anthropicModel: "claude-opus-4-5" }
+      )
+    ).toBe(true)
   })
 })

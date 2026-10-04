@@ -137,7 +137,7 @@ export function FirstRunModal({
             type="button"
             onClick={onExplore}
             className="modal-close-btn"
-            aria-label="Explore without choosing a provider"
+            aria-label="Close provider settings"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
