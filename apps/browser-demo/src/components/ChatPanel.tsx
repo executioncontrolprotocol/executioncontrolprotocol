@@ -106,7 +106,7 @@ export function ChatPanel({
 
   return (
     <section
-      className={`chat-drawer flex h-full min-w-0 flex-col overflow-hidden border-outline-variant bg-surface-container ${widthClass}${paired ? " shrink-0" : ""}`}
+      className={`chat-drawer flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border-outline-variant bg-surface-container ${widthClass}${paired ? " shrink-0" : ""}`}
       id="chat-drawer"
       aria-label="Logic Assistant"
     >

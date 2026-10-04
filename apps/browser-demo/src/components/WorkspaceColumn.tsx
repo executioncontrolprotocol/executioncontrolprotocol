@@ -13,7 +13,7 @@ export function WorkspaceColumn({ visible, widthClass, children }: WorkspaceColu
 
   return (
     <div
-      className={`workspace-column h-full bg-surface-container-lowest ${widthClass}`}
+      className={`workspace-column flex h-full min-h-0 min-w-0 flex-col bg-surface-container-lowest ${widthClass}`}
       id="workspace-column"
     >
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" id="workflow-panel">

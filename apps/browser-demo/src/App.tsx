@@ -67,9 +67,11 @@ import { TopAppBar } from "./components/TopAppBar.js"
 import { OpenWorkflowDialog } from "./components/OpenWorkflowDialog.js"
 import { DownloadWorkflowDialog } from "./components/DownloadWorkflowDialog.js"
 import { SaveWorkflowDialog } from "./components/SaveWorkflowDialog.js"
+import { SplitPane } from "./components/SplitPane.js"
 import { WorkspaceColumn } from "./components/WorkspaceColumn.js"
 import { useChatHistory } from "./hooks/useChatHistory.js"
 import { useChromeModelInstall } from "./hooks/useChromeModelInstall.js"
+import { useSplitPane } from "./hooks/useSplitPane.js"
 import { readAvailability } from "@executioncontrolprotocol/chrome-ai"
 import { useViewLayout } from "./hooks/useViewLayout.js"
 import { installEsbuildWasmUrl } from "./lib/esbuild-wasm-bootstrap.js"
@@ -186,6 +188,7 @@ const BRIDGE_POLL_MS = 5_000
 
 export function App() {
   const layout = useViewLayout()
+  const split = useSplitPane()
   const [assistantMode, setAssistantMode] = useState<AssistantMode>("authoring")
   const {
     messages: chatMessages,
@@ -1637,107 +1640,122 @@ export function App() {
       />
 
       <main className="flex min-h-0 w-full flex-1 overflow-hidden">
-        {layout.views.chat ? (
-          <ChatPanel
-            visible
-            widthClass={widthClass}
-            paired={layout.paired}
-            messages={chatMessages}
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            onSubmit={onSubmit}
-            disabled={!ecp || chatBlocked}
-            busy={chatBusy}
-            showQuickStarts={shouldShowWorkflowQuickStarts(chatMessages)}
-            quickStarts={WORKFLOW_QUICK_STARTS}
-            onQuickStartClick={(text) => void submitMessage(text)}
-            onOfferRunConfirm={onOfferRunConfirm}
-            onOfferRunDecline={onOfferRunDecline}
-            onOfferProbeConfirm={onOfferProbeConfirm}
-            onOfferProbeDecline={onOfferProbeDecline}
-            onChatRun={onRunFromChat}
-            runBusy={runBusy}
-            hasWorkflow={hasWorkflow}
-            acceptsSchema={runAcceptsSchema}
-            returnsSchema={runReturnsSchema}
-            bridge={bridgeSettings}
-            filePickerEnabled={hostConnected}
-            runFormDrafts={runFormDrafts}
-            anthropicAttachEnabled={providerMode === "anthropic"}
-            anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
-            attachedFileNames={chatAttachFiles.map((f) => f.name)}
-            onAttachFiles={(list) => {
-              if (!list || list.length === 0) return
-              void (async () => {
-                const next: Array<{ name: string; mediaType: string; data: string }> = []
-                for (const file of Array.from(list)) {
-                  const mediaType = file.type || "application/octet-stream"
-                  if (!isAnthropicChatFileMediaType(mediaType)) {
-                    appendAgentError(
-                      `Unsupported attachment type: ${mediaType || file.name}. Use JPEG, PNG, GIF, WEBP, or PDF.`
-                    )
-                    continue
+        {(() => {
+          const chat = (
+            <ChatPanel
+              visible
+              widthClass={layout.paired ? "is-full" : widthClass}
+              paired={false}
+              messages={chatMessages}
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              onSubmit={onSubmit}
+              disabled={!ecp || chatBlocked}
+              busy={chatBusy}
+              showQuickStarts={shouldShowWorkflowQuickStarts(chatMessages)}
+              quickStarts={WORKFLOW_QUICK_STARTS}
+              onQuickStartClick={(text) => void submitMessage(text)}
+              onOfferRunConfirm={onOfferRunConfirm}
+              onOfferRunDecline={onOfferRunDecline}
+              onOfferProbeConfirm={onOfferProbeConfirm}
+              onOfferProbeDecline={onOfferProbeDecline}
+              onChatRun={onRunFromChat}
+              runBusy={runBusy}
+              hasWorkflow={hasWorkflow}
+              acceptsSchema={runAcceptsSchema}
+              returnsSchema={runReturnsSchema}
+              bridge={bridgeSettings}
+              filePickerEnabled={hostConnected}
+              runFormDrafts={runFormDrafts}
+              anthropicAttachEnabled={providerMode === "anthropic"}
+              anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
+              attachedFileNames={chatAttachFiles.map((f) => f.name)}
+              onAttachFiles={(list) => {
+                if (!list || list.length === 0) return
+                void (async () => {
+                  const next: Array<{ name: string; mediaType: string; data: string }> = []
+                  for (const file of Array.from(list)) {
+                    const mediaType = file.type || "application/octet-stream"
+                    if (!isAnthropicChatFileMediaType(mediaType)) {
+                      appendAgentError(
+                        `Unsupported attachment type: ${mediaType || file.name}. Use JPEG, PNG, GIF, WEBP, or PDF.`
+                      )
+                      continue
+                    }
+                    const buffer = await file.arrayBuffer()
+                    const bytes = new Uint8Array(buffer)
+                    let binary = ""
+                    for (const byte of bytes) binary += String.fromCharCode(byte)
+                    next.push({
+                      name: file.name,
+                      mediaType: mediaType === "image/jpg" ? "image/jpeg" : mediaType,
+                      data: btoa(binary),
+                    })
                   }
-                  const buffer = await file.arrayBuffer()
-                  const bytes = new Uint8Array(buffer)
-                  let binary = ""
-                  for (const byte of bytes) binary += String.fromCharCode(byte)
-                  next.push({
-                    name: file.name,
-                    mediaType: mediaType === "image/jpg" ? "image/jpeg" : mediaType,
-                    data: btoa(binary),
-                  })
-                }
-                if (next.length > 0) {
-                  setChatAttachFiles((prev) => [...prev, ...next])
-                }
-              })()
-            }}
-            onRemoveAttachedFile={(index) => {
-              setChatAttachFiles((prev) => prev.filter((_, i) => i !== index))
-            }}
-          />
-        ) : null}
+                  if (next.length > 0) {
+                    setChatAttachFiles((prev) => [...prev, ...next])
+                  }
+                })()
+              }}
+              onRemoveAttachedFile={(index) => {
+                setChatAttachFiles((prev) => prev.filter((_, i) => i !== index))
+              }}
+            />
+          )
+          const workspace = (
+            <WorkspaceColumn visible widthClass="is-full">
+              {layout.views.workflow ? (
+                <ReactFlowCanvas
+                  reactflowJson={reactflow}
+                  runBusy={runBusy}
+                  onOpenRunModal={() => {
+                    setRunModalMode("inspect")
+                    setRunModalOpen(true)
+                  }}
+                  hasWorkflow={hasWorkflow}
+                  capabilityExecution={capabilityExecutionMap(descriptor)}
+                  hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
+                  onConfigureStep={onConfigureStep}
+                  onConnectPorts={onConnectPorts}
+                  onDisconnectPorts={onDisconnectPorts}
+                  onWorkflowFileDrop={onWorkflowFileDrop}
+                />
+              ) : null}
+              {layout.views.code ? (
+                <CodePanel
+                  editorTab={editorTab}
+                  onEditorTabChange={setEditorTab}
+                  formatTab={formatTab}
+                  onFormatTabChange={setFormatTab}
+                  fluent={fluent}
+                  fluentEditorKey={fluentEditorKey}
+                  json={json}
+                  toon={toon}
+                  mermaid={mermaid}
+                  environmentSource={environmentSource}
+                  compileError={compileError}
+                  onFluentChange={onFluentChange}
+                  onBeautifyFluent={onBeautifyFluent}
+                  beautifyBusy={beautifyBusy}
+                />
+              ) : null}
+            </WorkspaceColumn>
+          )
 
-        {layout.workspaceVisible ? (
-          <WorkspaceColumn visible widthClass={widthClass}>
-            {layout.views.workflow ? (
-              <ReactFlowCanvas
-                reactflowJson={reactflow}
-                runBusy={runBusy}
-                onOpenRunModal={() => {
-                  setRunModalMode("inspect")
-                  setRunModalOpen(true)
-                }}
-                hasWorkflow={hasWorkflow}
-                capabilityExecution={capabilityExecutionMap(descriptor)}
-                hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
-                onConfigureStep={onConfigureStep}
-                onConnectPorts={onConnectPorts}
-                onDisconnectPorts={onDisconnectPorts}
-                onWorkflowFileDrop={onWorkflowFileDrop}
+          if (layout.paired) {
+            return (
+              <SplitPane
+                left={chat}
+                right={workspace}
+                leftWidth={split.leftWidth}
+                onDividerPointerDown={split.onPointerDown}
               />
-            ) : null}
-            {layout.views.code ? (
-              <CodePanel
-                editorTab={editorTab}
-                onEditorTabChange={setEditorTab}
-                formatTab={formatTab}
-                onFormatTabChange={setFormatTab}
-                fluent={fluent}
-                fluentEditorKey={fluentEditorKey}
-                json={json}
-                toon={toon}
-                mermaid={mermaid}
-                environmentSource={environmentSource}
-                compileError={compileError}
-                onFluentChange={onFluentChange}
-                onBeautifyFluent={onBeautifyFluent}
-                beautifyBusy={beautifyBusy}
-              />
-            ) : null}
-          </WorkspaceColumn>
-        ) : null}
+            )
+          }
+          if (layout.views.chat) return chat
+          if (layout.workspaceVisible) return workspace
+          return null
+        })()}
       </main>
 
       <StatusFooter
