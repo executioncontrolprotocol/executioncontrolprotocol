@@ -2,6 +2,7 @@ import { describe, expect, it, afterEach, vi } from "vitest"
 import {
   DEFAULT_BRIDGE_BASE_URL,
   detectEcpBridge,
+  isHostConnected,
   isOllamaBridgeUsable,
   listModelsViaBridge,
   invokeViaBridge,
@@ -24,6 +25,15 @@ describe("isOllamaBridgeUsable", () => {
     expect(isOllamaBridgeUsable({ available: false })).toBe(false)
     expect(isOllamaBridgeUsable({ available: true, ollamaReachable: false })).toBe(false)
     expect(isOllamaBridgeUsable({ available: true, ollamaReachable: true })).toBe(true)
+  })
+})
+
+describe("isHostConnected", () => {
+  it("requires health available and a pairing token", () => {
+    expect(isHostConnected({ available: true }, { token: "tok" })).toBe(true)
+    expect(isHostConnected({ available: false }, { token: "tok" })).toBe(false)
+    expect(isHostConnected({ available: true }, { token: "" })).toBe(false)
+    expect(isHostConnected({ available: true }, { token: "  " })).toBe(false)
   })
 })
 

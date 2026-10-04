@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react"
+import type { CapabilityBlobStore } from "@executioncontrolprotocol/core"
 import type { AssistantMode } from "../lib/provider-mode.js"
 import type { ChatMessage } from "../types/workspace.js"
 
@@ -22,6 +23,36 @@ export interface AppendAgentOptions {
   offerProbe?: boolean
   runForm?: boolean
   runOutput?: boolean
+  /** Snapshot of run output for this bubble (frozen). */
+  runOutputData?: unknown
+  /** Snapshot of run blobs for this bubble (frozen). */
+  runBlobs?: CapabilityBlobStore
+}
+
+/** Build an agent chat message (pure; used by {@link useChatHistory} and tests). */
+export function buildAgentChatMessage(
+  text: string,
+  options?: AppendAgentOptions,
+  id: string = nextId()
+): ChatMessage {
+  return {
+    id,
+    role: "agent",
+    text,
+    variant: options?.variant ?? "normal",
+    ...(options?.offerRun ? { offerRun: true } : {}),
+    ...(options?.offerProbe ? { offerProbe: true } : {}),
+    ...(options?.runForm ? { runForm: true } : {}),
+    ...(options?.runOutput
+      ? {
+          runOutput: true,
+          ...(options.runOutputData !== undefined
+            ? { runOutputData: options.runOutputData }
+            : {}),
+          ...(options.runBlobs ? { runBlobs: options.runBlobs } : {}),
+        }
+      : {}),
+  }
 }
 
 /** Chat history and status helpers. */
@@ -40,19 +71,7 @@ export function useChatHistory(initialMode: AssistantMode = "authoring") {
   }, [])
 
   const appendAgent = useCallback((text: string, options?: AppendAgentOptions) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: nextId(),
-        role: "agent",
-        text,
-        variant: options?.variant ?? "normal",
-        ...(options?.offerRun ? { offerRun: true } : {}),
-        ...(options?.offerProbe ? { offerProbe: true } : {}),
-        ...(options?.runForm ? { runForm: true } : {}),
-        ...(options?.runOutput ? { runOutput: true } : {}),
-      },
-    ])
+    setMessages((prev) => [...prev, buildAgentChatMessage(text, options)])
   }, [])
 
   const appendAgentError = useCallback((text: string) => {

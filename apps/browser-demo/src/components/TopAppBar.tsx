@@ -1,3 +1,4 @@
+import { resolveHostIoActions } from "../lib/top-app-bar-actions.js"
 import type { ViewLayoutState, ViewPanel } from "../types/workspace.js"
 
 /** Props for {@link TopAppBar}. */
@@ -8,8 +9,8 @@ export interface TopAppBarProps {
   executeDisabled?: boolean
   executeBusy?: boolean
   onSettings: () => void
-  /** Host paired for remote invoke (enables Save / Open). */
-  hostPaired?: boolean
+  /** Local ecp up host is paired and reachable (enables Save / Open). */
+  hostConnected?: boolean
   /** Whether a workflow is loaded in the editor. */
   hasWorkflow?: boolean
   onSave?: () => void
@@ -26,16 +27,21 @@ export function TopAppBar({
   executeDisabled,
   executeBusy,
   onSettings,
-  hostPaired = false,
+  hostConnected = false,
   hasWorkflow = false,
   onSave,
   onDownload,
   onOpen,
   saveBusy,
 }: TopAppBarProps) {
-  const canSave = Boolean(hostPaired && hasWorkflow && onSave && !saveBusy)
+  const { canOpen: openOk, canSave: saveOk } = resolveHostIoActions({
+    hostConnected,
+    hasWorkflow,
+    saveBusy,
+  })
+  const canSave = Boolean(saveOk && onSave)
   const canDownload = Boolean(hasWorkflow && onDownload)
-  const canOpen = Boolean(hostPaired && onOpen)
+  const canOpen = Boolean(openOk && onOpen)
 
   return (
     <header
@@ -81,17 +87,20 @@ export function TopAppBar({
       </nav>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        {canOpen ? (
-          <button
-            type="button"
-            className="header-action-btn"
-            title="Open saved workflow"
-            aria-label="Open saved workflow"
-            onClick={onOpen}
-          >
-            <span className="material-symbols-outlined">folder_open</span>
-          </button>
-        ) : null}
+        <button
+          type="button"
+          disabled={!canOpen}
+          className="header-action-btn"
+          title={
+            !hostConnected
+              ? "Connect ecp up to open host-saved workflows"
+              : "Open saved workflow"
+          }
+          aria-label="Open saved workflow"
+          onClick={onOpen}
+        >
+          <span className="material-symbols-outlined">folder_open</span>
+        </button>
         <button
           type="button"
           disabled={!canSave}
@@ -99,8 +108,8 @@ export function TopAppBar({
           title={
             !hasWorkflow
               ? "Load or author a workflow to save"
-              : !hostPaired
-                ? "Pair with ecp up to save to the host"
+              : !hostConnected
+                ? "Connect ecp up to save to the host"
                 : saveBusy
                   ? "Saving…"
                   : "Save workflow to host"

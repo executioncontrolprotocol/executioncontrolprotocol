@@ -79,6 +79,8 @@ Useful flags: `--no-open` (print token only), `--port 3090`, `--cors-origin http
 
 Ollama enables in the UI when the daemon `GET /health` reports `ollamaReachable`. Paste `?token=` / `?bridge=` from the daemon log if the browser did not open automatically. Hosted HTTPS demos need **Chromium** (Private Network Access); local Vite works in any browser.
 
+The browser demo catalog (`default` vs `extended`) is chosen at `ecp up` start via `?env=` on the open URL (inferred from the `--env` path). It is not a runtime setting.
+
 Bare `ecp up` (no `--env`) is enough for Ollama chat, but **not** for Sharp or other host-only steps — use `pnpm run up:demo` (or `--env` pointing at [`host/`](./host)).
 
 Harness evals (Ollama `gemma3:1b` / `qwen2.5-coder:1.5b`) run from the monorepo root: `pnpm run test:eval:matrix` / `pnpm run test:eval:matrix:coding`.

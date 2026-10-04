@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import type { CapabilityBlobStore } from "@executioncontrolprotocol/core"
 import type { BridgeSettings } from "../lib/ecp-bridge.js"
+import { isChatNearBottom } from "../lib/chat-scroll.js"
 import type { WorkflowQuickStart } from "../lib/workflow-quick-starts.js"
 import type { ChatMessage } from "../types/workspace.js"
 import { PanelHeader } from "./PanelHeader.js"
@@ -38,10 +39,7 @@ export interface ChatPanelProps {
   acceptsSchema?: Record<string, unknown>
   /** Workflow `returns` schema for embedded run output. */
   returnsSchema?: Record<string, unknown>
-  /** Latest `result.output` for messages flagged `runOutput`. */
-  runOutputValue?: unknown
   bridge?: BridgeSettings
-  runBlobs?: CapabilityBlobStore
   filePickerEnabled?: boolean
   /** Prefill drafts for the in-chat run form. */
   runFormDrafts?: Record<string, string>
@@ -80,9 +78,7 @@ export function ChatPanel({
   hasWorkflow = false,
   acceptsSchema,
   returnsSchema,
-  runOutputValue,
   bridge,
-  runBlobs,
   filePickerEnabled = false,
   runFormDrafts,
   anthropicAttachEnabled = false,
@@ -91,13 +87,15 @@ export function ChatPanel({
   onAttachFiles,
   onRemoveAttachedFile,
 }: ChatPanelProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const messageEndRef = useRef<HTMLDivElement>(null)
+  const stickToBottomRef = useRef(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!busy) return
+    if (!stickToBottomRef.current) return
     messageEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [busy, messages])
+  }, [busy, runBusy, messages])
 
   if (!visible) return null
 
@@ -114,7 +112,19 @@ export function ChatPanel({
     >
       <PanelHeader icon="forum" label="Logic Assistant" />
 
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-surface-container/50 p-6">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-surface-container/50 p-6"
+        onScroll={() => {
+          const el = scrollRef.current
+          if (!el) return
+          stickToBottomRef.current = isChatNearBottom(
+            el.scrollTop,
+            el.clientHeight,
+            el.scrollHeight
+          )
+        }}
+      >
         {messages.length === 0 && !busy ? (
           <p className="text-body text-on-surface-variant">Describe a workflow or change to get started.</p>
         ) : (
@@ -177,9 +187,9 @@ export function ChatPanel({
                       <div className={m.text || m.runForm ? "mt-3" : undefined}>
                         <RunOutputView
                           returnsSchema={returnsSchema}
-                          output={runOutputValue}
+                          output={m.runOutputData}
                           bridge={bridge}
-                          blobs={runBlobs}
+                          blobs={m.runBlobs}
                           compact
                         />
                       </div>

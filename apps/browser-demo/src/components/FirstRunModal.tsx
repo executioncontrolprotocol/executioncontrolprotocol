@@ -12,8 +12,6 @@ import type { BridgeSettings } from "../lib/ecp-bridge.js"
 import { ProviderApiKeyFields } from "./ProviderApiKeyFields.js"
 import { OllamaSettingsFields } from "./OllamaSettingsFields.js"
 import { AnthropicSettingsFields } from "./AnthropicSettingsFields.js"
-import { DemoEnvPresetFields } from "./DemoEnvPresetFields.js"
-import type { DemoEnvPreset } from "../lib/demo-env-preset.js"
 
 /** Props for {@link FirstRunModal}. */
 export interface FirstRunModalProps {
@@ -41,8 +39,6 @@ export interface FirstRunModalProps {
   onAnthropicSettingsChange: (settings: AnthropicSettings) => void
   bridgeSettings: BridgeSettings
   onBridgeSettingsChange: (settings: BridgeSettings) => void
-  demoEnvPreset: DemoEnvPreset
-  onDemoEnvPresetChange: (preset: DemoEnvPreset) => void
 }
 
 /** First-run provider selection modal. */
@@ -62,8 +58,6 @@ export function FirstRunModal({
   onAnthropicSettingsChange,
   bridgeSettings,
   onBridgeSettingsChange,
-  demoEnvPreset,
-  onDemoEnvPresetChange,
 }: FirstRunModalProps) {
   const [mode, setMode] = useState<ProviderMode>(() =>
     preferredModalProviderMode(initialMode, { chromeSupported, ollamaBridgeAvailable })
@@ -192,7 +186,6 @@ export function FirstRunModal({
               OpenAI (coming soon)
             </label>
           </div>
-          <DemoEnvPresetFields value={demoEnvPreset} onChange={onDemoEnvPresetChange} />
           {mode === "ollama" && ollamaBridgeAvailable ? (
             <OllamaSettingsFields
               value={ollamaSettings}

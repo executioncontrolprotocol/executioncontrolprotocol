@@ -8,7 +8,12 @@ import { ValidationView } from "./ValidationView.js"
 
 /** Props for {@link StatusFooter}. */
 export interface StatusFooterProps {
+  /** Fluent / workflow schema validation (not host connectivity). */
   validation: ValidationResult | null
+  /** Live ecp up host reachability + pairing. */
+  hostConnected: boolean
+  /** Host/mixed capability gaps when a host is paired. */
+  hostCompat?: ValidationResult | null
   /** Chrome AI install surface (`toast` = show compact status in the footer). */
   chromeInstallUi?: ChromeInstallUi
   /** Chrome AI install snapshot for footer status. */
@@ -31,15 +36,19 @@ function GitHubIcon() {
   )
 }
 
-/** Persistent status bar with validation pill and GitHub link. */
+/** Persistent status bar with schema + host connection pills and GitHub link. */
 export function StatusFooter({
   validation,
+  hostConnected,
+  hostCompat = null,
   chromeInstallUi = "idle",
   chromeInstallState,
 }: StatusFooterProps) {
   const [showValidation, setShowValidation] = useState(false)
+  const [showHostCompat, setShowHostCompat] = useState(false)
   const isValid = validation?.valid ?? true
   const hasResult = validation !== null
+  const hostCompatInvalid = Boolean(hostCompat && !hostCompat.valid)
   const showChromeInstall =
     chromeInstallState !== undefined &&
     shouldShowChromeInstallFooter(chromeInstallUi, chromeInstallState)
@@ -60,9 +69,33 @@ export function StatusFooter({
                 <span>Invalid</span>
               </button>
             ) : (
-              <div className="status-pill status-pill--valid">
+              <div className="status-pill status-pill--valid" aria-label="Workflow schema valid">
                 <span aria-hidden className="status-pill-dot" />
                 <span>{hasResult ? "Valid" : "Ready"}</span>
+              </div>
+            )}
+            {hostConnected && hostCompatInvalid ? (
+              <button
+                type="button"
+                className="status-pill status-pill--warn"
+                onClick={() => setShowHostCompat(true)}
+                aria-label="Show host compatibility issues"
+              >
+                <span aria-hidden className="status-pill-dot status-pill-dot--invalid" />
+                <span>Connected</span>
+              </button>
+            ) : hostConnected ? (
+              <div className="status-pill status-pill--valid" aria-label="ECP host connected">
+                <span aria-hidden className="status-pill-dot" />
+                <span>Connected</span>
+              </div>
+            ) : (
+              <div
+                className="status-pill status-pill--invalid"
+                aria-label="ECP host not connected"
+              >
+                <span aria-hidden className="status-pill-dot status-pill-dot--invalid" />
+                <span>Not connected</span>
               </div>
             )}
           </div>
@@ -107,6 +140,30 @@ export function StatusFooter({
               </button>
             </div>
             <ValidationView validation={validation} />
+          </div>
+        </div>
+      ) : null}
+
+      {showHostCompat && hostCompat && !hostCompat.valid ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-auto bg-background/70 p-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Host compatibility issues"
+        >
+          <div className="w-full max-w-lg rounded-xl border border-outline-variant bg-surface-container p-6 glow-primary">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-headline text-on-surface">Host compatibility</h2>
+              <button
+                type="button"
+                className="material-symbols-outlined cursor-pointer text-on-surface-variant hover:text-on-surface"
+                onClick={() => setShowHostCompat(false)}
+                aria-label="Close"
+              >
+                close
+              </button>
+            </div>
+            <ValidationView validation={hostCompat} />
           </div>
         </div>
       ) : null}

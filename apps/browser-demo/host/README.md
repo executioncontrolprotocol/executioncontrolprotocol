@@ -25,9 +25,11 @@ Build once, then use two terminals:
 pnpm run build
 pnpm run dev:demo
 
-# Terminal 2 — host daemon (this env + Ollama), opens http://localhost:5173/?token=…
+# Terminal 2 — host daemon (this env + Ollama), opens http://localhost:5173/?token=…&env=default
 pnpm run up:demo
 ```
+
+The open URL includes `?env=default|extended` from the `--env` path (start-time browser catalog). Paths containing `extended` select the extended preset; otherwise `default`. This is not a settings toggle.
 
 Ollama-only (no Sharp/fal/OpenAI host bindings):
 

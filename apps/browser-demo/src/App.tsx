@@ -140,6 +140,7 @@ import {
 } from "./lib/anthropic-settings.js"
 import {
   detectEcpBridge,
+  isHostConnected,
   isOllamaBridgeUsable,
   consumeBridgeQueryParams,
   readBridgeSettings,
@@ -148,12 +149,9 @@ import {
   type BridgeDetectResult,
   type BridgeSettings,
 } from "./lib/ecp-bridge.js"
+import { checkHostMixedCompatibility } from "./lib/host-compatibility.js"
 import {
-  checkHostMixedCompatibility,
-  mergeValidationResults,
-} from "./lib/host-compatibility.js"
-import {
-  parseDemoEnvPresetQuery,
+  consumeDemoEnvPresetQuery,
   readDemoEnvPreset,
   storeDemoEnvPreset,
   type DemoEnvPreset,
@@ -183,6 +181,8 @@ import {
 import type { CodeEditorTab, FormatTab } from "./types/workspace.js"
 
 const EMPTY_MERMAID = "flowchart TD\n  empty[No workflow]"
+const HOST_NOT_CONNECTED_MSG = "Connect ecp up to use host-saved workflows."
+const BRIDGE_POLL_MS = 5_000
 
 function ollamaBridgeHintFromDetect(result: BridgeDetectResult): string {
   if (!result.available) {
@@ -218,20 +218,13 @@ export function App() {
   const [chatAttachFiles, setChatAttachFiles] = useState<
     Array<{ name: string; mediaType: string; data: string }>
   >([])
-  const [bridgeSettings, setBridgeSettings] = useState<BridgeSettings>(() =>
-    consumeBridgeQueryParams()
-  )
-  const [demoEnvPreset, setDemoEnvPreset] = useState<DemoEnvPreset>(() => {
-    const fromQuery = parseDemoEnvPresetQuery(
-      typeof window !== "undefined" ? window.location.search : ""
-    )
-    if (fromQuery) {
-      storeDemoEnvPreset(fromQuery)
-      return fromQuery
-    }
-    return readDemoEnvPreset()
+  const [bridgeSettings, setBridgeSettings] = useState<BridgeSettings>(() => {
+    // Start-time only: `?env=` from ecp up (not editable in settings).
+    consumeDemoEnvPresetQuery()
+    return consumeBridgeQueryParams()
   })
   const [ollamaBridgeAvailable, setOllamaBridgeAvailable] = useState(false)
+  const [bridgeAvailable, setBridgeAvailable] = useState(false)
   const [ollamaBridgeHint, setOllamaBridgeHint] = useState(
     "Checking for local ecp up daemon…"
   )
@@ -306,9 +299,9 @@ export function App() {
     [descriptor]
   )
 
-  const footerValidation = useMemo(
-    () => mergeValidationResults(validation, hostCompat),
-    [validation, hostCompat]
+  const hostConnected = useMemo(
+    () => isHostConnected({ available: bridgeAvailable }, bridgeSettings),
+    [bridgeAvailable, bridgeSettings]
   )
 
   const refreshHostCompat = useCallback(
@@ -370,7 +363,7 @@ export function App() {
       ecpRef.current = operational
       setEcp(operational)
       setDescriptor(desc)
-      setDemoEnvPreset(preset)
+      storeDemoEnvPreset(preset)
       await refreshHostCompat(desc, bridge)
       return operational
     },
@@ -379,10 +372,28 @@ export function App() {
 
   const refreshBridgeDetect = useCallback(async (baseURL?: string) => {
     const result = await detectEcpBridge(baseURL ?? readBridgeSettings().baseURL)
+    setBridgeAvailable(result.available)
     setOllamaBridgeAvailable(isOllamaBridgeUsable(result))
     setOllamaBridgeHint(ollamaBridgeHintFromDetect(result))
     return result
   }, [])
+
+  useEffect(() => {
+    if (vaultGate === "locked") return
+    const tick = () => {
+      void refreshBridgeDetect()
+    }
+    tick()
+    const id = window.setInterval(tick, BRIDGE_POLL_MS)
+    const onFocus = () => {
+      tick()
+    }
+    window.addEventListener("focus", onFocus)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [refreshBridgeDetect, vaultGate])
 
   const upgradeToChromeAi = useCallback(async () => {
     await reloadEcp()
@@ -612,9 +623,9 @@ export function App() {
 
   const refreshSavedWorkflows = useCallback(async (): Promise<string | null> => {
     const operational = ecpRef.current
-    if (!operational || !descriptor?.remoteInvoke?.url) {
+    if (!operational || !hostConnected) {
       setSavedWorkflows([])
-      return "Pair with ecp up to list host-saved workflows."
+      return HOST_NOT_CONNECTED_MSG
     }
     try {
       const list = await hostListWorkflows(operational)
@@ -624,7 +635,7 @@ export function App() {
       setSavedWorkflows([])
       return err instanceof Error ? err.message : String(err)
     }
-  }, [descriptor?.remoteInvoke?.url])
+  }, [hostConnected])
 
   useEffect(() => {
     void refreshSavedWorkflows()
@@ -634,6 +645,12 @@ export function App() {
     async (id: string, label: string) => {
       const operational = ecpRef.current
       if (!operational || !manifest) return
+      if (!hostConnected) {
+        setSaveWorkflowError(HOST_NOT_CONNECTED_MSG)
+        appendAgentError(HOST_NOT_CONNECTED_MSG)
+        setChatStatus(HOST_NOT_CONNECTED_MSG)
+        return
+      }
       setSaveBusy(true)
       setSaveWorkflowError(null)
       try {
@@ -655,11 +672,16 @@ export function App() {
         setSaveBusy(false)
       }
     },
-    [appendAgentError, fluent, manifest, refreshSavedWorkflows, setChatStatus]
+    [appendAgentError, fluent, hostConnected, manifest, refreshSavedWorkflows, setChatStatus]
   )
 
   const onSaveWorkflow = useCallback(() => {
     if (!manifest) return
+    if (!hostConnected) {
+      appendAgentError(HOST_NOT_CONNECTED_MSG)
+      setChatStatus(HOST_NOT_CONNECTED_MSG)
+      return
+    }
     if (savedWorkflowId) {
       const label = manifest.workflow.label ?? manifest.workflow.id
       void performHostSave(savedWorkflowId, label)
@@ -667,7 +689,7 @@ export function App() {
     }
     setSaveWorkflowError(null)
     setSaveWorkflowOpen(true)
-  }, [manifest, performHostSave, savedWorkflowId])
+  }, [appendAgentError, hostConnected, manifest, performHostSave, savedWorkflowId, setChatStatus])
 
   const onDownloadWorkflow = useCallback(
     (format: WorkflowDownloadFormat) => {
@@ -688,6 +710,10 @@ export function App() {
     async (id: string) => {
       const operational = ecpRef.current
       if (!operational) return
+      if (!hostConnected) {
+        setOpenWorkflowError(HOST_NOT_CONNECTED_MSG)
+        return
+      }
       setOpenWorkflowBusy(true)
       setOpenWorkflowError(null)
       try {
@@ -705,13 +731,17 @@ export function App() {
         setOpenWorkflowBusy(false)
       }
     },
-    [applyFluentWorkflow]
+    [applyFluentWorkflow, hostConnected]
   )
 
   const onOpenWorkflowDelete = useCallback(
     async (id: string) => {
       const operational = ecpRef.current
       if (!operational) return
+      if (!hostConnected) {
+        setOpenWorkflowError(HOST_NOT_CONNECTED_MSG)
+        return
+      }
       setDeletingWorkflowId(id)
       setOpenWorkflowError(null)
       try {
@@ -726,7 +756,7 @@ export function App() {
         setDeletingWorkflowId(null)
       }
     },
-    [refreshSavedWorkflows, savedWorkflowId, setChatStatus]
+    [hostConnected, refreshSavedWorkflows, savedWorkflowId, setChatStatus]
   )
 
   const onWorkflowFileDrop = useCallback(
@@ -1105,20 +1135,20 @@ export function App() {
     setAssistantMode("authoring")
     setShowProviderModal(false)
     storeBridgeSettings(bridgeSettings)
-    storeDemoEnvPreset(demoEnvPreset)
     storeAnthropicSettings(anthropicSettings)
+    const preset = readDemoEnvPreset()
     if (nextOllama) {
       storeOllamaSettings(nextOllama)
       setOllamaSettings(nextOllama)
-      void reloadEcp(nextOllama, bridgeSettings, demoEnvPreset, anthropicSettings, mode).then(() => {
+      void reloadEcp(nextOllama, bridgeSettings, preset, anthropicSettings, mode).then(() => {
         const resolved = resolveDemoSession(mode)
-        setChatStatus(`Ready (${mode} / ${resolved.harness} / ${demoEnvPreset}).`)
+        setChatStatus(`Ready (${mode} / ${resolved.harness} / ${preset}).`)
       })
       return
     }
-    void reloadEcp(undefined, bridgeSettings, demoEnvPreset, anthropicSettings, mode).then(() => {
+    void reloadEcp(undefined, bridgeSettings, preset, anthropicSettings, mode).then(() => {
       const resolved = resolveDemoSession(mode)
-      setChatStatus(`Ready (${mode} / ${resolved.harness} / ${demoEnvPreset}).`)
+      setChatStatus(`Ready (${mode} / ${resolved.harness} / ${preset}).`)
     })
   }
 
@@ -1419,7 +1449,13 @@ export function App() {
           void autoTroubleshootAfterFailure(result)
         } else {
           setAutoTroubleshootRound(0)
-          appendAgent(formatChatRunSuccessMessage(result), { runOutput: true })
+          appendAgent(formatChatRunSuccessMessage(result), {
+            runOutput: true,
+            runOutputData: result.output,
+            ...(blobs || lastRunBlobs.current
+              ? { runBlobs: blobs ?? lastRunBlobs.current }
+              : {}),
+          })
         }
       } else {
         setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
@@ -1578,11 +1614,6 @@ export function App() {
     () => (manifest ? workflowContract(manifest).returns : undefined),
     [manifest]
   )
-  const runMappedOutput = useMemo(() => {
-    if (!lastRunResult || typeof lastRunResult !== "object") return undefined
-    return (lastRunResult as { output?: unknown }).output
-  }, [lastRunResult])
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <TopAppBar
@@ -1592,11 +1623,16 @@ export function App() {
         executeDisabled={!ecp || !hasWorkflow}
         executeBusy={runBusy}
         onSettings={() => setShowProviderModal(true)}
-        hostPaired={Boolean(descriptor?.remoteInvoke?.url)}
+        hostConnected={hostConnected}
         hasWorkflow={hasWorkflow}
         onSave={() => void onSaveWorkflow()}
         onDownload={() => setDownloadWorkflowOpen(true)}
         onOpen={() => {
+          if (!hostConnected) {
+            appendAgentError(HOST_NOT_CONNECTED_MSG)
+            setChatStatus(HOST_NOT_CONNECTED_MSG)
+            return
+          }
           setOpenWorkflowError(null)
           setOpenWorkflowOpen(true)
           setOpenWorkflowBusy(true)
@@ -1633,10 +1669,8 @@ export function App() {
             hasWorkflow={hasWorkflow}
             acceptsSchema={runAcceptsSchema}
             returnsSchema={runReturnsSchema}
-            runOutputValue={runMappedOutput}
             bridge={bridgeSettings}
-            runBlobs={lastRunBlobs.current}
-            filePickerEnabled={Boolean(descriptor?.remoteInvoke?.url)}
+            filePickerEnabled={hostConnected}
             runFormDrafts={runFormDrafts}
             anthropicAttachEnabled={providerMode === "anthropic"}
             anthropicFileAccept={ANTHROPIC_CHAT_FILE_ACCEPT}
@@ -1716,7 +1750,9 @@ export function App() {
       </main>
 
       <StatusFooter
-        validation={footerValidation}
+        validation={validation}
+        hostConnected={hostConnected}
+        hostCompat={hostCompat}
         chromeInstallUi={chromeInstallUi}
         chromeInstallState={chromeInstallState}
       />
@@ -1757,8 +1793,6 @@ export function App() {
             setBridgeSettings(next)
             void refreshBridgeDetect(next.baseURL)
           }}
-          demoEnvPreset={demoEnvPreset}
-          onDemoEnvPresetChange={setDemoEnvPreset}
           onRequestVaultSetup={() => {
             setShowProviderModal(false)
             setShowVaultSetup(true)

@@ -33,6 +33,17 @@ export function isOllamaBridgeUsable(result: BridgeDetectResult): boolean {
   return result.available && result.ollamaReachable === true
 }
 
+/**
+ * Whether the local ECP host is paired and reachable for load/save and hops.
+ * Requires a pairing token and a successful `/health` probe.
+ */
+export function isHostConnected(
+  detect: Pick<BridgeDetectResult, "available">,
+  settings: Pick<BridgeSettings, "token">
+): boolean {
+  return detect.available === true && Boolean(settings.token.trim())
+}
+
 /** Read bridge settings from localStorage. */
 export function readBridgeSettings(): BridgeSettings {
   if (typeof localStorage === "undefined") return { ...DEFAULT_BRIDGE_SETTINGS }

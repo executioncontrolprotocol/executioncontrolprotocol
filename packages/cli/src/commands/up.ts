@@ -7,7 +7,12 @@ import {
   DEFAULT_OLLAMA_URL,
 } from "../lib/up/constants.js"
 import { startEcpUpDaemon } from "../lib/up/create-daemon.js"
-import { buildDemoOpenUrl, openBrowserUrl, originFromUrl } from "../lib/up/open-browser.js"
+import {
+  buildDemoOpenUrl,
+  demoEnvPresetFromEnvPath,
+  openBrowserUrl,
+  originFromUrl,
+} from "../lib/up/open-browser.js"
 
 /** Start the local ECP daemon (bridges Ollama for the browser demo). */
 export default class Up extends Command {
@@ -85,6 +90,7 @@ export default class Up extends Command {
     const demoUrl = buildDemoOpenUrl(openUrl, {
       token: daemon.token,
       bridgeBaseURL,
+      env: demoEnvPresetFromEnvPath(flags.env),
     })
 
     this.log(`ECP daemon on ${bridgeBaseURL}`)

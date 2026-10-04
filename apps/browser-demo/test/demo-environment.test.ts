@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import { toAuthoringEnvironmentDescriptor } from "@executioncontrolprotocol/core"
 import { createDemoAppEnvironment } from "../src/lib/demo-environment.js"
 import {
+  consumeDemoEnvPresetQuery,
+  DEMO_ENV_PRESET_STORAGE_KEY,
   isDemoEnvPreset,
   parseDemoEnvPresetQuery,
   readDemoEnvPreset,
@@ -32,6 +34,27 @@ describe("demo env preset", () => {
     storeDemoEnvPreset("extended")
     // Node test env has no localStorage — store is a no-op; read stays default.
     expect(readDemoEnvPreset()).toBe("default")
+  })
+
+  it("consumes ?env= from the open URL and strips it", () => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(DEMO_ENV_PRESET_STORAGE_KEY)
+    }
+    let replaced = ""
+    const preset = consumeDemoEnvPresetQuery(
+      { search: "?env=extended&token=abc", pathname: "/", hash: "" },
+      {
+        replaceState: (_s, _t, url) => {
+          replaced = String(url)
+        },
+      }
+    )
+    expect(preset).toBe("extended")
+    expect(replaced).toBe("/?token=abc")
+    if (typeof localStorage !== "undefined") {
+      expect(readDemoEnvPreset()).toBe("extended")
+      localStorage.removeItem(DEMO_ENV_PRESET_STORAGE_KEY)
+    }
   })
 })
 

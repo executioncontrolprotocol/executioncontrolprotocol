@@ -1,3 +1,5 @@
+import type { CapabilityBlobStore } from "@executioncontrolprotocol/core"
+
 /** Toggleable main view panel (chat, workflow graph, or code editor). */
 export type ViewPanel = "chat" | "workflow" | "code"
 
@@ -41,4 +43,8 @@ export interface ChatMessage {
   runForm?: boolean
   /** When true, embed the schema-mapped run output view in this agent bubble. */
   runOutput?: boolean
+  /** Frozen `result.output` for this message (not live latest run state). */
+  runOutputData?: unknown
+  /** Frozen run blobs for media previews on this message. */
+  runBlobs?: CapabilityBlobStore
 }
