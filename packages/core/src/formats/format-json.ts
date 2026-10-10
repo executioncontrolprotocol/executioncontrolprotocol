@@ -56,6 +56,13 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
         useCases: [
           "CLI writes a compiled workflow manifest to disk.",
           "API returns a JSON snapshot of the current document."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as JSON text for export, APIs, or the next decode step."
+          }
         ]
       })
       .withHandler((input) =>
@@ -75,6 +82,13 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
         useCases: [
           "Loader imports a workflow.json file into the editor.",
           "Patch step parses JSON model output before applying changes."
+        ],
+        projections: [
+          {
+            summary: "Take the decoded document",
+            description:
+              "When success is true, use the result field as the parsed manifest or patch for authoring or apply."
+          }
         ]
       })
       .withHandler((input) => {

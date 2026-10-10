@@ -26,6 +26,13 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
         useCases: [
           "Assistant step recalls prior user facts from memory.",
           "Workflow searches step-output history for a keyword."
+        ],
+        projections: [
+          {
+            summary: "Take matching entries",
+            description:
+              "Use the results array as recalled context for follow-up prompts or routing decisions."
+          }
         ]
       })
       .withHandler(async (input) => {
@@ -45,6 +52,13 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
         useCases: [
           "Chat turn stores a summarized fact for future turns.",
           "Workflow explicitly records a decision for audit recall."
+        ],
+        projections: [
+          {
+            summary: "Confirm the collection write",
+            description:
+              "When stored is true, the entry was appended to the named collection and is available for later search."
+          }
         ]
       })
       .withHandler(async (input) => {

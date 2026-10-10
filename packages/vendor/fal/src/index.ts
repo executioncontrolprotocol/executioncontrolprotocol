@@ -40,6 +40,16 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
         useCases: [
           "Text-to-image or image-to-image generation on FAL",
           "Long-running FAL jobs that need queue polling"
+        ],
+        projections: [
+          {
+            summary: "Take model result data",
+            description: "Use data for asset URLs, media metadata, or other model fields the next step needs."
+          },
+          {
+            summary: "Keep the request id",
+            description: "When requestId is present, retain it for support logs or follow-up queue status checks."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {

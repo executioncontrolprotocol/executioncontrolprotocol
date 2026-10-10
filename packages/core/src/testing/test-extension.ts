@@ -33,6 +33,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "01-echo example demonstrates a single-step workflow.",
           "Integration test asserts invoke and run paths return payloads."
+        ],
+        projections: [
+          {
+            summary: "Use the echoed value",
+            description: "Take the echo field as the step output for refs and downstream wiring checks."
+          }
         ]
       })
       .withHandler(async (input) => ({
@@ -49,6 +55,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "Harness unit test exercises generate input shaping.",
           "Example workflow includes a model step without API keys."
+        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as deterministic stub output for tests and examples."
+          }
         ]
       })
       .withHandler(async (input) =>
@@ -65,6 +77,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "Demo manifest shows a summarize step beside echo and translate.",
           "Test verifies multiple capabilities register on one extension."
+        ],
+        projections: [
+          {
+            summary: "Use the stub result",
+            description: "Take ok and result when present as placeholder output for multi-capability demos."
+          }
         ]
       })
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
@@ -79,6 +97,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "Sample workflow chains translate after summarize.",
           "Registry test lists distinct capability names on test extension."
+        ],
+        projections: [
+          {
+            summary: "Use the stub result",
+            description: "Take ok and result when present as placeholder output for multi-capability demos."
+          }
         ]
       })
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
@@ -93,6 +117,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "Example workflow ends with a notify step after processing.",
           "Unit test covers invoke on a non-echo capability id."
+        ],
+        projections: [
+          {
+            summary: "Use the stub result",
+            description: "Take ok and result when present as placeholder output for multi-capability demos."
+          }
         ]
       })
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
@@ -107,6 +137,12 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
         useCases: [
           "Tutorial workflow includes validate before notify.",
           "Conformance test enumerates all test extension capability ids."
+        ],
+        projections: [
+          {
+            summary: "Use the stub result",
+            description: "Take ok and result when present as placeholder output for multi-capability demos."
+          }
         ]
       })
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown }))

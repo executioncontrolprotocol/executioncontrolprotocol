@@ -94,6 +94,12 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
         useCases: [
           "Workflow step analyzes an uploaded image alongside a user question.",
           "Browser or server harness needs long-context chat with document attachments."
+        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as the generated assistant or step output for downstream steps."
+          }
         ]
       })
       .withHandler(async (raw, ctx) => {
@@ -161,6 +167,12 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
         useCases: [
           "Harness matrix uses a cloud judge with intent-aware rubrics.",
           "Eval approves FAQ answers separately from workflow patch outputs."
+        ],
+        projections: [
+          {
+            summary: "Read approval and feedback",
+            description: "Use approved to gate the run and feedback for repair hints or eval logging."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {

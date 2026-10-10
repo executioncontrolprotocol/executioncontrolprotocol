@@ -169,7 +169,7 @@ Keep **npm package name** aligned with the **extension id**.
 | ---- | ----- |
 | Depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` (+ focused third-party libs) | Import `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, `@executioncontrolprotocol/cli`, or `@executioncontrolprotocol/mcp` from an extension package |
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
-| `.withMetadata({ summary, description, useCases, projections? })` on capabilities (product prose only) | Schema how-to in metadata; sample prompts; cross-advertise other extension packages |
+| `.withMetadata({ summary, description, useCases, projections })` on capabilities (product prose only; projections required) | Schema how-to in metadata; sample prompts; omit projections; cross-advertise other extension packages |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
 | Use `resolveFile` / `writeMediaArtifact` for image/binary I/O | Reimplement fs/fetch/`ctx.artifacts` maps inside vendor packages |
 

@@ -97,6 +97,13 @@ export const formatReactflowExtension = defineExtension(
         useCases: [
           "Interactive editor loads a workflow as draggable nodes.",
           "Demo app renders data edges between step outputs."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as React Flow JSON for the editor canvas or preview."
+          }
         ]
       })
       .withHandler((input, ctx) => {

@@ -50,6 +50,12 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
         useCases: [
           "Lifecycle test verifies step:started fires before handler runs.",
           "Conformance suite counts capability invocations per run."
+        ],
+        projections: [
+          {
+            summary: "Use the echoed value",
+            description: "Take the echo field as the step output while tests assert hook ordering."
+          }
         ]
       })
       .withHandler(async (input) => {
@@ -66,6 +72,13 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
         useCases: [
           "Test asserts step:failed captures handler errors.",
           "Run cancellation path after a forced step failure."
+        ],
+        projections: [
+          {
+            summary: "Expect a step failure",
+            description:
+              "This capability always throws; invoke only when tests need step:failed, not a success payload."
+          }
         ]
       })
       .withHandler(async () => {
@@ -82,6 +95,12 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
         useCases: [
           "Store test confirms merge from a step handler.",
           "Multi-step run accumulates shared state through spy merge."
+        ],
+        projections: [
+          {
+            summary: "Confirm store merge",
+            description: "When ok is true, the target state handle received the merged test fields."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {

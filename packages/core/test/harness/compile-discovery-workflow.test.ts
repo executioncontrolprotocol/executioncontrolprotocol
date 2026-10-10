@@ -113,16 +113,22 @@ describe("projection metadata and excerpts", () => {
     ).toThrow(/inputschema/i)
   })
 
-  it("strips legacy samplePrompts and examples", () => {
-    const meta = parseCapabilityMetadata({
-      summary: "Inspect",
-      description: "Read structure",
-      useCases: ["Learn parts"],
-      samplePrompts: ["old"],
-      examples: [{ width: 1 }],
-    })
-    expect(meta).not.toHaveProperty("samplePrompts")
-    expect(meta).not.toHaveProperty("examples")
+  it("rejects legacy samplePrompts and examples", () => {
+    expect(() =>
+      parseCapabilityMetadata({
+        summary: "Inspect",
+        description: "Read structure",
+        useCases: ["Learn parts"],
+        projections: [
+          {
+            summary: "Read size",
+            description: "Read width and height from the top of the result.",
+          },
+        ],
+        samplePrompts: ["old"],
+        examples: [{ width: 1 }],
+      })
+    ).toThrow()
   })
 
   it("formats projections and caps large excerpts", () => {

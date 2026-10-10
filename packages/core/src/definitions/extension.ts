@@ -44,10 +44,10 @@ export class ExtensionDefinitionBuilder {
 
   /**
    * Attach agent-facing extension docs.
-   * Legacy {@code samplePrompts} keys are stripped on parse.
+   * Typed from {@link ExtensionMetadata}; runtime parse rejects unknown keys and banned prose.
    * @category Definitions
    */
-  withMetadata(metadata: unknown): this {
+  withMetadata(metadata: ExtensionMetadata): this {
     this.metadata = parseExtensionMetadata(metadata)
     return this
   }

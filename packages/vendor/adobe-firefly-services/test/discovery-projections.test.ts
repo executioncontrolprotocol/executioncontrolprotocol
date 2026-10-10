@@ -14,11 +14,21 @@ describe("withPhotoshopDiscoveryProjections", () => {
     expect(cap?.metadata).not.toHaveProperty("samplePrompts")
   })
 
-  it("leaves other capabilities unchanged aside from parse strip", () => {
+  it("keeps generator projections on non-overlay capabilities", () => {
     const next = withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
     const other = next.find(
-      (c) => c.id !== PHOTOSHOP_GENERATE_MANIFEST_ID && c.metadata
+      (c) =>
+        c.id !== PHOTOSHOP_GENERATE_MANIFEST_ID &&
+        !c.id.includes("indesign-get-document-info") &&
+        c.metadata
     )
-    expect(other?.metadata?.projections).toBeUndefined()
+    expect(other?.metadata?.projections?.length).toBeGreaterThan(0)
+    expect(other?.metadata).not.toHaveProperty("samplePrompts")
+  })
+
+  it("overlays richer projections for inspect list capabilities", () => {
+    const next = withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
+    const info = next.find((c) => c.id.endsWith(".indesign-get-document-info"))
+    expect(info?.metadata?.projections?.[0]?.summary).toMatch(/document structure/i)
   })
 })

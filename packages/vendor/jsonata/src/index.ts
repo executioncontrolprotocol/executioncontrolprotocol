@@ -35,6 +35,12 @@ export const jsonataExtension = defineExtension("@executioncontrolprotocol", "js
         useCases: [
           "Project nested fields into a flat object for the next step",
           "Compute derived values from workflow input or prior step output"
+        ],
+        projections: [
+          {
+            summary: "Take the evaluated result",
+            description: "Use result as the transformed JSON value for refs, steps, or downstream mapping."
+          }
         ]
       })
       .withHandler(async (input) => {

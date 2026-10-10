@@ -40,11 +40,11 @@ export class CapabilityBuilder {
   }
 
   /**
-   * Attach agent-facing docs (summary, description, useCases, projections, …).
-   * Legacy {@code samplePrompts} / {@code examples} keys are stripped on parse.
+   * Attach agent-facing docs (summary, description, useCases, projections).
+   * Typed from {@link CapabilityMetadata}; runtime parse rejects unknown keys and banned prose.
    * @category Definitions
    */
-  withMetadata(metadata: unknown): this {
+  withMetadata(metadata: CapabilityMetadata): this {
     this.metadata = parseCapabilityMetadata(metadata)
     return this
   }

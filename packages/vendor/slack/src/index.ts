@@ -28,6 +28,12 @@ export const slackExtension = defineExtension("@executioncontrolprotocol", "slac
         useCases: [
           "Alert operators when a step fails or needs approval",
           "Share summarized workflow output in a team channel"
+        ],
+        projections: [
+          {
+            summary: "Read post success",
+            description: "Use ok to confirm delivery and ts as the message timestamp when logging or deduplicating."
+          }
         ]
       })
       .withHandler(async () => ({

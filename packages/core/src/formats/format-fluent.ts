@@ -22,6 +22,13 @@ export const formatFluentExtension = defineExtension("@executioncontrolprotocol"
         useCases: [
           "Editor code panel shows Fluent source for the active workflow.",
           "Harness converts a generated manifest back into editable TS."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as Fluent TypeScript source for the editor or disk export."
+          }
         ]
       })
       .withHandler((input) =>

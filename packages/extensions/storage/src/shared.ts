@@ -57,6 +57,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Park workflow media outputs for the current ecp up session",
           "Persist a user-pinned artifact across daemon restarts"
+        ],
+        projections: [
+          {
+            summary: "Take the storage URI",
+            description: "Use uri and tier so later steps or refs can read the stored bytes or JSON."
+          }
         ]
       })
       .withHandler(handlers.write),
@@ -71,6 +77,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Downstream step loads a media artifact written earlier",
           "Serve preview bytes for an ecp://storage/… URI"
+        ],
+        projections: [
+          {
+            summary: "Take the stored value",
+            description: "Use value with uri or mediaType when present as bytes, text, or JSON for the next step."
+          }
         ]
       })
       .withHandler(handlers.read),
@@ -85,6 +97,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Save the current browser-demo workflow to the local host library",
           "Overwrite an existing saved workflow by id"
+        ],
+        projections: [
+          {
+            summary: "Confirm save location",
+            description: "Use id and path to open, list, or delete the workflow from the host library."
+          }
         ]
       })
       .withHandler(handlers.workflowSave),
@@ -99,6 +117,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Populate an Open recent workflows menu in the browser demo",
           "Discover workflows saved on this machine"
+        ],
+        projections: [
+          {
+            summary: "Take listed workflows",
+            description: "Use each entry id, label, and updatedAt to populate menus or pick a workflow to load."
+          }
         ]
       })
       .withHandler(handlers.workflowList),
@@ -113,6 +137,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Reload a previously saved workflow into the editor",
           "Restore Fluent and canvas from host disk"
+        ],
+        projections: [
+          {
+            summary: "Take Fluent source",
+            description: "Use fluent with id and label when present to restore the editor and compile the manifest."
+          }
         ]
       })
       .withHandler(handlers.workflowLoad),
@@ -126,6 +156,12 @@ export function buildStorageCapabilities(
         useCases: [
           "Remove an obsolete saved workflow from the local library",
           "Clean up a misnamed save"
+        ],
+        projections: [
+          {
+            summary: "Confirm deletion",
+            description: "When deleted is true, the workflow id was removed from the host library."
+          }
         ]
       })
       .withHandler(handlers.workflowDelete)

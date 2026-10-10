@@ -49,7 +49,8 @@ describe("environment.describe progressive disclosure", () => {
     const echo = desc.capabilities[0]
     expect(echo?.metadata?.description).toBeTruthy()
     expect(echo?.metadata?.useCases?.length).toBeGreaterThan(0)
-    expect(echo?.metadata?.samplePrompts).toBeUndefined()
+    expect(echo?.metadata?.projections?.length).toBeGreaterThan(0)
+    expect(echo?.metadata).not.toHaveProperty("samplePrompts")
     expect(echo?.inputSchema).toMatchObject({ type: "object" })
     expect(echo?.outputSchema).toMatchObject({ type: "object" })
     expect(JSON.parse(JSON.stringify(echo?.inputSchema))).toEqual(echo?.inputSchema)
@@ -122,12 +123,40 @@ describe("environment.describe progressive disclosure", () => {
 })
 
 describe("capability metadata validation", () => {
+  const validProjection = {
+    summary: "Use the result",
+    description: "Take the fields the next step needs.",
+  }
+
   it("rejects missing required fields", () => {
     expect(() =>
       parseCapabilityMetadata({
         summary: "x",
         description: "y",
-        useCases: []
+        useCases: [],
+        projections: [validProjection],
+      })
+    ).toThrow()
+  })
+
+  it("rejects missing projections", () => {
+    expect(() =>
+      parseCapabilityMetadata({
+        summary: "x",
+        description: "y",
+        useCases: ["A"],
+      })
+    ).toThrow()
+  })
+
+  it("rejects unknown legacy keys such as samplePrompts", () => {
+    expect(() =>
+      parseCapabilityMetadata({
+        summary: "x",
+        description: "y",
+        useCases: ["A"],
+        projections: [validProjection],
+        samplePrompts: ["old"],
       })
     ).toThrow()
   })
@@ -137,7 +166,8 @@ describe("capability metadata validation", () => {
       parseCapabilityMetadata({
         summary: "Read the inputSchema carefully",
         description: "Uses the capability",
-        useCases: ["A"]
+        useCases: ["A"],
+        projections: [validProjection],
       })
     ).toThrow(/inputschema/i)
   })
@@ -148,7 +178,8 @@ describe("capability metadata validation", () => {
         .withMetadata({
           summary: "ok",
           description: "Call withInput first",
-          useCases: ["A"]
+          useCases: ["A"],
+          projections: [validProjection],
         })
         .withHandler(async () => ({}))
     ).toThrow(/withinput/i)

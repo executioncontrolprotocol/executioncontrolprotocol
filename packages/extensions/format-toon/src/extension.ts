@@ -29,6 +29,13 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
         useCases: [
           "CLI exports a validated workflow as TOON for sharing.",
           "Workflow panel shows a compact TOON view alongside JSON."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as the TOON text for export, display, or the next decode step."
+          }
         ]
       })
       .withHandler((input, ctx) => encodeToToon(input as import("@executioncontrolprotocol/types").EcpEncodeInput, ctx as never)),
@@ -44,6 +51,13 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
         useCases: [
           "Import a TOON file back into an editable workflow manifest.",
           "Patch pipeline applies TOON-decoded changes to a workflow."
+        ],
+        projections: [
+          {
+            summary: "Take the decoded document",
+            description:
+              "When success is true, use the result field as the parsed manifest or patch document for authoring or apply."
+          }
         ]
       })
       .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/types").EcpDecodeInput, ctx as never))

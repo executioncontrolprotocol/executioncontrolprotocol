@@ -29,6 +29,13 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
         useCases: [
           "Harness prompt includes a compact workflow representation.",
           "Editor exports the current manifest as EQL for review."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as the EQL text for prompts, panels, or storage."
+          }
         ]
       })
       .withHandler((input, ctx) => encodeToEql(input as import("./schemas.js").EqlEncodeInput, ctx as never)),
@@ -44,6 +51,13 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
         useCases: [
           "Model-authored EQL is compiled back into a workflow manifest.",
           "Import pipeline ingests EQL files from disk."
+        ],
+        projections: [
+          {
+            summary: "Take the decoded document",
+            description:
+              "When success is true, use the result field as the parsed manifest or document for compile or patch."
+          }
         ]
       })
       .withHandler((input, ctx) => decodeFromEql(input as import("./schemas.js").EqlDecodeInput, ctx as never))

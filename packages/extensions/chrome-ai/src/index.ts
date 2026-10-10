@@ -111,6 +111,13 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
         useCases: [
           "First-run browser demo needs to know if on-device AI is available.",
           "Workflow step gates model calls until availability is confirmed."
+        ],
+        projections: [
+          {
+            summary: "Read support and readiness",
+            description:
+              "Use available and supported to decide whether to generate, and status for user-facing install hints."
+          }
         ]
       })
       .withHandler(async () => {
@@ -131,6 +138,12 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
         useCases: [
           "User opts in to on-device AI during first-run setup.",
           "App retries download after a previous install was interrupted."
+        ],
+        projections: [
+          {
+            summary: "Confirm download started",
+            description: "When started is true, poll getModelInstallState until the model is ready."
+          }
         ]
       })
       .withHandler(async () => startModelDownload()),
@@ -144,6 +157,13 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
         useCases: [
           "Show a progress toast while the model downloads.",
           "Wait loop before invoking generate on first launch."
+        ],
+        projections: [
+          {
+            summary: "Track install progress",
+            description:
+              "Use phase and progress fields to drive UI and to know when generate can run safely."
+          }
         ]
       })
       .withHandler(async () => getModelInstallState()),
@@ -157,6 +177,12 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
         useCases: [
           "Browser chat harness needs a local model with no network round trip.",
           "Workflow step summarizes user input without sending data off-device."
+        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as the generated assistant or step output for downstream steps."
+          }
         ]
       })
       .withHandler(async (raw, ctx) =>

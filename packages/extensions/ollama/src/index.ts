@@ -319,6 +319,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         useCases: [
           "Harness or CLI workflow needs a local model without cloud credentials.",
           "Eval matrix runs chat turns against a pinned local model tag."
+        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as the generated assistant or step output for downstream steps."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {
@@ -357,6 +363,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         useCases: [
           "Settings UI shows which models are pulled locally.",
           "Script verifies a required model tag exists before a harness run."
+        ],
+        projections: [
+          {
+            summary: "Take available model tags",
+            description: "Use the models array to pick a tag for generate or to confirm a required model is installed."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {
@@ -388,6 +400,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
         useCases: [
           "Harness eval case needs an automated quality gate after generate.",
           "CI matrix scores workflow patch outputs against a rubric."
+        ],
+        projections: [
+          {
+            summary: "Read approval and feedback",
+            description: "Use approved to gate the run and feedback for repair hints or eval logging."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {

@@ -120,6 +120,12 @@ export const browserGuideExtension = defineExtension("@executioncontrolprotocol"
         useCases: [
           "Demo shows helpful replies before on-device model download completes.",
           "First-run tour answers what ECP is without API credentials."
+        ],
+        projections: [
+          {
+            summary: "Use the help reply",
+            description: "Take the text field as the offline onboarding message shown in the chat panel."
+          }
         ]
       })
       .withHandler(async (raw) => {

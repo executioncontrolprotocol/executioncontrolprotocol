@@ -66,6 +66,12 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
         useCases: [
           "Server-side workflow step drafts content with a cloud model.",
           "CLI or harness invokes a hosted model for integration tests."
+        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as the generated assistant or step output for downstream steps."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {
@@ -106,6 +112,12 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
         useCases: [
           "Harness eval needs a cloud judge when local models are unavailable.",
           "Quality gate approves generated workflow patches before merge."
+        ],
+        projections: [
+          {
+            summary: "Read approval and feedback",
+            description: "Use approved to gate the run and feedback for repair hints or eval logging."
+          }
         ]
       })
       .withHandler(async (input, ctx) => {

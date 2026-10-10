@@ -71,6 +71,13 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
         useCases: [
           "Graph editor panel visualizes the current workflow.",
           "Docs site embeds a Mermaid diagram generated from a manifest."
+        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as Mermaid graph text for viewers or documentation embeds."
+          }
         ]
       })
       .withHandler((input) => encodeToMermaid(input as EcpEncodeInput))
