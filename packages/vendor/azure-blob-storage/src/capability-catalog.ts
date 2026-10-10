@@ -1,12 +1,12 @@
 import {
   capabilityFor,
   type CapabilityDefinition,
-  type CapabilityHandler,
+  type CapabilityHandler
 } from "@executioncontrolprotocol/core"
 import { uploadInputSchema, uploadOutputSchema } from "./capabilities/upload-schema.js"
 import {
   createSasUrlInputSchema,
-  createSasUrlOutputSchema,
+  createSasUrlOutputSchema
 } from "./capabilities/create-sas-url-schema.js"
 import { downloadInputSchema, downloadOutputSchema } from "./capabilities/download-schema.js"
 import { EXT_ID } from "./shared.js"
@@ -38,9 +38,12 @@ export function buildAzureBlobCapabilities(
           "Persist workflow output to durable cloud storage",
           "Stage user uploads before downstream processing",
         ],
-        samplePrompts: [
-          "Upload this image to Azure blobs in the media container",
-          "Store the generated file as uploads/report.pdf",
+        projections: [
+          {
+            summary: "Keep the blob location",
+            description:
+              "Save the container and blob name (and SAS URL if returned) for later download or sharing.",
+          },
         ],
       })
       .withHandler(handlers.upload),
@@ -56,9 +59,12 @@ export function buildAzureBlobCapabilities(
           "Share a temporary read link with an external API",
           "Authorize a browser PUT for mixed upload flows",
         ],
-        samplePrompts: [
-          "Create a read-only SAS URL valid for one hour",
-          "Generate a write SAS so the browser can upload the blob",
+        projections: [
+          {
+            summary: "Share the temporary URL",
+            description:
+              "Give the SAS URL to the caller or external API that needs time-limited access.",
+          },
         ],
       })
       .withHandler(handlers.createSasUrl),
@@ -74,11 +80,14 @@ export function buildAzureBlobCapabilities(
           "Pull stored assets back into a workflow for editing",
           "Retrieve remote blobs for inspection or transformation",
         ],
-        samplePrompts: [
-          "Download the blob exports/data.json from Azure",
-          "Fetch the stored image so we can resize it",
+        projections: [
+          {
+            summary: "Use the downloaded artifact",
+            description:
+              "Pass the returned media artifact into image or file steps that need local bytes.",
+          },
         ],
       })
-      .withHandler(handlers.download),
+      .withHandler(handlers.download)
   ]
 }

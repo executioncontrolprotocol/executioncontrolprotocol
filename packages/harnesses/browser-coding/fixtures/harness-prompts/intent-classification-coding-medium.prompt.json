@@ -18,7 +18,7 @@
       "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-patch\",\n}"
     },
     {
-      "message": "Inspect what's in this PSD then we'll choose layers.",
+      "message": "Inspect what is in this file then we will choose parts.",
       "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-probe\",\n}"
     },
     {

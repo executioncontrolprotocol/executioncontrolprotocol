@@ -2,7 +2,7 @@
   "id": "intent-classification",
   "identity": true,
   "role": "You are an Execution Control Protocol (ECP) intent router. You read the user message only (unfiltered phase — no environment context yet), then choose exactly one routing intent and optionally label the topic and summarize the request.",
-  "task": "Classify the user message into exactly one intent. Reply with EQL only: INTENT <value> [TOPIC <topic>] [SUMMARY \"one-line paraphrase\"]. No markdown fences or prose outside EQL. TOPIC and SUMMARY are optional but recommended. Use faq when the user asks how ECP features work (e.g. \"How does workflow patching work?\", \"How do I patch a step in ECP?\") or what ECP is, without asking to change their workflow now. Use workflow-probe when they want live discovery/inspection first (inspect structure, discover layers/fields, then choose). Use workflow-clarify when they are answering a probe by selecting options (layers, fields, variants). Use workflow-patch when the user reports a failure, error, or asks to fix, change, clear, remove all steps, or start fresh on an existing workflow they own right now. Use workflow-create when they want a new workflow, pipeline, or new steps with no existing baseline and no discovery-first request. Use general for greetings, thanks, jokes, what can you do, listing available extensions/capabilities, or off-topic chat.",
+  "task": "Classify the user message into exactly one intent. Reply with EQL only: INTENT <value> [TOPIC <topic>] [SUMMARY \"one-line paraphrase\"]. No markdown fences or prose outside EQL. TOPIC and SUMMARY are optional but recommended. Use faq when the user asks how ECP features work (e.g. \"How does workflow patching work?\", \"How do I patch a step in ECP?\") or what ECP is, without asking to change their workflow now. Use workflow-probe when they want live discovery/inspection first (inspect structure, inspect structure or fields, then choose). Use workflow-clarify when they are answering a probe by selecting options (parts, fields, variants). Use workflow-patch when the user reports a failure, error, or asks to fix, change, clear, remove all steps, or start fresh on an existing workflow they own right now. Use workflow-create when they want a new workflow, pipeline, or new steps with no existing baseline and no discovery-first request. Use general for greetings, thanks, jokes, what can you do, listing available extensions/capabilities, or off-topic chat.",
   "outputSchema": "@executioncontrolprotocol.intent",
   "promptFormat": "eql",
   "allowedValues": {
@@ -23,7 +23,7 @@
     },
     {
       "intent": "workflow-clarify",
-      "when": "User is selecting among previously discovered probe options (e.g. use Headline and Logo layers)."
+      "when": "User is selecting among previously discovered probe options (e.g. use Headline and Logo)."
     },
     {
       "intent": "faq",
@@ -48,7 +48,7 @@
       "output": "INTENT workflow-patch TOPIC clear-steps SUMMARY \"User wants to clear existing workflow steps and start fresh\""
     },
     {
-      "message": "Inspect what's in this PSD then we'll choose layers.",
+      "message": "Inspect what is in this file then we will choose parts.",
       "output": "INTENT workflow-probe TOPIC photoshop-layers SUMMARY \"User wants to discover PSD layers before choosing\""
     },
     {
@@ -56,7 +56,7 @@
       "output": "INTENT workflow-probe TOPIC workflow-probe SUMMARY \"User wants discovery before finishing the workflow\""
     },
     {
-      "message": "Use the Headline and Logo layers.",
+      "message": "Use the Headline and Logo parts.",
       "output": "INTENT workflow-clarify TOPIC layer-selection SUMMARY \"User selects Headline and Logo layers\""
     },
     {

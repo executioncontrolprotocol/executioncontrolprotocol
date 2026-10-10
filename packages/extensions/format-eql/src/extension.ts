@@ -4,7 +4,7 @@ import {
   ecpDecodeInputSchema,
   ecpDecodeResultSchema,
   ecpEncodeInputSchema,
-  ecpEncodeResultSchema,
+  ecpEncodeResultSchema
 } from "@executioncontrolprotocol/core"
 import { decodeFromEql } from "./decode/decode-eql.js"
 import { encodeToEql } from "./encode/encode-eql.js"
@@ -15,7 +15,7 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
     summary: "EQL encode and decode for ECP documents.",
     description:
       "Converts workflows, environments, patches, and harness artifacts to and from the compact EQL text format used by small-model harnesses.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-eql", "encode")
@@ -28,12 +28,15 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
           "Encodes a supported source document into EQL for authoring panels, model prompts, or compact storage. Returns validation diagnostics when the source is invalid.",
         useCases: [
           "Harness prompt includes a compact workflow representation.",
-          "Editor exports the current manifest as EQL for review.",
+          "Editor exports the current manifest as EQL for review."
         ],
-        samplePrompts: [
-          "Encode this workflow as EQL.",
-          "Convert the manifest to EQL for the nano harness.",
-        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as the EQL text for prompts, panels, or storage."
+          }
+        ]
       })
       .withHandler((input, ctx) => encodeToEql(input as import("./schemas.js").EqlEncodeInput, ctx as never)),
 
@@ -47,13 +50,16 @@ export const formatEqlExtension = defineExtension("@executioncontrolprotocol", "
           "Decodes EQL input into the requested target document type. Surfaces parse and validation diagnostics when the text is malformed or incomplete.",
         useCases: [
           "Model-authored EQL is compiled back into a workflow manifest.",
-          "Import pipeline ingests EQL files from disk.",
+          "Import pipeline ingests EQL files from disk."
         ],
-        samplePrompts: [
-          "Decode this EQL into a workflow manifest.",
-          "Parse the EQL patch document from the model reply.",
-        ],
+        projections: [
+          {
+            summary: "Take the decoded document",
+            description:
+              "When success is true, use the result field as the parsed manifest or document for compile or patch."
+          }
+        ]
       })
-      .withHandler((input, ctx) => decodeFromEql(input as import("./schemas.js").EqlDecodeInput, ctx as never)),
+      .withHandler((input, ctx) => decodeFromEql(input as import("./schemas.js").EqlDecodeInput, ctx as never))
   ])
   .build()

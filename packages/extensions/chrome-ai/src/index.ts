@@ -5,12 +5,12 @@ import {
   globalRegistry,
   toProviderChatTurns,
   type CapabilityContext,
-  type Registry,
+  type Registry
 } from "@executioncontrolprotocol/core"
 import {
   modelGenerateInputSchema,
   modelGenerateOutputSchema,
-  type ModelGenerateInput,
+  type ModelGenerateInput
 } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import {
@@ -18,12 +18,12 @@ import {
   getModelInstallState,
   getPreferredCreateOptions,
   readAvailability,
-  startModelDownload,
+  startModelDownload
 } from "./model-install.js"
 import {
   createChromeLanguageModelSession,
   normalizePromptResponse,
-  type ChromeLanguageModelApi,
+  type ChromeLanguageModelApi
 } from "./prompt-session.js"
 import { buildChromePromptWithContext } from "./format-model-context.js"
 
@@ -53,7 +53,7 @@ async function runChromePrompt(
   const turns = toProviderChatTurns({
     system: input.system,
     messages: input.messages,
-    prompt: input.prompt,
+    prompt: input.prompt
   })
   const systemParts = turns
     .filter((turn) => turn.role === "system")
@@ -83,7 +83,7 @@ const InstallStateSchema = z.object({
   loaded: z.number().optional(),
   total: z.number().optional(),
   error: z.string().optional(),
-  hint: z.string().optional(),
+  hint: z.string().optional()
 })
 
 /** Chrome built-in AI provider. @category Extensions */
@@ -92,7 +92,7 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
   .withMetadata({
     summary: "On-device language model for Chrome browsers.",
     description:
-      "Binds Chrome built-in AI for text generation and on-device model install lifecycle. Runs only in browser environments that expose the LanguageModel API.",
+      "Binds Chrome built-in AI for text generation and on-device model install lifecycle. Runs only in browser environments that expose the LanguageModel API."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/chrome-ai", "checkAvailability")
@@ -101,7 +101,7 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
         z.object({
           available: z.boolean(),
           supported: z.boolean(),
-          status: z.string().optional(),
+          status: z.string().optional()
         })
       )
       .withMetadata({
@@ -110,19 +110,22 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
           "Probes the browser for Chrome LanguageModel support and current availability. Use before generate or download steps to decide whether to prompt the user to install the model or fall back to another path.",
         useCases: [
           "First-run browser demo needs to know if on-device AI is available.",
-          "Workflow step gates model calls until availability is confirmed.",
+          "Workflow step gates model calls until availability is confirmed."
         ],
-        samplePrompts: [
-          "Is the on-device model available in this browser?",
-          "Check Chrome AI availability before running chat.",
-        ],
+        projections: [
+          {
+            summary: "Read support and readiness",
+            description:
+              "Use available and supported to decide whether to generate, and status for user-facing install hints."
+          }
+        ]
       })
       .withHandler(async () => {
         const result = await readAvailability()
         return {
           available: result.available,
           supported: result.supported,
-          status: result.status,
+          status: result.status
         }
       }),
     capabilityFor("@executioncontrolprotocol/chrome-ai", "startModelDownload")
@@ -134,12 +137,14 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
           "Triggers a one-time model download when Chrome reports the model as downloadable. Use after checkAvailability shows the model is not yet installed.",
         useCases: [
           "User opts in to on-device AI during first-run setup.",
-          "App retries download after a previous install was interrupted.",
+          "App retries download after a previous install was interrupted."
         ],
-        samplePrompts: [
-          "Download the Chrome on-device model.",
-          "Start Gemini Nano install for this session.",
-        ],
+        projections: [
+          {
+            summary: "Confirm download started",
+            description: "When started is true, poll getModelInstallState until the model is ready."
+          }
+        ]
       })
       .withHandler(async () => startModelDownload()),
     capabilityFor("@executioncontrolprotocol/chrome-ai", "getModelInstallState")
@@ -151,12 +156,15 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
           "Returns install phase, byte progress when downloading, and error hints. Use to drive progress UI or block generate until the model reaches ready.",
         useCases: [
           "Show a progress toast while the model downloads.",
-          "Wait loop before invoking generate on first launch.",
+          "Wait loop before invoking generate on first launch."
         ],
-        samplePrompts: [
-          "What is the model install progress?",
-          "Is the on-device model still downloading?",
-        ],
+        projections: [
+          {
+            summary: "Track install progress",
+            description:
+              "Use phase and progress fields to drive UI and to know when generate can run safely."
+          }
+        ]
       })
       .withHandler(async () => getModelInstallState()),
     capabilityFor("@executioncontrolprotocol/chrome-ai", "generate")
@@ -168,16 +176,18 @@ export const chromeAiExtension = defineExtension("@executioncontrolprotocol", "c
           "Runs chat-style text generation entirely on-device via the Chrome LanguageModel API. Best for privacy-sensitive or offline-friendly browser apps. Requires the on-device model to be downloaded and ready. Does not accept file attachments yet.",
         useCases: [
           "Browser chat harness needs a local model with no network round trip.",
-          "Workflow step summarizes user input without sending data off-device.",
+          "Workflow step summarizes user input without sending data off-device."
         ],
-        samplePrompts: [
-          "Answer this question using on-device AI.",
-          "Generate a short reply for the chat panel.",
-        ],
+        projections: [
+          {
+            summary: "Use the model text",
+            description: "Take the text field as the generated assistant or step output for downstream steps."
+          }
+        ]
       })
       .withHandler(async (raw, ctx) =>
         runChromePrompt(modelGenerateInputSchema.parse(raw), ctx)
-      ),
+      )
   ])
   .build()
 
@@ -188,7 +198,7 @@ export type {
   ChromeModelInstallPhase,
   ChromeModelInstallState,
   ChromeModelStallCheckInput,
-  PreferredChromeCreateOptions,
+  PreferredChromeCreateOptions
 } from "./model-install.js"
 export {
   assertModelReady,
@@ -199,7 +209,7 @@ export {
   isChromeModelInstallStalled,
   readAvailability,
   resetModelInstallState,
-  startModelDownload,
+  startModelDownload
 } from "./model-install.js"
 
 /** Register Chrome AI extension. @category Extensions */

@@ -40,7 +40,8 @@ export class CapabilityBuilder {
   }
 
   /**
-   * Attach agent-facing docs (summary, description, useCases, samplePrompts, …).
+   * Attach agent-facing docs (summary, description, useCases, projections).
+   * Typed from {@link CapabilityMetadata}; runtime parse rejects unknown keys and banned prose.
    * @category Definitions
    */
   withMetadata(metadata: CapabilityMetadata): this {
@@ -62,7 +63,7 @@ export class CapabilityBuilder {
       outputSchema: this.outputSchema,
       handler: this.handlerFn,
       ...(this.execution ? { execution: this.execution } : {}),
-      ...(this.metadata ? { metadata: this.metadata } : {}),
+      ...(this.metadata ? { metadata: this.metadata } : {})
     }
   }
 }

@@ -3,12 +3,12 @@ import {
   capabilityFor,
   globalRegistry,
   catalogExtension,
-  type Registry,
+  type Registry
 } from "@executioncontrolprotocol/core"
 import {
   jsonataTransformInputSchema,
   jsonataTransformOutputSchema,
-  type JsonataTransformInput,
+  type JsonataTransformInput
 } from "./schemas.js"
 import { runJsonataTransform } from "./transform.js"
 
@@ -20,12 +20,8 @@ export const jsonataExtension = defineExtension("@executioncontrolprotocol", "js
       "Evaluates JSONata expressions locally against workflow data for mapping, filtering, and reshaping JSON without a remote service.",
     useCases: [
       "Map API responses into workflow-friendly shapes",
-      "Filter or aggregate arrays inside a run",
-    ],
-    samplePrompts: [
-      "Transform this JSON with a JSONata expression",
-      "Extract the items array and keep only id and title fields",
-    ],
+      "Filter or aggregate arrays inside a run"
+    ]
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/jsonata", "transform")
@@ -38,17 +34,19 @@ export const jsonataExtension = defineExtension("@executioncontrolprotocol", "js
           "Compiles and runs a JSONata expression against the provided payload with optional variable bindings, returning the evaluated result.",
         useCases: [
           "Project nested fields into a flat object for the next step",
-          "Compute derived values from workflow input or prior step output",
+          "Compute derived values from workflow input or prior step output"
         ],
-        samplePrompts: [
-          "Run this JSONata expression on the payload",
-          "Map order lines to `{ sku, qty }` objects with JSONata",
-        ],
+        projections: [
+          {
+            summary: "Take the evaluated result",
+            description: "Use result as the transformed JSON value for refs, steps, or downstream mapping."
+          }
+        ]
       })
       .withHandler(async (input) => {
         const parsed = input as JsonataTransformInput
         return runJsonataTransform(parsed)
-      }),
+      })
   ])
   .build()
 
@@ -67,7 +65,7 @@ export {
   jsonataTransformInputSchema,
   jsonataTransformOutputSchema,
   type JsonataTransformInput,
-  type JsonataTransformOutput,
+  type JsonataTransformOutput
 } from "./schemas.js"
 export { runJsonataTransform } from "./transform.js"
 

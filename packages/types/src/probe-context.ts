@@ -6,7 +6,7 @@ export const probeOptionSchema = z.object({
   id: z.string().min(1),
   /** Human label for chat. */
   label: z.string().min(1),
-  /** Optional state path hint (e.g. manifest.layers.0.id). */
+  /** Optional state path hint (e.g. layers.0.id). */
   path: z.string().optional(),
   /** Optional small metadata bag for adapters. */
   meta: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
@@ -17,13 +17,13 @@ export type ProbeOption = z.infer<typeof probeOptionSchema>
 
 /**
  * Live discovery context for the probe → clarify → complete chat loop.
- * Domain tags select prompt flavor only; intents stay vendor-agnostic.
+ * Domain is an opaque tag from the host or capability (often the capability id).
  * @category Harness
  */
 export const probeContextSchema = z.object({
   /** Stable probe session id. */
   probeId: z.string().min(1),
-  /** Domain tag for prompt flavor (e.g. photoshop-layers). */
+  /** Opaque domain tag for prompt flavor. */
   domain: z.string().min(1),
   /** Test-session cursor step id when applicable. */
   cursor: z.string().optional(),
@@ -37,8 +37,3 @@ export const probeContextSchema = z.object({
 
 /** Probe context type. @category Harness */
 export type ProbeContext = z.infer<typeof probeContextSchema>
-
-/** Well-known probe domain ids. @category Harness */
-export const PROBE_CONTEXT_DOMAINS = {
-  PHOTOSHOP_LAYERS: "photoshop-layers",
-} as const

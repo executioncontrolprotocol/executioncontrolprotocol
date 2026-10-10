@@ -2,7 +2,7 @@ import type {
   CapabilityDescription,
   CapabilityMetadata,
   ExtensionDescription,
-  ExtensionMetadata,
+  ExtensionMetadata
 } from "@executioncontrolprotocol/types"
 import type { Ecp } from "../../environment/ecp.js"
 import { DESCRIBE_AUTHORING_CAPABILITIES_QUERY } from "../../environment/describe.js"
@@ -44,9 +44,12 @@ function formatCapabilityDetail(cap: CapabilityDescription): string[] {
     lines.push("Use cases:")
     for (const u of meta.useCases) lines.push(`- ${u}`)
   }
-  if (meta?.samplePrompts?.length) {
-    lines.push("Sample prompts:")
-    for (const p of meta.samplePrompts) lines.push(`- ${p}`)
+  if (meta?.projections?.length) {
+    lines.push("Projections:")
+    for (const projection of meta.projections) {
+      lines.push(`- ${projection.summary}`)
+      lines.push(`  ${projection.description}`)
+    }
   }
   if (cap.inputSchema !== undefined) {
     lines.push(`inputSchema: ${JSON.stringify(cap.inputSchema)}`)
@@ -66,10 +69,6 @@ function formatExtensionDetail(ext: ExtensionDescription): string[] {
   if (meta?.useCases?.length) {
     lines.push("Use cases:")
     for (const u of meta.useCases) lines.push(`- ${u}`)
-  }
-  if (meta?.samplePrompts?.length) {
-    lines.push("Sample prompts:")
-    for (const p of meta.samplePrompts) lines.push(`- ${p}`)
   }
   if (ext.capabilities.length > 0) {
     lines.push(`Capabilities: ${ext.capabilities.join(", ")}`)
@@ -92,7 +91,7 @@ export async function loadEnvironmentDescribeForPrompt(
   const inventory = await ecp.describe(DESCRIBE_AUTHORING_CAPABILITIES_QUERY)
   const known = [
     ...(inventory.capabilities ?? []).map((c) => c.id),
-    ...(inventory.extensions ?? []).map((e) => e.id),
+    ...(inventory.extensions ?? []).map((e) => e.id)
   ]
   const mentioned = extractMentionedEntityIds(message, known)
   const detailLines: string[] = []
@@ -100,10 +99,10 @@ export async function loadEnvironmentDescribeForPrompt(
     const isCapability = id.includes(".") && (inventory.capabilities ?? []).some((c) => c.id === id)
     const descriptor = isCapability
       ? await ecp.describe({
-          capabilities: { match: id, mode: "exact", limit: 1 },
+          capabilities: { match: id, mode: "exact", limit: 1 }
         })
       : await ecp.describe({
-          extensions: { match: id, mode: "exact", limit: 1 },
+          extensions: { match: id, mode: "exact", limit: 1 }
         })
     if (isCapability) {
       const cap = descriptor.capabilities?.[0]
