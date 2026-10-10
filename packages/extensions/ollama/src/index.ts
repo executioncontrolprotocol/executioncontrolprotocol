@@ -4,7 +4,7 @@ import {
   globalRegistry,
   catalogExtension,
   NODE_RUNTIME_ID,
-  toProviderChatTurns,
+  toProviderChatTurns
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
@@ -61,7 +61,7 @@ const EVALUATE_SYSTEM_PROMPT = [
   "workflow-patch or workflow-create intent: approve valid workflow changes; reject plain prose without workflow effect.",
   "general intent with off-topic goals: approve polite declines redirecting to workflows, ECP, or capabilities.",
   "For off-topic decline goals, approve when the answer contains cannot or can't and redirects to workflows, ECP, or capabilities.",
-  "Reject only when the answer is clearly wrong, off-topic without declining, or missing required facts from the rubric.",
+  "Reject only when the answer is clearly wrong, off-topic without declining, or missing required facts from the rubric."
 ].join(" ")
 
 const HARNESS_SCOPE_TOKENS = ["ecp", "workflow", "capabilit"] as const
@@ -251,7 +251,7 @@ async function ollamaChat(
     system,
     messages: priorMessages,
     prompt,
-    context,
+    context
   })
   const res = await fetch(`${baseURL.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
@@ -262,9 +262,9 @@ async function ollamaChat(
       stream: false,
       options: {
         num_ctx: 8192,
-        ...(requestOptions ?? {}),
-      },
-    }),
+        ...(requestOptions ?? {})
+      }
+    })
   })
   if (!res.ok) {
     let detail = ""
@@ -301,12 +301,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
   .withConfig({
     baseURL: z.string().optional(),
     defaultModel: z.string().optional(),
-    timeoutMs: z.number().optional(),
+    timeoutMs: z.number().optional()
   })
   .withMetadata({
     summary: "Local Ollama server integration for Node hosts.",
     description:
-      "Connects to a locally hosted Ollama instance for chat completion, model listing, and harness evaluation. Ideal for development, eval matrices, and air-gapped deployments.",
+      "Connects to a locally hosted Ollama instance for chat completion, model listing, and harness evaluation. Ideal for development, eval matrices, and air-gapped deployments."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/ollama", "generate")
@@ -318,12 +318,8 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           "Runs chat completion against an Ollama instance on the configured base URL. Suited for local development and offline Node workloads. Does not accept file attachments yet. Override the model per call or set a default in extension config.",
         useCases: [
           "Harness or CLI workflow needs a local model without cloud credentials.",
-          "Eval matrix runs chat turns against a pinned local model tag.",
-        ],
-        samplePrompts: [
-          "Generate a reply using the local Ollama model.",
-          "Run this prompt against gemma3:1b on localhost.",
-        ],
+          "Eval matrix runs chat turns against a pinned local model tag."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof GenerateInput>
@@ -360,12 +356,8 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           "Returns model tags reported by the Ollama tags API. Use before generate to pick an installed model or to populate a model picker in local dev tools.",
         useCases: [
           "Settings UI shows which models are pulled locally.",
-          "Script verifies a required model tag exists before a harness run.",
-        ],
-        samplePrompts: [
-          "What Ollama models are installed?",
-          "List available local models on this machine.",
-        ],
+          "Script verifies a required model tag exists before a harness run."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const parsed = input as { baseURL?: string }
@@ -385,7 +377,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           criteria: z.unknown().optional(),
           goal: z.string().optional(),
           classifiedIntent: z.string().optional(),
-          model: z.string().optional(),
+          model: z.string().optional()
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
@@ -395,12 +387,8 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           "Approves or rejects harness artifacts against a goal and rubric. Applies deterministic shortcuts for common eval patterns before calling a local judge model. Used by harness eval matrices, not end-user chat.",
         useCases: [
           "Harness eval case needs an automated quality gate after generate.",
-          "CI matrix scores workflow patch outputs against a rubric.",
-        ],
-        samplePrompts: [
-          "Evaluate whether this harness answer satisfies the goal.",
-          "Run the eval judge on the latest workflow artifact.",
-        ],
+          "CI matrix scores workflow patch outputs against a rubric."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -431,7 +419,7 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           `Goal: ${goal}`,
           `Rubric: ${rubric}`,
           ...(row.classifiedIntent ? [`Classified intent: ${row.classifiedIntent}`] : []),
-          formatted,
+          formatted
         ].join("\n")
         const judgeModel =
           row.model ?? (cfg.defaultModel as string | undefined) ?? "gemma3:1b"
@@ -449,12 +437,12 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
           const parsed = JSON.parse(jsonMatch[0]) as { approved?: boolean; feedback?: string }
           return {
             approved: parsed.approved !== false,
-            feedback: parsed.feedback,
+            feedback: parsed.feedback
           }
         } catch {
           return { approved: true, feedback: "evaluation skipped" }
         }
-      }),
+      })
   ])
   .build()
 

@@ -1,6 +1,18 @@
 import { z } from "zod"
 
 /**
+ * Plain-text note for what to take from a capability output after the call.
+ * Used after discovery / inspect runs; not a sample payload or path query.
+ * @category Schema
+ */
+export interface CapabilityProjection {
+  /** What to take from the output after the call. */
+  summary: string
+  /** How to take it, in sentences. */
+  description: string
+}
+
+/**
  * Agent-facing capability docs authored via {@code .withMetadata()}.
  * @category Schema
  */
@@ -9,14 +21,15 @@ export interface CapabilityMetadata {
   summary: string
   /** Full agent docs: behavior, product limits, when this capability applies. */
   description: string
-  /** Concrete situations an agent should recognize. */
+  /** Concrete situations an agent should recognize (before the call). */
   useCases: string[]
-  /** Representative user / host prompts that should route here. */
-  samplePrompts: string[]
   /** Optional distinct display title; describe falls back to capability name. */
   label?: string
-  /** Sample `.with({...})` / invoke input objects for repair and few-shot. */
-  examples?: unknown[]
+  /**
+   * What to take from the output after the call, in plain text.
+   * Stays off authoring inventory; shown with exact-id detail and after inspect runs.
+   */
+  projections?: CapabilityProjection[]
   /** Non-standard extensions (vendor docs urls, tags, …). */
   _meta?: Record<string, unknown>
 }
@@ -32,8 +45,6 @@ export interface ExtensionMetadata {
   description: string
   /** Optional situations an agent should recognize. */
   useCases?: string[]
-  /** Optional representative prompts. */
-  samplePrompts?: string[]
   /** Optional distinct display title. */
   label?: string
   /**
@@ -45,7 +56,7 @@ export interface ExtensionMetadata {
   _meta?: Record<string, unknown>
 }
 
-/** Banned protocol/schema how-to phrases in metadata prose. @category Schema */
+/** Banned protocol/schema how-to phrases in author prose. @category Schema */
 export const METADATA_PROSE_BANNED_PHRASES = [
   "inputschema",
   "outputschema",
@@ -84,15 +95,32 @@ function assertProseListClean(field: string, values: string[]): void {
   }
 }
 
+/** Zod schema for {@link CapabilityProjection}. @category Schema */
+export const capabilityProjectionSchema = z
+  .object({
+    summary: z.string().min(1),
+    description: z.string().min(1),
+  })
+  .superRefine((value, ctx) => {
+    try {
+      assertProseClean("projections.summary", value.summary)
+      assertProseClean("projections.description", value.description)
+    } catch (err) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: err instanceof Error ? err.message : String(err),
+      })
+    }
+  })
+
 /** Zod schema for {@link CapabilityMetadata}. @category Schema */
 export const capabilityMetadataSchema = z
   .object({
     summary: z.string().min(1),
     description: z.string().min(1),
     useCases: z.array(z.string().min(1)).min(1),
-    samplePrompts: z.array(z.string().min(1)).min(1),
     label: z.string().min(1).optional(),
-    examples: z.array(z.unknown()).optional(),
+    projections: z.array(capabilityProjectionSchema).optional(),
     _meta: z.record(z.string(), z.unknown()).optional(),
   })
   .superRefine((value, ctx) => {
@@ -100,7 +128,6 @@ export const capabilityMetadataSchema = z
       assertProseClean("summary", value.summary)
       assertProseClean("description", value.description)
       assertProseListClean("useCases", value.useCases)
-      assertProseListClean("samplePrompts", value.samplePrompts)
       if (value.label) assertProseClean("label", value.label)
     } catch (err) {
       ctx.addIssue({
@@ -116,7 +143,6 @@ export const extensionMetadataSchema = z
     summary: z.string().min(1),
     description: z.string().min(1),
     useCases: z.array(z.string().min(1)).optional(),
-    samplePrompts: z.array(z.string().min(1)).optional(),
     label: z.string().min(1).optional(),
     isAuthorable: z.boolean().optional(),
     _meta: z.record(z.string(), z.unknown()).optional(),
@@ -126,7 +152,6 @@ export const extensionMetadataSchema = z
       assertProseClean("summary", value.summary)
       assertProseClean("description", value.description)
       if (value.useCases) assertProseListClean("useCases", value.useCases)
-      if (value.samplePrompts) assertProseListClean("samplePrompts", value.samplePrompts)
       if (value.label) assertProseClean("label", value.label)
     } catch (err) {
       ctx.addIssue({
@@ -138,6 +163,7 @@ export const extensionMetadataSchema = z
 
 /**
  * Parse and validate capability metadata (throws on invalid / banned prose).
+ * Legacy {@code samplePrompts} / {@code examples} keys are stripped.
  * @category Schema
  */
 export function parseCapabilityMetadata(input: unknown): CapabilityMetadata {
@@ -146,6 +172,7 @@ export function parseCapabilityMetadata(input: unknown): CapabilityMetadata {
 
 /**
  * Parse and validate extension metadata (throws on invalid / banned prose).
+ * Legacy {@code samplePrompts} keys are stripped.
  * @category Schema
  */
 export function parseExtensionMetadata(input: unknown): ExtensionMetadata {

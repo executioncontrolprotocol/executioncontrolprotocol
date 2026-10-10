@@ -1,12 +1,12 @@
 import {
   capabilityFor,
   type CapabilityDefinition,
-  type CapabilityHandler,
+  type CapabilityHandler
 } from "@executioncontrolprotocol/core"
 import { uploadInputSchema, uploadOutputSchema } from "./capabilities/upload-schema.js"
 import {
   createSasUrlInputSchema,
-  createSasUrlOutputSchema,
+  createSasUrlOutputSchema
 } from "./capabilities/create-sas-url-schema.js"
 import { downloadInputSchema, downloadOutputSchema } from "./capabilities/download-schema.js"
 import { EXT_ID } from "./shared.js"
@@ -36,12 +36,8 @@ export function buildAzureBlobCapabilities(
           "Writes content to a named blob in a container from a base64 payload, local path, artifact locator, or browser file reference. Returns the blob location and optional SAS URL.",
         useCases: [
           "Persist workflow output to durable cloud storage",
-          "Stage user uploads before downstream processing",
-        ],
-        samplePrompts: [
-          "Upload this image to Azure blobs in the media container",
-          "Store the generated file as uploads/report.pdf",
-        ],
+          "Stage user uploads before downstream processing"
+        ]
       })
       .withHandler(handlers.upload),
     capabilityFor(EXT_ID, "create-sas-url")
@@ -54,12 +50,8 @@ export function buildAzureBlobCapabilities(
           "Generates a shared-access signature URL with chosen read, write, or delete permissions and expiry for an existing blob in a container.",
         useCases: [
           "Share a temporary read link with an external API",
-          "Authorize a browser PUT for mixed upload flows",
-        ],
-        samplePrompts: [
-          "Create a read-only SAS URL valid for one hour",
-          "Generate a write SAS so the browser can upload the blob",
-        ],
+          "Authorize a browser PUT for mixed upload flows"
+        ]
       })
       .withHandler(handlers.createSasUrl),
     capabilityFor(EXT_ID, "download")
@@ -72,13 +64,9 @@ export function buildAzureBlobCapabilities(
           "Fetches blob bytes from Azure Storage and stores them as a media artifact with content type and name for local processing.",
         useCases: [
           "Pull stored assets back into a workflow for editing",
-          "Retrieve remote blobs for inspection or transformation",
-        ],
-        samplePrompts: [
-          "Download the blob exports/data.json from Azure",
-          "Fetch the stored image so we can resize it",
-        ],
+          "Retrieve remote blobs for inspection or transformation"
+        ]
       })
-      .withHandler(handlers.download),
+      .withHandler(handlers.download)
   ]
 }

@@ -1,125 +1,96 @@
 import {
-  buildPhotoshopLayersProbeContext,
+  compileDiscoveryWorkflow,
+  DISCOVERY_RAW_STEP_AS,
+  formatDiscoveryFollowUpLines,
   flattenTestStepOrder,
+  type CapabilityDefinition,
   type Ecp,
 } from "@executioncontrolprotocol/core"
-import {
-  PROBE_CONTEXT_DOMAINS,
-  type ProbeContext,
-  type ProbeOption,
-  type StepNode,
-  type TestSessionSnapshot,
-  type WorkflowManifest,
+import type {
+  CapabilityMetadata,
+  StepNode,
+  WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 
-const DISCOVERY_STATE_KEYS = new Set(["manifest", "psdmanifest", "discovery"])
-
-/** Result of running a workflow through its discovery step. @category Demo */
-export interface ProbeSessionResult {
-  /** Serializable test session state for later continuation. */
-  snapshot: TestSessionSnapshot
-  /** Prompt-safe discovery context passed into later chat turns. */
-  probeContext: ProbeContext
+/** Result of preparing a disposable discovery workflow. @category Demo */
+export interface DiscoveryWorkflowPrepareResult {
+  /** Compiled or already-marked discovery workflow. */
+  workflow: WorkflowManifest
+  /** Capability the inspect workflow calls. */
+  capabilityId: string
 }
 
-/** Inputs for building a domain-neutral probe context from session state. @category Demo */
-export interface ProbeContextFromStateOptions {
-  /** Completed test session snapshot. */
-  snapshot: TestSessionSnapshot
-  /** State key containing discovery output. */
-  stepAs: string
-  /** Probe domain used by the harness prompt. */
-  domain: string
-  /** Convert the discovered value into selectable options. */
-  buildOptions: (value: unknown) => ProbeOption[]
-  /** Optional summary override. */
-  summary?: string
+/**
+ * Resolve the capability id a discovery workflow should inspect.
+ * Prefers an explicit {@link WorkflowManifest.discovery} marker, then a single step.
+ * @category Demo
+ */
+export function resolveDiscoveryCapabilityId(
+  workflow: WorkflowManifest
+): string | undefined {
+  if (workflow.discovery?.capabilityId) return workflow.discovery.capabilityId
+  const steps = flattenTestStepOrder(workflow.steps).filter(
+    (step): step is StepNode =>
+      step !== undefined &&
+      (step.type === undefined || step.type === "step") &&
+      typeof step.uses === "string"
+  )
+  if (steps.length === 1) return String(steps[0]!.uses)
+  return undefined
 }
 
-/** Find the last workflow step that appears to produce discovery state. @category Demo */
-export function findDiscoveryCursor(workflow: WorkflowManifest): StepNode | undefined {
-  return flattenTestStepOrder(workflow.steps)
-    .filter(
-      (step) =>
-        String(step.uses).toLowerCase().includes("generate-manifest") ||
-        (step.as !== undefined && DISCOVERY_STATE_KEYS.has(step.as.toLowerCase()))
-    )
-    .at(-1)
-}
-
-/** Build a generic probe context from a named test-session state value. @category Demo */
-export function buildProbeContextFromState(
-  options: ProbeContextFromStateOptions
-): ProbeContext {
-  const probeOptions = options.buildOptions(options.snapshot.state[options.stepAs])
-  return {
-    probeId: options.snapshot.sessionId,
-    domain: options.domain,
-    ...(options.snapshot.cursor ? { cursor: options.snapshot.cursor } : {}),
-    stepAs: options.stepAs,
-    summary:
-      options.summary ??
-      (probeOptions.length > 0
-        ? `Discovered ${probeOptions.length} option(s).`
-        : "No options discovered."),
-    options: probeOptions,
-  }
-}
-
-/** Run the workflow to its discovery cursor and build Photoshop layer options. @category Demo */
-export async function runProbeSession(
-  ecp: Pick<Ecp, "test">,
+/**
+ * Prepare a discovery workflow for the run modal.
+ * Compiles from the bound capability when the marker is missing.
+ * @category Demo
+ */
+export function prepareDiscoveryWorkflow(
   workflow: WorkflowManifest,
-  input?: Record<string, unknown>
-): Promise<ProbeSessionResult | undefined> {
-  const cursor = findDiscoveryCursor(workflow)
-  if (!cursor) return undefined
-
-  try {
-    const session = await ecp.test(workflow).with({ input: input ?? {} }).start()
-    const snapshot = await session.runTo(cursor.id)
-    const stepAs = cursor.as ?? findPhotoshopStateKey(snapshot.state)
-    if (!stepAs) {
-      return {
-        snapshot,
-        probeContext: {
-          probeId: snapshot.sessionId,
-          domain: PROBE_CONTEXT_DOMAINS.PHOTOSHOP_LAYERS,
-          ...(snapshot.cursor ? { cursor: snapshot.cursor } : {}),
-          summary: "The probe completed without Photoshop layer state.",
-          options: [],
-        },
-      }
-    }
-
-    return {
-      snapshot,
-      probeContext: buildPhotoshopLayersProbeContext({
-        probeId: snapshot.sessionId,
-        manifest: snapshot.state[stepAs],
-        ...(snapshot.cursor ? { cursor: snapshot.cursor } : {}),
-        stepAs,
-      }),
-    }
-  } catch {
-    return undefined
+  lookup: { getCapability: (id: string) => CapabilityDefinition | undefined }
+): DiscoveryWorkflowPrepareResult | undefined {
+  const capabilityId = resolveDiscoveryCapabilityId(workflow)
+  if (!capabilityId) return undefined
+  if (workflow.discovery?.capabilityId) {
+    return { workflow, capabilityId }
+  }
+  return {
+    workflow: compileDiscoveryWorkflow(capabilityId, lookup),
+    capabilityId,
   }
 }
 
-/** Format discovered options as a compact agent chat message. @category Demo */
-export function formatProbeOptionsMessage(probe: ProbeContext): string {
-  if (probe.options.length === 0) return probe.summary
-  const choices = probe.options.map((option) => `${option.label} (${option.id})`).join(", ")
-  return `${probe.summary} Choose one or more: ${choices}.`
+/**
+ * Format projections plus a capped excerpt after a discovery run.
+ * @category Demo
+ */
+export function formatDiscoveryFollowUpMessage(options: {
+  capabilityId: string
+  projections?: CapabilityMetadata["projections"]
+  output: unknown
+}): string {
+  return formatDiscoveryFollowUpLines(options).join("\n")
 }
 
-function findPhotoshopStateKey(state: Record<string, unknown>): string | undefined {
-  return Object.keys(state).find((key) => hasPhotoshopLayers(state[key]))
+/**
+ * Read the discovery step output from a completed run state.
+ * @category Demo
+ */
+export function discoveryOutputFromState(
+  state: Record<string, unknown> | undefined
+): unknown {
+  if (!state) return undefined
+  if (DISCOVERY_RAW_STEP_AS in state) return state[DISCOVERY_RAW_STEP_AS]
+  const keys = Object.keys(state)
+  return keys.length > 0 ? state[keys[keys.length - 1]!] : undefined
 }
 
-function hasPhotoshopLayers(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false
-  const record = value as Record<string, unknown>
-  if (Array.isArray(record.layers)) return true
-  return hasPhotoshopLayers(record.manifest) || hasPhotoshopLayers(record.result)
+/**
+ * Look up capability metadata projections from an {@link Ecp} registry.
+ * @category Demo
+ */
+export function projectionsForCapability(
+  ecp: Pick<Ecp, "getRegistry">,
+  capabilityId: string
+): CapabilityMetadata["projections"] | undefined {
+  return ecp.getRegistry().getCapability(capabilityId)?.metadata?.projections
 }

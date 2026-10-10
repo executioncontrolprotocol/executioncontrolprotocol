@@ -4,7 +4,7 @@ import {
   ecpDecodeInputSchema,
   ecpDecodeResultSchema,
   ecpEncodeInputSchema,
-  ecpEncodeResultSchema,
+  ecpEncodeResultSchema
 } from "@executioncontrolprotocol/core"
 import { decodeFromToon } from "./decode.js"
 import { encodeToToon } from "./encode.js"
@@ -15,7 +15,7 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
     summary: "TOON encode and decode for ECP documents.",
     description:
       "Converts workflows, environments, and patch documents to and from the token-oriented TOON text format with optional header and compaction settings.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-toon", "encode")
@@ -28,12 +28,8 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
           "Encodes a supported source into TOON for compact interchange or CLI export. Honors encode options such as headers and compact layout.",
         useCases: [
           "CLI exports a validated workflow as TOON for sharing.",
-          "Workflow panel shows a compact TOON view alongside JSON.",
-        ],
-        samplePrompts: [
-          "Encode this workflow to TOON with headers disabled.",
-          "Convert the environment manifest to TOON format.",
-        ],
+          "Workflow panel shows a compact TOON view alongside JSON."
+        ]
       })
       .withHandler((input, ctx) => encodeToToon(input as import("@executioncontrolprotocol/types").EcpEncodeInput, ctx as never)),
 
@@ -47,13 +43,9 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
           "Decodes TOON input into the requested target document. Validates the result and returns diagnostics when parsing or schema checks fail.",
         useCases: [
           "Import a TOON file back into an editable workflow manifest.",
-          "Patch pipeline applies TOON-decoded changes to a workflow.",
-        ],
-        samplePrompts: [
-          "Decode this TOON file into a workflow.",
-          "Parse TOON patch text into a patch document.",
-        ],
+          "Patch pipeline applies TOON-decoded changes to a workflow."
+        ]
       })
-      .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/types").EcpDecodeInput, ctx as never)),
+      .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/types").EcpDecodeInput, ctx as never))
   ])
   .build()

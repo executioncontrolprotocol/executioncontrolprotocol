@@ -7,6 +7,7 @@ import {
   adobeGeneratedCapabilities,
   ADOBE_GENERATED_OPERATION_COUNT,
 } from "./generated/index.browser.js"
+import { withPhotoshopDiscoveryProjections } from "./discovery-projections.js"
 import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
 
 /**
@@ -15,9 +16,9 @@ import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
  *
  * @category Extensions
  */
-export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension([
-  ...adobeGeneratedCapabilities,
-])
+export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
+  withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
+)
 
 catalogExtension(adobeFireflyServicesExtension)
 
@@ -35,6 +36,10 @@ export async function registerAdobeFireflyServicesExtension(
 }
 
 export { ADOBE_GENERATED_OPERATION_COUNT, adobeGeneratedCapabilities }
+export {
+  PHOTOSHOP_GENERATE_MANIFEST_ID,
+  withPhotoshopDiscoveryProjections,
+} from "./discovery-projections.js"
 export { EXT_ID, HOST_HOP_MESSAGE, buildAdobeFireflyServicesExtension } from "./shared.js"
 
 export default adobeFireflyServicesExtension

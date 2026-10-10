@@ -40,10 +40,11 @@ export class CapabilityBuilder {
   }
 
   /**
-   * Attach agent-facing docs (summary, description, useCases, samplePrompts, …).
+   * Attach agent-facing docs (summary, description, useCases, projections, …).
+   * Legacy {@code samplePrompts} / {@code examples} keys are stripped on parse.
    * @category Definitions
    */
-  withMetadata(metadata: CapabilityMetadata): this {
+  withMetadata(metadata: unknown): this {
     this.metadata = parseCapabilityMetadata(metadata)
     return this
   }
@@ -62,7 +63,7 @@ export class CapabilityBuilder {
       outputSchema: this.outputSchema,
       handler: this.handlerFn,
       ...(this.execution ? { execution: this.execution } : {}),
-      ...(this.metadata ? { metadata: this.metadata } : {}),
+      ...(this.metadata ? { metadata: this.metadata } : {})
     }
   }
 }

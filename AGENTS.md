@@ -169,7 +169,7 @@ Keep **npm package name** aligned with the **extension id**.
 | ---- | ----- |
 | Depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` (+ focused third-party libs) | Import `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, `@executioncontrolprotocol/cli`, or `@executioncontrolprotocol/mcp` from an extension package |
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
-| `.withMetadata({ summary, description, useCases, samplePrompts })` on capabilities (product prose only) | Schema how-to in metadata; cross-advertise other extension packages |
+| `.withMetadata({ summary, description, useCases, projections? })` on capabilities (product prose only) | Schema how-to in metadata; sample prompts; cross-advertise other extension packages |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
 | Use `resolveFile` / `writeMediaArtifact` for image/binary I/O | Reimplement fs/fetch/`ctx.artifacts` maps inside vendor packages |
 
@@ -230,7 +230,7 @@ Build order: `tsc -b tsconfig.build.json` (types → core → … → cli).
 
 ### Harness authoring surface
 
-Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `defineHarness`, `runModelRepairLoop`, `buildSystemPrompt`, `summarizeEnvironmentDescriptor`, `formatStructuredRepairForModel`, `buildAssistantSafeReply`, `summarizeProbeContext`, `buildPhotoshopLayersProbeContext`, etc. Shared task input Zod schemas live in `@executioncontrolprotocol/types` (`HARNESS_TASK_IDS`, `harnessWorkflowAssistantInputSchema`, `probeContextSchema`, …).
+Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `defineHarness`, `runModelRepairLoop`, `buildSystemPrompt`, `summarizeEnvironmentDescriptor`, `formatStructuredRepairForModel`, `buildAssistantSafeReply`, `summarizeProbeContext`, `compileDiscoveryWorkflow`, etc. Shared task input Zod schemas live in `@executioncontrolprotocol/types` (`HARNESS_TASK_IDS`, `harnessWorkflowAssistantInputSchema`, `probeContextSchema`, …).
 
 | Harness | Package | Id | Model surface | Eval profile |
 | ------- | ------- | -- | ------------- | ------------ |
@@ -239,7 +239,7 @@ Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `de
 
 `compileHarnessArtifactSource` in `@executioncontrolprotocol/core/compile` evaluates intent/reply TS modules. Workflow create/patch use `compileWorkflowSource`. The **`workflow-assistant`** task is the unified assistant (ECP FAQ, identity, environment help, run Q&A). Optional `identity: true` on prompt fixtures prepends `ECP_ASSISTANT_IDENTITY_PRIMER`.
 
-**Probe → clarify → complete:** Chat intents `workflow-probe` and `workflow-clarify` drive a reusable discovery loop. Probe authors a prefix and suggests `offer-probe`; the host runs `ecp.test(…).runTo(cursor)`, builds domain-agnostic `ProbeContext` (Photoshop layers are the first exemplar via `buildPhotoshopLayersProbeContext`), then clarify turns select options and patch the remaining steps (`offer-run`). New domains add an adapter + prompt flavor — not new intents.
+**Probe → clarify → complete:** Chat intents `workflow-probe` and `workflow-clarify` drive a reusable discovery loop. The assistant picks a bound capability from summaries, authors or compiles a one-step discovery workflow (`compileDiscoveryWorkflow`), and suggests `offer-probe`. The host runs that workflow in the run modal. After the run, capability `projections` (plain-text notes for what to take from the output) plus a size-capped excerpt resume authoring (`offer-run`). Extensions own projections; harnesses stay vendor-neutral.
 
 ### Harness eval integrity
 

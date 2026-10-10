@@ -5,7 +5,7 @@ import {
   ecpEncodeInputSchema,
   ecpEncodeResultSchema,
   encodeFailure,
-  validateWorkflow,
+  validateWorkflow
 } from "@executioncontrolprotocol/core"
 import { LATEST_ECP_VERSION, type EcpEncodeInput, type EncodeResult } from "@executioncontrolprotocol/types"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
@@ -22,9 +22,9 @@ function encodeToMermaid(input: EcpEncodeInput): EncodeResult<string> {
         {
           severity: "error",
           code: "FORMAT_UNSUPPORTED_SOURCE_SCHEMA",
-          message: "Mermaid encoder supports @executioncontrolprotocol.workflow only",
-        },
-      ],
+          message: "Mermaid encoder supports @executioncontrolprotocol.workflow only"
+        }
+      ]
     })
   }
 
@@ -34,7 +34,7 @@ function encodeToMermaid(input: EcpEncodeInput): EncodeResult<string> {
       format: "mermaid",
       sourceSchema,
       validation,
-      diagnostics: [...validation.errors, ...validation.warnings],
+      diagnostics: [...validation.errors, ...validation.warnings]
     })
   }
 
@@ -47,7 +47,7 @@ function encodeToMermaid(input: EcpEncodeInput): EncodeResult<string> {
     sourceSchema,
     sourceVersion: input.sourceVersion,
     result: workflowToMermaid(input.source as WorkflowManifest, input.options as MermaidEncodeOptions),
-    diagnostics: [],
+    diagnostics: []
   }
 }
 
@@ -57,7 +57,7 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
     summary: "Mermaid diagram rendering for workflows.",
     description:
       "Encodes validated workflow manifests into Mermaid graph text for documentation and editor canvas views. Encode-only; does not parse Mermaid back into workflows.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-mermaid", "encode")
@@ -70,14 +70,10 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
           "Produces Mermaid flowchart text from a workflow manifest. Validates the source workflow first and returns diagnostics when invalid. Supports layout options via encode options.",
         useCases: [
           "Graph editor panel visualizes the current workflow.",
-          "Docs site embeds a Mermaid diagram generated from a manifest.",
-        ],
-        samplePrompts: [
-          "Show this workflow as a Mermaid diagram.",
-          "Render the echo workflow graph for the canvas.",
-        ],
+          "Docs site embeds a Mermaid diagram generated from a manifest."
+        ]
       })
-      .withHandler((input) => encodeToMermaid(input as EcpEncodeInput)),
+      .withHandler((input) => encodeToMermaid(input as EcpEncodeInput))
   ])
   .build()
 

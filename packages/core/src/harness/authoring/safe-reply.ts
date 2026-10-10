@@ -304,7 +304,7 @@ export function tryBuildChangeSummaryReply(
 }
 
 /**
- * Deterministic summary after authoring a discovery prefix, with offer-probe.
+ * Deterministic summary after authoring a discovery inspect workflow, with offer-probe.
  * @category Harness
  */
 export function tryBuildProbeOfferReply(
@@ -317,8 +317,8 @@ export function tryBuildProbeOfferReply(
       ? "no steps"
       : after.steps.map((s) => s.id).join(", ")
   const changeLine = baseline
-    ? `I updated the workflow discovery prefix (${stepList}).`
-    : `I drafted a discovery prefix for "${after.workflowLabel ?? after.workflowId}" (${stepList}).`
+    ? `I updated the discovery inspect workflow (${stepList}).`
+    : `I drafted a discovery inspect workflow for "${after.workflowLabel ?? after.workflowId}" (${stepList}).`
   return {
     schema: ECP_HARNESS_REPLY_SCHEMA,
     answer: `${changeLine} Want me to run the probe so we can inspect the results before finishing?`,

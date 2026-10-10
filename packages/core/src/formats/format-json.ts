@@ -3,7 +3,7 @@ import {
   ecpDecodeInputSchema,
   ecpDecodeResultSchema,
   ecpEncodeInputSchema,
-  ecpEncodeResultSchema,
+  ecpEncodeResultSchema
 } from "../encoding/schemas.js"
 import { decodeJson, encodeJson } from "../encoding/json-codec.js"
 import type { EcpDecodeInput, EcpEncodeInput, EcpSchema } from "@executioncontrolprotocol/types"
@@ -43,7 +43,7 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
     summary: "Canonical JSON encode and decode for ECP documents.",
     description:
       "Passthrough JSON serialization and parsing with optional target validation for workflows, patches, and intent documents.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-json", "encode")
@@ -55,18 +55,14 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
           "Encodes a source document as formatted JSON. Used when no specialized format is selected or for canonical manifest export.",
         useCases: [
           "CLI writes a compiled workflow manifest to disk.",
-          "API returns a JSON snapshot of the current document.",
-        ],
-        samplePrompts: [
-          "Export this workflow as JSON.",
-          "Encode the manifest to pretty-printed JSON.",
-        ],
+          "API returns a JSON snapshot of the current document."
+        ]
       })
       .withHandler((input) =>
         encodeJson((input as EcpEncodeInput).source, {
           ...(input as EcpEncodeInput).options,
           sourceSchema: (input as EcpEncodeInput).sourceSchema,
-          sourceVersion: (input as EcpEncodeInput).sourceVersion,
+          sourceVersion: (input as EcpEncodeInput).sourceVersion
         })
       ),
     capabilityFor("@executioncontrolprotocol/format-json", "decode")
@@ -78,12 +74,8 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
           "Parses JSON input and optionally validates against a target document type. Returns validation diagnostics when the parsed object fails checks.",
         useCases: [
           "Loader imports a workflow.json file into the editor.",
-          "Patch step parses JSON model output before applying changes.",
-        ],
-        samplePrompts: [
-          "Decode this JSON file into a workflow manifest.",
-          "Parse the JSON patch document from the model.",
-        ],
+          "Patch step parses JSON model output before applying changes."
+        ]
       })
       .withHandler((input) => {
         const decoded = input as EcpDecodeInput
@@ -91,7 +83,7 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
         const parsed = decodeJson(decoded.input, {
           targetSchema: target,
           targetVersion: decoded.targetVersion,
-          ...decoded.options,
+          ...decoded.options
         })
         if (!parsed.success || parsed.result === undefined) {
           return parsed
@@ -107,9 +99,9 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
           diagnostics: [
             ...parsed.diagnostics,
             ...validation.errors,
-            ...validation.warnings,
-          ],
+            ...validation.warnings
+          ]
         }
-      }),
+      })
   ])
   .build()

@@ -102,11 +102,6 @@ export interface CapabilityDescription {
   extension: string
   inputSchema?: unknown
   outputSchema?: unknown
-  /**
-   * @deprecated Prefer {@link CapabilityDescription.metadata}.examples on exact-id describe.
-   * Kept for older fixtures; new emitters nest examples under metadata.
-   */
-  examples?: unknown[]
   /** Full capability metadata (exact-id describe only). */
   metadata?: CapabilityMetadata
   /**

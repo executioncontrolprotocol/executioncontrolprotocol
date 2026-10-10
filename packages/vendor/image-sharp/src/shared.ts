@@ -25,7 +25,7 @@ export function buildImageSharpExtension(
         .object({
           defaultStore: z.string().optional(),
           tempPrefix: z.string().default("tmp/image-sharp"),
-          outputPrefix: z.string().default("artifacts/images"),
+          outputPrefix: z.string().default("artifacts/images")
         })
         .optional(),
       limits: z
@@ -38,7 +38,7 @@ export function buildImageSharpExtension(
           allowSvgInput: z.boolean().default(true),
           allowRemoteUrls: z.boolean().default(false),
           maxVariantsPerStep: z.number().default(16),
-          maxCompositeImages: z.number().default(8),
+          maxCompositeImages: z.number().default(8)
         })
         .optional(),
       defaults: z
@@ -46,14 +46,14 @@ export function buildImageSharpExtension(
           format: z.string().default("webp"),
           quality: z.number().default(82),
           stripMetadata: z.boolean().default(true),
-          failOn: z.enum(["none", "truncated", "error", "warning"]).default("warning"),
+          failOn: z.enum(["none", "truncated", "error", "warning"]).default("warning")
         })
         .optional(),
       concurrency: z
         .object({
-          sharpConcurrency: z.number().optional(),
+          sharpConcurrency: z.number().optional()
         })
-        .optional(),
+        .optional()
     })
     .withMetadata({
       summary: "Resize, convert, inspect, and batch-process images with Sharp",
@@ -62,12 +62,8 @@ export function buildImageSharpExtension(
       useCases: [
         "Prepare uploaded images for web delivery or model input",
         "Generate thumbnail sets or named variants from one source image",
-        "Inspect dimensions, format, and color stats before downstream steps",
-      ],
-      samplePrompts: [
-        "Convert this PNG to WebP and resize to 1200px wide",
-        "Generate small, medium, and large thumbnails from the hero image",
-      ],
+        "Inspect dimensions, format, and color stats before downstream steps"
+      ]
     })
     .withCapabilities(capabilities)
     .build()

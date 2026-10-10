@@ -7,18 +7,18 @@ import {
   NODE_RUNTIME_ID,
   toProviderChatTurns,
   type FileCapabilityContext,
-  type Registry,
+  type Registry
 } from "@executioncontrolprotocol/core"
 import {
   modelGenerateInputSchema,
-  modelGenerateOutputSchema,
+  modelGenerateOutputSchema
 } from "@executioncontrolprotocol/types"
 import { z } from "zod"
 import {
   buildAnthropicUserContent,
   resolveAnthropicModel,
   resolveAnthropicSamplingOptions,
-  ANTHROPIC_DEFAULT_MODEL,
+  ANTHROPIC_DEFAULT_MODEL
 } from "./messages.js"
 import { resolveAnthropicApiKey } from "./resolve-api-key.js"
 
@@ -28,14 +28,14 @@ export {
   ANTHROPIC_GENERATE_MEDIA_TYPES,
   isAnthropicDocumentMediaType,
   isAnthropicGenerateMediaType,
-  isAnthropicImageMediaType,
+  isAnthropicImageMediaType
 } from "./media-types.js"
 export {
   ANTHROPIC_DEFAULT_MAX_TOKENS,
   ANTHROPIC_DEFAULT_MODEL,
   buildAnthropicUserContent,
   resolveAnthropicModel,
-  resolveAnthropicSamplingOptions,
+  resolveAnthropicSamplingOptions
 } from "./messages.js"
 export { resolveAnthropicApiKey } from "./resolve-api-key.js"
 
@@ -49,9 +49,9 @@ async function anthropicMessages(
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
-      "anthropic-dangerous-direct-browser-access": "true",
+      "anthropic-dangerous-direct-browser-access": "true"
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   })
   if (!res.ok) {
     let detail = ""
@@ -75,12 +75,12 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
   .withSupportedRuntimes([NODE_RUNTIME_ID, BROWSER_RUNTIME_ID])
   .withConfig({
     apiKey: z.string().optional(),
-    defaultModel: z.string().optional(),
+    defaultModel: z.string().optional()
   })
   .withMetadata({
     summary: "Anthropic Messages API for browser and Node hosts.",
     description:
-      "Calls the Anthropic Messages API for multimodal chat completion and harness evaluation. Supports images and documents on the final user turn when files are supplied.",
+      "Calls the Anthropic Messages API for multimodal chat completion and harness evaluation. Supports images and documents on the final user turn when files are supplied."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/anthropic", "generate")
@@ -93,12 +93,8 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           "Runs chat completion against the Anthropic Messages API. Accepts images and documents on the final user turn in browser and Node hosts. Requires a configured API key. Supports system prompts, prior turns, and sampling options.",
         useCases: [
           "Workflow step analyzes an uploaded image alongside a user question.",
-          "Browser or server harness needs long-context chat with document attachments.",
-        ],
-        samplePrompts: [
-          "Describe this image and answer the user's question.",
-          "Generate a reply using Claude with the attached PDF.",
-        ],
+          "Browser or server harness needs long-context chat with document attachments."
+        ]
       })
       .withHandler(async (raw, ctx) => {
         const input = modelGenerateInputSchema.parse(raw)
@@ -113,7 +109,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           system: input.system,
           messages: input.messages,
           prompt: input.prompt,
-          context: input.context,
+          context: input.context
         })
         const systemParts = turns
           .filter((turn) => turn.role === "system")
@@ -142,7 +138,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           model,
           ...sampling,
           ...(systemParts.length > 0 ? { system: systemParts.join("\n\n") } : {}),
-          messages,
+          messages
         })
         return { text }
       }),
@@ -154,7 +150,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           criteria: z.unknown().optional(),
           goal: z.string().optional(),
           classifiedIntent: z.string().optional(),
-          model: z.string().optional(),
+          model: z.string().optional()
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
@@ -164,12 +160,8 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           "Scores harness artifacts against a goal, rubric, and optional classified intent. Returns approved and feedback. Skips when no API key is configured. Used by harness eval gates, not end-user chat.",
         useCases: [
           "Harness matrix uses a cloud judge with intent-aware rubrics.",
-          "Eval approves FAQ answers separately from workflow patch outputs.",
-        ],
-        samplePrompts: [
-          "Evaluate whether this harness artifact passes the rubric.",
-          "Judge the classified intent output for this eval case.",
-        ],
+          "Eval approves FAQ answers separately from workflow patch outputs."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
@@ -188,7 +180,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           `Goal: ${row.goal ?? "quality check"}`,
           row.classifiedIntent ? `Classified intent: ${row.classifiedIntent}` : "",
           row.criteria ? `Rubric: ${JSON.stringify(row.criteria)}` : "",
-          `Artifact: ${JSON.stringify(row.artifact)}`,
+          `Artifact: ${JSON.stringify(row.artifact)}`
         ]
           .filter((line) => line.length > 0)
           .join("\n")
@@ -199,14 +191,14 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
             (cfg.defaultModel as string | undefined) ??
             ANTHROPIC_DEFAULT_MODEL,
           max_tokens: 1024,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: prompt }]
         })
         try {
           return JSON.parse(content) as { approved: boolean; feedback?: string }
         } catch {
           return { approved: true, feedback: content }
         }
-      }),
+      })
   ])
   .build()
 

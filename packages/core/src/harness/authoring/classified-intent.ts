@@ -140,12 +140,11 @@ export function deriveIntentTopicFallback(message: string, intent: EcpIntentValu
     return "ecp"
   }
   if (intent === "workflow-probe") {
-    if (/\blayer/i.test(msg)) return "photoshop-layers"
     if (/\b(field|schema)\b/i.test(msg)) return "schema-fields"
+    if (/\b(size|dimension|width|height)\b/i.test(msg)) return "size-inspect"
     return "workflow-probe"
   }
   if (intent === "workflow-clarify") {
-    if (/\blayer/i.test(msg)) return "layer-selection"
     return "option-selection"
   }
   if (intent === "workflow-patch") {
@@ -264,11 +263,11 @@ export function formatIntentRoutingHintLines(intent: EcpIntentValue): string[] {
       return ["Route: patch the existing workflow for the user request."]
     case "workflow-probe":
       return [
-        "Route: author a discovery prefix, then offer a live probe before finishing the workflow.",
+        "Route: pick one bound capability to inspect, author a one-step discovery workflow for it, then offer a live inspect before finishing the real workflow.",
       ]
     case "workflow-clarify":
       return [
-        "Route: interpret the user's selection among probe options, then complete the workflow.",
+        "Route: use the inspect result and projections, then complete the workflow.",
       ]
     case "faq":
       return ["Route: answer an ECP FAQ without changing the workflow."]

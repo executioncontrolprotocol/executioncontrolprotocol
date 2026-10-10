@@ -10,16 +10,12 @@ export const slackExtension = defineExtension("@executioncontrolprotocol", "slac
       "Posts workflow notifications or alerts to Slack. v1 uses a mock send handler suitable for development and testing before live bot token integration.",
     useCases: [
       "Notify a team channel when a workflow completes",
-      "Send status updates from automated runs",
-    ],
-    samplePrompts: [
-      "Post this message to the engineering Slack channel",
-      "Send a Slack notification that the job finished",
-    ],
+      "Send status updates from automated runs"
+    ]
   })
   .withConfig({
     botToken: z.string().optional(),
-    defaultChannel: z.string().optional(),
+    defaultChannel: z.string().optional()
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/slack", "send")
@@ -31,17 +27,13 @@ export const slackExtension = defineExtension("@executioncontrolprotocol", "slac
           "Delivers a message payload to the configured or requested Slack channel and returns whether the post succeeded along with an optional timestamp id.",
         useCases: [
           "Alert operators when a step fails or needs approval",
-          "Share summarized workflow output in a team channel",
-        ],
-        samplePrompts: [
-          "Send this summary to #releases on Slack",
-          "Notify Slack that deployment completed successfully",
-        ],
+          "Share summarized workflow output in a team channel"
+        ]
       })
       .withHandler(async () => ({
         ok: true,
-        ts: `mock-${Date.now()}`,
-      })),
+        ts: `mock-${Date.now()}`
+      }))
   ])
   .build()
 

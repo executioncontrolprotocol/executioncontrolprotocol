@@ -5,7 +5,7 @@ import {
   catalogExtension,
   toProviderChatTurns,
   type Registry,
-  NODE_RUNTIME_ID,
+  NODE_RUNTIME_ID
 } from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
 import { z } from "zod"
@@ -25,16 +25,16 @@ async function chatComplete(
       system,
       messages: priorMessages,
       prompt,
-      context,
-    }),
+      context
+    })
   }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   })
   if (!res.ok) throw new Error(`OpenAI API error: ${res.status}`)
   const data = (await res.json()) as {
@@ -48,12 +48,12 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
   .withSupportedRuntimes([NODE_RUNTIME_ID])
   .withConfig({
     apiKey: z.string().optional(),
-    defaultModel: z.string().optional(),
+    defaultModel: z.string().optional()
   })
   .withMetadata({
     summary: "Hosted cloud chat completion for Node hosts.",
     description:
-      "Calls the OpenAI Chat Completions API for text generation and harness evaluation. Requires a configured API key and runs on Node runtimes.",
+      "Calls the OpenAI Chat Completions API for text generation and harness evaluation. Requires a configured API key and runs on Node runtimes."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/openai", "generate")
@@ -65,12 +65,8 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           "Runs chat completion against a remote model endpoint. Suited for production Node workloads that need widely available frontier models. Requires a configured API key. Does not accept file attachments yet.",
         useCases: [
           "Server-side workflow step drafts content with a cloud model.",
-          "CLI or harness invokes a hosted model for integration tests.",
-        ],
-        samplePrompts: [
-          "Generate a summary of this workflow using the cloud model.",
-          "Complete this chat turn with gpt-4o-mini.",
-        ],
+          "CLI or harness invokes a hosted model for integration tests."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const parsed = modelGenerateInputSchema.parse(input)
@@ -99,7 +95,7 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
         z.object({
           artifact: z.unknown(),
           criteria: z.unknown().optional(),
-          goal: z.string().optional(),
+          goal: z.string().optional()
         })
       )
       .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
@@ -109,12 +105,8 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           "Scores an artifact against a goal and optional criteria, returning approved and feedback fields. Skips when no API key is configured. Used by harness quality gates, not end-user chat.",
         useCases: [
           "Harness eval needs a cloud judge when local models are unavailable.",
-          "Quality gate approves generated workflow patches before merge.",
-        ],
-        samplePrompts: [
-          "Evaluate this artifact against the harness rubric.",
-          "Did the model output meet the stated goal?",
-        ],
+          "Quality gate approves generated workflow patches before merge."
+        ]
       })
       .withHandler(async (input, ctx) => {
         const prompt = `Evaluate: ${(input as { goal?: string }).goal ?? "quality check"}. Reply JSON {approved:boolean,feedback:string}`
@@ -127,7 +119,7 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
         } catch {
           return { approved: true, feedback: content }
         }
-      }),
+      })
   ])
   .build()
 

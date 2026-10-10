@@ -7,7 +7,7 @@ import {
   extension,
   jsonSchemaFromZod,
   parseCapabilityMetadata,
-  policy,
+  policy
 } from "../src/index.js"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
@@ -20,7 +20,7 @@ describe("environment.describe progressive disclosure", () => {
 
   it("bare describe is inventory only (summary, no metadata, no schemas)", async () => {
     const env = (await createTestEnvironment("d", "D")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
@@ -35,21 +35,21 @@ describe("environment.describe progressive disclosure", () => {
 
   it("exact capability id returns metadata and JSON Schema I/O", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
     const desc = await ecp.describe({
       capabilities: {
         match: "@executioncontrolprotocol/test.echo",
-        mode: "exact",
-      },
+        mode: "exact"
+      }
     })
     expect(desc.capabilities).toHaveLength(1)
     const echo = desc.capabilities[0]
     expect(echo?.metadata?.description).toBeTruthy()
     expect(echo?.metadata?.useCases?.length).toBeGreaterThan(0)
-    expect(echo?.metadata?.samplePrompts?.length).toBeGreaterThan(0)
+    expect(echo?.metadata?.samplePrompts).toBeUndefined()
     expect(echo?.inputSchema).toMatchObject({ type: "object" })
     expect(echo?.outputSchema).toMatchObject({ type: "object" })
     expect(JSON.parse(JSON.stringify(echo?.inputSchema))).toEqual(echo?.inputSchema)
@@ -57,12 +57,12 @@ describe("environment.describe progressive disclosure", () => {
 
   it("DescribeSelection.id aliases exact match", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
     const desc = await ecp.describe({
-      capabilities: { id: "@executioncontrolprotocol/test.echo" },
+      capabilities: { id: "@executioncontrolprotocol/test.echo" }
     })
     expect(desc.capabilities).toHaveLength(1)
     expect(desc.capabilities[0]?.metadata).toBeDefined()
@@ -70,12 +70,12 @@ describe("environment.describe progressive disclosure", () => {
 
   it("authoring include adds schemas without nested metadata", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
     const desc = await ecp.describe({
-      capabilities: { include: ["inputSchema", "outputSchema"] },
+      capabilities: { include: ["inputSchema", "outputSchema"] }
     })
     const echo = desc.capabilities.find((c) => c.id === "@executioncontrolprotocol/test.echo")
     expect(echo?.id).toBe("@executioncontrolprotocol/test.echo")
@@ -86,15 +86,15 @@ describe("environment.describe progressive disclosure", () => {
 
   it("exact extension id returns extension metadata", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
     const desc = await ecp.describe({
       extensions: {
         match: "@executioncontrolprotocol/test",
-        mode: "exact",
-      },
+        mode: "exact"
+      }
     })
     expect(desc.extensions).toHaveLength(1)
     expect(desc.extensions[0]?.metadata?.summary).toBeTruthy()
@@ -103,7 +103,7 @@ describe("environment.describe progressive disclosure", () => {
 
   it("filters capabilities by fuzzy match and projects include fields", async () => {
     const env = (await createTestEnvironment("d", "D")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
       .withPolicies([policy("@executioncontrolprotocol/budget", "B").with({})])
 
@@ -112,8 +112,8 @@ describe("environment.describe progressive disclosure", () => {
       capabilities: {
         match: "echo",
         include: ["id", "label"],
-        limit: 1,
-      },
+        limit: 1
+      }
     })
     expect(desc.capabilities).toHaveLength(1)
     expect(desc.capabilities[0]?.id).toBe("@executioncontrolprotocol/test.echo")
@@ -127,8 +127,7 @@ describe("capability metadata validation", () => {
       parseCapabilityMetadata({
         summary: "x",
         description: "y",
-        useCases: [],
-        samplePrompts: ["hi"],
+        useCases: []
       })
     ).toThrow()
   })
@@ -138,8 +137,7 @@ describe("capability metadata validation", () => {
       parseCapabilityMetadata({
         summary: "Read the inputSchema carefully",
         description: "Uses the capability",
-        useCases: ["A"],
-        samplePrompts: ["B"],
+        useCases: ["A"]
       })
     ).toThrow(/inputschema/i)
   })
@@ -150,8 +148,7 @@ describe("capability metadata validation", () => {
         .withMetadata({
           summary: "ok",
           description: "Call withInput first",
-          useCases: ["A"],
-          samplePrompts: ["B"],
+          useCases: ["A"]
         })
         .withHandler(async () => ({}))
     ).toThrow(/withinput/i)
@@ -162,7 +159,7 @@ describe("jsonSchemaFromZod constraints", () => {
   it("projects min/max length, number bounds, int, and field descriptions", () => {
     const schema = z.object({
       name: z.string().min(2).max(10).describe("Display name"),
-      count: z.number().int().min(1).max(5),
+      count: z.number().int().min(1).max(5)
     })
     const json = jsonSchemaFromZod(schema)
     expect(json).toMatchObject({
@@ -170,16 +167,16 @@ describe("jsonSchemaFromZod constraints", () => {
       required: ["name", "count"],
       properties: {
         name: { type: "string", minLength: 2, maxLength: 10, description: "Display name" },
-        count: { type: "integer", minimum: 1, maximum: 5 },
-      },
+        count: { type: "integer", minimum: 1, maximum: 5 }
+      }
     })
   })
 })
 
 describe("environment.search metadata haystack", () => {
-  it("ranks hits from samplePrompts and useCases", async () => {
+  it("ranks hits from description and useCases", async () => {
     const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
@@ -189,7 +186,7 @@ describe("environment.search metadata haystack", () => {
 
   it("keeps search results light (no schemas by default)", async () => {
     const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
@@ -200,7 +197,7 @@ describe("environment.search metadata haystack", () => {
 
   it("ranks multi-token queries", async () => {
     const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
 
     const ecp = await env.init()
@@ -223,7 +220,7 @@ describe("extractMentionedEntityIds", () => {
 
   it("ignores unknown ids", () => {
     const ids = extractMentionedEntityIds("Use @other/pkg.cap", [
-      "@executioncontrolprotocol/test.echo",
+      "@executioncontrolprotocol/test.echo"
     ])
     expect(ids).toEqual([])
   })
@@ -235,17 +232,17 @@ describe("extension isAuthorable inventory", () => {
       .withMetadata({
         summary: "Host-only tooling",
         description: "Not offered as workflow step inventory.",
-        isAuthorable: false,
+        isAuthorable: false
       })
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/host-tooling", "ping").withHandler(async () => ({
-          ok: true,
-        })),
+          ok: true
+        }))
       ])
       .build()
     catalogExtension(def)
     const ecp = await initEncodingTestEcp([
-      extension("@executioncontrolprotocol/host-tooling").with({}),
+      extension("@executioncontrolprotocol/host-tooling").with({})
     ])
     const desc = await ecp.describe()
     const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/host-tooling")
@@ -255,7 +252,7 @@ describe("extension isAuthorable inventory", () => {
 
   it("omits isAuthorable on inventory when default authorable", async () => {
     const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
     const ecp = await env.init()
     const desc = await ecp.describe()
@@ -265,7 +262,7 @@ describe("extension isAuthorable inventory", () => {
 
   it("surfaces isAuthorable false for bound format-json", async () => {
     const ecp = await initEncodingTestEcp([
-      extension("@executioncontrolprotocol/format-json").with({}),
+      extension("@executioncontrolprotocol/format-json").with({})
     ])
     const desc = await ecp.describe()
     const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/format-json")
@@ -279,11 +276,11 @@ describe("fluent catalog lines include summary", () => {
       "../src/harness/authoring/summarize-environment.js"
     )
     const env = (await createTestEnvironment("f")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+      extension("@executioncontrolprotocol/test", "T").with({})
     ])
     const ecp = await env.init()
     const desc = await ecp.describe({
-      capabilities: { include: ["inputSchema", "outputSchema"] },
+      capabilities: { include: ["inputSchema", "outputSchema"] }
     })
     const summary = summarizeEnvironmentDescriptor(desc)
     const lines = formatEnvironmentSummaryLines(summary, { format: "fluent" }).join("\n")

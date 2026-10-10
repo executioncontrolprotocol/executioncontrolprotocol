@@ -129,8 +129,14 @@ export {
 } from "./chat-result.js"
 export {
   summarizeProbeContext,
-  probeOptionsFromPhotoshopManifest,
-  buildPhotoshopLayersProbeContext,
   messageSelectsProbeOptions,
   PROBE_CONTEXT_OPTION_PROMPT_LIMIT,
 } from "./summarize-probe-context.js"
+export {
+  compileDiscoveryWorkflow,
+  formatProjectionsForPrompt,
+  capDiscoveryExcerpt,
+  formatDiscoveryFollowUpLines,
+  DISCOVERY_RAW_STEP_AS,
+  DISCOVERY_OUTPUT_EXCERPT_CHAR_LIMIT,
+} from "./compile-discovery-workflow.js"

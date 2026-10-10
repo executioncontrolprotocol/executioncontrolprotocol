@@ -37,7 +37,7 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
   .withMetadata({
     summary: "Lifecycle hook spy and fault-injection capabilities.",
     description:
-      "Records lifecycle events and exposes echo, throw, and merge-state capabilities for engine conformance and store tests.",
+      "Records lifecycle events and exposes echo, throw, and merge-state capabilities for engine conformance and store tests."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/lifecycle-spy", "echo")
@@ -49,12 +49,8 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Mirrors test.echo but increments capabilityInvokeCount so tests can assert step invocation order alongside hook events.",
         useCases: [
           "Lifecycle test verifies step:started fires before handler runs.",
-          "Conformance suite counts capability invocations per run.",
-        ],
-        samplePrompts: [
-          "Run lifecycle-spy echo with value probe.",
-          "Invoke spy echo to trigger step hooks.",
-        ],
+          "Conformance suite counts capability invocations per run."
+        ]
       })
       .withHandler(async (input) => {
         capabilityInvokeCount++
@@ -69,12 +65,8 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Throws a fixed error on every invoke. Used to assert failure diagnostics and finally hooks without external dependencies.",
         useCases: [
           "Test asserts step:failed captures handler errors.",
-          "Run cancellation path after a forced step failure.",
-        ],
-        samplePrompts: [
-          "Run the lifecycle-spy throw step.",
-          "Trigger a failing capability for hook tests.",
-        ],
+          "Run cancellation path after a forced step failure."
+        ]
       })
       .withHandler(async () => {
         capabilityInvokeCount++
@@ -89,12 +81,8 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Calls ctx.store.merge on a supplied state handle. Verifies store wiring from capability handlers during integration tests.",
         useCases: [
           "Store test confirms merge from a step handler.",
-          "Multi-step run accumulates shared state through spy merge.",
-        ],
-        samplePrompts: [
-          "Merge { merged: true } into the run state handle.",
-          "Invoke lifecycle-spy merge-state on the shared target.",
-        ],
+          "Multi-step run accumulates shared state through spy merge."
+        ]
       })
       .withHandler(async (input, ctx) => {
         capabilityInvokeCount++
@@ -102,14 +90,14 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           .target
         await ctx.store.merge(handle, { merged: true })
         return { ok: true }
-      }),
+      })
   ])
   .withHooks([
     spyHook("step:before"),
     spyHook("step:started"),
     spyHook("step:completed"),
     spyHook("step:failed"),
-    spyHook("step:finally"),
+    spyHook("step:finally")
   ])
   .build()
 
