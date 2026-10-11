@@ -1,15 +1,16 @@
 import {
+  buildProbeContextFromDiscovery,
   compileDiscoveryWorkflow,
   DISCOVERY_RAW_STEP_AS,
   formatDiscoveryFollowUpLines,
   flattenTestStepOrder,
+  type BuildProbeContextFromDiscoveryResult,
   type CapabilityDefinition,
   type Ecp,
 } from "@executioncontrolprotocol/core"
 import type {
   CapabilityMetadata,
   ProbeContext,
-  ProbeOption,
   StepNode,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
@@ -21,6 +22,10 @@ export interface DiscoveryWorkflowPrepareResult {
   /** Capability the inspect workflow calls. */
   capabilityId: string
 }
+
+/** Host copy when discovery excerpt hits the context budget. @category Demo */
+export const DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION =
+  "The inspect output was truncated for chat context. Add a bound JSON transform step that projects only the fields you need into workflow state, then continue."
 
 function stepUsesList(workflow: WorkflowManifest): string[] {
   return flattenTestStepOrder(workflow.steps)
@@ -112,69 +117,16 @@ export function projectionsForCapability(
   return ecp.getRegistry().getCapability(capabilityId)?.metadata?.projections
 }
 
-function collectProbeOptions(value: unknown, limit = 24): ProbeOption[] {
-  const options: ProbeOption[] = []
-  const visit = (node: unknown, path: string) => {
-    if (options.length >= limit || node === null || node === undefined) return
-    if (Array.isArray(node)) {
-      for (let i = 0; i < node.length && options.length < limit; i++) {
-        const item = node[i]
-        if (item && typeof item === "object" && !Array.isArray(item)) {
-          const row = item as Record<string, unknown>
-          const id =
-            typeof row.id === "string" || typeof row.id === "number"
-              ? String(row.id)
-              : typeof row.name === "string"
-                ? row.name
-                : `${path}.${i}`
-          const label =
-            typeof row.name === "string"
-              ? row.name
-              : typeof row.label === "string"
-                ? row.label
-                : id
-          options.push({ id, label, path: `${path}.${i}` })
-        } else {
-          visit(item, `${path}.${i}`)
-        }
-      }
-      return
-    }
-    if (typeof node === "object") {
-      for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
-        if (options.length >= limit) break
-        if (key === "layers" || key === "parts" || key === "items" || key === "options") {
-          visit(child, path ? `${path}.${key}` : key)
-        }
-      }
-    }
-  }
-  visit(value, "raw")
-  return options
-}
-
 /**
- * Build a small {@link ProbeContext} after a successful discovery run.
+ * Build {@link ProbeContext} after a successful discovery run (projections + compact excerpt).
  * @category Demo
  */
 export function buildProbeContextAfterDiscovery(options: {
   capabilityId: string
   output: unknown
-  summary?: string
-}): ProbeContext {
-  const optionsList = collectProbeOptions(options.output)
-  const summary =
-    options.summary?.trim() ||
-    (optionsList.length > 0
-      ? `Inspected ${options.capabilityId}; ${optionsList.length} selectable option(s).`
-      : `Inspected ${options.capabilityId}.`)
-  return {
-    probeId: `probe-${Date.now()}`,
-    domain: options.capabilityId,
-    stepAs: DISCOVERY_RAW_STEP_AS,
-    summary,
-    options: optionsList,
-  }
+  projections?: CapabilityMetadata["projections"]
+}): BuildProbeContextFromDiscoveryResult {
+  return buildProbeContextFromDiscovery(options)
 }
 
 /**
@@ -195,3 +147,5 @@ export function slimDiscoveryRunResult(result: {
     },
   }
 }
+
+export type { ProbeContext }

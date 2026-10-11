@@ -182,6 +182,7 @@ import {
 import { resolvePendingOfferWithIntent } from "./lib/classify-pending-offer.js"
 import {
   buildProbeContextAfterDiscovery,
+  DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION,
   discoveryOutputFromState,
   formatDiscoveryFollowUpMessage,
   prepareDiscoveryWorkflow,
@@ -1542,10 +1543,11 @@ export function App() {
     const capabilityId = pendingDiscoveryCapabilityId
     const discoveryOutput = discoveryOutputFromState(result.state)
     const followUpOutput = discoveryOutput ?? result.output
+    const projections = projectionsForCapability(ecp, capabilityId)
     appendAgent(
       formatDiscoveryFollowUpMessage({
         capabilityId,
-        projections: projectionsForCapability(ecp, capabilityId),
+        projections,
         output: followUpOutput,
       }),
       options?.showChatOutput
@@ -1558,12 +1560,15 @@ export function App() {
           }
         : undefined
     )
-    setProbeContext(
-      buildProbeContextAfterDiscovery({
-        capabilityId,
-        output: followUpOutput,
-      })
-    )
+    const { probeContext: nextProbe, excerptTruncated } = buildProbeContextAfterDiscovery({
+      capabilityId,
+      output: followUpOutput,
+      projections,
+    })
+    setProbeContext(nextProbe)
+    if (excerptTruncated) {
+      appendAgent(DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION)
+    }
     // Harness only sees a slim snapshot; chat/UI keep human-readable follow-up text.
     setLastRunResult(slimDiscoveryRunResult(result))
     setPendingDiscoveryCapabilityId(undefined)

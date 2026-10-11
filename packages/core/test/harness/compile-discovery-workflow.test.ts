@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { capabilityFor } from "../../src/definitions/capability.js"
 import {
+  buildProbeContextFromDiscovery,
   capDiscoveryExcerpt,
   compileDiscoveryWorkflow,
   DISCOVERY_RAW_STEP_AS,
   formatDiscoveryFollowUpLines,
   formatProjectionsForPrompt,
+  isDiscoveryExcerptTruncated,
 } from "../../src/harness/authoring/compile-discovery-workflow.js"
 import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
 
@@ -184,5 +186,65 @@ describe("projection metadata and excerpts", () => {
     if (excerpt.length === 800 || excerpt.includes("truncated")) {
       expect(excerpt).toContain("truncated")
     }
+  })
+
+  it("builds probe context from projections and compact excerpt without bag allowlists", () => {
+    const projections = [
+      {
+        summary: "Read dimensions and format",
+        description: "Take width, height, and format from the result.",
+      },
+    ]
+    const payload = {
+      width: 4032,
+      height: 3024,
+      format: "jpeg",
+      metadata: {
+        dump: "x".repeat(5000),
+      },
+    }
+    const { probeContext, excerptTruncated } = buildProbeContextFromDiscovery({
+      capabilityId: "@executioncontrolprotocol/discovery-test.inspect",
+      output: payload,
+      projections,
+    })
+    expect(probeContext.options).toEqual([])
+    expect(probeContext.summary).toContain("Read dimensions and format")
+    expect(probeContext.summary).toContain("4032")
+    expect(probeContext.summary).toContain("3024")
+    expect(probeContext.summary).toContain("jpeg")
+    expect(probeContext.summary).not.toMatch(/\blayers\b/)
+    expect(typeof excerptTruncated).toBe("boolean")
+  })
+
+  it("flags truncation for huge payloads and still yields a valid probe context", () => {
+    // Many top-level keys so compact JSON still exceeds the 800-char excerpt budget.
+    const huge = Object.fromEntries(
+      Array.from({ length: 200 }, (_, i) => [`field${i}`, `value-${i}-${"z".repeat(20)}`])
+    )
+    const { probeContext, excerptTruncated } = buildProbeContextFromDiscovery({
+      capabilityId: "@executioncontrolprotocol/discovery-test.inspect",
+      output: huge,
+      projections: [
+        {
+          summary: "Read id",
+          description: "Take the document id from the result.",
+        },
+      ],
+    })
+    expect(excerptTruncated).toBe(true)
+    expect(isDiscoveryExcerptTruncated(probeContext.summary) || excerptTruncated).toBe(true)
+    expect(probeContext.summary).toContain("Read id")
+    expect(probeContext.options).toEqual([])
+  })
+
+  it("builds probe context with capability id when projections are missing", () => {
+    const { probeContext, excerptTruncated } = buildProbeContextFromDiscovery({
+      capabilityId: "@executioncontrolprotocol/discovery-test.inspect",
+      output: undefined,
+    })
+    expect(excerptTruncated).toBe(false)
+    expect(probeContext.summary).toContain("@executioncontrolprotocol/discovery-test.inspect")
+    expect(probeContext.options).toEqual([])
   })
 })

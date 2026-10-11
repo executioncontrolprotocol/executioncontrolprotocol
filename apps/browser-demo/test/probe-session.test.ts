@@ -135,22 +135,24 @@ describe("discovery follow-up and sanitization", () => {
     expect(discoveryOutputFromState({ raw: { width: 1 } })).toEqual({ width: 1 })
   })
 
-  it("builds probe context and slims run results after discovery", () => {
+  it("builds probe context from projections and compact excerpt (no bag harvest)", () => {
     const output = {
       width: 800,
       height: 600,
-      layers: [
-        { id: "l1", name: "Headline" },
-        { id: "l2", name: "Logo" },
-      ],
+      format: "png",
+      metadata: { nested: "x".repeat(2000) },
     }
-    const probe = buildProbeContextAfterDiscovery({
+    const { probeContext, excerptTruncated } = buildProbeContextAfterDiscovery({
       capabilityId: inspect.id,
       output,
+      projections: inspect.metadata?.projections,
     })
-    expect(probe.domain).toBe(inspect.id)
-    expect(probe.options.length).toBeGreaterThan(0)
-    expect(probe.summary).toContain(inspect.id)
+    expect(probeContext.domain).toBe(inspect.id)
+    expect(probeContext.options).toEqual([])
+    expect(probeContext.summary).toContain("Read the image size")
+    expect(probeContext.summary).toContain("800")
+    expect(probeContext.summary).toContain("600")
+    expect(typeof excerptTruncated).toBe("boolean")
 
     const slim = slimDiscoveryRunResult({
       schema: "@executioncontrolprotocol.run.result",

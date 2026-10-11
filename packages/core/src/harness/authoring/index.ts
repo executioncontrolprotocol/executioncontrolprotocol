@@ -139,6 +139,11 @@ export {
   capDiscoveryExcerpt,
   compactDiscoveryValue,
   formatDiscoveryFollowUpLines,
+  buildProbeContextFromDiscovery,
+  isDiscoveryExcerptTruncated,
   DISCOVERY_RAW_STEP_AS,
   DISCOVERY_OUTPUT_EXCERPT_CHAR_LIMIT,
+  DISCOVERY_EXCERPT_TRUNCATION_MARKER,
+  PROBE_CONTEXT_SUMMARY_CHAR_LIMIT,
+  type BuildProbeContextFromDiscoveryResult,
 } from "./compile-discovery-workflow.js"

@@ -23,6 +23,9 @@ Authors attach agent-facing docs once via `.withMetadata({ summary, description,
 | Require `useCases` (≥1) for when to call and `projections` (≥1) for what to take from the output after the call (plain text) | Author sample prompts, sample payloads, path syntax, or a transform language; omit projections; rely on silent strip of unknown keys |
 | Let search + exact-id `ecp.describe({ match, mode: "exact" })` supply detail | Cross-advertise sibling packages (“prefer ollama over chrome-ai”) |
 | Name sibling capabilities **inside the same extension** when useful | Invent a second “detail” API — detail is always describe + exact id |
+| Transform/parse capabilities: document useCases and projections for reducing complex outputs to workflow-sized facts | Only say “take the result” with no guidance on projecting bulky JSON |
+
+**Host / harness neutrality:** Hosts and harnesses consume projections as plain-text guidance after inspect; they must not re-encode vendor structure (bag names, capability-id branches) in core or demo helpers. Domain shape lives in the extension package.
 
 ## Documentation ownership (vendor packages)
 

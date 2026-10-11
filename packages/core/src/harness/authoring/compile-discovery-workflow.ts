@@ -1,6 +1,7 @@
 import type {
   CapabilityId,
   CapabilityMetadata,
+  ProbeContext,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
@@ -191,6 +192,12 @@ export function compactDiscoveryValue(value: unknown, depth = 0): unknown {
   return out
 }
 
+/** Suffix appended when a discovery excerpt exceeds its char budget. @category Harness */
+export const DISCOVERY_EXCERPT_TRUNCATION_MARKER = "…[truncated]"
+
+/** Max characters for {@link ProbeContext.summary} after projections + excerpt. @category Harness */
+export const PROBE_CONTEXT_SUMMARY_CHAR_LIMIT = 1200
+
 /**
  * Cap a discovery capability output for the next chat turn.
  * Full output stays in the run result modal.
@@ -207,7 +214,16 @@ export function capDiscoveryExcerpt(
     text = String(value)
   }
   if (text.length <= limit) return text
-  return `${text.slice(0, Math.max(0, limit - 14))}…[truncated]`
+  const marker = DISCOVERY_EXCERPT_TRUNCATION_MARKER
+  return `${text.slice(0, Math.max(0, limit - marker.length))}${marker}`
+}
+
+/**
+ * True when an excerpt string was hard-truncated for context budget.
+ * @category Harness
+ */
+export function isDiscoveryExcerptTruncated(excerpt: string): boolean {
+  return excerpt.includes(DISCOVERY_EXCERPT_TRUNCATION_MARKER)
 }
 
 /**
@@ -226,4 +242,47 @@ export function formatDiscoveryFollowUpLines(options: {
     capDiscoveryExcerpt(options.output),
   ]
   return lines
+}
+
+/** Result of building probe context from projections + compact excerpt. @category Harness */
+export interface BuildProbeContextFromDiscoveryResult {
+  /** Model-facing probe context (no vendor-shaped option harvest). */
+  probeContext: ProbeContext
+  /** True when the compact excerpt hit the char budget. */
+  excerptTruncated: boolean
+}
+
+/**
+ * Build {@link ProbeContext} from capability projections and a domain-agnostic compact excerpt.
+ * Does not harvest vendor bag names (layers/parts/…). Options stay empty in this pass.
+ * @category Harness
+ */
+export function buildProbeContextFromDiscovery(options: {
+  capabilityId: string
+  output: unknown
+  projections?: CapabilityMetadata["projections"]
+}): BuildProbeContextFromDiscoveryResult {
+  const excerpt = capDiscoveryExcerpt(options.output)
+  const excerptTruncated = isDiscoveryExcerptTruncated(excerpt)
+  const projectionSummaries =
+    options.projections?.map((p) => p.summary).filter((s) => s.trim().length > 0) ?? []
+  const projectionBlock =
+    projectionSummaries.length > 0
+      ? `Projections: ${projectionSummaries.join("; ")}.`
+      : `Inspected ${options.capabilityId}.`
+  let summary = `${projectionBlock} Excerpt: ${excerpt}`
+  if (summary.length > PROBE_CONTEXT_SUMMARY_CHAR_LIMIT) {
+    const marker = DISCOVERY_EXCERPT_TRUNCATION_MARKER
+    summary = `${summary.slice(0, Math.max(0, PROBE_CONTEXT_SUMMARY_CHAR_LIMIT - marker.length))}${marker}`
+  }
+  return {
+    probeContext: {
+      probeId: `probe-${Date.now()}`,
+      domain: options.capabilityId,
+      stepAs: DISCOVERY_RAW_STEP_AS,
+      summary,
+      options: [],
+    },
+    excerptTruncated,
+  }
 }
