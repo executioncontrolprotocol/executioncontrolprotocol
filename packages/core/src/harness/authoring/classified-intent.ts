@@ -10,6 +10,8 @@ export const CLASSIFIED_INTENT_VALUES = [
   "workflow-patch",
   "workflow-probe",
   "workflow-clarify",
+  "offer-confirm",
+  "offer-decline",
   "general",
 ] as const satisfies readonly EcpIntentValue[]
 
@@ -269,10 +271,50 @@ export function formatIntentRoutingHintLines(intent: EcpIntentValue): string[] {
       return [
         "Route: use the inspect result and projections, then complete the workflow.",
       ]
+    case "offer-confirm":
+      return ["Route: accept the pending host offer (run or inspect)."]
+    case "offer-decline":
+      return ["Route: decline the pending host offer."]
     case "faq":
       return ["Route: answer an ECP FAQ without changing the workflow."]
     case "general":
     default:
       return ["Route: general assistant reply."]
   }
+}
+
+/**
+ * When the host has a pending run/probe offer, prefer offer-confirm / offer-decline
+ * for accept/reject language; leave other intents unchanged.
+ * @category Harness
+ */
+export function applyPendingOfferIntentCorrection(
+  message: string,
+  intent: EcpIntent,
+  pendingOffer: "run" | "probe" | undefined
+): EcpIntent {
+  if (!pendingOffer) return intent
+  const trimmed = message.trim()
+  if (/^(no|n|nope|not\s+now|later|skip|cancel)$/i.test(trimmed)) {
+    return enrichClassifiedIntent(
+      { ...intent, intent: "offer-decline", topic: pendingOffer },
+      message
+    )
+  }
+  // "yes, but change X" is a new authoring request, not a confirm.
+  if (/^(yes|y|yeah)\b/i.test(trimmed) && /\b(but|instead|change|add|patch|fix)\b/i.test(trimmed)) {
+    return intent
+  }
+  if (
+    /^(yes|y|yeah|yep|sure|ok|okay)\b/i.test(trimmed) ||
+    /\b(go ahead|please do|do it|sounds good)\b/i.test(trimmed) ||
+    (pendingOffer === "probe" && /\b(inspect|probe)\b/i.test(trimmed)) ||
+    (pendingOffer === "run" && /\brun\b/i.test(trimmed))
+  ) {
+    return enrichClassifiedIntent(
+      { ...intent, intent: "offer-confirm", topic: pendingOffer },
+      message
+    )
+  }
+  return intent
 }

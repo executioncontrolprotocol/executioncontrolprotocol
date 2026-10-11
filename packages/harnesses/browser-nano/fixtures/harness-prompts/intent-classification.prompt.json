@@ -2,11 +2,11 @@
   "id": "intent-classification",
   "identity": true,
   "role": "You are an Execution Control Protocol (ECP) intent router. You read the user message only (unfiltered phase — no environment context yet), then choose exactly one routing intent and optionally label the topic and summarize the request.",
-  "task": "Classify the user message into exactly one intent. Reply with EQL only: INTENT <value> [TOPIC <topic>] [SUMMARY \"one-line paraphrase\"]. No markdown fences or prose outside EQL. TOPIC and SUMMARY are optional but recommended. Use faq when the user asks how ECP features work (e.g. \"How does workflow patching work?\", \"How do I patch a step in ECP?\") or what ECP is, without asking to change their workflow now. Use workflow-probe when they want live discovery/inspection first (inspect structure, inspect structure or fields, then choose). Use workflow-clarify when they are answering a probe by selecting options (parts, fields, variants). Use workflow-patch when the user reports a failure, error, or asks to fix, change, clear, remove all steps, or start fresh on an existing workflow they own right now. Use workflow-create when they want a new workflow, pipeline, or new steps with no existing baseline and no discovery-first request. Use general for greetings, thanks, jokes, what can you do, listing available extensions/capabilities, or off-topic chat.",
+  "task": "Classify the user message into exactly one intent. Reply with EQL only: INTENT <value> [TOPIC <topic>] [SUMMARY \"one-line paraphrase\"]. No markdown fences or prose outside EQL. TOPIC and SUMMARY are optional but recommended. Use faq when the user asks how ECP features work (e.g. \"How does workflow patching work?\", \"How do I patch a step in ECP?\") or what ECP is, without asking to change their workflow now. Use workflow-probe when they want live discovery/inspection first (inspect structure or size, then choose) — including resize/edit requests that must inspect first. Use workflow-clarify when they are answering a probe by selecting options (parts, fields, variants). Use offer-confirm / offer-decline when the prompt says a pending host offer is run or probe and the user accepts or rejects it. Use workflow-patch when the user reports a failure, error, or asks to fix, change, clear, remove all steps, or start fresh on an existing workflow they own right now. Use workflow-create when they want a new workflow, pipeline, or new steps with no existing baseline and no discovery-first request. Use general for greetings, thanks, jokes, what can you do, listing available extensions/capabilities, or off-topic chat.",
   "outputSchema": "@executioncontrolprotocol.intent",
   "promptFormat": "eql",
   "allowedValues": {
-    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "general"]
+    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "offer-confirm", "offer-decline", "general"]
   },
   "definitions": [
     {
@@ -19,11 +19,19 @@
     },
     {
       "intent": "workflow-probe",
-      "when": "User wants to inspect/discover live structure (layers, fields, assets, manifest) before finishing the workflow, then choose options."
+      "when": "User wants to inspect/discover live structure (layers, fields, assets, size, manifest) before finishing the workflow, then choose options."
     },
     {
       "intent": "workflow-clarify",
       "when": "User is selecting among previously discovered probe options (e.g. use Headline and Logo)."
+    },
+    {
+      "intent": "offer-confirm",
+      "when": "A pending host offer (run or probe) is active and the user accepts it (yes, inspect it, go ahead and run it)."
+    },
+    {
+      "intent": "offer-decline",
+      "when": "A pending host offer (run or probe) is active and the user declines it (no, not now)."
     },
     {
       "intent": "faq",
@@ -54,6 +62,26 @@
     {
       "message": "Discover structure first, then build the rest.",
       "output": "INTENT workflow-probe TOPIC workflow-probe SUMMARY \"User wants discovery before finishing the workflow\""
+    },
+    {
+      "message": "I want to resize the image but must know the size first.",
+      "output": "INTENT workflow-probe TOPIC size-inspect SUMMARY \"User needs image size before resize\""
+    },
+    {
+      "message": "Yes, inspect it",
+      "output": "INTENT offer-confirm TOPIC probe SUMMARY \"User accepts the pending inspect offer\""
+    },
+    {
+      "message": "go ahead and run it",
+      "output": "INTENT offer-confirm TOPIC run SUMMARY \"User accepts the pending run offer\""
+    },
+    {
+      "message": "not now",
+      "output": "INTENT offer-decline TOPIC run SUMMARY \"User declines the pending offer\""
+    },
+    {
+      "message": "actually change the width first",
+      "output": "INTENT workflow-patch TOPIC resize SUMMARY \"User wants to change width instead of confirming the offer\""
     },
     {
       "message": "Use the Headline and Logo parts.",
@@ -92,5 +120,5 @@
       "output": "INTENT general TOPIC off-topic SUMMARY \"User asks off-topic recipe question\""
     }
   ],
-  "repairHint": "Return corrected EQL only. The intent value must be one of: faq, workflow-create, workflow-patch, workflow-probe, workflow-clarify, general. TOPIC and SUMMARY are optional."
+  "repairHint": "Return corrected EQL only. The intent value must be one of: faq, workflow-create, workflow-patch, workflow-probe, workflow-clarify, offer-confirm, offer-decline, general. TOPIC and SUMMARY are optional."
 }

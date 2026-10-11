@@ -132,6 +132,7 @@ export async function invokeMultiShotChatCoding(
     probeContext?: unknown
     conversationSummary?: string
     conversationMessages?: CodingConversationMessage[]
+    pendingOffer?: "run" | "probe"
     model?: string
     files?: unknown[]
   },
@@ -178,6 +179,7 @@ export async function invokeMultiShotChatCoding(
       hasBaselineWorkflow: input.manifest !== undefined,
       hasProbeContext: probeContext !== undefined && probeContext.options.length > 0,
       previousUserMessage,
+      pendingOffer: input.pendingOffer,
     },
     intentCtx
   )

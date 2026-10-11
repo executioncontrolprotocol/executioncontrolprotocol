@@ -31,13 +31,15 @@ describe("browser-nano harness prompt fixtures", () => {
   it("loads intent-classification fixture", () => {
     const fixture = loadNanoHarnessPromptFixture(NANO_PROMPT_FIXTURE_IDS.INTENT_CLASSIFICATION)
     expect(fixture.fewShots?.length).toBeGreaterThanOrEqual(4)
-    expect(fixture.definitions?.length).toBe(6)
+    expect(fixture.definitions?.length).toBe(8)
     expect(fixture.allowedValues?.intent).toEqual([
       "faq",
       "workflow-create",
       "workflow-patch",
       "workflow-probe",
       "workflow-clarify",
+      "offer-confirm",
+      "offer-decline",
       "general",
     ])
     expect(fixture.promptFormat).toBe("eql")

@@ -144,7 +144,8 @@ describe("projection metadata and excerpts", () => {
     const big = { layers: Array.from({ length: 200 }, (_, i) => ({ id: i, name: `L${i}` })) }
     const excerpt = capDiscoveryExcerpt(big, 200)
     expect(excerpt.length).toBeLessThanOrEqual(200)
-    expect(excerpt).toContain("truncated")
+    // Compact summary bounds arrays; hard truncation adds …[truncated] only when still over budget.
+    expect(excerpt.includes("truncated") || excerpt.includes("…+")).toBe(true)
 
     const followUp = formatDiscoveryFollowUpLines({
       capabilityId: "@executioncontrolprotocol/discovery-test.inspect",
@@ -158,5 +159,30 @@ describe("projection metadata and excerpts", () => {
     })
     expect(followUp.join("\n")).toContain("Discovery capability:")
     expect(followUp.join("\n")).toContain("1920")
+  })
+
+  it("compacts image-sharp-like inspect payloads under the default 800 char cap", () => {
+    const payload = {
+      width: 4032,
+      height: 3024,
+      format: "jpeg",
+      sizeBytes: 4_200_000,
+      metadata: {
+        exif: Object.fromEntries(
+          Array.from({ length: 80 }, (_, i) => [`tag${i}`, `value-${i}-${"x".repeat(40)}`])
+        ),
+        icc: { profile: "x".repeat(500) },
+        stats: { channels: Array.from({ length: 40 }, (_, i) => ({ i, mean: i })) },
+      },
+    }
+    const excerpt = capDiscoveryExcerpt(payload)
+    expect(excerpt.length).toBeLessThanOrEqual(800)
+    expect(excerpt).toContain("4032")
+    expect(excerpt).toContain("3024")
+    expect(excerpt).toContain("jpeg")
+    expect(excerpt).not.toMatch(/\n\s+"/)
+    if (excerpt.length === 800 || excerpt.includes("truncated")) {
+      expect(excerpt).toContain("truncated")
+    }
   })
 })

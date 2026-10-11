@@ -4,6 +4,7 @@ import {
   collectModelOutputFeedback,
   collectValidationFeedback,
   defineHarness,
+  applyPendingOfferIntentCorrection,
   formatEnvironmentSummaryLines,
   formatFeedbackForModel,
   HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
@@ -19,6 +20,7 @@ import {
   ECP_MODEL_GENERATE_INTERFACE,
   harnessEvaluateOutputSchema,
   LATEST_ECP_VERSION,
+  type EcpIntent,
   type HarnessEvaluateOutput,
   type HarnessInvokeResult,
   type HarnessOperationFeedback,
@@ -75,6 +77,7 @@ const harnessInputSchema = z.object({
   /** True when the host already has live probe options (clarify / complete turns). */
   hasProbeContext: z.boolean().optional(),
   previousUserMessage: z.string().optional(),
+  pendingOffer: z.enum(["run", "probe"]).optional(),
 })
 
 /**
@@ -86,8 +89,14 @@ export function buildCodingIntentRoutingLines(input: {
   hasBaselineWorkflow?: boolean
   hasProbeContext?: boolean
   previousUserMessage?: string
+  pendingOffer?: "run" | "probe"
 }): string[] {
   const lines = [`User message: ${input.message}`]
+  if (input.pendingOffer) {
+    lines.push(
+      `Routing hint: pendingOffer=${input.pendingOffer} — prefer intent offer-confirm or offer-decline for accept/reject language.`
+    )
+  }
   if (input.hasProbeContext === true) {
     lines.push(
       "Routing hint: hasProbeContext=true (live probe options are available — prefer workflow-clarify when the user selects or completes from those options)."
@@ -140,6 +149,7 @@ const codingIntentHarness = defineHarness("@executioncontrolprotocol", "browser-
         hasBaselineWorkflow: input.hasBaselineWorkflow,
         hasProbeContext: input.hasProbeContext,
         previousUserMessage: input.previousUserMessage,
+        pendingOffer: input.pendingOffer,
       })
       if (environmentSummaryLines) {
         lines.unshift("Environment capabilities:", environmentSummaryLines, "")
@@ -234,7 +244,12 @@ const codingIntentHarness = defineHarness("@executioncontrolprotocol", "browser-
           return { success: false, feedback }
         }
 
-        return { success: true, artifact: compiled.artifact, feedback }
+        const corrected = applyPendingOfferIntentCorrection(
+          input.message.trim(),
+          compiled.artifact as EcpIntent,
+          input.pendingOffer
+        )
+        return { success: true, artifact: corrected, feedback }
       },
     })
 
@@ -278,6 +293,7 @@ export async function invokeIntentClassificationCoding(
     hasBaselineWorkflow?: boolean
     hasProbeContext?: boolean
     previousUserMessage?: string
+    pendingOffer?: "run" | "probe"
   },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {

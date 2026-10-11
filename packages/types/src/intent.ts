@@ -7,6 +7,10 @@ export const ECP_INTENT_VALUES = {
   WORKFLOW_PATCH: "workflow-patch",
   WORKFLOW_PROBE: "workflow-probe",
   WORKFLOW_CLARIFY: "workflow-clarify",
+  /** Accept a pending host offer (run or probe; host knows which). */
+  OFFER_CONFIRM: "offer-confirm",
+  /** Decline a pending host offer. */
+  OFFER_DECLINE: "offer-decline",
   GENERAL: "general",
 } as const
 
@@ -26,6 +30,8 @@ export const ecpIntentSchema = z.object({
     ECP_INTENT_VALUES.WORKFLOW_PATCH,
     ECP_INTENT_VALUES.WORKFLOW_PROBE,
     ECP_INTENT_VALUES.WORKFLOW_CLARIFY,
+    ECP_INTENT_VALUES.OFFER_CONFIRM,
+    ECP_INTENT_VALUES.OFFER_DECLINE,
     ECP_INTENT_VALUES.GENERAL,
   ]),
   /** Optional topic bucket for contextualized reinjection (e.g. patching, echo-failure). */

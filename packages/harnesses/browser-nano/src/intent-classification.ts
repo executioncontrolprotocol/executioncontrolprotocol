@@ -14,6 +14,7 @@ import {
   coerceIntentEqlRawOutput,
   buildContextBundle,
   correctClassifiedIntent,
+  applyPendingOfferIntentCorrection,
 } from "@executioncontrolprotocol/core"
 import {
   ECP_INTENT_SCHEMA,
@@ -76,6 +77,7 @@ const harnessConfigSchema = z.object({
 
 const harnessInputSchema = z.object({
   message: z.string(),
+  pendingOffer: z.enum(["run", "probe"]).optional(),
   model: z.string().optional(),
 })
 
@@ -108,6 +110,11 @@ const evalsIntentClassificationHarness = defineHarness("@executioncontrolprotoco
 
     const buildPrompt = (repairDialogLines: string[] = []) => {
       const lines = [...contextBundle.lines]
+      if (input.pendingOffer) {
+        lines.push(
+          `Pending host offer: ${input.pendingOffer}. Prefer INTENT offer-confirm or INTENT offer-decline for accept/reject language.`
+        )
+      }
       lines.push(`User message: ${input.message}`)
       if (repairDialogLines.length > 0) {
         lines.push(...repairDialogLines)
@@ -189,9 +196,10 @@ const evalsIntentClassificationHarness = defineHarness("@executioncontrolprotoco
           return { success: false, feedback }
         }
 
-        const intentDoc = correctClassifiedIntent(
+        const intentDoc = applyPendingOfferIntentCorrection(
           input.message.trim(),
-          decoded.result as EcpIntent
+          correctClassifiedIntent(input.message.trim(), decoded.result as EcpIntent),
+          input.pendingOffer
         )
 
         return { success: true, artifact: intentDoc, feedback }
@@ -233,7 +241,7 @@ function decodedValidationStub(valid = true): ValidationResult {
 
 /** Intent task handler (invoked by unified `@executioncontrolprotocol/harness-evals`). @category Evals */
 export async function invokeIntentClassification(
-  input: { message: string; model?: string },
+  input: { message: string; pendingOffer?: "run" | "probe"; model?: string },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
 ): Promise<HarnessEvaluateOutput> {
   return evalsIntentClassificationHarness.handler(input, ctx) as Promise<HarnessEvaluateOutput>

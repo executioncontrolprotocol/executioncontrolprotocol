@@ -3,10 +3,12 @@ import { z } from "zod"
 import { capabilityFor } from "@executioncontrolprotocol/core"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import {
+  buildProbeContextAfterDiscovery,
   discoveryOutputFromState,
   formatDiscoveryFollowUpMessage,
   prepareDiscoveryWorkflow,
   resolveDiscoveryCapabilityId,
+  slimDiscoveryRunResult,
 } from "../src/lib/probe-session.js"
 
 const inspect = capabilityFor("@executioncontrolprotocol/demo-test", "inspect")
@@ -41,6 +43,19 @@ describe("resolveDiscoveryCapabilityId", () => {
     expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
   })
 
+  it("prefers an explicit preferredCapabilityId", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@other/resize", as: "out" },
+      ],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow, inspect.id)).toBe(inspect.id)
+  })
+
   it("falls back to a single step uses id", () => {
     const workflow: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",
@@ -51,7 +66,20 @@ describe("resolveDiscoveryCapabilityId", () => {
     expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
   })
 
-  it("returns undefined when multiple steps have no marker", () => {
+  it("prefers an inspect-like step in a multi-step authoring draft", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@executioncontrolprotocol/image-sharp.resize", as: "out" },
+      ],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
+  })
+
+  it("falls back to the first step when no inspect-like id exists", () => {
     const workflow: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",
       version: "1.0",
@@ -61,26 +89,41 @@ describe("resolveDiscoveryCapabilityId", () => {
         { id: "b", uses: "@a/two", as: "b" },
       ],
     }
-    expect(resolveDiscoveryCapabilityId(workflow)).toBeUndefined()
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe("@a/one")
   })
 })
 
 describe("prepareDiscoveryWorkflow", () => {
-  it("compiles a marked one-step workflow when the marker is missing", () => {
+  it("compiles a one-step discovery workflow from a multi-step authoring draft", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "authoring" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@executioncontrolprotocol/image-sharp.resize", as: "out" },
+      ],
+    }
+    const prepared = prepareDiscoveryWorkflow(workflow, lookup, inspect.id)
+    expect(prepared?.capabilityId).toBe(inspect.id)
+    expect(prepared?.workflow.discovery).toEqual({ capabilityId: inspect.id })
+    expect(prepared?.workflow.steps).toHaveLength(1)
+  })
+
+  it("reuses a marked one-step discovery workflow", () => {
     const workflow: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",
       version: "1.0",
       workflow: { id: "d" },
       steps: [{ id: "a", uses: inspect.id, as: "raw" }],
+      discovery: { capabilityId: inspect.id },
     }
     const prepared = prepareDiscoveryWorkflow(workflow, lookup)
-    expect(prepared?.capabilityId).toBe(inspect.id)
-    expect(prepared?.workflow.discovery).toEqual({ capabilityId: inspect.id })
-    expect(prepared?.workflow.steps).toHaveLength(1)
+    expect(prepared?.workflow).toBe(workflow)
   })
 })
 
-describe("discovery follow-up", () => {
+describe("discovery follow-up and sanitization", () => {
   it("formats projections and reads raw state", () => {
     const message = formatDiscoveryFollowUpMessage({
       capabilityId: inspect.id,
@@ -90,5 +133,36 @@ describe("discovery follow-up", () => {
     expect(message).toContain("Read the image size")
     expect(message).toContain("1920")
     expect(discoveryOutputFromState({ raw: { width: 1 } })).toEqual({ width: 1 })
+  })
+
+  it("builds probe context and slims run results after discovery", () => {
+    const output = {
+      width: 800,
+      height: 600,
+      layers: [
+        { id: "l1", name: "Headline" },
+        { id: "l2", name: "Logo" },
+      ],
+    }
+    const probe = buildProbeContextAfterDiscovery({
+      capabilityId: inspect.id,
+      output,
+    })
+    expect(probe.domain).toBe(inspect.id)
+    expect(probe.options.length).toBeGreaterThan(0)
+    expect(probe.summary).toContain(inspect.id)
+
+    const slim = slimDiscoveryRunResult({
+      schema: "@executioncontrolprotocol.run.result",
+      version: "1.0",
+      run: { id: "r1", status: "completed" },
+    })
+    expect(slim).toEqual({
+      schema: "@executioncontrolprotocol.run.result",
+      version: "1.0",
+      run: { id: "r1", status: "completed" },
+    })
+    expect(slim).not.toHaveProperty("state")
+    expect(slim).not.toHaveProperty("output")
   })
 })

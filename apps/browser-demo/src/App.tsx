@@ -20,7 +20,11 @@ import type {
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 import { toHarnessRunContext } from "@executioncontrolprotocol/types"
-import type { Ecp, CapabilityBlobStore } from "@executioncontrolprotocol/core"
+import {
+  compileDiscoveryWorkflow,
+  type Ecp,
+  type CapabilityBlobStore,
+} from "@executioncontrolprotocol/core"
 import { compileWorkflowSource } from "@executioncontrolprotocol/core/browser"
 import type {
   ReactFlowDocument,
@@ -174,14 +178,16 @@ import {
   formatChatRunFailureMessage,
   formatChatRunSuccessMessage,
   isHarnessRunResultDocument,
-  resolvePendingOfferAction,
-  resolvePendingProbeOfferAction,
 } from "./lib/chat-run-loop.js"
+import { resolvePendingOfferWithIntent } from "./lib/classify-pending-offer.js"
 import {
+  buildProbeContextAfterDiscovery,
   discoveryOutputFromState,
   formatDiscoveryFollowUpMessage,
   prepareDiscoveryWorkflow,
   projectionsForCapability,
+  resolveDiscoveryCapabilityId,
+  slimDiscoveryRunResult,
 } from "./lib/probe-session.js"
 import type { CodeEditorTab, FormatTab } from "./types/workspace.js"
 
@@ -273,6 +279,10 @@ export function App() {
   const [probeContext, setProbeContext] = useState<ProbeContext | undefined>()
   const [pendingDiscoveryCapabilityId, setPendingDiscoveryCapabilityId] = useState<
     string | undefined
+  >()
+  /** One-step discovery workflow for chat/UI inspect runs; authoring canvas stays on `manifest`. */
+  const [pendingDiscoveryWorkflow, setPendingDiscoveryWorkflow] = useState<
+    WorkflowManifest | undefined
   >()
   const [autoTroubleshootRound, setAutoTroubleshootRound] = useState(0)
   const [lastChatRunInput, setLastChatRunInput] = useState<Record<string, unknown> | undefined>()
@@ -1294,7 +1304,20 @@ export function App() {
       setPendingOfferProbe(offerProbe)
       if (offerProbe) {
         setProbeContext(undefined)
-        setPendingDiscoveryCapabilityId(undefined)
+        const capabilityId = resolveDiscoveryCapabilityId(nextWorkflow)
+        if (capabilityId) {
+          setPendingDiscoveryCapabilityId(capabilityId)
+          try {
+            setPendingDiscoveryWorkflow(
+              compileDiscoveryWorkflow(capabilityId, ecp.getRegistry())
+            )
+          } catch {
+            setPendingDiscoveryWorkflow(undefined)
+          }
+        } else {
+          setPendingDiscoveryCapabilityId(undefined)
+          setPendingDiscoveryWorkflow(undefined)
+        }
       }
       return
     }
@@ -1310,7 +1333,7 @@ export function App() {
     }
   }
 
-  const showChatRunForm = () => {
+  const showChatRunForm = (message = "Provide any run inputs, then click Run workflow.") => {
     clearOfferRunFlags()
     clearOfferProbeFlags()
     setPendingOfferRun(false)
@@ -1323,7 +1346,7 @@ export function App() {
       }
     }
     setRunFormDrafts(Object.keys(drafts).length > 0 ? drafts : undefined)
-    appendAgent("Provide any run inputs, then click Run workflow.", { runForm: true })
+    appendAgent(message, { runForm: true })
   }
 
   const onOfferRunConfirm = () => {
@@ -1338,15 +1361,33 @@ export function App() {
     appendAgent("Okay — say when you want to run it, or ask for another change.")
   }
 
-  const openDiscoveryRunModal = async () => {
+  /** Prepare a one-step discovery workflow and show the same in-chat run form as offer-run. */
+  const showChatDiscoveryRunForm = async () => {
     clearOfferProbeFlags()
     setPendingOfferProbe(false)
-    if (!ecp || !manifest) {
+    if (!ecp) {
       appendAgent("I could not start the inspect because there is no workflow to run.")
       return
     }
 
-    const prepared = prepareDiscoveryWorkflow(manifest, ecp.getRegistry())
+    const preferred = pendingDiscoveryCapabilityId
+    let prepared =
+      pendingDiscoveryWorkflow && preferred
+        ? { workflow: pendingDiscoveryWorkflow, capabilityId: preferred }
+        : undefined
+    if (!prepared && manifest) {
+      prepared = prepareDiscoveryWorkflow(manifest, ecp.getRegistry(), preferred)
+    }
+    if (!prepared && preferred) {
+      try {
+        prepared = {
+          workflow: compileDiscoveryWorkflow(preferred, ecp.getRegistry()),
+          capabilityId: preferred,
+        }
+      } catch {
+        prepared = undefined
+      }
+    }
     if (!prepared) {
       appendAgent(
         "I could not prepare an inspect workflow. Ask me to inspect a specific bound capability first."
@@ -1355,17 +1396,16 @@ export function App() {
     }
 
     setPendingDiscoveryCapabilityId(prepared.capabilityId)
-    await syncFromManifestRef.current(prepared.workflow, { refreshFluent: true })
+    setPendingDiscoveryWorkflow(prepared.workflow)
+    // Keep the authoring canvas on the multi-step draft; chat/UI run against the pending discovery workflow.
     setRunFormDrafts(draftsFromLastChatRun())
-    setRunModalMode("input")
-    setRunModalOpen(true)
     setChatStatus("Offer inspect run")
-    appendAgent("Provide any inspect inputs in the run dialog, then run the discovery workflow.")
+    showChatRunForm()
   }
 
   const onOfferProbeConfirm = () => {
     appendUser("Yes, inspect it")
-    void openDiscoveryRunModal()
+    void showChatDiscoveryRunForm()
   }
 
   const onOfferProbeDecline = () => {
@@ -1379,40 +1419,62 @@ export function App() {
     const text = userRequest.trim()
     if (!ecp || !text) return
 
-    if (pendingOfferProbe) {
-      const action = resolvePendingProbeOfferAction(text)
+    const { provider, harness } = resolveDemoSession(providerMode)
+    const model =
+      provider === "ollama"
+        ? ollamaSettings.model
+        : provider === "anthropic"
+          ? anthropicSettings.model
+          : undefined
+
+    if (pendingOfferProbe || pendingOfferRun) {
       appendUser(text)
-      if (action === "confirm") {
-        await openDiscoveryRunModal()
-        setPrompt("")
-        return
-      }
-      if (action === "decline") {
+      setChatBusy(true)
+      try {
+        const decision = await resolvePendingOfferWithIntent({
+          ecp,
+          message: text,
+          kind: pendingOfferProbe ? "probe" : "run",
+          harness,
+          providerCapabilityId: providerCapabilityId(provider),
+          ...(model ? { model } : {}),
+        })
+        if (decision === "confirm") {
+          if (pendingOfferProbe) {
+            await showChatDiscoveryRunForm()
+          } else {
+            showChatRunForm()
+          }
+          setPrompt("")
+          return
+        }
+        if (decision === "decline") {
+          if (pendingOfferProbe) {
+            clearOfferProbeFlags()
+            setPendingOfferProbe(false)
+            appendAgent("Okay — ask me to inspect the workflow when you are ready.")
+          } else {
+            clearOfferRunFlags()
+            setPendingOfferRun(false)
+            appendAgent("Okay — say when you want to run it, or ask for another change.")
+          }
+          setPrompt("")
+          return
+        }
+        // Other intents cancel the offer and continue as a normal chat turn.
         clearOfferProbeFlags()
-        setPendingOfferProbe(false)
-        appendAgent("Okay — ask me to inspect the workflow when you are ready.")
-        setPrompt("")
-        return
-      }
-      clearOfferProbeFlags()
-      setPendingOfferProbe(false)
-    } else if (pendingOfferRun) {
-      const action = resolvePendingOfferAction(text)
-      appendUser(text)
-      if (action === "confirm") {
-        showChatRunForm()
-        setPrompt("")
-        return
-      }
-      if (action === "decline") {
         clearOfferRunFlags()
+        setPendingOfferProbe(false)
         setPendingOfferRun(false)
-        appendAgent("Okay — say when you want to run it, or ask for another change.")
-        setPrompt("")
-        return
+      } finally {
+        setChatBusy(false)
       }
-      clearOfferRunFlags()
-      setPendingOfferRun(false)
+    } else if (/^(run(?:\s+it)?|please\s+run(?:\s+it)?)$/i.test(text) && manifest) {
+      // Typed "run it" with a runnable workflow after offer chips are gone.
+      appendUser(text)
+      showChatRunForm()
+      setPrompt("")
+      return
     } else {
       appendUser(text)
     }
@@ -1472,14 +1534,55 @@ export function App() {
     return Object.keys(drafts).length > 0 ? drafts : runFormDrafts
   }
 
+  const completeDiscoverySuccess = (
+    result: RunResult,
+    options?: { showChatOutput?: boolean; blobs?: CapabilityBlobStore }
+  ) => {
+    if (!ecp || !pendingDiscoveryCapabilityId) return false
+    const capabilityId = pendingDiscoveryCapabilityId
+    const discoveryOutput = discoveryOutputFromState(result.state)
+    const followUpOutput = discoveryOutput ?? result.output
+    appendAgent(
+      formatDiscoveryFollowUpMessage({
+        capabilityId,
+        projections: projectionsForCapability(ecp, capabilityId),
+        output: followUpOutput,
+      }),
+      options?.showChatOutput
+        ? {
+            runOutput: true,
+            runOutputData: followUpOutput,
+            ...(options.blobs || lastRunBlobs.current
+              ? { runBlobs: options.blobs ?? lastRunBlobs.current }
+              : {}),
+          }
+        : undefined
+    )
+    setProbeContext(
+      buildProbeContextAfterDiscovery({
+        capabilityId,
+        output: followUpOutput,
+      })
+    )
+    // Harness only sees a slim snapshot; chat/UI keep human-readable follow-up text.
+    setLastRunResult(slimDiscoveryRunResult(result))
+    setPendingDiscoveryCapabilityId(undefined)
+    setPendingDiscoveryWorkflow(undefined)
+    setChatStatus("Probe complete")
+    return true
+  }
+
   const onRun = async (
     input?: Record<string, unknown>,
     blobs?: CapabilityBlobStore,
     options?: { source?: "modal" | "chat" | "ui" }
   ) => {
-    if (!ecp || !manifest) return
     const fromChat = options?.source === "chat"
     const fromUi = options?.source === "ui"
+    const discoveryRun =
+      Boolean(pendingDiscoveryCapabilityId) && pendingDiscoveryWorkflow
+    const runManifest = discoveryRun ? pendingDiscoveryWorkflow! : manifest
+    if (!ecp || !runManifest) return
     setRunBusy(true)
     setRunModalOpen(false)
     setRunOutput("")
@@ -1500,7 +1603,7 @@ export function App() {
     // Chat / UI runs stay put — do not force the workflow graph open.
     let result: RunResult | undefined
     try {
-      result = (await ecp.run(withNormalizedFileAccepts(manifest), {
+      result = (await ecp.run(withNormalizedFileAccepts(runManifest), {
         ...(input ? { input } : {}),
         ...(blobs ? { blobs } : {}),
       })) as RunResult
@@ -1508,7 +1611,28 @@ export function App() {
       setRunOutput(JSON.stringify(result, null, 2))
       const output = result.output
       setRunPublicOutput(output ? JSON.stringify(output, null, 2) : "")
-      if (fromChat) {
+      if (discoveryRun && result && !isFailedRunResult(result)) {
+        completeDiscoverySuccess(result, {
+          showChatOutput: fromChat || fromUi,
+          blobs,
+        })
+        if (fromUi) {
+          setRunPanelPhase("output")
+        }
+      } else if (discoveryRun && isFailedRunResult(result)) {
+        setPendingDiscoveryCapabilityId(undefined)
+        setPendingDiscoveryWorkflow(undefined)
+        if (fromChat) {
+          void autoTroubleshootAfterFailure(result)
+        } else if (fromUi) {
+          setRunPanelPhase("output")
+          appendAgentError("The inspect run failed.")
+        } else {
+          appendAgentError("The inspect run failed.")
+          setRunModalMode("inspect")
+          setRunModalOpen(true)
+        }
+      } else if (fromChat) {
         if (isFailedRunResult(result)) {
           void autoTroubleshootAfterFailure(result)
         } else {
@@ -1523,22 +1647,8 @@ export function App() {
         }
       } else if (fromUi) {
         setRunPanelPhase("output")
-      } else if (pendingDiscoveryCapabilityId && result && !isFailedRunResult(result)) {
-        const capabilityId = pendingDiscoveryCapabilityId
-        const output = discoveryOutputFromState(result.state)
-        appendAgent(
-          formatDiscoveryFollowUpMessage({
-            capabilityId,
-            projections: projectionsForCapability(ecp, capabilityId),
-            output: output ?? result.output,
-          })
-        )
-        setPendingDiscoveryCapabilityId(undefined)
-        setProbeContext(undefined)
-        setChatStatus("Probe complete")
-        setRunModalMode("output")
-        setRunModalOpen(true)
       } else {
+        // Legacy RunResultModal path (canvas inspect) — not used for probe/run offers.
         setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
         setRunModalOpen(true)
       }
@@ -1549,16 +1659,17 @@ export function App() {
       setRunOutput(message)
       setRunPublicOutput("")
       emitRunProgressFailed()
-      if (fromChat) {
+      if (discoveryRun) {
+        setPendingDiscoveryCapabilityId(undefined)
+        setPendingDiscoveryWorkflow(undefined)
+        appendAgentError(`The inspect run failed: ${message}`)
+        setChatStatus("Error")
+        if (fromUi) setRunPanelPhase("output")
+      } else if (fromChat) {
         void autoTroubleshootAfterFailure(errorResult)
       } else if (fromUi) {
         setRunPanelPhase("output")
       } else {
-        if (pendingDiscoveryCapabilityId) {
-          setPendingDiscoveryCapabilityId(undefined)
-          appendAgentError(`The inspect run failed: ${message}`)
-          setChatStatus("Error")
-        }
         setRunModalMode("inspect")
         setRunModalOpen(true)
       }

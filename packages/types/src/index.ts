@@ -175,6 +175,7 @@ export {
 export type { HarnessReply, EcpHarnessReplyAction } from "./harness-reply.js"
 export {
   HARNESS_TASK_IDS,
+  pendingOfferKindSchema,
   harnessChatInputSchema,
   harnessIntentClassificationInputSchema,
   harnessWorkflowAuthoringInputSchema,
@@ -186,6 +187,7 @@ export type {
   HarnessIntentClassificationInput,
   HarnessWorkflowAuthoringInput,
   HarnessWorkflowAssistantInput,
+  PendingOfferKind,
 } from "./harness-tasks.js"
 export {
   FILE_REF_KINDS,

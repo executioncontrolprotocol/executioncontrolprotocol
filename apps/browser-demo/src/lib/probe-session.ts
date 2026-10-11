@@ -8,6 +8,8 @@ import {
 } from "@executioncontrolprotocol/core"
 import type {
   CapabilityMetadata,
+  ProbeContext,
+  ProbeOption,
   StepNode,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
@@ -20,23 +22,34 @@ export interface DiscoveryWorkflowPrepareResult {
   capabilityId: string
 }
 
+function stepUsesList(workflow: WorkflowManifest): string[] {
+  return flattenTestStepOrder(workflow.steps)
+    .filter(
+      (step): step is StepNode =>
+        step !== undefined &&
+        (step.type === undefined || step.type === "step") &&
+        typeof step.uses === "string"
+    )
+    .map((step) => String(step.uses))
+}
+
 /**
  * Resolve the capability id a discovery workflow should inspect.
- * Prefers an explicit {@link WorkflowManifest.discovery} marker, then a single step.
+ * Prefers an explicit {@link WorkflowManifest.discovery} marker, then a single step,
+ * then the first inspect-like step, then the first step.
  * @category Demo
  */
 export function resolveDiscoveryCapabilityId(
-  workflow: WorkflowManifest
+  workflow: WorkflowManifest,
+  preferredCapabilityId?: string
 ): string | undefined {
+  if (preferredCapabilityId?.trim()) return preferredCapabilityId.trim()
   if (workflow.discovery?.capabilityId) return workflow.discovery.capabilityId
-  const steps = flattenTestStepOrder(workflow.steps).filter(
-    (step): step is StepNode =>
-      step !== undefined &&
-      (step.type === undefined || step.type === "step") &&
-      typeof step.uses === "string"
-  )
-  if (steps.length === 1) return String(steps[0]!.uses)
-  return undefined
+  const uses = stepUsesList(workflow)
+  if (uses.length === 1) return uses[0]
+  if (uses.length === 0) return undefined
+  const inspectLike = uses.find((id) => /inspect|manifest|describe|metadata|stats/i.test(id))
+  return inspectLike ?? uses[0]
 }
 
 /**
@@ -46,11 +59,15 @@ export function resolveDiscoveryCapabilityId(
  */
 export function prepareDiscoveryWorkflow(
   workflow: WorkflowManifest,
-  lookup: { getCapability: (id: string) => CapabilityDefinition | undefined }
+  lookup: { getCapability: (id: string) => CapabilityDefinition | undefined },
+  preferredCapabilityId?: string
 ): DiscoveryWorkflowPrepareResult | undefined {
-  const capabilityId = resolveDiscoveryCapabilityId(workflow)
+  const capabilityId = resolveDiscoveryCapabilityId(workflow, preferredCapabilityId)
   if (!capabilityId) return undefined
-  if (workflow.discovery?.capabilityId) {
+  if (
+    workflow.discovery?.capabilityId === capabilityId &&
+    stepUsesList(workflow).length === 1
+  ) {
     return { workflow, capabilityId }
   }
   return {
@@ -93,4 +110,88 @@ export function projectionsForCapability(
   capabilityId: string
 ): CapabilityMetadata["projections"] | undefined {
   return ecp.getRegistry().getCapability(capabilityId)?.metadata?.projections
+}
+
+function collectProbeOptions(value: unknown, limit = 24): ProbeOption[] {
+  const options: ProbeOption[] = []
+  const visit = (node: unknown, path: string) => {
+    if (options.length >= limit || node === null || node === undefined) return
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length && options.length < limit; i++) {
+        const item = node[i]
+        if (item && typeof item === "object" && !Array.isArray(item)) {
+          const row = item as Record<string, unknown>
+          const id =
+            typeof row.id === "string" || typeof row.id === "number"
+              ? String(row.id)
+              : typeof row.name === "string"
+                ? row.name
+                : `${path}.${i}`
+          const label =
+            typeof row.name === "string"
+              ? row.name
+              : typeof row.label === "string"
+                ? row.label
+                : id
+          options.push({ id, label, path: `${path}.${i}` })
+        } else {
+          visit(item, `${path}.${i}`)
+        }
+      }
+      return
+    }
+    if (typeof node === "object") {
+      for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
+        if (options.length >= limit) break
+        if (key === "layers" || key === "parts" || key === "items" || key === "options") {
+          visit(child, path ? `${path}.${key}` : key)
+        }
+      }
+    }
+  }
+  visit(value, "raw")
+  return options
+}
+
+/**
+ * Build a small {@link ProbeContext} after a successful discovery run.
+ * @category Demo
+ */
+export function buildProbeContextAfterDiscovery(options: {
+  capabilityId: string
+  output: unknown
+  summary?: string
+}): ProbeContext {
+  const optionsList = collectProbeOptions(options.output)
+  const summary =
+    options.summary?.trim() ||
+    (optionsList.length > 0
+      ? `Inspected ${options.capabilityId}; ${optionsList.length} selectable option(s).`
+      : `Inspected ${options.capabilityId}.`)
+  return {
+    probeId: `probe-${Date.now()}`,
+    domain: options.capabilityId,
+    stepAs: DISCOVERY_RAW_STEP_AS,
+    summary,
+    options: optionsList,
+  }
+}
+
+/**
+ * Slim run-result snapshot for harness context (no state/history payloads).
+ * @category Demo
+ */
+export function slimDiscoveryRunResult(result: {
+  schema?: string
+  version?: string
+  run?: { id?: string; status?: string }
+}): Record<string, unknown> {
+  return {
+    schema: "@executioncontrolprotocol.run.result",
+    version: result.version ?? "1.0",
+    run: {
+      id: result.run?.id ?? "discovery",
+      status: result.run?.status ?? "completed",
+    },
+  }
 }

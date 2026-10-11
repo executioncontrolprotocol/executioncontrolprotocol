@@ -20,9 +20,9 @@ describe("chat-run-loop confirm/decline", () => {
     expect(isRunOfferConfirm("Sure")).toBe(true)
   })
 
-  it("rejects authoring that starts with yes", () => {
+  it("rejects authoring that starts with yes and asks the classifier", () => {
     expect(isRunOfferConfirm("yes add a notify step")).toBe(false)
-    expect(resolvePendingOfferAction("yes add a notify step")).toBe("cancel-and-chat")
+    expect(resolvePendingOfferAction("yes add a notify step")).toBe("classify")
   })
 
   it("accepts declines", () => {
@@ -47,8 +47,9 @@ describe("chat-run-loop probe confirm/decline", () => {
     expect(resolvePendingOfferAction("yes")).toBe("confirm")
   })
 
-  it("cancels the probe offer for a new authoring request", () => {
-    expect(resolvePendingProbeOfferAction("yes, add a resize step")).toBe("cancel-and-chat")
+  it("defers natural-language authoring to intent classification", () => {
+    expect(resolvePendingProbeOfferAction("yes, add a resize step")).toBe("classify")
+    expect(resolvePendingProbeOfferAction("Yes, inspect it")).toBe("classify")
   })
 })
 

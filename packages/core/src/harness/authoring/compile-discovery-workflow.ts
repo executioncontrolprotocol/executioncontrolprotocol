@@ -16,10 +16,28 @@ import type { CapabilityDefinition } from "../../definitions/types.js"
 export const DISCOVERY_RAW_STEP_AS = "raw"
 
 /**
- * Max JSON characters of capability output placed on a follow-up chat turn.
+ * Max characters of capability output placed on a follow-up chat turn.
+ * Full output stays in the run result modal.
  * @category Harness
  */
-export const DISCOVERY_OUTPUT_EXCERPT_CHAR_LIMIT = 2400
+export const DISCOVERY_OUTPUT_EXCERPT_CHAR_LIMIT = 800
+
+/** Prefer these top-level keys when summarizing inspect-like objects. @category Harness */
+const PREFERRED_SCALAR_KEYS = [
+  "width",
+  "height",
+  "format",
+  "id",
+  "name",
+  "size",
+  "sizeBytes",
+  "status",
+  "ok",
+] as const
+
+const MAX_DEPTH = 2
+const MAX_ARRAY_ITEMS = 8
+const MAX_STRING_LENGTH = 120
 
 /**
  * Resolve a capability definition for discovery compile.
@@ -112,6 +130,67 @@ export function formatProjectionsForPrompt(
   return lines
 }
 
+function truncateString(value: string, max = MAX_STRING_LENGTH): string {
+  if (value.length <= max) return value
+  return `${value.slice(0, Math.max(0, max - 1))}…`
+}
+
+/**
+ * Shallow-compact a value for discovery chat excerpts (depth/array/string bounds).
+ * @category Harness
+ */
+export function compactDiscoveryValue(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value === "boolean" || typeof value === "number") {
+    return value
+  }
+  if (typeof value === "string") {
+    return truncateString(value)
+  }
+  if (typeof value === "bigint") {
+    return value.toString()
+  }
+  if (typeof value !== "object") {
+    return String(value)
+  }
+  if (depth >= MAX_DEPTH) {
+    if (Array.isArray(value)) return `[${value.length} items]`
+    const keys = Object.keys(value as object)
+    return `{${keys.slice(0, 6).join(",")}${keys.length > 6 ? ",…" : ""}}`
+  }
+  if (Array.isArray(value)) {
+    const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) => compactDiscoveryValue(item, depth + 1))
+    if (value.length > MAX_ARRAY_ITEMS) {
+      items.push(`…+${value.length - MAX_ARRAY_ITEMS} more`)
+    }
+    return items
+  }
+
+  const record = value as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  const preferred = PREFERRED_SCALAR_KEYS.filter((key) => key in record)
+  const otherKeys = Object.keys(record)
+    .filter((key) => !PREFERRED_SCALAR_KEYS.includes(key as (typeof PREFERRED_SCALAR_KEYS)[number]))
+    .sort()
+  const ordered = [...preferred, ...otherKeys]
+  for (const key of ordered) {
+    const nested = record[key]
+    // Prefer scalar facts; collapse bulky nested bags early.
+    if (
+      depth === 0 &&
+      nested !== null &&
+      typeof nested === "object" &&
+      !Array.isArray(nested) &&
+      (key === "metadata" || key === "stats" || key === "exif" || key === "icc")
+    ) {
+      const nestedKeys = Object.keys(nested as object)
+      out[key] = `{${nestedKeys.slice(0, 8).join(",")}${nestedKeys.length > 8 ? ",…" : ""}}`
+      continue
+    }
+    out[key] = compactDiscoveryValue(nested, depth + 1)
+  }
+  return out
+}
+
 /**
  * Cap a discovery capability output for the next chat turn.
  * Full output stays in the run result modal.
@@ -123,12 +202,12 @@ export function capDiscoveryExcerpt(
 ): string {
   let text: string
   try {
-    text = JSON.stringify(value, null, 2)
+    text = JSON.stringify(compactDiscoveryValue(value))
   } catch {
     text = String(value)
   }
   if (text.length <= limit) return text
-  return `${text.slice(0, Math.max(0, limit - 20))}\n...[truncated]`
+  return `${text.slice(0, Math.max(0, limit - 14))}…[truncated]`
 }
 
 /**
