@@ -61,13 +61,7 @@ export const HARNESS_CODING_CHAT_REPAIR_FRONTIER = {
 /** Alias for {@link HARNESS_CODING_CHAT_REPAIR_SMALL}. @category Harness */
 export const HARNESS_CODING_CHAT_REPAIR = HARNESS_CODING_CHAT_REPAIR_SMALL
 
-const SHARED_CONTEXT_SMALL = {
-  includeEnvironmentDescriptor: true,
-  includeEncodedDescriptor: false,
-  descriptorFormat: "@executioncontrolprotocol/format-json",
-  environmentSummaryFormat: "plain" as const,
-} as const
-
+/** Shared context for all coding profiles — Fluent catalogs (no plain/EQL conversion). */
 const SHARED_CONTEXT_CODING = {
   includeEnvironmentDescriptor: true,
   includeEncodedDescriptor: false,
@@ -201,8 +195,8 @@ export function normalizeHarnessCodingProfile(value: unknown): HarnessCodingProf
   return "small"
 }
 
-function sharedContextForProfile(profile: HarnessCodingProfile) {
-  return profile === "small" ? SHARED_CONTEXT_SMALL : SHARED_CONTEXT_CODING
+function sharedContextForProfile(_profile: HarnessCodingProfile) {
+  return SHARED_CONTEXT_CODING
 }
 
 function baseTaskConfig(profile: HarnessCodingProfile) {
@@ -231,6 +225,8 @@ function baseTaskConfig(profile: HarnessCodingProfile) {
       },
       context: {
         ...sharedContext,
+        // Always Fluent catalogs for workflow authoring (all profiles) — no plain→Fluent conversion.
+        environmentSummaryFormat: "fluent" as const,
         includeRunContext: true,
         runContextFormat: "@executioncontrolprotocol/format-json",
       },

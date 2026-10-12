@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   formatEnvironmentSummaryLines,
+  formatFluentCapabilityDetailLines,
   summarizeEnvironmentDescriptor,
 } from "@executioncontrolprotocol/core"
 import type { EnvironmentDescriptor } from "@executioncontrolprotocol/types"
@@ -99,7 +100,7 @@ describe("summarizeEnvironmentDescriptor", () => {
     expect(text).not.toContain("listModels")
   })
 
-  it("formatEnvironmentSummaryLines fluent emits typed I/O and .with examples", () => {
+  it("formatEnvironmentSummaryLines fluent emits commented multi-line Fluent snippets", () => {
     const summary = summarizeEnvironmentDescriptor({
       ...minimalDescriptor,
       capabilities: [
@@ -118,10 +119,82 @@ describe("summarizeEnvironmentDescriptor", () => {
     })
     const text = formatEnvironmentSummaryLines(summary, { format: "fluent" }).join("\n")
     expect(text).toContain("Fluent capability catalog")
-    expect(text).toContain("@executioncontrolprotocol/test.echo (echo)")
-    expect(text).toContain("value: string (required)")
-    expect(text).toContain('step("@executioncontrolprotocol/test.echo"')
-    expect(text).toContain(".with({ value: \"hello\" })")
+    expect(text).toContain("// @executioncontrolprotocol/test.echo — echo")
+    expect(text).toContain("// inputs: value (string, required)")
+    expect(text).toContain('step("@executioncontrolprotocol/test.echo", "echo")')
+    expect(text).toContain('.id("echo")')
+    expect(text).toContain("value: \"hello\",")
+    expect(text).toContain('.as("echo")')
+    expect(text).not.toContain("example: step(")
+  })
+
+  it("formatFluentCapabilityDetailLines omits JSON Schema dumps", () => {
+    const lines = formatFluentCapabilityDetailLines({
+      id: "@executioncontrolprotocol/test.transform",
+      extension: "@executioncontrolprotocol/test",
+      label: "Transform",
+      summary: "Resize images",
+      metadata: {
+        description: "Transform an image file.",
+        useCases: ["Resize before upload"],
+        projections: [
+          {
+            summary: "Returns a file ref",
+            description: "Pass image to the next step with ref.",
+          },
+        ],
+      },
+      inputSchema: {
+        type: "object",
+        properties: {
+          image: { "x-ecp-file": true, type: "object" },
+        },
+        required: ["image"],
+      },
+      outputSchema: {
+        type: "object",
+        properties: { image: { "x-ecp-file": true, type: "object" } },
+      },
+    })
+    const text = lines.join("\n")
+    expect(text).toContain("// Capability detail:")
+    expect(text).toContain("// Use cases:")
+    expect(text).toContain('image: ref("image"), // file')
+    expect(text).toContain('step("@executioncontrolprotocol/test.transform"')
+    expect(text).not.toContain("inputSchema:")
+    expect(text).not.toContain("STEP ")
+  })
+
+  it("formatEnvironmentSummaryLines fluent samples file ports with ref()", () => {
+    const summary = summarizeEnvironmentDescriptor({
+      ...minimalDescriptor,
+      capabilities: [
+        {
+          id: "@executioncontrolprotocol/test.transform",
+          label: "Transform",
+          extension: "@executioncontrolprotocol/test",
+          summary: "Resize images",
+          inputSchema: {
+            type: "object",
+            properties: {
+              image: { "x-ecp-file": true, type: "object" },
+              quality: { type: "number" },
+            },
+            required: ["image"],
+          },
+          outputSchema: {
+            type: "object",
+            properties: { image: { "x-ecp-file": true, type: "object" } },
+          },
+        },
+      ],
+    })
+    const text = formatEnvironmentSummaryLines(summary, { format: "fluent" }).join("\n")
+    expect(text).toContain("image (file, required)")
+    expect(text).toContain("File ports: use ref(")
+    expect(text).toContain('image: ref("image"), // file')
+    expect(text).toContain("// quality:")
+    expect(text).not.toContain('{ uri:')
   })
 
   it("formatEnvironmentSummaryLines fluent marks caps already in workflow", () => {

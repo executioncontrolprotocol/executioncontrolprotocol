@@ -4,12 +4,12 @@ import {
   chatResultAnswer,
   chatResultSuggestedAction,
   chatResultWorkflow,
-  formatWorkflowSummaryLines,
   messageSelectsProbeOptions,
   tryBuildChangeSummaryReply,
   tryBuildClarifyOptionsReply,
   tryBuildProbeOfferReply,
 } from "@executioncontrolprotocol/core"
+import { buildChangeSummaryMessage } from "./change-summary-message.js"
 import {
   ECP_HARNESS_REPLY_ACTIONS,
   ECP_HARNESS_REPLY_SCHEMA,
@@ -93,26 +93,6 @@ function ensureOfferProbe(reply: HarnessReply): HarnessReply {
     return reply
   }
   return { ...reply, suggestedAction: ECP_HARNESS_REPLY_ACTIONS.OFFER_PROBE }
-}
-
-function buildChangeSummaryMessage(
-  userRequest: string,
-  baseline: WorkflowManifest | undefined,
-  authored: WorkflowManifest,
-  mode: "run" | "probe"
-): string {
-  const ask =
-    mode === "probe"
-      ? "Summarize the discovery prefix in one or two short sentences, then ask if the user wants to run the probe to inspect results before finishing."
-      : "Summarize the workflow changes below in one or two short sentences, then ask if the user wants to run the workflow."
-  const lines = [ask, `User request: ${userRequest}`]
-  if (baseline) {
-    lines.push("Before:", ...formatWorkflowSummaryLines(baseline))
-  } else {
-    lines.push("Before: (new workflow)")
-  }
-  lines.push("After:", ...formatWorkflowSummaryLines(authored))
-  return lines.join("\n")
 }
 
 function parseProbeContext(value: unknown): ProbeContext | undefined {

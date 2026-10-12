@@ -246,7 +246,7 @@ env.invoke(...)
 | `ecp.describe()` | Inventory: id, label, extension, execution, **summary** |
 | `ecp.describe({ capabilities: { match: id, mode: "exact" } })` | Detail: nested **metadata** + JSON Schema I/O |
 | `ecp.describe({ extensions: { match: id, mode: "exact" } })` | Extension metadata |
-| Authoring catalogs | Inventory + optional `include: ["inputSchema","outputSchema"]` for typed Fluent lines — never full useCases/samplePrompts |
+| Authoring catalogs | Inventory + optional `include: ["inputSchema","outputSchema"]` for typed lines — never full useCases/samplePrompts. **Match harness language:** Coding catalogs are commented Fluent TypeScript; Nano catalogs are EQL. Do not ask models to convert formats (see `.cursor/rules/harness-prompt-language.mdc`). |
 
 Authors attach docs once with `.withMetadata({ summary, description, useCases, samplePrompts })`. Do not cross-advertise other packages in metadata prose.
 

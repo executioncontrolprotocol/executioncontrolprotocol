@@ -139,7 +139,7 @@ const codingIntentHarness = defineHarness("@executioncontrolprotocol", "browser-
       const descriptor = await ctx.ecp.describe()
       const summary = summarizeEnvironmentDescriptor(descriptor)
       environmentSummaryLines = formatEnvironmentSummaryLines(summary, {
-        format: "plain",
+        format: "fluent",
       }).join("\n")
     }
 

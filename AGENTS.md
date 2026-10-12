@@ -230,6 +230,8 @@ Build order: `tsc -b tsconfig.build.json` (types → core → … → cli).
 
 ### Harness authoring surface
 
+**Prompt language:** catalogs, examples, primers, and repair hints must match the harness output language — no format conversion. Coding → Fluent TypeScript; Nano → EQL. See [`.cursor/rules/harness-prompt-language.mdc`](.cursor/rules/harness-prompt-language.mdc).
+
 Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `defineHarness`, `runModelRepairLoop`, `buildSystemPrompt`, `summarizeEnvironmentDescriptor`, `formatStructuredRepairForModel`, `buildAssistantSafeReply`, `summarizeProbeContext`, `compileDiscoveryWorkflow`, etc. Shared task input Zod schemas live in `@executioncontrolprotocol/types` (`HARNESS_TASK_IDS`, `harnessWorkflowAssistantInputSchema`, `probeContextSchema`, …).
 
 | Harness | Package | Id | Model surface | Eval profile |

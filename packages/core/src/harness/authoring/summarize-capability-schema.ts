@@ -79,6 +79,20 @@ function parseZodObjectSchema(schema: z.ZodObject<z.ZodRawShape>): CapabilitySch
   return { required, optional, eqlTypes }
 }
 
+/** True when a JSON Schema property is an ECP file ref (`x-ecp-file`). */
+function isJsonFileSchema(prop: unknown): boolean {
+  if (prop === null || typeof prop !== "object" || Array.isArray(prop)) return false
+  return (prop as { "x-ecp-file"?: unknown })["x-ecp-file"] === true
+}
+
+function jsonPropTypeName(prop: unknown): string {
+  if (isJsonFileSchema(prop)) return "file"
+  if (prop !== null && typeof prop === "object" && "type" in prop) {
+    return String((prop as { type?: unknown }).type ?? "unknown")
+  }
+  return "unknown"
+}
+
 function parseJsonSchema(schema: Record<string, unknown>): CapabilitySchemaFields {
   const props = schema.properties
   if (!props || typeof props !== "object" || Array.isArray(props)) {
@@ -94,10 +108,7 @@ function parseJsonSchema(schema: Record<string, unknown>): CapabilitySchemaField
   const eqlTypes: Record<string, string> = {}
   for (const name of Object.keys(props as Record<string, unknown>)) {
     const prop = (props as Record<string, unknown>)[name]
-    const typeName =
-      prop !== null && typeof prop === "object" && "type" in prop
-        ? String((prop as { type?: unknown }).type ?? "unknown")
-        : "unknown"
+    const typeName = jsonPropTypeName(prop)
     const isRequired = requiredSet.has(name)
     if (isRequired) {
       required.push(name)

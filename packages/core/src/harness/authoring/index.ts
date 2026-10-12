@@ -9,6 +9,7 @@ export {
   summarizeEnvironmentDescriptor,
   toAuthoringEnvironmentDescriptor,
   formatEnvironmentSummaryLines,
+  formatFluentCapabilityDetailLines,
   isWorkflowStepCapability,
   isAuthoringInventoryExtension,
   type AuthoringInventoryExtensionOptions,
@@ -20,6 +21,7 @@ export {
   DESCRIBE_DETAIL_ID_LIMIT,
   extractMentionedEntityIds,
   loadEnvironmentDescribeForPrompt,
+  type DescribeForPromptOptions,
 } from "./describe-for-prompt.js"
 export {
   introspectCapabilitySchema,

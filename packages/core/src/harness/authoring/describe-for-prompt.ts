@@ -6,9 +6,19 @@ import type {
 } from "@executioncontrolprotocol/types"
 import type { Ecp } from "../../environment/ecp.js"
 import { DESCRIBE_AUTHORING_CAPABILITIES_QUERY } from "../../environment/describe.js"
+import { formatFluentCapabilityDetailLines } from "./summarize-environment.js"
 
 /** Max exact-id detail fetches per assistant turn. @category Harness */
 export const DESCRIBE_DETAIL_ID_LIMIT = 3
+
+/** Options for {@link loadEnvironmentDescribeForPrompt}. @category Harness */
+export interface DescribeForPromptOptions {
+  /**
+   * How to render exact-id capability I/O in detail lines.
+   * `fluent` uses commented Fluent snippets (coding harness); `json` dumps JSON Schema (nano).
+   */
+  schemaDetail?: "json" | "fluent"
+}
 
 const NAMESPACED_ID_RE = /@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9_.-]+)?/g
 
@@ -34,7 +44,7 @@ export function extractMentionedEntityIds(
   return ordered
 }
 
-function formatCapabilityDetail(cap: CapabilityDescription): string[] {
+function formatCapabilityDetailJson(cap: CapabilityDescription): string[] {
   const meta = cap.metadata as CapabilityMetadata | undefined
   const lines = [`Capability ${cap.id}${cap.summary ? ` — ${cap.summary}` : ""}`]
   if (meta?.description) {
@@ -60,6 +70,26 @@ function formatCapabilityDetail(cap: CapabilityDescription): string[] {
   return lines
 }
 
+function formatCapabilityDetail(
+  cap: CapabilityDescription,
+  schemaDetail: "json" | "fluent"
+): string[] {
+  if (schemaDetail === "fluent") {
+    return formatFluentCapabilityDetailLines({
+      id: cap.id,
+      extension: cap.extension,
+      ...(cap.label ? { label: cap.label } : {}),
+      ...(cap.summary ? { summary: cap.summary } : {}),
+      ...(cap.inputSchema !== undefined ? { inputSchema: cap.inputSchema } : {}),
+      ...(cap.outputSchema !== undefined ? { outputSchema: cap.outputSchema } : {}),
+      ...(cap.metadata
+        ? { metadata: cap.metadata as CapabilityMetadata }
+        : {}),
+    })
+  }
+  return formatCapabilityDetailJson(cap)
+}
+
 function formatExtensionDetail(ext: ExtensionDescription): string[] {
   const meta = ext.metadata as ExtensionMetadata | undefined
   const lines = [`Extension ${ext.id}${ext.summary ? ` — ${ext.summary}` : ""}`]
@@ -83,11 +113,13 @@ function formatExtensionDetail(ext: ExtensionDescription): string[] {
  */
 export async function loadEnvironmentDescribeForPrompt(
   ecp: Ecp,
-  message: string
+  message: string,
+  options?: DescribeForPromptOptions
 ): Promise<{
   inventory: Awaited<ReturnType<Ecp["describe"]>>
   detailLines: string[]
 }> {
+  const schemaDetail = options?.schemaDetail ?? "json"
   const inventory = await ecp.describe(DESCRIBE_AUTHORING_CAPABILITIES_QUERY)
   const known = [
     ...(inventory.capabilities ?? []).map((c) => c.id),
@@ -106,7 +138,7 @@ export async function loadEnvironmentDescribeForPrompt(
         })
     if (isCapability) {
       const cap = descriptor.capabilities?.[0]
-      if (cap) detailLines.push(...formatCapabilityDetail(cap), "")
+      if (cap) detailLines.push(...formatCapabilityDetail(cap, schemaDetail), "")
     } else {
       const ext = descriptor.extensions?.[0]
       if (ext) detailLines.push(...formatExtensionDetail(ext), "")

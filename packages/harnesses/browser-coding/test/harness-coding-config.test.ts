@@ -61,14 +61,21 @@ describe("getHarnessCodingConfig", () => {
     expect(authoring.context.environmentSummaryFormat).toBe("fluent")
   })
 
-  it("keeps small profile on plain inventory and strict goal checks", () => {
+  it("uses fluent catalogs for all coding tasks including small profile", () => {
     const repair = codingRepairForProfile("small")
     expect(repair.task.includePriorOutput).toBe(true)
     expect(repair.task.strictGoalChecks).toBe(true)
-    const authoring = getHarnessCodingConfig(HARNESS_TASKS.WORKFLOW_AUTHORING, "small") as {
-      context: { environmentSummaryFormat?: string }
+    for (const task of [
+      HARNESS_TASKS.WORKFLOW_AUTHORING,
+      HARNESS_TASKS.INTENT_CLASSIFICATION,
+      HARNESS_TASKS.WORKFLOW_ASSISTANT,
+      HARNESS_TASKS.CHAT,
+    ]) {
+      const cfg = getHarnessCodingConfig(task, "small") as {
+        context: { environmentSummaryFormat?: string }
+      }
+      expect(cfg.context.environmentSummaryFormat).toBe("fluent")
     }
-    expect(authoring.context.environmentSummaryFormat).toBe("plain")
   })
 
   it("thins medium create fixtures to grammar few-shots", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { fileRefSchema, modelGenerateInputSchema } from "@executioncontrolprotocol/types"
+import { jsonSchemaFromZod } from "../../src/schema/json-schema.js"
 import {
   allCapabilityInputNames,
   formatCapabilityInputLabels,
@@ -80,6 +81,27 @@ describe("introspectCapabilitySchema", () => {
     expect(fields.optional).toEqual(["thumb"])
     expect(fields.eqlTypes?.image).toBe("file!")
     expect(fields.eqlTypes?.thumb).toBe("file")
+  })
+
+  it("classifies describe-projected FileRef JSON as file via x-ecp-file", () => {
+    const zodSchema = z.object({
+      image: fileRefSchema({ contentMediaType: "image/*" }),
+      meta: z.object({ tag: z.string() }),
+    })
+    const fields = introspectCapabilitySchema(jsonSchemaFromZod(zodSchema))
+    expect(fields.eqlTypes?.image).toBe("file!")
+    expect(fields.eqlTypes?.meta).toBe("object!")
+  })
+
+  it("does not treat plain objects as file without x-ecp-file", () => {
+    const fields = introspectCapabilitySchema({
+      type: "object",
+      properties: {
+        image: { type: "object", properties: { uri: { type: "string" } } },
+      },
+      required: ["image"],
+    })
+    expect(fields.eqlTypes?.image).toBe("object!")
   })
 
   it("leaves unknown for non-file discriminated unions", () => {

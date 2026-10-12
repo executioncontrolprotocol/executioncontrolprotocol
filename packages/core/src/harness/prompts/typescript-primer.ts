@@ -56,10 +56,12 @@ export function typescriptPrimerForOutputSchema(outputSchema: string): string {
   const workflowApi =
     outputSchema === "@executioncontrolprotocol.workflow"
       ? [
+          "Output Fluent TypeScript only — never EQL (no STEP/USES/WITH/AS).",
           "Allowed @executioncontrolprotocol/core imports: workflow, step, ref, branch, parallel, loop.",
           "Use .id(\"stepId\") on steps when ids must stay stable across edits.",
           "Chain .id() then .accepts()/.returns() then .run([...]).",
-          "Supported .accepts / .returns shape: { type: \"object\", properties: { name: { type: \"string\" | \"number\" | \"boolean\" | \"object\" | \"array\" } }, required: [\"name\"] }.",
+          "Supported .accepts / .returns property types: string, number, boolean, object, array, or file (FileRef).",
+          "File ports (catalog type file): wire with ref(\"acceptsKey\") from workflow.accepts, or a FileRef literal { kind: \"url\"|\"path\"|\"uri\"|\"data\", url|path|uri|data } — never invent { uri } without kind.",
           "required is a sibling array of property names — never nest required inside properties.",
           "Wire accepts keys with ref(\"key\") — not ref(\"step.output\") for run input.",
           ".as(\"key\") stores the entire capability output under state.key.",
@@ -74,6 +76,7 @@ export function typescriptPrimerForOutputSchema(outputSchema: string): string {
   return [
     "Reply with TypeScript source only.",
     "No markdown fences. No JSON-only blobs. No prose outside code.",
+    "Do not convert formats — emit Fluent TypeScript that matches the catalog language.",
     `Output must satisfy schema ${outputSchema}.`,
     ...workflowApi,
     "Template:",

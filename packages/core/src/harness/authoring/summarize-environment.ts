@@ -208,78 +208,158 @@ function sampleWithLines(cap: CompactCapabilityRow): string[] {
   return fields.map((field) => `  WITH ${field} = ${sampleValueForField(field)}`)
 }
 
-function sampleFluentValueForField(field: string): string {
+function baseTypeToken(typeToken: string | undefined): string {
+  return typeToken ? typeToken.replace(/!$/, "") : "unknown"
+}
+
+function isFileTypeToken(typeToken: string | undefined): boolean {
+  return baseTypeToken(typeToken) === "file"
+}
+
+function sampleFluentValueForField(field: string, typeToken: string | undefined): string {
+  if (isFileTypeToken(typeToken)) return `ref("${field}")`
   if (field === "prompt") return `"..."`
   if (field === "endpoint") return `"fal-ai/flux/schnell"`
   if (field === "input") return `{ prompt: "..." }`
-  if (field === "image") return `{ uri: "https://example.com/image.png" }`
   if (field === "value") return `"hello"`
   if (field === "text") return `ref("echo.text")`
   if (field === "payload") return `{ ok: true }`
   if (field === "system") return `"..."`
   if (field === "context") return `ref("prior.text")`
   if (field === "model") return `"..."`
+  const base = baseTypeToken(typeToken)
+  if (base === "number") return `0`
+  if (base === "boolean") return `true`
+  if (base === "array") return `[]`
+  if (base === "object") return `{}`
   return `"..."`
 }
 
-function sampleFluentWithObject(cap: CompactCapabilityRow): string {
-  const fields =
-    cap.requiredInputs.length > 0 || cap.optionalInputs.length > 0
-      ? [...cap.requiredInputs, ...cap.optionalInputs.slice(0, 2)]
-      : cap.inputs
-  if (fields.length === 0) return "{}"
-  const entries = fields.map((field) => `${field}: ${sampleFluentValueForField(field)}`)
-  return `{ ${entries.join(", ")} }`
-}
-
-function formatTypedFieldLabels(
+function formatFluentIoCommentParts(
   names: string[],
   types: Record<string, string> | undefined,
   kind: "required" | "optional"
 ): string[] {
   return names.map((name) => {
-    const typeToken = types?.[name]
-    const baseType = typeToken ? typeToken.replace(/!$/, "") : "unknown"
-    return `${name}: ${baseType} (${kind})`
+    const baseType = baseTypeToken(types?.[name])
+    return `${name} (${baseType}, ${kind})`
   })
 }
 
-function formatFluentIoSummary(cap: CompactCapabilityRow): string {
+function formatFluentIoCommentLine(cap: CompactCapabilityRow): string {
   const inputParts = [
-    ...formatTypedFieldLabels(cap.requiredInputs, cap.inputTypes, "required"),
-    ...formatTypedFieldLabels(cap.optionalInputs, cap.inputTypes, "optional"),
+    ...formatFluentIoCommentParts(cap.requiredInputs, cap.inputTypes, "required"),
+    ...formatFluentIoCommentParts(cap.optionalInputs, cap.inputTypes, "optional"),
   ]
   const inputs =
     inputParts.length > 0
-      ? `inputs: ${inputParts.join(", ")}`
+      ? `inputs: ${inputParts.join("; ")}`
       : cap.inputs.length > 0
         ? `inputs: ${cap.inputs.join(", ")}`
         : "inputs: none"
   const outputParts =
     cap.outputs.length > 0
       ? cap.outputs.map((name) => {
-          const typeToken = cap.outputTypes?.[name]
-          const baseType = typeToken ? typeToken.replace(/!$/, "") : "unknown"
-          return `${name}: ${baseType}`
+          const baseType = baseTypeToken(cap.outputTypes?.[name])
+          return `${name} (${baseType})`
         })
       : []
   const outputs =
-    outputParts.length > 0 ? `outputs: ${outputParts.join(", ")}` : "outputs: none"
-  return `${inputs}; ${outputs}`
+    outputParts.length > 0 ? `outputs: ${outputParts.join("; ")}` : "outputs: none"
+  return `// ${inputs}; ${outputs}`
+}
+
+function hasFilePorts(cap: CompactCapabilityRow): boolean {
+  const types = { ...cap.inputTypes, ...cap.outputTypes }
+  return Object.values(types).some((t) => isFileTypeToken(t))
 }
 
 function capabilityFluentSnippet(cap: CompactCapabilityRow): string[] {
   const stepId = capabilityStepId(cap.id)
   const label = cap.label ?? stepId
-  const withObj = sampleFluentWithObject(cap)
-  const head = `- ${cap.id}${cap.label ? ` (${cap.label})` : ""}${
+  const title = `// ${cap.id}${cap.label ? ` — ${cap.label}` : ""}${
     cap.summary ? ` — ${cap.summary}` : ""
   }`
-  return [
-    head,
-    `  ${formatFluentIoSummary(cap)}`,
-    `  example: step("${cap.id}", "${label}").id("${stepId}").with(${withObj}).as("${stepId}")`,
+  const lines = [title, formatFluentIoCommentLine(cap)]
+  if (hasFilePorts(cap)) {
+    lines.push(
+      '// File ports: use ref("acceptsKey") from workflow.accepts, or FileRef { kind, path|url|uri|data }'
+    )
+  }
+
+  const requiredFields =
+    cap.requiredInputs.length > 0
+      ? cap.requiredInputs
+      : cap.inputs.length > 0 && cap.optionalInputs.length === 0
+        ? cap.inputs
+        : []
+  const optionalPreview = cap.optionalInputs.slice(0, 2)
+
+  lines.push(`step("${cap.id}", "${label}")`)
+  lines.push(`  .id("${stepId}")`)
+
+  if (requiredFields.length === 0 && optionalPreview.length === 0) {
+    lines.push(`  .with({})`)
+  } else {
+    lines.push(`  .with({`)
+    for (const field of requiredFields) {
+      const typeToken = cap.inputTypes?.[field]
+      const value = sampleFluentValueForField(field, typeToken)
+      const note = isFileTypeToken(typeToken) ? " // file" : ""
+      lines.push(`    ${field}: ${value},${note}`)
+    }
+    for (const field of optionalPreview) {
+      const typeToken = cap.inputTypes?.[field]
+      const value = sampleFluentValueForField(field, typeToken)
+      const base = baseTypeToken(typeToken)
+      lines.push(`    // ${field}: ${value}, // optional ${base}`)
+    }
+    lines.push(`  })`)
+  }
+
+  lines.push(`  .as("${stepId}")`)
+  return lines
+}
+
+/**
+ * Exact-id capability detail for coding harness prompts: metadata as comments plus Fluent snippet.
+ * Does not dump JSON Schema blobs.
+ * @category Harness
+ */
+export function formatFluentCapabilityDetailLines(cap: {
+  id: string
+  extension: string
+  label?: string
+  summary?: string
+  inputSchema?: unknown
+  outputSchema?: unknown
+  metadata?: {
+    description?: string
+    useCases?: string[]
+    projections?: Array<{ summary: string; description: string }>
+  }
+}): string[] {
+  const row = toCapabilityRow(cap)
+  const meta = cap.metadata
+  const lines: string[] = [
+    `// Capability detail: ${cap.id}${cap.summary ? ` — ${cap.summary}` : ""}`,
   ]
+  if (meta?.description?.trim()) {
+    lines.push(`// ${meta.description.trim()}`)
+  }
+  if (meta?.useCases?.length) {
+    lines.push("// Use cases:")
+    for (const u of meta.useCases) lines.push(`// - ${u}`)
+  }
+  if (meta?.projections?.length) {
+    lines.push("// Projections:")
+    for (const projection of meta.projections) {
+      lines.push(`// - ${projection.summary}`)
+      lines.push(`//   ${projection.description}`)
+    }
+  }
+  lines.push(...capabilityFluentSnippet(row))
+  return lines
 }
 
 function formatInputSummary(cap: CompactCapabilityRow): string {
@@ -359,13 +439,13 @@ export function formatEnvironmentSummaryLines(
 
   if (format === "fluent") {
     const lines = [
-      "Fluent capability catalog (exact ids — copy step(\"...\") values verbatim):",
+      "Fluent capability catalog — copy step(\"...\") ids verbatim. Wire run inputs with ref(\"acceptsKey\").",
       "",
     ]
     for (const cap of workflowStepCapabilities(summary)) {
       if (existingUses.has(cap.id)) {
         lines.push(
-          `- ${cap.id}${cap.label ? ` (${cap.label})` : ""} — already used by an existing step; update that step or omit it from .run([...]) to remove.`,
+          `// ${cap.id}${cap.label ? ` — ${cap.label}` : ""} — already used by an existing step; update that step or omit it from .run([...]) to remove.`,
           ""
         )
         continue
