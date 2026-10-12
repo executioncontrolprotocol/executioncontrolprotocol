@@ -115,6 +115,10 @@ describe("executeHarnessInvoke", () => {
     })
     expect(result.success).toBe(false)
     expect(result.diagnostics[0]?.code).toBe(ECP_INVOKE_ERROR_CODES.INVOKE_INPUT_INVALID)
+    expect(result.diagnostics[0]?.message).toMatch(/Harness input validation failed:/)
+    expect(result.diagnostics.length).toBeGreaterThan(1)
+    expect(result.validation?.errors?.length).toBeGreaterThan(0)
+    expect(result.diagnostics.some((d) => d.path && d.message)).toBe(true)
     await ecp.terminate()
   })
 

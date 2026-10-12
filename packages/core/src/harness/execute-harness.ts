@@ -20,28 +20,13 @@ import {
   CapabilityDispatchError,
   createDispatchingCall,
 } from "../runtime/dispatch-capability.js"
+import { invokeFailure } from "../runtime/remote-invoke.js"
 
 const INVOKE_STUB_WORKFLOW = {
   schema: "@executioncontrolprotocol.workflow" as const,
   version: LATEST_ECP_VERSION,
   workflow: { id: "invoke-stub" },
   steps: [],
-}
-
-function invokeFailure(
-  capabilityId: HarnessCapabilityId,
-  code: string,
-  message: string,
-  validation?: import("@executioncontrolprotocol/types").ValidationResult
-): InvokeResult {
-  return {
-    schema: "@executioncontrolprotocol.invoke.result",
-    version: LATEST_ECP_VERSION,
-    success: false,
-    capabilityId,
-    validation,
-    diagnostics: [{ severity: "error", code, message }],
-  }
 }
 
 /**

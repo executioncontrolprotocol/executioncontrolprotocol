@@ -30,7 +30,9 @@ export type { CapabilitySchemaFields } from "./summarize-capability-schema.js"
 export {
   summarizeHarnessRunContext,
   formatRunContextSummaryLines,
+  formatStepFailureMessage,
   type CompactRunContextSummary,
+  type CompactFailedStepSummary,
 } from "./summarize-run-context.js"
 export {
   summarizeWorkflowManifest,

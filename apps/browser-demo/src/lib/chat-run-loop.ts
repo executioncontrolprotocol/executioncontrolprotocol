@@ -1,7 +1,11 @@
+import type { ValidationResult } from "@executioncontrolprotocol/types"
 import {
   collectRunFailureMessages,
   isFailedRunResult,
 } from "./run-progress-sync.js"
+
+/** Max validation issues listed in the authoring chat fallback line. @category Demo */
+const AUTHORING_VALIDATION_CHAT_MAX = 3
 
 /** Max automatic troubleshoot rounds after a chat-initiated failed run. @category Demo */
 export const CHAT_AUTO_TROUBLESHOOT_MAX = 3
@@ -105,6 +109,29 @@ export function formatChatRunFailureMessage(result: unknown): string {
   }
   const joined = lines.slice(0, 3).join("; ")
   return `The workflow run failed: ${joined}`
+}
+
+/**
+ * Chat line when authoring applied a workflow that still fails schema validation.
+ * @category Demo
+ */
+export function formatAuthoringValidationChatMessage(
+  validation: ValidationResult | null | undefined
+): string {
+  const errors = validation?.errors ?? []
+  if (errors.length === 0) {
+    return "Workflow updated but has validation issues."
+  }
+  const parts = errors.slice(0, AUTHORING_VALIDATION_CHAT_MAX).map((issue) => {
+    const path = issue.path?.trim()
+    const detail = path ? `${issue.message} (${path})` : issue.message
+    return `[${issue.code}] ${detail}`
+  })
+  const more =
+    errors.length > AUTHORING_VALIDATION_CHAT_MAX
+      ? ` (+${errors.length - AUTHORING_VALIDATION_CHAT_MAX} more)`
+      : ""
+  return `Workflow updated but has validation issues: ${parts.join("; ")}${more}`
 }
 
 /**

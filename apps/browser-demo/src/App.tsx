@@ -175,6 +175,7 @@ import {
 import {
   CHAT_TROUBLESHOOT_PROMPT,
   canAutoTroubleshoot,
+  formatAuthoringValidationChatMessage,
   formatChatRunFailureMessage,
   formatChatRunSuccessMessage,
   isHarnessRunResultDocument,
@@ -1291,7 +1292,7 @@ export function App() {
       const answer =
         chatResultAnswer(harnessResult) ??
         (val?.valid === false
-          ? "Workflow updated but has validation issues. See console for raw model output."
+          ? formatAuthoringValidationChatMessage(harnessValidation)
           : suggestedAction === "offer-probe"
             ? "I built the discovery steps. Want me to inspect the available options?"
             : "I updated the workflow. Want me to run it?")

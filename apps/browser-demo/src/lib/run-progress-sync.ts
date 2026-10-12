@@ -5,10 +5,33 @@ import {
 } from "@executioncontrolprotocol/format-reactflow"
 import type { RunResult, RunStatus, StepRunRecord } from "@executioncontrolprotocol/types"
 
-/** Extract the primary failure message from a step history record. @category Demo */
+/** Format one diagnostic as `path: message` (or message alone). @category Demo */
+function formatDiagnosticLine(issue: {
+  message?: string
+  path?: string
+}): string | undefined {
+  if (!issue.message) return undefined
+  const path = issue.path?.trim()
+  return path ? `${path}: ${issue.message}` : issue.message
+}
+
+/**
+ * Join all error-severity diagnostics from a step history record for canvas/chat.
+ * When a lead summary (no path) is followed by per-issue rows, use the detail rows only
+ * so the node popover does not repeat the joined lead message.
+ * @category Demo
+ */
 export function stepErrorMessage(record: StepRunRecord): string | undefined {
-  const first = record.diagnostics?.find((d) => d.severity === "error") ?? record.diagnostics?.[0]
-  return first?.message
+  const diagnostics = record.diagnostics ?? []
+  if (diagnostics.length === 0) return undefined
+  const errors = diagnostics.filter((d) => d.severity === "error" || d.severity === undefined)
+  let list = errors.length > 0 ? errors : diagnostics.slice(0, 1)
+  if (list.length > 1 && !list[0]?.path?.trim()) {
+    list = list.slice(1)
+  }
+  const lines = list.map(formatDiagnosticLine).filter((line): line is string => Boolean(line))
+  if (lines.length === 0) return undefined
+  return lines.join("\n")
 }
 
 /** Map run history status to canvas step status. @category Demo */

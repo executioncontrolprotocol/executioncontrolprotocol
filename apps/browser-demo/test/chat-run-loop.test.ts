@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   CHAT_AUTO_TROUBLESHOOT_MAX,
   canAutoTroubleshoot,
+  formatAuthoringValidationChatMessage,
   formatChatRunFailureMessage,
   formatChatRunSuccessMessage,
   isHarnessRunResultDocument,
@@ -75,6 +76,32 @@ describe("chat-run-loop messages", () => {
 
   it("formats failure from error wrapper", () => {
     expect(formatChatRunFailureMessage({ error: "boom" })).toContain("boom")
+  })
+
+  it("formats authoring validation issues for chat", () => {
+    expect(
+      formatAuthoringValidationChatMessage({
+        schema: "@executioncontrolprotocol.validation.result",
+        version: "1.0",
+        valid: false,
+        errors: [
+          {
+            code: "UNKNOWN_CAPABILITY",
+            message: "Capability x is not registered.",
+            path: "steps.s1.uses",
+          },
+          { code: "INVALID_TYPE", message: "Expected string", path: "steps.s1.with.value" },
+          { code: "E3", message: "third" },
+          { code: "E4", message: "fourth" },
+        ],
+        warnings: [],
+      })
+    ).toBe(
+      "Workflow updated but has validation issues: [UNKNOWN_CAPABILITY] Capability x is not registered. (steps.s1.uses); [INVALID_TYPE] Expected string (steps.s1.with.value); [E3] third (+1 more)"
+    )
+    expect(formatAuthoringValidationChatMessage(null)).toBe(
+      "Workflow updated but has validation issues."
+    )
   })
 
   it("detects harness run result documents", () => {

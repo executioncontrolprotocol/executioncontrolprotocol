@@ -105,6 +105,8 @@ export {
   hopRemoteInvoke,
   invokeFailure,
   isInvokeResult,
+  buildInvokeFailureDiagnostics,
+  formatValidationIssueLine,
   type RemoteInvokeBinding,
 } from "./runtime/remote-invoke.js"
 export {

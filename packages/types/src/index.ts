@@ -162,6 +162,7 @@ export {
   harnessRunContextSchema,
   runResultSchema,
   stepRunRecordSchema,
+  stepRunDiagnosticSchema,
   toHarnessRunContext,
 } from "./harness-run-context.js"
 export type { HarnessRunContext } from "./harness-run-context.js"
