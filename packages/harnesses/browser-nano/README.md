@@ -37,7 +37,7 @@ Tasks (all model outputs are **EQL** via `@executioncontrolprotocol/format-eql`)
 | `intent-classification` | Route user messages (`faq`, `general`, `workflow-create`, `workflow-patch`, `workflow-probe`, `workflow-clarify`) |
 | `workflow-assistant` | Unified assistant: ECP FAQ, identity, environment/capability help, run-aware Q&A (`@executioncontrolprotocol.harness.reply`) |
 
-**Probe loop:** `workflow-probe` authors a discovery prefix and returns `suggestedAction: offer-probe`. After the host runs a test-session `runTo` and supplies `probeContext`, `workflow-clarify` lists or applies option selections, then patches remaining steps and offers `offer-run`. Pass `probeContext` on the `chat` task input.
+**Probe loop:** `workflow-probe` picks a bound capability to inspect, authors a one-step discovery workflow, and returns `suggestedAction: offer-probe`. The host runs that workflow (run modal), then feeds capability `projections` plus a capped output excerpt into the next turn. `workflow-clarify` continues from that result and offers `offer-run`.
 
 **1B model policy:** normalize garbled EQL, deterministic assistant/patch recovery, then repair loop (`HARNESS_NANO_REPAIR`). Eval matrix and browser demo share this binding.
 

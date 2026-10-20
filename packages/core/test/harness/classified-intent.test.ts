@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  applyPendingOfferIntentCorrection,
   canonicalizeIntentTopic,
   correctClassifiedIntent,
   inferIntentFromMessageHeuristic,
@@ -101,5 +102,44 @@ describe("correctClassifiedIntent", () => {
 describe("canonicalizeIntentTopic", () => {
   it("prefers off-topic for jokes", () => {
     expect(canonicalizeIntentTopic("Tell me a joke.", "general", "joke")).toBe("off-topic")
+  })
+})
+
+describe("applyPendingOfferIntentCorrection", () => {
+  it("confirms pending probe accepts", () => {
+    const corrected = applyPendingOfferIntentCorrection(
+      "Yes, inspect it",
+      intentDoc("workflow-create") as never,
+      "probe"
+    )
+    expect(corrected.intent).toBe("offer-confirm")
+    expect(corrected.topic).toBe("probe")
+  })
+
+  it("confirms pending run accepts", () => {
+    const corrected = applyPendingOfferIntentCorrection(
+      "go ahead and run it",
+      intentDoc("general") as never,
+      "run"
+    )
+    expect(corrected.intent).toBe("offer-confirm")
+  })
+
+  it("declines pending offers", () => {
+    const corrected = applyPendingOfferIntentCorrection(
+      "not now",
+      intentDoc("general") as never,
+      "run"
+    )
+    expect(corrected.intent).toBe("offer-decline")
+  })
+
+  it("leaves authoring intents when the user changes the request", () => {
+    const corrected = applyPendingOfferIntentCorrection(
+      "actually change the width first",
+      intentDoc("workflow-patch") as never,
+      "probe"
+    )
+    expect(corrected.intent).toBe("workflow-patch")
   })
 })

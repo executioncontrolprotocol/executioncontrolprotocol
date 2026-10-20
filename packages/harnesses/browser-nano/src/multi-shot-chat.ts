@@ -133,6 +133,7 @@ export async function invokeMultiShotChat(
     runContext?: unknown
     probeContext?: unknown
     conversationSummary?: string
+    pendingOffer?: "run" | "probe"
     model?: string
   },
   ctx: HarnessCapabilityContext<Record<string, unknown>>
@@ -164,7 +165,11 @@ export async function invokeMultiShotChat(
   }
 
   const intentResult = await invokeIntentClassification(
-    { message: input.message, model: input.model },
+    {
+      message: input.message,
+      pendingOffer: input.pendingOffer,
+      model: input.model,
+    },
     intentCtx
   )
   const classifiedIntent = intentResult.artifact as EcpIntent

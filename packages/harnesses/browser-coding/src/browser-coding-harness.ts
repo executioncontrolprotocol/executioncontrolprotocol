@@ -31,6 +31,7 @@ const harnessInputSchema = z.discriminatedUnion("task", [
     hasProbeContext: z.boolean().optional(),
     probeContext: z.unknown().optional(),
     previousUserMessage: z.string().optional(),
+    pendingOffer: z.enum(["run", "probe"]).optional(),
   }),
   z.object({
     task: z.literal(HARNESS_TASKS.WORKFLOW_AUTHORING),
@@ -59,6 +60,7 @@ const harnessInputSchema = z.discriminatedUnion("task", [
         })
       )
       .optional(),
+    pendingOffer: z.enum(["run", "probe"]).optional(),
     model: z.string().optional(),
     files: z.array(z.unknown()).optional(),
   }),
@@ -117,6 +119,7 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
             hasBaselineWorkflow: input.hasBaselineWorkflow,
             hasProbeContext: input.hasProbeContext === true || hasProbeFromContext,
             previousUserMessage: input.previousUserMessage,
+            pendingOffer: input.pendingOffer,
           },
           taskCtx
         )
@@ -140,6 +143,7 @@ const browserCodingHarnessDefinition = defineHarness("@executioncontrolprotocol"
             probeContext: input.probeContext,
             conversationSummary: input.conversationSummary,
             conversationMessages: input.conversationMessages,
+            pendingOffer: input.pendingOffer,
             model: input.model,
             files: input.files,
           },

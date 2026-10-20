@@ -24,14 +24,10 @@ export interface ChatPanelProps {
   showQuickStarts?: boolean
   quickStarts?: WorkflowQuickStart[]
   onQuickStartClick?: (prompt: string) => void
-  /** Confirm an offer-run chip. */
+  /** Confirm a pending run/inspect offer chip. */
   onOfferRunConfirm?: () => void
-  /** Decline an offer-run chip. */
+  /** Decline a pending run/inspect offer chip. */
   onOfferRunDecline?: () => void
-  /** Confirm an offer-probe chip. */
-  onOfferProbeConfirm?: () => void
-  /** Decline an offer-probe chip. */
-  onOfferProbeDecline?: () => void
   /** Run from an embedded chat form. */
   onChatRun?: (input?: Record<string, unknown>, blobs?: CapabilityBlobStore) => void
   /**
@@ -76,8 +72,6 @@ export function ChatPanel({
   onQuickStartClick,
   onOfferRunConfirm,
   onOfferRunDecline,
-  onOfferProbeConfirm,
-  onOfferProbeDecline,
   onChatRun,
   onOpenRunUi,
   runBusy = false,
@@ -106,9 +100,10 @@ export function ChatPanel({
   if (!visible) return null
 
   const offerPending =
-    !busy && messages.some((m) => m.role === "agent" && m.offerRun === true)
-  const probeOfferPending =
-    !busy && messages.some((m) => m.role === "agent" && m.offerProbe === true)
+    !busy &&
+    messages.some(
+      (m) => m.role === "agent" && (m.offerRun === true || m.offerProbe === true)
+    )
 
   return (
     <section
@@ -215,7 +210,7 @@ export function ChatPanel({
                       </div>
                     ) : null}
                   </div>
-                  {m.offerRun && offerPending ? (
+                  {(m.offerRun || m.offerProbe) && offerPending ? (
                     <div className="flex min-w-0 flex-wrap gap-2">
                       <button
                         type="button"
@@ -229,26 +224,6 @@ export function ChatPanel({
                         type="button"
                         disabled={disabled || busy || runBusy}
                         onClick={() => onOfferRunDecline?.()}
-                        className="rounded-lg border border-outline-variant/30 bg-surface-container-high px-2.5 py-2 text-label text-on-surface transition-colors hover:border-primary/40 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Not now
-                      </button>
-                    </div>
-                  ) : null}
-                  {m.offerProbe && probeOfferPending ? (
-                    <div className="flex min-w-0 flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={disabled || busy || runBusy}
-                        onClick={() => onOfferProbeConfirm?.()}
-                        className="rounded-lg border border-primary/40 bg-primary/15 px-2.5 py-2 text-label text-on-surface transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Yes, inspect it
-                      </button>
-                      <button
-                        type="button"
-                        disabled={disabled || busy || runBusy}
-                        onClick={() => onOfferProbeDecline?.()}
                         className="rounded-lg border border-outline-variant/30 bg-surface-container-high px-2.5 py-2 text-label text-on-surface transition-colors hover:border-primary/40 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Not now

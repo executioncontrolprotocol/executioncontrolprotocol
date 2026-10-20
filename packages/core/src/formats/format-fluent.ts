@@ -9,7 +9,7 @@ export const formatFluentExtension = defineExtension("@executioncontrolprotocol"
     summary: "Fluent TypeScript source generation from ECP documents.",
     description:
       "Renders workflow manifests into Fluent API TypeScript source for authoring panels and round-trip editing. Encode-only in v1.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-fluent", "encode")
@@ -21,19 +21,22 @@ export const formatFluentExtension = defineExtension("@executioncontrolprotocol"
           "Produces editable Fluent API source from a workflow manifest. Used by authoring UIs and ecp encode --format fluent.",
         useCases: [
           "Editor code panel shows Fluent source for the active workflow.",
-          "Harness converts a generated manifest back into editable TS.",
+          "Harness converts a generated manifest back into editable TS."
         ],
-        samplePrompts: [
-          "Show this workflow as Fluent TypeScript.",
-          "Generate Fluent source from the current manifest.",
-        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as Fluent TypeScript source for the editor or disk export."
+          }
+        ]
       })
       .withHandler((input) =>
         encodeFluent((input as EcpEncodeInput).source, {
           ...(input as EcpEncodeInput).options,
           sourceSchema: (input as EcpEncodeInput).sourceSchema,
-          sourceVersion: (input as EcpEncodeInput).sourceVersion,
+          sourceVersion: (input as EcpEncodeInput).sourceVersion
         })
-      ),
+      )
   ])
   .build()

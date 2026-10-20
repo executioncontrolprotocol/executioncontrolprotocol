@@ -9,11 +9,11 @@ import {
   formatEnvironmentSummaryLines,
   formatFeedbackForModel,
   formatRunContextSummaryLines,
-  formatWorkflowSummaryLines,
   HARNESS_OUTPUT_FORMAT_TYPESCRIPT,
   inferResponseFormatFromFormatter,
   isRepairFeedbackEcho,
   loadEnvironmentDescribeForPrompt,
+  renderWorkflowToFluent,
   runModelRepairLoop,
   stripHarnessTypeScriptOutput,
   summarizeEnvironmentDescriptor,
@@ -172,11 +172,12 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
     if (config.context.includeEnvironmentDescriptor) {
       const { inventory, detailLines } = await loadEnvironmentDescribeForPrompt(
         ctx.ecp,
-        input.message
+        input.message,
+        { schemaDetail: "fluent" }
       )
       const summary = summarizeEnvironmentDescriptor(inventory)
       environmentSummaryLines = [
-        ...formatEnvironmentSummaryLines(summary, { format: "plain" }),
+        ...formatEnvironmentSummaryLines(summary, { format: "fluent" }),
         ...(detailLines.length > 0
           ? ["", "Capability / extension detail:", ...detailLines]
           : []),
@@ -192,10 +193,7 @@ const codingAssistantHarness = defineHarness("@executioncontrolprotocol", "brows
 
     let workflowText = ""
     if (input.workflow) {
-      workflowText = formatWorkflowSummaryLines(input.workflow as unknown as WorkflowManifest, {
-        eql: false,
-        patchContext: false,
-      }).join("\n")
+      workflowText = renderWorkflowToFluent(input.workflow as unknown as WorkflowManifest)
     }
 
     const buildAssistantPrompt = () => {

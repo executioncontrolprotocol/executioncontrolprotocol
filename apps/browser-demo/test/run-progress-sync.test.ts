@@ -27,6 +27,33 @@ describe("run-progress-sync", () => {
     ).toBe("boom")
   })
 
+  it("joins per-issue diagnostics and skips a path-less lead summary", () => {
+    expect(
+      stepErrorMessage({
+        status: "failed",
+        diagnostics: [
+          {
+            severity: "error",
+            code: "INVOKE_INPUT_INVALID",
+            message: "Invoke input validation failed: value: Expected string; name: Required",
+          },
+          {
+            severity: "error",
+            code: "INVALID_TYPE",
+            message: "Expected string",
+            path: "value",
+          },
+          {
+            severity: "error",
+            code: "TOO_SMALL",
+            message: "Required",
+            path: "name",
+          },
+        ],
+      })
+    ).toBe("value: Expected string\nname: Required")
+  })
+
   it("detects failed run results", () => {
     expect(isFailedRunResult({ error: "validation failed" })).toBe(true)
     expect(

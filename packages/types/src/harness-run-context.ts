@@ -2,6 +2,15 @@ import { z } from "zod"
 import type { RunResult } from "./run.js"
 import type { WorkflowManifest } from "./workflow.js"
 
+/** Zod mirror of a step diagnostic / validation issue (eval fixtures). @category Harness */
+export const stepRunDiagnosticSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  path: z.string().optional(),
+  severity: z.enum(["error", "warning", "info"]).optional(),
+  suggestions: z.array(z.string()).optional(),
+})
+
 /** Zod mirror of per-step run history (eval fixtures). @category Harness */
 export const stepRunRecordSchema = z.object({
   status: z.string(),
@@ -10,6 +19,7 @@ export const stepRunRecordSchema = z.object({
   attempts: z.number().optional(),
   usage: z.record(z.string(), z.unknown()).optional(),
   mutations: z.array(z.record(z.string(), z.unknown())).optional(),
+  diagnostics: z.array(stepRunDiagnosticSchema).optional(),
 })
 
 /** Zod mirror of run result document (eval fixtures). @category Harness */

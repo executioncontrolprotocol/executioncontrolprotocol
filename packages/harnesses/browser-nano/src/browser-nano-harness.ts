@@ -19,6 +19,7 @@ const harnessInputSchema = z.discriminatedUnion("task", [
   z.object({
     task: z.literal(HARNESS_TASKS.INTENT_CLASSIFICATION),
     message: z.string(),
+    pendingOffer: z.enum(["run", "probe"]).optional(),
     model: z.string().optional(),
   }),
   z.object({
@@ -40,6 +41,7 @@ const harnessInputSchema = z.discriminatedUnion("task", [
     runContext: z.unknown().optional(),
     probeContext: z.unknown().optional(),
     conversationSummary: z.string().optional(),
+    pendingOffer: z.enum(["run", "probe"]).optional(),
     model: z.string().optional(),
   }),
 ])
@@ -83,7 +85,11 @@ const browserNanoHarnessDefinition = defineHarness("@executioncontrolprotocol", 
     switch (input.task) {
       case HARNESS_TASKS.INTENT_CLASSIFICATION:
         return invokeIntentClassification(
-          { message: input.message, model: input.model },
+          {
+            message: input.message,
+            pendingOffer: input.pendingOffer,
+            model: input.model,
+          },
           taskCtx
         )
       case HARNESS_TASKS.WORKFLOW_AUTHORING:
@@ -104,6 +110,7 @@ const browserNanoHarnessDefinition = defineHarness("@executioncontrolprotocol", 
             runContext: input.runContext,
             probeContext: input.probeContext,
             conversationSummary: input.conversationSummary,
+            pendingOffer: input.pendingOffer,
             model: input.model,
           },
           taskCtx

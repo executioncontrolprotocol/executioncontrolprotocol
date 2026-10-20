@@ -18,6 +18,7 @@ export type {
 export type {
   WorkflowManifest,
   WorkflowNode,
+  WorkflowDiscoveryMarker,
   StepNode,
   ParallelNode,
   BranchNode,
@@ -25,11 +26,13 @@ export type {
 } from "./workflow.js"
 export type {
   CapabilityMetadata,
+  CapabilityProjection,
   ExtensionMetadata,
 } from "./capability-metadata.js"
 export {
   METADATA_PROSE_BANNED_PHRASES,
   capabilityMetadataSchema,
+  capabilityProjectionSchema,
   extensionMetadataSchema,
   findBannedMetadataProsePhrase,
   parseCapabilityMetadata,
@@ -151,7 +154,6 @@ export type {
 export { ECP_INTENT_SCHEMA, ECP_INTENT_VALUES, ecpIntentSchema } from "./intent.js"
 export type { EcpIntentValue, EcpIntent } from "./intent.js"
 export {
-  PROBE_CONTEXT_DOMAINS,
   probeContextSchema,
   probeOptionSchema,
 } from "./probe-context.js"
@@ -160,6 +162,7 @@ export {
   harnessRunContextSchema,
   runResultSchema,
   stepRunRecordSchema,
+  stepRunDiagnosticSchema,
   toHarnessRunContext,
 } from "./harness-run-context.js"
 export type { HarnessRunContext } from "./harness-run-context.js"
@@ -173,6 +176,7 @@ export {
 export type { HarnessReply, EcpHarnessReplyAction } from "./harness-reply.js"
 export {
   HARNESS_TASK_IDS,
+  pendingOfferKindSchema,
   harnessChatInputSchema,
   harnessIntentClassificationInputSchema,
   harnessWorkflowAuthoringInputSchema,
@@ -184,6 +188,7 @@ export type {
   HarnessIntentClassificationInput,
   HarnessWorkflowAuthoringInput,
   HarnessWorkflowAssistantInput,
+  PendingOfferKind,
 } from "./harness-tasks.js"
 export {
   FILE_REF_KINDS,

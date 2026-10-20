@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { buildDemoConversationMessages } from "../src/lib/demo-conversation-messages.js"
+import {
+  buildDemoConversationMessages,
+  DEMO_CHAT_HISTORY_MAX_CHARS,
+  truncateConversationContent,
+} from "../src/lib/demo-conversation-messages.js"
 
 describe("buildDemoConversationMessages", () => {
   it("maps user and agent turns and skips empty/error", () => {
@@ -27,5 +31,15 @@ describe("buildDemoConversationMessages", () => {
     const turns = buildDemoConversationMessages(messages, 4)
     expect(turns).toHaveLength(4)
     expect(turns[0]?.content).toBe("t16")
+  })
+
+  it("truncates oversized assistant turns for model context", () => {
+    const huge = "x".repeat(DEMO_CHAT_HISTORY_MAX_CHARS + 200)
+    const turns = buildDemoConversationMessages([
+      { id: "1", role: "agent", text: huge },
+    ])
+    expect(turns[0]?.content.length).toBeLessThanOrEqual(DEMO_CHAT_HISTORY_MAX_CHARS)
+    expect(turns[0]?.content).toContain("truncated for model context")
+    expect(truncateConversationContent("short")).toBe("short")
   })
 })

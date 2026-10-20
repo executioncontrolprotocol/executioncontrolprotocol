@@ -4,16 +4,16 @@ import {
   capabilityFor,
   defineExtension,
   globalRegistry,
-  type Registry,
+  type Registry
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
 const GuideChatInput = z.object({
-  message: z.string(),
+  message: z.string()
 })
 
 const GuideChatOutput = z.object({
-  text: z.string(),
+  text: z.string()
 })
 
 function guideReply(message: string): string {
@@ -26,14 +26,14 @@ function guideReply(message: string): string {
     return [
       "To generate a workflow in the editor, switch to authoring mode or ask explicitly, for example:",
       '"Create a demo echo workflow."',
-      "That will produce Fluent source, a Mermaid graph, and validation results in the panels.",
+      "That will produce Fluent source, a Mermaid graph, and validation results in the panels."
     ].join(" ")
   }
 
   if (/what is ecp|execution control protocol/.test(lower)) {
     return [
       "ECP is the Execution Control Protocol: portable workflows run in governed environments",
-      "that bind tools, models, policies, and runtimes alongside MCP tool calling.",
+      "that bind tools, models, policies, and runtimes alongside MCP tool calling."
     ].join(" ")
   }
 
@@ -42,7 +42,7 @@ function guideReply(message: string): string {
       "I help you build and patch ECP workflows in this editor, explain ECP concepts,",
       "and describe capabilities registered in this environment (for example @executioncontrolprotocol/chrome-ai.generate, @executioncontrolprotocol/fal.generate, and @executioncontrolprotocol/image-sharp.transform).",
       "Ask about workflows, the environment panel, validation, or Chrome AI.",
-      'To generate a workflow, try: "Create a demo echo workflow."',
+      'To generate a workflow, try: "Create a demo echo workflow."'
     ].join(" ")
   }
 
@@ -51,7 +51,7 @@ function guideReply(message: string): string {
       "Workflows in ECP are built from steps bound to capabilities.",
       "The left **Workflow** tab shows Fluent API source; edits compile into a manifest.",
       "The right canvas shows a Mermaid graph of the same workflow.",
-      "Try: create a demo echo workflow, then open the Code sidebar to explore Fluent, JSON, and TOON.",
+      "Try: create a demo echo workflow, then open the Code sidebar to explore Fluent, JSON, and TOON."
     ].join(" ")
   }
 
@@ -59,28 +59,28 @@ function guideReply(message: string): string {
     return [
       "The **Environment** tab lists extensions bound to this session (for example @executioncontrolprotocol/chrome-ai).",
       "Capabilities come from those bindings and appear in describe() output.",
-      "The demo binds @executioncontrolprotocol/chrome-ai, @executioncontrolprotocol/fal, and @executioncontrolprotocol/image-sharp for workflow steps (FAL generates images; image-sharp inspects and transforms when running on Node).",
+      "The demo binds @executioncontrolprotocol/chrome-ai, @executioncontrolprotocol/fal, and @executioncontrolprotocol/image-sharp for workflow steps (FAL generates images; image-sharp inspects and transforms when running on Node)."
     ].join(" ")
   }
 
   if (lower.includes("mermaid") || lower.includes("graph") || lower.includes("diagram")) {
     return [
       "The graph panel renders Mermaid from your workflow manifest via @executioncontrolprotocol/format-mermaid.",
-      "It updates when you chat-generate a workflow or edit Fluent source.",
+      "It updates when you chat-generate a workflow or edit Fluent source."
     ].join(" ")
   }
 
   if (lower.includes("valid")) {
     return [
       "Use the **Validation** item in the top bar to see schema and binding diagnostics.",
-      "Invalid workflows still appear in the editor so you can fix them.",
+      "Invalid workflows still appear in the editor so you can fix them."
     ].join(" ")
   }
 
   if (lower.includes("run") || lower.includes("execut")) {
     return [
       "Click **Execute** in the top bar to run the current workflow against bound capabilities.",
-      "Run output appears in the Run output overlay.",
+      "Run output appears in the Run output overlay."
     ].join(" ")
   }
 
@@ -88,7 +88,7 @@ function guideReply(message: string): string {
     return [
       "Chrome built-in AI (Gemini Nano) runs on-device after a one-time download.",
       "Choose it in provider settings; a toast shows install progress while you explore.",
-      "Until it is ready, I can answer questions in this guided mode using offline help text.",
+      "Until it is ready, I can answer questions in this guided mode using offline help text."
     ].join(" ")
   }
 
@@ -96,7 +96,7 @@ function guideReply(message: string): string {
     "Welcome to the ECP Graph Editor.",
     "I can explain workflows, the environment, validation, Mermaid graphs, and Chrome AI.",
     "Ask what I can do, what ECP is, or how to run a workflow.",
-    'To generate a workflow, say: "Create a demo echo workflow."',
+    'To generate a workflow, say: "Create a demo echo workflow."'
   ].join(" ")
 }
 
@@ -107,7 +107,7 @@ export const browserGuideExtension = defineExtension("@executioncontrolprotocol"
     summary: "Offline guided chat for the browser demo.",
     description:
       "Answers common ECP and editor questions from curated help text when no model provider is ready. Not a substitute for harness chat once a model is bound.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/browser", "guideChat")
@@ -119,17 +119,19 @@ export const browserGuideExtension = defineExtension("@executioncontrolprotocol"
           "Pattern-matches the user message against curated topics such as workflows, validation, graphs, and on-device model install. Does not call an external model.",
         useCases: [
           "Demo shows helpful replies before on-device model download completes.",
-          "First-run tour answers what ECP is without API credentials.",
+          "First-run tour answers what ECP is without API credentials."
         ],
-        samplePrompts: [
-          "What can you do in this editor?",
-          "How do I create a demo echo workflow?",
-        ],
+        projections: [
+          {
+            summary: "Use the help reply",
+            description: "Take the text field as the offline onboarding message shown in the chat panel."
+          }
+        ]
       })
       .withHandler(async (raw) => {
         const input = raw as z.infer<typeof GuideChatInput>
         return { text: guideReply(input.message) }
-      }),
+      })
   ])
   .build()
 

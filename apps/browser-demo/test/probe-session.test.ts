@@ -1,136 +1,193 @@
-import { describe, expect, it, vi } from "vitest"
-import type { Ecp } from "@executioncontrolprotocol/core"
-import type {
-  TestSessionSnapshot,
-  WorkflowManifest,
-} from "@executioncontrolprotocol/types"
+import { describe, expect, it } from "vitest"
+import { z } from "zod"
+import { capabilityFor } from "@executioncontrolprotocol/core"
+import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import {
-  buildProbeContextFromState,
-  findDiscoveryCursor,
-  runProbeSession,
+  buildProbeContextAfterDiscovery,
+  clearDiscoveryMode,
+  discoveryOutputFromState,
+  formatDiscoveryFollowUpMessage,
+  prepareDiscoveryWorkflow,
+  resolveDiscoveryCapabilityId,
+  slimDiscoveryRunResult,
 } from "../src/lib/probe-session.js"
 
-const workflow: WorkflowManifest = {
-  schema: "@executioncontrolprotocol.workflow",
-  version: "1.0",
-  workflow: { id: "probe-workflow" },
-  steps: [
-    {
-      id: "load",
-      uses: "@executioncontrolprotocol/test.load",
-      as: "source",
-    },
-    {
-      id: "discover",
-      uses: "@executioncontrolprotocol/adobe-firefly-services.generate-manifest",
-      as: "psdManifest",
-    },
-  ],
-}
-
-function snapshotWithState(state: Record<string, unknown>): TestSessionSnapshot {
-  return {
-    schema: "@executioncontrolprotocol.test.session",
-    version: "1.0",
-    sessionId: "probe-1",
-    workflow,
-    input: {},
-    state,
-    history: {},
-    cursor: "discover",
-    status: "paused",
-  }
-}
-
-function probeEcp(snapshot: TestSessionSnapshot): Pick<Ecp, "test"> {
-  const runTo = vi.fn().mockResolvedValue(snapshot)
-  const start = vi.fn().mockResolvedValue({ runTo })
-  const withOptions = vi.fn().mockReturnValue({ start })
-  return {
-    test: vi.fn().mockReturnValue({ with: withOptions }),
-  } as unknown as Pick<Ecp, "test">
-}
-
-describe("runProbeSession", () => {
-  it("builds generic options from the selected state key", () => {
-    const snapshot = snapshotWithState({ discovery: [{ id: "first" }] })
-    const context = buildProbeContextFromState({
-      snapshot,
-      stepAs: "discovery",
-      domain: "generic",
-      buildOptions: (value) =>
-        Array.isArray(value)
-          ? value.map((item) => {
-              const id = String((item as { id: unknown }).id)
-              return { id, label: id }
-            })
-          : [],
-    })
-
-    expect(context.options).toEqual([{ id: "first", label: "first" }])
-    expect(context.stepAs).toBe("discovery")
-  })
-
-  it("turns nested Photoshop layers into selectable options", async () => {
-    const snapshot = snapshotWithState({
-      psdManifest: {
-        layers: [
-          {
-            id: "hero",
-            name: "Hero",
-            type: "group",
-            children: [{ id: "title", name: "Title", type: "text" }],
-          },
-        ],
-      },
-    })
-
-    const result = await runProbeSession(probeEcp(snapshot), workflow)
-
-    expect(result?.snapshot).toBe(snapshot)
-    expect(result?.probeContext.options).toEqual([
+const inspect = capabilityFor("@executioncontrolprotocol/demo-test", "inspect")
+  .withInput(z.object({ source: z.string() }))
+  .withOutput(z.object({ width: z.number(), height: z.number() }))
+  .withMetadata({
+    summary: "Read structure",
+    description: "Inspect a document before authoring.",
+    useCases: ["Learn size before edit"],
+    projections: [
       {
-        id: "hero",
-        label: "Hero",
-        path: "layers.0",
-        meta: { type: "group" },
+        summary: "Read the image size",
+        description: "Read width and height from the top of the result.",
       },
-      {
-        id: "title",
-        label: "Title",
-        path: "layers.0.0",
-        meta: { type: "text" },
-      },
-    ])
+    ],
   })
+  .withHandler(async () => ({ width: 1, height: 1 }))
 
-  it("returns an empty context when the layer list is empty", async () => {
-    const result = await runProbeSession(
-      probeEcp(snapshotWithState({ psdManifest: { layers: [] } })),
-      workflow
-    )
+const lookup = {
+  getCapability: (id: string) => (id === inspect.id ? inspect : undefined),
+}
 
-    expect(result?.probeContext.options).toEqual([])
-    expect(result?.probeContext.summary).toContain("No Photoshop layers")
-  })
-
-  it("returns an empty context when layer data is missing", async () => {
-    const result = await runProbeSession(
-      probeEcp(snapshotWithState({ psdManifest: { document: "example.psd" } })),
-      workflow
-    )
-
-    expect(result?.probeContext.options).toEqual([])
-    expect(result?.probeContext.stepAs).toBe("psdManifest")
-  })
-
-  it("gracefully skips workflows without a discovery cursor", async () => {
-    const withoutDiscovery: WorkflowManifest = {
-      ...workflow,
-      steps: [workflow.steps[0]!],
+describe("resolveDiscoveryCapabilityId", () => {
+  it("prefers the discovery marker", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [{ id: "a", uses: "@other/cap", as: "raw" }],
+      discovery: { capabilityId: inspect.id },
     }
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
+  })
 
-    expect(findDiscoveryCursor(withoutDiscovery)).toBeUndefined()
-    expect(await runProbeSession(probeEcp(snapshotWithState({})), withoutDiscovery)).toBeUndefined()
+  it("prefers an explicit preferredCapabilityId", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@other/resize", as: "out" },
+      ],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow, inspect.id)).toBe(inspect.id)
+  })
+
+  it("falls back to a single step uses id", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [{ id: "a", uses: inspect.id, as: "raw" }],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
+  })
+
+  it("prefers an inspect-like step in a multi-step authoring draft", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@executioncontrolprotocol/image-sharp.resize", as: "out" },
+      ],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe(inspect.id)
+  })
+
+  it("falls back to the first step when no inspect-like id exists", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "d" },
+      steps: [
+        { id: "a", uses: "@a/one", as: "a" },
+        { id: "b", uses: "@a/two", as: "b" },
+      ],
+    }
+    expect(resolveDiscoveryCapabilityId(workflow)).toBe("@a/one")
+  })
+})
+
+describe("prepareDiscoveryWorkflow", () => {
+  it("compiles a one-step discovery workflow from a multi-step authoring draft", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "authoring" },
+      steps: [
+        { id: "a", uses: inspect.id, as: "raw" },
+        { id: "b", uses: "@executioncontrolprotocol/image-sharp.resize", as: "out" },
+      ],
+    }
+    const prepared = prepareDiscoveryWorkflow(workflow, lookup, inspect.id)
+    expect(prepared?.capabilityId).toBe(inspect.id)
+    expect(prepared?.workflow.discovery).toEqual({ capabilityId: inspect.id })
+    expect(prepared?.workflow.steps).toHaveLength(1)
+  })
+
+  it("normalizes a marked workflow from the capability schema", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: {
+        id: "d",
+        accepts: { type: "object", properties: { source: { type: "string" } } },
+      },
+      steps: [{ id: "a", uses: inspect.id, as: "raw" }],
+      discovery: { capabilityId: inspect.id },
+    }
+    const prepared = prepareDiscoveryWorkflow(workflow, lookup)
+    expect(prepared?.capabilityId).toBe(inspect.id)
+    expect(prepared?.workflow.discovery).toEqual({ capabilityId: inspect.id })
+    expect(prepared?.workflow.steps).toHaveLength(1)
+    expect(prepared?.workflow).not.toBe(workflow)
+  })
+
+  it("prepare then clearDiscoveryMode strips the marker and keeps steps", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "authoring" },
+      steps: [{ id: "a", uses: inspect.id, as: "raw" }],
+    }
+    const prepared = prepareDiscoveryWorkflow(workflow, lookup)
+    expect(prepared).toBeDefined()
+    const cleared = clearDiscoveryMode(prepared!.workflow)
+    expect(cleared.discovery).toBeUndefined()
+    expect(cleared.workflow.returns).toBeUndefined()
+    expect(cleared.steps).toHaveLength(1)
+    expect(cleared.workflow.accepts).toEqual(prepared!.workflow.workflow.accepts)
+  })
+})
+
+describe("discovery follow-up and sanitization", () => {
+  it("formats projections and reads raw state", () => {
+    const message = formatDiscoveryFollowUpMessage({
+      capabilityId: inspect.id,
+      projections: inspect.metadata?.projections,
+      output: { width: 1920, height: 1080 },
+    })
+    expect(message).toContain("Read the image size")
+    expect(message).toContain("1920")
+    expect(discoveryOutputFromState({ raw: { width: 1 } })).toEqual({ width: 1 })
+  })
+
+  it("builds probe context from projections and compact excerpt (no bag harvest)", () => {
+    const output = {
+      width: 800,
+      height: 600,
+      format: "png",
+      metadata: { nested: "x".repeat(2000) },
+    }
+    const { probeContext, excerptTruncated } = buildProbeContextAfterDiscovery({
+      capabilityId: inspect.id,
+      output,
+      projections: inspect.metadata?.projections,
+    })
+    expect(probeContext.domain).toBe(inspect.id)
+    expect(probeContext.options).toEqual([])
+    expect(probeContext.summary).toContain("Read the image size")
+    expect(probeContext.summary).toContain("800")
+    expect(probeContext.summary).toContain("600")
+    expect(typeof excerptTruncated).toBe("boolean")
+
+    const slim = slimDiscoveryRunResult({
+      schema: "@executioncontrolprotocol.run.result",
+      version: "1.0",
+      run: { id: "r1", status: "completed" },
+    })
+    expect(slim).toEqual({
+      schema: "@executioncontrolprotocol.run.result",
+      version: "1.0",
+      run: { id: "r1", status: "completed" },
+    })
+    expect(slim).not.toHaveProperty("state")
+    expect(slim).not.toHaveProperty("output")
   })
 })

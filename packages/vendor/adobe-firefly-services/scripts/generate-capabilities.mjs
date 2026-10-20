@@ -234,6 +234,96 @@ function familyLabel(family) {
 }
 
 /**
+ * Default plain-text projections from operation id heuristics.
+ * @param {string} opName
+ * @returns {{ summary: string, description: string }[]}
+ */
+function deriveProjections(opName) {
+  const lower = opName.toLowerCase()
+  if (
+    lower.includes("status") ||
+    lower.includes("job-result") ||
+    lower.endsWith("-job") ||
+    lower.includes("job-status")
+  ) {
+    return [
+      {
+        summary: "Read job status",
+        description:
+          "Take the job status and identifiers so you know whether to wait, retry, or continue.",
+      },
+      {
+        summary: "Take completed outputs",
+        description:
+          "When the job succeeded, take output or result URLs and asset references for the next step.",
+      },
+    ]
+  }
+  if (
+    lower.includes("list") ||
+    lower.includes("voices") ||
+    lower.includes("avatars") ||
+    lower.includes("presets") ||
+    lower.includes("models") ||
+    lower.includes("tags") ||
+    lower.includes("versions") ||
+    lower.includes("scripts")
+  ) {
+    return [
+      {
+        summary: "Take listed items",
+        description:
+          "Keep each item id and display name from the list so later steps can select one.",
+      },
+    ]
+  }
+  if (
+    lower.includes("describe") ||
+    lower.includes("manifest") ||
+    lower.includes("document-info") ||
+    lower.includes("details")
+  ) {
+    return [
+      {
+        summary: "Inspect the structured result",
+        description:
+          "Read the returned document or asset facts you need for authoring, such as names, sizes, and ids.",
+      },
+    ]
+  }
+  if (
+    lower.includes("generate") ||
+    lower.includes("export") ||
+    lower.includes("rendition") ||
+    lower.includes("render") ||
+    lower.includes("create") ||
+    lower.includes("fill") ||
+    lower.includes("expand") ||
+    lower.includes("upload")
+  ) {
+    return [
+      {
+        summary: "Take returned assets",
+        description:
+          "Keep asset URLs or output references from the result for download or the next edit step.",
+      },
+      {
+        summary: "Keep job identifiers",
+        description:
+          "When a job id is returned, keep it so you can poll status until outputs are ready.",
+      },
+    ]
+  }
+  return [
+    {
+      summary: "Use the operation result",
+      description:
+        "Take the fields from the response that the next workflow step needs (ids, status, or asset URLs).",
+    },
+  ]
+}
+
+/**
  * Derive agent-facing capability metadata from an OpenAPI operation.
  * @param {object} operation
  * @param {string} family
@@ -245,6 +335,13 @@ function deriveCapabilityMetadata(operation, family, opName) {
   const summary = summaryRaw || humanizeKebab(suffix)
   const descriptionRaw = cleanOpenApiProse(operation.description ?? "")
   const description = descriptionRaw || summary
+
+  if (!summary.trim()) {
+    throw new Error(`Adobe capability ${opName}: summary is required`)
+  }
+  if (!description.trim()) {
+    throw new Error(`Adobe capability ${opName}: description is required`)
+  }
 
   /** @type {string[]} */
   const useCases = []
@@ -262,20 +359,11 @@ function deriveCapabilityMetadata(operation, family, opName) {
     useCases.push(`When you need ${summary.toLowerCase()} through Adobe ${familyLabel(family)}`)
   }
 
-  /** @type {string[]} */
-  const samplePrompts = []
-  if (summaryRaw) {
-    samplePrompts.push(summaryRaw)
-    samplePrompts.push(`${summaryRaw} with Adobe ${familyLabel(family)}`)
-  } else {
-    samplePrompts.push(`${summary} via Adobe ${familyLabel(family)}`)
-  }
-
   return {
     summary,
     description,
     useCases: useCases.slice(0, 3),
-    samplePrompts: samplePrompts.slice(0, 2),
+    projections: deriveProjections(opName),
   }
 }
 

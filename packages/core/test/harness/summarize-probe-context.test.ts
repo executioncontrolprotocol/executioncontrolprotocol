@@ -1,43 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
-  buildPhotoshopLayersProbeContext,
   messageSelectsProbeOptions,
-  probeOptionsFromPhotoshopManifest,
   summarizeProbeContext,
 } from "../../src/harness/authoring/summarize-probe-context.js"
-
-describe("probeOptionsFromPhotoshopManifest", () => {
-  it("flattens nested layer trees into probe options", () => {
-    const options = probeOptionsFromPhotoshopManifest({
-      layers: [
-        { id: "g1", name: "Group", children: [{ id: "l1", name: "Headline" }] },
-        { id: "l2", name: "Logo" },
-      ],
-    })
-    expect(options.map((o) => o.label)).toEqual(["Group", "Headline", "Logo"])
-    expect(options.find((o) => o.id === "l1")?.path).toContain("layers")
-  })
-
-  it("returns empty for missing layers", () => {
-    expect(probeOptionsFromPhotoshopManifest({})).toEqual([])
-    expect(probeOptionsFromPhotoshopManifest(null)).toEqual([])
-  })
-
-  it("supports id-only and name-only nodes", () => {
-    const options = probeOptionsFromPhotoshopManifest({
-      layers: [{ id: 42 }, { name: "OnlyName" }],
-    })
-    expect(options[0]?.id).toBe("42")
-    expect(options[1]?.label).toBe("OnlyName")
-  })
-})
 
 describe("summarizeProbeContext", () => {
   it("lists option labels and ids", () => {
     const lines = summarizeProbeContext({
       probeId: "p1",
-      domain: "photoshop-layers",
-      summary: "Found 2 layers",
+      domain: "parts",
+      summary: "Found 2 parts",
       options: [
         { id: "a", label: "Headline" },
         { id: "b", label: "Logo" },
@@ -71,15 +43,18 @@ describe("summarizeProbeContext", () => {
   })
 })
 
-describe("buildPhotoshopLayersProbeContext / messageSelectsProbeOptions", () => {
-  it("builds domain context and detects selections", () => {
-    const probe = buildPhotoshopLayersProbeContext({
+describe("messageSelectsProbeOptions", () => {
+  it("detects selections from labels and ids", () => {
+    const probe = {
       probeId: "probe-1",
-      manifest: { layers: [{ id: "h1", name: "Headline" }, { id: "l1", name: "Logo" }] },
-      stepAs: "manifest",
-    })
-    expect(probe.domain).toBe("photoshop-layers")
-    expect(probe.options).toHaveLength(2)
+      domain: "parts",
+      summary: "2 options",
+      stepAs: "raw",
+      options: [
+        { id: "h1", label: "Headline" },
+        { id: "l1", label: "Logo" },
+      ],
+    }
     expect(messageSelectsProbeOptions("Use Headline and Logo", probe)).toBe(true)
     expect(messageSelectsProbeOptions("make it better", probe)).toBe(false)
   })

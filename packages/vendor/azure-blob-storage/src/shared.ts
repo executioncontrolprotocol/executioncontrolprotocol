@@ -26,7 +26,7 @@ export function buildAzureBlobStorageExtension(
       /** Default container when capability input omits container. */
       defaultContainer: z.string().optional(),
       /** Default SAS lifetime in seconds (default 3600). */
-      defaultSasExpiresInSeconds: z.number().int().positive().optional(),
+      defaultSasExpiresInSeconds: z.number().int().positive().optional()
     })
     .withMetadata({
       summary: "Upload, download, and mint SAS URLs for Azure Blob Storage",
@@ -35,12 +35,8 @@ export function buildAzureBlobStorageExtension(
       useCases: [
         "Store generated media in Azure for later workflow steps",
         "Mint read-only SAS URLs for external services that fetch by URL",
-        "Download blobs into local artifacts for processing",
-      ],
-      samplePrompts: [
-        "Upload this file to Azure Blob Storage",
-        "Create a read-only SAS URL for the uploaded blob",
-      ],
+        "Download blobs into local artifacts for processing"
+      ]
     })
     .withCapabilities(capabilities)
     .build()

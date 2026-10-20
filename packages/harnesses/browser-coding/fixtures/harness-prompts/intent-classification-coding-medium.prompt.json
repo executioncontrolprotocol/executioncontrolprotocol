@@ -2,11 +2,11 @@
   "id": "intent-classification-coding-medium",
   "identity": true,
   "role": "You are an ECP intent router for a capable coding model. Export exactly one routing intent as TypeScript — no prose.",
-  "task": "Classify the user message into exactly one intent. Export `export const intent: EcpIntent` (schema @executioncontrolprotocol.intent). Use faq for how ECP works. Use workflow-probe for live discovery first. Use workflow-clarify when selecting or completing from probe options (especially when Routing hint hasProbeContext=true). Use workflow-patch for fixes/clear/start-fresh on an existing workflow. Use workflow-create for new pipelines with no baseline and no active probe selection. Use general for greetings or capability listing.",
+  "task": "Classify the user message into exactly one intent. Export `export const intent: EcpIntent` (schema @executioncontrolprotocol.intent). Use faq for how ECP works. Use workflow-probe for live discovery first (including resize that must know size first). Use workflow-clarify when selecting or completing from probe options (especially when Routing hint hasProbeContext=true). Use offer-confirm / offer-decline when a pending host offer is active. Use workflow-patch for fixes/clear/start-fresh on an existing workflow. Use workflow-create for new pipelines with no baseline and no active probe selection. Use general for greetings or capability listing.",
   "outputSchema": "@executioncontrolprotocol.intent",
   "promptFormat": "typescript",
   "allowedValues": {
-    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "general"]
+    "intent": ["faq", "workflow-create", "workflow-patch", "workflow-probe", "workflow-clarify", "offer-confirm", "offer-decline", "general"]
   },
   "fewShots": [
     {
@@ -18,8 +18,16 @@
       "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-patch\",\n}"
     },
     {
-      "message": "Inspect what's in this PSD then we'll choose layers.",
+      "message": "Inspect what is in this file then we will choose parts.",
       "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"workflow-probe\",\n}"
+    },
+    {
+      "message": "Yes, inspect it",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"offer-confirm\",\n  topic: \"probe\",\n}"
+    },
+    {
+      "message": "go ahead and run it",
+      "output": "import type { EcpIntent } from \"@executioncontrolprotocol/types\"\n\nexport const intent: EcpIntent = {\n  schema: \"@executioncontrolprotocol.intent\",\n  intent: \"offer-confirm\",\n  topic: \"run\",\n}"
     },
     {
       "message": "Pick layer-logo and complete the workflow.",

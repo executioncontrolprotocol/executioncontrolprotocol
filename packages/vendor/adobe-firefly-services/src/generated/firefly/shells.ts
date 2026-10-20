@@ -18,7 +18,7 @@ export function firefly_generate_images_v3_async(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate images","description":"Generate images based on a text prompt. You may also include a reference image and Firefly will try to mimic the characteristics, such as color scheme, lighting, layout of objects in the image, etc.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate images"],"samplePrompts":["Generate images","Generate images with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate images","description":"Generate images based on a text prompt. You may also include a reference image and Firefly will try to mimic the characteristics, such as color scheme, lighting, layout of objects in the image, etc.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate images"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -34,7 +34,7 @@ export function firefly_generate_images_v5_async(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate images with Image5","description":"Generate images asynchronously using Firefly's Image5 model. When referenceBlobs is included in the request, omit aspectRatio or set it to auto.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate images with Image5"],"samplePrompts":["Generate images with Image5","Generate images with Image5 with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate images with Image5","description":"Generate images asynchronously using Firefly's Image5 model. When referenceBlobs is included in the request, omit aspectRatio or set it to auto.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate images with Image5"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -50,7 +50,7 @@ export function firefly_generate_similar_images_v3_async(handler: CapabilityHand
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate similar images","description":"Generate similar images based on a reference image that you provide as a parameter.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate similar images"],"samplePrompts":["Generate similar images","Generate similar images with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate similar images","description":"Generate similar images based on a reference image that you provide as a parameter.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate similar images"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -63,7 +63,7 @@ export function firefly_expand_images_v3_async(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Expand image","description":"Change the aspect ratio or size of an image to expand it. Optionally, provide a text prompt to generate additional imagery for the expansion.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to expand image"],"samplePrompts":["Expand image","Expand image with Adobe Firefly"]})
+    .withMetadata({"summary":"Expand image","description":"Change the aspect ratio or size of an image to expand it. Optionally, provide a text prompt to generate additional imagery for the expansion.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to expand image"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -76,7 +76,7 @@ export function firefly_fill_images_v3_async(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Fill image","description":"Generates a fill in an area of an image based on a text prompt. A mask defines the area of the image to be filled.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to fill image"],"samplePrompts":["Fill image","Fill image with Adobe Firefly"]})
+    .withMetadata({"summary":"Fill image","description":"Generates a fill in an area of an image based on a text prompt. A mask defines the area of the image to be filled.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to fill image"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -89,7 +89,7 @@ export function firefly_generate_object_composite_v3_async(handler: CapabilityHa
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate object composite","description":"Combines your image and images generated by Firefly to create an image composite, or scene. The images that Firefly generates are based on a text prompt that you provide. You can upload an image with or without an image mask, such as a product photo, but for a successful result one of the following conditions must be true: The request size is larger than the input image, OR The image contains a transparent layer/channel, OR A mask is provided","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate object composite"],"samplePrompts":["Generate object composite","Generate object composite with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate object composite","description":"Combines your image and images generated by Firefly to create an image composite, or scene. The images that Firefly generates are based on a text prompt that you provide. You can upload an image with or without an image mask, such as a product photo, but for a successful result one of the following conditions must be true: The request size is larger than the input image, OR The image contains a transparent layer/channel, OR A mask is provided","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate object composite"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -105,7 +105,7 @@ export function firefly_precise_composite(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate precise composite","description":"Submits an asynchronous precise composite generation job using the precise composite pipeline.","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate precise composite"],"samplePrompts":["Generate precise composite","Generate precise composite with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate precise composite","description":"Submits an asynchronous precise composite generation job using the precise composite pipeline.","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate precise composite"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -121,7 +121,7 @@ export function firefly_adaptive_composite(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate adaptive composite","description":"Submits an asynchronous adaptive composite generation job using the adaptive composite pipeline.","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate adaptive composite"],"samplePrompts":["Generate adaptive composite","Generate adaptive composite with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate adaptive composite","description":"Submits an asynchronous adaptive composite generation job using the adaptive composite pipeline.","useCases":["Firefly Composite Operations tasks that need this operation","When the workflow goal is to generate adaptive composite"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -137,7 +137,7 @@ export function firefly_precise_upsampler_v3_async(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Upscale image","description":"Upscales an image asynchronously using the precise upsampler. Provide the input image via an upload ID from the storage API or a presigned URL. The response includes links to check status and retrieve the result. Poll the status URL until the job completes, then fetch the result for the upscaled image(s).","useCases":["Firefly Upscale tasks that need this operation","When the workflow goal is to upscale image"],"samplePrompts":["Upscale image","Upscale image with Adobe Firefly"]})
+    .withMetadata({"summary":"Upscale image","description":"Upscales an image asynchronously using the precise upsampler. Provide the input image via an upload ID from the storage API or a presigned URL. The response includes links to check status and retrieve the result. Poll the status URL until the job completes, then fetch the result for the upscaled image(s).","useCases":["Firefly Upscale tasks that need this operation","When the workflow goal is to upscale image"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -153,7 +153,7 @@ export function firefly_generate_video_v3(handler: CapabilityHandler) {
   pollTimeoutMs: z.number().int().positive().optional()
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Generate video","description":"Generate a five second video using a text prompt.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate video"],"samplePrompts":["Generate video","Generate video with Adobe Firefly"]})
+    .withMetadata({"summary":"Generate video","description":"Generate a five second video using a text prompt.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to generate video"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
     .withHandler(handler)
 }
 
@@ -173,7 +173,7 @@ export function firefly_get_custom_models(handler: CapabilityHandler) {
 }).optional()
 }))
     .withOutput(schemas.Schema_CustomModelsFF3pInfo)
-    .withMetadata({"summary":"Retrieve custom models","description":"Retrieve the custom models for a user.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to retrieve custom models"],"samplePrompts":["Retrieve custom models","Retrieve custom models with Adobe Firefly"]})
+    .withMetadata({"summary":"Retrieve custom models","description":"Retrieve the custom models for a user.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to retrieve custom models"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
     .withHandler(handler)
 }
 
@@ -182,7 +182,7 @@ export function firefly_storage_image_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-storage-image-v2")
     .withInput(z.object({}))
     .withOutput(schemas.Schema_StorageImageResponse)
-    .withMetadata({"summary":"Upload image","description":"Upload source image or mask for image-to-image operations, such as fill, expand, or upscale. This API returns an identifier that is used to refer to uploaded content. The uploaded assets will be valid for 7 days from the date you upload them.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to upload image"],"samplePrompts":["Upload image","Upload image with Adobe Firefly"]})
+    .withMetadata({"summary":"Upload image","description":"Upload source image or mask for image-to-image operations, such as fill, expand, or upscale. This API returns an identifier that is used to refer to uploaded content. The uploaded assets will be valid for 7 days from the date you upload them.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to upload image"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -195,7 +195,7 @@ export function firefly_job_result_v3(handler: CapabilityHandler) {
 })
 }))
     .withOutput(schemas.Schema_JobResponse)
-    .withMetadata({"summary":"Get job status","description":"Get the status of an asynchronous job (including upscale jobs). When the job has completed successfully, the result reflects the operation type (for example generation, composite, or upscale).","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to get job status"],"samplePrompts":["Get job status","Get job status with Adobe Firefly"]})
+    .withMetadata({"summary":"Get job status","description":"Get the status of an asynchronous job (including upscale jobs). When the job has completed successfully, the result reflects the operation type (for example generation, composite, or upscale).","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to get job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
     .withHandler(handler)
 }
 
@@ -208,6 +208,6 @@ export function firefly_cancel_job_v4(handler: CapabilityHandler) {
 })
 }))
     .withOutput(z.object({}))
-    .withMetadata({"summary":"Cancel job","description":"Cancel an asynchronous job.","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to cancel job"],"samplePrompts":["Cancel job","Cancel job with Adobe Firefly"]})
+    .withMetadata({"summary":"Cancel job","description":"Cancel an asynchronous job.","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to cancel job"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }

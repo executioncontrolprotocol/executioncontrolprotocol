@@ -1,12 +1,29 @@
 import { describe, expect, it } from "vitest"
 import { intentRoutesToAuthoring } from "@executioncontrolprotocol/harnesses-browser-nano"
-import { ECP_INTENT_VALUES } from "@executioncontrolprotocol/types"
+import { ECP_INTENT_VALUES, LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import { getHarnessCodingConfig, HARNESS_TASKS } from "../src/harness-coding-config.js"
+import { buildChangeSummaryMessage } from "../src/change-summary-message.js"
 import {
   chatResultAnswer,
   chatResultSuggestedAction,
   chatResultWorkflow,
 } from "../src/multi-shot-chat.js"
+
+const sampleWorkflow = (id: string): WorkflowManifest => ({
+  schema: "@executioncontrolprotocol.workflow",
+  version: LATEST_ECP_VERSION,
+  workflow: { id, label: id },
+  steps: [
+    {
+      id: "echo",
+      uses: "@executioncontrolprotocol/test.echo",
+      label: "Echo",
+      with: { value: "hi" },
+      as: "echo",
+    },
+  ],
+})
 
 describe("coding multi-shot chat helpers", () => {
   it("exposes chat task config", () => {
@@ -78,12 +95,25 @@ describe("coding multi-shot chat helpers", () => {
         artifact: {
           schema: "@executioncontrolprotocol.workflow",
           version: "1.0",
-          workflow: { id: "legacy", label: "Legacy" },
+          workflow: { id: "direct", label: "D" },
           steps: [],
         },
         raw: "",
         trace: { harness: "@executioncontrolprotocol/harness-browser-coding" },
       })?.workflow.id
-    ).toBe("legacy")
+    ).toBe("direct")
+  })
+
+  it("builds change-summary messages with Fluent before/after workflows", () => {
+    const before = sampleWorkflow("before")
+    const after = sampleWorkflow("after")
+    const text = buildChangeSummaryMessage("add echo", before, after, "run")
+    expect(text).toContain("Before (Fluent TypeScript):")
+    expect(text).toContain("After (Fluent TypeScript):")
+    expect(text).toContain("export default workflow")
+    expect(text).toContain('step("@executioncontrolprotocol/test.echo"')
+    expect(text).not.toContain("Capability ids you may reference")
+    expect(text).not.toContain("STEP ")
+    expect(text).not.toContain("USES ")
   })
 })

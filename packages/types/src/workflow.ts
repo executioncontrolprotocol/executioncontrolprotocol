@@ -1,6 +1,15 @@
 import type { CapabilityId, CommitMode, ExprValue, InputValue } from "./schema.js"
 import type { EcpVersion } from "./version.js"
 
+/**
+ * Marker for a disposable one-step inspect workflow compiled from a capability.
+ * @category Workflow
+ */
+export interface WorkflowDiscoveryMarker {
+  /** Capability id the inspect workflow calls. */
+  capabilityId: string
+}
+
 /** Portable workflow manifest. @category Workflow */
 export interface WorkflowManifest {
   schema: "@executioncontrolprotocol.workflow"
@@ -22,6 +31,11 @@ export interface WorkflowManifest {
     returns?: Record<string, unknown>
   }
   steps: WorkflowNode[]
+  /**
+   * Present when this manifest is a disposable discovery / inspect workflow.
+   * Hosts read this instead of guessing from step ids.
+   */
+  discovery?: WorkflowDiscoveryMarker
 }
 
 /** Workflow graph node union. @category Workflow */

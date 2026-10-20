@@ -14,10 +14,21 @@ export const HARNESS_TASK_IDS = {
 /** Harness task id union. @category Harness */
 export type HarnessTaskId = (typeof HARNESS_TASK_IDS)[keyof typeof HARNESS_TASK_IDS]
 
+/** Pending host offer kind for intent classification. @category Harness */
+export const pendingOfferKindSchema = z.enum(["run", "probe"])
+
+/** Pending host offer kind. @category Harness */
+export type PendingOfferKind = z.infer<typeof pendingOfferKindSchema>
+
 /** Intent classification harness input. @category Harness */
 export const harnessIntentClassificationInputSchema = z.object({
   /** User message to classify. */
   message: z.string(),
+  /**
+   * When the host has offered run or probe, the classifier should prefer
+   * {@code offer-confirm} / {@code offer-decline} for accept/reject language.
+   */
+  pendingOffer: pendingOfferKindSchema.optional(),
   /** Optional model override. */
   model: z.string().optional(),
 })
@@ -62,6 +73,11 @@ export const harnessChatInputSchema = z.object({
   model: z.string().optional(),
   /** Optional multimodal file refs forwarded to the provider generate shot. */
   files: z.array(fileRefSchema()).optional(),
+  /**
+   * When the host has offered run or probe, intent classification should prefer
+   * {@code offer-confirm} / {@code offer-decline}.
+   */
+  pendingOffer: pendingOfferKindSchema.optional(),
 })
 
 /** Multi-shot chat input type. @category Harness */

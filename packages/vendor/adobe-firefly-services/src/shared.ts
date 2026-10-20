@@ -2,7 +2,7 @@ import {
   defineExtension,
   NODE_RUNTIME_ID,
   type CapabilityDefinition,
-  type ExtensionDefinition,
+  type ExtensionDefinition
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
@@ -28,12 +28,8 @@ export function buildAdobeFireflyServicesExtension(
         "Generated capabilities for Adobe Firefly, Photoshop, Express, InDesign, Illustrator, Substance 3D, Creative Production, and Audio Video APIs. Uses OAuth server-to-server credentials and polls async jobs where required.",
       useCases: [
         "Generate or edit creative assets with Adobe cloud APIs",
-        "Automate Photoshop, Express, or Firefly operations from workflows",
-      ],
-      samplePrompts: [
-        "Generate images with Adobe Firefly",
-        "Run a Photoshop API job on this document",
-      ],
+        "Automate Photoshop, Express, or Firefly operations from workflows"
+      ]
     })
     .withConfig({
       /** Adobe Developer Console client id (x-api-key). */
@@ -43,7 +39,7 @@ export function buildAdobeFireflyServicesExtension(
       /** IMS scopes (comma- or space-separated). */
       scopes: z.string().optional(),
       /** Override IMS token URL. */
-      imsEndpoint: z.string().optional(),
+      imsEndpoint: z.string().optional()
     })
     .withCapabilities(capabilities)
     .build()

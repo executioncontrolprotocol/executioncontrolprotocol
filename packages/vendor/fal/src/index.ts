@@ -4,7 +4,7 @@ import {
   globalRegistry,
   catalogExtension,
   type Registry,
-  NODE_RUNTIME_ID,
+  NODE_RUNTIME_ID
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import { falGenerateInputSchema, falGenerateOutputSchema, FAL_INFERENCE_MODES } from "./schemas.js"
@@ -21,17 +21,13 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
       "Calls FAL model endpoints for image, video, audio, and other generative tasks. Supports direct run and queue-backed subscribe modes with configurable default endpoint and API key binding.",
     useCases: [
       "Generate images or video from a FAL model endpoint",
-      "Run queued inference jobs with optional progress logs",
-    ],
-    samplePrompts: [
-      "Generate an image with flux schnell on FAL",
-      "Run this FAL endpoint with the provided prompt payload",
-    ],
+      "Run queued inference jobs with optional progress logs"
+    ]
   })
   .withConfig({
     apiKey: z.string().optional(),
     defaultEndpoint: z.string().optional(),
-    defaultMode: z.enum([FAL_INFERENCE_MODES.RUN, FAL_INFERENCE_MODES.SUBSCRIBE]).optional(),
+    defaultMode: z.enum([FAL_INFERENCE_MODES.RUN, FAL_INFERENCE_MODES.SUBSCRIBE]).optional()
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/fal", "generate")
@@ -43,12 +39,18 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
           "Invokes a FAL-hosted model by endpoint id using either a direct run or a subscribe flow that polls until completion. Returns the model result payload and optional request id.",
         useCases: [
           "Text-to-image or image-to-image generation on FAL",
-          "Long-running FAL jobs that need queue polling",
+          "Long-running FAL jobs that need queue polling"
         ],
-        samplePrompts: [
-          "Generate an image from this prompt using fal-ai/flux/schnell",
-          "Run the FAL endpoint and wait for the finished result",
-        ],
+        projections: [
+          {
+            summary: "Take model result data",
+            description: "Use data for asset URLs, media metadata, or other model fields the next step needs."
+          },
+          {
+            summary: "Keep the request id",
+            description: "When requestId is present, retain it for support logs or follow-up queue status checks."
+          }
+        ]
       })
       .withHandler(async (input, ctx) => {
         const parsed = input as z.infer<typeof falGenerateInputSchema>
@@ -71,9 +73,9 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
           endpoint,
           input: parsed.input,
           mode,
-          logs: parsed.logs,
+          logs: parsed.logs
         })
-      }),
+      })
   ])
   .build()
 

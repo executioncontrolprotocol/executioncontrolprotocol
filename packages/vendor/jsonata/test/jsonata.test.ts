@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest"
 import { globalRegistry } from "@executioncontrolprotocol/core"
+import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
 import {
   registerJsonataExtension,
   jsonataExtension,
@@ -32,6 +33,18 @@ describe("@executioncontrolprotocol/jsonata", () => {
       "@executioncontrolprotocol/jsonata.transform",
     ])
     expect(ext?.capabilities[0]?.execution).toBe("local")
+  })
+
+  it("documents useCases and projections for projecting complex objects", () => {
+    const meta = parseCapabilityMetadata(jsonataExtension.capabilities[0]!.metadata)
+    expect(meta.useCases.some((u) => /project|inspect|fetch|nested/i.test(u))).toBe(true)
+    expect(meta.projections.length).toBeGreaterThanOrEqual(2)
+    expect(meta.projections.some((p) => /fact bag|fields needed|evaluated result/i.test(p.summary))).toBe(
+      true
+    )
+    expect(jsonataExtension.metadata?.useCases?.some((u) => /bulky|nested|reshape/i.test(u))).toBe(
+      true
+    )
   })
 
   it("transform projects object fields", async () => {

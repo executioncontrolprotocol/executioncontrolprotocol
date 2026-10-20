@@ -20,28 +20,13 @@ import {
   createDispatchingCall,
   dispatchCapability,
 } from "../runtime/dispatch-capability.js"
+import { invokeFailure } from "../runtime/remote-invoke.js"
 
 const INVOKE_STUB_WORKFLOW = {
   schema: "@executioncontrolprotocol.workflow" as const,
   version: LATEST_ECP_VERSION,
   workflow: { id: "invoke-stub" },
   steps: [],
-}
-
-function invokeFailure(
-  capabilityId: CapabilityId,
-  code: string,
-  message: string,
-  validation?: import("@executioncontrolprotocol/types").ValidationResult
-): InvokeResult {
-  return {
-    schema: "@executioncontrolprotocol.invoke.result",
-    version: CORE_VERSION,
-    success: false,
-    capabilityId,
-    validation,
-    diagnostics: [{ severity: "error", code, message }],
-  }
 }
 
 function usageSummary(ledger: ReturnType<typeof createUsageLedger>): UsageSummary | undefined {

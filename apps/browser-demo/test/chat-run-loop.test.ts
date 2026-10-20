@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   CHAT_AUTO_TROUBLESHOOT_MAX,
   canAutoTroubleshoot,
+  formatAuthoringValidationChatMessage,
   formatChatRunFailureMessage,
   formatChatRunSuccessMessage,
   isHarnessRunResultDocument,
@@ -20,9 +21,9 @@ describe("chat-run-loop confirm/decline", () => {
     expect(isRunOfferConfirm("Sure")).toBe(true)
   })
 
-  it("rejects authoring that starts with yes", () => {
+  it("rejects authoring that starts with yes and asks the classifier", () => {
     expect(isRunOfferConfirm("yes add a notify step")).toBe(false)
-    expect(resolvePendingOfferAction("yes add a notify step")).toBe("cancel-and-chat")
+    expect(resolvePendingOfferAction("yes add a notify step")).toBe("classify")
   })
 
   it("accepts declines", () => {
@@ -47,8 +48,9 @@ describe("chat-run-loop probe confirm/decline", () => {
     expect(resolvePendingOfferAction("yes")).toBe("confirm")
   })
 
-  it("cancels the probe offer for a new authoring request", () => {
-    expect(resolvePendingProbeOfferAction("yes, add a resize step")).toBe("cancel-and-chat")
+  it("defers natural-language authoring to intent classification", () => {
+    expect(resolvePendingProbeOfferAction("yes, add a resize step")).toBe("classify")
+    expect(resolvePendingProbeOfferAction("Yes, inspect it")).toBe("classify")
   })
 })
 
@@ -74,6 +76,32 @@ describe("chat-run-loop messages", () => {
 
   it("formats failure from error wrapper", () => {
     expect(formatChatRunFailureMessage({ error: "boom" })).toContain("boom")
+  })
+
+  it("formats authoring validation issues for chat", () => {
+    expect(
+      formatAuthoringValidationChatMessage({
+        schema: "@executioncontrolprotocol.validation.result",
+        version: "1.0",
+        valid: false,
+        errors: [
+          {
+            code: "UNKNOWN_CAPABILITY",
+            message: "Capability x is not registered.",
+            path: "steps.s1.uses",
+          },
+          { code: "INVALID_TYPE", message: "Expected string", path: "steps.s1.with.value" },
+          { code: "E3", message: "third" },
+          { code: "E4", message: "fourth" },
+        ],
+        warnings: [],
+      })
+    ).toBe(
+      "Workflow updated but has validation issues: [UNKNOWN_CAPABILITY] Capability x is not registered. (steps.s1.uses); [INVALID_TYPE] Expected string (steps.s1.with.value); [E3] third (+1 more)"
+    )
+    expect(formatAuthoringValidationChatMessage(null)).toBe(
+      "Workflow updated but has validation issues."
+    )
   })
 
   it("detects harness run result documents", () => {

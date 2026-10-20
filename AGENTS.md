@@ -169,7 +169,7 @@ Keep **npm package name** aligned with the **extension id**.
 | ---- | ----- |
 | Depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` (+ focused third-party libs) | Import `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, `@executioncontrolprotocol/cli`, or `@executioncontrolprotocol/mcp` from an extension package |
 | `catalogExtension(def)` on package load; optional `register*Extension(registry?)` | Call `describe()` / `run()` or require a host runtime inside extension tests |
-| `.withMetadata({ summary, description, useCases, samplePrompts })` on capabilities (product prose only) | Schema how-to in metadata; cross-advertise other extension packages |
+| `.withMetadata({ summary, description, useCases, projections })` on capabilities (product prose only; projections required) | Schema how-to in metadata; sample prompts; omit projections; cross-advertise other extension packages |
 | Test with document **fixtures** and `environment()` from `@executioncontrolprotocol/core` for encode/decode | Pull in `nodeEnvironment()` to build discovery payloads |
 | Use `resolveFile` / `writeMediaArtifact` for image/binary I/O | Reimplement fs/fetch/`ctx.artifacts` maps inside vendor packages |
 
@@ -230,7 +230,9 @@ Build order: `tsc -b tsconfig.build.json` (types → core → … → cli).
 
 ### Harness authoring surface
 
-Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `defineHarness`, `runModelRepairLoop`, `buildSystemPrompt`, `summarizeEnvironmentDescriptor`, `formatStructuredRepairForModel`, `buildAssistantSafeReply`, `summarizeProbeContext`, `buildPhotoshopLayersProbeContext`, etc. Shared task input Zod schemas live in `@executioncontrolprotocol/types` (`HARNESS_TASK_IDS`, `harnessWorkflowAssistantInputSchema`, `probeContextSchema`, …).
+**Prompt language:** catalogs, examples, primers, and repair hints must match the harness output language — no format conversion. Coding → Fluent TypeScript; Nano → EQL. See [`.cursor/rules/harness-prompt-language.mdc`](.cursor/rules/harness-prompt-language.mdc).
+
+Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `defineHarness`, `runModelRepairLoop`, `buildSystemPrompt`, `summarizeEnvironmentDescriptor`, `formatStructuredRepairForModel`, `buildAssistantSafeReply`, `summarizeProbeContext`, `compileDiscoveryWorkflow`, etc. Shared task input Zod schemas live in `@executioncontrolprotocol/types` (`HARNESS_TASK_IDS`, `harnessWorkflowAssistantInputSchema`, `probeContextSchema`, …).
 
 | Harness | Package | Id | Model surface | Eval profile |
 | ------- | ------- | -- | ------------- | ------------ |
@@ -239,7 +241,7 @@ Reusable harness helpers are exported from `@executioncontrolprotocol/core`: `de
 
 `compileHarnessArtifactSource` in `@executioncontrolprotocol/core/compile` evaluates intent/reply TS modules. Workflow create/patch use `compileWorkflowSource`. The **`workflow-assistant`** task is the unified assistant (ECP FAQ, identity, environment help, run Q&A). Optional `identity: true` on prompt fixtures prepends `ECP_ASSISTANT_IDENTITY_PRIMER`.
 
-**Probe → clarify → complete:** Chat intents `workflow-probe` and `workflow-clarify` drive a reusable discovery loop. Probe authors a prefix and suggests `offer-probe`; the host runs `ecp.test(…).runTo(cursor)`, builds domain-agnostic `ProbeContext` (Photoshop layers are the first exemplar via `buildPhotoshopLayersProbeContext`), then clarify turns select options and patch the remaining steps (`offer-run`). New domains add an adapter + prompt flavor — not new intents.
+**Probe → clarify → complete:** Chat intents `workflow-probe` and `workflow-clarify` drive a reusable discovery loop. The assistant picks a bound capability from summaries and suggests `offer-probe`. The host normalizes a discovery-marked workflow onto the **shared** canvas manifest (`compileDiscoveryWorkflow` / `prepareDiscoveryWorkflow`) so form accepts, canvas, and `ecp.run` stay one object — inspect and run use the same host path. After a successful run while `manifest.discovery` is set, capability `projections` plus a size-capped, domain-agnostic excerpt populate `probeContext`, then `clearDiscoveryMode` strips the discovery marker and temporary discovery returns so authoring continues on the same workflow (`offer-run`). Do **not** harvest vendor-shaped bags (`layers`/`parts`/…) in core, harnesses, or the demo. If the excerpt truncates, suggest adding a bound JSON transform step (discovered via inventory metadata) — never hard-code a vendor capability id. Extensions own projections; hosts/harnesses stay vendor-neutral.
 
 ### Harness eval integrity
 

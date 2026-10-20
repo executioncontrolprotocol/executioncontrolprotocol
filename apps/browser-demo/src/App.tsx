@@ -16,12 +16,11 @@ import type {
   ProbeContext,
   RunResult,
   StepNode,
-  TestSessionSnapshot,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 import { toHarnessRunContext } from "@executioncontrolprotocol/types"
-import type { Ecp, CapabilityBlobStore } from "@executioncontrolprotocol/core"
+import { type Ecp, type CapabilityBlobStore } from "@executioncontrolprotocol/core"
 import { compileWorkflowSource } from "@executioncontrolprotocol/core/browser"
 import type {
   ReactFlowDocument,
@@ -172,15 +171,21 @@ import {
 import {
   CHAT_TROUBLESHOOT_PROMPT,
   canAutoTroubleshoot,
+  formatAuthoringValidationChatMessage,
   formatChatRunFailureMessage,
   formatChatRunSuccessMessage,
   isHarnessRunResultDocument,
-  resolvePendingOfferAction,
-  resolvePendingProbeOfferAction,
 } from "./lib/chat-run-loop.js"
+import { resolvePendingOfferWithIntent } from "./lib/classify-pending-offer.js"
 import {
-  formatProbeOptionsMessage,
-  runProbeSession,
+  buildProbeContextAfterDiscovery,
+  clearDiscoveryMode,
+  DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION,
+  discoveryOutputFromState,
+  formatDiscoveryFollowUpMessage,
+  prepareDiscoveryWorkflow,
+  projectionsForCapability,
+  slimDiscoveryRunResult,
 } from "./lib/probe-session.js"
 import type { CodeEditorTab, FormatTab } from "./types/workspace.js"
 
@@ -268,9 +273,7 @@ export function App() {
   const [configureError, setConfigureError] = useState<string | null>(null)
   const [chatBusy, setChatBusy] = useState(false)
   const [pendingOfferRun, setPendingOfferRun] = useState(false)
-  const [pendingOfferProbe, setPendingOfferProbe] = useState(false)
   const [probeContext, setProbeContext] = useState<ProbeContext | undefined>()
-  const [, setTestSessionSnapshot] = useState<TestSessionSnapshot | undefined>()
   const [autoTroubleshootRound, setAutoTroubleshootRound] = useState(0)
   const [lastChatRunInput, setLastChatRunInput] = useState<Record<string, unknown> | undefined>()
   const [runFormDrafts, setRunFormDrafts] = useState<Record<string, string> | undefined>()
@@ -590,9 +593,7 @@ export function App() {
   const applyFluentWorkflow = useCallback(
     async (input: { fluent: string; id?: string; label?: string }) => {
       setProbeContext(undefined)
-      setTestSessionSnapshot(undefined)
       setPendingOfferRun(false)
-      setPendingOfferProbe(false)
       if (input.id) setSavedWorkflowId(input.id)
       layout.openWorkspace()
       const compiled = await compileWorkflowSource({
@@ -625,9 +626,7 @@ export function App() {
   const applyManifestWorkflow = useCallback(
     async (nextManifest: WorkflowManifest, options?: { id?: string }) => {
       setProbeContext(undefined)
-      setTestSessionSnapshot(undefined)
       setPendingOfferRun(false)
-      setPendingOfferProbe(false)
       if (options?.id) setSavedWorkflowId(options.id)
       layout.openWorkspace()
       await syncFromManifestRef.current(nextManifest, { refreshFluent: true })
@@ -1266,33 +1265,37 @@ export function App() {
     const nextWorkflow = chatResultWorkflow(harnessResult)
     if (nextWorkflow) {
       const harnessValidation = harnessResult.validation as ValidationResult | undefined
-      await syncFromManifest(nextWorkflow, {
-        refreshFluent: true,
+      const syncOptions = {
+        refreshFluent: true as const,
         patchToon: harnessResult.raw,
         ...(harnessValidation ? { validation: harnessValidation } : {}),
-      })
+      }
+      await syncFromManifest(nextWorkflow, syncOptions)
+      const suggestedAction = chatResultSuggestedAction(harnessResult)
+      const offerProbe = suggestedAction === "offer-probe"
+      if (offerProbe) {
+        setProbeContext(undefined)
+        const prepared = prepareDiscoveryWorkflow(nextWorkflow, ecp.getRegistry())
+        if (prepared) {
+          // Shared canvas/form/run object — normalize discovery onto the same manifest.
+          await syncFromManifest(prepared.workflow, syncOptions)
+        }
+      }
       // Stay on chat after authoring — do not auto-open workflow/code/ui.
       const val = harnessValidation as { valid?: boolean } | undefined
-      const suggestedAction = chatResultSuggestedAction(harnessResult)
       const answer =
         chatResultAnswer(harnessResult) ??
         (val?.valid === false
-          ? "Workflow updated but has validation issues. See console for raw model output."
-          : suggestedAction === "offer-probe"
+          ? formatAuthoringValidationChatMessage(harnessValidation)
+          : offerProbe
             ? "I built the discovery steps. Want me to inspect the available options?"
             : "I updated the workflow. Want me to run it?")
-      const offerRun = suggestedAction === "offer-run"
-      const offerProbe = suggestedAction === "offer-probe"
+      const offerRun = suggestedAction === "offer-run" || offerProbe
       setChatStatus(offerProbe ? "Offer probe" : offerRun ? "Offer run" : "Ready")
       clearOfferRunFlags()
       clearOfferProbeFlags()
-      appendAgent(answer, { offerRun, offerProbe })
+      appendAgent(answer, { offerRun })
       setPendingOfferRun(offerRun)
-      setPendingOfferProbe(offerProbe)
-      if (offerProbe) {
-        setProbeContext(undefined)
-        setTestSessionSnapshot(undefined)
-      }
       return
     }
 
@@ -1301,17 +1304,15 @@ export function App() {
       clearOfferRunFlags()
       clearOfferProbeFlags()
       setPendingOfferRun(false)
-      setPendingOfferProbe(false)
       appendAgent(answer)
       setChatStatus(assistantMode === "guided" ? "Guided mode" : "Ready")
     }
   }
 
-  const showChatRunForm = () => {
+  const showChatRunForm = (message = "Provide any run inputs, then click Run workflow.") => {
     clearOfferRunFlags()
     clearOfferProbeFlags()
     setPendingOfferRun(false)
-    setPendingOfferProbe(false)
     const drafts: Record<string, string> = {}
     if (lastChatRunInput) {
       for (const [key, value] of Object.entries(lastChatRunInput)) {
@@ -1320,7 +1321,7 @@ export function App() {
       }
     }
     setRunFormDrafts(Object.keys(drafts).length > 0 ? drafts : undefined)
-    appendAgent("Provide any run inputs, then click Run workflow.", { runForm: true })
+    appendAgent(message, { runForm: true })
   }
 
   const onOfferRunConfirm = () => {
@@ -1332,89 +1333,67 @@ export function App() {
     appendUser("Not now")
     clearOfferRunFlags()
     setPendingOfferRun(false)
-    appendAgent("Okay — say when you want to run it, or ask for another change.")
-  }
-
-  const runPendingProbe = async () => {
-    clearOfferProbeFlags()
-    setPendingOfferProbe(false)
-    if (!ecp || !manifest) {
-      appendAgent("I could not start the probe because there is no workflow to inspect.")
-      return
-    }
-
-    setChatBusy(true)
-    setChatStatus("Probing workflow")
-    try {
-      const result = await runProbeSession(ecp, manifest, lastChatRunInput)
-      if (!result) {
-        appendAgent("The workflow probe could not find or run a discovery step.")
-        setChatStatus("Ready")
-        return
-      }
-      setTestSessionSnapshot(result.snapshot)
-      setProbeContext(result.probeContext)
-      appendAgent(formatProbeOptionsMessage(result.probeContext))
-      setChatStatus("Probe complete")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      appendAgentError(`The workflow probe failed: ${msg}`)
-      setChatStatus("Error")
-    } finally {
-      setChatBusy(false)
-    }
-  }
-
-  const onOfferProbeConfirm = () => {
-    appendUser("Yes, inspect it")
-    void runPendingProbe()
-  }
-
-  const onOfferProbeDecline = () => {
-    appendUser("Not now")
-    clearOfferProbeFlags()
-    setPendingOfferProbe(false)
-    appendAgent("Okay — ask me to inspect the workflow when you are ready.")
+    appendAgent(
+      manifest?.discovery
+        ? "Okay — ask me to inspect the workflow when you are ready."
+        : "Okay — say when you want to run it, or ask for another change."
+    )
   }
 
   const submitMessage = async (userRequest: string) => {
     const text = userRequest.trim()
     if (!ecp || !text) return
 
-    if (pendingOfferProbe) {
-      const action = resolvePendingProbeOfferAction(text)
+    const { provider, harness } = resolveDemoSession(providerMode)
+    const model =
+      provider === "ollama"
+        ? ollamaSettings.model
+        : provider === "anthropic"
+          ? anthropicSettings.model
+          : undefined
+
+    if (pendingOfferRun) {
       appendUser(text)
-      if (action === "confirm") {
-        await runPendingProbe()
-        setPrompt("")
-        return
-      }
-      if (action === "decline") {
+      setChatBusy(true)
+      try {
+        const decision = await resolvePendingOfferWithIntent({
+          ecp,
+          message: text,
+          kind: manifest?.discovery ? "probe" : "run",
+          harness,
+          providerCapabilityId: providerCapabilityId(provider),
+          ...(model ? { model } : {}),
+        })
+        if (decision === "confirm") {
+          showChatRunForm()
+          setPrompt("")
+          return
+        }
+        if (decision === "decline") {
+          clearOfferRunFlags()
+          clearOfferProbeFlags()
+          setPendingOfferRun(false)
+          appendAgent(
+            manifest?.discovery
+              ? "Okay — ask me to inspect the workflow when you are ready."
+              : "Okay — say when you want to run it, or ask for another change."
+          )
+          setPrompt("")
+          return
+        }
+        // Other intents cancel the offer and continue as a normal chat turn.
         clearOfferProbeFlags()
-        setPendingOfferProbe(false)
-        appendAgent("Okay — ask me to inspect the workflow when you are ready.")
-        setPrompt("")
-        return
-      }
-      clearOfferProbeFlags()
-      setPendingOfferProbe(false)
-    } else if (pendingOfferRun) {
-      const action = resolvePendingOfferAction(text)
-      appendUser(text)
-      if (action === "confirm") {
-        showChatRunForm()
-        setPrompt("")
-        return
-      }
-      if (action === "decline") {
         clearOfferRunFlags()
         setPendingOfferRun(false)
-        appendAgent("Okay — say when you want to run it, or ask for another change.")
-        setPrompt("")
-        return
+      } finally {
+        setChatBusy(false)
       }
-      clearOfferRunFlags()
-      setPendingOfferRun(false)
+    } else if (/^(run(?:\s+it)?|please\s+run(?:\s+it)?)$/i.test(text) && manifest) {
+      // Typed "run it" with a runnable workflow after offer chips are gone.
+      appendUser(text)
+      showChatRunForm()
+      setPrompt("")
+      return
     } else {
       appendUser(text)
     }
@@ -1474,14 +1453,57 @@ export function App() {
     return Object.keys(drafts).length > 0 ? drafts : runFormDrafts
   }
 
+  const completeDiscoverySuccess = (
+    result: RunResult,
+    capabilityId: string,
+    options?: { showChatOutput?: boolean; blobs?: CapabilityBlobStore }
+  ) => {
+    if (!ecp || !manifest) return false
+    const discoveryOutput = discoveryOutputFromState(result.state)
+    const followUpOutput = discoveryOutput ?? result.output
+    const projections = projectionsForCapability(ecp, capabilityId)
+    appendAgent(
+      formatDiscoveryFollowUpMessage({
+        capabilityId,
+        projections,
+        output: followUpOutput,
+      }),
+      options?.showChatOutput
+        ? {
+            runOutput: true,
+            runOutputData: followUpOutput,
+            ...(options.blobs || lastRunBlobs.current
+              ? { runBlobs: options.blobs ?? lastRunBlobs.current }
+              : {}),
+          }
+        : undefined
+    )
+    const { probeContext: nextProbe, excerptTruncated } = buildProbeContextAfterDiscovery({
+      capabilityId,
+      output: followUpOutput,
+      projections,
+    })
+    setProbeContext(nextProbe)
+    if (excerptTruncated) {
+      appendAgent(DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION)
+    }
+    // Harness only sees a slim snapshot; chat/UI keep human-readable follow-up text.
+    setLastRunResult(slimDiscoveryRunResult(result))
+    void syncFromManifestRef.current(clearDiscoveryMode(manifest), { refreshFluent: true })
+    setChatStatus("Probe complete")
+    return true
+  }
+
   const onRun = async (
     input?: Record<string, unknown>,
     blobs?: CapabilityBlobStore,
     options?: { source?: "modal" | "chat" | "ui" }
   ) => {
-    if (!ecp || !manifest) return
     const fromChat = options?.source === "chat"
     const fromUi = options?.source === "ui"
+    const discoveryCapabilityId = manifest?.discovery?.capabilityId
+    const discoveryRun = Boolean(discoveryCapabilityId)
+    if (!ecp || !manifest) return
     setRunBusy(true)
     setRunModalOpen(false)
     setRunOutput("")
@@ -1510,7 +1532,15 @@ export function App() {
       setRunOutput(JSON.stringify(result, null, 2))
       const output = result.output
       setRunPublicOutput(output ? JSON.stringify(output, null, 2) : "")
-      if (fromChat) {
+      if (discoveryRun && discoveryCapabilityId && result && !isFailedRunResult(result)) {
+        completeDiscoverySuccess(result, discoveryCapabilityId, {
+          showChatOutput: fromChat || fromUi,
+          blobs,
+        })
+        if (fromUi) {
+          setRunPanelPhase("output")
+        }
+      } else if (fromChat) {
         if (isFailedRunResult(result)) {
           void autoTroubleshootAfterFailure(result)
         } else {
@@ -1526,6 +1556,7 @@ export function App() {
       } else if (fromUi) {
         setRunPanelPhase("output")
       } else {
+        // Legacy RunResultModal path (canvas inspect) — not used for probe/run offers.
         setRunModalMode(isFailedRunResult(result) ? "inspect" : "output")
         setRunModalOpen(true)
       }
@@ -1739,8 +1770,6 @@ export function App() {
               onQuickStartClick={(text) => void submitMessage(text)}
               onOfferRunConfirm={onOfferRunConfirm}
               onOfferRunDecline={onOfferRunDecline}
-              onOfferProbeConfirm={onOfferProbeConfirm}
-              onOfferProbeDecline={onOfferProbeDecline}
               onChatRun={onRunFromChat}
               onOpenRunUi={(phase) => openRunUi(phase)}
               runBusy={runBusy}

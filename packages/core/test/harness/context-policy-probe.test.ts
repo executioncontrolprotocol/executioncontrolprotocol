@@ -18,7 +18,7 @@ describe("buildContextBundle probeContext", () => {
   it("includes probe context for clarify and authoring patch", async () => {
     const probeContext = {
       probeId: "p1",
-      domain: "photoshop-layers",
+      domain: "parts",
       summary: "Found layers",
       options: [{ id: "h1", label: "Headline" }],
     }
@@ -49,7 +49,7 @@ describe("buildContextBundle probeContext", () => {
       intent: "workflow-create",
       probeContext: {
         probeId: "p1",
-        domain: "photoshop-layers",
+        domain: "parts",
         summary: "Found layers",
         options: [{ id: "h1", label: "Headline" }],
       },

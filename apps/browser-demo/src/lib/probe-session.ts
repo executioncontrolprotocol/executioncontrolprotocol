@@ -1,125 +1,148 @@
 import {
-  buildPhotoshopLayersProbeContext,
+  buildProbeContextFromDiscovery,
+  clearDiscoveryMode,
+  compileDiscoveryWorkflow,
+  DISCOVERY_RAW_STEP_AS,
+  formatDiscoveryFollowUpLines,
   flattenTestStepOrder,
+  type BuildProbeContextFromDiscoveryResult,
+  type CapabilityDefinition,
   type Ecp,
 } from "@executioncontrolprotocol/core"
-import {
-  PROBE_CONTEXT_DOMAINS,
-  type ProbeContext,
-  type ProbeOption,
-  type StepNode,
-  type TestSessionSnapshot,
-  type WorkflowManifest,
+import type {
+  CapabilityMetadata,
+  ProbeContext,
+  StepNode,
+  WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 
-const DISCOVERY_STATE_KEYS = new Set(["manifest", "psdmanifest", "discovery"])
-
-/** Result of running a workflow through its discovery step. @category Demo */
-export interface ProbeSessionResult {
-  /** Serializable test session state for later continuation. */
-  snapshot: TestSessionSnapshot
-  /** Prompt-safe discovery context passed into later chat turns. */
-  probeContext: ProbeContext
+/** Result of normalizing a discovery workflow onto the shared canvas. @category Demo */
+export interface DiscoveryWorkflowPrepareResult {
+  /** Capability-derived discovery workflow (shared canvas/run object). */
+  workflow: WorkflowManifest
+  /** Capability the inspect workflow calls. */
+  capabilityId: string
 }
 
-/** Inputs for building a domain-neutral probe context from session state. @category Demo */
-export interface ProbeContextFromStateOptions {
-  /** Completed test session snapshot. */
-  snapshot: TestSessionSnapshot
-  /** State key containing discovery output. */
-  stepAs: string
-  /** Probe domain used by the harness prompt. */
-  domain: string
-  /** Convert the discovered value into selectable options. */
-  buildOptions: (value: unknown) => ProbeOption[]
-  /** Optional summary override. */
-  summary?: string
-}
+/** Host copy when discovery excerpt hits the context budget. @category Demo */
+export const DISCOVERY_TRUNCATION_TRANSFORM_SUGGESTION =
+  "The inspect output was truncated for chat context. Add a bound JSON transform step that projects only the fields you need into workflow state, then continue."
 
-/** Find the last workflow step that appears to produce discovery state. @category Demo */
-export function findDiscoveryCursor(workflow: WorkflowManifest): StepNode | undefined {
+function stepUsesList(workflow: WorkflowManifest): string[] {
   return flattenTestStepOrder(workflow.steps)
     .filter(
-      (step) =>
-        String(step.uses).toLowerCase().includes("generate-manifest") ||
-        (step.as !== undefined && DISCOVERY_STATE_KEYS.has(step.as.toLowerCase()))
+      (step): step is StepNode =>
+        step !== undefined &&
+        (step.type === undefined || step.type === "step") &&
+        typeof step.uses === "string"
     )
-    .at(-1)
+    .map((step) => String(step.uses))
 }
 
-/** Build a generic probe context from a named test-session state value. @category Demo */
-export function buildProbeContextFromState(
-  options: ProbeContextFromStateOptions
-): ProbeContext {
-  const probeOptions = options.buildOptions(options.snapshot.state[options.stepAs])
-  return {
-    probeId: options.snapshot.sessionId,
-    domain: options.domain,
-    ...(options.snapshot.cursor ? { cursor: options.snapshot.cursor } : {}),
-    stepAs: options.stepAs,
-    summary:
-      options.summary ??
-      (probeOptions.length > 0
-        ? `Discovered ${probeOptions.length} option(s).`
-        : "No options discovered."),
-    options: probeOptions,
-  }
-}
-
-/** Run the workflow to its discovery cursor and build Photoshop layer options. @category Demo */
-export async function runProbeSession(
-  ecp: Pick<Ecp, "test">,
+/**
+ * Resolve the capability id a discovery workflow should inspect.
+ * Prefers an explicit {@link WorkflowManifest.discovery} marker, then a single step,
+ * then the first inspect-like step, then the first step.
+ * @category Demo
+ */
+export function resolveDiscoveryCapabilityId(
   workflow: WorkflowManifest,
-  input?: Record<string, unknown>
-): Promise<ProbeSessionResult | undefined> {
-  const cursor = findDiscoveryCursor(workflow)
-  if (!cursor) return undefined
+  preferredCapabilityId?: string
+): string | undefined {
+  if (preferredCapabilityId?.trim()) return preferredCapabilityId.trim()
+  if (workflow.discovery?.capabilityId) return workflow.discovery.capabilityId
+  const uses = stepUsesList(workflow)
+  if (uses.length === 1) return uses[0]
+  if (uses.length === 0) return undefined
+  const inspectLike = uses.find((id) => /inspect|manifest|describe|metadata|stats/i.test(id))
+  return inspectLike ?? uses[0]
+}
 
-  try {
-    const session = await ecp.test(workflow).with({ input: input ?? {} }).start()
-    const snapshot = await session.runTo(cursor.id)
-    const stepAs = cursor.as ?? findPhotoshopStateKey(snapshot.state)
-    if (!stepAs) {
-      return {
-        snapshot,
-        probeContext: {
-          probeId: snapshot.sessionId,
-          domain: PROBE_CONTEXT_DOMAINS.PHOTOSHOP_LAYERS,
-          ...(snapshot.cursor ? { cursor: snapshot.cursor } : {}),
-          summary: "The probe completed without Photoshop layer state.",
-          options: [],
-        },
-      }
-    }
-
-    return {
-      snapshot,
-      probeContext: buildPhotoshopLayersProbeContext({
-        probeId: snapshot.sessionId,
-        manifest: snapshot.state[stepAs],
-        ...(snapshot.cursor ? { cursor: snapshot.cursor } : {}),
-        stepAs,
-      }),
-    }
-  } catch {
-    return undefined
+/**
+ * Normalize a discovery workflow onto the shared canvas/run object.
+ * Always compiles from the bound capability so `accepts` match the registry.
+ * @category Demo
+ */
+export function prepareDiscoveryWorkflow(
+  workflow: WorkflowManifest,
+  lookup: { getCapability: (id: string) => CapabilityDefinition | undefined },
+  preferredCapabilityId?: string
+): DiscoveryWorkflowPrepareResult | undefined {
+  const capabilityId = resolveDiscoveryCapabilityId(workflow, preferredCapabilityId)
+  if (!capabilityId) return undefined
+  return {
+    workflow: compileDiscoveryWorkflow(capabilityId, lookup),
+    capabilityId,
   }
 }
 
-/** Format discovered options as a compact agent chat message. @category Demo */
-export function formatProbeOptionsMessage(probe: ProbeContext): string {
-  if (probe.options.length === 0) return probe.summary
-  const choices = probe.options.map((option) => `${option.label} (${option.id})`).join(", ")
-  return `${probe.summary} Choose one or more: ${choices}.`
+/**
+ * Format projections plus a capped excerpt after a discovery run.
+ * @category Demo
+ */
+export function formatDiscoveryFollowUpMessage(options: {
+  capabilityId: string
+  projections?: CapabilityMetadata["projections"]
+  output: unknown
+}): string {
+  return formatDiscoveryFollowUpLines(options).join("\n")
 }
 
-function findPhotoshopStateKey(state: Record<string, unknown>): string | undefined {
-  return Object.keys(state).find((key) => hasPhotoshopLayers(state[key]))
+/**
+ * Read the discovery step output from a completed run state.
+ * @category Demo
+ */
+export function discoveryOutputFromState(
+  state: Record<string, unknown> | undefined
+): unknown {
+  if (!state) return undefined
+  if (DISCOVERY_RAW_STEP_AS in state) return state[DISCOVERY_RAW_STEP_AS]
+  const keys = Object.keys(state)
+  return keys.length > 0 ? state[keys[keys.length - 1]!] : undefined
 }
 
-function hasPhotoshopLayers(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false
-  const record = value as Record<string, unknown>
-  if (Array.isArray(record.layers)) return true
-  return hasPhotoshopLayers(record.manifest) || hasPhotoshopLayers(record.result)
+/**
+ * Look up capability metadata projections from an {@link Ecp} registry.
+ * @category Demo
+ */
+export function projectionsForCapability(
+  ecp: Pick<Ecp, "getRegistry">,
+  capabilityId: string
+): CapabilityMetadata["projections"] | undefined {
+  return ecp.getRegistry().getCapability(capabilityId)?.metadata?.projections
 }
+
+/**
+ * Build {@link ProbeContext} after a successful discovery run (projections + compact excerpt).
+ * @category Demo
+ */
+export function buildProbeContextAfterDiscovery(options: {
+  capabilityId: string
+  output: unknown
+  projections?: CapabilityMetadata["projections"]
+}): BuildProbeContextFromDiscoveryResult {
+  return buildProbeContextFromDiscovery(options)
+}
+
+/**
+ * Slim run-result snapshot for harness context (no state/history payloads).
+ * @category Demo
+ */
+export function slimDiscoveryRunResult(result: {
+  schema?: string
+  version?: string
+  run?: { id?: string; status?: string }
+}): Record<string, unknown> {
+  return {
+    schema: "@executioncontrolprotocol.run.result",
+    version: result.version ?? "1.0",
+    run: {
+      id: result.run?.id ?? "discovery",
+      status: result.run?.status ?? "completed",
+    },
+  }
+}
+
+export { clearDiscoveryMode }
+
+export type { ProbeContext }

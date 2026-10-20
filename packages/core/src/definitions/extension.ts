@@ -4,7 +4,7 @@ import { z } from "zod"
 import type {
   CapabilityDefinition,
   ExtensionDefinition,
-  HookDefinition,
+  HookDefinition
 } from "./types.js"
 import type { ConfigSchema } from "../config-schema/index.js"
 
@@ -44,6 +44,7 @@ export class ExtensionDefinitionBuilder {
 
   /**
    * Attach agent-facing extension docs.
+   * Typed from {@link ExtensionMetadata}; runtime parse rejects unknown keys and banned prose.
    * @category Definitions
    */
   withMetadata(metadata: ExtensionMetadata): this {
@@ -74,7 +75,7 @@ export class ExtensionDefinitionBuilder {
       capabilities: this.capabilities,
       hooks: this.hooks,
       supportedRuntimes: this.supportedRuntimes,
-      ...(this.metadata ? { metadata: this.metadata } : {}),
+      ...(this.metadata ? { metadata: this.metadata } : {})
     }
   }
 }

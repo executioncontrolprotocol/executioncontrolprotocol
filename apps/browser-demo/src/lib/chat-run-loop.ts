@@ -1,7 +1,11 @@
+import type { ValidationResult } from "@executioncontrolprotocol/types"
 import {
   collectRunFailureMessages,
   isFailedRunResult,
 } from "./run-progress-sync.js"
+
+/** Max validation issues listed in the authoring chat fallback line. @category Demo */
+const AUTHORING_VALIDATION_CHAT_MAX = 3
 
 /** Max automatic troubleshoot rounds after a chat-initiated failed run. @category Demo */
 export const CHAT_AUTO_TROUBLESHOOT_MAX = 3
@@ -10,7 +14,9 @@ export const CHAT_AUTO_TROUBLESHOOT_MAX = 3
 export const CHAT_TROUBLESHOOT_PROMPT =
   "The last workflow run failed. Diagnose the errors from the run context and patch the workflow to fix them."
 
-const CONFIRM_EXACT = /^(yes|y|yeah|yep|sure|ok|okay|run(?:\s+it)?|please\s+run(?:\s+it)?)$/i
+/** Exact chip-equivalent confirms (no model). Broader language uses intent classification. */
+const CONFIRM_EXACT =
+  /^(yes|y|yeah|yep|sure|ok|okay|run(?:\s+it)?|please\s+run(?:\s+it)?|inspect(?:\s+it)?|probe(?:\s+it)?)$/i
 const DECLINE_EXACT = /^(no|n|nope|not\s+now|later|skip)$/i
 
 /**
@@ -29,17 +35,18 @@ export function isRunOfferDecline(message: string): boolean {
   return DECLINE_EXACT.test(message.trim())
 }
 
-/** How to handle a user turn while a run offer is pending. @category Demo */
-export type PendingOfferAction = "confirm" | "decline" | "cancel-and-chat"
+/** How to treat a user turn while a host offer is pending. @category Demo */
+export type PendingOfferAction = "confirm" | "decline" | "classify"
 
 /**
- * Decide how to treat a user message when an offer-run chip is pending.
+ * Fast-path decision for a pending run offer (regex only).
+ * Returns {@code classify} when the host should ask the harness intent classifier.
  * @category Demo
  */
 export function resolvePendingOfferAction(message: string): PendingOfferAction {
   if (isRunOfferConfirm(message)) return "confirm"
   if (isRunOfferDecline(message)) return "decline"
-  return "cancel-and-chat"
+  return "classify"
 }
 
 /**
@@ -59,13 +66,14 @@ export function isProbeOfferDecline(message: string): boolean {
 }
 
 /**
- * Decide how to treat a user message when an offer-probe chip is pending.
+ * Fast-path decision for a pending probe offer (regex only).
+ * Returns {@code classify} when the host should ask the harness intent classifier.
  * @category Demo
  */
 export function resolvePendingProbeOfferAction(message: string): PendingOfferAction {
   if (isProbeOfferConfirm(message)) return "confirm"
   if (isProbeOfferDecline(message)) return "decline"
-  return "cancel-and-chat"
+  return "classify"
 }
 
 /**
@@ -101,6 +109,29 @@ export function formatChatRunFailureMessage(result: unknown): string {
   }
   const joined = lines.slice(0, 3).join("; ")
   return `The workflow run failed: ${joined}`
+}
+
+/**
+ * Chat line when authoring applied a workflow that still fails schema validation.
+ * @category Demo
+ */
+export function formatAuthoringValidationChatMessage(
+  validation: ValidationResult | null | undefined
+): string {
+  const errors = validation?.errors ?? []
+  if (errors.length === 0) {
+    return "Workflow updated but has validation issues."
+  }
+  const parts = errors.slice(0, AUTHORING_VALIDATION_CHAT_MAX).map((issue) => {
+    const path = issue.path?.trim()
+    const detail = path ? `${issue.message} (${path})` : issue.message
+    return `[${issue.code}] ${detail}`
+  })
+  const more =
+    errors.length > AUTHORING_VALIDATION_CHAT_MAX
+      ? ` (+${errors.length - AUTHORING_VALIDATION_CHAT_MAX} more)`
+      : ""
+  return `Workflow updated but has validation issues: ${parts.join("; ")}${more}`
 }
 
 /**

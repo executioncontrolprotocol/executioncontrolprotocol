@@ -9,6 +9,7 @@ export {
   summarizeEnvironmentDescriptor,
   toAuthoringEnvironmentDescriptor,
   formatEnvironmentSummaryLines,
+  formatFluentCapabilityDetailLines,
   isWorkflowStepCapability,
   isAuthoringInventoryExtension,
   type AuthoringInventoryExtensionOptions,
@@ -20,6 +21,7 @@ export {
   DESCRIBE_DETAIL_ID_LIMIT,
   extractMentionedEntityIds,
   loadEnvironmentDescribeForPrompt,
+  type DescribeForPromptOptions,
 } from "./describe-for-prompt.js"
 export {
   introspectCapabilitySchema,
@@ -30,7 +32,9 @@ export type { CapabilitySchemaFields } from "./summarize-capability-schema.js"
 export {
   summarizeHarnessRunContext,
   formatRunContextSummaryLines,
+  formatStepFailureMessage,
   type CompactRunContextSummary,
+  type CompactFailedStepSummary,
 } from "./summarize-run-context.js"
 export {
   summarizeWorkflowManifest,
@@ -99,6 +103,7 @@ export {
   deriveIntentSummaryFallback,
   enrichClassifiedIntent,
   correctClassifiedIntent,
+  applyPendingOfferIntentCorrection,
   inferIntentFromMessageHeuristic,
   canonicalizeIntentTopic,
   isClassifiedIntentValue,
@@ -129,8 +134,21 @@ export {
 } from "./chat-result.js"
 export {
   summarizeProbeContext,
-  probeOptionsFromPhotoshopManifest,
-  buildPhotoshopLayersProbeContext,
   messageSelectsProbeOptions,
   PROBE_CONTEXT_OPTION_PROMPT_LIMIT,
 } from "./summarize-probe-context.js"
+export {
+  compileDiscoveryWorkflow,
+  clearDiscoveryMode,
+  formatProjectionsForPrompt,
+  capDiscoveryExcerpt,
+  compactDiscoveryValue,
+  formatDiscoveryFollowUpLines,
+  buildProbeContextFromDiscovery,
+  isDiscoveryExcerptTruncated,
+  DISCOVERY_RAW_STEP_AS,
+  DISCOVERY_OUTPUT_EXCERPT_CHAR_LIMIT,
+  DISCOVERY_EXCERPT_TRUNCATION_MARKER,
+  PROBE_CONTEXT_SUMMARY_CHAR_LIMIT,
+  type BuildProbeContextFromDiscoveryResult,
+} from "./compile-discovery-workflow.js"

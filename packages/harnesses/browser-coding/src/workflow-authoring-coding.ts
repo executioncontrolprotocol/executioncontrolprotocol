@@ -70,12 +70,12 @@ function existingCapabilityUses(manifest: WorkflowManifest | undefined): Set<str
 
 function resolveEnvironmentSummaryFormat(
   value: unknown,
-  profile: "small" | "medium" | "frontier"
+  _profile: "small" | "medium" | "frontier"
 ): EnvironmentSummaryFormat {
-  if (value === "fluent" || value === "plain" || value === "eql-create" || value === "eql-patch") {
+  if (value === "fluent" || value === "plain") {
     return value
   }
-  return profile === "small" ? "plain" : "fluent"
+  return "fluent"
 }
 
 const outputConfigSchema = z.object({
@@ -93,9 +93,7 @@ const harnessConfigSchema = z.object({
       includeEnvironmentDescriptor: z.boolean().default(true),
       includeEncodedDescriptor: z.boolean().default(false),
       descriptorFormat: z.string().default("@executioncontrolprotocol/format-json"),
-      environmentSummaryFormat: z
-        .enum(["plain", "fluent", "eql-create", "eql-patch"])
-        .optional(),
+      environmentSummaryFormat: z.enum(["plain", "fluent"]).optional(),
     })
     .default({}),
   output: outputConfigSchema.default({}),

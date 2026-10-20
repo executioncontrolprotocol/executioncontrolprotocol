@@ -8,7 +8,7 @@ import type {
   EnvironmentManifest,
   ExtensionDescription,
   ExtensionMetadata,
-  PolicyDescription,
+  PolicyDescription
 } from "@executioncontrolprotocol/types"
 import type { Registry } from "../registry/registry.js"
 import { resolveCapabilityExecution } from "../runtime/capability-execution.js"
@@ -77,7 +77,7 @@ const CAPABILITY_INVENTORY_KEYS = [
   "label",
   "extension",
   "execution",
-  "summary",
+  "summary"
 ] as const
 
 /** Inventory fields always retained when `include` projects extension rows. */
@@ -88,7 +88,7 @@ const EXTENSION_INVENTORY_KEYS = [
   "capabilities",
   "summary",
   "isAuthorable",
-  "supportedRuntimes",
+  "supportedRuntimes"
 ] as const
 
 /**
@@ -102,7 +102,7 @@ function pickCapabilityFields(
   if (!include || include.length === 0) return desc
   return pickFields(desc, [
     ...CAPABILITY_INVENTORY_KEYS,
-    ...include,
+    ...include
   ]) as CapabilityDescription
 }
 
@@ -116,7 +116,7 @@ function pickExtensionFields(
   if (!include || include.length === 0) return desc
   return pickFields(desc, [
     ...EXTENSION_INVENTORY_KEYS,
-    ...include,
+    ...include
   ]) as ExtensionDescription
 }
 
@@ -127,8 +127,8 @@ function pickExtensionFields(
  */
 export const DESCRIBE_AUTHORING_CAPABILITIES_QUERY = {
   capabilities: {
-    include: ["inputSchema", "outputSchema"],
-  },
+    include: ["inputSchema", "outputSchema"]
+  }
 } as const satisfies DescribeQuery
 
 function applyLimit<T>(items: T[], limit?: number): T[] {
@@ -140,6 +140,17 @@ function projectSchema(schema: unknown): unknown {
   if (schema === undefined) return undefined
   if (isZodType(schema)) return jsonSchemaFromZod(schema as z.ZodType)
   return schema
+}
+
+function projectionSearchText(
+  projections: { summary: string; description: string }[] | undefined
+): string[] {
+  if (!projections?.length) return []
+  const lines: string[] = []
+  for (const projection of projections) {
+    lines.push(projection.summary, projection.description)
+  }
+  return lines
 }
 
 function capabilitySearchText(
@@ -155,7 +166,7 @@ function capabilitySearchText(
     meta?.summary ?? "",
     meta?.description ?? "",
     ...(meta?.useCases ?? []),
-    ...(meta?.samplePrompts ?? []),
+    ...projectionSearchText(meta?.projections),
   ].join(" ")
 }
 
@@ -173,7 +184,6 @@ function extensionSearchText(
     meta?.summary ?? "",
     meta?.description ?? "",
     ...(meta?.useCases ?? []),
-    ...(meta?.samplePrompts ?? []),
   ].join(" ")
 }
 
@@ -203,7 +213,7 @@ function buildCapabilityDescription(
     label,
     extension: def.id,
     execution: resolveCapabilityExecution(cap, def),
-    ...(meta?.summary ? { summary: meta.summary } : {}),
+    ...(meta?.summary ? { summary: meta.summary } : {})
   }
   const withMetadata = opts.detail || opts.searchIndex || opts.includeMetadata
   const withSchemas = opts.detail || opts.includeSchemas
@@ -213,9 +223,9 @@ function buildCapabilityDescription(
     ...(withSchemas
       ? {
           inputSchema: projectSchema(cap.inputSchema),
-          outputSchema: projectSchema(cap.outputSchema),
+          outputSchema: projectSchema(cap.outputSchema)
         }
-      : {}),
+      : {})
   }
 }
 
@@ -241,7 +251,7 @@ function buildExtensionDescription(
     ...(meta?.isAuthorable === false ? { isAuthorable: false } : {}),
     ...(def?.supportedRuntimes?.length
       ? { supportedRuntimes: [...def.supportedRuntimes] }
-      : {}),
+      : {})
   }
   const withMetadata = opts.detail || opts.searchIndex || opts.includeMetadata
   return {
@@ -249,7 +259,7 @@ function buildExtensionDescription(
     ...(withMetadata && meta ? { metadata: meta as ExtensionMetadata } : {}),
     ...(opts.detail && def?.configSchema
       ? { configSchema: projectSchema(def.configSchema) }
-      : {}),
+      : {})
   }
 }
 
@@ -278,7 +288,7 @@ export async function buildDescriptor(
         searchIndex,
         includeSchemas:
           capInclude.includes("inputSchema") || capInclude.includes("outputSchema"),
-        includeMetadata: capInclude.includes("metadata"),
+        includeMetadata: capInclude.includes("metadata")
       })
       caps.push(pickCapabilityFields(desc, query?.capabilities?.include))
     }
@@ -293,7 +303,7 @@ export async function buildDescriptor(
         const desc = buildExtensionDescription(e, i, def, {
           detail: extensionDetail,
           searchIndex,
-          includeMetadata: extInclude.includes("metadata"),
+          includeMetadata: extInclude.includes("metadata")
         })
         return pickExtensionFields(desc, query?.extensions?.include)
       })
@@ -312,7 +322,7 @@ export async function buildDescriptor(
           label: p.label,
           summary: def?.name,
           config: p.config,
-          configSchema: def?.configSchema,
+          configSchema: def?.configSchema
         }
         return pickFields(desc, query?.policies?.include) as PolicyDescription
       })
@@ -341,8 +351,8 @@ export async function buildDescriptor(
             parallel: true,
             branches: true,
             pauses: true,
-            cancellation: true,
-          },
+            cancellation: true
+          }
         }
       : {
           id: runtimeId,
@@ -351,11 +361,11 @@ export async function buildDescriptor(
             parallel: false,
             branches: false,
             pauses: false,
-            cancellation: false,
-          },
+            cancellation: false
+          }
         },
     extensions,
     capabilities: applyLimit(caps, query?.capabilities?.limit),
-    policies,
+    policies
   }
 }

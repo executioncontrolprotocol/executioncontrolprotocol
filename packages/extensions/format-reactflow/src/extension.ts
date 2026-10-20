@@ -8,13 +8,13 @@ import {
   hook,
   validateWorkflow,
   type LifecycleContext,
-  type UtilityCapabilityContext,
+  type UtilityCapabilityContext
 } from "@executioncontrolprotocol/core"
 import {
   LATEST_ECP_VERSION,
   type EcpEncodeInput,
   type EncodeResult,
-  type WorkflowManifest,
+  type WorkflowManifest
 } from "@executioncontrolprotocol/types"
 import { reactFlowRunProgress } from "./progress.js"
 import type { ReactFlowEncodeOptions } from "./types.js"
@@ -33,9 +33,9 @@ function encodeToReactFlow(
         {
           severity: "error",
           code: "FORMAT_UNSUPPORTED_SOURCE_SCHEMA",
-          message: "React Flow encoder supports @executioncontrolprotocol.workflow only",
-        },
-      ],
+          message: "React Flow encoder supports @executioncontrolprotocol.workflow only"
+        }
+      ]
     })
   }
 
@@ -45,7 +45,7 @@ function encodeToReactFlow(
       format: "reactflow",
       sourceSchema,
       validation,
-      diagnostics: [...validation.errors, ...validation.warnings],
+      diagnostics: [...validation.errors, ...validation.warnings]
     })
   }
 
@@ -61,7 +61,7 @@ function encodeToReactFlow(
     sourceSchema,
     sourceVersion: input.sourceVersion,
     result: JSON.stringify(doc),
-    diagnostics: [],
+    diagnostics: []
   }
 }
 
@@ -83,7 +83,7 @@ export const formatReactflowExtension = defineExtension(
     summary: "React Flow graph encoding and live run progress.",
     description:
       "Encodes workflow manifests into React Flow JSON for interactive editors. Lifecycle hooks emit step status updates during workflow runs.",
-    isAuthorable: false,
+    isAuthorable: false
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/format-reactflow", "encode")
@@ -96,17 +96,20 @@ export const formatReactflowExtension = defineExtension(
           "Builds nodes, edges, and port metadata from a validated workflow using registry capability schemas. Returns encoded JSON suitable for React Flow viewers.",
         useCases: [
           "Interactive editor loads a workflow as draggable nodes.",
-          "Demo app renders data edges between step outputs.",
+          "Demo app renders data edges between step outputs."
         ],
-        samplePrompts: [
-          "Encode this workflow for the React Flow viewer.",
-          "Build the React Flow graph from the current manifest.",
-        ],
+        projections: [
+          {
+            summary: "Take the encoded document",
+            description:
+              "When success is true, use the result field as React Flow JSON for the editor canvas or preview."
+          }
+        ]
       })
       .withHandler((input, ctx) => {
         const utilityCtx = ctx as unknown as UtilityCapabilityContext
         return encodeToReactFlow(input as EcpEncodeInput, utilityCtx)
-      }),
+      })
   ])
   .withHooks([
     progressHook("run:before", (ctx) => {
@@ -141,7 +144,7 @@ export const formatReactflowExtension = defineExtension(
     }),
     progressHook("run:cancelled", (ctx) => {
       reactFlowRunProgress.emitDone({ runId: ctx.run.id, outcome: "cancelled" })
-    }),
+    })
   ])
   .build()
 

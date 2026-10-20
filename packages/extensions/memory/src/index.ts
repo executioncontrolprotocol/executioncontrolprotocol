@@ -8,12 +8,12 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
   .withConfig({
     hydrateModels: z.boolean().default(true),
     rememberOutputs: z.boolean().default(false),
-    collections: z.array(z.string()).default([]),
+    collections: z.array(z.string()).default([])
   })
   .withMetadata({
     summary: "In-memory recall and search for workflow context.",
     description:
-      "Stores and retrieves entries across named collections in process memory. Hooks can auto-remember step outputs when configured.",
+      "Stores and retrieves entries across named collections in process memory. Hooks can auto-remember step outputs when configured."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/memory", "search")
@@ -25,18 +25,21 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
           "Performs a simple substring match across all remembered entries. Returns matching records for use in follow-up prompts or routing.",
         useCases: [
           "Assistant step recalls prior user facts from memory.",
-          "Workflow searches step-output history for a keyword.",
+          "Workflow searches step-output history for a keyword."
         ],
-        samplePrompts: [
-          "Search memory for mentions of invoice totals.",
-          "Find prior entries about the echo workflow.",
-        ],
+        projections: [
+          {
+            summary: "Take matching entries",
+            description:
+              "Use the results array as recalled context for follow-up prompts or routing decisions."
+          }
+        ]
       })
       .withHandler(async (input) => {
         const q = (input as { query: string }).query.toLowerCase()
         const all = [...store.values()].flat()
         return {
-          results: all.filter((r) => JSON.stringify(r).toLowerCase().includes(q)),
+          results: all.filter((r) => JSON.stringify(r).toLowerCase().includes(q))
         }
       }),
     capabilityFor("@executioncontrolprotocol/memory", "remember")
@@ -48,12 +51,15 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
           "Appends an arbitrary entry to a named collection, defaulting to default. Entries remain available for later search within the same environment lifetime.",
         useCases: [
           "Chat turn stores a summarized fact for future turns.",
-          "Workflow explicitly records a decision for audit recall.",
+          "Workflow explicitly records a decision for audit recall."
         ],
-        samplePrompts: [
-          "Remember that the user prefers dark mode.",
-          "Store this step output in the default collection.",
-        ],
+        projections: [
+          {
+            summary: "Confirm the collection write",
+            description:
+              "When stored is true, the entry was appended to the named collection and is available for later search."
+          }
+        ]
       })
       .withHandler(async (input) => {
         const col = (input as { collection?: string }).collection ?? "default"
@@ -61,7 +67,7 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
         list.push((input as { entry: unknown }).entry)
         store.set(col, list)
         return { stored: true }
-      }),
+      })
   ])
   .withHooks([
     hook("step:completed", async (ctx) => {
@@ -71,7 +77,7 @@ export const memoryExtension = defineExtension("@executioncontrolprotocol", "mem
       list.push({ stepId: ctx.step.id, output: ctx.output })
       store.set(col, list)
     }),
-    hook("run:finally", async () => undefined),
+    hook("run:finally", async () => undefined)
   ])
   .build()
 
