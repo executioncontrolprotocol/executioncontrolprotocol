@@ -139,6 +139,7 @@ export {
 } from "./summarize-probe-context.js"
 export {
   compileDiscoveryWorkflow,
+  clearDiscoveryMode,
   formatProjectionsForPrompt,
   capDiscoveryExcerpt,
   compactDiscoveryValue,

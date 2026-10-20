@@ -1,5 +1,6 @@
 import {
   buildProbeContextFromDiscovery,
+  clearDiscoveryMode,
   compileDiscoveryWorkflow,
   DISCOVERY_RAW_STEP_AS,
   formatDiscoveryFollowUpLines,
@@ -15,9 +16,9 @@ import type {
   WorkflowManifest,
 } from "@executioncontrolprotocol/types"
 
-/** Result of preparing a disposable discovery workflow. @category Demo */
+/** Result of normalizing a discovery workflow onto the shared canvas. @category Demo */
 export interface DiscoveryWorkflowPrepareResult {
-  /** Compiled or already-marked discovery workflow. */
+  /** Capability-derived discovery workflow (shared canvas/run object). */
   workflow: WorkflowManifest
   /** Capability the inspect workflow calls. */
   capabilityId: string
@@ -58,8 +59,8 @@ export function resolveDiscoveryCapabilityId(
 }
 
 /**
- * Prepare a discovery workflow for the run modal.
- * Compiles from the bound capability when the marker is missing.
+ * Normalize a discovery workflow onto the shared canvas/run object.
+ * Always compiles from the bound capability so `accepts` match the registry.
  * @category Demo
  */
 export function prepareDiscoveryWorkflow(
@@ -69,12 +70,6 @@ export function prepareDiscoveryWorkflow(
 ): DiscoveryWorkflowPrepareResult | undefined {
   const capabilityId = resolveDiscoveryCapabilityId(workflow, preferredCapabilityId)
   if (!capabilityId) return undefined
-  if (
-    workflow.discovery?.capabilityId === capabilityId &&
-    stepUsesList(workflow).length === 1
-  ) {
-    return { workflow, capabilityId }
-  }
   return {
     workflow: compileDiscoveryWorkflow(capabilityId, lookup),
     capabilityId,
@@ -147,5 +142,7 @@ export function slimDiscoveryRunResult(result: {
     },
   }
 }
+
+export { clearDiscoveryMode }
 
 export type { ProbeContext }

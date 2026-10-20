@@ -4,6 +4,7 @@ import { capabilityFor } from "@executioncontrolprotocol/core"
 import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import {
   buildProbeContextAfterDiscovery,
+  clearDiscoveryMode,
   discoveryOutputFromState,
   formatDiscoveryFollowUpMessage,
   prepareDiscoveryWorkflow,
@@ -110,16 +111,38 @@ describe("prepareDiscoveryWorkflow", () => {
     expect(prepared?.workflow.steps).toHaveLength(1)
   })
 
-  it("reuses a marked one-step discovery workflow", () => {
+  it("normalizes a marked workflow from the capability schema", () => {
     const workflow: WorkflowManifest = {
       schema: "@executioncontrolprotocol.workflow",
       version: "1.0",
-      workflow: { id: "d" },
+      workflow: {
+        id: "d",
+        accepts: { type: "object", properties: { source: { type: "string" } } },
+      },
       steps: [{ id: "a", uses: inspect.id, as: "raw" }],
       discovery: { capabilityId: inspect.id },
     }
     const prepared = prepareDiscoveryWorkflow(workflow, lookup)
-    expect(prepared?.workflow).toBe(workflow)
+    expect(prepared?.capabilityId).toBe(inspect.id)
+    expect(prepared?.workflow.discovery).toEqual({ capabilityId: inspect.id })
+    expect(prepared?.workflow.steps).toHaveLength(1)
+    expect(prepared?.workflow).not.toBe(workflow)
+  })
+
+  it("prepare then clearDiscoveryMode strips the marker and keeps steps", () => {
+    const workflow: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "authoring" },
+      steps: [{ id: "a", uses: inspect.id, as: "raw" }],
+    }
+    const prepared = prepareDiscoveryWorkflow(workflow, lookup)
+    expect(prepared).toBeDefined()
+    const cleared = clearDiscoveryMode(prepared!.workflow)
+    expect(cleared.discovery).toBeUndefined()
+    expect(cleared.workflow.returns).toBeUndefined()
+    expect(cleared.steps).toHaveLength(1)
+    expect(cleared.workflow.accepts).toEqual(prepared!.workflow.workflow.accepts)
   })
 })
 

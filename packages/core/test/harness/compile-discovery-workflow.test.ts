@@ -4,12 +4,14 @@ import { capabilityFor } from "../../src/definitions/capability.js"
 import {
   buildProbeContextFromDiscovery,
   capDiscoveryExcerpt,
+  clearDiscoveryMode,
   compileDiscoveryWorkflow,
   DISCOVERY_RAW_STEP_AS,
   formatDiscoveryFollowUpLines,
   formatProjectionsForPrompt,
   isDiscoveryExcerptTruncated,
 } from "../../src/harness/authoring/compile-discovery-workflow.js"
+import type { WorkflowManifest } from "@executioncontrolprotocol/types"
 import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
 
 describe("compileDiscoveryWorkflow", () => {
@@ -80,6 +82,76 @@ describe("compileDiscoveryWorkflow", () => {
     expect(manifest.steps.every((step) => !String((step as { uses?: string }).uses).includes("jsonata"))).toBe(
       true
     )
+  })
+
+  it("clearDiscoveryMode strips the discovery marker and temporary raw return", () => {
+    const manifest = compileDiscoveryWorkflow(inspect.id, lookup)
+    const cleared = clearDiscoveryMode(manifest)
+    expect(cleared.discovery).toBeUndefined()
+    expect(cleared.workflow.returns).toBeUndefined()
+    expect(cleared.steps).toEqual(manifest.steps)
+    expect(cleared.workflow.accepts).toEqual(manifest.workflow.accepts)
+    expect(cleared).not.toBe(manifest)
+  })
+})
+
+describe("clearDiscoveryMode", () => {
+  it("returns the same manifest when discovery is absent", () => {
+    const manifest: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: {
+        id: "plain",
+        accepts: { type: "object", properties: { x: { type: "string" } } },
+        returns: {
+          type: "object",
+          properties: {
+            [DISCOVERY_RAW_STEP_AS]: { type: "object" },
+            result: { type: "object" },
+          },
+        },
+      },
+      steps: [],
+    }
+    expect(clearDiscoveryMode(manifest)).toBe(manifest)
+  })
+
+  it("preserves other return keys and omits returns when absent", () => {
+    const withOtherReturns: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: {
+        id: "mixed",
+        returns: {
+          type: "object",
+          properties: {
+            [DISCOVERY_RAW_STEP_AS]: { type: "object" },
+            result: { type: "string" },
+          },
+        },
+      },
+      steps: [{ type: "step", id: "s1", uses: "@x/y.z", as: "result" }],
+      discovery: { capabilityId: "@x/y.z" },
+    }
+    const cleared = clearDiscoveryMode(withOtherReturns)
+    expect(cleared.discovery).toBeUndefined()
+    expect(cleared.workflow.returns).toEqual({
+      type: "object",
+      properties: { result: { type: "string" } },
+    })
+    expect(cleared.steps).toHaveLength(1)
+
+    const noReturns: WorkflowManifest = {
+      schema: "@executioncontrolprotocol.workflow",
+      version: "1.0",
+      workflow: { id: "bare" },
+      steps: [],
+      discovery: { capabilityId: "@x/y.z" },
+    }
+    const clearedBare = clearDiscoveryMode(noReturns)
+    expect(clearedBare.discovery).toBeUndefined()
+    expect(clearedBare.workflow.returns).toBeUndefined()
+    expect(clearedBare.workflow.id).toBe("bare")
   })
 })
 

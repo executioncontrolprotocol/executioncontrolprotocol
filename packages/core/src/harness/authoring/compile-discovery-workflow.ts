@@ -116,6 +116,60 @@ export function compileDiscoveryWorkflow(
 }
 
 /**
+ * Clear discovery mode from a shared workflow after a successful inspect run.
+ * Removes the discovery marker and the temporary {@link DISCOVERY_RAW_STEP_AS}
+ * return key. Steps and accepts stay intact. No-ops when discovery is absent.
+ * @category Harness
+ */
+export function clearDiscoveryMode(manifest: WorkflowManifest): WorkflowManifest {
+  if (manifest.discovery === undefined) {
+    return manifest
+  }
+  const rest: WorkflowManifest = {
+    schema: manifest.schema,
+    version: manifest.version,
+    workflow: manifest.workflow,
+    steps: manifest.steps,
+  }
+  const returns = rest.workflow.returns
+  if (
+    returns === undefined ||
+    typeof returns !== "object" ||
+    Array.isArray(returns) ||
+    !("properties" in returns)
+  ) {
+    return rest
+  }
+  const properties = (returns as { properties?: Record<string, unknown> }).properties
+  if (properties === undefined || !(DISCOVERY_RAW_STEP_AS in properties)) {
+    return rest
+  }
+  const remainingProperties = Object.fromEntries(
+    Object.entries(properties).filter(([key]) => key !== DISCOVERY_RAW_STEP_AS)
+  )
+  if (Object.keys(remainingProperties).length === 0) {
+    return {
+      ...rest,
+      workflow: {
+        id: rest.workflow.id,
+        ...(rest.workflow.label !== undefined ? { label: rest.workflow.label } : {}),
+        ...(rest.workflow.accepts !== undefined ? { accepts: rest.workflow.accepts } : {}),
+      },
+    }
+  }
+  return {
+    ...rest,
+    workflow: {
+      ...rest.workflow,
+      returns: {
+        ...(returns as Record<string, unknown>),
+        properties: remainingProperties,
+      },
+    },
+  }
+}
+
+/**
  * Format capability projections as prompt lines (after an inspect run).
  * @category Harness
  */

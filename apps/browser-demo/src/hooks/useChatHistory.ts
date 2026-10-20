@@ -80,7 +80,9 @@ export function useChatHistory(initialMode: AssistantMode = "authoring") {
 
   const clearOfferRunFlags = useCallback(() => {
     setMessages((prev) =>
-      prev.map((m) => (m.offerRun ? { ...m, offerRun: false } : m))
+      prev.map((m) =>
+        m.offerRun || m.offerProbe ? { ...m, offerRun: false, offerProbe: false } : m
+      )
     )
   }, [])
 
