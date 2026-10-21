@@ -14,8 +14,9 @@
   site.
 - **Packages:** `core` runs ECP in Node or browsers. `cli` is the primary surface and `mcp`
   the second. Every capability set is its own npm plugin. The visual app is a plugin too.
-- **One routine = one file.** A Fluent TS file declares its steps, config, policies and plugin
-  needs. Running it with missing plugins prompts to install them.
+- **One routine = one file.** A Fluent TS file declares its plugin needs (`.requires()`), plugin
+  config (`.withExtensions()`), policies (`.withPolicies()`) and steps (`.run()`), using the
+  binding builders ECP already has. Running it with missing plugins prompts to install them.
 - **Built to be supervised:** `--json` everywhere, stable error codes, a run journal, live
   events, and resume from any step. That is what makes the agent's self-healing loop possible.
 - **Order:** trim → consolidate core → CLI and plugins → routines and observability → npm →
@@ -116,7 +117,7 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 | `@executioncontrolprotocol/core` | Runs ECP in Node or browsers. Entries: `.` (works in both), `./node`, `./browser`, `./types` |
 | `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
 | `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
-| `@executioncontrolprotocol/plugin-kit` | Small authoring dependency: turns an extension definition into CLI commands |
+| `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: the small authoring dependency that turns an extension definition into CLI commands |
 | `@executioncontrolprotocol/plugin-<name>` | One package per capability set, each versioned independently |
 | `@executioncontrolprotocol/plugin-app` | The visual co-editor, installed as a CLI plugin |
 
@@ -132,7 +133,7 @@ packages/
                  encoding (json, fluent), patch, journal model, node + browser entries
   cli/           ecp binary, workflow commands, plugin commands, hooks
   mcp/           MCP server + `ecp mcp serve`
-  plugin-kit/    toCommands(), shared flag and output helpers
+  plugin-sdk/    toCommands(), shared flag and output helpers
 plugins/
   plugin-secrets  plugin-storage   plugin-memory    plugin-jsonata
   plugin-anthropic plugin-openai   plugin-ollama    plugin-fal
@@ -199,7 +200,7 @@ The milestone is done when all of these are true:
 
 | Entry | Contents | Runs in |
 | --- | --- | --- |
-| `.` | Fluent API (`routine`, `step`, `ref`, `secret`, `state`, flow control), definitions (`defineExtension`, `capabilityFor`, `definePolicy`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
+| `.` | Fluent API (`routine`, `workflow`, `step`, `ref`, `state`, flow control), binding builders (`extension`, `policy`, `runtime`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
 | `./types` | Protocol types, schema IDs, generated JSON Schemas | Anywhere |
 | `./node` | Routine loader (transpile, `core` self-resolution), journal on disk, file and media loaders, node runtime binding | Node |
 | `./browser` | Browser runtime binding, browser file and blob helpers | Browsers |
@@ -232,7 +233,7 @@ export default defineExtension("@executioncontrolprotocol", "jsonata")
 
 ```ts
 // plugins/plugin-jsonata/src/oclif.ts  (CLI entry)
-import { toCommands } from "@executioncontrolprotocol/plugin-kit"
+import { toCommands } from "@executioncontrolprotocol/plugin-sdk"
 import extension from "./index.js"
 export const COMMANDS = toCommands(extension)
 ```
@@ -249,7 +250,7 @@ export const COMMANDS = toCommands(extension)
     "topics": { "jsonata": { "description": "Transform JSON payloads with JSONata expressions" } }
   },
   "peerDependencies": { "@executioncontrolprotocol/core": "^1" },
-  "dependencies": { "@executioncontrolprotocol/plugin-kit": "^1", "jsonata": "^2" }
+  "dependencies": { "@executioncontrolprotocol/plugin-sdk": "^1", "jsonata": "^2" }
 }
 ```
 
@@ -276,20 +277,53 @@ entry directly, without oclif.
 - Third-party plugins use their own scope with the same `plugin-` prefix, plus the
   `ecosystem:ecp-plugin` keyword.
 
-### 4.3 Routines
+### 4.3 Routines: one file runs the whole sequence
+
+A **routine** is a single Fluent TS file that holds everything needed to run: which plugins it
+needs (`.requires()`), how they're configured (`.withExtensions()`), which policies govern it
+(`.withPolicies()`), and the steps (`.run()`). There's no `ecp.yaml`, no separate environment
+module, and no `package.json` next to it.
+
+**It reuses today's binding model.** ECP already registers plugins with config through
+binding builders on an environment:
+
+```ts
+// today: environment.ts (separate file, imports each extension package)
+import "@executioncontrolprotocol/extension-openai"
+export default (await environment("weekly-brief"))
+  .withExtensions([extension("@executioncontrolprotocol/openai", "OpenAI").with({ apiKey: secrets("openai/api-key") })])
+  .withPolicies([policy("@executioncontrolprotocol/budget").with({ maxCostUsd: 2 })])
+```
+
+**Gap found while checking this:** definitions already declare a config schema (`withConfig(zod)`), and `describe` shows it, but bound config is never validated against it today. Phase 4 adds that check at load time (`ECP_BINDING_INVALID`), so a model learns about a bad `apiKey` field before the first step runs.
+
+A routine keeps exactly those builders (`extension(id, label?).with(config)`,
+`policy(id, label?).with(config)`, `runtime(...)`, and the `env()`, `secrets()` and `browser()`
+config placeholders). It moves them onto the workflow builder and drops the side-effect
+imports. There's no new `.bind()` convention. A `routine` is a `workflow` that also carries its
+bindings.
 
 ```ts
 // signups.ecp.ts
-import { routine, step, ref, secret, budget, approval } from "@executioncontrolprotocol/core"
+import { routine, step, ref, extension, policy, secrets } from "@executioncontrolprotocol/core"
 
 export default routine("Weekly signups to Slack")
-  .requires({ "@executioncontrolprotocol/plugin-slack": "^1" })   // optional pins
-  .bind("@executioncontrolprotocol/anthropic", {
-    apiKey: secret("anthropic/api-key"),
-    defaultModel: "claude-sonnet-5-5",
+  .requires({                                            // optional version pins
+    "@executioncontrolprotocol/plugin-slack": "^1",
   })
-  .bind("@executioncontrolprotocol/slack", { botToken: secret("slack/bot-token") })
-  .policies([budget({ maxUsd: 1 }), approval({ capabilities: ["@executioncontrolprotocol/slack.send"] })])
+  .withExtensions([                                      // only extensions that need config
+    extension("@executioncontrolprotocol/anthropic", "Claude").with({
+      apiKey: secrets("anthropic/api-key"),
+      defaultModel: "claude-sonnet-5-5",
+    }),
+    extension("@executioncontrolprotocol/slack").with({ botToken: secrets("slack/bot-token") }),
+  ])
+  .withPolicies([                                        // built into core, no plugin needed
+    policy("@executioncontrolprotocol/budget").with({ maxCostUsd: 1 }),
+    policy("@executioncontrolprotocol/approval").with({
+      requireApprovalFor: ["@executioncontrolprotocol/slack.send"],
+    }),
+  ])
   .run([
     step("@executioncontrolprotocol/storage.list", "Last week's signups")
       .with({ prefix: "signups/", since: "7d" })
@@ -303,14 +337,28 @@ export default routine("Weekly signups to Slack")
   ])
 ```
 
+The routine API:
+
+| Method | Takes | Notes |
+| --- | --- | --- |
+| `routine(name, label?)` | Name | A workflow builder that also carries bindings |
+| `.requires({ pkg: range })` | npm package names → semver ranges | Optional. Pins versions and declares plugins whose ids don't follow the naming convention |
+| `.withExtensions([extension(id).with(config)])` | Today's extension bindings | Only needed when an extension takes config. A step that uses an unlisted extension auto-binds it with empty config |
+| `.withPolicies([policy(id).with(config)])` | Today's policy bindings | Standard policies (`budget`, `approval`, `state-control`) are built into core; others come from plugins |
+| `.withRuntime(runtime(id))` | Today's runtime binding | Optional. Defaults to the host's runtime (`node` for the CLI) |
+| `.run([step(...)])` | Today's steps and flow control | Unchanged from `workflow().run()` |
+
 Rules:
 
 1. **Imports:** the file imports only `@executioncontrolprotocol/core`, which the CLI resolves
-   to its own copy, plus relative local files (for example a shared `bindings.ecp.ts`). No
-   `package.json` or `node_modules` is needed next to a routine.
-2. **Dependencies by id:** steps, bindings and policies reference plugins by string id. The
-   required plugin set is the `.requires()` pins plus everything inferred from ids through the
-   naming convention. Plugins that don't follow the convention must be pinned in `.requires()`.
+   to its own copy, plus relative local files (for example a shared `bindings.ecp.ts` exporting
+   `extension(...)` builders). No `package.json` or `node_modules` is needed next to a routine.
+2. **Dependencies by id:** steps, extension bindings and policy bindings reference plugins by
+   string id. The builders already accept an `ExtensionDefinition` or `PolicyDefinition`
+   object as well; that form stays for apps that embed core, but a routine file must use ids
+   (`ecp validate` warns otherwise). The required plugin set is the `.requires()` pins plus
+   everything inferred from ids through the naming convention. Plugins that don't follow the
+   convention must be pinned in `.requires()`.
 3. **Missing plugins:**
    - In an interactive terminal: a prompt per package.
    - `--yes`: installs without asking.
@@ -319,7 +367,7 @@ Rules:
 4. **Compile:** `ecp compile` splits the routine into a portable workflow manifest (no
    bindings, secrets or policies) and a requirements block (plugins, binding shapes, policies).
    One file to author; the shareable artifact stays environment-free.
-5. **Secrets:** `secret("key")` resolves at run time from the bound secrets provider (the OS
+5. **Secrets:** `secrets("key")` (today's helper) resolves at run time from the bound secrets provider (the OS
    keychain locally, a cloud vault when hosted). Values never appear in the file.
 6. **File name:** `*.ecp.ts`, so tools can find routines by glob.
 
@@ -377,7 +425,7 @@ Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
   | `ECP_CAPABILITY_UNKNOWN` | An id doesn't match any installed capability |
   | `ECP_INPUT_INVALID` | Step input fails its schema |
   | `ECP_REF_UNRESOLVED` | A `ref()` points to a missing step or field |
-  | `ECP_BINDING_INVALID` | Extension config fails its schema |
+  | `ECP_BINDING_INVALID` | Extension or policy config fails the `withConfig` schema its definition declares |
   | `ECP_SECRET_MISSING` | A referenced secret has no value |
   | `ECP_POLICY_DENIED` | A policy blocked the step |
   | `ECP_APPROVAL_REQUIRED` | The run is paused for approval |
@@ -449,7 +497,7 @@ at `pre-reset`.
 | `packages/runtimes/temporal` | 0.1K | **Remove** | Revisit when hosted execution is real |
 | `packages/extensions/index` | 0.1K | **Remove** | Installing plugins replaces the aggregator |
 | `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `plugin-app`; the rest is removed |
-| — | — | **New** | `plugin-kit` |
+| — | — | **New** | `plugin-sdk` |
 
 ### 5.2 Inside core
 
@@ -463,7 +511,7 @@ at `pre-reset`.
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
 | `bindings/harness.ts`, `validate/harness.ts` | ~0.1K | **Remove** |
 | `registry`, `definitions`, `bindings` (extension, policy, runtime, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects |
-| `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `routine()`, `.requires()`, `.bind()`, `.policies()` |
+| `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `routine()` and `.requires()`, and let the workflow builder take `.withExtensions()`, `.withPolicies()` and `.withRuntime()` using the existing binding builders |
 | `environment` | 1.5K | Change: built by the host from installed plugins plus the routine's bindings. `describe` and `search` stay |
 | `runtime` | 1.9K | Keep; add journal writer and event emitter, and resume from a step |
 | `validate`, `schema`, `encoding` (json, fluent), `patch`, `invoke` | ~2.6K | Keep |
@@ -553,7 +601,7 @@ command loading.
 | Adobe I/O pattern | ECP adoption |
 | --- | --- |
 | Thin root CLI; every feature is an `@adobe/aio-cli-plugin-*`, with a set of core plugins in `oclif.plugins` | `ecp` bundles only the oclif essentials plus `plugin-secrets` |
-| Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-kit` generates the shell |
+| Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-sdk` generates the shell |
 | `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
 | `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | `ecp update` and `ecp rollback`, same logic |
 | `oclif.scope` and the `plugin` prefix for short install names | `ecp plugins install slack` → `@executioncontrolprotocol/plugin-slack` |
@@ -603,7 +651,7 @@ on the milestone branch after every phase.
 
 ### Phase 3 — Plugin kit and CLI
 
-1. `plugin-kit`: `toCommands()`, flag generation, `--input`, the `--json` envelope and help
+1. `plugin-sdk`: `toCommands()`, flag generation, `--input`, the `--json` envelope and help
    rendering.
 2. Rebuild `cli` around §4.4: bundled core plugins, scope and prefix, the `command_not_found`
    and trust hooks, `discover`, `update`, `rollback`.
@@ -614,8 +662,10 @@ on the milestone branch after every phase.
 
 ### Phase 4 — Routines and observability
 
-1. `routine()`, `.requires()`, `.bind()`, `.policies()`, the routine loader with core
-   self-resolution, and dependency inference.
+1. `routine()` with `.requires()`, `.withExtensions()`, `.withPolicies()`, `.withRuntime()`
+   and `.run()`, reusing the existing binding builders. Also: the routine loader with core
+   self-resolution, dependency inference, auto-binding of unlisted extensions, and validation
+   of bound config against each definition's `withConfig` schema.
 2. `ecp run`, `validate`, `install` and `compile` on routines; the missing-plugin flow.
 3. Run journal, `--events`, error code catalogue, exit codes, and `ecp runs list|show|rerun`.
 4. Convert the examples to routines.
@@ -687,5 +737,5 @@ installable with `npx skills add`.
 2. **Command namespace.** `ecp <plugin> <capability>` at the root, with core names reserved.
    The alternative is `ecp x <plugin> <capability>`.
 3. **Per-routine plugin isolation.** Deferred (see Risks).
-4. **`plugin-kit` as its own package** or a `cli/kit` subpath. Own package is preferred so
+4. **`plugin-sdk` as its own package** or a `cli/sdk` subpath. Own package is preferred so
    plugins don't depend on the whole CLI.
