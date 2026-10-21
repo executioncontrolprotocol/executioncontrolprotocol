@@ -2,6 +2,7 @@
 
 > Status: committed plan · branch `milestone/cli-reset` · baseline tag `pre-reset` (`07e91a8`)
 > Decided 2026-10-19/20. Replaces the direction in `ecp-overhaul.md`.
+> Detailed phase docs: [`reset/`](reset/README.md).
 
 ## 0. Summary
 
@@ -236,7 +237,7 @@ engine; host wiring lives in the environment packages (§4.4).
 
 | Entry | Contents | Runs in |
 | --- | --- | --- |
-| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), `environment()`, binding builders (`extension`, `policy`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`, `defineEnvironment`), registry, validation, executor, policy engine and the `registry-control` policy, encoding (json, fluent), patch, journal model, error codes | Node and browsers |
+| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), `environment()`, binding builders (`extension`, `policy`) and config placeholders (`env`, `secrets`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`, `defineEnvironment`), registry, validation, executor, policy engine and the `registry-control` policy, encoding (json, fluent), patch, journal model, error codes | Node and browsers |
 | `./types` | Protocol types, schema IDs, generated JSON Schemas | Anywhere |
 
 Rules:
@@ -338,7 +339,7 @@ no `ecp.yaml`, no separate environment module, and no `package.json` next to it.
 
 **No new top-level objects.** A workflow file uses only the objects ECP already defines:
 `workflow`, `step`, `ref`, and the binding builders `extension` and `policy`, with
-the `env()`, `secrets()` and `browser()` config placeholders. There are two additions:
+the `env()` and `secrets()` config placeholders. There are two additions:
 
 1. **`workflow(...).with([...])`:** one array for everything the workflow needs from its
    environment. Each item is an existing binding object, and its builder defines what it is.
@@ -397,7 +398,8 @@ as extensions.
 | `policy(id, label).with(config)` | Unchanged |
 | `runtime(id, label).with(config)` | Removed. The environment is the runtime, and the workflow never names it (§4.4) |
 | — | `.requires(range, package?)` on any binding |
-| `secrets("key")`, `env("KEY")`, `browser("key")` | Unchanged |
+| `secrets("key")`, `env("KEY")` | Unchanged |
+| `browser("key")` | Removed with `browser-secrets`, its only resolver |
 
 `environment()` stays, as the host the workflow runs in, and takes the same `.with([...])`
 array (§4.4). The CLI, MCP and App build that environment
@@ -600,6 +602,8 @@ and `@oclif/plugin-warn-if-update-available`. The CLI also depends on the
   | `ECP_RUN_PAUSED` | A policy paused the run (for example `approval`); names the policy |
   | `ECP_STEP_FAILED` | The capability threw; the original message is preserved |
   | `ECP_OUTPUT_INVALID` | The capability's output fails its schema |
+  | `ECP_PLUGIN_DENIED` | The plugin trust check refused an install |
+  | `ECP_RERUN_INCOMPATIBLE` | A step before `--from` changed since the journal was written |
 
 - **Exit codes:** `0` success · `1` run failed · `2` validation or usage error ·
   `3` missing plugins · `4` paused by a policy.
@@ -700,7 +704,7 @@ at `pre-reset`.
 | --- | ---: | --- |
 | `harness/**` (authoring, prompts, definitions, repair loop, call-model) | 6.0K | **Remove** |
 | `compile/*harness-artifact*`, `compile/evaluate-browser`, `compile/prepare-browser-source` | ~0.4K | **Remove** (harness artifacts) |
-| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Remove**; replaced by the run journal and `runs rerun` |
+| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Keep until Phase 4.** The executor's single-step rerun behind it becomes `ecp runs rerun`; then the module is removed |
 | `feedback/` | 0.1K | **Remove** (chat feedback for the harness) |
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
@@ -736,9 +740,9 @@ places in the monorepo that import the package.
 
 | Extension | Capabilities | Lines · tests | Runs in | State | Consumers | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `anthropic` | `generate`, `evaluate` | 450 · 1 | Node, browser | Real | evals, harness, demo, aggregator | **Keep** → `plugin-anthropic` |
-| `openai` | `generate`, `evaluate` | 160 · 1 | Node | Real | demo, examples 02/03 | **Keep** → `plugin-openai` |
-| `ollama` | `generate`, `listModels`, `evaluate` | 530 · 3 | Node | Real | cli (direct dependency), harnesses, demo | **Keep** → `plugin-ollama`; drop the CLI's direct dependency |
+| `anthropic` | `generate`, `evaluate` | 450 · 1 | Node, browser | Real | evals, harness, demo, aggregator | **Keep** → `plugin-anthropic`. Remove `evaluate` (a harness eval judge) |
+| `openai` | `generate`, `evaluate` | 160 · 1 | Node | Real | demo, examples 02/03 | **Keep** → `plugin-openai`. Remove `evaluate` |
+| `ollama` | `generate`, `listModels`, `evaluate` | 530 · 3 | Node | Real | cli (direct dependency), harnesses, demo | **Keep** → `plugin-ollama`. Remove `evaluate`; drop the CLI's direct dependency |
 | `fal` | `generate` | 200 · 1 | Node | Real | demo, vendor examples | **Keep** → `plugin-fal` |
 | `chrome-ai` | `checkAvailability`, `startModelDownload`, `getModelInstallState`, `generate` | 810 · 1 | Browser | Real, but only the demo harness uses it | harnesses, demo | **Remove**. Reasoning comes from the outer agent; in-workflow model calls use the other providers |
 
@@ -866,7 +870,11 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   loops, `call-model`, prompt primers)
 - `core/src/compile/*harness-artifact*`, `compile/evaluate-browser.ts`,
   `compile/prepare-browser-source.ts`
-- `core/src/test-session/`, `core/src/runtime/test-session-state.ts`, `core/src/feedback/`
+- `core/src/feedback/` (`test-session/` stays until Phase 4 turns it into `runs rerun`)
+- `types/src/harness*.ts`, `intent.ts`, `probe-context.ts`, and the harness-only parts of
+  `model.ts`
+- The `browser()` config placeholder and `BROWSER_SECRETS_RESOLVER_ID`
+- The `evaluate` capabilities in `anthropic`, `openai` and `ollama`
 - `core/src/testing/test-model-generate.ts`
 - `core/src/encoding/strip-harness-typescript-output.ts`, `strip-markdown-fences.ts`,
   `utility-context.ts`
@@ -934,9 +942,13 @@ third-party plugins on or off), re-implemented as a pre-install check on top of
 ## 7. Phases
 
 Each phase is a `feat/<phase>-…` branch with a PR into `milestone/cli-reset`. CI must be green
-on the milestone branch after every phase.
+on the milestone branch after every phase. The summaries below are the outline; **each phase
+has a detailed doc in [`reset/`](reset/README.md)** with scope, file-level tasks, design notes,
+tests and exit criteria. Phases 6, 7 and 8 can run in parallel after Phase 5.
 
 ### Phase 0 — Merge and freeze ✅ 2026-10-19
+
+Detail: [`reset/phase-0-merge-and-freeze.md`](reset/phase-0-merge-and-freeze.md)
 
 - PR #32 merged into `development`, tagged `pre-reset` (`07e91a8`).
 - `milestone/cli-reset` created with this plan. `main` untouched and nothing published.
@@ -945,6 +957,8 @@ on the milestone branch after every phase.
   and the merged local branches.
 
 ### Phase 1 — Trim
+
+Detail: [`reset/phase-1-trim.md`](reset/phase-1-trim.md)
 
 1. Add `milestone/**` to the CI triggers.
 2. Work through the §5.7 removal checklist (packages, core modules, CLI commands, examples,
@@ -956,6 +970,8 @@ on the milestone branch after every phase.
 **Exit:** green CI; no harness, eval, EQL or demo code; the workspace builds.
 
 ### Phase 2 — Consolidate core and environments
+
+Detail: [`reset/phase-2-core-and-environments.md`](reset/phase-2-core-and-environments.md)
 
 1. Fold `types` into `core/types` and `registry-control` into core.
 2. Collapse runtimes into environments:
@@ -979,6 +995,8 @@ the Node and browser environments build on `defineEnvironment`.
 
 ### Phase 3 — Plugin SDK and CLI
 
+Detail: [`reset/phase-3-plugin-sdk-and-cli.md`](reset/phase-3-plugin-sdk-and-cli.md)
+
 1. `plugin-sdk`: `toCommands()`, flag generation, `--input`, the `--json` envelope and help
    rendering.
 2. Rebuild `cli` around §4.5: bundled core plugins, scope and prefix, the `command_not_found`
@@ -989,6 +1007,8 @@ the Node and browser environments build on `defineEnvironment`.
 `ecp jsonata transform --json`.
 
 ### Phase 4 — Workflow files and observability
+
+Detail: [`reset/phase-4-workflow-files-and-observability.md`](reset/phase-4-workflow-files-and-observability.md)
 
 1. `workflow(...).with([...])`, `.requires(range, package?)` on the extension and policy
    builders, and auto-binding of extensions used only in steps. Also: the workflow file loader
@@ -1006,6 +1026,8 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 ### Phase 5 — Plugins to npm
 
+Detail: [`reset/phase-5-plugins-to-npm.md`](reset/phase-5-plugins-to-npm.md)
+
 1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
    format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,
    approval, state-control, fal, image-sharp, azure-blob-storage, then adobe-firefly-services.
@@ -1016,6 +1038,8 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 ### Phase 6 — Docs site and skill
 
+Detail: [`reset/phase-6-docs-and-skill.md`](reset/phase-6-docs-and-skill.md)
+
 CLI-first rewrite of the docs repo, generated reference pages, and the rewritten `ecp` skill
 installable with `npx skills add`.
 
@@ -1023,11 +1047,15 @@ installable with `npx skills add`.
 
 ### Phase 7 — MCP
 
+Detail: [`reset/phase-7-mcp.md`](reset/phase-7-mcp.md)
+
 `@executioncontrolprotocol/mcp` per §4.7.
 
 **Exit:** Dogfood B.
 
 ### Phase 8 — App
+
+Detail: [`reset/phase-8-app.md`](reset/phase-8-app.md)
 
 `app` and `plugin-app` per §4.8, carved from `pre-reset`: the `HostAdapter` interface and the
 local adapter behind `ecp app`.
@@ -1036,12 +1064,16 @@ local adapter behind `ecp app`.
 
 ### Phase 9 — 1.0 release
 
+Detail: [`reset/phase-9-release.md`](reset/phase-9-release.md)
+
 1. Confirm every §2.4 criterion.
 2. Merge `milestone/cli-reset` → `development` → `main`. This publishes 1.0 (publishing runs
    on `main`).
 3. Deprecate the retired 0.x packages on npm with a pointer to their replacements.
 
 ### Later
+
+Detail: [`reset/later.md`](reset/later.md)
 
 - **Healing automation:** `--on-failure <command>` wakes an agent (for example `claude -p`)
   with the journal path when an unattended run fails, plus a scheduler (`ecp schedule`).
