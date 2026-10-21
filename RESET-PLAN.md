@@ -1,103 +1,225 @@
-# ECP Reset Plan — the CLI is the product
+# ECP Reset Plan — deterministic delegation for agents
 
-> Status: proposal · 2026-10-19 · replaces the direction in `ecp-overhaul.md`
+> Status: committed plan · branch `milestone/cli-reset` · baseline tag `pre-reset` (`07e91a8`)
+> Decided 2026-10-19/20. Replaces the direction in `ecp-overhaul.md`.
 
-## 1. What ECP is now
+## 0. Summary
 
-**ECP is the deterministic execution capability that a reasoning model calls.** It is not a
-harness that wraps a model. The model (Claude, or any strong reasoning model) is the harness:
-it reads a skill, discovers capabilities, writes a workflow, runs it, reads structured errors,
-fixes the workflow and reruns it until it succeeds. ECP takes the deterministic part off the
-model's plate so the model never spends reasoning tokens on step sequencing, retries, data
-plumbing or connector calls.
+- **The flip.** ECP stops being the thing that orchestrates agents. It becomes the
+  **deterministic delegation capability** that agents use. An orchestrating agent (Claude,
+  Opus, …) authors routines, runs them, watches them, and repairs them when they fail. ECP
+  does the deterministic work so the agent doesn't spend reasoning on it.
+- **ECP is part of a harness, never the whole harness.** No harnesses, prompts, intent
+  routers or eval matrices ship from this repo. The only harness is one skill on the docs
+  site.
+- **Packages:** `core` runs ECP in Node or browsers. `cli` is the primary surface and `mcp`
+  the second. Every capability set is its own npm plugin. The visual app is a plugin too.
+- **One routine = one file.** A Fluent TS file declares its steps, config, policies and plugin
+  needs. Running it with missing plugins prompts to install them.
+- **Built to be supervised:** `--json` everywhere, stable error codes, a run journal, live
+  events, and resume from any step. That is what makes the agent's self-healing loop possible.
+- **Order:** trim → consolidate core → CLI and plugins → routines and observability → npm →
+  docs and skill → MCP → App → 1.0.
+
+## 1. The flip
+
+### Before
 
 ```text
-┌────────────────────────────────────────────────────────────────┐
-│ Reasoning model (Claude / Opus)  — the harness                 │
-│   knowledge files + skill  →  plans, authors, supervises       │
-└───────────────┬────────────────────────────────────▲───────────┘
-                │ ecp search / describe / validate    │ JSON results,
-                │ ecp run / runs rerun                │ typed errors, run journal
-┌───────────────▼────────────────────────────────────┴───────────┐
-│ ECP  — deterministic, governed execution                       │
-│   workflow (Fluent) → validate → run → journal                 │
-│   capabilities from installed plugins:                         │
-│     connectors · transforms · model calls · System-1 decisions │
-└────────────────────────────────────────────────────────────────┘
+ECP harness (prompts, intent routing, repair loops, evals)
+  └── model inside ECP authors and patches workflows
+        └── workflow runs capabilities
 ```
 
-Short reasoning still lives *inside* workflows, as capabilities: a `generate` step on a model
-plugin, or a typed decision from a System-1 model (Reflex: Laya / so1 / Jev). The outer model
-supervises the whole run; the inner calls are just steps.
+ECP tried to own the whole agent experience. Every new model, prompt style or client meant
+more harness code here, plus evals to keep it honest.
 
-**One-liner:** ECP is the agentic n8n/Zapier: an extensible CLI that a reasoning model drives
-to build, run and repair governed automation, with every capability installable as a plugin.
+### After
 
-This keeps the old thesis (reason at authoring, execute deterministically) and changes who
-does the authoring and repair loop: the outer model, not an ECP-owned harness.
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│ Orchestrating agent (Claude Code, Claude Desktop, any harness)    │
+│   knowledge files + ecp skill + reasoning                         │
+│   plans · authors routines · monitors runs · repairs · reruns     │
+└──────────────┬───────────────────────────────────▲────────────────┘
+   delegates   │ CLI (ecp …) or MCP tools           │ JSON results, error codes,
+   determinism │                                    │ journal, live events
+┌──────────────▼───────────────────────────────────┴────────────────┐
+│ ECP: deterministic, governed execution                            │
+│   routine.ecp.ts → validate → run → journal                       │
+│   capabilities from installed plugins:                            │
+│     connectors · transforms · model calls · System-1 decisions    │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-### What changes
+- The **agent** owns judgement: what to build, what a failure means, how to fix it, and
+  whether a change in the world needs a different routine.
+- **ECP** owns determinism: step order, data flow, retries, policies, budgets, approvals,
+  staged state, secrets custody, and a faithful record of what happened.
+- **Small agent actions inside routines are fine.** A `generate` step or a System-1 typed
+  decision is just a capability, and the outer agent supervises the run that contains it.
 
-| Before | After |
+### The self-healing loop
+
+```text
+author ─► validate ─► run ─► observe
+   ▲                           │
+   │                     success? ── yes ─► routine is reusable; schedule it
+   │                           │ no
+   └── repair ◄── diagnose ◄───┘  (error code + journal + step output)
+```
+
+A fixed workflow can't respond to an API change, a new data shape or a missing permission.
+An agent watching a deterministic system can. ECP's job is to make every failure legible and
+every fix cheap to retry. Concretely, ECP must provide:
+
+| Need | ECP feature |
 | --- | --- |
-| ECP owns harnesses, prompts, intent routing, repair loops, evals | The host model is the harness. ECP ships a skill and a self-describing CLI |
-| Browser demo is the main surface | The CLI is the main surface. MCP and App are plugins on top of it |
-| Extensions bundled through aggregator packages | Each capability set is its own npm plugin, installed with `ecp plugins install` |
-| Workflow file + environment module + imports of every extension package | One routine file: steps, bindings, policies and plugin needs together; missing plugins are offered for install on run |
-| Many surfaces (serve, up, test, demo, harness) | Three modules: **CLI** (now), **MCP** (next), **App** (last) |
+| Know what's possible | `ecp search`, `ecp describe`, `ecp discover`, `--help` written for models |
+| Know a routine is sound before running it | `ecp validate --json` with codes, paths and suggestions |
+| Watch a run | `ecp run --events` (NDJSON per step) and `ecp runs show` |
+| Understand a failure | Stable error codes plus a journal of each step's input, output, timing, policy decisions and error |
+| Retry cheaply | `ecp runs rerun <id> --from <step>`, reusing the outputs of earlier steps |
+| Fix dependencies | `ECP_PLUGINS_MISSING` with exact install commands |
+| Be told when an unattended run breaks | `--on-failure <command>` hook to wake an agent with the journal path (Later phase) |
 
-## 2. Principles
+## 2. Desired outcome
 
-1. **CLI first.** Any capability ECP has is reachable as a CLI command. MCP and App are
-   generated from the same registry, never hand-written in parallel.
-2. **One plugin = one npm package = one extension.** Plugins declare capabilities with the
-   existing `defineExtension` builder; nothing else is required to appear in both CLI and MCP.
-3. **Model-legible everywhere.** `--json` on every command, stable error codes with `path`
-   and `suggestions`, a run journal the model can read, and help text written for a model.
-4. **No harness code.** No prompts, intent classifiers, EQL normalisers or eval matrices in
-   this repo. If a model needs to know something, it goes in `--help`, `ecp describe`, or the
-   skill.
-5. **Governance stays.** Policies, staged state, approvals and budgets are the reason to run
-   through ECP instead of calling APIs directly. They stay in core.
-6. **Trim before adding.** Phase 1 deletes before Phase 2 builds.
+This is what's true when `milestone/cli-reset` merges and ships as 1.0.
 
-## 3. Target architecture
+### 2.1 The experience
 
-### 3.1 Packages after the reset
+```bash
+npm i -g @executioncontrolprotocol/cli
+npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP loop
+```
+
+1. A user asks Claude Code: *"Every Monday, pull last week's signups from our storage
+   bucket, summarise them and post to Slack."*
+2. Claude runs `ecp search "summarise text"` and `ecp discover slack`. It writes
+   `signups.ecp.ts`, a single file.
+3. `ecp run signups.ecp.ts --json` stops with `ECP_PLUGINS_MISSING`. Claude runs the listed
+   `ecp plugins install …` commands and reruns.
+4. Step 2 fails with `ECP_INPUT_INVALID` at `steps.summary.with.context`. Claude reads the
+   journal, fixes the reference, and runs `ecp runs rerun <id> --from summary`. It passes.
+5. The routine is now a deterministic, reusable file. Later runs cost no reasoning tokens
+   unless something breaks, and then the agent is called back.
+6. The same user in Claude Desktop connects `ecp mcp serve` and gets the same capabilities as
+   tools, through tool search.
+7. `ecp app signups.ecp.ts` opens a live graph of the routine. As Claude edits the file the
+   graph updates, and a node the user edits in the graph is written back to the file.
+
+### 2.2 What ships to npm
+
+| Package | What it is |
+| --- | --- |
+| `@executioncontrolprotocol/core` | Runs ECP in Node or browsers. Entries: `.` (works in both), `./node`, `./browser`, `./types` |
+| `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
+| `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
+| `@executioncontrolprotocol/plugin-kit` | Small authoring dependency: turns an extension definition into CLI commands |
+| `@executioncontrolprotocol/plugin-<name>` | One package per capability set, each versioned independently |
+| `@executioncontrolprotocol/plugin-app` | The visual co-editor, installed as a CLI plugin |
+
+Not shipped anymore: `types` (folded into `core/types`), `node`, `browser`, `policies`,
+`extensions`, `harnesses-*`, `evals`, `runtime-temporal`, `browser-demo`. Their 0.x versions
+stay on npm, marked deprecated with a pointer to the 1.0 packages.
+
+### 2.3 What the repo looks like
 
 ```text
 packages/
-  types/            protocol types + JSON schema           (kept)
-  core/             fluent API, registry, validate, runtime, policies hooks,
-                    encoding (json + fluent), run journal  (trimmed)
-  plugin-kit/       defineExtension re-export + toCommands() + toMcpTools()   (new)
-  cli/              `ecp` bin: workflow commands + bundled core plugins       (rebuilt)
+  core/          ~12K lines: fluent API, registry, validate, executor, policies,
+                 encoding (json, fluent), patch, journal model, node + browser entries
+  cli/           ecp binary, workflow commands, plugin commands, hooks
+  mcp/           MCP server + `ecp mcp serve`
+  plugin-kit/    toCommands(), shared flag and output helpers
 plugins/
-  plugin-secrets      plugin-storage     plugin-jsonata      plugin-policies
-  plugin-anthropic    plugin-openai      plugin-ollama       plugin-fal
-  plugin-image-sharp  plugin-azure-blob  plugin-firefly      plugin-slack
-  plugin-toon         plugin-mermaid
-  plugin-mcp          (module 2)
-  plugin-app          (module 3, rebuilt from apps/browser-demo)
-  plugin-reflex       (later: System-1 decision capabilities)
+  plugin-secrets  plugin-storage   plugin-memory    plugin-jsonata
+  plugin-anthropic plugin-openai   plugin-ollama    plugin-fal
+  plugin-image-sharp plugin-azure-blob plugin-firefly plugin-slack
+  plugin-toon     plugin-mermaid   plugin-telemetry plugin-app
+examples/        single-file routines only (*.ecp.ts)
+fixtures/        consumer smoke fixtures
+scripts/         build, lint, pack and publish helpers
+skills/ecp-core/ contributor skill for agents working on this repo
 ```
 
-Docs and the user-facing skill live in the existing `executioncontrolprotocol/docs` repo
-(Mintlify, executioncontrolprotocol.io). The monorepo's `skills/ecp-core` is a contributor
-skill for agents working on this repo; it gets trimmed to match the new package layout.
+The docs and the user-facing `ecp` skill live in the separate `executioncontrolprotocol/docs`
+repo (Mintlify, executioncontrolprotocol.io).
 
-`runtimes/node` folds into core's node entry (`core/node`). The browser runtime goes because
-the App now executes through the local CLI process, not in the browser.
+### 2.4 Success criteria
 
-### 3.2 The plugin contract
+The milestone is done when all of these are true:
 
-A plugin author writes one extension definition (as today) and one export line:
+1. On a clean machine, `npm i -g @executioncontrolprotocol/cli` then
+   `ecp plugins install jsonata` works, and `ecp jsonata transform --help` shows the
+   capability's summary, use cases and input fields.
+2. `ecp run` on a routine with a missing plugin prompts to install it interactively, installs
+   with `--yes`, and returns `ECP_PLUGINS_MISSING` with `--json`.
+3. Every first-party extension is published as its own plugin, with an independent version
+   and a one-line install in its README.
+4. A plugin's capabilities show up as CLI commands and as MCP tools with no code beyond the
+   extension definition and one export line.
+5. `core` passes its unit tests in Node and in a browser (Vitest browser project), and is
+   about 12K lines or less.
+6. The repo contains no harness, prompt, intent, EQL or eval code, and no eval CI.
+7. **Dogfood A:** a fresh Claude Code session with only the `ecp` skill installed builds and
+   runs three reference routines on its own, including recovering from an injected failure.
+   This is a manual check run three times, not an eval harness.
+8. **Dogfood B:** the same three tasks succeed from Claude Desktop over `ecp mcp serve`.
+9. **Dogfood C:** `ecp app` reflects file edits within a second, and graph edits round-trip to
+   the file.
+10. `ecp --help` with 15 plugins installed returns in under a second (oclif manifests in every
+    plugin).
+11. The docs site is rewritten CLI-first, with a generated CLI reference, a plugin catalogue
+    and an error code reference.
+
+## 3. Principles
+
+1. **Delegation, not orchestration.** ECP serves the agent. Any feature that makes ECP try to
+   think for the agent is out of scope.
+2. **CLI first.** Anything ECP can do is a CLI command. MCP and App are generated from the same
+   registry, never written in parallel.
+3. **Model-legible everywhere.** `--json`, stable error codes, journals, and help text written
+   for a model reader.
+4. **One plugin = one npm package = one extension definition.**
+5. **One routine = one file.** No config files and no environment modules.
+6. **Governance is the reason to delegate through ECP** instead of calling APIs directly:
+   policies, budgets, approvals, staged state and secrets custody stay first-class in core.
+7. **Core runs anywhere.** No Node-only imports in core's root entry, so the same engine can be
+   embedded in a browser or worker.
+8. **Trim before building.**
+
+## 4. Architecture
+
+### 4.1 Core
+
+`@executioncontrolprotocol/core` absorbs `types`, `runtimes/node`, the useful half of
+`runtimes/browser`, and `policies`.
+
+| Entry | Contents | Runs in |
+| --- | --- | --- |
+| `.` | Fluent API (`routine`, `step`, `ref`, `secret`, `state`, flow control), definitions (`defineExtension`, `capabilityFor`, `definePolicy`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
+| `./types` | Protocol types, schema IDs, generated JSON Schemas | Anywhere |
+| `./node` | Routine loader (transpile, `core` self-resolution), journal on disk, file and media loaders, node runtime binding | Node |
+| `./browser` | Browser runtime binding, browser file and blob helpers | Browsers |
+
+Rules:
+
+- **Definitions are data.** `defineExtension(...).build()` returns a plain definition (schemas
+  plus handlers). Plugins never register themselves into a global registry. The host (CLI, MCP,
+  App, or an embedding app) owns the registry and registers definitions. This removes
+  `catalogExtension` and `globalRegistry` side effects, and keeps two copies of core in a
+  plugin's install folder harmless.
+- Core has no dependency on oclif, the MCP SDK, or any provider SDK.
+
+### 4.2 Plugin contract
 
 ```ts
-// plugins/plugin-jsonata/src/index.ts
-import { defineExtension, capabilityFor, toCommands } from "@executioncontrolprotocol/plugin-kit"
+// plugins/plugin-jsonata/src/index.ts  (main entry: works in Node and browsers)
+import { defineExtension, capabilityFor } from "@executioncontrolprotocol/core"
 
-export const extension = defineExtension("@executioncontrolprotocol", "jsonata")
+export default defineExtension("@executioncontrolprotocol", "jsonata")
   .withMetadata({ summary, description, useCases })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/jsonata", "transform")
@@ -106,9 +228,13 @@ export const extension = defineExtension("@executioncontrolprotocol", "jsonata")
       .withHandler(runJsonataTransform),
   ])
   .build()
+```
 
-export const COMMANDS = toCommands(extension)   // oclif explicit strategy
-export default extension
+```ts
+// plugins/plugin-jsonata/src/oclif.ts  (CLI entry)
+import { toCommands } from "@executioncontrolprotocol/plugin-kit"
+import extension from "./index.js"
+export const COMMANDS = toCommands(extension)
 ```
 
 ```jsonc
@@ -116,319 +242,450 @@ export default extension
 {
   "name": "@executioncontrolprotocol/plugin-jsonata",
   "keywords": ["ecosystem:ecp-plugin", "oclif-plugin"],
-  "ecp": { "extension": "./dist/index.js" },
+  "exports": { ".": "./dist/index.js", "./oclif": "./dist/oclif.js" },
+  "ecp": { "extension": "./dist/index.js", "runtimes": ["node", "browser"] },
   "oclif": {
-    "commands": { "strategy": "explicit", "target": "./dist/index.js", "identifier": "COMMANDS" },
+    "commands": { "strategy": "explicit", "target": "./dist/oclif.js", "identifier": "COMMANDS" },
     "topics": { "jsonata": { "description": "Transform JSON payloads with JSONata expressions" } }
   },
-  "peerDependencies": { "@executioncontrolprotocol/plugin-kit": "^1" }
+  "peerDependencies": { "@executioncontrolprotocol/core": "^1" },
+  "dependencies": { "@executioncontrolprotocol/plugin-kit": "^1", "jsonata": "^2" }
 }
 ```
 
 What `toCommands()` generates for each capability:
 
 - Command id `<plugin> <capability>`, e.g. `ecp jsonata transform`.
-- Flags from top-level primitive fields of the input schema (`--expression`), plus
-  `--input <file|->` for the whole input as JSON (stdin with `-`).
-- `--json` output envelope: `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
-- Summary, description, use cases and projections rendered into `--help`.
-- Execution through the same policy pipeline as a one-step workflow (today's `ecp invoke`).
+- Flags from the top-level primitive fields of the input schema, plus `--input <file|->` for
+  the full JSON input.
+- The `--json` envelope `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
+- Help text rendered from summary, description, use cases and projections.
+- At run time, the command looks up the host CLI's registry and executes through the same
+  policy pipeline as a one-step routine.
 
-Generation is deterministic from the package's own definitions, so `oclif manifest` runs at
-build time and startup stays fast. The `ecp` field lets MCP and App load the extension
-directly without going through oclif.
+Commands are generated deterministically from the package's own definition, so
+`oclif manifest` runs at build time and startup stays fast. MCP and App load the `ecp.extension`
+entry directly, without oclif.
 
-### 3.3 Module 1 — the CLI
+**Naming:**
 
-Core commands (reserved root names; plugins cannot claim these topics):
+- Extension `@<scope>/<name>` lives in package `@<scope>/plugin-<name>`. Capability ids are
+  `@<scope>/<name>.<capability>`.
+- The CLI sets `oclif.scope: "executioncontrolprotocol"`, so `ecp plugins install jsonata`
+  resolves to `@executioncontrolprotocol/plugin-jsonata`.
+- Third-party plugins use their own scope with the same `plugin-` prefix, plus the
+  `ecosystem:ecp-plugin` keyword.
 
-| Command | Purpose |
-| --- | --- |
-| `ecp init [name]` | Create an example routine file, `<name>.ecp.ts` |
-| `ecp search <intent>` / `ecp describe [id]` | Capability discovery across installed plugins |
-| `ecp validate <routine>` | Validate; missing plugins are listed with the install command |
-| `ecp run <routine>` | Install missing plugins (with a prompt), then run with policies; writes a journal under `.ecp/runs/<id>/` |
-| `ecp install <routine>` | Install every plugin the routine needs, without running it |
-| `ecp runs list \| show <id> \| rerun <id> [--from <step>]` | Inspect and resume runs (replaces `ecp test *`) |
-| `ecp invoke <capability-id>` | Generic single-capability call (generated commands are sugar for this) |
-| `ecp compile <routine>` | Routine → portable workflow manifest + requirements |
-| `ecp config secrets …` | Kept |
-| `ecp plugins …` | From `@oclif/plugin-plugins`: install, uninstall, link, update, inspect, reset |
-| `ecp discover` | Search npm for `ecosystem:ecp-plugin` packages (first-party flagged) |
-| `ecp update` / `ecp rollback` | Update user plugins / remove user overrides of core plugins |
-
-Removed: `serve`, `up` (moves to `plugin-app`), `test *` (folds into `runs`), `encode` and
-`decode` (move to the format plugins).
-
-**One file runs the whole routine.** There's no project config file and no separate
-environment module. A routine is a single Fluent TS file that holds the steps, the bindings
-(extension config), the policies, and optional plugin version pins:
+### 4.3 Routines
 
 ```ts
-// weekly-brief.ecp.ts
-import { routine, step, ref, secret, policy } from "@executioncontrolprotocol/core"
+// signups.ecp.ts
+import { routine, step, ref, secret, budget, approval } from "@executioncontrolprotocol/core"
 
-export default routine("Weekly leadership brief")
-  .requires({ "@executioncontrolprotocol/plugin-anthropic": "^1" })  // optional pins
+export default routine("Weekly signups to Slack")
+  .requires({ "@executioncontrolprotocol/plugin-slack": "^1" })   // optional pins
   .bind("@executioncontrolprotocol/anthropic", {
-    apiKey: secret("anthropic/api-key"),       // a reference; the value lives in `ecp config secrets`
+    apiKey: secret("anthropic/api-key"),
     defaultModel: "claude-sonnet-5-5",
   })
-  .policies([policy("@executioncontrolprotocol/policies.budget", { maxUsd: 2 })])
+  .bind("@executioncontrolprotocol/slack", { botToken: secret("slack/bot-token") })
+  .policies([budget({ maxUsd: 1 }), approval({ capabilities: ["@executioncontrolprotocol/slack.send"] })])
   .run([
-    step("@executioncontrolprotocol/memory.search", "Collect signals")
-      .with({ query: "risks and decisions this week", since: "7d" })
-      .as("signals"),
-    step("@executioncontrolprotocol/anthropic.generate", "Write the brief")
-      .with({ prompt: "Create a concise leadership brief.", context: ref("signals.results") })
-      .as("brief"),
+    step("@executioncontrolprotocol/storage.list", "Last week's signups")
+      .with({ prefix: "signups/", since: "7d" })
+      .as("signups"),
+    step("@executioncontrolprotocol/anthropic.generate", "Summarise")
+      .with({ prompt: "Summarise these signups for the team.", context: ref("signups.items") })
+      .as("summary"),
+    step("@executioncontrolprotocol/slack.send", "Post")
+      .with({ channel: "#growth", message: ref("summary.text") })
+      .as("posted"),
   ])
 ```
 
-Rules that make this work:
+Rules:
 
-1. **The file imports only `@executioncontrolprotocol/core`.** The CLI resolves that import to
-   its own copy, so a routine needs no `package.json` or `node_modules`. Relative imports of
-   other local files are allowed, for example shared bindings. Capabilities, policies and
-   bindings are referenced by string id and never by importing a plugin package. Today's
-   examples import every extension package for side effects
-   (`import "@executioncontrolprotocol/extension-openai"`). That has to go, because the file
-   can't even load when a plugin is missing.
-2. **Dependencies are read from the file before anything runs.** Required plugins are the
-   explicit `.requires()` pins plus everything inferred from step, policy and binding ids.
-   Inference uses the naming convention: `@scope/<name>.<capability>` comes from the package
-   `@scope/plugin-<name>`. Plugins that don't follow the convention must be listed in
-   `.requires()`. `ecp validate` says so when one is missing.
-3. **Missing plugins are offered, not assumed.** `ecp run` compares what's needed with what's
-   installed:
-   - In an interactive terminal it prompts: `Install @executioncontrolprotocol/plugin-anthropic@^1? (Y/n)`.
-   - `--yes` installs without asking (for scheduled and CI runs).
-   - With `--json`, or when not interactive, it stops with `ECP_PLUGINS_MISSING`, listing each
-     package and the exact `ecp plugins install …` command. A model reads that, installs, and
-     reruns.
+1. **Imports:** the file imports only `@executioncontrolprotocol/core`, which the CLI resolves
+   to its own copy, plus relative local files (for example a shared `bindings.ecp.ts`). No
+   `package.json` or `node_modules` is needed next to a routine.
+2. **Dependencies by id:** steps, bindings and policies reference plugins by string id. The
+   required plugin set is the `.requires()` pins plus everything inferred from ids through the
+   naming convention. Plugins that don't follow the convention must be pinned in `.requires()`.
+3. **Missing plugins:**
+   - In an interactive terminal: a prompt per package.
+   - `--yes`: installs without asking.
+   - `--json` or non-interactive: `ECP_PLUGINS_MISSING` with the exact commands.
    - Plugin trust policy (allowed sources, third-party on or off) applies to every install.
-4. **Workflow and environment stay separate in the output, not the source.** `ecp compile`
-   still emits a portable workflow manifest with no bindings, secrets or policies, plus a
-   separate requirements block. One file to author; the shareable artifact stays
-   environment-free. This replaces the old "never collapse workflow and environment" rule
-   in `AGENTS.md` with "one file to author, two parts after compiling".
-5. **Secrets are references only.** `secret("key")` resolves at run time from the bound
-   secrets provider (OS keychain locally, a cloud vault when hosted). The file never holds a
-   value, so it's safe to commit and share.
+4. **Compile:** `ecp compile` splits the routine into a portable workflow manifest (no
+   bindings, secrets or policies) and a requirements block (plugins, binding shapes, policies).
+   One file to author; the shareable artifact stays environment-free.
+5. **Secrets:** `secret("key")` resolves at run time from the bound secrets provider (the OS
+   keychain locally, a cloud vault when hosted). Values never appear in the file.
+6. **File name:** `*.ecp.ts`, so tools can find routines by glob.
 
-`--env` and environment modules are removed. If several routines need the same bindings, they
-import a local `shared.ecp.ts` that exports them.
+### 4.4 CLI
 
-**The model loop this has to make easy:**
+Workflow commands (core names are reserved, and plugins can't claim them as topics):
 
-```text
-skill → ecp search / discover → write brief.ecp.ts → ecp validate --json → fix
-      → ecp run --json → ECP_PLUGINS_MISSING? → ecp plugins install … → rerun
-      → read journal / error codes → edit → ecp runs rerun --from <step>
-      → green → brief.ecp.ts is now a reusable, deterministic automation in one file
-```
-
-Every error a model can hit gets a stable code (`ECP_CAPABILITY_MISSING`,
-`ECP_INPUT_INVALID`, `ECP_POLICY_DENIED`, `ECP_STEP_FAILED`, …), documented on the docs site.
-
-### 3.4 Module 2 — MCP (`plugin-mcp`)
-
-`ecp mcp serve [--stdio | --http]` boots the same oclif config, so it sees exactly the
-installed plugins, loads each one's `ecp.extension`, and registers tools with
-`toMcpTools()`:
-
-- **Meta tools, always on:** `ecp_search`, `ecp_describe`, `ecp_validate`, `ecp_run`,
-  `ecp_runs_show`, `ecp_invoke`.
-- **Capability tools:** one per capability (`jsonata_transform`), with name, description and
-  JSON schema from the same metadata as `--help`. Clients that support tool search (Claude
-  Code does) load them on demand, so a large catalogue costs nothing up front.
-- `notifications/tools/list_changed` fires when a plugin is installed or removed.
-
-Hosted MCP later is the same plugin behind HTTP with a cloud secrets binding (the
-"custody is a binding" rule from the conceptual architecture still holds).
-
-### 3.5 Module 3 — App (`plugin-app`)
-
-`ecp app [routine.ecp.ts]` (a JIT plugin: the first call offers to install it) starts a local
-server and opens the browser:
-
-- Watches the Fluent file. When Claude edits it, the graph re-renders (hot reload).
-- Edits in the graph write back to the Fluent file with the Fluent encoder, so the model sees
-  them on its next read.
-- Runs go through the local CLI process; per-step progress streams to the graph (reuses the
-  React Flow run-progress hooks from `format-reactflow`).
-- It's a viewer and co-editor, not a chat client and not a model host. No provider modal, no
-  Chrome AI, no in-browser harness.
-
-Built by carving the graph editor, Monaco pane and run panel out of `apps/browser-demo`; the
-rest of the demo is dropped.
-
-### 3.6 Docs site and the skill
-
-- Keep the existing Mintlify site (`executioncontrolprotocol/docs`, executioncontrolprotocol.io,
-  with `llms.txt`). Rewrite it around the CLI: concepts, the model loop, error codes, plugin
-  authoring, a CLI reference generated from the oclif manifest, and a plugin catalogue
-  generated from npm search. Pages that document harnesses, the browser demo and in-browser
-  providers go.
-- The existing `ecp` skill in the docs repo (`.mintlify/skills/ecp/` today) becomes the only
-  harness ECP ships, rewritten to teach the loop above and point to `ecp --help`. Expose it at
-  a path `npx skills add` can install from (for example a top-level `skills/ecp/SKILL.md` in
-  the docs repo): `npx skills add executioncontrolprotocol/docs`. Everything else the model
-  learns from the CLI.
-- The monorepo's GitHub Pages workflow (which deploys the browser demo today) is removed in
-  Phase 1.
-
-## 4. What we borrow from Adobe I/O CLI
-
-Studied: `adobe/aio-cli` (root), `aio-cli-plugin-app`, `aio-cli-plugin-runtime`,
-`aio-cli-plugin-telemetry`, and `@oclif/plugin-plugins`.
-
-| Adobe I/O pattern | How ECP uses it |
+| Command | Purpose |
 | --- | --- |
-| Thin root CLI; everything else is `@adobe/aio-cli-plugin-*` listed in `oclif.plugins` (core plugins) | `ecp` bundles only help, plugins, not-found, autocomplete, update-warning and `plugin-secrets`. Everything else is a user plugin |
-| Libraries split from plugins (`aio-lib-*` holds logic, plugin is a thin CLI shell) | Logic stays in the extension definition, and `plugin-kit` generates the CLI shell. Plugins never hand-write oclif commands |
-| `aio discover` searches the npm registry and offers an interactive install | `ecp discover`, keyed on keyword `ecosystem:ecp-plugin` (the keyword Adobe planned and never finished), with `--json` for models |
-| `aio update` separates core and user plugins and warns when a user plugin shadows a newer core one | `ecp update` and `ecp rollback`, same logic |
-| `@oclif/plugin-plugins` with `oclif.scope` | `oclif.scope: "executioncontrolprotocol"` + `pluginPrefix: "plugin"`, so `ecp plugins install slack` resolves to `@executioncontrolprotocol/plugin-slack` |
-| `@oclif/plugin-not-found` + a `command_not_found` hook | Unknown `ecp slack send` → suggest the plugin to install (prompt when interactive; print the exact command with `--json`) |
-| Telemetry as a plugin built on hooks (`init`, `prerun`, `postrun`, `command_error`) | Fold today's `extension-telemetry` into an opt-in plugin built on the same hooks |
-| oclif JIT plugins (`oclif.jitPlugins` + `jit_plugin_not_installed` hook) | `ecp app` and `ecp mcp` show in help before they are installed; the first use installs a pinned version |
-| `plugins link` for local development | `ecp plugins link ./plugins/plugin-x` is the plugin-author workflow in the docs |
+| `ecp init [name]` | Scaffold `<name>.ecp.ts` |
+| `ecp search <intent>` | Rank installed capabilities for an intent |
+| `ecp describe [id]` | Full schema and metadata for installed capabilities |
+| `ecp validate <routine>` | Validate the routine against installed plugins |
+| `ecp install <routine>` | Install every plugin the routine needs |
+| `ecp run <routine>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run` |
+| `ecp runs list` | Recent runs, filterable by status and routine |
+| `ecp runs show <id>` | Journal: resolved graph and per-step records |
+| `ecp runs rerun <id> [--from <step>]` | Resume, reusing the outputs of earlier steps |
+| `ecp invoke <capability-id>` | Generic single-capability call |
+| `ecp compile <routine>` | Manifest + requirements |
+| `ecp config secrets add\|get\|list\|remove` | Local secrets |
+| `ecp discover [query]` | npm search for `ecosystem:ecp-plugin` packages, first-party flagged |
+| `ecp update` / `ecp rollback` | Update user plugins / remove user overrides of core plugins |
+| `ecp plugins …` | install, uninstall, link, inspect, reset (from `@oclif/plugin-plugins`) |
+| `ecp mcp serve` | JIT plugin (`@executioncontrolprotocol/mcp`) |
+| `ecp app [routine]` | JIT plugin (`@executioncontrolprotocol/plugin-app`) |
 
-Also worth taking from our own closed `feat/plugin-install` branch (PR #23): plugin trust
-policy (allowed source types, third-party plugins on or off). Re-implement it as an oclif
-`preinstall`-style hook on top of `plugin-plugins` rather than as custom install code.
+Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
 
-## 5. Keep, cut, move
+**Bundled core plugins:** `@oclif/plugin-help`, `@oclif/plugin-plugins`,
+`@oclif/plugin-not-found`, `@oclif/plugin-autocomplete`,
+`@oclif/plugin-warn-if-update-available`, and `@executioncontrolprotocol/plugin-secrets`.
 
-Current size: about 83K lines of TS. The reset removes about 28K and moves about 12K into
-`plugin-app`.
+**Hooks:**
 
-| Area | Lines | Decision |
+- `command_not_found` maps an unknown topic to a plugin and offers to install it.
+- `jit_plugin_not_installed` installs `mcp` or `app` at a pinned version.
+- A plugin-trust check runs before any install.
+
+### 4.5 Run journal, events and error codes
+
+- **Journal:** `.ecp/runs/<run-id>/` holds `run.json` (routine path and hash, resolved graph,
+  plugin versions, status, timing) and `steps/<step-id>.json` (input after ref resolution,
+  output, policy decisions, staged mutations, error, attempts). `.ecp/` is gitignored. Secrets
+  are redacted.
+- **Events:** `ecp run --events` streams NDJSON: `run.start`, `step.start`, `step.policy`,
+  `step.end`, `step.error`, `run.end`. The App and MCP progress notifications use the same
+  stream.
+- **Error codes,** each documented on the docs site with causes and fixes:
+
+  | Code | Meaning |
+  | --- | --- |
+  | `ECP_ROUTINE_LOAD` | The file failed to transpile or load |
+  | `ECP_PLUGINS_MISSING` | Required plugins aren't installed |
+  | `ECP_CAPABILITY_UNKNOWN` | An id doesn't match any installed capability |
+  | `ECP_INPUT_INVALID` | Step input fails its schema |
+  | `ECP_REF_UNRESOLVED` | A `ref()` points to a missing step or field |
+  | `ECP_BINDING_INVALID` | Extension config fails its schema |
+  | `ECP_SECRET_MISSING` | A referenced secret has no value |
+  | `ECP_POLICY_DENIED` | A policy blocked the step |
+  | `ECP_APPROVAL_REQUIRED` | The run is paused for approval |
+  | `ECP_BUDGET_EXCEEDED` | A budget limit was reached |
+  | `ECP_STEP_FAILED` | The capability threw; the original message is preserved |
+  | `ECP_OUTPUT_INVALID` | The capability's output fails its schema |
+
+- **Exit codes:** `0` success · `1` run failed · `2` validation or usage error ·
+  `3` missing plugins · `4` paused for approval.
+
+### 4.6 MCP
+
+`@executioncontrolprotocol/mcp` is both a library (`createEcpMcpServer({ registry })`) and a
+JIT CLI plugin (`ecp mcp serve --stdio | --http`).
+
+- It boots the same oclif config, so it sees exactly the user's installed plugins.
+- **Meta tools:** `ecp_search`, `ecp_describe`, `ecp_validate`, `ecp_run`, `ecp_runs_show`,
+  `ecp_runs_rerun`, `ecp_invoke`, `ecp_plugins_install` (behind the trust policy).
+- **Capability tools:** one per capability (`jsonata_transform`), described from the same
+  metadata as `--help`. Clients with tool search load them on demand.
+- `notifications/tools/list_changed` fires after plugin installs and removals. Run progress
+  goes out as MCP progress notifications from the event stream.
+- `ecp_run` accepts a routine path, or routine source for clients that can't write files.
+  Patch and encode stay in core for that case.
+- Later, hosted MCP is the same package behind HTTP with a cloud secrets binding.
+
+### 4.7 App
+
+`@executioncontrolprotocol/plugin-app`, run as `ecp app [routine.ecp.ts]`:
+
+- A local server plus a React UI, carved from the `pre-reset` browser demo: the graph editor
+  (React Flow), the Monaco source pane and the run panel.
+- Watches the routine file and re-renders on change (hot reload).
+- Graph edits are written back to the file with the Fluent encoder.
+- Runs go through the CLI process and stream the `--events` feed into the graph.
+- Not a chat client and not a model host: no provider modal, no Chrome AI, no harness.
+
+### 4.8 Docs site and the skill
+
+- **Docs:** the existing Mintlify site (`executioncontrolprotocol/docs`) gets a CLI-first
+  rewrite:
+  - Pages: concepts (delegation, routines, plugins, governance), the agent loop, CLI reference
+    (generated from oclif manifests), plugin catalogue (generated from npm search), error
+    codes, plugin authoring, MCP setup, App.
+  - Harness, demo and in-browser provider pages are removed.
+- **The skill:** the `ecp` skill in the docs repo is rewritten to teach the loop and point to
+  `ecp --help`. It's exposed at a path that `npx skills add executioncontrolprotocol/docs`
+  installs from. It's the only harness ECP ships.
+
+## 5. Inventory: what stays, what goes, what changes
+
+All removed code stays reachable at the `pre-reset` tag. Line counts are TypeScript, measured
+at `pre-reset`.
+
+### 5.1 Packages
+
+| Today | Lines | Fate | Ends up as |
+| --- | ---: | --- | --- |
+| `packages/types` | 2.4K | Fold | `core/types` entry |
+| `packages/core` | 25.1K | Keep and trim (see 5.2) | `core`, about 12K lines |
+| `packages/cli` | 3.8K | Rebuild | `cli` (keeps run, validate, describe, search, invoke, compile, secrets) |
+| `packages/mcp` | 0.6K | Rebuild | `mcp` (library + JIT plugin) |
+| `packages/policies` | 0.8K | Fold | Standard policies in core; `image-policy` moves to `plugin-image-sharp` |
+| `packages/evals` | 3.5K | **Remove** | — |
+| `packages/harnesses/browser-nano` | 5.0K | **Remove** | — |
+| `packages/harnesses/browser-coding` | 4.3K | **Remove** | — |
+| `packages/runtimes/node` | 0.2K | Fold | `core/node` |
+| `packages/runtimes/browser` | 1.7K | Fold part, remove part | Executor and builtins → `core/browser`; authoring panels, `browser-guide`, session config → removed |
+| `packages/runtimes/temporal` | 0.1K | **Remove** | Revisit when hosted execution is real |
+| `packages/extensions/index` | 0.1K | **Remove** | Installing plugins replaces the aggregator |
+| `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `plugin-app`; the rest is removed |
+| — | — | **New** | `plugin-kit` |
+
+### 5.2 Inside core
+
+| Module | Lines | Fate |
 | --- | ---: | --- |
-| `core/src/harness/**` (authoring prompts, intent, repair loops) | 6.0K | **Cut** |
-| `packages/harnesses/*` (browser-nano, browser-coding) | 9.3K | **Cut** |
-| `packages/evals` + eval workflows + `test:eval:*` scripts | 3.5K | **Cut** |
-| `format-eql` (only served the nano harness) | 4.5K | **Cut** |
-| `chrome-ai`, `browser-secrets`, `runtimes/browser` | 3.2K | **Cut** (App runs through the CLI) |
-| `runtimes/temporal` (stub) | 0.1K | **Cut**; revisit when hosted |
-| `core` test-session, feedback, harness-artifact compile | ~1.2K | **Cut**; journal + `runs` replace them |
-| `cli` serve, up, test | ~1K | **Cut / move** to App and `runs` |
-| `apps/browser-demo` + `format-reactflow` | 12.2K | **Move**, slimmed, into `plugin-app` |
-| `docs/*.md` reports and assessments, `ecp-overhaul.md` | — | **Archive** (git tag), replace with docs site |
-| `core` registry, definitions, bindings, validate, runtime, encoding, fluent, patch, media, file | ~6.5K | **Keep** |
-| `types`, `policies` | 3.2K | **Keep** (`policies` becomes `plugin-policies`) |
-| All model, connector and transform extensions | ~25K | **Keep**, each as its own plugin |
-| `extensions/index` aggregator | 0.1K | **Cut**; installing plugins replaces it |
+| `harness/**` (authoring, prompts, definitions, repair loop, call-model) | 6.0K | **Remove** |
+| `compile/*harness-artifact*`, `compile/evaluate-browser`, `compile/prepare-browser-source` | ~0.4K | **Remove** (harness artifacts) |
+| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Remove**; replaced by the run journal and `runs rerun` |
+| `feedback/` | 0.1K | **Remove** (chat feedback for the harness) |
+| `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
+| `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
+| `bindings/harness.ts`, `validate/harness.ts` | ~0.1K | **Remove** |
+| `registry`, `definitions`, `bindings` (extension, policy, runtime, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects |
+| `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `routine()`, `.requires()`, `.bind()`, `.policies()` |
+| `environment` | 1.5K | Change: built by the host from installed plugins plus the routine's bindings. `describe` and `search` stay |
+| `runtime` | 1.9K | Keep; add journal writer and event emitter, and resume from a step |
+| `validate`, `schema`, `encoding` (json, fluent), `patch`, `invoke` | ~2.6K | Keep |
+| `media`, `file`, `loaders`, `util`, `compile` (transpile, extract) | ~1.6K | Keep; the routine loader goes in `core/node` |
+| — | — | **New:** journal model, error code catalogue, dependency inference, standard policies (from `policies`) |
 
-Recovery: everything deleted is still at the `pre-reset` tag.
+### 5.3 CLI commands
 
-## 6. Phases
+| Today | Fate |
+| --- | --- |
+| `run`, `validate`, `describe`, `search`, `invoke`, `compile`, `config secrets *` | Keep, rework for routines and `--json` |
+| `init` | Rewrite: scaffold a routine file |
+| `test start\|run\|rerun\|status` | **Remove** → `runs list\|show\|rerun` |
+| `serve` | **Remove** → `mcp serve`, and the App server |
+| `up` | **Remove** → `app` |
+| `encode`, `decode` | **Remove** from the CLI → `ecp toon encode\|decode` in `plugin-toon` |
+| — | **New:** `install`, `runs *`, `discover`, `update`, `rollback`, `plugins *`, generated plugin commands |
 
-### Branching
+### 5.4 Extensions → plugins
 
-All reset work happens on the long-lived branch `milestone/cli-reset`, cut from `development`
-at `pre-reset`. Each phase is a `feat/…` branch with a PR into the milestone branch. When the
-milestone is done, it merges to `development` and then to `main` as the 1.0 release.
-Publishing only runs on `main` (`ENABLE_NPM_PUBLISH=true`), so nothing reaches npm until then.
-Prerelease publishing for Phase 3 testing can come from the milestone branch under a `next`
-dist-tag if needed.
+| Today | Lines | Plugin | Notes |
+| --- | ---: | --- | --- |
+| `extensions/secrets` | 0.6K | `plugin-secrets` | Bundled with the CLI as a core plugin |
+| `extensions/process-env` | 0.1K | Fold into `plugin-secrets` | Env vars as a secrets provider |
+| `extensions/storage` | 1.3K | `plugin-storage` | |
+| `extensions/memory` | 0.1K | `plugin-memory` | |
+| `extensions/telemetry` | 0.1K | `plugin-telemetry` | Opt-in, built on oclif lifecycle hooks (Adobe pattern) |
+| `extensions/anthropic` | 0.7K | `plugin-anthropic` | |
+| `extensions/openai` | 0.2K | `plugin-openai` | |
+| `extensions/ollama` | 0.9K | `plugin-ollama` | |
+| `extensions/format-toon` | 0.7K | `plugin-toon` | Gets `encode` and `decode` commands |
+| `extensions/format-mermaid` | 0.5K | `plugin-mermaid` | `ecp mermaid render <routine>` |
+| `extensions/format-reactflow` | 2.3K | Fold into `plugin-app` | |
+| `extensions/format-eql` | 4.5K | **Remove** | Only served the nano harness |
+| `extensions/chrome-ai` | 1.1K | **Remove** | In-browser model for the demo harness |
+| `extensions/browser-secrets` | 0.5K | **Remove** | Browser vault for the demo; hosted vault comes later |
+| `vendor/jsonata` | 0.3K | `plugin-jsonata` | First to migrate (smallest, pure) |
+| `vendor/fal` | 0.3K | `plugin-fal` | |
+| `vendor/image-sharp` | 1.7K | `plugin-image-sharp` | Takes `image-policy` from `policies` |
+| `vendor/azure-blob-storage` | 1.2K | `plugin-azure-blob` | |
+| `vendor/adobe-firefly-services` | 8.5K | `plugin-firefly` | Largest; migrates last |
+| `vendor/slack` | 0.1K | `plugin-slack` | Needs a real send handler before publishing (mock today) |
 
-### Phase 0 — Merge and freeze ✅ (2026-10-19)
+### 5.5 Everything else
 
-1. PR #32 (`feat/projections`) merged into `development`.
-2. `development` tagged `pre-reset` (`07e91a8`). `main` is untouched and nothing was published.
-3. `milestone/cli-reset` created from `pre-reset`, starting with this plan.
-4. Still to do: delete the stale branches `feat/build-cleanup`, `feat/delegation-testing`,
-   `feat/memory-recall`, `feat/plugin-install`, `cursor/development-environment-setup-593c`,
-   and the merged local branches.
+| Area | Fate |
+| --- | --- |
+| `examples/01-echo`, `02-weekly-brief`, `03-secrets-bind`, `06-invoke`, `07-accepts-returns`, `create-then-summarize-ollama`, `ollama-filesystem-documents`, `ollama-mcp-tools` | Convert to single `*.ecp.ts` routines |
+| `examples/vendor/02-weekly-brief-with-slack`, `03-fal-chain`, `04-image-prep`, `adobe-firefly-smoke`, `azure-adobe-assets`, `azure-photoshop-manifest` | Convert; each moves next to its plugin as `plugins/<name>/examples/` |
+| `examples/04-compile-and-run`, `04-encode-decode`, `05-test-session`, `harness-ollama`, `controller-specialist`, `vendor/browser-demo-host` | **Remove**; covered by docs or by removed features |
+| `docs/*.md` (assessments, reports, harness, EQL, daemon, browser review), `docs/ui-example` | **Remove**; conceptual content moves to the docs site |
+| `ecp-overhaul.md` | **Remove**; superseded by this plan |
+| `SPEC.md`, `ARCHITECTURE.md`, `AGENTS.md`, `README.md`, `SETUP.md`, `RELEASING.md` | Rewrite for routines, plugins, delegation and Changesets |
+| `CHANGELOG.md`, `LICENSE` | Keep |
+| `archive/legacy-v0.5` | **Remove** (still at tags `v0.5.0` and `v0.5-latest`) |
+| `config/ecp.config.example.yaml` | **Remove** (no config files) |
+| `.gitmodules` (empty), `.cursor/eval-timing.ndjson` | **Remove** |
+| `.cursor/rules/*` | Rewrite to match the new `AGENTS.md`, or remove |
+| `skills/ecp-core` | Rewrite as a contributor skill (package boundaries, plugin authoring); drop `harness-eval.md` |
+| `fixtures/consumer-cli` | Rework into a clean-install plugin smoke test |
+| `.ecp/` | Gitignore (run journals) |
+| Scripts: `check-no-file-deps`, `clean-dist`, `lint-yaml`, `list-publishable-workspaces`, `resolve-pack-tarball` | Keep |
+| Scripts: `consumer-cli-smoke`, `vendor-pack-smoke` | Rework → `plugin-pack-smoke` (pack, install into a clean `ecp`, run `--help`) |
+| Scripts: `bump-all-ecp-versions`, `publish-workspaces`, `check-version-gt-published` | Replace with Changesets |
+| Scripts: `ecp-up-demo`, `migrate-deps-to-pnpm` | **Remove** |
+| CI `evals.yml`, `pages.yml` | **Remove** (the docs repo deploys the docs) |
+| CI `development.yml` | Replace with a Changesets status check |
+| CI `ci.yml` | Add `milestone/**` to push and PR triggers (first commit of Phase 1) |
+| CI `ci-pipeline.yml` | Drop the demo and eval jobs; keep the browser job for core; add plugin pack smoke |
+| Root `package.json` scripts | Drop `test:eval:*`, `eval:*`, `dev:demo`, `up:demo`, `build:demo`, `test:demo` |
+
+### 5.6 Net effect
+
+| | Today | After |
+| --- | ---: | ---: |
+| TypeScript lines | ~83K | ~50K (about 27K removed outright; about half of the 12K demo and React Flow code survives in `plugin-app`) |
+| Shippable packages | 31 | 4 + 16 plugins |
+| Packages a user needs to start | CLI + an environment module that imports each extension | `cli`, then plugins installed on demand |
+| Model-facing harness code | ~19K (core harness, harnesses, EQL, evals) | 0, plus one skill |
+
+## 6. Borrowed from Adobe I/O CLI
+
+Studied: `adobe/aio-cli`, `aio-cli-plugin-app`, `aio-cli-plugin-runtime`,
+`aio-cli-plugin-telemetry`, `@oclif/plugin-plugins`, and oclif's JIT plugins and explicit
+command loading.
+
+| Adobe I/O pattern | ECP adoption |
+| --- | --- |
+| Thin root CLI; every feature is an `@adobe/aio-cli-plugin-*`, with a set of core plugins in `oclif.plugins` | `ecp` bundles only the oclif essentials plus `plugin-secrets` |
+| Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-kit` generates the shell |
+| `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
+| `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | `ecp update` and `ecp rollback`, same logic |
+| `oclif.scope` and the `plugin` prefix for short install names | `ecp plugins install slack` → `@executioncontrolprotocol/plugin-slack` |
+| `@oclif/plugin-not-found` plus a `command_not_found` hook | Unknown topic → offer the matching plugin |
+| Telemetry as its own plugin on `init`, `prerun`, `postrun` and `command_error` hooks | `plugin-telemetry`, opt-in |
+| oclif JIT plugins (`jitPlugins`, `jit_plugin_not_installed`) | `mcp` and `app` appear in help before install |
+| `plugins link` for local development | The documented plugin-author loop |
+
+From our own closed PR #23 (`feat/plugin-install`): plugin trust policy (allowed source types,
+third-party plugins on or off), re-implemented as a pre-install check on top of
+`@oclif/plugin-plugins`.
+
+## 7. Phases
+
+Each phase is a `feat/<phase>-…` branch with a PR into `milestone/cli-reset`. CI must be green
+on the milestone branch after every phase.
+
+### Phase 0 — Merge and freeze ✅ 2026-10-19
+
+- PR #32 merged into `development`, tagged `pre-reset` (`07e91a8`).
+- `milestone/cli-reset` created with this plan. `main` untouched and nothing published.
+- Left over: delete the stale branches `feat/build-cleanup`, `feat/delegation-testing`,
+  `feat/memory-recall`, `feat/plugin-install`, `cursor/development-environment-setup-593c`,
+  and the merged local branches.
 
 ### Phase 1 — Trim
 
-Delete everything marked **Cut** in §5 in one PR, and park `apps/browser-demo` and
-`format-reactflow` on the `pre-reset` tag (they come back in Phase 6). Drop the eval and demo
-CI jobs. Make `build`, `lint` and the unit and integration tests green on what's left.
+1. Add `milestone/**` to the CI triggers.
+2. Remove everything marked **Remove** in §5 (packages, core modules, CLI commands, examples,
+   docs, scripts, workflows, root scripts).
+3. Move `apps/browser-demo` and `format-reactflow` out of the workspace (they come back from
+   `pre-reset` in Phase 8).
+4. Fix the build, lint and tests on what's left.
 
-**Exit:** green CI, no harness or eval code, `core` under about 12K lines.
+**Exit:** green CI; no harness, eval, EQL or demo code; the workspace builds.
 
-### Phase 2 — Plugin kit and the CLI core
+### Phase 2 — Consolidate core
 
-1. `plugin-kit`: `toCommands()` (flags, `--input`, `--json` envelope, help rendering) and
-   `toMcpTools()` (built now and unit-tested so the MCP phase is thin).
-2. Rebuild `cli` around the §3.3 command table. Bundle the core oclif plugins, set the scope
-   and prefix, and add the `command_not_found` hook, `discover`, `update` and `rollback`.
-3. Error code catalogue and the run journal (`.ecp/runs/<id>/`: resolved graph, per-step
-   input/output/timing/policy decisions/error).
-4. Routine files (§3.3):
-   - `routine()` with `.requires()`, `.bind()`, `.policies()` and `.run()`.
-   - A loader that resolves `@executioncontrolprotocol/core` to the CLI's own copy.
-   - Dependency inference from ids.
-   - The missing-plugin prompt, `--yes` and `ECP_PLUGINS_MISSING`.
-   - `ecp install <routine>`.
-   - `compile` splitting the manifest from the requirements.
-   - Port the examples from workflow + environment pairs to single routine files.
+1. Fold `types` into `core/types`, `runtimes/node` into `core/node`, the browser executor and
+   builtins into `core/browser`, and `policies` into core.
+2. Make definitions data: remove `catalogExtension` and `globalRegistry` side effects; the
+   host owns the registry.
+3. Check that the root entry has no Node-only imports (lint rule), and run core's unit tests
+   in both the Node and browser Vitest projects.
 
-**Exit:** on a machine where `plugin-jsonata` isn't installed, `ecp run demo.ecp.ts` prompts
-to install it, installs, and runs. With `--json`, it stops with `ECP_PLUGINS_MISSING` instead.
+**Exit:** `core` about 12K lines, tests green in Node and browser.
 
-### Phase 3 — Plugins to npm
+### Phase 3 — Plugin kit and CLI
 
-1. Move each extension to `plugins/plugin-<name>` with the §3.2 contract. Order: jsonata,
-   storage, secrets, policies, anthropic, openai, ollama, then fal, image-sharp, azure-blob,
-   firefly, toon, mermaid. `slack` stays unpublished until it has a real send handler (it's
-   a mock today).
-2. Switch from lockstep `bump-all` to Changesets: independent versions, `plugin-kit` as a
-   peer with a `^1` range.
-3. CI: `oclif manifest` + `npm pack` smoke test per plugin, and
-   `ecp plugins install <tarball>` in a clean home directory.
-4. Publish `cli` 1.0.0-beta + `plugin-kit` 1.0.0 + each plugin.
+1. `plugin-kit`: `toCommands()`, flag generation, `--input`, the `--json` envelope and help
+   rendering.
+2. Rebuild `cli` around §4.4: bundled core plugins, scope and prefix, the `command_not_found`
+   and trust hooks, `discover`, `update`, `rollback`.
+3. Migrate `plugin-jsonata` as the reference plugin.
 
-**Exit:** `npm i -g @executioncontrolprotocol/cli && ecp plugins install jsonata` works on a
-clean machine.
+**Exit:** `ecp plugins link plugins/plugin-jsonata` gives a working
+`ecp jsonata transform --json`.
 
-### Phase 4 — Docs site and skill
+### Phase 4 — Routines and observability
 
-In the `docs` repo: a CLI-first rewrite, generated CLI reference and plugin catalogue, error
-code pages, and the rewritten `ecp` skill installable with `npx skills add`.
+1. `routine()`, `.requires()`, `.bind()`, `.policies()`, the routine loader with core
+   self-resolution, and dependency inference.
+2. `ecp run`, `validate`, `install` and `compile` on routines; the missing-plugin flow.
+3. Run journal, `--events`, error code catalogue, exit codes, and `ecp runs list|show|rerun`.
+4. Convert the examples to routines.
 
-**Exit:** a fresh Claude Code session with only the skill installed builds and runs a
-three-step workflow on its own. This is a manual dogfood run, not an eval harness.
+**Exit:** on a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and
+runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`.
 
-### Phase 5 — MCP (`plugin-mcp`)
+### Phase 5 — Plugins to npm
 
-`ecp mcp serve` over stdio and HTTP, meta tools plus generated capability tools, and
-list-changed notifications. Retire `packages/mcp`.
+1. Migrate the remaining extensions per §5.4. Order: storage, secrets, memory, anthropic,
+   openai, ollama, toon, mermaid, telemetry, fal, image-sharp, azure-blob, firefly, then
+   slack once it has a real handler.
+2. Changesets with independent versions; `plugin-pack-smoke` in CI for every plugin.
+3. Prerelease publishing from the milestone branch under the `next` dist-tag.
 
-**Exit:** Claude Desktop connected over MCP can do the same three-step task through tool
-search.
+**Exit:** criteria 1, 3 and 4 of §2.4 pass with `@next` packages.
 
-### Phase 6 — App (`plugin-app`)
+### Phase 6 — Docs site and skill
 
-Carve the graph editor, Monaco and run panel out of the `pre-reset` demo. Add the file watcher,
-two-way Fluent sync and streamed run progress. Ship as a JIT plugin.
+CLI-first rewrite of the docs repo, generated reference pages, and the rewritten `ecp` skill
+installable with `npx skills add`.
 
-**Exit:** Claude edits `brief.ecp.ts` in the terminal and the graph updates live; a node edit
-in the App shows up in the file.
+**Exit:** Dogfood A (§2.4 criterion 7).
+
+### Phase 7 — MCP
+
+`@executioncontrolprotocol/mcp` per §4.6.
+
+**Exit:** Dogfood B.
+
+### Phase 8 — App
+
+`plugin-app` per §4.7, carved from `pre-reset`.
+
+**Exit:** Dogfood C.
+
+### Phase 9 — 1.0 release
+
+1. Confirm every §2.4 criterion.
+2. Merge `milestone/cli-reset` → `development` → `main`. This publishes 1.0 (publishing runs
+   on `main`).
+3. Deprecate the retired 0.x packages on npm with a pointer to their replacements.
 
 ### Later
 
-- `plugin-reflex`: `decide.choice`, `decide.yesno` and `decide.score` capabilities backed by
-  so1 readout, Laya or Jev. Typed decisions become ordinary workflow steps, and the outer
-  model stays the supervisor.
-- Hosted MCP plus a cloud secrets binding (Strata).
-- Durable runtime (Temporal) once hosted execution is real.
+- **Healing automation:** `--on-failure <command>` wakes an agent (for example `claude -p`)
+  with the journal path when an unattended run fails, plus a scheduler (`ecp schedule`).
+- **`plugin-reflex`:** `decide.choice`, `decide.yesno` and `decide.score` backed by so1
+  readout, Laya or Jev. Decisions become ordinary steps; logit fingerprints flag drift to the
+  supervising agent.
+- **Hosted MCP + cloud secrets binding** (Strata).
+- **Durable runtime** (Temporal) once hosted execution needs it.
 
-## 7. Open decisions
+## 8. Risks
 
-1. **Routine file name.** Proposal: `*.ecp.ts`, so the CLI, the App watcher and editors can
-   find routines by glob.
-2. **User vs per-routine plugin versions.** oclif installs plugins per user, while a routine
-   can pin with `.requires()`. If two routines pin incompatible majors, only one can be
-   installed. Proposal: warn on a mismatch now and consider per-routine installs later.
-3. **Flag generation depth.** Top-level primitives become flags and everything else goes
-   through `--input` JSON. Revisit if models struggle with it.
-4. **Command naming.** `ecp <plugin> <capability>` puts plugin names in the root namespace.
-   The alternative is `ecp x <plugin> <capability>`. Proposal: root namespace, with core names
-   reserved.
-5. **Authoring format.** The single Fluent routine file is the canonical artifact. Patch and
-   encode stay in core for MCP clients that can't edit files.
+| Risk | Mitigation |
+| --- | --- |
+| A plugin's install folder gets its own copy of core, so registries split | Definitions are data and the host owns the registry (§4.1). Core is a peer dependency of plugins |
+| oclif startup slows as plugins pile up | `oclif manifest` in every plugin; criterion 10 is the budget |
+| Dependency inference picks the wrong package | The naming convention plus `.requires()` pins; `validate` names every inferred package |
+| Loose model output in flags (nested input) | Flags only for top-level primitives; `--input` JSON for everything else |
+| Existing 0.x users and Strata break | 1.0 is a major release; 0.x stays installable and deprecated; `pre-reset` keeps the full history |
+| The browser demo disappears from GitHub Pages | Point the docs site at `ecp app`; the demo stays buildable from `pre-reset` |
+| One user-level plugin install can't satisfy two routines pinning different majors | Warn on the mismatch now; consider per-routine installs later |
+
+## 9. Open decisions
+
+1. **Flag depth.** Only top-level primitives become flags. Revisit after Dogfood A.
+2. **Command namespace.** `ecp <plugin> <capability>` at the root, with core names reserved.
+   The alternative is `ecp x <plugin> <capability>`.
+3. **Per-routine plugin isolation.** Deferred (see Risks).
+4. **`plugin-kit` as its own package** or a `cli/kit` subpath. Own package is preferred so
+   plugins don't depend on the whole CLI.
