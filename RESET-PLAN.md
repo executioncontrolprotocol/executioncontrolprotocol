@@ -51,7 +51,7 @@ more harness code here, plus evals to keep it honest.
    determinism │                                    │ journal, live events
 ┌──────────────▼───────────────────────────────────┴────────────────┐
 │ ECP: deterministic, governed execution                            │
-│   signups.ecp.ts → validate → run → journal                       │
+│   product.ecp.ts → validate → run → journal                       │
 │   capabilities from installed plugins:                            │
 │     connectors · transforms · model calls · System-1 decisions    │
 └───────────────────────────────────────────────────────────────────┘
@@ -115,19 +115,21 @@ npm i -g @executioncontrolprotocol/cli
 npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP loop
 ```
 
-1. A user asks Claude Code: *"Every Monday, pull last week's signups from our storage
-   bucket, summarise them and post to Slack."*
-2. Claude runs `ecp search "summarise text"` and `ecp discover slack`. It writes
-   `signups.ecp.ts`, a single file.
-3. `ecp run signups.ecp.ts --json` stops with `ECP_PLUGINS_MISSING`. Claude runs the listed
+1. A user asks Claude Code: *"Whenever I hand you a product photo and a description, make a
+   1200px WebP, upload it to our Azure container, get a share link, and write a short
+   caption."*
+2. Claude runs `ecp search "resize image"` and `ecp discover azure`. It writes
+   `product.ecp.ts`, a single file.
+3. `ecp run product.ecp.ts --json` stops with `ECP_PLUGINS_MISSING`. Claude runs the listed
    `ecp plugins install …` commands and reruns.
-4. Step 2 fails with `ECP_INPUT_INVALID` at `steps.summary.with.context`. Claude reads the
-   journal, fixes the reference, and runs `ecp runs rerun <id> --from summary`. It passes.
+4. The upload step fails with `ECP_INPUT_INVALID` at `steps.blob.with.file`. Claude reads the
+   journal, fixes the reference to the resized image, and runs
+   `ecp runs rerun <id> --from blob`. It passes, reusing the resize output.
 5. The workflow is now a deterministic, reusable file. Later runs cost no reasoning tokens
    unless something breaks, and then the agent is called back.
 6. The same user in Claude Desktop connects `ecp mcp serve` and gets the same capabilities as
    tools, through tool search.
-7. `ecp app signups.ecp.ts` opens a live graph of the workflow. As Claude edits the file the
+7. `ecp app product.ecp.ts` opens a live graph of the workflow. As Claude edits the file the
    graph updates, and a node the user edits in the graph is written back to the file.
 
 ### 2.2 What ships to npm
@@ -136,7 +138,7 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 | --- | --- |
 | `@executioncontrolprotocol/core` | The environment-agnostic engine, runs in Node or browsers. Entries: `.` and `./types` |
 | `@executioncontrolprotocol/node` | The Node environment (id = package name). The CLI's default |
-| `@executioncontrolprotocol/browser` | The browser environment, used by `app` when it runs workflows in the page, and by apps that embed ECP |
+| `@executioncontrolprotocol/browser` | The browser environment, for apps that embed ECP in a page. No secrets provider in this phase |
 | `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
 | `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
 | `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: the small authoring dependency that turns an extension definition into CLI commands |
@@ -165,9 +167,9 @@ environments/
   app/           visual co-editor: React components, host adapters, static bundle
 plugins/
   plugin-anthropic  plugin-openai  plugin-ollama  plugin-fal
-  plugin-jsonata  plugin-storage  plugin-image-sharp  plugin-azure-blob-storage
-  plugin-adobe-firefly-services  plugin-slack  plugin-format-toon  plugin-format-mermaid
-  plugin-app
+  plugin-jsonata  plugin-image-sharp  plugin-azure-blob-storage
+  plugin-adobe-firefly-services  plugin-format-toon  plugin-format-mermaid
+  plugin-budget  plugin-approval  plugin-state-control  plugin-app
 examples/        single-file workflows only (*.ecp.ts)
 fixtures/        consumer smoke fixtures
 scripts/         build, lint, pack and publish helpers
@@ -200,9 +202,8 @@ The milestone is done when all of these are true:
    This is a manual check run three times, not an eval harness.
 8. **Dogfood B:** the same three tasks succeed from Claude Desktop over `ecp mcp serve`.
 9. **Dogfood C:** `ecp app` reflects file edits within a second, and graph edits round-trip to
-   the file. The same `app` package, with no CLI, renders and runs a browser-compatible
-   workflow in a plain web page through the in-page adapter.
-10. `ecp --help` with all 13 first-party plugins installed returns in under a second (oclif manifests in every
+   the file.
+10. `ecp --help` with all 14 first-party plugins installed returns in under a second (oclif manifests in every
     plugin).
 11. The docs site is rewritten CLI-first, with a generated CLI reference, a plugin catalogue
     and an error code reference.
@@ -218,7 +219,10 @@ The milestone is done when all of these are true:
 4. **One plugin = one npm package = one extension definition.**
 5. **One workflow = one file.** No config files and no environment modules.
 6. **Governance is the reason to delegate through ECP** instead of calling APIs directly:
-   policies, budgets, approvals, staged state and secrets custody stay first-class in core.
+   policies, staged state and secrets custody. Core provides the *mechanism* (the policy
+   engine, staged state, `registry-control`, custody through environments). Individual
+   policies such as budget and approval are plugins, so core imposes nothing that isn't
+   installed.
 7. **Core runs anywhere.** No Node-only imports in core's root entry, so the same engine can be
    embedded in a browser or worker.
 8. **Trim before building.**
@@ -227,12 +231,12 @@ The milestone is done when all of these are true:
 
 ### 4.1 Core
 
-`@executioncontrolprotocol/core` absorbs `types` and `policies`. It's the environment-agnostic
+`@executioncontrolprotocol/core` absorbs `types` and the `registry-control` policy. It's the environment-agnostic
 engine; host wiring lives in the environment packages (§4.4).
 
 | Entry | Contents | Runs in |
 | --- | --- | --- |
-| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), `environment()`, binding builders (`extension`, `policy`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`, `defineEnvironment`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
+| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), `environment()`, binding builders (`extension`, `policy`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`, `defineEnvironment`), registry, validation, executor, policy engine and the `registry-control` policy, encoding (json, fluent), patch, journal model, error codes | Node and browsers |
 | `./types` | Protocol types, schema IDs, generated JSON Schemas | Anywhere |
 
 Rules:
@@ -310,6 +314,22 @@ entry directly, without oclif.
 - Third-party plugins use their own scope with the same `plugin-` prefix, plus the
   `ecosystem:ecp-plugin` keyword.
 
+#### Format plugins are converters
+
+A format plugin (`plugin-format-toon`, `plugin-format-mermaid`) is an ordinary extension whose
+capabilities are `encode` and `decode`. That gives it two roles with no extra code:
+
+- **Converters you can call.** Like any capability, they become CLI commands, MCP tools and
+  workflow steps: `ecp format-toon encode --input workflow.json`,
+  `ecp format-mermaid encode --input workflow.json`, or `step("@executioncontrolprotocol/format-toon.encode")`.
+- **Formats for core commands.** Core's encoding layer already resolves formats by id
+  (`encode().uses("@executioncontrolprotocol/format-toon")`), so installed format plugins also
+  work with `--format` on built-in commands: `ecp describe --format toon` gives a compact
+  catalogue for small-context clients, and `ecp compile product.ecp.ts --format mermaid` gives a
+  diagram for docs and PR descriptions.
+
+JSON and Fluent stay built into core.
+
 ### 4.3 Workflow files: one file runs the whole sequence
 
 A workflow file is a single Fluent TS file (`*.ecp.ts`) that holds everything needed to run:
@@ -328,41 +348,44 @@ the `env()`, `secrets()` and `browser()` config placeholders. There are two addi
    applies to, instead of in a separate list.
 
 ```ts
-// signups.ecp.ts
+// product.ecp.ts
 import { workflow, step, ref, extension, policy, secrets } from "@executioncontrolprotocol/core"
 
-export default workflow("Weekly signups to Slack")
+export default workflow("Product photo to web")
   .with([
     extension("@executioncontrolprotocol/anthropic", "Claude").with({
       apiKey: secrets("anthropic/api-key"),
       defaultModel: "claude-sonnet-5-5",
     }),
-    extension("@executioncontrolprotocol/slack")
+    extension("@executioncontrolprotocol/azure-blob-storage")
       .requires("^1")
-      .with({ botToken: secrets("slack/bot-token") }),
+      .with({ connectionString: secrets("azure/products-connection"), container: "products" }),
     policy("@executioncontrolprotocol/budget").with({ maxCostUsd: 1 }),
     policy("@executioncontrolprotocol/approval").with({
-      requireApprovalFor: ["@executioncontrolprotocol/slack.send"],
+      requireApprovalFor: ["@executioncontrolprotocol/azure-blob-storage.upload"],
     }),
   ])
   .run([
-    step("@executioncontrolprotocol/storage.list", "Last week's signups")
-      .with({ prefix: "signups/", since: "7d" })
-      .as("signups"),
-    step("@executioncontrolprotocol/anthropic.generate", "Summarise")
-      .with({ prompt: "Summarise these signups for the team.", context: ref("signups.items") })
-      .as("summary"),
-    step("@executioncontrolprotocol/slack.send", "Post")
-      .with({ channel: "#growth", message: ref("summary.text") })
-      .as("posted"),
+    step("@executioncontrolprotocol/image-sharp.resize", "Web size")
+      .with({ image: ref("input.photo"), width: 1200, format: "webp" })
+      .as("web"),
+    step("@executioncontrolprotocol/azure-blob-storage.upload", "Upload")
+      .with({ file: ref("web.file") })
+      .as("blob"),
+    step("@executioncontrolprotocol/azure-blob-storage.create-sas-url", "Share link")
+      .with({ blob: ref("blob.name") })
+      .as("link"),
+    step("@executioncontrolprotocol/anthropic.generate", "Caption")
+      .with({ prompt: "Write a 20-word product caption.", context: ref("input.description") })
+      .as("caption"),
   ])
 ```
 
-`storage` isn't in `.with()`: it needs no config or pin, so the step that uses it binds it
-automatically.
+Input and output field names here are illustrative.
 
-`.with` means the same thing at every level: what a thing is given. A workflow is given its
-bindings, a binding is given its config, and a step is given its input.
+`image-sharp` isn't in `.with()`: it needs no config or pin, so the step that uses it binds it
+automatically. `budget` and `approval` are policy plugins, inferred and installed the same way
+as extensions.
 
 #### How this maps to today
 
@@ -385,7 +408,7 @@ from installed plugins plus the workflow's `.with()` array.
 | Builder | Methods | Notes |
 | --- | --- | --- |
 | `extension(id, label?)` | `.with(config)`, `.requires(range, package?)` | List it only when it needs config or a pin; steps bind the rest automatically |
-| `policy(id, label?)` | `.with(config)`, `.requires(range, package?)` | `budget`, `approval` and `state-control` are built into core and need no pin; other policies come from plugins |
+| `policy(id, label?)` | `.with(config)`, `.requires(range, package?)` | Policies come from plugins (`plugin-budget`, `plugin-approval`, `plugin-state-control`, or third-party). Only `registry-control` is built into core |
 
 Each binding carries its kind (`extension` or `policy`) from its builder. That kind
 is what validation, dependency inference and the compiled requirements block read. If a new
@@ -445,7 +468,7 @@ already match the runtime package names, so nothing is renamed:
 | Environment id and package | Status | Ships with |
 | --- | --- | --- |
 | `@executioncontrolprotocol/node` | Exists (`packages/runtimes/node`, moving to `environments/node`) | The CLI, as the default environment. Takes in today's `secrets` and `process-env` extensions as its built-in secrets providers |
-| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`). Takes in today's `browser-secrets` extension as its secrets provider | `app` (in-page mode) and apps that embed ECP in a page |
+| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`). No secrets provider in this phase: `browser-secrets` is removed, so a workflow that needs secrets runs through the CLI | Apps that embed ECP in a page; later, the App's in-page mode |
 | `@executioncontrolprotocol/temporal` | Stub today (`runtime-temporal`, removed in Phase 1) | Later, as a separately installed package |
 
 `defineRuntime` becomes `defineEnvironment`. An environment definition owns the executor and
@@ -466,7 +489,7 @@ export default environment("@executioncontrolprotocol/node")
     extension("@executioncontrolprotocol/anthropic").with({ defaultModel: "claude-sonnet-5-5" }),
     policy("@executioncontrolprotocol/budget").with({ maxCostUsd: 5 }),
     policy("@executioncontrolprotocol/approval").with({
-      requireApprovalFor: ["@executioncontrolprotocol/slack.send"],
+      requireApprovalFor: ["@executioncontrolprotocol/azure-blob-storage.upload"],
     }),
   ])
 ```
@@ -523,7 +546,7 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | --- | --- |
 | `ecp init [name]` | Scaffold `<name>.ecp.ts` |
 | `ecp search <intent>` | Rank installed capabilities for an intent |
-| `ecp describe [id]` | Full schema and metadata for installed capabilities |
+| `ecp describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
 | `ecp validate <workflow>` | Validate the workflow file against installed plugins |
 | `ecp install <workflow>` | Install every plugin the workflow file needs |
 | `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>` |
@@ -531,7 +554,7 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp runs show <id>` | Journal: resolved graph and per-step records |
 | `ecp runs rerun <id> [--from <step>]` | Resume, reusing the outputs of earlier steps |
 | `ecp invoke <capability-id>` | Generic single-capability call |
-| `ecp compile <workflow>` | Manifest + requirements |
+| `ecp compile <workflow>` | Manifest + requirements. `--format <id>` renders through an installed format plugin (for example `mermaid`) |
 | `ecp config secrets add\|get\|list\|remove` | Local secrets |
 | `ecp discover [query]` | npm search for `ecosystem:ecp-plugin` packages, first-party flagged |
 | `ecp update` / `ecp rollback` | Update user plugins / remove user overrides of core plugins |
@@ -573,14 +596,13 @@ and `@oclif/plugin-warn-if-update-available`. The CLI also depends on the
   | `ECP_BINDING_INVALID` | Extension or policy config fails the `withConfig` schema its definition declares, or a workflow binds a secrets provider |
   | `ECP_ENVIRONMENT_UNSUPPORTED` | An extension doesn't `.supports()` the environment the workflow is running in |
   | `ECP_SECRET_MISSING` | A referenced secret has no value |
-  | `ECP_POLICY_DENIED` | A policy blocked the step |
-  | `ECP_APPROVAL_REQUIRED` | The run is paused for approval |
-  | `ECP_BUDGET_EXCEEDED` | A budget limit was reached |
+  | `ECP_POLICY_DENIED` | A policy blocked the step; names the policy and its reason (for example `budget`) |
+  | `ECP_RUN_PAUSED` | A policy paused the run (for example `approval`); names the policy |
   | `ECP_STEP_FAILED` | The capability threw; the original message is preserved |
   | `ECP_OUTPUT_INVALID` | The capability's output fails its schema |
 
 - **Exit codes:** `0` success · `1` run failed · `2` validation or usage error ·
-  `3` missing plugins · `4` paused for approval.
+  `3` missing plugins · `4` paused by a policy.
 
 ### 4.7 MCP
 
@@ -608,7 +630,7 @@ CLI install.
 | Package | Contains | Depends on |
 | --- | --- | --- |
 | `@executioncontrolprotocol/app` | The UI carved from the `pre-reset` browser demo: graph editor (React Flow), Monaco source pane, run panel. Exported as React components and as a prebuilt static bundle. Talks to its host only through a `HostAdapter` interface | `core`, React (peer, only when used as components) |
-| `@executioncontrolprotocol/plugin-app` | `ecp app [signups.ecp.ts]`: local server, file watcher, and the local host adapter's server side. Serves `app`'s prebuilt bundle | `plugin-sdk`, `node` environment. No React at run time |
+| `@executioncontrolprotocol/plugin-app` | `ecp app [product.ecp.ts]`: local server, file watcher, and the local host adapter's server side. Serves `app`'s prebuilt bundle | `plugin-sdk`, `node` environment. No React at run time |
 
 **The `HostAdapter` interface** is the seam that lets the same UI run anywhere:
 
@@ -620,16 +642,18 @@ CLI install.
 | `validate(source)` | Diagnostics shown on the graph |
 | `run(source, input)` | Start a run and return the `--events` stream |
 
-Two adapters ship with `app`:
+**In this phase the App is a link to the CLI.** One adapter ships with `app`:
 
 - **Local** (used by `plugin-app`): calls the CLI process over HTTP and WebSocket on
   loopback. Runs use the Node environment and the user's installed plugins. This is the
   `ecp app` experience: the agent edits the file in the terminal, the graph updates live, and
   graph edits are written back to the file.
-- **In-page**: runs entirely in the browser with the `@executioncontrolprotocol/browser`
-  environment and in-memory source. Used for a docs-site playground, a hosted demo, or Strata
-  embedding the editor. Extensions that don't `.supports()` the browser show up as
-  unavailable in the palette.
+
+The App stores no secrets. Custody stays with the CLI's Node environment.
+
+The `HostAdapter` seam keeps a later **in-page** adapter possible: running entirely in the
+browser on the browser environment, for a docs playground, a hosted demo or Strata embedding
+the editor. That needs a browser custody provider first, so it's in Later.
 
 Either way, the App is a viewer and co-editor, not a chat client and not a model host: no
 provider modal, no Chrome AI, no harness.
@@ -659,7 +683,7 @@ at `pre-reset`.
 | `packages/core` | 25.1K | Keep and trim (see 5.2) | `core`, about 12K lines |
 | `packages/cli` | 3.8K | Rebuild | `cli` (keeps run, validate, describe, search, invoke, compile, secrets) |
 | `packages/mcp` | 0.6K | Rebuild | `mcp` (library + JIT plugin) |
-| `packages/policies` | 0.8K | Fold | Standard policies in core; `image-policy` moves to `plugin-image-sharp` |
+| `packages/policies` | 0.8K | Split | `registry-control` → core; `budget`, `approval`, `state-control` → one plugin each; `image-policy` removed |
 | `packages/evals` | 3.5K | **Remove** | — |
 | `packages/harnesses/browser-nano` | 5.0K | **Remove** | — |
 | `packages/harnesses/browser-coding` | 4.3K | **Remove** | — |
@@ -687,7 +711,7 @@ at `pre-reset`.
 | `runtime` | 1.9K | Keep; add journal writer and event emitter, and resume from a step |
 | `validate`, `schema`, `encoding` (json, fluent), `patch`, `invoke` | ~2.6K | Keep |
 | `media`, `file`, `loaders`, `util`, `compile` (transpile, extract) | ~1.6K | Keep; the workflow file loader moves to `@executioncontrolprotocol/node` |
-| — | — | **New:** journal model, error code catalogue, dependency inference, standard policies (from `policies`) |
+| — | — | **New:** journal model, error code catalogue, dependency inference, `registry-control` (from `policies`) |
 
 ### 5.3 CLI commands
 
@@ -716,31 +740,31 @@ places in the monorepo that import the package.
 | `openai` | `generate`, `evaluate` | 160 · 1 | Node | Real | demo, examples 02/03 | **Keep** → `plugin-openai` |
 | `ollama` | `generate`, `listModels`, `evaluate` | 530 · 3 | Node | Real | cli (direct dependency), harnesses, demo | **Keep** → `plugin-ollama`; drop the CLI's direct dependency |
 | `fal` | `generate` | 200 · 1 | Node | Real | demo, vendor examples | **Keep** → `plugin-fal` |
-| `chrome-ai` | `checkAvailability`, `startModelDownload`, `getModelInstallState`, `generate` | 810 · 1 | Browser | Real, but only the demo harness uses it | harnesses, demo | **Park**: out of 1.0. Can return as a browser-only plugin for the in-page App once Phase 8 ships |
+| `chrome-ai` | `checkAvailability`, `startModelDownload`, `getModelInstallState`, `generate` | 810 · 1 | Browser | Real, but only the demo harness uses it | harnesses, demo | **Remove**. Reasoning comes from the outer agent; in-workflow model calls use the other providers |
 
 #### Data, transforms and connectors
 
 | Extension | Capabilities | Lines · tests | Runs in | State | Consumers | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
 | `jsonata` | `transform` | 140 · 1 | Any | Real, pure | demo | **Keep** → `plugin-jsonata`, the reference plugin |
-| `storage` | `read`, `write`, `workflow-save`, `workflow-load`, `workflow-list`, `workflow-delete` | 1,070 · 1 | Any | Real (disk) | cli (direct dependency), demo | **Keep** `read`/`write` → `plugin-storage`. **Remove** the `workflow-*` capabilities: they backed the demo's save feature, and workflows are now files (the App saves through its `HostAdapter`) |
+| `storage` | `read`, `write`, `workflow-save`, `workflow-load`, `workflow-list`, `workflow-delete` | 1,070 · 1 | Any | Real (local disk) | cli (direct dependency), demo | **Remove**. `azure-blob-storage` covers real storage; the `workflow-*` capabilities backed the demo's save feature, and workflows are now files. Persisting between steps is committed state; persisting between runs is the journal |
 | `azure-blob-storage` | `upload`, `download`, `create-sas-url` | 800 · 3 | Any | Real | demo, vendor examples | **Keep** → `plugin-azure-blob-storage` |
-| `slack` | `send` | 55 · 1 | Node | **Mock** (returns a fake timestamp) | vendor example | **Keep, but implement**: a real `chat.postMessage` handler before publishing. Needed for the §2.1 walkthrough |
-| `memory` | `search`, `remember` (+ auto-remember hooks) | 90 · 1 | Any | **Stub**: process memory, lost when a CLI run ends | core tests, examples | **Remove** for 1.0. Rewrite example 02 on `storage`. A real memory plugin (backed by storage) can come later |
+| `slack` | `send` | 55 · 1 | Node | **Mock** (returns a fake timestamp) | vendor example | **Remove**. A real Slack plugin can come later |
+| `memory` | `search`, `remember` (+ auto-remember hooks) | 90 · 1 | Any | **Stub**: process memory, lost when a CLI run ends | core tests, examples | **Remove**. Example 02 takes its signals as workflow input instead |
 
 #### Media and creative
 
 | Extension | Capabilities | Lines · tests | Runs in | State | Consumers | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `image-sharp` | 11: `inspect`, `metadata`, `stats`, `resize`, `crop`, `convert`, `normalize`, `thumbnail`, `transform`, `composite`, `derive` | 1,550 · 2 | Node (native `sharp`) | Real | cli, harnesses, demo, examples | **Keep** → `plugin-image-sharp`, which also takes `image-policy` |
-| `adobe-firefly-services` | 84, generated from OpenAPI, across Firefly, Photoshop, Illustrator, InDesign, Express, Audio/Video, Substance 3D and Creative Production | 7,960 · 5 | Node | Real (generated clients) | harness, demo, vendor examples | **Keep** → `plugin-adobe-firefly-services`, migrated last, with a `firefly` topic alias. Splitting it per product family is an open decision |
+| `image-sharp` | 11: `inspect`, `metadata`, `stats`, `resize`, `crop`, `convert`, `normalize`, `thumbnail`, `transform`, `composite`, `derive` | 1,550 · 2 | Node (native `sharp`) | Real | cli, harnesses, demo, examples | **Keep** → `plugin-image-sharp` |
+| `adobe-firefly-services` | 84, generated from OpenAPI, across Firefly, Photoshop, Illustrator, InDesign, Express, Audio/Video, Substance 3D and Creative Production | 7,960 · 5 | Node | Real (generated clients) | harness, demo, vendor examples | **Keep** → `plugin-adobe-firefly-services`, migrated last, with a `firefly` topic alias. Stays one plugin |
 
 #### Formats
 
 | Extension | Capabilities | Lines · tests | Runs in | State | Consumers | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `format-toon` | `encode`, `decode` | 500 · 2 | Any | Real | cli, mcp, core, harnesses, examples | **Keep** → `plugin-format-toon`. Compact `describe` output for small-context clients |
-| `format-mermaid` | `encode` | 350 · 2 | Any | Real | demo | **Keep** → `plugin-format-mermaid`. Renders workflows for docs and PR descriptions |
+| `format-toon` | `encode`, `decode` | 500 · 2 | Any | Real | cli, mcp, core, harnesses, examples | **Keep** → `plugin-format-toon`, a converter (§4.2): `ecp format-toon encode`, and `ecp describe --format toon` |
+| `format-mermaid` | `encode` | 350 · 2 | Any | Real | demo | **Keep** → `plugin-format-mermaid`, a converter: `ecp compile --format mermaid` for docs and PR descriptions |
 | `format-reactflow` | `encode` + 12 run-progress hooks | 1,450 · 2 | Any | Real | demo | **Fold** into `app` |
 | `format-eql` | `encode`, `decode` | 3,230 · 14 | Any | Real, but only the nano harness uses it | harnesses, demo | **Remove** |
 
@@ -750,7 +774,7 @@ places in the monorepo that import the package.
 | --- | --- | --- | --- | --- |
 | `secrets` | OS keychain resolver for `secrets("…")` | 330 · 3 | Node | **Fold** into the `@executioncontrolprotocol/node` environment |
 | `process-env` | Env-var resolver for `env("…")` | 70 · 0 | Node | **Fold** into the Node environment; add tests |
-| `browser-secrets` | Passphrase-encrypted browser vault | 430 · 1 | Browser | **Fold** into the `@executioncontrolprotocol/browser` environment. It was marked Remove earlier; the in-page App needs a custody provider |
+| `browser-secrets` | Passphrase-encrypted browser vault | 430 · 1 | Browser | **Remove**. In this phase the App is a link to the CLI and stores no secrets |
 
 #### Lifecycle and aggregation
 
@@ -763,25 +787,33 @@ places in the monorepo that import the package.
 
 | Policy | Role | Decision |
 | --- | --- | --- |
-| `budget` | Cost, model-call, retry and token limits | **Fold** into core as a standard policy |
-| `approval` | Pause before listed capabilities | **Fold** into core |
-| `state-control` | Allowed and denied mutation paths and ops | **Fold** into core |
+| `budget` | Cost, model-call, retry and token limits | **Keep as a plugin** → `plugin-budget`. Core doesn't impose policies that aren't installed |
+| `approval` | Pause before listed capabilities | **Keep as a plugin** → `plugin-approval` |
+| `state-control` | Allowed and denied mutation paths and ops | **Keep as a plugin** → `plugin-state-control` |
 | `registry-control` | Authorizes dynamic extension registration through `policy:pre` | **Fold** into core. It becomes the basis of the plugin trust check (§4.5) |
-| `image-policy` | Image input and output limits | **Move** to `plugin-image-sharp` |
+| `image-policy` | Image input and output limits | **Remove** |
 
-**Result:** 13 first-party plugins (anthropic, openai, ollama, fal, jsonata, storage,
-azure-blob-storage, slack, image-sharp, adobe-firefly-services, format-toon, format-mermaid,
-app), 3 extensions folded into environments, 4 policies folded into core, and 6 packages
-removed or parked (format-eql, chrome-ai, memory, telemetry, the aggregator, plus `storage`'s
-`workflow-*` capabilities).
+One plugin per policy keeps the naming rule (`@executioncontrolprotocol/budget` →
+`plugin-budget`), so a workflow that uses a policy gets it installed the same way as an
+extension.
+
+**Result:**
+
+- **14 first-party plugins:** anthropic, openai, ollama, fal, jsonata, azure-blob-storage,
+  image-sharp, adobe-firefly-services, format-toon, format-mermaid, budget, approval,
+  state-control, and app.
+- **Folded:** 2 extensions into the Node environment (`secrets`, `process-env`) and 1 policy
+  into core (`registry-control`).
+- **Removed (9):** format-eql, chrome-ai, memory, telemetry, the aggregator, storage, slack,
+  browser-secrets and image-policy.
 
 ### 5.5 Everything else
 
 | Area | Fate |
 | --- | --- |
-| `examples/01-echo`, `02-weekly-brief`, `03-secrets-bind`, `06-invoke`, `07-accepts-returns`, `create-then-summarize-ollama`, `ollama-filesystem-documents`, `ollama-mcp-tools` | Convert to single-file `*.ecp.ts` workflows (`02-weekly-brief` moves from `memory` to `storage`) |
-| `examples/vendor/02-weekly-brief-with-slack`, `03-fal-chain`, `04-image-prep`, `adobe-firefly-smoke`, `azure-adobe-assets`, `azure-photoshop-manifest` | Convert; each moves next to its plugin as `plugins/<name>/examples/` |
-| `examples/04-compile-and-run`, `04-encode-decode`, `05-test-session`, `harness-ollama`, `controller-specialist`, `vendor/browser-demo-host` | **Remove**; covered by docs or by removed features |
+| `examples/01-echo`, `02-weekly-brief`, `03-secrets-bind`, `06-invoke`, `07-accepts-returns`, `create-then-summarize-ollama`, `ollama-filesystem-documents`, `ollama-mcp-tools` | Convert to single-file `*.ecp.ts` workflows (`02-weekly-brief` takes its signals as workflow input instead of `memory`) |
+| `examples/vendor/03-fal-chain`, `04-image-prep` (without `image-policy`), `adobe-firefly-smoke`, `azure-adobe-assets`, `azure-photoshop-manifest` | Convert; each moves next to its plugin as `plugins/<name>/examples/` |
+| `examples/04-compile-and-run`, `04-encode-decode`, `05-test-session`, `harness-ollama`, `controller-specialist`, `vendor/browser-demo-host`, `vendor/02-weekly-brief-with-slack` | **Remove**; covered by docs or by removed features |
 | `docs/*.md` (assessments, reports, harness, EQL, daemon, browser review), `docs/ui-example` | **Remove**; conceptual content moves to the docs site |
 | `ecp-overhaul.md` | **Remove**; superseded by this plan |
 | `SPEC.md`, `ARCHITECTURE.md`, `AGENTS.md`, `README.md`, `SETUP.md`, `RELEASING.md` | Rewrite for workflow files, plugins, delegation and Changesets |
@@ -808,7 +840,7 @@ removed or parked (format-eql, chrome-ai, memory, telemetry, the aggregator, plu
 | | Today | After |
 | --- | ---: | ---: |
 | TypeScript lines | ~83K | ~50K (about 27K removed outright; about half of the 12K demo and React Flow code survives in `app`) |
-| Shippable packages | 31 | 7 (core, node, browser, cli, mcp, plugin-sdk, app) + 13 plugins |
+| Shippable packages | 31 | 7 (core, node, browser, cli, mcp, plugin-sdk, app) + 14 plugins |
 | Packages a user needs to start | CLI + an environment module that imports each extension | `cli`, then plugins installed on demand |
 | Model-facing harness code | ~19K (core harness, harnesses, EQL, evals) | 0, plus one skill |
 
@@ -821,7 +853,10 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
 
 - `packages/evals`
 - `packages/harnesses/browser-nano`, `packages/harnesses/browser-coding`
-- `packages/extensions/format-eql`, `chrome-ai` (parked), `memory`, `telemetry`, `index`
+- `packages/extensions/format-eql`, `chrome-ai`, `memory`, `telemetry`, `index`, `storage`,
+  `browser-secrets`
+- `packages/vendor/slack`
+- `packages/policies/src/image-policy*.ts`
 - `packages/runtimes/temporal`
 - `apps/browser-demo` (its graph editor, Monaco and run panel come back in Phase 8 as `app`)
 
@@ -839,7 +874,6 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   environment builder
 - `runtimes/browser/src/authoring/*`, `extensions/browser-guide.ts`,
   `extensions/browser-session-config.ts`
-- `storage`'s `workflow-save`, `workflow-load`, `workflow-list` and `workflow-delete`
 - CLI commands `test`, `test start|run|rerun|status`, `serve`, `up`, `encode`, `decode`, and
   `src/lib/up/*`, `src/lib/http/*`, `src/lib/test-session-io.ts`
 - The CLI's direct dependencies on `extension-ollama` and `extension-storage`
@@ -847,7 +881,7 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
 #### Examples, docs and root files
 
 - `examples/04-compile-and-run`, `04-encode-decode`, `05-test-session`, `harness-ollama`,
-  `controller-specialist`, `vendor/browser-demo-host`
+  `controller-specialist`, `vendor/browser-demo-host`, `vendor/02-weekly-brief-with-slack`
 - `docs/*` (assessments, reports, harness and eval docs, EQL, daemon, browser review,
   `ui-example`)
 - `ecp-overhaul.md`, `archive/legacy-v0.5`, `config/ecp.config.example.yaml`, `.gitmodules`,
@@ -866,7 +900,8 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
 #### Moved, not deleted
 
 - `extensions/format-reactflow` → `app` (Phase 8)
-- `policies/image-policy` → `plugin-image-sharp` (Phase 5)
+- `policies` `budget`, `approval`, `state-control` → their own plugins (Phase 5);
+  `registry-control` → core (Phase 2)
 
 #### Outside this repo
 
@@ -886,7 +921,7 @@ command loading.
 | Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-sdk` generates the shell |
 | `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
 | `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | `ecp update` and `ecp rollback`, same logic |
-| `oclif.scope` and the `plugin` prefix for short install names | `ecp plugins install slack` → `@executioncontrolprotocol/plugin-slack` |
+| `oclif.scope` and the `plugin` prefix for short install names | `ecp plugins install jsonata` → `@executioncontrolprotocol/plugin-jsonata` |
 | `@oclif/plugin-not-found` plus a `command_not_found` hook | Unknown topic → offer the matching plugin |
 | Telemetry as its own plugin on `init`, `prerun`, `postrun` and `command_error` hooks | A future opt-in telemetry plugin (OpenTelemetry) on the same hooks. Today's no-op `telemetry` extension is removed |
 | oclif JIT plugins (`jitPlugins`, `jit_plugin_not_installed`) | `mcp` and `app` appear in help before install |
@@ -922,7 +957,7 @@ on the milestone branch after every phase.
 
 ### Phase 2 — Consolidate core and environments
 
-1. Fold `types` into `core/types` and `policies` into core.
+1. Fold `types` into `core/types` and `registry-control` into core.
 2. Collapse runtimes into environments:
    - `defineRuntime` becomes `defineEnvironment`, which owns the executor and the store and
      remote-invoke wiring.
@@ -931,6 +966,7 @@ on the milestone branch after every phase.
    - `packages/runtimes/{node,browser}` move to `environments/{node,browser}`, keeping their
      package names (which are their environment ids).
    - `secrets` and `process-env` fold into the Node environment.
+   - `browser-secrets` is removed; the browser environment has no secrets provider yet.
 3. Add `.supports(environmentId, range?)` to extension and policy definitions, replacing
    `withSupportedRuntimes` in the 15 files that use it.
 4. Make definitions data: remove `catalogExtension` and `globalRegistry` side effects; the
@@ -970,9 +1006,9 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 ### Phase 5 — Plugins to npm
 
-1. Migrate the remaining extensions per §5.4. Order: storage, anthropic, openai, ollama,
-   format-toon, format-mermaid, fal, image-sharp, azure-blob-storage, slack (with its real
-   handler), then adobe-firefly-services.
+1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
+   format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,
+   approval, state-control, fal, image-sharp, azure-blob-storage, then adobe-firefly-services.
 2. Changesets with independent versions; `plugin-pack-smoke` in CI for every plugin.
 3. Prerelease publishing from the milestone branch under the `next` dist-tag.
 
@@ -993,8 +1029,8 @@ installable with `npx skills add`.
 
 ### Phase 8 — App
 
-`app` and `plugin-app` per §4.8, carved from `pre-reset`: the `HostAdapter` interface, the
-local adapter behind `ecp app`, and the in-page adapter on the browser environment.
+`app` and `plugin-app` per §4.8, carved from `pre-reset`: the `HostAdapter` interface and the
+local adapter behind `ecp app`.
 
 **Exit:** Dogfood C.
 
@@ -1013,6 +1049,8 @@ local adapter behind `ecp app`, and the in-page adapter on the browser environme
   readout, Laya or Jev. Decisions become ordinary steps; logit fingerprints flag drift to the
   supervising agent.
 - **Hosted MCP + cloud secrets binding** (Strata).
+- **In-page App:** an in-page `HostAdapter` on the browser environment, once a browser custody
+  provider exists (docs playground, hosted demo, Strata embedding).
 - **Temporal environment** (`@executioncontrolprotocol/temporal`, built with `defineEnvironment`)
   once hosted execution needs durable runs. Workflows run on it unchanged.
 
@@ -1115,8 +1153,9 @@ The bottom-docked chat doesn't carry over, because the App isn't a chat client.
 
 - Extensions depend on core only, never on an environment, the CLI or MCP. Heavy SDKs stay in
   their own plugin packages.
-- Be honest about stubs: anything mocked or unimplemented is labelled as such (as this audit
-  does for `slack`, `memory` and `telemetry`).
+- Be honest about stubs: anything mocked or unimplemented is labelled as such, and isn't
+  shipped as if it were real. The audit removed the `slack` mock and the `memory` and
+  `telemetry` stubs for this reason.
 - Don't weaken a valid failing test or a quality gate to get CI green.
 - Agents discover capabilities with `describe` and `search` instead of hard-coding them.
 
@@ -1140,5 +1179,3 @@ The bottom-docked chat doesn't carry over, because the App isn't a chat client.
 3. **Per-workflow plugin isolation.** Deferred (see Risks).
 4. **`plugin-sdk` as its own package** or a `cli/sdk` subpath. Own package is preferred so
    plugins don't depend on the whole CLI.
-5. **Splitting `plugin-adobe-firefly-services`** (84 capabilities) into per-product plugins
-   (Firefly, Photoshop, InDesign, …) or keeping one plugin with topic aliases.
