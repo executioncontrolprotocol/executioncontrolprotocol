@@ -12,11 +12,15 @@
 - **ECP is part of a harness, never the whole harness.** No harnesses, prompts, intent
   routers or eval matrices ship from this repo. The only harness is one skill on the docs
   site.
-- **Packages:** `core` runs ECP in Node or browsers. `cli` is the primary surface and `mcp`
-  the second. Every capability set is its own npm plugin. The visual app is a plugin too.
+- **Packages:** `core` is the environment-agnostic engine, and the `node` and `browser`
+  environment packages run it. `cli` is the primary surface and `mcp` the second. Every capability set is its own npm plugin. The visual app is a plugin too.
 - **One workflow = one file.** A Fluent TS file declares its steps (`.run()`) and, in a single
-  `.with([...])` array, the extension, policy and runtime bindings ECP already has. Version pins
+  `.with([...])` array, the extension and policy bindings ECP already has. Version pins
   go on the bindings (`.requires()`). Running it with missing plugins prompts to install them.
+- **Environments are hosts.** Environment and runtime collapse into one object (Node, browser,
+  later Temporal). It takes the same `.with([...])` as a workflow, owns custody and
+  host-enforced policies, and the CLI ships the Node one by default. Extensions declare where
+  they can run with `.supports(environmentId, range?)`.
 - **Built to be supervised:** `--json` everywhere, stable error codes, a run journal, live
   events, and resume from any step. That is what makes the agent's self-healing loop possible.
 - **Order:** trim → consolidate core → CLI and plugins → workflow files and observability → npm →
@@ -114,15 +118,18 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 
 | Package | What it is |
 | --- | --- |
-| `@executioncontrolprotocol/core` | Runs ECP in Node or browsers. Entries: `.` (works in both), `./node`, `./browser`, `./types` |
+| `@executioncontrolprotocol/core` | The environment-agnostic engine, runs in Node or browsers. Entries: `.` and `./types` |
+| `@executioncontrolprotocol/node` | The Node environment (id = package name). The CLI's default |
+| `@executioncontrolprotocol/browser` | The browser environment, used by `plugin-app` and apps that embed ECP |
 | `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
 | `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
 | `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: the small authoring dependency that turns an extension definition into CLI commands |
 | `@executioncontrolprotocol/plugin-<name>` | One package per capability set, each versioned independently |
 | `@executioncontrolprotocol/plugin-app` | The visual co-editor, installed as a CLI plugin |
 
-Not shipped anymore: `types` (folded into `core/types`), `node`, `browser`, `policies`,
-`extensions`, `harnesses-*`, `evals`, `runtime-temporal`, `browser-demo`. Their 0.x versions
+Not shipped anymore: `types` (folded into `core/types`), `policies`, `extensions`,
+`harnesses-*`, `evals`, `runtime-temporal` (returns later as `@executioncontrolprotocol/temporal`),
+`browser-demo`. Their 0.x versions
 stay on npm, marked deprecated with a pointer to the 1.0 packages.
 
 ### 2.3 What the repo looks like
@@ -130,12 +137,16 @@ stay on npm, marked deprecated with a pointer to the 1.0 packages.
 ```text
 packages/
   core/          ~12K lines: fluent API, registry, validate, executor, policies,
-                 encoding (json, fluent), patch, journal model, node + browser entries
+                 encoding (json, fluent), patch, journal model
+environments/
+  node/          @executioncontrolprotocol/node: workflow file loader, journal on disk,
+                 file and media loaders, OS secrets and process-env providers
+  browser/       @executioncontrolprotocol/browser: browser executor, file and blob helpers
   cli/           ecp binary, workflow commands, plugin commands, hooks
   mcp/           MCP server + `ecp mcp serve`
   plugin-sdk/    toCommands(), shared flag and output helpers
 plugins/
-  plugin-secrets  plugin-storage   plugin-memory    plugin-jsonata
+  plugin-storage  plugin-memory    plugin-jsonata
   plugin-anthropic plugin-openai   plugin-ollama    plugin-fal
   plugin-image-sharp plugin-azure-blob plugin-firefly plugin-slack
   plugin-toon     plugin-mermaid   plugin-telemetry plugin-app
@@ -162,7 +173,9 @@ The milestone is done when all of these are true:
 4. A plugin's capabilities show up as CLI commands and as MCP tools with no code beyond the
    extension definition and one export line.
 5. `core` passes its unit tests in Node and in a browser (Vitest browser project), and is
-   about 12K lines or less.
+   about 12K lines or less. The same workflow file validates against both the Node and the
+   browser environment, and a Node-only extension in the browser fails with
+   `ECP_ENVIRONMENT_UNSUPPORTED`.
 6. The repo contains no harness, prompt, intent, EQL or eval code, and no eval CI.
 7. **Dogfood A:** a fresh Claude Code session with only the `ecp` skill installed builds and
    runs three reference workflows on its own, including recovering from an injected failure.
@@ -195,15 +208,13 @@ The milestone is done when all of these are true:
 
 ### 4.1 Core
 
-`@executioncontrolprotocol/core` absorbs `types`, `runtimes/node`, the useful half of
-`runtimes/browser`, and `policies`.
+`@executioncontrolprotocol/core` absorbs `types` and `policies`. It's the environment-agnostic
+engine; host wiring lives in the environment packages (§4.4).
 
 | Entry | Contents | Runs in |
 | --- | --- | --- |
-| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), binding builders (`extension`, `policy`, `runtime`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
+| `.` | Fluent API (`workflow`, `step`, `ref`, `state`, flow control), `environment()`, binding builders (`extension`, `policy`) and config placeholders (`env`, `secrets`, `browser`), definitions (`defineExtension`, `capabilityFor`, `definePolicy`, `defineEnvironment`), registry, validation, executor, policy engine and standard policies (budget, approval, state-control), encoding (json, fluent), patch, journal model, error codes | Node and browsers |
 | `./types` | Protocol types, schema IDs, generated JSON Schemas | Anywhere |
-| `./node` | Workflow file loader (transpile, `core` self-resolution), journal on disk, file and media loaders, node runtime binding | Node |
-| `./browser` | Browser runtime binding, browser file and blob helpers | Browsers |
 
 Rules:
 
@@ -244,7 +255,7 @@ export const COMMANDS = toCommands(extension)
   "name": "@executioncontrolprotocol/plugin-jsonata",
   "keywords": ["ecosystem:ecp-plugin", "oclif-plugin"],
   "exports": { ".": "./dist/index.js", "./oclif": "./dist/oclif.js" },
-  "ecp": { "extension": "./dist/index.js", "runtimes": ["node", "browser"] },
+  "ecp": { "extension": "./dist/index.js" },
   "oclif": {
     "commands": { "strategy": "explicit", "target": "./dist/oclif.js", "identifier": "COMMANDS" },
     "topics": { "jsonata": { "description": "Transform JSON payloads with JSONata expressions" } }
@@ -284,7 +295,7 @@ the plugins it uses, how they're configured, which policies govern it, and the s
 no `ecp.yaml`, no separate environment module, and no `package.json` next to it.
 
 **No new top-level objects.** A workflow file uses only the objects ECP already defines:
-`workflow`, `step`, `ref`, and the binding builders `extension`, `policy` and `runtime`, with
+`workflow`, `step`, `ref`, and the binding builders `extension` and `policy`, with
 the `env()`, `secrets()` and `browser()` config placeholders. There are two additions:
 
 1. **`workflow(...).with([...])`:** one array for everything the workflow needs from its
@@ -339,12 +350,12 @@ bindings, a binding is given its config, and a step is given its input.
 | `import "@executioncontrolprotocol/extension-openai"` to load each plugin | Nothing to import. Plugins are referenced by id and installed by the CLI |
 | `extension(id, label).with(config)` | Unchanged |
 | `policy(id, label).with(config)` | Unchanged |
-| `runtime(id, label).with(config)` | Unchanged and optional. Defaults to the host's runtime (`node` for the CLI) |
+| `runtime(id, label).with(config)` | Removed. The environment is the runtime, and the workflow never names it (§4.4) |
 | — | `.requires(range, package?)` on any binding |
 | `secrets("key")`, `env("KEY")`, `browser("key")` | Unchanged |
 
-`environment()` and its `withExtensions()`, `withPolicies()` and `withRuntime()` methods stay
-as the programmatic API for apps that embed core. The CLI, MCP and App build that environment
+`environment()` stays, as the host the workflow runs in, and takes the same `.with([...])`
+array (§4.4). The CLI, MCP and App build that environment
 from installed plugins plus the workflow's `.with()` array.
 
 **The binding objects:**
@@ -353,9 +364,8 @@ from installed plugins plus the workflow's `.with()` array.
 | --- | --- | --- |
 | `extension(id, label?)` | `.with(config)`, `.requires(range, package?)` | List it only when it needs config or a pin; steps bind the rest automatically |
 | `policy(id, label?)` | `.with(config)`, `.requires(range, package?)` | `budget`, `approval` and `state-control` are built into core and need no pin; other policies come from plugins |
-| `runtime(id, label?)` | `.with(config)`, `.requires(range, package?)` | Optional |
 
-Each binding carries its kind (`extension`, `policy` or `runtime`) from its builder. That kind
+Each binding carries its kind (`extension` or `policy`) from its builder. That kind
 is what validation, dependency inference and the compiled requirements block read. If a new
 binding type is needed later, for example if harness bindings ever come back, it's a new
 builder whose objects go in the same `.with()` array, with no new workflow method.
@@ -395,7 +405,95 @@ Rules:
    keychain locally, a cloud vault when hosted). Values never appear in the file.
 6. **File name:** `*.ecp.ts`, so tools can find workflow files by glob.
 
-### 4.4 CLI
+### 4.4 Environments: where a workflow runs
+
+Environments and runtimes collapse into one object. An **environment** is the host a workflow
+runs in (Node, browser, later Temporal). A workflow says *what* it needs; the environment
+decides *where* it runs and owns what must not be the workflow author's choice.
+
+| Object | Defined by | Holds |
+| --- | --- | --- |
+| `workflow` | The author, usually the agent. Self-contained and declarative | Steps, plus `.with([...])` for the extensions it uses, their config, and its own policies |
+| `environment` | The host | Executor, secrets providers (custody), blob and artifact stores, host-enforced policies, preinstalled extensions |
+| `Ecp` | `await environment(id).with([...]).init()` | `run(workflow)`, `validate`, `describe`, `search`, as today |
+
+**Environment id = package name.** The ids already exist as today's runtime ids, and they
+already match the runtime package names, so nothing is renamed:
+
+| Environment id and package | Status | Ships with |
+| --- | --- | --- |
+| `@executioncontrolprotocol/node` | Exists (`packages/runtimes/node`, moving to `environments/node`) | The CLI, as the default environment. Takes in today's `secrets` and `process-env` extensions as its built-in secrets providers |
+| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`) | `plugin-app` and apps that embed ECP in a page |
+| `@executioncontrolprotocol/temporal` | Stub today (`runtime-temporal`, removed in Phase 1) | Later, as a separately installed package |
+
+`defineRuntime` becomes `defineEnvironment`. An environment definition owns the executor and
+the host wiring that is programmatic today: `withBlobStore`, `withArtifactStore` and
+`withRemoteInvoke` move from the environment builder into the definition. The `runtime()`
+binding builder goes away, since there's nothing left to bind.
+
+**Same `.with([...])` as workflows.** An environment takes the same binding objects as a
+workflow, so there's one fluent API for extensions and policies:
+
+```ts
+// team.env.ecp.ts  (optional: only hosts that need defaults or enforced policies write one)
+import { environment, extension, policy, secrets } from "@executioncontrolprotocol/core"
+
+export default environment("@executioncontrolprotocol/node")
+  .with([
+    extension("@executioncontrolprotocol/secrets"),                 // custody: OS keychain
+    extension("@executioncontrolprotocol/anthropic").with({ defaultModel: "claude-sonnet-5-5" }),
+    policy("@executioncontrolprotocol/budget").with({ maxCostUsd: 5 }),
+    policy("@executioncontrolprotocol/approval").with({
+      requireApprovalFor: ["@executioncontrolprotocol/slack.send"],
+    }),
+  ])
+```
+
+`withExtensions()`, `withPolicies()` and `withRuntime()` are removed. `.with([...])` replaces
+them on both objects.
+
+**`.supports()` on definitions.** Extension definitions (and policy definitions, for
+consistency) declare which environments they can run in, using the environment id and an
+optional version range. This mirrors `.requires(range)` on bindings. It replaces today's
+`withSupportedRuntimes([NODE_RUNTIME_ID])`, which 15 files use.
+
+```ts
+defineExtension("@executioncontrolprotocol", "image-sharp")
+  .supports("@executioncontrolprotocol/node", "^1")     // native dependency: Node only
+  .withCapabilities([...])
+  .build()
+```
+
+- No `.supports()` means the extension runs in any environment (as today).
+- Several `.supports()` calls accumulate.
+- Because the id is the package name, the range applies directly to that package.
+
+**How workflow and environment bindings combine at run time:**
+
+1. **Compatibility.** Every extension the workflow uses must support the environment it's
+   running in. Otherwise `ecp validate` and `ecp run` fail with `ECP_ENVIRONMENT_UNSUPPORTED`,
+   naming the extension and the environments it does support. A workflow never names its
+   environment, so the same file runs under `ecp run` (Node) and later on Temporal without
+   changes.
+2. **Extensions merge.** The environment's bindings provide defaults. When both bind the same
+   extension, the workflow's config is merged over the environment's.
+3. **Policies are additive.** Environment policies always apply, and workflow policies add to
+   them. Every bound policy's hooks run, and a deny or pause from any of them wins. A workflow
+   can tighten governance but never remove a host policy. This matters because an agent writes
+   most workflows.
+4. **Custody belongs to the environment.** Secrets providers (extensions that register a config
+   resolver, such as `secrets` and `process-env`) can only be bound by the environment. A
+   workflow that binds one fails validation. Workflows only reference keys with `secrets("…")`.
+
+**What the CLI does:**
+
+- `ecp run` uses the built-in `@executioncontrolprotocol/node` environment, which binds
+  `secrets` and `process-env`. Most users never write an environment file.
+- If `environment.ecp.ts` exists in the ECP config directory (the oclif data directory), it's
+  used as the user's default. This is how a person or team sets host policies once.
+- `--env <file>` runs against a specific environment file, for example one a team shares.
+
+### 4.5 CLI
 
 Workflow commands (core names are reserved, and plugins can't claim them as topics):
 
@@ -406,7 +504,7 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp describe [id]` | Full schema and metadata for installed capabilities |
 | `ecp validate <workflow>` | Validate the workflow file against installed plugins |
 | `ecp install <workflow>` | Install every plugin the workflow file needs |
-| `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run` |
+| `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>` |
 | `ecp runs list` | Recent runs, filterable by status and workflow |
 | `ecp runs show <id>` | Journal: resolved graph and per-step records |
 | `ecp runs rerun <id> [--from <step>]` | Resume, reusing the outputs of earlier steps |
@@ -423,7 +521,8 @@ Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
 
 **Bundled core plugins:** `@oclif/plugin-help`, `@oclif/plugin-plugins`,
 `@oclif/plugin-not-found`, `@oclif/plugin-autocomplete`,
-`@oclif/plugin-warn-if-update-available`, and `@executioncontrolprotocol/plugin-secrets`.
+and `@oclif/plugin-warn-if-update-available`. The CLI also depends on the
+`@executioncontrolprotocol/node` environment, so secrets work with no plugin installed.
 
 **Hooks:**
 
@@ -431,7 +530,7 @@ Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
 - `jit_plugin_not_installed` installs `mcp` or `app` at a pinned version.
 - A plugin-trust check runs before any install.
 
-### 4.5 Run journal, events and error codes
+### 4.6 Run journal, events and error codes
 
 - **Journal:** `.ecp/runs/<run-id>/` holds `run.json` (workflow file path and hash, resolved graph,
   plugin versions, status, timing) and `steps/<step-id>.json` (input after ref resolution,
@@ -449,7 +548,8 @@ Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
   | `ECP_CAPABILITY_UNKNOWN` | An id doesn't match any installed capability |
   | `ECP_INPUT_INVALID` | Step input fails its schema |
   | `ECP_REF_UNRESOLVED` | A `ref()` points to a missing step or field |
-  | `ECP_BINDING_INVALID` | Extension or policy config fails the `withConfig` schema its definition declares |
+  | `ECP_BINDING_INVALID` | Extension or policy config fails the `withConfig` schema its definition declares, or a workflow binds a secrets provider |
+  | `ECP_ENVIRONMENT_UNSUPPORTED` | An extension doesn't `.supports()` the environment the workflow is running in |
   | `ECP_SECRET_MISSING` | A referenced secret has no value |
   | `ECP_POLICY_DENIED` | A policy blocked the step |
   | `ECP_APPROVAL_REQUIRED` | The run is paused for approval |
@@ -460,7 +560,7 @@ Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
 - **Exit codes:** `0` success · `1` run failed · `2` validation or usage error ·
   `3` missing plugins · `4` paused for approval.
 
-### 4.6 MCP
+### 4.7 MCP
 
 `@executioncontrolprotocol/mcp` is both a library (`createEcpMcpServer({ registry })`) and a
 JIT CLI plugin (`ecp mcp serve --stdio | --http`).
@@ -476,7 +576,7 @@ JIT CLI plugin (`ecp mcp serve --stdio | --http`).
   Patch and encode stay in core for that case.
 - Later, hosted MCP is the same package behind HTTP with a cloud secrets binding.
 
-### 4.7 App
+### 4.8 App
 
 `@executioncontrolprotocol/plugin-app`, run as `ecp app [signups.ecp.ts]`:
 
@@ -487,7 +587,7 @@ JIT CLI plugin (`ecp mcp serve --stdio | --http`).
 - Runs go through the CLI process and stream the `--events` feed into the graph.
 - Not a chat client and not a model host: no provider modal, no Chrome AI, no harness.
 
-### 4.8 Docs site and the skill
+### 4.9 Docs site and the skill
 
 - **Docs:** the existing Mintlify site (`executioncontrolprotocol/docs`) gets a CLI-first
   rewrite:
@@ -516,9 +616,9 @@ at `pre-reset`.
 | `packages/evals` | 3.5K | **Remove** | — |
 | `packages/harnesses/browser-nano` | 5.0K | **Remove** | — |
 | `packages/harnesses/browser-coding` | 4.3K | **Remove** | — |
-| `packages/runtimes/node` | 0.2K | Fold | `core/node` |
-| `packages/runtimes/browser` | 1.7K | Fold part, remove part | Executor and builtins → `core/browser`; authoring panels, `browser-guide`, session config → removed |
-| `packages/runtimes/temporal` | 0.1K | **Remove** | Revisit when hosted execution is real |
+| `packages/runtimes/node` | 0.2K | Keep and grow | `environments/node` (`@executioncontrolprotocol/node`), the default environment. Gains the workflow file loader, the journal on disk, and the `secrets` and `process-env` providers |
+| `packages/runtimes/browser` | 1.7K | Keep part, remove part | `environments/browser` (`@executioncontrolprotocol/browser`): executor and builtins stay; authoring panels, `browser-guide` and session config are removed |
+| `packages/runtimes/temporal` | 0.1K | **Remove** | Returns later as `@executioncontrolprotocol/temporal`, built with `defineEnvironment` |
 | `packages/extensions/index` | 0.1K | **Remove** | Installing plugins replaces the aggregator |
 | `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `plugin-app`; the rest is removed |
 | — | — | **New** | `plugin-sdk` |
@@ -534,12 +634,12 @@ at `pre-reset`.
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
 | `bindings/harness.ts`, `validate/harness.ts` | ~0.1K | **Remove** |
-| `registry`, `definitions`, `bindings` (extension, policy, runtime, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects |
-| `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `.with([...])` to the workflow builder and `.requires()` to the extension, policy and runtime binding builders |
-| `environment` | 1.5K | Change: built by the host from installed plugins plus the workflow's `.with()` bindings. `describe` and `search` stay |
+| `registry`, `definitions`, `bindings` (extension, policy, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects. `defineRuntime` becomes `defineEnvironment`, `.supports()` replaces `withSupportedRuntimes`, and `bindings/runtime.ts` is removed |
+| `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `.with([...])` to the workflow builder and `.requires()` to the extension and policy binding builders |
+| `environment` | 1.5K | Change: becomes the host object (§4.4). `.with([...])` replaces `withExtensions`, `withPolicies` and `withRuntime`; store and remote-invoke wiring moves into `defineEnvironment`; adds the binding merge and compatibility rules. `describe` and `search` stay |
 | `runtime` | 1.9K | Keep; add journal writer and event emitter, and resume from a step |
 | `validate`, `schema`, `encoding` (json, fluent), `patch`, `invoke` | ~2.6K | Keep |
-| `media`, `file`, `loaders`, `util`, `compile` (transpile, extract) | ~1.6K | Keep; the workflow file loader goes in `core/node` |
+| `media`, `file`, `loaders`, `util`, `compile` (transpile, extract) | ~1.6K | Keep; the workflow file loader moves to `@executioncontrolprotocol/node` |
 | — | — | **New:** journal model, error code catalogue, dependency inference, standard policies (from `policies`) |
 
 ### 5.3 CLI commands
@@ -558,8 +658,8 @@ at `pre-reset`.
 
 | Today | Lines | Plugin | Notes |
 | --- | ---: | --- | --- |
-| `extensions/secrets` | 0.6K | `plugin-secrets` | Bundled with the CLI as a core plugin |
-| `extensions/process-env` | 0.1K | Fold into `plugin-secrets` | Env vars as a secrets provider |
+| `extensions/secrets` | 0.6K | Fold into `@executioncontrolprotocol/node` | The Node environment's OS keychain secrets provider |
+| `extensions/process-env` | 0.1K | Fold into `@executioncontrolprotocol/node` | Env vars as a secrets provider |
 | `extensions/storage` | 1.3K | `plugin-storage` | |
 | `extensions/memory` | 0.1K | `plugin-memory` | |
 | `extensions/telemetry` | 0.1K | `plugin-telemetry` | Opt-in, built on oclif lifecycle hooks (Adobe pattern) |
@@ -612,7 +712,7 @@ at `pre-reset`.
 | | Today | After |
 | --- | ---: | ---: |
 | TypeScript lines | ~83K | ~50K (about 27K removed outright; about half of the 12K demo and React Flow code survives in `plugin-app`) |
-| Shippable packages | 31 | 4 + 16 plugins |
+| Shippable packages | 31 | 6 (core, node, browser, cli, mcp, plugin-sdk) + 15 plugins |
 | Packages a user needs to start | CLI + an environment module that imports each extension | `cli`, then plugins installed on demand |
 | Model-facing harness code | ~19K (core harness, harnesses, EQL, evals) | 0, plus one skill |
 
@@ -624,7 +724,7 @@ command loading.
 
 | Adobe I/O pattern | ECP adoption |
 | --- | --- |
-| Thin root CLI; every feature is an `@adobe/aio-cli-plugin-*`, with a set of core plugins in `oclif.plugins` | `ecp` bundles only the oclif essentials plus `plugin-secrets` |
+| Thin root CLI; every feature is an `@adobe/aio-cli-plugin-*`, with a set of core plugins in `oclif.plugins` | `ecp` bundles only the oclif essentials plus the Node environment |
 | Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-sdk` generates the shell |
 | `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
 | `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | `ecp update` and `ecp rollback`, same logic |
@@ -662,22 +762,32 @@ on the milestone branch after every phase.
 
 **Exit:** green CI; no harness, eval, EQL or demo code; the workspace builds.
 
-### Phase 2 — Consolidate core
+### Phase 2 — Consolidate core and environments
 
-1. Fold `types` into `core/types`, `runtimes/node` into `core/node`, the browser executor and
-   builtins into `core/browser`, and `policies` into core.
-2. Make definitions data: remove `catalogExtension` and `globalRegistry` side effects; the
+1. Fold `types` into `core/types` and `policies` into core.
+2. Collapse runtimes into environments:
+   - `defineRuntime` becomes `defineEnvironment`, which owns the executor and the store and
+     remote-invoke wiring.
+   - `environment(id).with([...])` replaces `withExtensions`, `withPolicies` and
+     `withRuntime`. The `runtime()` binding is removed.
+   - `packages/runtimes/{node,browser}` move to `environments/{node,browser}`, keeping their
+     package names (which are their environment ids).
+   - `secrets` and `process-env` fold into the Node environment.
+3. Add `.supports(environmentId, range?)` to extension and policy definitions, replacing
+   `withSupportedRuntimes` in the 15 files that use it.
+4. Make definitions data: remove `catalogExtension` and `globalRegistry` side effects; the
    host owns the registry.
-3. Check that the root entry has no Node-only imports (lint rule), and run core's unit tests
-   in both the Node and browser Vitest projects.
+5. Lint that core has no Node-only imports, and run core's unit tests in both the Node and
+   browser Vitest projects.
 
-**Exit:** `core` about 12K lines, tests green in Node and browser.
+**Exit:** `core` about 12K lines and environment-agnostic; tests green in Node and browser;
+the Node and browser environments build on `defineEnvironment`.
 
-### Phase 3 — Plugin kit and CLI
+### Phase 3 — Plugin SDK and CLI
 
 1. `plugin-sdk`: `toCommands()`, flag generation, `--input`, the `--json` envelope and help
    rendering.
-2. Rebuild `cli` around §4.4: bundled core plugins, scope and prefix, the `command_not_found`
+2. Rebuild `cli` around §4.5: bundled core plugins, scope and prefix, the `command_not_found`
    and trust hooks, `discover`, `update`, `rollback`.
 3. Migrate `plugin-jsonata` as the reference plugin.
 
@@ -686,20 +796,23 @@ on the milestone branch after every phase.
 
 ### Phase 4 — Workflow files and observability
 
-1. `workflow(...).with([...])`, `.requires(range, package?)` on the extension, policy and
-   runtime builders, and auto-binding of extensions used only in steps. Also: the workflow
-   file loader with core self-resolution, dependency inference, and validation of bound config
-   against each definition's `withConfig` schema.
-2. `ecp run`, `validate`, `install` and `compile` on workflow files; the missing-plugin flow.
-3. Run journal, `--events`, error code catalogue, exit codes, and `ecp runs list|show|rerun`.
-4. Convert the examples to single-file workflows.
+1. `workflow(...).with([...])`, `.requires(range, package?)` on the extension and policy
+   builders, and auto-binding of extensions used only in steps. Also: the workflow file loader
+   with core self-resolution, dependency inference, and validation of bound config against
+   each definition's `withConfig` schema.
+2. Environment layering (§4.4): merge environment and workflow bindings, additive policies,
+   environment-only secrets providers, the `ECP_ENVIRONMENT_UNSUPPORTED` compatibility check,
+   the user default `environment.ecp.ts`, and `--env <file>`.
+3. `ecp run`, `validate`, `install` and `compile` on workflow files; the missing-plugin flow.
+4. Run journal, `--events`, error code catalogue, exit codes, and `ecp runs list|show|rerun`.
+5. Convert the examples to single-file workflows.
 
 **Exit:** on a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and
 runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`.
 
 ### Phase 5 — Plugins to npm
 
-1. Migrate the remaining extensions per §5.4. Order: storage, secrets, memory, anthropic,
+1. Migrate the remaining extensions per §5.4. Order: storage, memory, anthropic,
    openai, ollama, toon, mermaid, telemetry, fal, image-sharp, azure-blob, firefly, then
    slack once it has a real handler.
 2. Changesets with independent versions; `plugin-pack-smoke` in CI for every plugin.
@@ -716,13 +829,13 @@ installable with `npx skills add`.
 
 ### Phase 7 — MCP
 
-`@executioncontrolprotocol/mcp` per §4.6.
+`@executioncontrolprotocol/mcp` per §4.7.
 
 **Exit:** Dogfood B.
 
 ### Phase 8 — App
 
-`plugin-app` per §4.7, carved from `pre-reset`.
+`plugin-app` per §4.8, carved from `pre-reset`.
 
 **Exit:** Dogfood C.
 
@@ -741,7 +854,8 @@ installable with `npx skills add`.
   readout, Laya or Jev. Decisions become ordinary steps; logit fingerprints flag drift to the
   supervising agent.
 - **Hosted MCP + cloud secrets binding** (Strata).
-- **Durable runtime** (Temporal) once hosted execution needs it.
+- **Temporal environment** (`@executioncontrolprotocol/temporal`, built with `defineEnvironment`)
+  once hosted execution needs durable runs. Workflows run on it unchanged.
 
 ## 8. Risks
 
