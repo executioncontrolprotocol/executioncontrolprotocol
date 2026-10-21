@@ -120,12 +120,13 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 | --- | --- |
 | `@executioncontrolprotocol/core` | The environment-agnostic engine, runs in Node or browsers. Entries: `.` and `./types` |
 | `@executioncontrolprotocol/node` | The Node environment (id = package name). The CLI's default |
-| `@executioncontrolprotocol/browser` | The browser environment, used by `plugin-app` and apps that embed ECP |
+| `@executioncontrolprotocol/browser` | The browser environment, used by `app` when it runs workflows in the page, and by apps that embed ECP |
 | `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
 | `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
 | `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: the small authoring dependency that turns an extension definition into CLI commands |
 | `@executioncontrolprotocol/plugin-<name>` | One package per capability set, each versioned independently |
-| `@executioncontrolprotocol/plugin-app` | The visual co-editor, installed as a CLI plugin |
+| `@executioncontrolprotocol/app` | The visual co-editor as a standalone package: React components, a host adapter interface, and a prebuilt static bundle. Usable without the CLI |
+| `@executioncontrolprotocol/plugin-app` | The thin CLI plugin behind `ecp app`: local server, file watcher, and a bridge to the Node environment. Serves the prebuilt bundle from `app` |
 
 Not shipped anymore: `types` (folded into `core/types`), `policies`, `extensions`,
 `harnesses-*`, `evals`, `runtime-temporal` (returns later as `@executioncontrolprotocol/temporal`),
@@ -145,6 +146,7 @@ environments/
   cli/           ecp binary, workflow commands, plugin commands, hooks
   mcp/           MCP server + `ecp mcp serve`
   plugin-sdk/    toCommands(), shared flag and output helpers
+  app/           visual co-editor: React components, host adapters, static bundle
 plugins/
   plugin-storage  plugin-memory    plugin-jsonata
   plugin-anthropic plugin-openai   plugin-ollama    plugin-fal
@@ -182,7 +184,8 @@ The milestone is done when all of these are true:
    This is a manual check run three times, not an eval harness.
 8. **Dogfood B:** the same three tasks succeed from Claude Desktop over `ecp mcp serve`.
 9. **Dogfood C:** `ecp app` reflects file edits within a second, and graph edits round-trip to
-   the file.
+   the file. The same `app` package, with no CLI, renders and runs a browser-compatible
+   workflow in a plain web page through the in-page adapter.
 10. `ecp --help` with 15 plugins installed returns in under a second (oclif manifests in every
     plugin).
 11. The docs site is rewritten CLI-first, with a generated CLI reference, a plugin catalogue
@@ -423,7 +426,7 @@ already match the runtime package names, so nothing is renamed:
 | Environment id and package | Status | Ships with |
 | --- | --- | --- |
 | `@executioncontrolprotocol/node` | Exists (`packages/runtimes/node`, moving to `environments/node`) | The CLI, as the default environment. Takes in today's `secrets` and `process-env` extensions as its built-in secrets providers |
-| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`) | `plugin-app` and apps that embed ECP in a page |
+| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`) | `app` (in-page mode) and apps that embed ECP in a page |
 | `@executioncontrolprotocol/temporal` | Stub today (`runtime-temporal`, removed in Phase 1) | Later, as a separately installed package |
 
 `defineRuntime` becomes `defineEnvironment`. An environment definition owns the executor and
@@ -578,14 +581,39 @@ JIT CLI plugin (`ecp mcp serve --stdio | --http`).
 
 ### 4.8 App
 
-`@executioncontrolprotocol/plugin-app`, run as `ecp app [signups.ecp.ts]`:
+The App is two packages, so its logic works with or without the CLI. This is the same
+library-plus-plugin split as MCP (§4.7). The MCP library and plugin fit in one package because
+the library is small; the App is split because its UI would otherwise drag React into every
+CLI install.
 
-- A local server plus a React UI, carved from the `pre-reset` browser demo: the graph editor
-  (React Flow), the Monaco source pane and the run panel.
-- Watches the workflow file and re-renders on change (hot reload).
-- Graph edits are written back to the file with the Fluent encoder.
-- Runs go through the CLI process and stream the `--events` feed into the graph.
-- Not a chat client and not a model host: no provider modal, no Chrome AI, no harness.
+| Package | Contains | Depends on |
+| --- | --- | --- |
+| `@executioncontrolprotocol/app` | The UI carved from the `pre-reset` browser demo: graph editor (React Flow), Monaco source pane, run panel. Exported as React components and as a prebuilt static bundle. Talks to its host only through a `HostAdapter` interface | `core`, React (peer, only when used as components) |
+| `@executioncontrolprotocol/plugin-app` | `ecp app [signups.ecp.ts]`: local server, file watcher, and the local host adapter's server side. Serves `app`'s prebuilt bundle | `plugin-sdk`, `node` environment. No React at run time |
+
+**The `HostAdapter` interface** is the seam that lets the same UI run anywhere:
+
+| Method | Purpose |
+| --- | --- |
+| `load()` / `save(source)` | Read and write the Fluent workflow source |
+| `watch(onChange)` | Push file changes into the UI (hot reload) |
+| `describe()` / `search(q)` | Capability catalogue for the graph palette |
+| `validate(source)` | Diagnostics shown on the graph |
+| `run(source, input)` | Start a run and return the `--events` stream |
+
+Two adapters ship with `app`:
+
+- **Local** (used by `plugin-app`): calls the CLI process over HTTP and WebSocket on
+  loopback. Runs use the Node environment and the user's installed plugins. This is the
+  `ecp app` experience: the agent edits the file in the terminal, the graph updates live, and
+  graph edits are written back to the file.
+- **In-page**: runs entirely in the browser with the `@executioncontrolprotocol/browser`
+  environment and in-memory source. Used for a docs-site playground, a hosted demo, or Strata
+  embedding the editor. Extensions that don't `.supports()` the browser show up as
+  unavailable in the palette.
+
+Either way, the App is a viewer and co-editor, not a chat client and not a model host: no
+provider modal, no Chrome AI, no harness.
 
 ### 4.9 Docs site and the skill
 
@@ -620,7 +648,7 @@ at `pre-reset`.
 | `packages/runtimes/browser` | 1.7K | Keep part, remove part | `environments/browser` (`@executioncontrolprotocol/browser`): executor and builtins stay; authoring panels, `browser-guide` and session config are removed |
 | `packages/runtimes/temporal` | 0.1K | **Remove** | Returns later as `@executioncontrolprotocol/temporal`, built with `defineEnvironment` |
 | `packages/extensions/index` | 0.1K | **Remove** | Installing plugins replaces the aggregator |
-| `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `plugin-app`; the rest is removed |
+| `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `app`; the rest is removed |
 | — | — | **New** | `plugin-sdk` |
 
 ### 5.2 Inside core
@@ -668,7 +696,7 @@ at `pre-reset`.
 | `extensions/ollama` | 0.9K | `plugin-ollama` | |
 | `extensions/format-toon` | 0.7K | `plugin-toon` | Gets `encode` and `decode` commands |
 | `extensions/format-mermaid` | 0.5K | `plugin-mermaid` | `ecp mermaid render <workflow>` |
-| `extensions/format-reactflow` | 2.3K | Fold into `plugin-app` | |
+| `extensions/format-reactflow` | 2.3K | Fold into `app` | Graph rendering and run-progress hooks |
 | `extensions/format-eql` | 4.5K | **Remove** | Only served the nano harness |
 | `extensions/chrome-ai` | 1.1K | **Remove** | In-browser model for the demo harness |
 | `extensions/browser-secrets` | 0.5K | **Remove** | Browser vault for the demo; hosted vault comes later |
@@ -711,8 +739,8 @@ at `pre-reset`.
 
 | | Today | After |
 | --- | ---: | ---: |
-| TypeScript lines | ~83K | ~50K (about 27K removed outright; about half of the 12K demo and React Flow code survives in `plugin-app`) |
-| Shippable packages | 31 | 6 (core, node, browser, cli, mcp, plugin-sdk) + 15 plugins |
+| TypeScript lines | ~83K | ~50K (about 27K removed outright; about half of the 12K demo and React Flow code survives in `app`) |
+| Shippable packages | 31 | 7 (core, node, browser, cli, mcp, plugin-sdk, app) + 15 plugins |
 | Packages a user needs to start | CLI + an environment module that imports each extension | `cli`, then plugins installed on demand |
 | Model-facing harness code | ~19K (core harness, harnesses, EQL, evals) | 0, plus one skill |
 
@@ -835,7 +863,8 @@ installable with `npx skills add`.
 
 ### Phase 8 — App
 
-`plugin-app` per §4.8, carved from `pre-reset`.
+`app` and `plugin-app` per §4.8, carved from `pre-reset`: the `HostAdapter` interface, the
+local adapter behind `ecp app`, and the in-page adapter on the browser environment.
 
 **Exit:** Dogfood C.
 
