@@ -916,13 +916,14 @@ extension.
 | `examples/04-compile-and-run`, `04-encode-decode`, `05-test-session`, `harness-ollama`, `controller-specialist`, `vendor/browser-demo-host`, `vendor/02-weekly-brief-with-slack` | **Remove**; covered by docs or by removed features |
 | `docs/*.md` (assessments, reports, harness, EQL, daemon, browser review), `docs/ui-example` | **Remove**; conceptual content moves to the docs site |
 | `ecp-overhaul.md` | **Remove**; superseded by this plan |
-| `SPEC.md`, `ARCHITECTURE.md`, `AGENTS.md`, `README.md`, `SETUP.md`, `RELEASING.md` | Rewrite for workflow files, plugins, delegation and Changesets |
+| `SPEC.md`, `ARCHITECTURE.md`, `README.md`, `SETUP.md`, `RELEASING.md` | Rewrite for workflow files, plugins, delegation and Changesets |
+| `AGENTS.md`, `CLAUDE.md` | Rewritten for the milestone ahead of Phase 1 (2026-10-21): they defer to this plan, mark frozen code, and give each package its reset status. Each phase updates the sections it changes |
 | `CHANGELOG.md`, `LICENSE` | Keep |
 | `archive/legacy-v0.5` | **Remove** (still at tags `v0.5.0` and `v0.5-latest`) |
 | `config/ecp.config.example.yaml` | **Remove** (no config files) |
 | `.gitmodules` (empty), `.cursor/eval-timing.ndjson` | **Remove** |
-| `.cursor/rules/*` | Rewrite to match the new `AGENTS.md`, or remove |
-| `skills/ecp-core` | Rewrite as a contributor skill (package boundaries, plugin authoring); drop `harness-eval.md` |
+| `.cursor/rules/*` | Updated ahead of Phase 1 (2026-10-21): new always-on `reset-milestone.mdc`; `harness-prompt-language.mdc` removed; the rest corrected (several still described the v0.5 CLI). Each phase keeps them current |
+| `skills/ecp-core` | Updated ahead of Phase 1 to point at the plan, with now-and-after references. Phase 1 deletes `harness-eval.md` |
 | `fixtures/consumer-cli` | Rework into a clean-install plugin smoke test |
 | `.ecp/` | Gitignore (run journals) |
 | Scripts: `check-no-file-deps`, `clean-dist`, `lint-yaml`, `list-publishable-workspaces`, `resolve-pack-tarball` | Keep |

@@ -1,16 +1,20 @@
 ---
-description: React Flow encode/viewer conventions for format-reactflow and Flow canvas
-globs: packages/extensions/format-reactflow/**/*,**/format-reactflow/**
+description: React Flow graph rendering conventions (format-reactflow today, packages/app from Phase 8)
+globs: packages/extensions/format-reactflow/**/*,packages/app/src/graph/**/*
 alwaysApply: false
 ---
 
 # React Flow render
 
-Follow [packages/extensions/format-reactflow/REACTFLOW_RENDER.md](../../packages/extensions/format-reactflow/REACTFLOW_RENDER.md).
+Follow `REACTFLOW_RENDER.md`. Today it's in `packages/extensions/format-reactflow/`. Phase 1
+removes that package, and Phase 8 restores the encoder and this document into
+`packages/app/src/graph/` from the `pre-reset` tag.
 
 Non-negotiables:
 
-- Flat step nodes only (no published workflow/group wrappers).
-- Published edges are **data** (`$ref`) with handles — never visible control source→target lines.
-- Port bindings: literals + refs; ensure output handles exist for edged refs.
-- Fan-out via multiple `$ref`s is supported; do not invent multi-source fan-in on one input key.
+- Flat step nodes only (no published workflow or group wrappers).
+- Published edges are **data** (`$ref`) with handles, never visible control source-to-target
+  lines.
+- Port bindings are literals and refs; make sure output handles exist for every edged ref.
+- Fan-out through multiple `$ref`s is supported. Don't invent multi-source fan-in on one input
+  key.

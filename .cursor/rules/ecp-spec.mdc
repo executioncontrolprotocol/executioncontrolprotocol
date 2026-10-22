@@ -1,15 +1,25 @@
 ---
-description: Rules for the ECP fluent API implementation
-globs: "ecp-overhaul.md,docs/**/*.md,examples/**/*.{ts,js}"
+description: Where the ECP specification and its source of truth live
 alwaysApply: true
 ---
 
-# ECP Specification Rules
+# ECP specification
 
-- [ecp-overhaul.md](ecp-overhaul.md) is the implementation source of truth.
-- Types live in `packages/types/src` (`@executioncontrolprotocol/types`).
-- Fluent API and runtime live in `packages/core/src` (`@executioncontrolprotocol/core`).
-- Workflow manifests use `schema: "@executioncontrolprotocol.workflow"` and `version: "1.0"`.
-- Workflows are portable; environments hold runtime/extension/policy bindings.
-- Use Zod for config schemas and manifest validation where applicable.
-- Do not reintroduce YAML `ECPContext` / `spec.yaml` without an explicit migration request.
+- **Source of truth during the reset:** `RESET-PLAN.md` and `reset/` (see
+  `reset-milestone.mdc`). `ecp-overhaul.md` is superseded and is deleted in Phase 1.
+- **Types:** `packages/types/src` (`@executioncontrolprotocol/types`) until Phase 2 folds them
+  into `@executioncontrolprotocol/core/types`.
+- **Fluent API and engine:** `packages/core/src` (`@executioncontrolprotocol/core`).
+- **Manifests:** workflows use `schema: "@executioncontrolprotocol.workflow"` and
+  `version: "1.0"` (`LATEST_ECP_VERSION`). Phase 4 adds a separate
+  `@executioncontrolprotocol.requirements` schema for a workflow file's bindings.
+- **Portability:**
+  - A compiled workflow manifest never contains secrets or host config.
+  - After Phase 4, a workflow *file* declares its extension and policy bindings with
+    `workflow(...).with([...])`, and compiling splits them into the requirements block.
+  - Environments are hosts (Node, browser, later Temporal) that add their own bindings and
+    always-on policies.
+- **Validation:** use Zod for config schemas, capability I/O and manifest validation.
+- **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. New
+  error codes use the `ECP_*` catalogue in `RESET-PLAN.md` §4.6.
+- Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model.

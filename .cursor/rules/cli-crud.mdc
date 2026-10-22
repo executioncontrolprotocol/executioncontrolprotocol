@@ -1,60 +1,69 @@
 ---
-description: Oclif CLI conventions — CRUD verbs and command layout for packages/cli
-globs: packages/cli/**/*.ts
+description: ECP CLI conventions — naming, verbs, and how commands are defined
+globs: packages/cli/**/*.ts,packages/plugin-sdk/**/*.ts
 alwaysApply: false
 ---
 
-# CLI command conventions (`@executioncontrolprotocol/cli`)
+# CLI conventions (`@executioncontrolprotocol/cli`)
 
-## User-facing tokens (kebab-case, same family as spec literals)
+## User-facing tokens are kebab-case
 
-CLI user input uses the **same casing style as enum / union literal values** in `.cursor/rules/typescript.mdc` (**kebab-case**). That is a **different layer** from **TypeScript field names** (camelCase in types and YAML): the shell shows `--default-model`, while the saved field remains `defaultModel`.
+Anything a user types as a name follows **kebab-case**, the same family as enum and union
+literals in `typescript.mdc`. TypeScript field names stay camelCase; the CLI is a separate
+surface.
 
-- **Long flags:** **kebab-case** with hyphens between words (`--default-model`, `--supported-models`, `--stdio-command`, `--transport-type`). **Never** camelCase (`--defaultModel`) or **snake_case** (`--default_model`) in flag names.
-- **Single-word** long flags: **lowercase** (`--file`, `--provider`, `--type`, `--url`, `--global`). A single segment is still consistent with kebab-case (no inner hyphens needed).
-- **Flag values** that are closed sets aligned with the spec (e.g. strategy, mount stage) **must** use the same **kebab-case** literals as in `ecp.ts` / manifests (`stdio`, `sse`, `controller-specialist`, … — use the canonical string from the type union).
-- **Subcommand segments** in the topic path (`ecp config security loggers allow add`, `allowed-models`, …): **kebab-case** for multi-word segments; match spec vocabulary where applicable.
-- **`--option key=value` (and similar):** the **key** side is **kebab-case** at the CLI (e.g. `base-url=http://…`). Code that writes into `ecp.config.*` may map to camelCase or plugin-defined keys at the persistence boundary; document that mapping next to the parser.
-- **Short flags:** **single ASCII letters** where used (`-c` / `--config`, `-g` / `--global`). Do not introduce shorts that collide with shells or Oclif without review.
-- **Oclif:** the **`static flags` property name** becomes the external flag name. Use **quoted kebab-case keys**: `"default-model": Flags.string({ … })`. A bare `defaultModel` key yields `--defaultModel` in help — **forbidden** for new commands/flags.
+- **Long flags:** kebab-case (`--default-model`, `--sort-field`). Never camelCase or
+  snake_case.
+- **Generated flags:** `plugin-sdk` derives flag names from input schema field names by
+  kebab-casing them (`maxCostUsd` → `--max-cost-usd`). Don't hand-name generated flags.
+- **Subcommand and topic segments:** kebab-case (`ecp format-toon encode`,
+  `ecp config secrets add`).
+- **Closed-set flag values:** use the same kebab-case literals as the type union.
+- **Short flags:** single letters, only where clearly useful, and never colliding with oclif's
+  own (`-h`).
 
-**Summary:** Anything the user **types** as a named parameter (flag name, subcommand word, structured `key` in `key=value`) follows **kebab-case**, aligned with **enum / union literal** rules in TypeScript. Free-form **values** (paths, secrets, model ids, URLs) are not renamed by this rule.
+Free-form values (paths, ids, URLs, secrets) are not renamed.
 
-## Host security and system config on disk
+## Verbs
 
-- **`ecp run`** and **`ecp validate`** **require** a resolvable system configuration file: project-local **`./ecp.config.yaml`** / **`./ecp.config.json`**, user-global **`~/.ecp/config.yaml`** (or **`~/.ecp/config.json`** / **`~/.ecp/ecp.config.yaml`** per merge rules), or **`--config <path>`** to an existing YAML/JSON file. If **none** of these exist, the command **fails** with a clear error (no implicit “open host” when config is missing). **`--config`** still loads a **single** file with **no** merge with `~/.ecp`.
+Use the same vocabulary everywhere:
 
-## Wiring vs `security` (system config)
+| Verb | Use for |
+| --- | --- |
+| `list` | Many items (`ecp runs list`, `ecp config secrets list`) |
+| `show` | One item in detail (`ecp runs show <id>`) |
+| `add` / `remove` | Create / delete an entry (`ecp config secrets add`) |
+| `update` | Change an existing entry, or update installed things (`ecp update`) |
+| Domain verbs | Actions that aren't CRUD: `run`, `resume`, `rerun`, `validate`, `compile`, `invoke`, `search`, `describe`, `discover`, `install`, `init`, `new`, `build`, `check` |
 
-- **`ecp config add|remove|get|update --type tools|models|loggers|endpoints`** — **wiring only** (`tools.servers`, `models.providers`, `loggers.config`, `agents.endpoints`). Use **generic** `--provider`, **`--default-model` / `--allowed-models` / `--option key=value`** (repeatable; duplicate keys invalid) for models; **`--transport-type` stdio|sse**, **`--stdio-command`**, **`--stdio-arg`**, **`--sse-url`**, **`--option`**, **`--credentials-file`**, or **`--file`** for tools; **`--option`** or **`--file`** for loggers/endpoints; **no** provider-specific command trees (no `ollama` subtopic, no hard-coded provider branches in those handlers).
-- **`ecp config security …`** — **all** allow/deny/default-enable style policy under `security.*`. Naming mirrors the alignment spec: `ecp config security models allow|default …`, `ecp config security tools allow …`, `ecp config security loggers allow|default …`, `ecp config security agents allow|default …`, `ecp config security executors allow|default …`, `ecp config security memory allow …` and `memory default set …`, `ecp config security secrets allow …`, plus `ecp config security models allowed-models …` for per-provider model caps. Do not add parallel allow/deny under `ecp config plugins` or typed `--type` CRUD.
-- **`ecp config plugins`** — **installs** and **`get`** only; extension policy is **`ecp config security plugins update`**.
+The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own verbs (`install`,
+`uninstall`, `link`, `inspect`, `reset`, `update`). Our authoring commands in that topic are
+`new`, `build` and `check`.
 
-## CRUD verbs
+## How commands are defined
 
-Commands that manipulate a resource (including nested resources) use **only** these action names:
+- **Today (until Phase 3):** one oclif command class per file under
+  `packages/cli/src/commands/`. Don't add new commands this way; Phase 3 replaces them.
+- **From Phase 3:**
+  - Every command is generated. The CLI's own commands are `defineOperation(...)`
+    definitions (zod input, metadata, handler, optional `cli: { args: [...] }` for positional
+    arguments) turned into commands by `toCommands()`.
+  - Plugin commands come from extension definitions.
+  - No hand-written oclif command classes. The only hand-written oclif code is the CLI's hooks.
+- **`--json`:** every command supports it, printing the envelope `{ ok, data }` or
+  `{ ok: false, error: { code, message, path, suggestions } }`. Errors use `ECP_*` codes and
+  the exit codes in `RESET-PLAN.md` §4.6. `EcpCommand` owns this, so oclif's own JSON error
+  output never leaks.
+- **Reserved root names** that plugins can't use as topics: `init`, `search`, `describe`,
+  `validate`, `install`, `run`, `runs`, `invoke`, `compile`, `config`, `discover`, `update`,
+  `rollback`, `plugin`, `plugins`, `mcp`, `app`, `help`.
 
-| Verb | Role |
-|------|------|
-| **add** | Create a new entry (fail if it already exists when that would be ambiguous). |
-| **get** | Read / display (replaces names like `list`, `show`, `describe` for resource data). |
-| **remove** | Delete (replaces `delete`, `rm`, `unset` for CLI consistency). |
-| **update** | Change an existing entry (replaces `set`, `edit`, `put` for mutations). |
+## One path per concern
 
-Meta-commands that are not resource CRUD (e.g. `config init`, `config path`) are exempt.
-
-## Layout
-
-- Prefer **one Oclif command file per action**, nested by topic: e.g. `commands/config/security/loggers/allow/add.ts` → `ecp config security loggers allow add`.
-- Wiring mutations are centralized in **`ecp config add|update|remove`** with **`--type`**; shared logic lives in `packages/cli/src/lib/config-wiring-ops.ts`.
-- File names match the CLI segment (`add.ts`, `get.ts`, `remove.ts`, `update.ts`), not hyphenated compound verbs.
-
-## Examples
-
-- Prefer `ecp config get` (no `--type`) for the full merged config dump; use **`ecp config get --type tools`** (etc.) for wiring slices.
-- Prefer **`ecp config update --type tools NAME --file …`** or structured flags (`--transport-type`, `--stdio-command`, …) for replacing a tool server block.
-- Do not add parallel command trees for renamed concepts (e.g. `config extensions` and `config plugins`). One topic per resource; rename in place when terminology changes.
+- Don't add parallel command trees for the same thing (for example `extensions` and `plugins`).
+- Rename in place when terminology changes.
 
 ## `ecp config secrets`
 
-- Prefer **`ecp config secrets add KEY`** (interactive paste) or **`ecp config secrets add KEY --value …`** for non-interactive inline input; **`get KEY`**, **`remove KEY`**, **`list`**.
+`ecp config secrets add KEY` (interactive) or `add KEY --value …`; `get KEY`, `remove KEY`,
+`list`.

@@ -36,6 +36,44 @@ parallel once Phase 5 lands.
 - **Done means:** every exit criterion in the phase doc is checked off in the PR description,
   and the phase's status in this table and in `RESET-PLAN.md` §7 is updated in the same PR.
 
+## Running a phase with a coding agent
+
+The repo's agent instructions are already set up for the milestone:
+
+- `CLAUDE.md` (Claude Code) and `AGENTS.md` (other agents) point here.
+- `.cursor/rules/reset-milestone.mdc` (always on) does the same for Cursor.
+
+Start a fresh agent session in the repo for each phase and give it this prompt, replacing the
+phase number and doc name:
+
+```text
+You're executing Phase 1 of the ECP CLI reset in this repo.
+
+Read first, in order: RESET-PLAN.md (decisions and target architecture), reset/README.md
+(how phases work), then reset/phase-1-trim.md (your task). On this branch those documents
+override AGENTS.md, .cursor/rules and any older docs wherever they disagree.
+
+Work on a new branch feat/phase-1-trim cut from milestone/cli-reset, and open one PR into
+milestone/cli-reset. Never push to main or development (pushes to main publish to npm).
+
+Follow the phase doc's task order, one commit per task. Keep the pre-commit hook on; don't
+skip tests or weaken gates to get green. If something in the doc turns out to be wrong or
+impossible, stop and tell me rather than improvising; propose the fix to the doc in the PR.
+Label anything stubbed or deferred honestly.
+
+Done = every exit criterion in the phase doc checked off in the PR description with
+evidence, CI green on the PR, and the phase status updated in reset/README.md and
+RESET-PLAN.md §7.
+```
+
+Then:
+
+1. Review the PR against the phase doc's exit criteria, not just green CI.
+2. Merge it into `milestone/cli-reset`.
+3. Start the next phase in a new session.
+
+Run one phase at a time through Phase 5; Phases 6, 7 and 8 can run in parallel after that.
+
 ## Section references
 
 `§` numbers refer to `RESET-PLAN.md`:

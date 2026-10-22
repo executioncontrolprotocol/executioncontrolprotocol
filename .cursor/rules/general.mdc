@@ -3,22 +3,40 @@ description: General development rules for the ECP repository
 alwaysApply: true
 ---
 
-# General Rules
+# General rules
 
-- This is a TypeScript-first monorepo using pnpm workspaces (`packages/*`).
-- No Python dependencies. All validation and linting is done via NPM packages.
-- Always run `pnpm install` from the repo root, never inside individual packages.
-- Run `pnpm run check` from the repo root to execute the full suite: typecheck + lint + **coverage** (unit) + integration + e2e.
-- Keep root `package.json` scripts as the single source of truth for all development commands.
-- Prefer `const` over `let`; never use `var`.
-- Use Prettier-compatible formatting (no trailing semicolons are acceptable if ESLint allows it).
-- **No emojis in the codebase.** Do not add emoji characters to source code, UI strings, logs, or comments.
-- **Tests required for new features.** Always include unit or integration tests for any new feature or behavior change. Cover **positive**, **negative**, and **edge** cases (happy path, invalid/denied/missing inputs, and boundaries such as empty collections, last-step, concurrent skip). Do not ship feature code with only a single happy-path assertion.
-- **Coverage accountability.** `pnpm run build` does **not** enforce coverage. The ship gate is **`pnpm run test:coverage`**: husky pre-commit and CI `unit` both run it against floors in `vitest.config.mts`. Target remains **90%** lines/functions/branches/statements — raise package floors toward 90 as suites grow; never lower a threshold to green CI. Do not delete, skip, or weaken tests solely to pass coverage.
-- **Coverage config hygiene.** Never put negated globs (`!…`) in `test.include` under Vitest projects — Vitest 4 merges them into `coverage.exclude` and zeros the report (vitest#10164). Use `test.exclude` instead.
-- **Extract repeated values.** If a literal value is used more than twice in implementation code, define a shared constant/enum and reference it instead of repeating string/number literals.
-- **DRY and leverage.** Prefer one source of truth for behavior, config, and documentation. When the same control flow or error handling appears in multiple places, extract a shared helper—after the pattern is real, not for hypothetical reuse. Reuse existing modules (`system-config-cli`, runtime helpers, shared flags) before adding parallel code paths. DRY does not mean one giant abstraction: avoid premature generics that obscure behavior; keep changes focused and avoid drive-by refactors. **Intentional duplication** is acceptable when it preserves clear boundaries (e.g. separate published packages)—do not merge layers just to dedupe lines.
-- **Avoid large-scale value renames.** Do not rename widely used values across many files unless explicitly approved for a deliberate migration; prefer adapters/normalization at boundaries.
-- **Eval integrity.** Do not delete, skip, or weaken valid failing harness eval tests to green CI. Do not fail-open quality gates (LLM judge, schema validation) on errors—fix the harness, model, or fixture. Triage harness vs model vs fixture before changing assertions.
-- **No `file:` package links.** Never put `"file:..."` in `package.json` `dependencies` / `devDependencies` / `peerDependencies` (committed or local). It breaks CI and consumer installs. In-repo packages use `workspace:*` / `workspace:^`. External authors use registry ranges.
-- **Vendor-neutral implementations.** Core, harnesses, policies, runtimes, CLI, and apps (including `apps/browser-demo`) must not hard-code vendor or extension-specific shapes (capability id branches, output bag names like `layers`/`parts`, EXIF/Photoshop assumptions, etc.). Bound extensions are unknown at authoring time. Use protocol metadata (`projections`, summaries, schemas) and domain-agnostic compaction only. Domain knowledge stays in the extension package.
+- TypeScript-first monorepo using pnpm workspaces. Workspace globs are in
+  `pnpm-workspace.yaml`. During the reset, packages move (`environments/*` in Phase 2,
+  `plugins/*` in Phase 3–5).
+- No Python dependencies; validation and linting use npm packages.
+- Run `pnpm install` from the repo root only.
+- `pnpm run check` runs the full suite: build, schema generation, lint, secrets scan, coverage
+  (unit), integration and e2e.
+- Root `package.json` scripts are the single source of truth for development commands.
+- Prefer `const` over `let`; never `var`.
+- No emojis in code, UI strings, logs or comments.
+- **Tests for every behaviour change:** positive, negative and edge cases. A single
+  happy-path assertion isn't enough.
+- **Coverage:**
+  - `pnpm run build` doesn't check coverage; `pnpm run test:coverage` is the gate (pre-commit
+    and CI).
+  - Floors live in `vitest.config.mts`. Raise them toward 90%; never lower one to get CI green.
+  - Don't delete, skip or weaken valid tests to pass. The only exception is a removal a phase
+    doc explicitly lists (for example, Phase 1 deletes the harness eval suite).
+- **Coverage config hygiene:** never put `!` globs in `test.include` under Vitest projects
+  (vitest#10164); use `test.exclude`.
+- **Extract repeated values:** a literal used more than twice in implementation code becomes a
+  shared constant.
+- **DRY with judgement:**
+  - Extract shared helpers once a pattern is real, not for hypothetical reuse.
+  - Reuse existing modules before adding parallel paths.
+  - Intentional duplication across published package boundaries is fine.
+- **No large-scale renames** unless a phase doc calls for them. Phase 2's `types` → `core/types`
+  move is one that does.
+- **No `file:` package links** in any dependency field; use `workspace:*` / `workspace:^`.
+  Gate: `pnpm run check:no-file-deps`.
+- **Vendor-neutral hosts:** core, environments, the CLI, MCP and the App must not hard-code
+  extension-specific ids or output shapes. Use protocol metadata (`summary`, `useCases`,
+  `projections`, schemas). Domain knowledge lives in the extension.
+- **Reset milestone:** see `reset-milestone.mdc`. The plan and phase docs take precedence over
+  older guidance.

@@ -1,0 +1,25 @@
+---
+description: The CLI reset milestone — RESET-PLAN.md and reset/ phase docs take precedence
+alwaysApply: true
+---
+
+# CLI reset milestone
+
+This repo is executing the ECP CLI reset on `milestone/cli-reset`.
+
+- **Source of truth:** [`RESET-PLAN.md`](../../RESET-PLAN.md) for decisions and target
+  architecture, and [`reset/`](../../reset/README.md) for the detailed doc of each phase. When
+  another rule or `AGENTS.md` disagrees with them, follow the plan, say so in the PR, and
+  propose a fix to the rule.
+- **Executing a phase:** read `RESET-PLAN.md`, then `reset/README.md`, then the phase doc. Work
+  the phase doc's tasks in order. Branch `feat/phase-<n>-<slug>` from `milestone/cli-reset` and
+  open the PR into `milestone/cli-reset`.
+- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **Frozen code:** don't extend anything the plan removes (harnesses, evals, the browser demo,
+  `format-eql`, `chrome-ai`, `memory`, `telemetry`, `storage`, `slack`, `browser-secrets`,
+  `image-policy`, the temporal stub). `AGENTS.md` lists what goes in which phase.
+- **If a phase doc is wrong or impossible,** stop and report it instead of improvising.
+- **Honesty:** label stubs, mocks and deferred work in code and in the PR. Never ship them as
+  if they were real.
+- **Done means:** every exit criterion in the phase doc is checked off with evidence in the PR,
+  CI is green, and the phase status is updated in `reset/README.md` and `RESET-PLAN.md` §7.
