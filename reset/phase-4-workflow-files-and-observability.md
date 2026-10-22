@@ -17,7 +17,8 @@ error codes and resume-from-step. This is the phase that makes the self-healing 
 - The workflow file loader, dependency inference and the missing-plugin flow.
 - Environment layering, user and team environment files, config validation.
 - The run journal, `--events`, error codes and exit codes.
-- `ecp runs list|show|rerun`, `ecp install`, `ecp init`.
+- `ecp run --to`, `ecp runs list|show|resume|rerun` (replacing `ecp test` and `test-session`),
+  `ecp install`, `ecp init`.
 - Converting the examples.
 
 **Out:**
@@ -174,19 +175,67 @@ New codes:
 Every error keeps the `code`, `message`, `path`, `suggestions` and `severity` shape. Exit codes
 follow §4.6.
 
-### 10. `ecp runs`
+### 10. Stepping, resuming and re-running (`ecp run --to`, `ecp runs`)
+
+Today `ecp test start|run|rerun|status` and `core/src/test-session` let you:
+
+- Run a workflow up to a step and stop.
+- Continue from where it stopped.
+- Re-run exactly one step.
+- Inspect the saved state.
+
+None of that is dropped. It moves onto the run journal, so every run (not just test sessions)
+can be stepped, resumed and re-run.
+
+| Today | After Phase 4 |
+| --- | --- |
+| `ecp test start <workflow>` + `ecp test run --to <step>` | `ecp run <file> --to <step>`: runs through that step, then stops with status `stopped` and a cursor |
+| `ecp test run --to <later step>` (continue) | `ecp runs resume <id> [--to <step>]`: continues from the cursor with the journal's committed state |
+| `ecp test rerun <step>` | `ecp runs rerun <id> --from <step> --to <step>`: re-runs exactly that step and clears what came after it |
+| — | `ecp runs rerun <id> --from <step>`: re-runs from a step to the end |
+| `ecp test status` | `ecp runs show <id>`: status, cursor, per-step records |
+| — (not possible today) | `ecp runs resume <id> --approve`: continues a run that a policy paused |
+
+**Commands:**
 
 - **`runs list`:** newest first, filter by `--status` and `--workflow`, `--json`.
-- **`runs show <id>`:** the journal, with `--step <id>` for one step.
-- **`runs rerun <id> [--from <step>]`:**
+- **`runs show <id>`:** the journal, with `--step <id>` for one step. Shows the cursor for
+  stopped and paused runs.
+- **`runs resume <id> [--to <step>] [--approve]`:**
+  - Works on runs with status `stopped` or `paused`.
+  - Continues from the cursor with the committed state recorded after the last completed
+    step, using the current workflow file.
+  - **Approvals:** with `--approve`, the journal records `{ stepId, approvedBy, at }`, and the
+    policy context exposes recorded approvals, so `plugin-approval` allows the step it paused
+    on. Without `--approve`, resuming a paused run pauses again at the same step.
+  - `--to` stops again at a later step.
+- **`runs rerun <id> [--from <step>] [--to <step>]`:**
   - Re-runs using the **current** workflow file, which is the point: fix, then rerun.
   - Steps before `--from` are restored from the journal: their outputs and the committed state
     after the last restored step.
-  - If any restored step's definition changed (its hash differs from the journal), stop with
-    `ECP_RERUN_INCOMPATIBLE` and suggest a full run or an earlier `--from`.
-- **Implementation:** port the executor's single-step and `runTo` support that
-  `core/src/test-session` uses today, then delete `test-session/` and the `test-session` types.
-  Their behaviour lives on in `runs rerun`.
+  - The default `--from` is the first failed step. The default `--to` is the end.
+  - Steps after `--to` keep no outputs: their history and `.as` keys are cleared, as
+    `test rerun` does today.
+- **Each resume or rerun is a new run** with its own id, linked to its parent
+  (`parentRunId`, `resumedFrom`) in `run.json`. Journals are append-only.
+
+**Safety:**
+
+- For both `resume` and `rerun`, if any restored step's definition changed (its hash differs
+  from the journal), stop with `ECP_RERUN_INCOMPATIBLE`. The error suggests a full run or an
+  earlier `--from`.
+- Restored state comes only from the journal, never from a hand-edited file, so the policy
+  record stays trustworthy.
+
+**Implementation:**
+
+- Port the executor's single-step (`onlyStepId`) and stop-after (`runTo`) support that
+  `test-session` uses today.
+- Add resume-from-cursor with injected committed state.
+- Add the `stopped` status (today a run that stops early reports `paused`, which is ambiguous
+  with a policy pause).
+- Then delete `core/src/test-session`, `runtime/test-session-state.ts`, the `test-session`
+  types, the `ecp test` commands and `src/lib/test-session-io.ts`.
 
 ### 11. `ecp init` and examples
 
@@ -215,6 +264,13 @@ follow §4.6.
     (`ECP_PLUGINS_MISSING`, exit `3`).
   - A failing step writes a journal with the error; after fixing the file,
     `runs rerun --from` completes and reuses earlier outputs.
+  - `ecp run --to <step>` stops with status `stopped`; `runs resume` finishes it; the result
+    matches a straight run.
+  - `runs rerun --from X --to X` re-runs exactly one step and clears later outputs.
+  - An approval pause: `runs resume` without `--approve` pauses again; with `--approve` it
+    continues, and the approval is in the journal.
+  - Each `ecp test` scenario from today's tests passes through the new commands before the old
+    ones are deleted.
   - Changing an earlier step's definition gives `ECP_RERUN_INCOMPATIBLE`.
   - `--events` emits valid NDJSON in order.
   - A workflow binding `secrets` gives `ECP_BINDING_INVALID`.
@@ -226,10 +282,12 @@ follow §4.6.
 
 - [ ] On a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and runs;
       `--json` returns `ECP_PLUGINS_MISSING` instead.
+- [ ] Every `ecp test` ability exists on the journal: `ecp run --to`, `runs resume` (including
+      `--approve`), `runs rerun --from/--to`, `runs show`.
 - [ ] A failed step can be fixed and resumed with `ecp runs rerun <id> --from <step>`.
 - [ ] Every run writes a versioned, redacted journal; `--events` streams NDJSON.
 - [ ] Bound config is validated against `withConfig` schemas.
-- [ ] Examples are single files; `test-session` is gone.
+- [ ] Examples are single files; `test-session` and `ecp test` are gone, replaced as above.
 - [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
 
 ## Risks

@@ -18,8 +18,11 @@ below; the minimum edits needed to keep the rest building and tested.
 - Renaming `runtimes/*` to `environments/*` (Phase 2).
 - Replacing the release scripts with Changesets (Phase 5).
 - Converting examples to single-file workflows (Phase 4).
-- `core/src/test-session` and `runtime/test-session-state.ts` **stay**. Phase 4 turns them into
-  `ecp runs rerun`, because the executor already supports re-running one step.
+- `core/src/test-session`, `runtime/test-session-state.ts` and the `ecp test start|run|rerun|status`
+  commands **stay**. They're how you run up to a step, re-run one step, and continue from saved
+  state today. Phase 4 moves those abilities into the run journal (`ecp run --to`,
+  `ecp runs resume`, `ecp runs rerun`) and only then removes them, so there's never a window
+  without them.
 
 ## Tasks
 
@@ -87,8 +90,8 @@ Per §5.4:
 
 ### 6. Trim the CLI
 
-- Delete commands `test.ts`, `test/*`, `serve.ts`, `up.ts`, `encode.ts`, `decode.ts`.
-- Delete `src/lib/up/*`, `src/lib/http/*`, `src/lib/test-session-io.ts`.
+- Delete commands `serve.ts`, `up.ts`, `encode.ts`, `decode.ts`. Keep `test.ts` and `test/*`.
+- Delete `src/lib/up/*` and `src/lib/http/*`. Keep `src/lib/test-session-io.ts`.
 - `packages/cli/package.json`: drop `extension-ollama` and `extension-storage`.
 - Root `package.json`: remove `dev:demo`, `up:demo`, `build:demo`, `test:demo`. Delete
   `scripts/ecp-up-demo.mjs`.
@@ -153,7 +156,7 @@ Then:
 - [ ] CI runs on `milestone/**` and is green on the PR.
 - [ ] Every item in §5.7 marked for Phase 1 is gone.
 - [ ] No harness, eval, EQL, demo, `browser()` placeholder or `evaluate` capability remains.
-- [ ] `test-session` still exists and its tests pass.
+- [ ] `test-session` and the `ecp test` commands still exist and their tests pass.
 - [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
 
 ## Risks

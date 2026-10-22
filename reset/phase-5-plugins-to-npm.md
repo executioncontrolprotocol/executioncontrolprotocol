@@ -41,7 +41,7 @@ capability ids keep working.
 | `plugin-format-toon` | `extensions/format-toon` | `encode`, `decode` | any | Also registers the `toon` format for `--format` |
 | `plugin-format-mermaid` | `extensions/format-mermaid` | `encode` | any | Also registers the `mermaid` format for `--format` |
 | `plugin-budget` | `policies` (budget) | — (policy) | any | No commands; shows in `ecp describe --policies` |
-| `plugin-approval` | `policies` (approval) | — (policy) | any | Pausing gives `ECP_RUN_PAUSED` |
+| `plugin-approval` | `policies` (approval) | — (policy) | any | Pausing gives `ECP_RUN_PAUSED`. Allows a step once the journal records an approval for it (`ecp runs resume --approve`) |
 | `plugin-state-control` | `policies` (state-control) | — (policy) | any | Core's `MISSING_STATE_CONTROL_POLICY` check points here |
 
 After this phase `packages/extensions`, `packages/vendor` and `packages/policies` are empty

@@ -101,7 +101,9 @@ every fix cheap to retry. Concretely, ECP must provide:
 | Know a workflow is sound before running it | `ecp validate --json` with codes, paths and suggestions |
 | Watch a run | `ecp run --events` (NDJSON per step) and `ecp runs show` |
 | Understand a failure | Stable error codes plus a journal of each step's input, output, timing, policy decisions and error |
-| Retry cheaply | `ecp runs rerun <id> --from <step>`, reusing the outputs of earlier steps |
+| Step through a run | `ecp run --to <step>` stops after a step; `ecp runs resume <id>` continues from where it stopped |
+| Retry cheaply | `ecp runs rerun <id> --from <step> [--to <step>]`, reusing the outputs and state of earlier steps |
+| Continue after an approval | `ecp runs resume <id> --approve` records the approval and continues a paused run |
 | Fix dependencies | `ECP_PLUGINS_MISSING` with exact install commands |
 | Be told when an unattended run breaks | `--on-failure <command>` hook to wake an agent with the journal path (Later phase) |
 
@@ -551,10 +553,11 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
 | `ecp validate <workflow>` | Validate the workflow file against installed plugins |
 | `ecp install <workflow>` | Install every plugin the workflow file needs |
-| `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>` |
+| `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>`, `--to <step>` (stop after that step) |
 | `ecp runs list` | Recent runs, filterable by status and workflow |
 | `ecp runs show <id>` | Journal: resolved graph and per-step records |
-| `ecp runs rerun <id> [--from <step>]` | Resume, reusing the outputs of earlier steps |
+| `ecp runs resume <id> [--to <step>] [--approve]` | Continue a stopped or paused run from its cursor. `--approve` records approval for the step a policy paused on |
+| `ecp runs rerun <id> [--from <step>] [--to <step>]` | Re-execute from a step with the current file, restoring earlier steps' outputs and state. `--from X --to X` re-runs exactly one step |
 | `ecp invoke <capability-id>` | Generic single-capability call |
 | `ecp compile <workflow>` | Manifest + requirements. `--format <id>` renders through an installed format plugin (for example `mermaid`) |
 | `ecp config secrets add\|get\|list\|remove` | Local secrets |
@@ -599,14 +602,16 @@ and `@oclif/plugin-warn-if-update-available`. The CLI also depends on the
   | `ECP_ENVIRONMENT_UNSUPPORTED` | An extension doesn't `.supports()` the environment the workflow is running in |
   | `ECP_SECRET_MISSING` | A referenced secret has no value |
   | `ECP_POLICY_DENIED` | A policy blocked the step; names the policy and its reason (for example `budget`) |
-  | `ECP_RUN_PAUSED` | A policy paused the run (for example `approval`); names the policy |
+  | `ECP_RUN_PAUSED` | A policy paused the run (for example `approval`); names the policy and the `ecp runs resume` command |
   | `ECP_STEP_FAILED` | The capability threw; the original message is preserved |
   | `ECP_OUTPUT_INVALID` | The capability's output fails its schema |
   | `ECP_PLUGIN_DENIED` | The plugin trust check refused an install |
   | `ECP_RERUN_INCOMPATIBLE` | A step before `--from` changed since the journal was written |
 
-- **Exit codes:** `0` success · `1` run failed · `2` validation or usage error ·
-  `3` missing plugins · `4` paused by a policy.
+- **Run statuses:** `completed`, `failed`, `paused` (a policy paused it), `stopped` (reached
+  `--to`), `cancelled`. Paused and stopped runs keep a cursor and can be resumed.
+- **Exit codes:** `0` success, including a run that stopped at `--to` · `1` run failed ·
+  `2` validation or usage error · `3` missing plugins · `4` paused by a policy.
 
 ### 4.7 MCP
 
@@ -704,7 +709,7 @@ at `pre-reset`.
 | --- | ---: | --- |
 | `harness/**` (authoring, prompts, definitions, repair loop, call-model) | 6.0K | **Remove** |
 | `compile/*harness-artifact*`, `compile/evaluate-browser`, `compile/prepare-browser-source` | ~0.4K | **Remove** (harness artifacts) |
-| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Keep until Phase 4.** The executor's single-step rerun behind it becomes `ecp runs rerun`; then the module is removed |
+| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Keep until Phase 4.** Its abilities (run up to a step, re-run one step, resume from saved state) move into the run journal and `ecp run --to` / `runs resume` / `runs rerun`; then the module is removed |
 | `feedback/` | 0.1K | **Remove** (chat feedback for the harness) |
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
@@ -723,7 +728,7 @@ at `pre-reset`.
 | --- | --- |
 | `run`, `validate`, `describe`, `search`, `invoke`, `compile`, `config secrets *` | Keep, rework for workflow files and `--json` |
 | `init` | Rewrite: scaffold a workflow file |
-| `test start\|run\|rerun\|status` | **Remove** → `runs list\|show\|rerun` |
+| `test start\|run\|rerun\|status` | **Keep until Phase 4**, then replace: `test start` + `test run --to` → `ecp run --to`; continuing → `runs resume`; `test rerun <step>` → `runs rerun --from <step> --to <step>`; `test status` → `runs show` |
 | `serve` | **Remove** → `mcp serve`, and the App server |
 | `up` | **Remove** → `app` |
 | `encode`, `decode` | **Remove** from the CLI → `ecp format-toon encode\|decode` in `plugin-format-toon` |
@@ -870,7 +875,8 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   loops, `call-model`, prompt primers)
 - `core/src/compile/*harness-artifact*`, `compile/evaluate-browser.ts`,
   `compile/prepare-browser-source.ts`
-- `core/src/feedback/` (`test-session/` stays until Phase 4 turns it into `runs rerun`)
+- `core/src/feedback/` (`test-session/` and the `ecp test` commands stay until Phase 4 replaces
+  them)
 - `types/src/harness*.ts`, `intent.ts`, `probe-context.ts`, and the harness-only parts of
   `model.ts`
 - The `browser()` config placeholder and `BROWSER_SECRETS_RESOLVER_ID`
@@ -882,8 +888,7 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   environment builder
 - `runtimes/browser/src/authoring/*`, `extensions/browser-guide.ts`,
   `extensions/browser-session-config.ts`
-- CLI commands `test`, `test start|run|rerun|status`, `serve`, `up`, `encode`, `decode`, and
-  `src/lib/up/*`, `src/lib/http/*`, `src/lib/test-session-io.ts`
+- CLI commands `serve`, `up`, `encode`, `decode`, and `src/lib/up/*`, `src/lib/http/*`
 - The CLI's direct dependencies on `extension-ollama` and `extension-storage`
 
 #### Examples, docs and root files
@@ -1018,7 +1023,8 @@ Detail: [`reset/phase-4-workflow-files-and-observability.md`](reset/phase-4-work
    environment-only secrets providers, the `ECP_ENVIRONMENT_UNSUPPORTED` compatibility check,
    the user default `environment.ecp.ts`, and `--env <file>`.
 3. `ecp run`, `validate`, `install` and `compile` on workflow files; the missing-plugin flow.
-4. Run journal, `--events`, error code catalogue, exit codes, and `ecp runs list|show|rerun`.
+4. Run journal, `--events`, error code catalogue, exit codes, `ecp run --to`, and
+   `ecp runs list|show|resume|rerun`, replacing `ecp test` and `test-session`.
 5. Convert the examples to single-file workflows.
 
 **Exit:** on a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and
