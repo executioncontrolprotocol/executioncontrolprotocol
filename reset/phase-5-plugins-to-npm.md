@@ -54,17 +54,14 @@ and deleted.
 Do these for each plugin, in the order of the table (jsonata is already done):
 
 1. `git mv` the source to `plugins/plugin-<name>`; rename the package.
-2. `package.json`:
-   - `exports` (`.` and `./oclif`) and `ecp.extension`.
-   - `oclif.commands` (explicit strategy, target `./dist/oclif.js`, identifier `COMMANDS`).
-   - `oclif.topics`.
-   - Keywords `ecosystem:ecp-plugin` and `oclif-plugin`.
-   - `peerDependencies: { "@executioncontrolprotocol/core": "^1" }` and a dependency on
-     `plugin-sdk`.
-3. `src/oclif.ts` with `export const COMMANDS = toCommands(definition)`.
+2. `package.json`: only the hand-maintained parts (name, version, dependencies,
+   `peerDependencies: { "@executioncontrolprotocol/core": "^1" }`, a dependency on
+   `plugin-sdk`) and the build script `tsc -b && ecp-plugin build`.
+3. Run `ecp-plugin build` once and commit what `sync` wrote (`ecp.extension`, `exports`, the
+   `oclif` block, keywords, `files`). Don't write `oclif.ts` or the manifest by hand.
 4. Remove any leftover `register*Extension()` helper or module-level registration.
 5. Set `.supports()` per the table.
-6. Build runs `oclif manifest`; `oclif.manifest.json` ships in `files`.
+6. `ecp-plugin check` passes.
 7. README: one-line install (`ecp plugins install <name>`), a capability table, config fields,
    and the secrets it expects (as `secrets("…")` keys).
 8. Move its examples from `examples/vendor/*` to `plugins/plugin-<name>/examples/` as single

@@ -40,7 +40,9 @@ is both a library and a JIT CLI plugin (`ecp mcp serve`).
 
 Tool names must match `^[a-zA-Z0-9_-]{1,64}$` for Claude clients, so the dots go.
 
-**Meta tools** (always registered):
+**Meta tools** (always registered). These are generated from the CLI's host operations
+(Phase 3, `defineOperation`) the same way capability tools are generated from capabilities, so
+there's no hand-written tool code:
 
 | Tool | Does | Notes |
 | --- | --- | --- |

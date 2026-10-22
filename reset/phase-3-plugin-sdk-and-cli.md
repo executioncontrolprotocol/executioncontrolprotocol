@@ -7,7 +7,9 @@
 
 Rebuild the `ecp` CLI as a thin oclif host with plugin management, and ship
 `@executioncontrolprotocol/plugin-sdk` so that one extension definition becomes CLI commands
-with no hand-written command code. Prove it end to end with `plugin-jsonata`.
+with **no hand-written oclif code**: no command classes, no `oclif.ts`, no hand-maintained
+`oclif` block in `package.json`. The CLI's own commands use the same mechanism. Prove it end
+to end with `plugin-jsonata`. The design and the prototype that validated it are in §4.2.
 
 ## Scope
 
@@ -32,11 +34,31 @@ with no hand-written command code. Prove it end to end with `plugin-jsonata`.
 
 New package at `packages/plugin-sdk`. It depends on `@oclif/core` and has `core` as a peer.
 
+First, decide the oclif major. The repo is on `@oclif/core` 4.10, and 5.x is current. Every
+plugin will depend on the SDK's oclif major, so pick it once here: check the 5.x changes to the
+explicit strategy, manifests and JSON output, and prefer 5 unless something blocks it.
+
+**Runtime API:**
+
 ```ts
-export function toCommands(definition: ExtensionDefinition | PolicyDefinition): Record<string, Command.Class>
+export function toCommands(source: ExtensionDefinition | PolicyDefinition | OperationDefinition[]): Record<string, Command.Class>
+export abstract class EcpCommand extends Command { /* input merge, validation, envelope, errors, exit codes */ }
+export function defineOperation(name: string): OperationBuilder   // host operations: the CLI's own commands
 export function getHost(config: Config): EcpHost        // the CLI's environment, registry and output
 export type EcpHost = { ecp: Ecp; registry: Registry; environmentId: string; output: OutputMode }
 ```
+
+**Build tool (`bin: ecp-plugin`):**
+
+| Command | Does |
+| --- | --- |
+| `ecp-plugin build` | Loads the built definition, writes `dist/oclif.js` (`COMMANDS = toCommands(definition)`), and writes `oclif.manifest.json` by loading the package with oclif's `Config.load` and saving the computed manifest. No `oclif` dev tool needed |
+| `ecp-plugin sync` | Writes the generated `package.json` fields from the definition: `ecp.extension`, `exports["./oclif"]`, the `oclif` block (explicit strategy, `topics` from the extension summary), the keywords and `files`. `build` runs it first |
+| `ecp-plugin check` | Fails if any generated file or field is stale; runs in CI for every plugin |
+| `ecp-plugin new <name>` | Scaffolds a plugin with only `src/index.ts` and a minimal `package.json` |
+
+The `oclif` block must exist because `@oclif/plugin-plugins` refuses to install a package
+without one. `sync` keeps it generated.
 
 For each capability, `toCommands` generates one command class:
 
@@ -62,6 +84,10 @@ For each capability, `toCommands` generates one command class:
   `examples` generated from the input schema.
 - **Run:** `getHost(this.config).ecp.invoke(capabilityId, input)`, which goes through the policy
   pipeline exactly like a one-step workflow.
+- **Errors in `--json` mode:** `EcpCommand` overrides oclif's `catch`/`toErrorJson` so failures
+  print our envelope with the `ECP_*` code and set the right exit code. Without this, oclif
+  prints its own `{"error":{"oclif":{"exit":2}}}` and the code is lost (seen in the
+  prototype).
 - **Exit codes:** `0` ok · `1` capability failed · `2` invalid input or usage · `4` paused by a
   policy.
 
@@ -109,7 +135,12 @@ policy shows up in `ecp describe --policies`.
 - The JIT entries point at packages that don't exist until Phases 7 and 8. Add each entry in
   the phase that publishes it.
 
-### 4. Core commands
+### 4. Core commands, defined as operations
+
+The CLI's own commands are `defineOperation(...)` definitions (zod input, metadata, handler,
+optional `cli: { args: [...] }` hint for positional arguments). The CLI's `COMMANDS` map is
+`toCommands(operations)`, and Phase 7 generates the MCP meta tools from the same list. There
+are no hand-written command classes in `packages/cli`; the only oclif code is the hooks.
 
 Keep and rework, all with `--json`:
 
@@ -164,10 +195,9 @@ Reserve root command names (`init`, `search`, `describe`, `validate`, `install`,
 
 - Move `packages/vendor/jsonata` to `plugins/plugin-jsonata` and rename it to
   `@executioncontrolprotocol/plugin-jsonata`.
-- Add `src/oclif.ts` (`export const COMMANDS = toCommands(extension)`).
-- Add `package.json` fields: `exports`, `ecp.extension`, `oclif.commands` (explicit strategy),
-  `oclif.topics`, `keywords: ["ecosystem:ecp-plugin", "oclif-plugin"]`.
-- Run `oclif manifest` at build.
+- Set the build script to `tsc -b && ecp-plugin build`. Don't write `oclif.ts`, the manifest or
+  the `oclif` block by hand; `ecp-plugin build` generates them.
+- Commit the generated `package.json` fields. CI runs `ecp-plugin check`.
 - `pnpm-workspace.yaml`: add `plugins/*`.
 
 ## Tests and verification
@@ -178,6 +208,12 @@ Reserve root command names (`init`, `search`, `describe`, `validate`, `install`,
   - Envelope shape for success, invalid input and capability failure.
   - Help text contains summary, use cases and projections.
   - An empty map for policy-only definitions.
+  - `defineOperation` with positional `cli.args`.
+  - `--json` failures print the `ECP_*` envelope with the right exit code, not oclif's error
+    JSON.
+- **`ecp-plugin` tests:** on a fixture plugin, `build` produces a loadable `dist/oclif.js` and a
+  manifest whose commands and flags match the definition; `check` fails after the definition
+  changes until `build` runs again.
 - **CLI integration tests** run in a hermetic oclif data directory (`ECP_DATA_DIR`,
   `ECP_CONFIG_DIR` pointing at a temp folder):
   - `ecp plugins link plugins/plugin-jsonata`, then
@@ -193,7 +229,10 @@ Reserve root command names (`init`, `search`, `describe`, `validate`, `install`,
 
 ## Exit criteria
 
-- [ ] `plugin-sdk` is published-ready (built, tested, README with the contract).
+- [ ] `plugin-sdk` is published-ready (built, tested, README with the contract), including the
+      `ecp-plugin` build tool.
+- [ ] `plugin-jsonata` and `packages/cli` contain no hand-written oclif command classes; the
+      CLI's own commands are operations.
 - [ ] `ecp plugins link plugins/plugin-jsonata` gives a working `ecp jsonata transform` with
       `--json`.
 - [ ] `discover`, `update`, `rollback`, the not-found hook and the trust hook work and are
