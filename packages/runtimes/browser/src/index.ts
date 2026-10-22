@@ -13,15 +13,6 @@ export {
 } from "./extensions/browser-registry.js"
 
 export {
-  browserSessionConfigExtension,
-  registerBrowserSessionConfigExtension,
-  createBrowserSessionConfig,
-  setBrowserSessionValue,
-  type BrowserSessionConfigController,
-} from "./extensions/browser-session-config.js"
-export { getBrowserSessionValue } from "./extensions/browser-session-config.js"
-
-export {
   browserLocalConfigExtension,
   registerBrowserLocalConfigExtension,
 } from "./extensions/browser-local-config.js"
@@ -35,27 +26,8 @@ export {
 } from "./environment.js"
 export { createEcp, type BrowserOperationalEcp, type CreateEcpOptions } from "./create-ecp.js"
 export { installBrowserWorkflowShim, type BrowserWorkflowShim } from "./workflow-shim.js"
-export {
-  BrowserAuthoringService,
-  type AuthoringPanels,
-  type CreateWorkflowResult,
-  type PatchWorkflowResult,
-} from "./authoring/browser-authoring-service.js"
-export { encodeAuthoringPanels } from "./authoring/browser-authoring-panels.js"
 export type { BrowserEcpGlobal } from "./extensions/browser-registry.js"
 export type { Ecp } from "@executioncontrolprotocol/core"
-
-export {
-  hasBrowserVault,
-  isBrowserVaultUnlocked,
-  setupBrowserVault,
-  unlockBrowserVault,
-  lockBrowserVault,
-  setBrowserSecret,
-  getBrowserSecret,
-  deleteBrowserSecret,
-  listBrowserSecretKeys,
-} from "@executioncontrolprotocol/browser-secrets"
 
 export {
   workflow,
@@ -64,7 +36,6 @@ export {
   state,
   env,
   secrets,
-  browser,
   expr,
   parallel,
   branch,
@@ -72,7 +43,6 @@ export {
   extension,
   runtime,
   policy,
-  harness,
   defineExtension,
   defineRuntime,
   definePolicy,

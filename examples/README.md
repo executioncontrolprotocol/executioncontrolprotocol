@@ -7,22 +7,11 @@ Install the CLI: `npm install -g @executioncontrolprotocol/cli` (or build/link f
 | Folder | Teaches |
 | ------ | ------- |
 | [01-echo](./01-echo) | Minimal Fluent + test extension + format-toon + CLI |
-| [02-weekly-brief](./02-weekly-brief) | Multi-step + `ref()` + memory / OpenAI |
+| [02-weekly-brief](./02-weekly-brief) | Multi-step + `ref()` + OpenAI; signals are workflow input |
 | [03-secrets-bind](./03-secrets-bind) | `ecp config secrets` + `secrets()` in extension config |
-| [04-encode-decode](./04-encode-decode) | TOON encode / decode round-trip |
-| [05-test-session](./05-test-session) | `ecp test start` / `run --to` / `rerun` / `status` |
 | [06-invoke](./06-invoke) | `ecp invoke` outside a workflow |
 | [07-accepts-returns](./07-accepts-returns) | `.accepts()` / `.returns()` + `ecp run --input` |
 
-Vendor examples (fal, Slack, Adobe, …): https://github.com/executioncontrolprotocol/extensions/tree/main/examples
+Vendor examples live under `examples/vendor/` (fal, image-sharp, Adobe). The Slack example was removed in Phase 1.
 
-## Retired stubs
-
-These folders are **not** current Fluent v1 samples — see their READMEs:
-
-- `04-compile-and-run` (docs-only; use `ecp compile` + `01-echo`)
-- `controller-specialist`
-- `create-then-summarize-ollama`
-- `harness-ollama`
-- `ollama-mcp-tools`
-- `ollama-filesystem-documents`
+`ecp test` still works against any remaining example; the dedicated `05-test-session` folder was removed in Phase 1.

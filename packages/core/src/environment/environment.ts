@@ -13,7 +13,6 @@ import type {
 } from "@executioncontrolprotocol/types"
 import type { NamespacedId } from "@executioncontrolprotocol/types"
 import { extension, type ExtensionBindingBuilder } from "../bindings/extension.js"
-import type { HarnessBindingBuilder } from "../bindings/harness.js"
 import { policy, type PolicyBindingBuilder } from "../bindings/policy.js"
 import type { RuntimeBindingBuilder } from "../bindings/runtime.js"
 import { Registry, globalRegistry } from "../registry/registry.js"
@@ -38,7 +37,6 @@ import type { EnvironmentConfigResolver } from "./config-resolver.js"
 import { buildDescriptor } from "./describe.js"
 import { searchCapabilities } from "./search.js"
 import { validateEnvironmentWithWorkflow } from "../validate/environment.js"
-import { validateHarnessBindings } from "../validate/harness.js"
 import { registerCoreFormats } from "../formats/register-core-formats.js"
 import type { HookDefinition } from "../definitions/types.js"
 import type { EncodingEnvironmentHost } from "./encoding-host.js"
@@ -93,7 +91,6 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     private runtimeBinding: RuntimeBindingBuilder | undefined,
     private extensionBindings: ExtensionBindingBuilder[] = [],
     private policyBindings: PolicyBindingBuilder[] = [],
-    private harnessBindings: HarnessBindingBuilder[] = [],
     private readonly registry: Registry = globalRegistry
   ) {}
 
@@ -115,13 +112,6 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
   withPolicies(bindings: PolicyBindingBuilder[]): this {
     this.policyBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
-  /** Bind harness definitions with default providers and config. */
-  withHarnesses(bindings: HarnessBindingBuilder[]): this {
-    this.harnessBindings = bindings
     this.invalidatePrepared()
     return this
   }
@@ -312,20 +302,6 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       return def.hooks.map((hook) => ({ hook, config: pol.rawConfig }))
     })
 
-    const harnessBindings = this.harnessBindings.map((b) => {
-      const id = b.getRef()
-      const uses = b.getUses()
-      if (!uses) {
-        throw new Error(`Harness ${id} requires .uses(providerCapabilityId)`)
-      }
-      return {
-        id,
-        label: b.getLabel(),
-        uses,
-        rawConfig: b.getConfig(),
-      }
-    })
-
     this.resolved = await resolveBindingsForRun(
       {
         id: rtId,
@@ -334,18 +310,10 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       },
       extensionBindings,
       policyBindings,
-      harnessBindings,
       extensionHooks,
       policyHooks,
       this.configResolvers
     )
-
-    const harnessValidation = validateHarnessBindings(this.registry, this.resolved)
-    if (!harnessValidation.valid) {
-      throw new Error(
-        `Harness validation failed: ${harnessValidation.errors.map((e) => e.message).join("; ")}`
-      )
-    }
 
     await this.emitEnvironmentEvent("environment:ready")
     return this.resolved
@@ -470,17 +438,13 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       )
     }
     await this.prepareForDiscovery()
-    if (this.harnessBindings.length === 0) {
-      return {
-        schema: "@executioncontrolprotocol.validation.result",
-        version: LATEST_ECP_VERSION,
-        valid: true,
-        errors: [],
-        warnings: [],
-      }
+    return {
+      schema: "@executioncontrolprotocol.validation.result",
+      version: LATEST_ECP_VERSION,
+      valid: true,
+      errors: [],
+      warnings: [],
     }
-    await this.prepareForRun()
-    return validateHarnessBindings(this.registry, this.resolveBindings())
   }
 
   /** @internal {@link EcpImpl} — terminate. */
@@ -596,5 +560,5 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
  * @category Environment
  */
 export function environment(id: string, label?: string, registry: Registry = globalRegistry): Environment {
-  return new Environment(id, label, undefined, [], [], [], registry)
+  return new Environment(id, label, undefined, [], [], registry)
 }

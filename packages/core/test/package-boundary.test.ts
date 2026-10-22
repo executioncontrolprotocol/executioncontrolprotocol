@@ -12,11 +12,9 @@ const NODE_HOST_REL = new Set([
   "loaders/files.ts",
   "loaders/index.ts",
   "compile/evaluate.ts",
-  "compile/evaluate-harness-artifact.ts",
   "compile/transpile.ts",
   "compile/index.ts",
   "compile/entry.ts",
-  "harness/repair-loop-timing.ts",
 ])
 
 const NODE_IMPORT_PATTERNS = [
@@ -44,10 +42,7 @@ async function listTsFiles(dir: string): Promise<string[]> {
 function isNodeHostFile(relPath: string): boolean {
   const normalized = relPath.replace(/\\/g, "/")
   if (NODE_HOST_REL.has(normalized)) return true
-  return (
-    normalized.startsWith("loaders/") ||
-    normalized.startsWith("harness/prompts/")
-  )
+  return normalized.startsWith("loaders/")
 }
 
 describe("@executioncontrolprotocol/core package boundary", () => {

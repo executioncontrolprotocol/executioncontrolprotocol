@@ -8,10 +8,10 @@ describe("@executioncontrolprotocol/openai", () => {
     process.env.OPENAI_API_KEY = "test-key"
   })
 
-  it("has generate and evaluate only (no generateText)", () => {
+  it("has generate only (no generateText or evaluate)", () => {
     const ids = openaiExtension.capabilities.map((c) => c.id)
     expect(ids).toContain("@executioncontrolprotocol/openai.generate")
-    expect(ids).toContain("@executioncontrolprotocol/openai.evaluate")
+    expect(ids).not.toContain("@executioncontrolprotocol/openai.evaluate")
     expect(ids).not.toContain("@executioncontrolprotocol/openai.generateText")
   })
 
@@ -63,31 +63,5 @@ describe("@executioncontrolprotocol/openai", () => {
       { role: "assistant", content: "hello" },
       { role: "user", content: "fix it" },
     ])
-  })
-})
-
-describe("@executioncontrolprotocol/openai.evaluate", () => {
-  beforeEach(() => {
-    registerOpenaiExtension()
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: '{"approved":false,"feedback":"needs work"}' } }],
-        }),
-      }))
-    )
-    process.env.OPENAI_API_KEY = "test-key"
-  })
-
-  it("parses evaluation JSON from API", async () => {
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/openai")
-    const evaluate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.evaluate")
-    const result = await evaluate?.handler(
-      { artifact: {}, goal: "quality" },
-      { usage: { increment: () => undefined } } as never
-    )
-    expect(result).toEqual({ approved: false, feedback: "needs work" })
   })
 })

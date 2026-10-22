@@ -8,9 +8,7 @@ export default tseslint.config(
       "**/dist/",
       "**/node_modules/",
       "**/coverage/",
-      "archive/**",
       "pnpm-lock.yaml",
-      "apps/browser-demo/**",
       "packages/vendor/**/src/generated/**",
       "packages/vendor/**/openapi/**",
     ],
@@ -24,14 +22,13 @@ export default tseslint.config(
       ],
     },
   },
-  // Package boundary: extensions and harnesses are environment-agnostic and must
+  // Package boundary: extensions are environment-agnostic and must
   // depend only on @executioncontrolprotocol/types + @executioncontrolprotocol/core. They may not import host packages.
   // Scoped to `src` so integration tests may still use a host runtime.
   {
     files: [
       "packages/extensions/**/src/**/*.ts",
       "packages/vendor/**/src/**/*.ts",
-      "packages/harnesses/**/src/**/*.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -50,7 +47,7 @@ export default tseslint.config(
                 "@executioncontrolprotocol/mcp/*",
               ],
               message:
-                "Extensions and harnesses must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/types and @executioncontrolprotocol/core only.",
+                "Extensions must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/types and @executioncontrolprotocol/core only.",
             },
           ],
         },
@@ -101,16 +98,14 @@ export default tseslint.config(
             {
               group: [
                 "@executioncontrolprotocol/fal",
-                "@executioncontrolprotocol/slack",
                 "@executioncontrolprotocol/jsonata",
                 "@executioncontrolprotocol/image-sharp",
                 "@executioncontrolprotocol/adobe-firefly-services",
                 "@executioncontrolprotocol/azure-blob-storage",
                 "**/packages/vendor/**",
-                "**/apps/browser-demo/**",
               ],
               message:
-                "Core and types must not import vendor extensions or the browser demo app.",
+                "Core and types must not import vendor extensions.",
             },
           ],
         },

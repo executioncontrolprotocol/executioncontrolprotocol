@@ -1,14 +1,15 @@
 # `@executioncontrolprotocol/anthropic`
 
-Anthropic Messages API model provider for ECP (`anthropic.generate` / `anthropic.evaluate`).
+Anthropic Messages API model provider for ECP (`anthropic.generate`).
 
 ## Auth
 
 - Extension config `apiKey`, or
 - `ANTHROPIC_API_KEY` from the process environment (Node)
 
-Browser demo BYOK uses the vault secret `ANTHROPIC_API_KEY` with local execution and the
-`anthropic-dangerous-direct-browser-access` header.
+Browser calls can pass `ANTHROPIC_API_KEY` in extension config and send the
+`anthropic-dangerous-direct-browser-access` header. There is no browser secrets vault after
+Phase 1.
 
 ## Multimodal `files`
 

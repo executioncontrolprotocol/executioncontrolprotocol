@@ -10,8 +10,6 @@ const cliBin = join(repoRoot, "packages/cli/bin/run.js")
 
 const ECHO_ENV = "examples/01-echo/environment.ts"
 const ECHO_WORKFLOW_TS = "examples/01-echo/workflow.ts"
-const ECHO_WORKFLOW_JSON = "examples/01-echo/workflow.json"
-
 const BROKEN_WORKFLOW = JSON.stringify({
   schema: "@executioncontrolprotocol.workflow",
   version: "1.0",
@@ -47,12 +45,10 @@ function runCli(args: string[]): Promise<CliResult> {
 describe("ecp CLI commands", () => {
   let tmp: string
   let brokenWorkflowPath: string
-  let toonPath: string
 
   beforeAll(async () => {
     tmp = await mkdtemp(join(tmpdir(), "ecp-cli-"))
     brokenWorkflowPath = join(tmp, "broken.json")
-    toonPath = join(tmp, "workflow.toon")
     await writeFile(brokenWorkflowPath, BROKEN_WORKFLOW, "utf8")
   })
 
@@ -118,81 +114,6 @@ describe("ecp CLI commands", () => {
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { results: unknown[] }
       expect(Array.isArray(result.results)).toBe(true)
-    }, 30_000)
-  })
-
-  describe("encode", () => {
-    it("encodes a manifest as JSON", async () => {
-      const res = await runCli([
-        "encode",
-        ECHO_WORKFLOW_JSON,
-        "--format",
-        "json",
-        "--env",
-        ECHO_ENV,
-      ])
-      expect(res.code).toBe(0)
-      const manifest = JSON.parse(res.stdout) as { schema: string }
-      expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
-    }, 30_000)
-
-    it("encodes a manifest as TOON to a file", async () => {
-      const res = await runCli([
-        "encode",
-        ECHO_WORKFLOW_JSON,
-        "--format",
-        "toon",
-        "--env",
-        ECHO_ENV,
-        "-o",
-        toonPath,
-      ])
-      expect(res.code).toBe(0)
-      const toon = await readFile(toonPath, "utf8")
-      expect(toon.trim().length).toBeGreaterThan(0)
-    }, 30_000)
-
-    it("fails on an unknown format", async () => {
-      const res = await runCli([
-        "encode",
-        ECHO_WORKFLOW_JSON,
-        "--format",
-        "xml",
-        "--env",
-        ECHO_ENV,
-      ])
-      expect(res.code).not.toBe(0)
-    }, 30_000)
-  })
-
-  describe("decode", () => {
-    it("decodes JSON passthrough to a workflow manifest", async () => {
-      const res = await runCli([
-        "decode",
-        ECHO_WORKFLOW_JSON,
-        "--format",
-        "json",
-        "--env",
-        ECHO_ENV,
-      ])
-      expect(res.code).toBe(0)
-      const manifest = JSON.parse(res.stdout) as { schema: string }
-      expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
-    }, 30_000)
-
-    it("round-trips a TOON file back to a manifest", async () => {
-      // Depends on the TOON file produced by the encode test above.
-      const res = await runCli([
-        "decode",
-        toonPath,
-        "--format",
-        "toon",
-        "--env",
-        ECHO_ENV,
-      ])
-      expect(res.code).toBe(0)
-      const manifest = JSON.parse(res.stdout) as { schema: string }
-      expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
     }, 30_000)
   })
 

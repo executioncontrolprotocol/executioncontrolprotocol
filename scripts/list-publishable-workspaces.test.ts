@@ -6,15 +6,19 @@ import {
 } from "./list-publishable-workspaces.mjs"
 
 describe("listPublishableWorkspaces", () => {
-  it("includes nested extensions/runtimes/harnesses and skips private evals", () => {
+  it("includes nested extensions and runtimes", () => {
     const packages = listPublishableWorkspaces(repoRoot())
     const names = new Set(packages.map((p) => p.name))
 
     expect(names.has("@executioncontrolprotocol/types")).toBe(true)
     expect(names.has("@executioncontrolprotocol/format-toon")).toBe(true)
     expect(names.has("@executioncontrolprotocol/node")).toBe(true)
-    expect(names.has("@executioncontrolprotocol/harnesses-browser-nano")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
     expect(names.has("@executioncontrolprotocol/evals")).toBe(false)
+    expect(names.has("@executioncontrolprotocol/harnesses-browser-nano")).toBe(false)
+    expect(names.has("@executioncontrolprotocol/format-eql")).toBe(false)
+    expect(names.has("@executioncontrolprotocol/chrome-ai")).toBe(false)
+    expect(names.has("@executioncontrolprotocol/browser-secrets")).toBe(false)
 
     const versions = new Set(packages.map((p) => p.version))
     expect(versions.size).toBe(1)
@@ -33,8 +37,8 @@ describe("listPublishableWorkspaces", () => {
     expect(index.get("@executioncontrolprotocol/node")!).toBeLessThan(
       index.get("@executioncontrolprotocol/cli")!,
     )
-    expect(index.get("@executioncontrolprotocol/extension-memory")!).toBeLessThan(
-      index.get("@executioncontrolprotocol/extensions")!,
+    expect(index.get("@executioncontrolprotocol/core")!).toBeLessThan(
+      index.get("@executioncontrolprotocol/format-toon")!,
     )
   })
 })

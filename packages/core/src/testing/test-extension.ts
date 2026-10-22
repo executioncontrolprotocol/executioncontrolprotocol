@@ -2,8 +2,6 @@ import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
 import { catalogExtension } from "../registry/extension-catalog.js"
 import { globalRegistry } from "../registry/registry.js"
-import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
-import { testModelGenerateHandler } from "./test-model-generate.js"
 import { z } from "zod"
 
 const TestStubInput = z.object({ payload: z.unknown().optional() })
@@ -19,7 +17,7 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
   .withMetadata({
     summary: "Stub capabilities for examples, CLI demos, and unit tests.",
     description:
-      "Provides deterministic echo, generate, and placeholder step handlers used by first-party examples and conformance tests without external services."
+      "Provides deterministic echo and placeholder step handlers used by first-party examples and conformance tests without external services."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/test", "echo")
@@ -44,28 +42,6 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
       .withHandler(async (input) => ({
         echo: (input as { value?: unknown }).value ?? "hi"
       })),
-    capabilityFor("@executioncontrolprotocol/test", "generate")
-      .withInput(modelGenerateInputSchema)
-      .withOutput(modelGenerateOutputSchema)
-      .withExecution("local")
-      .withMetadata({
-        summary: "Deterministic stub text generation for tests.",
-        description:
-          "Returns predictable text derived from the prompt without calling an external model. Use when examples need a generate-shaped step offline.",
-        useCases: [
-          "Harness unit test exercises generate input shaping.",
-          "Example workflow includes a model step without API keys."
-        ],
-        projections: [
-          {
-            summary: "Use the model text",
-            description: "Take the text field as deterministic stub output for tests and examples."
-          }
-        ]
-      })
-      .withHandler(async (input) =>
-        testModelGenerateHandler(input as { prompt?: string; system?: string })
-      ),
     capabilityFor("@executioncontrolprotocol/test", "summarize")
       .withInput(TestStubInput)
       .withOutput(TestStubOutput)

@@ -59,7 +59,7 @@ describe("ecp.encode/decode", () => {
     const decoded = await ecp
       .decode('```json\n{"broken":')
       .uses("@executioncontrolprotocol/format-json")
-      .to("@executioncontrolprotocol.intent")
+      .to("@executioncontrolprotocol.workflow")
       .process()
     expect(decoded.success).toBe(false)
     expect(decoded.diagnostics.some((d) => d.message.includes("JSON parse failed"))).toBe(

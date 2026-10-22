@@ -22,7 +22,7 @@ alwaysApply: true
     and CI).
   - Floors live in `vitest.config.mts`. Raise them toward 90%; never lower one to get CI green.
   - Don't delete, skip or weaken valid tests to pass. The only exception is a removal a phase
-    doc explicitly lists (for example, Phase 1 deletes the harness eval suite).
+    doc explicitly lists.
 - **Coverage config hygiene:** never put `!` globs in `test.include` under Vitest projects
   (vitest#10164); use `test.exclude`.
 - **Extract repeated values:** a literal used more than twice in implementation code becomes a

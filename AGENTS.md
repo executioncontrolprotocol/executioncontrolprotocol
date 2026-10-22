@@ -18,9 +18,10 @@ Ground rules for every phase:
   `milestone/cli-reset`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
 - Keep the pre-commit hook on. Don't skip, delete or weaken valid tests to get CI green, except
-  for removals a phase doc explicitly lists (for example, Phase 1 deletes the eval suite).
-- **Don't extend code that the plan removes.** It's frozen until its phase deletes it. The
-  status column below says which code that is.
+  for removals a phase doc explicitly lists.
+- **Don't reintroduce Phase 1 removals** (harnesses, evals, EQL, the demo, `browser-secrets`,
+  `image-policy`, Temporal, CLI `serve`/`up`/`encode`/`decode`). Don't extend code a later
+  phase still removes; the status column below says which code that is.
 - If a phase doc is wrong or impossible, stop and say so rather than improvising. Label
   anything stubbed, mocked or deferred honestly, in code and in the PR.
 - Update the phase's status in `reset/README.md` and `RESET-PLAN.md` §7 in the same PR that
@@ -41,18 +42,19 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `packages/types/` | Protocol types and JSON Schemas (`@executioncontrolprotocol/types`) | Folds into `core/types` in Phase 2 |
 | `packages/core/` | Fluent API, registry, validation, executor, encoding (`@executioncontrolprotocol/core`) | Stays. Harness code removed in Phase 1; host code moves out in Phase 2 |
 | `packages/runtimes/node/` | Node host (`@executioncontrolprotocol/node`) | Becomes `environments/node` in Phase 2 (same package name) |
-| `packages/runtimes/browser/` | Browser host (`@executioncontrolprotocol/browser`) | Becomes `environments/browser` in Phase 2; authoring panels removed in Phase 1 |
-| `packages/runtimes/temporal/` | Temporal stub | **Removed in Phase 1** |
-| `packages/cli/` | `ecp` CLI (oclif) | Trimmed in Phase 1; rebuilt in Phase 3 |
+| `packages/runtimes/browser/` | Browser host (`@executioncontrolprotocol/browser`) | Becomes `environments/browser` in Phase 2; authoring panels and secrets provider removed in Phase 1 |
+| `packages/cli/` | `ecp` CLI (oclif) | Trimmed in Phase 1 (`serve`/`up`/`encode`/`decode` gone); rebuilt in Phase 3 |
 | `packages/mcp/` | MCP adapter | Rebuilt in Phase 7 |
-| `packages/policies/` | `budget`, `approval`, `state-control`, `registry-control`, `image-policy` | `image-policy` removed in Phase 1; `registry-control` → core in Phase 2; the rest become plugins in Phase 5 |
-| `packages/extensions/*/` | First-party extensions | Per the audit (`RESET-PLAN.md` §5.4): some become plugins in Phase 5, some fold into the Node environment, several are **removed in Phase 1** |
-| `packages/vendor/*/` | Vendor extensions | Become plugins in Phase 5 (`slack` is **removed in Phase 1**) |
-| `packages/harnesses/*/`, `packages/evals/` | Model harnesses and eval matrices | **Removed in Phase 1** |
-| `apps/browser-demo/` | Demo app | **Removed in Phase 1**; its graph editor returns as `packages/app` in Phase 8 |
-| `examples/` | Examples (workflow + environment modules today) | Some removed in Phase 1; the rest become single `*.ecp.ts` files in Phase 4 |
+| `packages/policies/` | `budget`, `approval`, `state-control`, `registry-control` | `image-policy` removed in Phase 1; `registry-control` → core in Phase 2; the rest become plugins in Phase 5 |
+| `packages/extensions/*/` | First-party extensions | Per the audit (`RESET-PLAN.md` §5.4): some become plugins in Phase 5, some fold into the Node environment. `format-eql`, `chrome-ai`, `memory`, `telemetry`, `index`, `storage`, `browser-secrets` were **removed in Phase 1** |
+| `packages/vendor/*/` | Vendor extensions | Become plugins in Phase 5 (`slack` **removed in Phase 1**) |
+| `examples/` | Examples (workflow + environment modules today) | Trimmed in Phase 1; the rest become single `*.ecp.ts` files in Phase 4 |
 | `skills/ecp-core/` | Contributor skill for this repo | Kept current with this file |
 | `RESET-PLAN.md`, `reset/` | The reset plan and phase docs | Source of truth during the milestone |
+
+Removed in Phase 1 (recoverable at `pre-reset`): `packages/harnesses/*`, `packages/evals`,
+`packages/runtimes/temporal`, `apps/browser-demo`, `packages/extensions/format-reactflow`.
+The demo graph editor returns as `packages/app` in Phase 8.
 
 Target layout after the milestone: `packages/{core,cli,mcp,plugin-sdk,app}`,
 `packages/environments/{node,browser}`, `plugins/plugin-*`, `examples/` (single-file
@@ -119,7 +121,7 @@ Replaced by Changesets in Phase 5: `version:bump`, `publish:workspaces`,
 
 Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change, then lint-staged,
 lint and the coverage gate. CI (`.github/workflows/ci.yml`) runs on `main`, `development`,
-`feat/**` and, from Phase 1, `milestone/**`.
+`feat/**` and `milestone/**`.
 
 ## CLI today and after the reset
 
@@ -134,7 +136,7 @@ ecp test start examples/01-echo/workflow.ts --env examples/01-echo/environment.t
 ecp test run --to echo --env examples/01-echo/environment.ts --session session.json
 ```
 
-- **Phase 1** removes `serve`, `up`, `encode` and `decode`. `ecp test` stays until Phase 4.
+- **Phase 1** removed `serve`, `up`, `encode` and `decode`. `ecp test` stays until Phase 4.
 - **Phase 3:** command classes go away. Every command is generated from a definition:
   - The CLI's own commands are `defineOperation(...)` definitions.
   - Plugin commands are generated from extension definitions by `plugin-sdk`.
@@ -158,14 +160,6 @@ See `.cursor/rules/extensions.mdc` for the full contract. In short:
   - `.supports(environmentId)` replaces `withSupportedRuntimes`.
   - Packages become `plugin-<extension name>`, with oclif files generated by
     `ecp plugins build`.
-
-## Harness and demo code (frozen)
-
-`packages/harnesses/*`, `packages/evals`, `core/src/harness/**`, the harness types in
-`packages/types`, `format-eql`, `chrome-ai` and `apps/browser-demo` are scheduled for deletion
-in Phase 1. Don't change them, don't add dependencies on them, and don't port their patterns
-into surviving code. The App's graph editor is carved back out of the `pre-reset` tag in
-Phase 8.
 
 ## Agent skill
 

@@ -1,4 +1,4 @@
-import type { EnvValue, SecretValue, BrowserValue } from "@executioncontrolprotocol/types"
+import type { EnvValue, SecretValue } from "@executioncontrolprotocol/types"
 
 /** Extension id for process environment resolution. @category Environment */
 export const PROCESS_ENV_RESOLVER_ID = "@executioncontrolprotocol/process-env"
@@ -6,18 +6,11 @@ export const PROCESS_ENV_RESOLVER_ID = "@executioncontrolprotocol/process-env"
 /** Extension id for OS secrets resolution. @category Environment */
 export const SECRETS_RESOLVER_ID = "@executioncontrolprotocol/secrets"
 
-/** Extension id for browser encrypted secrets resolution. @category Environment */
-export const BROWSER_SECRETS_RESOLVER_ID = "@executioncontrolprotocol/browser-secrets"
-
 /** Resolvers excluded from the `$env` fallback chain. @category Environment */
-const ENV_CHAIN_EXCLUDED_RESOLVER_IDS = new Set([
-  SECRETS_RESOLVER_ID,
-  BROWSER_SECRETS_RESOLVER_ID,
-])
+const ENV_CHAIN_EXCLUDED_RESOLVER_IDS = new Set([SECRETS_RESOLVER_ID])
 
 function resolverErrorLabel(resolverId: string): string {
   if (resolverId === SECRETS_RESOLVER_ID) return "Secret"
-  if (resolverId === BROWSER_SECRETS_RESOLVER_ID) return "Browser secret"
   return "Environment variable"
 }
 
@@ -77,7 +70,7 @@ export async function resolveConfigName(
 }
 
 /**
- * Resolve `$env`, `$secret`, and `$browser` placeholders in a config object using extension resolvers.
+ * Resolve `$env` and `$secret` placeholders in a config object using extension resolvers.
  * @category Environment
  */
 export async function resolveEnvConfigAsync(
@@ -109,14 +102,6 @@ async function resolveEnvValueAsync(
       optional: s.optional,
       fallback: s.fallback,
       resolverId: SECRETS_RESOLVER_ID,
-    })
-  }
-  if (v !== null && typeof v === "object" && "$browser" in v) {
-    const b = v as BrowserValue
-    return resolveConfigName(b.$browser, resolvers, {
-      optional: b.optional,
-      fallback: b.fallback,
-      resolverId: BROWSER_SECRETS_RESOLVER_ID,
     })
   }
   if (Array.isArray(v)) {

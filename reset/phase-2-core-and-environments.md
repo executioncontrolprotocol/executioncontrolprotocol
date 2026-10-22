@@ -27,6 +27,25 @@ object model matches the plan, even though the CLI and workflow files still work
   `packages/policies` until then.
 - Any CLI changes beyond keeping it compiling.
 
+## Starting point after Phase 1
+
+The tree this phase walks is already trimmed. Do not look for these:
+
+- `withHarnesses`, harness bindings, `bindings/harness.ts`, `core/src/harness/**`.
+- `browser-secrets`, `browser()`, `BROWSER_SECRETS_RESOLVER_ID`, or a secrets provider on the
+  browser environment. Bindings left on `createBrowserEnvironment` are
+  `browser-registry` and `browser-local-config` only.
+- `evaluate` capabilities on anthropic / openai / ollama.
+- `compileHarnessArtifactSource`, `compile/*harness-artifact*`, `format-eql`, `chrome-ai`.
+- CLI `serve`, `up`, `encode`, `decode`.
+
+Still in core, and Phase 2 must keep or relocate them rather than delete them:
+
+- `compile/evaluate-browser.ts`, `compile/prepare-browser-source.ts`,
+  `compile/transpile-browser.ts`, `compile/index.browser.ts` — browser workflow compile.
+- `encoding/utility-context.ts` — encode/decode capability context.
+- `helpers/provider-chat-turns.ts` — shared generate-turn helper used by providers.
+
 ## Tasks
 
 ### 1. Fold `types` into core
@@ -87,7 +106,7 @@ environment(id: EnvironmentId, label?: string)
 - Replace `withSupportedRuntimes([...])` in the files that still use it after Phase 1: core's
   definition builder and its test, `anthropic` (Node and browser), `openai`, `ollama`, `fal`,
   `image-sharp`, `adobe-firefly-services` (Node), `secrets`, `process-env`, and
-  `browser-local-config`.
+  `browser-local-config`. `chrome-ai` is gone.
 - Validation code `UNSUPPORTED_RUNTIME_EXTENSION` becomes `ECP_ENVIRONMENT_UNSUPPORTED`. It
   names the extension, the current environment, and the environments the extension supports.
 - `range` is checked against the environment package's version with `semver`.

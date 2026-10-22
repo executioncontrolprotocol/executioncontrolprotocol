@@ -13,7 +13,6 @@ export default class Invoke extends EnvModuleCommand {
 
   static examples = [
     "<%= config.bin %> <%= command.id %> @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json",
-    "<%= config.bin %> <%= command.id %> @executioncontrolprotocol/harness-browser-nano.evaluate --env environment.ts --input in.json --uses @executioncontrolprotocol/ollama.generate",
   ]
 
   static args = {
@@ -28,9 +27,6 @@ export default class Invoke extends EnvModuleCommand {
     input: Flags.string({
       description: "Path to JSON file with capability input object",
     }),
-    uses: Flags.string({
-      description: "Optional provider capability override (harness .uses)",
-    }),
   }
 
   async run(): Promise<void> {
@@ -41,8 +37,7 @@ export default class Invoke extends EnvModuleCommand {
         ? await readJsonFile(flags.input, "--input")
         : {}
       const ecp = await this.loadEcp(flags)
-      let builder = ecp.invoke(args["capability-id"]).with(input)
-      if (flags.uses) builder = builder.uses(flags.uses)
+      const builder = ecp.invoke(args["capability-id"]).with(input)
       result = await builder.process()
       this.log(JSON.stringify(result, null, 2))
     })

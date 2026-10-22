@@ -15,9 +15,10 @@ This repo is executing the ECP CLI reset on `milestone/cli-reset`.
   the phase doc's tasks in order. Branch `feat/phase-<n>-<slug>` from `milestone/cli-reset` and
   open the PR into `milestone/cli-reset`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
-- **Frozen code:** don't extend anything the plan removes (harnesses, evals, the browser demo,
-  `format-eql`, `chrome-ai`, `memory`, `telemetry`, `storage`, `slack`, `browser-secrets`,
-  `image-policy`, the temporal stub). `AGENTS.md` lists what goes in which phase.
+- **Removed in Phase 1:** harnesses, evals, the browser demo, `format-eql`, `chrome-ai`,
+  `memory`, `telemetry`, `storage`, `slack`, `browser-secrets`, `image-policy`, the Temporal
+  stub, CLI `serve`/`up`/`encode`/`decode`. Don't reintroduce them. `AGENTS.md` lists what
+  later phases still remove.
 - **If a phase doc is wrong or impossible,** stop and report it instead of improvising.
 - **Honesty:** label stubs, mocks and deferred work in code and in the PR. Never ship them as
   if they were real.

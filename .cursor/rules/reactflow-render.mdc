@@ -6,9 +6,8 @@ alwaysApply: false
 
 # React Flow render
 
-Follow `REACTFLOW_RENDER.md`. Today it's in `packages/extensions/format-reactflow/`. Phase 1
-removes that package, and Phase 8 restores the encoder and this document into
-`packages/app/src/graph/` from the `pre-reset` tag.
+Follow `REACTFLOW_RENDER.md`. Phase 1 removed `packages/extensions/format-reactflow/`. Phase 8
+restores the encoder and this document into `packages/app/src/graph/` from the `pre-reset` tag.
 
 Non-negotiables:
 

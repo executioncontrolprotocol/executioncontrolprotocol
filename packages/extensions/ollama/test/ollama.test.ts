@@ -40,16 +40,17 @@ describe("@executioncontrolprotocol/ollama", () => {
     vi.clearAllMocks()
   })
 
-  it("registers the extension and exposes generate + evaluate + listModels", () => {
+  it("registers the extension and exposes generate and listModels", () => {
     const ext = globalRegistry.getExtension("@executioncontrolprotocol/ollama")
     expect(ext).toBe(ollamaExtension)
-    expect(ext?.capabilities.map((c) => c.id)).toEqual(
+    const ids = ext?.capabilities.map((c) => c.id) ?? []
+    expect(ids).toEqual(
       expect.arrayContaining([
         "@executioncontrolprotocol/ollama.generate",
-        "@executioncontrolprotocol/ollama.evaluate",
         "@executioncontrolprotocol/ollama.listModels",
       ])
     )
+    expect(ids).not.toContain("@executioncontrolprotocol/ollama.evaluate")
   })
 
   it("listModels returns sorted unique tags from /api/tags", async () => {
@@ -114,168 +115,5 @@ describe("@executioncontrolprotocol/ollama", () => {
     await expect(
       capability("@executioncontrolprotocol/ollama.generate")({ prompt: "x" }, ctx)
     ).rejects.toThrow(/Ollama API error: 500 for model "test-model".*model requires more memory/)
-  })
-
-  it("evaluate parses an approval verdict from JSON output", async () => {
-    mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":false,"feedback":"off-topic"}' } },
-    }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      { artifact: { answer: "nope" }, goal: "be on topic" },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(false)
-    expect(out.feedback).toBe("off-topic")
-  })
-
-  it("evaluate fails open with a skip note when output has no JSON", async () => {
-    mockFetch(() => ({ ok: true, body: { message: { content: "no json here" } } }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      { artifact: { answer: "x" } },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(true)
-    expect(out.feedback).toContain("skipped")
-  })
-
-  it("evaluate approves deterministic off-topic decline without LLM", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":false,"feedback":"no"}' } },
-    }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: {
-          answer: "I cannot help with weather. Ask about workflows, ECP, or available capabilities.",
-        },
-        goal: "Politely declines off-topic request and redirects to ECP/workflow topics",
-        criteria: "Brief polite decline mentioning workflows, ECP, or capabilities",
-      },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(true)
-    expect(out.feedback).toContain("deterministic")
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it("evaluate rejects patch-like answer for faq classified intent", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":true}' } },
-    }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: { answer: "PATCH WORKFLOW demo UPDATE STEP echo" },
-        goal: "Explains ECP patching without changing a workflow",
-        classifiedIntent: "faq",
-      },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(false)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it("evaluate approves minimal echo workflow patch without LLM", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":false,"feedback":"not minimal"}' } },
-    }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: {
-          schema: "@executioncontrolprotocol.workflow",
-          version: "1.0",
-          workflow: { id: "echo-test", label: "Echo test" },
-          steps: [
-            {
-              type: "step",
-              id: "echo",
-              label: "User Friendly Echo",
-              uses: "@executioncontrolprotocol/test.echo",
-              input: { value: "hello from fluent API" },
-              as: "echo",
-            },
-          ],
-        },
-        goal: "Patch is minimal and correct",
-      },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(true)
-    expect(out.feedback).toContain("deterministic minimal echo patch")
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it("evaluate approves prose faq patching explanation deterministically", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":false}' } },
-    }))
-    const out = (await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: {
-          answer:
-            "ECP workflow patching applies targeted changes to an existing workflow using a patch document without replacing the whole workflow.",
-        },
-        goal: "Explains ECP patching without changing a workflow",
-        classifiedIntent: "faq",
-      },
-      ctx
-    )) as { approved: boolean; feedback?: string }
-    expect(out.approved).toBe(true)
-    expect(out.feedback).toContain("deterministic")
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it("evaluate includes classified intent in judge prompt", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":true,"feedback":"ok"}' } },
-    }))
-    await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: {
-          answer: "I help with ECP workflows and capabilities.",
-        },
-        goal: "Review assistant answer quality",
-        criteria: "On-topic for general intent",
-        classifiedIntent: "general",
-      },
-      ctx
-    )
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
-      messages: Array<{ role: string; content: string }>
-    }
-    const userMessage = body.messages.find((m) => m.role === "user")?.content ?? ""
-    const systemMessage = body.messages.find((m) => m.role === "system")?.content ?? ""
-    expect(userMessage).toContain("Classified intent: general")
-    expect(systemMessage).toContain("classified intent")
-  })
-
-  it("evaluate includes citations in the judge prompt", async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      body: { message: { content: '{"approved":true,"feedback":"ok"}' } },
-    }))
-    await capability("@executioncontrolprotocol/ollama.evaluate")(
-      {
-        artifact: {
-          answer: "I cannot help with weather. Ask about workflows, ECP, or available capabilities.",
-          citations: [{ kind: "step", id: "echo", detail: "context" }],
-        },
-        goal: "Review assistant answer quality",
-        criteria: "Mentions the cited step in context",
-      },
-      ctx
-    )
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
-      messages: Array<{ role: string; content: string }>
-    }
-    const userMessage = body.messages.find((m) => m.role === "user")?.content ?? ""
-    const systemMessage = body.messages.find((m) => m.role === "system")?.content ?? ""
-    expect(userMessage).toContain("Citations:")
-    expect(userMessage).toContain("cannot help with weather")
-    expect(systemMessage).toContain("off-topic decline goals")
   })
 })

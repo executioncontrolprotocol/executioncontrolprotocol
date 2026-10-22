@@ -6,7 +6,6 @@ import {
   state,
   env,
   secrets,
-  browser,
   expr,
   parallel,
   branch,
@@ -83,7 +82,6 @@ describe("fluent API surface", () => {
     expect(state("b").path).toBe("b")
     expect(env("KEY").$env).toBe("KEY")
     expect(secrets("my/key").$secret).toBe("my/key")
-    expect(browser("OPENAI_API_KEY").$browser).toBe("OPENAI_API_KEY")
     expect(expr.eq("x", 1)).toEqual({ eq: ["x", 1] })
     expect(expr.neq("x", 1)).toEqual({ neq: ["x", 1] })
   })

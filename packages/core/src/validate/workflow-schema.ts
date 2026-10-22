@@ -48,15 +48,6 @@ export const secretValueSchema = z
   })
   .strict()
 
-/** Browser encrypted secrets reference (not portable in workflows). @category Validation */
-export const browserValueSchema = z
-  .object({
-    $browser: z.string().min(1),
-    optional: z.boolean().optional(),
-    fallback: z.unknown().optional(),
-  })
-  .strict()
-
 /** Recursive step input value. @category Validation */
 export const inputValueSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
@@ -70,7 +61,6 @@ export const inputValueSchema: z.ZodType<unknown> = z.lazy(() =>
     stateValueSchema,
     envValueSchema,
     secretValueSchema,
-    browserValueSchema,
   ])
 )
 

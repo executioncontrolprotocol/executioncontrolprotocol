@@ -5,7 +5,7 @@ import type {
   EcpVersion,
   NamespacedId,
 } from "@executioncontrolprotocol/types"
-import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION, ecpIntentSchema } from "@executioncontrolprotocol/types"
+import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
 import type { EncodingEnvironmentHost } from "../environment/encoding-host.js"
 import { EcpError } from "./errors.js"
 import { invokeDecodeCapability } from "./invoke-utility.js"
@@ -44,13 +44,6 @@ function validateDecodedDocument(
   }
   if (targetSchema === "@executioncontrolprotocol.patch") {
     const parsed = ecpPatchDocumentSchema.safeParse(document)
-    if (parsed.success) return emptyValidationResult(true)
-    const result = emptyValidationResult(false)
-    result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))
-    return result
-  }
-  if (targetSchema === "@executioncontrolprotocol.intent") {
-    const parsed = ecpIntentSchema.safeParse(document)
     if (parsed.success) return emptyValidationResult(true)
     const result = emptyValidationResult(false)
     result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))

@@ -17,8 +17,7 @@ import { z } from "zod"
 import {
   buildAnthropicUserContent,
   resolveAnthropicModel,
-  resolveAnthropicSamplingOptions,
-  ANTHROPIC_DEFAULT_MODEL
+  resolveAnthropicSamplingOptions
 } from "./messages.js"
 import { resolveAnthropicApiKey } from "./resolve-api-key.js"
 
@@ -80,7 +79,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
   .withMetadata({
     summary: "Anthropic Messages API for browser and Node hosts.",
     description:
-      "Calls the Anthropic Messages API for multimodal chat completion and harness evaluation. Supports images and documents on the final user turn when files are supplied."
+      "Calls the Anthropic Messages API for multimodal chat completion. Supports images and documents on the final user turn when files are supplied."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/anthropic", "generate")
@@ -93,7 +92,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           "Runs chat completion against the Anthropic Messages API. Accepts images and documents on the final user turn in browser and Node hosts. Requires a configured API key. Supports system prompts, prior turns, and sampling options.",
         useCases: [
           "Workflow step analyzes an uploaded image alongside a user question.",
-          "Browser or server harness needs long-context chat with document attachments."
+          "Browser or server workflow needs long-context chat with document attachments."
         ],
         projections: [
           {
@@ -147,69 +146,6 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
           messages
         })
         return { text }
-      }),
-    capabilityFor("@executioncontrolprotocol/anthropic", "evaluate")
-      .withExecution("local")
-      .withInput(
-        z.object({
-          artifact: z.unknown(),
-          criteria: z.unknown().optional(),
-          goal: z.string().optional(),
-          classifiedIntent: z.string().optional(),
-          model: z.string().optional()
-        })
-      )
-      .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
-      .withMetadata({
-        summary: "Judge harness outputs with an Anthropic model.",
-        description:
-          "Scores harness artifacts against a goal, rubric, and optional classified intent. Returns approved and feedback. Skips when no API key is configured. Used by harness eval gates, not end-user chat.",
-        useCases: [
-          "Harness matrix uses a cloud judge with intent-aware rubrics.",
-          "Eval approves FAQ answers separately from workflow patch outputs."
-        ],
-        projections: [
-          {
-            summary: "Read approval and feedback",
-            description: "Use approved to gate the run and feedback for repair hints or eval logging."
-          }
-        ]
-      })
-      .withHandler(async (input, ctx) => {
-        const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
-        const apiKey = resolveAnthropicApiKey(cfg)
-        if (!apiKey) return { approved: true, feedback: "skipped (no API key)" }
-        const row = input as {
-          artifact: unknown
-          criteria?: unknown
-          goal?: string
-          classifiedIntent?: string
-          model?: string
-        }
-        const prompt = [
-          "You are an eval judge for ECP harness outputs.",
-          'Reply with JSON only: {"approved":true,"feedback":"ok"} or {"approved":false,"feedback":"reason"}.',
-          `Goal: ${row.goal ?? "quality check"}`,
-          row.classifiedIntent ? `Classified intent: ${row.classifiedIntent}` : "",
-          row.criteria ? `Rubric: ${JSON.stringify(row.criteria)}` : "",
-          `Artifact: ${JSON.stringify(row.artifact)}`
-        ]
-          .filter((line) => line.length > 0)
-          .join("\n")
-        ctx.usage.increment({ modelCalls: 1 })
-        const content = await anthropicMessages(apiKey, {
-          model:
-            row.model ??
-            (cfg.defaultModel as string | undefined) ??
-            ANTHROPIC_DEFAULT_MODEL,
-          max_tokens: 1024,
-          messages: [{ role: "user", content: prompt }]
-        })
-        try {
-          return JSON.parse(content) as { approved: boolean; feedback?: string }
-        } catch {
-          return { approved: true, feedback: content }
-        }
       })
   ])
   .build()

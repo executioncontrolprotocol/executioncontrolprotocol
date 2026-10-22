@@ -53,11 +53,9 @@ ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
 ```
 
-**Prefer the browser?** Open the [hosted Graph Editor](https://demo.executioncontrolprotocol.io/) or, from this repo: `pnpm run build` → `pnpm run dev:demo` (Chrome AI). For Ollama / host hops: second terminal `pnpm run up:demo` — see [`apps/browser-demo/README.md`](apps/browser-demo/README.md#local-startup-options).
-
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
-**Implementation spec (source of truth):** [`ecp-overhaul.md`](ecp-overhaul.md)  
-**Docs:** [https://executioncontrolprotocol.io/](https://executioncontrolprotocol.io/) (in-repo [`docs/`](docs/) is maintainer notes)
+**Reset plan (source of truth during the CLI reset):** [`RESET-PLAN.md`](RESET-PLAN.md)  
+**Docs:** [https://executioncontrolprotocol.io/](https://executioncontrolprotocol.io/)
 
 ## Why ECP Exists
 
@@ -302,20 +300,14 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/types/`](packages/types/) | Protocol types and generated JSON Schema (`@executioncontrolprotocol/types`) |
 | [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch (`@executioncontrolprotocol/core`; subpaths `@executioncontrolprotocol/core/node`, `@executioncontrolprotocol/core/browser`, …) |
 | [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
-| [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, session config (`@executioncontrolprotocol/browser`) — **not** the demo UI |
-| [`packages/runtimes/temporal/`](packages/runtimes/temporal/) | Temporal runtime adapter stub (`@executioncontrolprotocol/runtime-temporal`) |
-| [`apps/browser-demo/`](apps/browser-demo/) | Reference browser demo app (Vite + React): chat, panels, provider picker. Private; not published. |
-| [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, Slack, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
-| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp encode`, …) |
+| [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
+| [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
+| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp test`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
-| [`packages/harnesses/`](packages/harnesses/) | Harnesses (agent-facing author/repair/invoke flows); used by demo + evals |
-| [`packages/evals/`](packages/evals/) | Eval fixtures and matrix tests for harness behavior (`@executioncontrolprotocol/evals`, private) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
-| [`packages/policies/`](packages/policies/) | Budget, approval, state-control policies |
+| [`packages/policies/`](packages/policies/) | Budget, approval, state-control, registry-control |
 | [`examples/`](examples/) | Fluent workflow + environment examples (`workflow.ts`, `environment.ts`) |
-| [`archive/legacy-v0.5/`](archive/legacy-v0.5/) | Archived v0.5 Context YAML CLI and docs |
-| [`ecp-overhaul.md`](ecp-overhaul.md) | Current implementation spec |
-| [`docs/`](docs/) | Maintainer notes (harness evals, patch model, etc.) — public docs: [executioncontrolprotocol.io](https://executioncontrolprotocol.io/) |
+| [`RESET-PLAN.md`](RESET-PLAN.md) | CLI reset plan (source of truth during the milestone) |
 
 ------------------------------------------------------------------------
 

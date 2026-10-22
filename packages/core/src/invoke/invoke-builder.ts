@@ -6,8 +6,6 @@ import { executeInvoke } from "./execute-invoke.js"
 export interface InvokeOperationBuilder {
   /** Capability input payload. */
   with(input: unknown): this
-  /** Override harness default provider capability. */
-  uses(providerCapabilityId: CapabilityId | string): this
   /** Run the invocation. */
   process<T = unknown>(): Promise<InvokeResult<T>>
 }
@@ -21,19 +19,14 @@ export function createInvokeBuilder(
   capabilityId: CapabilityId
 ): InvokeOperationBuilder {
   let input: unknown = {}
-  let providerOverride: CapabilityId | undefined
 
   const builder: InvokeOperationBuilder = {
     with(payload: unknown) {
       input = payload
       return builder
     },
-    uses(providerCapabilityId: CapabilityId | string) {
-      providerOverride = providerCapabilityId as CapabilityId
-      return builder
-    },
     process<T = unknown>() {
-      return executeInvoke(env, capabilityId, input, providerOverride) as Promise<InvokeResult<T>>
+      return executeInvoke(env, capabilityId, input) as Promise<InvokeResult<T>>
     },
   }
 

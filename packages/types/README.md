@@ -5,7 +5,7 @@ Protocol types, constants, and generated JSON Schema (`pnpm run generate:schema`
 Shared by all `@executioncontrolprotocol/*` packages. No runtime or host dependencies.
 
 `@executioncontrolprotocol/types` is the primary dependency for anyone who wants to **build on ECP**:
-extensions, runtimes, harnesses, CLIs, UIs, and external tooling should import
+extensions, runtimes, CLIs, UIs, and external tooling should import
 the canonical types from here instead of re-defining protocol shapes.
 
 Guidelines:

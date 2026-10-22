@@ -91,7 +91,7 @@ export interface ExtensionMetadata {
   /** Optional distinct display title. */
   label?: string
   /**
-   * When `false`, harness authoring inventory omits this extension.
+   * When `false`, capability inventory omits this extension.
    * Default / omit is `true` (workflow-facing packages stay visible).
    */
   isAuthorable?: boolean

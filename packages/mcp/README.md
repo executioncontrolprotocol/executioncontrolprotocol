@@ -44,4 +44,4 @@ const server = createEcpMcpServer({ ecp })
 await serveStdio({ ecp })
 ```
 
-See [`AGENTS.md`](../../AGENTS.md) and [`ecp-overhaul.md`](../../ecp-overhaul.md) §13 for architecture.
+See [`AGENTS.md`](../../AGENTS.md) and [`RESET-PLAN.md`](../../RESET-PLAN.md) for architecture.

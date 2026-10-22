@@ -105,7 +105,6 @@
     "esbuild-wasm": "^0.25.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/browser-secrets": "workspace:^",
     "@executioncontrolprotocol/node": "workspace:^",
     "@executioncontrolprotocol/policies": "workspace:^",
     "esbuild": "^0.25.0",

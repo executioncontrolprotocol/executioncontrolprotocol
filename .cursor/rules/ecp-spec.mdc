@@ -6,7 +6,7 @@ alwaysApply: true
 # ECP specification
 
 - **Source of truth during the reset:** `RESET-PLAN.md` and `reset/` (see
-  `reset-milestone.mdc`). `ecp-overhaul.md` is superseded and is deleted in Phase 1.
+  `reset-milestone.mdc`). `ecp-overhaul.md` was deleted in Phase 1.
 - **Types:** `packages/types/src` (`@executioncontrolprotocol/types`) until Phase 2 folds them
   into `@executioncontrolprotocol/core/types`.
 - **Fluent API and engine:** `packages/core/src` (`@executioncontrolprotocol/core`).

@@ -4,12 +4,9 @@ packages:
   - packages/mcp
   - packages/cli
   - packages/policies
-  - packages/evals
-  - packages/harnesses/*
   - packages/extensions/*
   - packages/vendor/*
   - packages/runtimes/*
-  - apps/*
 
 onlyBuiltDependencies:
   - sharp

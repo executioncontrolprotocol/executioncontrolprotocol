@@ -1,4 +1,4 @@
-# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser/demo.
+# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser.
 # npm publish runs only on push to `main` when repo variable `ENABLE_NPM_PUBLISH` is `true`.
 # Called from `ci.yml`.
 # Coverage is enforced on the `unit` job (`pnpm run test:coverage`), not on `pnpm run build`.
@@ -146,25 +146,6 @@ jobs:
       - run: pnpm run test:browser:install
       - run: pnpm run test:browser
 
-  demo:
-    name: demo
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: build
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.1
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: pnpm run test:demo
-      - run: pnpm run build:demo
-
   publish:
     name: publish
     # Opt-in: Settings → Secrets and variables → Actions → Variables → ENABLE_NPM_PUBLISH=true
@@ -175,7 +156,7 @@ jobs:
       vars.ENABLE_NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [secrets, build, unit, integration, browser, consumer-cli, demo]
+    needs: [secrets, build, unit, integration, browser, consumer-cli]
     permissions:
       contents: read
     steps:

@@ -6,9 +6,9 @@ function weeklyBriefManifest(): WorkflowManifest {
   return workflow("Weekly Brief")
     .id("weekly-brief")
     .run([
-      step("@executioncontrolprotocol/memory.search", "Collect Signals")
+      step("@executioncontrolprotocol/test.echo", "Collect Signals")
         .id("collect-signals")
-        .with({ query: "risks", since: "7d" })
+        .with({ value: "risks" })
         .as("signals"),
       step("@executioncontrolprotocol/openai.generate", "Write Brief")
         .id("write-brief")

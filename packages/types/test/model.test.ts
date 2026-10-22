@@ -21,7 +21,7 @@ describe("modelGenerateInputSchema", () => {
       system: "be brief",
       model: "gpt-4o-mini",
       context: { prior: "output" },
-      responseFormat: "eql",
+      responseFormat: "json",
       options: { temperature: 0.1 },
     })
     expect(result.success).toBe(true)

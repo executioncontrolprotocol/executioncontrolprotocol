@@ -8,8 +8,7 @@
   "references": [
     { "path": "../../types" },
     { "path": "../../core" },
-    { "path": "../../policies" },
-    { "path": "../../extensions/browser-secrets" }
+    { "path": "../../policies" }
   ],
   "include": ["src/**/*.ts"]
 }
