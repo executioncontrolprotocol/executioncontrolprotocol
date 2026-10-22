@@ -57,12 +57,12 @@ Do these for each plugin, in the order of the table (jsonata is already done):
 2. `package.json`: only the hand-maintained parts (name, version, dependencies,
    `peerDependencies: { "@executioncontrolprotocol/core": "^1" }`, a dependency on
    `plugin-sdk`), the workspace CLI as a dev dependency, and the build script
-   `tsc -b && ecp plugin build`.
-3. Run `ecp plugin build` once and commit what it wrote (`ecp.extension`, `exports`, the
+   `tsc -b && ecp plugins build`.
+3. Run `ecp plugins build` once and commit what it wrote (`ecp.extension`, `exports`, the
    `oclif` block, keywords, `files`). Don't write `oclif.ts` or the manifest by hand.
 4. Remove any leftover `register*Extension()` helper or module-level registration.
 5. Set `.supports()` per the table.
-6. `ecp plugin check` passes.
+6. `ecp plugins check` passes.
 7. README: one-line install (`ecp plugins install <name>`), a capability table, config fields,
    and the secrets it expects (as `secrets("…")` keys).
 8. Move its examples from `examples/vendor/*` to `plugins/plugin-<name>/examples/` as single

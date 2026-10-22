@@ -144,7 +144,7 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 | `@executioncontrolprotocol/browser` | The browser environment, for apps that embed ECP in a page. No secrets provider in this phase |
 | `@executioncontrolprotocol/cli` | The `ecp` binary: workflow commands, plugin management, bundled core plugins |
 | `@executioncontrolprotocol/mcp` | MCP server library, and also the CLI plugin behind `ecp mcp serve` |
-| `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: `toCommands()`, the `EcpCommand` base class, `defineOperation()`, and the plugin build library behind `ecp plugin build`, so plugins contain no hand-written oclif code |
+| `@executioncontrolprotocol/plugin-sdk` | Plugin SDK: `toCommands()`, the `EcpCommand` base class, `defineOperation()`, and the plugin build library behind `ecp plugins build`, so plugins contain no hand-written oclif code |
 | `@executioncontrolprotocol/plugin-<name>` | One package per capability set, each versioned independently |
 | `@executioncontrolprotocol/app` | The visual co-editor as a standalone package: React components, a host adapter interface, and a prebuilt static bundle. Usable without the CLI |
 | `@executioncontrolprotocol/plugin-app` | The thin CLI plugin behind `ecp app`: local server, file watcher, and a bridge to the Node environment. Serves the prebuilt bundle from `app` |
@@ -279,7 +279,7 @@ export default defineExtension("@executioncontrolprotocol", "jsonata")
 {
   "name": "@executioncontrolprotocol/plugin-jsonata",
   "version": "1.0.0",
-  "scripts": { "build": "tsc -b && ecp plugin build" },
+  "scripts": { "build": "tsc -b && ecp plugins build" },
   "peerDependencies": { "@executioncontrolprotocol/core": "^1" },
   "dependencies": { "@executioncontrolprotocol/plugin-sdk": "^1", "jsonata": "^2" },
   "devDependencies": { "@executioncontrolprotocol/cli": "^1" }
@@ -288,17 +288,23 @@ export default defineExtension("@executioncontrolprotocol", "jsonata")
 
 That's the whole plugin.
 
-#### What `ecp plugin build` generates
+#### What `ecp plugins build` generates
 
-Plugin authoring is part of the CLI itself, as the bundled `ecp plugin` topic, next to the
-`ecp plugins` topic that manages installed plugins. The commands are host operations like any
-other CLI command (see below), and the logic lives in `plugin-sdk` as a library
-(`buildPlugin()`, `checkPlugin()`, `scaffoldPlugin()`), so CI or scripts can call it without
-the CLI if they need to.
+Plugin authoring is part of the CLI itself, in the same `ecp plugins` topic that installs and
+manages plugins. oclif already puts an author's command there (`ecp plugins link`), so the
+whole loop lives in one place:
 
-- **`ecp plugin new <name>`** scaffolds a plugin with the two files above. It's the authoring
+```text
+ecp plugins new my-plugin → write the definition → ecp plugins build → ecp plugins link . → publish
+```
+
+The commands are host operations like any other CLI command (see below). The logic lives in
+`plugin-sdk` as a library (`buildPlugin()`, `checkPlugin()`, `scaffoldPlugin()`), so CI or
+scripts can call it without the CLI.
+
+- **`ecp plugins new <name>`** scaffolds a plugin with the two files above. It's the authoring
   counterpart of `ecp init`.
-- **`ecp plugin build [dir]`:**
+- **`ecp plugins build [dir]`:**
   - Writes the generated `package.json` fields from the definition:
     - `ecp.extension`
     - `exports["./oclif"]`
@@ -310,18 +316,19 @@ the CLI if they need to.
   - Writes `oclif.manifest.json` by loading the package through oclif's own `Config.load` and
     saving the computed manifest. That's what `oclif manifest` does, without the `oclif` dev
     tool.
-- **`ecp plugin check [dir]`** runs in CI and fails if any generated file or field is stale.
+- **`ecp plugins check [dir]`** runs in CI and fails if any generated file or field is stale.
 
 Authors already have `ecp` installed. Plugins in this repo use the workspace CLI as a dev
 dependency, which works because the CLI never depends on any plugin.
 
-`ecp plugin` (singular, authoring) sits next to `ecp plugins` (plural, managing installs).
-The two are easy to mix up, so:
+Sharing a topic with `@oclif/plugin-plugins` is safe:
 
-- The help text for each topic names the other.
-- The not-found hook maps `ecp plugin install|uninstall|link|update` to the `ecp plugins`
-  command.
-- `plugin` is a reserved root name.
+- Its commands today are `plugins`, `install`, `uninstall`, `link`, `inspect`, `reset` and
+  `update`, so `new`, `build` and `check` don't collide.
+- If it ever adds one of those names, oclif's priority rules run the root CLI's own command
+  first (checked in `determine-priority` in `@oclif/core`).
+- `ecp plugin …` (singular) is reserved, and the not-found hook redirects it to
+  `ecp plugins …`.
 
 The `oclif` block can't be skipped: `@oclif/plugin-plugins` refuses to install a package
 without one ("plugin is invalid"). It's generated, never written by hand.
@@ -630,9 +637,9 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | Command | Purpose |
 | --- | --- |
 | `ecp init [name]` | Scaffold `<name>.ecp.ts` |
-| `ecp plugin new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
-| `ecp plugin build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
-| `ecp plugin check [dir]` | Fail if a plugin's generated files are stale (CI) |
+| `ecp plugins new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
+| `ecp plugins build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
+| `ecp plugins check [dir]` | Fail if a plugin's generated files are stale (CI) |
 | `ecp search <intent>` | Rank installed capabilities for an intent |
 | `ecp describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
 | `ecp validate <workflow>` | Validate the workflow file against installed plugins |
@@ -647,7 +654,7 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp config secrets add\|get\|list\|remove` | Local secrets |
 | `ecp discover [query]` | npm search for `ecosystem:ecp-plugin` packages, first-party flagged |
 | `ecp update` / `ecp rollback` | Update user plugins / remove user overrides of core plugins |
-| `ecp plugins …` | install, uninstall, link, inspect, reset (from `@oclif/plugin-plugins`) |
+| `ecp plugins …` | install, uninstall, link, inspect, reset (from `@oclif/plugin-plugins`), plus new, build, check for authoring (above) |
 | `ecp mcp serve` | JIT plugin (`@executioncontrolprotocol/mcp`) |
 | `ecp app [workflow]` | JIT plugin (`@executioncontrolprotocol/plugin-app`) |
 
@@ -1090,7 +1097,7 @@ Detail: [`reset/phase-3-plugin-sdk-and-cli.md`](reset/phase-3-plugin-sdk-and-cli
    `--json` envelope and errors, help rendering), `defineOperation()`, and the plugin build
    library that generates every oclif file (§4.2).
 2. Define the CLI's own commands as operations and generate them with `toCommands()`,
-   including the bundled `ecp plugin new|build|check` authoring commands.
+   including the authoring commands `ecp plugins new|build|check`.
 3. Rebuild `cli` around §4.5: bundled core plugins, scope and prefix, the `command_not_found`
    and trust hooks, `discover`, `update`, `rollback`.
 4. Migrate `plugin-jsonata` as the reference plugin, with no hand-written oclif code.
