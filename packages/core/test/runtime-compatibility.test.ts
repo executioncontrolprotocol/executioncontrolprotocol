@@ -109,7 +109,6 @@ describe("runtime compatibility", () => {
         runtime: { id: "@executioncontrolprotocol/browser", config: {} },
         extensions: [{ id: "@executioncontrolprotocol/test-node-only", config: {}, order: 0 }],
         policies: [],
-        harnesses: [],
       }
     )
     expect(result.errors.some((e) => e.code === "UNSUPPORTED_RUNTIME_EXTENSION")).toBe(false)
@@ -128,7 +127,6 @@ describe("runtime compatibility", () => {
         runtime: { id: "@executioncontrolprotocol/browser", config: {} },
         extensions: [{ id: "@executioncontrolprotocol/test-node-local", config: {}, order: 0 }],
         policies: [],
-        harnesses: [],
       }
     )
     expect(result.valid).toBe(false)
@@ -148,7 +146,6 @@ describe("runtime compatibility", () => {
         runtime: { id: "@executioncontrolprotocol/node", config: {} },
         extensions: [{ id: "@executioncontrolprotocol/test-node-only", config: {}, order: 0 }],
         policies: [],
-        harnesses: [],
       }
     )
     expect(result.errors.some((e) => e.code === "UNSUPPORTED_RUNTIME_EXTENSION")).toBe(false)

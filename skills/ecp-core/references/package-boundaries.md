@@ -1,6 +1,6 @@
 # Package boundaries (ECP core)
 
-## Now (before reset Phase 2)
+## Now (after Phase 1, before Phase 2)
 
 **Core is host-agnostic at its root.** The main `@executioncontrolprotocol/core` entry has no
 Node or browser I/O. Host code sits on subpaths:

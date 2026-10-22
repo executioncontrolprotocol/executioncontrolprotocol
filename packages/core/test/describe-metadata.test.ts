@@ -11,7 +11,6 @@ import {
 } from "../src/index.js"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
-import { extractMentionedEntityIds } from "../src/harness/authoring/describe-for-prompt.js"
 
 describe("environment.describe progressive disclosure", () => {
   beforeEach(async () => {
@@ -239,24 +238,6 @@ describe("environment.search metadata haystack", () => {
   })
 })
 
-describe("extractMentionedEntityIds", () => {
-  it("extracts known capability ids from a message", () => {
-    const ids = extractMentionedEntityIds(
-      "Tell me about @executioncontrolprotocol/test.echo please",
-      ["@executioncontrolprotocol/test", "@executioncontrolprotocol/test.echo"],
-      3
-    )
-    expect(ids).toEqual(["@executioncontrolprotocol/test.echo"])
-  })
-
-  it("ignores unknown ids", () => {
-    const ids = extractMentionedEntityIds("Use @other/pkg.cap", [
-      "@executioncontrolprotocol/test.echo"
-    ])
-    expect(ids).toEqual([])
-  })
-})
-
 describe("extension isAuthorable inventory", () => {
   it("surfaces isAuthorable false on bare describe when metadata opts out", async () => {
     const def = defineExtension("@executioncontrolprotocol", "host-tooling")
@@ -298,24 +279,5 @@ describe("extension isAuthorable inventory", () => {
     const desc = await ecp.describe()
     const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/format-json")
     expect(ext?.isAuthorable).toBe(false)
-  })
-})
-
-describe("fluent catalog lines include summary", () => {
-  it("formatEnvironmentSummaryLines includes capability summary", async () => {
-    const { formatEnvironmentSummaryLines, summarizeEnvironmentDescriptor } = await import(
-      "../src/harness/authoring/summarize-environment.js"
-    )
-    const env = (await createTestEnvironment("f")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
-    ])
-    const ecp = await env.init()
-    const desc = await ecp.describe({
-      capabilities: { include: ["inputSchema", "outputSchema"] }
-    })
-    const summary = summarizeEnvironmentDescriptor(desc)
-    const lines = formatEnvironmentSummaryLines(summary, { format: "fluent" }).join("\n")
-    expect(lines).toContain("@executioncontrolprotocol/test.echo")
-    expect(lines).toMatch(/—/)
   })
 })

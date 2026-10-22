@@ -35,8 +35,6 @@ const REQUIRED = new Set([
   "@executioncontrolprotocol/secrets",
   "@executioncontrolprotocol/process-env",
   "@executioncontrolprotocol/format-toon",
-  "@executioncontrolprotocol/extension-ollama",
-  "@executioncontrolprotocol/extension-storage",
   "@executioncontrolprotocol/node",
   "@executioncontrolprotocol/cli",
 ])

@@ -53,7 +53,7 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
   .withMetadata({
     summary: "Hosted cloud chat completion for Node hosts.",
     description:
-      "Calls the OpenAI Chat Completions API for text generation and harness evaluation. Requires a configured API key and runs on Node runtimes."
+      "Calls the OpenAI Chat Completions API for text generation. Requires a configured API key and runs on Node runtimes."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/openai", "generate")
@@ -65,7 +65,7 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           "Runs chat completion against a remote model endpoint. Suited for production Node workloads that need widely available frontier models. Requires a configured API key. Does not accept file attachments yet.",
         useCases: [
           "Server-side workflow step drafts content with a cloud model.",
-          "CLI or harness invokes a hosted model for integration tests."
+          "CLI invokes a hosted model for integration tests."
         ],
         projections: [
           {
@@ -95,42 +95,6 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
           parsed.messages
         )
         return { text }
-      }),
-    capabilityFor("@executioncontrolprotocol/openai", "evaluate")
-      .withInput(
-        z.object({
-          artifact: z.unknown(),
-          criteria: z.unknown().optional(),
-          goal: z.string().optional()
-        })
-      )
-      .withOutput(z.object({ approved: z.boolean(), feedback: z.string().optional() }))
-      .withMetadata({
-        summary: "Judge harness outputs with a hosted cloud model.",
-        description:
-          "Scores an artifact against a goal and optional criteria, returning approved and feedback fields. Skips when no API key is configured. Used by harness quality gates, not end-user chat.",
-        useCases: [
-          "Harness eval needs a cloud judge when local models are unavailable.",
-          "Quality gate approves generated workflow patches before merge."
-        ],
-        projections: [
-          {
-            summary: "Read approval and feedback",
-            description: "Use approved to gate the run and feedback for repair hints or eval logging."
-          }
-        ]
-      })
-      .withHandler(async (input, ctx) => {
-        const prompt = `Evaluate: ${(input as { goal?: string }).goal ?? "quality check"}. Reply JSON {approved:boolean,feedback:string}`
-        const cfg = (ctx as { extensionConfig?: Record<string, unknown> }).extensionConfig ?? {}
-        const apiKey = resolveOpenaiApiKey(cfg)
-        if (!apiKey) return { approved: true, feedback: "skipped (no API key)" }
-        const content = await chatComplete(apiKey, "gpt-4o-mini", prompt, undefined, input)
-        try {
-          return JSON.parse(content) as { approved: boolean; feedback?: string }
-        } catch {
-          return { approved: true, feedback: content }
-        }
       })
   ])
   .build()

@@ -1,22 +1,19 @@
 # @executioncontrolprotocol/browser
 
-**Browser runtime host** for ECP: in-browser executor, registry extensions, session/local config, and helpers to initialize `Ecp` in a web page.
+**Browser runtime host** for ECP: in-browser executor, registry and local-config extensions, and helpers to initialize `Ecp` in a web page.
 
-This is **not** the browser demo application. UI, provider picker, harness selection, and demo-only persistence belong in [`apps/browser-demo`](../../../apps/browser-demo).
+This is **not** a demo application. UI belongs in an app. The former `apps/browser-demo` was removed in Phase 1 and returns as `packages/app` in Phase 8.
 
 ## What belongs here
 
-| In `@executioncontrolprotocol/browser` | In the browser demo app (or your app) |
+| In `@executioncontrolprotocol/browser` | In an embedding app |
 | ----------------- | ------------------------------------- |
 | Browser runtime executor | React/Vite shell, chat layout, panels |
-| `browser-registry`, session/local config | First-run modal, provider + harness mode UI |
-| `createEcp()`, `installBrowserWorkflowShim()` | Monaco, Mermaid viewer, CSS |
-| `registerBrowserHost()` / slim `createBrowserEnvironment()` | Binding formats, model providers, **harnesses** |
-| Panel encode helper (`BrowserAuthoringService`) | Which harness + `providerCapabilityId` to invoke |
+| `browser-registry`, `browser-local-config` | First-run UI, provider picker |
+| `createEcp()`, `installBrowserWorkflowShim()` | Editors, graph viewers, CSS |
+| `registerBrowserHost()` / slim `createBrowserEnvironment()` | Binding formats and model providers |
 
-**Do not add demo-app UI types here** (e.g. `ProviderMode` unions). Those stay in the demo app.
-
-**Harness-independent:** this package does not depend on `@executioncontrolprotocol/harnesses-browser-nano` or coding harnesses. Apps register and bind harnesses themselves.
+There is no secrets provider in this package (`browser-secrets` was removed in Phase 1). Workflows that need secrets run through the CLI / Node environment.
 
 ## Host registration
 
@@ -25,20 +22,18 @@ import { registerBrowserHost, createBrowserEnvironment, createEcp } from "@execu
 
 await registerBrowserHost()
 const env = createBrowserEnvironment("my-app")
-// App adds extensions / harnesses / policies as needed:
-// env.addExtensionBinding(...); env.withHarnesses([...])
 const ecp = await createEcp(env, { exposeGlobal: true })
 ```
 
-`registerBrowserDefaults` / `createBrowserDemoEnvironment` remain as deprecated aliases of the slim host APIs.
+`registerBrowserDefaults` / `createBrowserDemoEnvironment` remain as aliases of the slim host APIs.
 
 ## Compile-on-edit
 
-Use **`@executioncontrolprotocol/core/browser`** for `compileWorkflowSource` / `compileHarnessArtifactSource` (not this package). Call **`installBrowserWorkflowShim()`** before compile so Fluent source can use `@executioncontrolprotocol/browser` imports or the injected shim.
+Use **`@executioncontrolprotocol/core/browser`** for `compileWorkflowSource` (not this package). Call **`installBrowserWorkflowShim()`** before compile so Fluent source can use `@executioncontrolprotocol/browser` imports or the injected shim.
 
 ## Dependencies
 
-This package depends on `@executioncontrolprotocol/core`, `@executioncontrolprotocol/types`, `@executioncontrolprotocol/policies`, and `@executioncontrolprotocol/browser-secrets`. Model providers, format extensions, and harnesses are **app** dependencies.
+This package depends on `@executioncontrolprotocol/core`, `@executioncontrolprotocol/types`, and `@executioncontrolprotocol/policies`. Model providers and format extensions are **app** dependencies.
 
 ## Tests
 
@@ -47,4 +42,4 @@ pnpm run test:browser:install   # once
 pnpm run test:browser
 ```
 
-See [AGENTS.md](../../../AGENTS.md) and [`apps/browser-demo`](../../../apps/browser-demo).
+See [AGENTS.md](../../../AGENTS.md).

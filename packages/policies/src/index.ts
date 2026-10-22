@@ -173,13 +173,6 @@ export {
   REGISTRY_CONTROL_POLICY_ID,
   type RegistryControlPolicyConfig,
 } from "./registry-control.js"
-export {
-  imagePolicy,
-  evaluateImageRefsPre,
-  evaluateImageRefsPost,
-  registerImagePolicy,
-  type ImagePolicyConfig,
-} from "./image-policy.js"
 
 /** Register all standard policies. @category Policies */
 export async function registerStandardPolicies(registry = globalRegistry): Promise<void> {

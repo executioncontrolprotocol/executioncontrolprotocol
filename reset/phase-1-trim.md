@@ -1,6 +1,6 @@
 # Phase 1 — Trim
 
-> Status: Next · Branch: `feat/phase-1-trim` · Depends on: Phase 0 · Plan: §5, §5.7
+> Status: Done 2026-10-22 · Branch: `feat/phase-1-trim` · Depends on: Phase 0 · Plan: §5, §5.7
 
 ## Goal
 
@@ -26,7 +26,8 @@ below; the minimum edits needed to keep the rest building and tested.
 
 ## Tasks
 
-Work in this order, one commit per numbered task, so each commit is easy to review and revert.
+The original plan asked for one commit per numbered task. This phase shipped as **one
+commit**, with tests at the build / unit / `check` checkpoints (see `reset/README.md`).
 
 ### 1. CI first
 
@@ -66,10 +67,13 @@ Per §5.4:
 - `packages/core/src`:
   - Delete `harness/**`.
   - Delete `compile/compile-harness-artifact.ts`, `evaluate-harness-artifact.ts`,
-    `extract-harness-artifact.ts`, `evaluate-browser.ts`, `prepare-browser-source.ts`.
+    `extract-harness-artifact.ts`. Keep `evaluate-browser.ts` and
+    `prepare-browser-source.ts`: they compile workflow modules in the browser
+    (`compileWorkflowSource` on `core/browser`), not harness artifacts.
   - Delete `feedback/`, `testing/test-model-generate.ts`.
-  - Delete `encoding/strip-harness-typescript-output.ts`, `strip-markdown-fences.ts`,
-    `utility-context.ts`.
+  - Delete `encoding/strip-harness-typescript-output.ts`, `strip-markdown-fences.ts`.
+    Keep `encoding/utility-context.ts`: it is the encode/decode capability context used by
+    `encode-builder`, `decode-builder`, `invoke-utility`, `execute-invoke` and `format-toon`.
   - Delete `bindings/harness.ts`, `validate/harness.ts`.
   - `environment/environment.ts`: remove `withHarnesses` and harness resolution.
   - Remove harness error codes (`ECP_HARNESS_ERROR_CODES`, `HARNESS_CAPABILITY_NOT_A_STEP`,
@@ -148,16 +152,52 @@ Then:
   `pnpm run test:e2e` and the browser project all pass locally and in CI on the PR.
 - `grep -ri "harness\|eql\|chrome-ai\|browser-secrets" packages --include=*.ts` returns only
   intentional mentions (for example a changelog), and no imports.
-- Record TypeScript line counts before and after in the PR description. Expected: about
-  83K → about 50K.
+- Record TypeScript line counts before and after in the PR description. Method: tracked
+  `.ts` / `.tsx` / `.mts` files excluding `.d.ts`, all lines including blanks. Baseline
+  89,291 lines in 1,015 files; after 36,304 lines in 412 files. The §5.6 estimate of ~50K
+  remaining was high because it counted more of the surviving packages than the trim left.
 
 ## Exit criteria
 
-- [ ] CI runs on `milestone/**` and is green on the PR.
-- [ ] Every item in §5.7 marked for Phase 1 is gone.
-- [ ] No harness, eval, EQL, demo, `browser()` placeholder or `evaluate` capability remains.
-- [ ] `test-session` and the `ecp test` commands still exist and their tests pass.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] CI runs on `milestone/**` and is green on the PR.
+- [x] Every item in §5.7 marked for Phase 1 is gone (with the two keep-corrections below).
+- [x] No harness, eval, EQL, demo, `browser()` placeholder or `evaluate` capability remains.
+- [x] `test-session` and the `ecp test` commands still exist and their tests pass.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+
+## Outcome
+
+Trimmed the repo of harnesses, evals, EQL, the browser demo, `browser-secrets`, `image-policy`,
+the Temporal stub, CLI `serve` / `up` / `encode` / `decode`, and the listed examples and root
+files. Surviving packages still build and the unit suite is 504 tests.
+
+**Deviations (labelled, approved before the trim):**
+
+- Kept `core/src/encoding/utility-context.ts`. It is encode/decode capability context, not
+  harness cleanup.
+- Deleted only the harness-artifact compile files. `evaluate-browser.ts` and
+  `prepare-browser-source.ts` stay so `compileWorkflowSource` on `core/browser` still works.
+- Relocated `toProviderChatTurns` / `flattenProviderChatTurns` from the deleted harness into
+  `core/src/helpers/provider-chat-turns.ts`. Provider `generate` handlers still need it.
+- One commit for the phase (`chore(reset): phase 1 trim`) instead of one commit per task.
+
+**Not stubbed.** `test-session` and `ecp test` remain until Phase 4 by design. The browser
+environment has no secrets provider (`browser-secrets` is gone).
+
+**Evidence:**
+
+- TypeScript: 89,291 lines / 1,015 files → 36,304 / 412 (tracked `.ts`/`.tsx`/`.mts`, `.d.ts`
+  excluded, blanks included).
+- `pnpm run build` green; `pnpm run test:unit` 504 passed.
+- CLI coverage floor `packages/cli/src/**` moved 15/15/25/15 → 11/8/21/12. Remaining command
+  classes were already 0% in unit coverage (they run via process-spawn tests); the deleted
+  `serve`/`up`/`encode`/`decode` files were what had been pulling the glob up.
+- Final `pnpm run check` and `pnpm run test:browser` evidence is in the PR.
+
+**Handoff for Phase 2:** `reset/phase-2-core-and-environments.md` is updated for the trimmed
+tree. Do not expect `withHarnesses`, `browser-secrets`, harness bindings, `evaluate`
+capabilities, or `compileHarnessArtifactSource`. Browser compile of workflow source still
+lives in core (`evaluate-browser.ts`, `prepare-browser-source.ts`).
 
 ## Risks
 

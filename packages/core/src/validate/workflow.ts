@@ -1,6 +1,5 @@
 import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
 import { ECP_PATCH_ERROR_CODES } from "@executioncontrolprotocol/types"
-import { isHarnessCapabilityId } from "../harness/harness-catalog.js"
 import { buildStepIndex } from "../patch/step-index.js"
 import { emptyValidationResult, workflowManifestSchema } from "./workflow-schema.js"
 import { zodIssuesToValidationIssues } from "./zod-mapper.js"
@@ -110,14 +109,6 @@ function validateNodeAgainstDescriptor(
 ): void {
   if (!node.type || node.type === "step") {
     const step = node as import("@executioncontrolprotocol/types").StepNode
-    if (isHarnessCapabilityId(step.uses)) {
-      result.valid = false
-      result.errors.push({
-        code: "HARNESS_CAPABILITY_NOT_A_STEP",
-        message: `Harness evaluate capability ${step.uses} is invoke-only and cannot be used as a workflow step.`,
-        path: `steps.${step.id}.uses`,
-      })
-    }
     const found = descriptor.capabilities.some((c) => c.id === step.uses)
     if (!found) {
       result.valid = false

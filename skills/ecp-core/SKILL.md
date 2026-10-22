@@ -20,15 +20,15 @@ docs `ecp` skill (rewritten in reset Phase 6).
 1. `RESET-PLAN.md`: decisions and target architecture. It takes precedence during the
    milestone.
 2. `reset/README.md` and `reset/phase-<n>-*.md`: how phases run, and the task list for each.
-3. `AGENTS.md` and `.cursor/rules/`: the code as it is now, plus conventions. They name the code
-   that's frozen pending removal.
+3. `AGENTS.md` and `.cursor/rules/`: the code as it is now, plus conventions. Phase 1
+   removals (harnesses, evals, EQL, demo) are gone; don't reintroduce them.
 
 ## Progressive disclosure
 
 - `references/package-boundaries.md`: core, environments, hosts, now and after the reset
 - `references/extension-authoring.md`: extension and plugin contract, now and after the reset
 - `references/examples.md`: what's in `examples/` and what changes
-- `references/harness-eval.md`: historical only. Harnesses and evals are removed in Phase 1
+- Harnesses and evals were removed in Phase 1 (`pre-reset` has the old `harness-eval.md`)
 
 ## Quick commands
 

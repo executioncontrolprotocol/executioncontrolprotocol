@@ -3,7 +3,7 @@
 This repository currently implements ECP as a **TypeScript-first workflow authoring
 and execution protocol**.
 
-**Source of truth:** [`ecp-overhaul.md`](ecp-overhaul.md) (implementation spec)  
+**Source of truth during the CLI reset:** [`RESET-PLAN.md`](RESET-PLAN.md)  
 **Monorepo guide:** [`AGENTS.md`](AGENTS.md)  
 **Types:** [`packages/types`](packages/types) (`@executioncontrolprotocol/types`)
 

@@ -799,11 +799,11 @@ at `pre-reset`.
 | Module | Lines | Fate |
 | --- | ---: | --- |
 | `harness/**` (authoring, prompts, definitions, repair loop, call-model) | 6.0K | **Remove** |
-| `compile/*harness-artifact*`, `compile/evaluate-browser`, `compile/prepare-browser-source` | ~0.4K | **Remove** (harness artifacts) |
+| `compile/*harness-artifact*` | ~0.2K | **Remove** (harness artifacts). Keep `compile/evaluate-browser.ts` and `compile/prepare-browser-source.ts`: they compile workflow modules in the browser, not harness artifacts |
 | `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Keep until Phase 4.** Its abilities (run up to a step, re-run one step, resume from saved state) move into the run journal and `ecp run --to` / `runs resume` / `runs rerun`; then the module is removed |
 | `feedback/` | 0.1K | **Remove** (chat feedback for the harness) |
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
-| `encoding/strip-harness-typescript-output`, `strip-markdown-fences`, `utility-context` | ~0.1K | **Remove** (model-output cleanup) |
+| `encoding/strip-harness-typescript-output`, `strip-markdown-fences` | ~0.1K | **Remove** (model-output cleanup). Keep `encoding/utility-context.ts`: it is the encode/decode capability context |
 | `bindings/harness.ts`, `validate/harness.ts` | ~0.1K | **Remove** |
 | `registry`, `definitions`, `bindings` (extension, policy, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects. `defineRuntime` becomes `defineEnvironment`, `.supports()` replaces `withSupportedRuntimes`, and `bindings/runtime.ts` is removed |
 | `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `.with([...])` to the workflow builder and `.requires()` to the extension and policy binding builders |
@@ -965,8 +965,8 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
 
 - `core/src/harness/**` (authoring prompts, intent classification, EQL normalisers, repair
   loops, `call-model`, prompt primers)
-- `core/src/compile/*harness-artifact*`, `compile/evaluate-browser.ts`,
-  `compile/prepare-browser-source.ts`
+- `core/src/compile/*harness-artifact*` (`evaluate-browser.ts` and `prepare-browser-source.ts`
+  stay: they compile workflow modules in the browser)
 - `core/src/feedback/` (`test-session/` and the `ecp test` commands stay until Phase 4 replaces
   them)
 - `types/src/harness*.ts`, `intent.ts`, `probe-context.ts`, and the harness-only parts of
@@ -974,8 +974,8 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
 - The `browser()` config placeholder and `BROWSER_SECRETS_RESOLVER_ID`
 - The `evaluate` capabilities in `anthropic`, `openai` and `ollama`
 - `core/src/testing/test-model-generate.ts`
-- `core/src/encoding/strip-harness-typescript-output.ts`, `strip-markdown-fences.ts`,
-  `utility-context.ts`
+- `core/src/encoding/strip-harness-typescript-output.ts`, `strip-markdown-fences.ts`
+  (`utility-context.ts` stays: encode/decode capability context)
 - `core/src/bindings/harness.ts`, `core/src/validate/harness.ts`, and `withHarnesses` on the
   environment builder
 - `runtimes/browser/src/authoring/*`, `extensions/browser-guide.ts`,
@@ -1053,7 +1053,7 @@ Detail: [`reset/phase-0-merge-and-freeze.md`](reset/phase-0-merge-and-freeze.md)
   `feat/memory-recall`, `feat/plugin-install`, `cursor/development-environment-setup-593c`,
   and the merged local branches.
 
-### Phase 1 — Trim
+### Phase 1 — Trim ✅ 2026-10-22
 
 Detail: [`reset/phase-1-trim.md`](reset/phase-1-trim.md)
 

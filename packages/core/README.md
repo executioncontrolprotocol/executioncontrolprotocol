@@ -44,13 +44,13 @@ const manifest = workflow("Weekly brief")
 | Subpath | Host | Purpose |
 | ------- | ---- | ------- |
 | `@executioncontrolprotocol/core/node` | Node | Re-exports `@executioncontrolprotocol/core/loaders` + `@executioncontrolprotocol/core/compile` |
-| `@executioncontrolprotocol/core/compile` | Node | `compileWorkflowSource`, `compileHarnessArtifactSource` (intent/reply TS), temp-file module eval |
+| `@executioncontrolprotocol/core/compile` | Node | `compileWorkflowSource`, temp-file module eval |
 | `@executioncontrolprotocol/core/loaders` | Node | File I/O for CLI and Node apps |
-| `@executioncontrolprotocol/core/browser` | Browser | Authoring subset: builders, validate, Fluent encode, **browser-safe** `compileWorkflowSource` + `compileHarnessArtifactSource` (esbuild-wasm + blob `import`) |
+| `@executioncontrolprotocol/core/browser` | Browser | Authoring subset: builders, validate, Fluent encode, **browser-safe** `compileWorkflowSource` (esbuild-wasm + blob `import`) |
 
 CLI and `@executioncontrolprotocol/node` import `@executioncontrolprotocol/core/compile` and `@executioncontrolprotocol/core/loaders` directly—not the main barrel.
 
-**Why compile is here (not on runtime hosts):** harnesses must compile Fluent/TS artifacts without importing `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser`. Same APIs; Node vs browser entry (or `"browser"` condition on `./compile`). Hosts may re-export for convenience.
+**Why compile is here (not on runtime hosts):** the CLI and browser editor compile Fluent/TS without importing `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser`. Same APIs; Node vs browser entry (or `"browser"` condition on `./compile`). Hosts may re-export for convenience. Phase 2 moves host compile into the environment packages.
 
 ## Environment vs Ecp
 
@@ -62,7 +62,7 @@ CLI and `@executioncontrolprotocol/node` import `@executioncontrolprotocol/core/
 ## Related packages
 
 - **`@executioncontrolprotocol/node`** — Node runtime, process env, secrets, re-exports Node compile
-- **`@executioncontrolprotocol/browser`** — Browser runtime, registry, session config (not the demo app)
+- **`@executioncontrolprotocol/browser`** — Browser runtime, registry, local config
 - **`@executioncontrolprotocol/types`** — Protocol types and JSON Schema outputs
 
 See [AGENTS.md](../../AGENTS.md) for monorepo commands and extension rules.

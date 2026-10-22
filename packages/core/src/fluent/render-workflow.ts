@@ -19,7 +19,6 @@ function renderImports(
   if (needs.ref) names.push("ref")
   if (needs.state) names.push("state")
   if (needs.secrets) names.push("secrets")
-  if (needs.browser) names.push("browser")
   if (needs.expr) names.push("expr")
   if (needs.loop) names.push("loop")
   if (needs.parallel) names.push("parallel")

@@ -3,7 +3,6 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { defineConfig } from "vitest/config"
 import { playwright } from "@vitest/browser-playwright"
-import { browserPromptLoaderPlugin } from "./packages/runtimes/browser/test/vite-browser-prompts-plugin.js"
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url))
 
@@ -35,11 +34,6 @@ function loadRepoDotEnv(root: string): void {
 }
 
 loadRepoDotEnv(repoRoot)
-const corePromptsDir = path.join(repoRoot, "packages/core/src/harness/prompts")
-const promptLoaderStubDir = path.join(repoRoot, "packages/evals/test/stubs")
-const browserPromptPlugins = [
-  browserPromptLoaderPlugin({ corePromptsDir, stubDir: promptLoaderStubDir }),
-]
 
 export default defineConfig({
   root: repoRoot,
@@ -98,35 +92,16 @@ export default defineConfig({
       "@executioncontrolprotocol/policies": path.resolve(repoRoot, "packages/policies/src/index.ts"),
       "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/runtimes/node/src/index.ts"),
       "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/runtimes/browser/src/index.ts"),
-      "@executioncontrolprotocol/extension-memory": path.resolve(
-        repoRoot,
-        "packages/extensions/memory/src/index.ts"
-      ),
       "@executioncontrolprotocol/extension-openai": path.resolve(
         repoRoot,
         "packages/extensions/openai/src/index.ts"
       ),
       "@executioncontrolprotocol/format-toon": path.resolve(repoRoot, "packages/extensions/format-toon/src/index.ts"),
       "@executioncontrolprotocol/format-mermaid": path.resolve(repoRoot, "packages/extensions/format-mermaid/src/index.ts"),
-      "@executioncontrolprotocol/format-eql": path.resolve(repoRoot, "packages/extensions/format-eql/src/index.ts"),
-      "@executioncontrolprotocol/chrome-ai": path.resolve(repoRoot, "packages/extensions/chrome-ai/src/index.ts"),
       "@executioncontrolprotocol/anthropic": path.resolve(repoRoot, "packages/extensions/anthropic/src/index.ts"),
       "@executioncontrolprotocol/extension-ollama": path.resolve(
         repoRoot,
         "packages/extensions/ollama/src/index.ts"
-      ),
-      "@executioncontrolprotocol/evals": path.resolve(repoRoot, "packages/evals/src/index.ts"),
-      "@executioncontrolprotocol/harnesses-browser-nano": path.resolve(
-        repoRoot,
-        "packages/harnesses/browser-nano/src/index.ts"
-      ),
-      "@executioncontrolprotocol/harnesses-browser-nano/request-capability-hints": path.resolve(
-        repoRoot,
-        "packages/harnesses/browser-nano/src/_internal/request-capability-hints.ts"
-      ),
-      "@executioncontrolprotocol/harnesses-browser-coding": path.resolve(
-        repoRoot,
-        "packages/harnesses/browser-coding/src/index.ts"
       ),
     },
   },
@@ -137,14 +112,12 @@ export default defineConfig({
       reporter: ["text", "text-summary", "json-summary", "html"],
       // Vitest 4 + projects: avoid `!` negation in test.include — those globs are
       // merged into coverage.exclude and zero the report (vitest#10164).
-      // Scope to packages under the unit-coverage bar (not harness/eval matrices).
       include: [
         "packages/core/src/**/*.{ts,js}",
         "packages/types/src/**/*.{ts,js}",
         "packages/policies/src/**/*.{ts,js}",
         "packages/cli/src/**/*.{ts,js}",
         "packages/mcp/src/**/*.{ts,js}",
-        "packages/extensions/format-eql/src/**/*.{ts,js}",
         "packages/extensions/format-toon/src/**/*.{ts,js}",
         "packages/extensions/format-mermaid/src/**/*.{ts,js}",
         "packages/runtimes/node/src/**/*.{ts,js}",
@@ -181,17 +154,13 @@ export default defineConfig({
           branches: 65,
           statements: 75,
         },
-        "packages/extensions/format-eql/src/**": {
-          lines: 85,
-          functions: 85,
-          branches: 70,
-          statements: 85,
-        },
         "packages/cli/src/**": {
-          lines: 15,
-          functions: 15,
-          branches: 25,
-          statements: 15,
+          // Phase 1 deleted serve/up/encode/decode, which had unit coverage. Remaining
+          // command classes are exercised by process-spawn tests that do not count here.
+          lines: 11,
+          functions: 8,
+          branches: 21,
+          statements: 12,
         },
         "packages/mcp/src/**": {
           lines: 40,
@@ -214,19 +183,15 @@ export default defineConfig({
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",
             "packages/vendor/*/test/**/*.test.ts",
-            "packages/harnesses/*/test/**/*.test.ts",
-            "packages/evals/test/helpers/**/*.test.ts",
             "packages/runtimes/node/**/*.test.ts",
             "packages/runtimes/browser/test/*.test.ts",
             "scripts/**/*.test.ts",
           ],
-          // Positive exclude only — never `!` in include (breaks coverage; vitest#10164).
-          exclude: ["packages/harnesses/*/test/eval/**", "**/node_modules/**"],
+          exclude: ["**/node_modules/**"],
         },
       },
       {
         extends: true,
-        plugins: browserPromptPlugins,
         resolve: {
           alias: [
             {
@@ -258,97 +223,6 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["packages/mcp/test/integration/**/*.test.ts"],
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "eval",
-          include: [
-            "packages/harnesses/browser-nano/test/eval/**/*.test.ts",
-            "packages/harnesses/browser-coding/test/eval/**/*.test.ts",
-            "packages/evals/test/fixtures/**/*.test.ts",
-          ],
-          testTimeout: 180_000,
-          server: {
-            deps: {
-              inline: [
-                "@executioncontrolprotocol/harnesses-browser-coding",
-                "@executioncontrolprotocol/harnesses-browser-nano",
-              ],
-            },
-          },
-        },
-      },
-      {
-        extends: true,
-        plugins: browserPromptPlugins,
-        resolve: {
-          alias: [
-            { find: "@executioncontrolprotocol/core", replacement: path.resolve(repoRoot, "packages/core/src/index.ts") },
-            {
-              find: "@executioncontrolprotocol/core/compile",
-              replacement: path.resolve(repoRoot, "packages/core/src/compile/index.browser.ts"),
-            },
-            {
-              find: "@executioncontrolprotocol/core/loaders",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-empty.ts"),
-            },
-            {
-              find: "@executioncontrolprotocol/node",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-runtime-stub.ts"),
-            },
-            {
-              find: "node:fs",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-fs-stub.ts"),
-            },
-            {
-              find: "node:fs/promises",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-fs-stub.ts"),
-            },
-            {
-              find: "node:path",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-path-stub.ts"),
-            },
-            {
-              find: "node:url",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-url-stub.ts"),
-            },
-            {
-              find: "node:os",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-empty.ts"),
-            },
-            {
-              find: "node:http",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-empty.ts"),
-            },
-            {
-              find: "node:child_process",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-empty.ts"),
-            },
-            {
-              find: "node:util",
-              replacement: path.resolve(repoRoot, "packages/evals/test/stubs/node-empty.ts"),
-            },
-            {
-              find: "@executioncontrolprotocol/harnesses-browser-nano/request-capability-hints",
-              replacement: path.resolve(
-                repoRoot,
-                "packages/harnesses/browser-nano/src/_internal/request-capability-hints.ts"
-              ),
-            },
-          ],
-        },
-        test: {
-          name: "eval-browser",
-          include: ["packages/harnesses/browser-nano/test/eval/browser/**/*.eval.test.ts"],
-          testTimeout: 180_000,
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            instances: [{ browser: "chromium", channel: "chrome" }],
-          },
         },
       },
       {

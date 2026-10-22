@@ -24,17 +24,12 @@
   },
   "dependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/browser-secrets": "workspace:^",
     "@executioncontrolprotocol/policies": "workspace:^",
     "@executioncontrolprotocol/types": "workspace:^"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/chrome-ai": "workspace:^",
-    "@executioncontrolprotocol/format-eql": "workspace:^",
     "@executioncontrolprotocol/format-toon": "workspace:^",
     "@executioncontrolprotocol/format-mermaid": "workspace:^",
-    "@executioncontrolprotocol/format-reactflow": "workspace:^",
-    "@executioncontrolprotocol/harnesses-browser-nano": "workspace:^",
     "typescript": "catalog:",
     "zod": "catalog:"
   }

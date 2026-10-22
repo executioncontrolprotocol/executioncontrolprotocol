@@ -9,12 +9,7 @@ export {
   compileWorkflowSource,
   compileAndValidateWorkflowSource,
   extractWorkflowFromModule,
-  compileHarnessArtifactSource,
-  extractArtifactFromModule,
   type CompileWorkflowResult,
   type CompileWorkflowSourceOptions,
   type CompileDiagnostic,
-  type CompileHarnessArtifactResult,
-  type CompileHarnessArtifactSourceOptions,
-  type HarnessArtifactSchema,
 } from "./compile/entry.js"

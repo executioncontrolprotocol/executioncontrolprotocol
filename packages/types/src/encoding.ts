@@ -14,7 +14,12 @@ export const ECP_FORMATS = {
   JSON: "json",
   TOON: "toon",
   FLUENT: "fluent",
-  EQL: "eql",
+} as const
+
+/** Core-cataloged formatter extension ids. @category Encoding */
+export const ECP_CORE_FORMATTER_IDS = {
+  JSON: "@executioncontrolprotocol/format-json",
+  FLUENT: "@executioncontrolprotocol/format-fluent",
 } as const
 
 /** Encoding error codes. @category Encoding */

@@ -84,7 +84,7 @@ export interface ExtensionDescription {
   capabilities: string[]
   /**
    * From extension metadata. Present only when `false` (default authorable).
-   * Harness authoring inventory omits extensions with `isAuthorable: false`.
+   * Capability inventory omits extensions with `isAuthorable: false`.
    */
   isAuthorable?: boolean
   /** Full extension metadata (exact-id describe only). */

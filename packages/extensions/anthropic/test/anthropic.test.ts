@@ -13,12 +13,9 @@ describe("@executioncontrolprotocol/anthropic", () => {
     vi.unstubAllEnvs()
   })
 
-  it("exposes generate and evaluate capabilities", () => {
+  it("exposes generate capability", () => {
     const ids = anthropicExtension.capabilities.map((c) => c.id)
-    expect(ids).toEqual([
-      "@executioncontrolprotocol/anthropic.generate",
-      "@executioncontrolprotocol/anthropic.evaluate",
-    ])
+    expect(ids).toEqual(["@executioncontrolprotocol/anthropic.generate"])
   })
 
   it("declares local execution on capabilities", () => {
@@ -237,26 +234,4 @@ describe("@executioncontrolprotocol/anthropic", () => {
     }
   })
 
-  it("evaluate parses JSON approval", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          content: [{ type: "text", text: '{"approved":false,"feedback":"no"}' }],
-        }),
-      })
-    )
-    const cap = anthropicExtension.capabilities.find(
-      (c) => c.id === "@executioncontrolprotocol/anthropic.evaluate"
-    )
-    const result = await cap!.handler!(
-      { artifact: { answer: "x" }, goal: "check" },
-      {
-        extensionConfig: { apiKey: "test-key" },
-        usage: { increment: vi.fn() },
-      } as never
-    )
-    expect(result).toEqual({ approved: false, feedback: "no" })
-  })
 })

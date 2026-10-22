@@ -1,4 +1,4 @@
-import type { CapabilityId, HarnessId, NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "@executioncontrolprotocol/types"
 import type { HookDefinition } from "../definitions/types.js"
 import {
   cloneConfigForManifest,
@@ -29,20 +29,11 @@ export interface ResolvedPolicyBinding {
   config: Record<string, unknown>
 }
 
-/** Resolved harness binding. */
-export interface ResolvedHarnessBinding {
-  id: HarnessId
-  label?: string
-  uses: CapabilityId
-  config: Record<string, unknown>
-}
-
 /** All resolved bindings for execution. */
 export interface ResolvedBindings {
   runtime: ResolvedRuntimeBinding
   extensions: ResolvedExtensionBinding[]
   policies: ResolvedPolicyBinding[]
-  harnesses: ResolvedHarnessBinding[]
   extensionHooks: HookDefinition[]
   policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>
 }
@@ -71,12 +62,6 @@ export async function resolveBindingsForRun(
     order: number
     rawConfig: Record<string, unknown>
   }>,
-  harnessBindings: Array<{
-    id: HarnessId
-    label?: string
-    uses: CapabilityId
-    rawConfig: Record<string, unknown>
-  }>,
   extensionHooks: HookDefinition[],
   policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>,
   resolvers: EnvironmentConfigResolver[]
@@ -100,14 +85,6 @@ export async function resolveBindingsForRun(
         id: b.id,
         label: b.label,
         order: b.order,
-        config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
-      }))
-    ),
-    harnesses: await Promise.all(
-      harnessBindings.map(async (b) => ({
-        id: b.id,
-        label: b.label,
-        uses: b.uses,
         config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
       }))
     ),

@@ -10,12 +10,11 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Describe/search environment capabilities for agent/UI discovery
 - Run workflows and print structured run results
 - Invoke a single capability outside a workflow (`ecp invoke`)
-- Serve an environment over loopback HTTP for `POST /v1/invoke` (`ecp serve`)
 - Test workflows with a persistent session (`ecp test start|run|rerun|status`)
-- Encode/decode workflows using format extensions (TOON, Fluent, JSON)
+- Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
 For the architecture and monorepo package boundaries, start with
-[`AGENTS.md`](../../AGENTS.md) and [`ecp-overhaul.md`](../../ecp-overhaul.md).
+[`AGENTS.md`](../../AGENTS.md) and [`RESET-PLAN.md`](../../RESET-PLAN.md).
 
 ## Install
 
@@ -102,65 +101,7 @@ Call a single bound capability without a workflow:
 ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json
 ```
 
-Optional `--uses <provider-capability-id>` overrides the harness default provider. Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
-
-### Serve (`ecp serve`)
-
-Expose any `--env` over loopback HTTP (no auth; loopback-only trust):
-
-```sh
-ecp serve --env examples/01-echo/environment.ts
-ecp serve --env environment.ts --port 3090 --cors-origin http://localhost:5173
-```
-
-- `GET /health` — `{ ok, version }`
-- `POST /v1/invoke` — body `{ capability, input?, provider? }` → `ecp.invoke(...).with(...).process()`
-
-Default port **3090** (ECP leet), host `127.0.0.1`.
-
-### Local daemon (`ecp up`)
-
-Loopback **demo bridge** for the browser Graph Editor: always hosts **Ollama** + **storage**, optional `--env` merges a project Node environment (e.g. Sharp) alongside them. Prefer `ecp serve` for general HTTP invoke without the demo pairing flow.
-
-```sh
-ecp up
-# Opens https://demo.executioncontrolprotocol.io/?token=<uuid>&bridge=http://127.0.0.1:3090
-
-ecp up --open-url http://localhost:5173/
-ecp up --no-open
-ecp up --env ./host/environment.ts --open-url http://localhost:5173/
-```
-
-**Monorepo (browser-demo):** from the repo root after `pnpm run build`:
-
-```sh
-pnpm run dev:demo          # terminal 1 — Vite on :5173
-pnpm run up:demo           # terminal 2 — host env + Ollama; opens local demo with ?token=
-pnpm run up:demo -- --ollama-only   # Ollama + storage only
-```
-
-See [`apps/browser-demo/README.md`](../../apps/browser-demo/README.md#local-startup-options) and [`apps/browser-demo/host/README.md`](../../apps/browser-demo/host/README.md).
-
-- `GET /health` — `{ ok, version, ollamaReachable }` (no auth; used by the demo to enable Ollama)
-- `POST /v1/invoke` — Bearer token required; same body shape as `ecp serve`
-- `GET /v1/describe` — Bearer or `?token=`
-
-Default port **3090**. The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Extra page origins: `--cors-origin` (also inferred from `--open-url`).
-
-### Encode / decode formats
-
-Encoding and decoding uses **format extensions** bound in your environment.
-
-```sh
-ecp encode workflow.json --format toon --env environment.ts -o workflow.toon
-ecp encode workflow.json --format fluent --env environment.ts -o workflow.generated.ts
-ecp decode workflow.toon --format toon --env environment.ts -o workflow.json
-```
-
-Notes:
-
-- Fluent **decode** is not supported. Use `ecp compile` for TypeScript/Fluent source → manifest.
-- JSON is the canonical manifest format; other formats are optional extensions.
+Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
 
 ## Related packages
 

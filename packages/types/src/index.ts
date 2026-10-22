@@ -10,7 +10,6 @@ export type {
   StateValue,
   EnvValue,
   SecretValue,
-  BrowserValue,
   ExprValue,
   InputValue,
   EcpDocumentBase,
@@ -79,6 +78,7 @@ export type {
 export {
   ECP_FORMAT_CAPABILITY_NAMES,
   ECP_FORMATS,
+  ECP_CORE_FORMATTER_IDS,
   ECP_ENCODING_ERROR_CODES,
 } from "./encoding.js"
 export type {
@@ -129,67 +129,6 @@ export type {
   ModelGenerateInput,
   ModelGenerateOutput,
 } from "./model.js"
-export {
-  ECP_HARNESS_CAPABILITY_NAME,
-  ECP_HARNESS_ERROR_CODES,
-  ECP_CORE_FORMATTER_IDS,
-  harnessCapabilityId,
-  harnessEvaluateOutputSchema,
-} from "./harness.js"
-export type {
-  EcpHarnessErrorCode,
-  HarnessId,
-  HarnessCapabilityId,
-  HarnessTrace,
-  HarnessShotTrace,
-  HarnessPromptPhase,
-  HarnessInvokeResult,
-  HarnessEvaluateOutput,
-} from "./harness.js"
-export type {
-  HarnessOperationStage,
-  HarnessOperationFeedback,
-  HarnessRepairAttempt,
-} from "./harness-feedback.js"
-export { ECP_INTENT_SCHEMA, ECP_INTENT_VALUES, ecpIntentSchema } from "./intent.js"
-export type { EcpIntentValue, EcpIntent } from "./intent.js"
-export {
-  probeContextSchema,
-  probeOptionSchema,
-} from "./probe-context.js"
-export type { ProbeContext, ProbeOption } from "./probe-context.js"
-export {
-  harnessRunContextSchema,
-  runResultSchema,
-  stepRunRecordSchema,
-  stepRunDiagnosticSchema,
-  toHarnessRunContext,
-} from "./harness-run-context.js"
-export type { HarnessRunContext } from "./harness-run-context.js"
-export {
-  ECP_HARNESS_REPLY_SCHEMA,
-  ECP_HARNESS_REPLY_CITATION_KINDS,
-  ECP_HARNESS_REPLY_ACTIONS,
-  harnessReplySchema,
-  harnessReplyCitationSchema,
-} from "./harness-reply.js"
-export type { HarnessReply, EcpHarnessReplyAction } from "./harness-reply.js"
-export {
-  HARNESS_TASK_IDS,
-  pendingOfferKindSchema,
-  harnessChatInputSchema,
-  harnessIntentClassificationInputSchema,
-  harnessWorkflowAuthoringInputSchema,
-  harnessWorkflowAssistantInputSchema,
-} from "./harness-tasks.js"
-export type {
-  HarnessTaskId,
-  HarnessChatInput,
-  HarnessIntentClassificationInput,
-  HarnessWorkflowAuthoringInput,
-  HarnessWorkflowAssistantInput,
-  PendingOfferKind,
-} from "./harness-tasks.js"
 export {
   FILE_REF_KINDS,
   fileRefSchema,

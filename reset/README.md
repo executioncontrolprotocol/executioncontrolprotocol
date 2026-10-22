@@ -7,7 +7,7 @@ detail needed to do the work: scope, file-level tasks, design notes, tests and e
 | Phase | Doc | Status | Depends on |
 | --- | --- | --- | --- |
 | 0 | [Merge and freeze](phase-0-merge-and-freeze.md) | ✅ Done 2026-10-19 | — |
-| 1 | [Trim](phase-1-trim.md) | Next | 0 |
+| 1 | [Trim](phase-1-trim.md) | ✅ Done 2026-10-22 | 0 |
 | 2 | [Consolidate core and environments](phase-2-core-and-environments.md) | Planned | 1 |
 | 3 | [Plugin SDK and CLI](phase-3-plugin-sdk-and-cli.md) | Planned | 2 |
 | 4 | [Workflow files and observability](phase-4-workflow-files-and-observability.md) | Planned | 3 |
@@ -25,6 +25,10 @@ parallel once Phase 5 lands.
 
 - **Branch:** `feat/phase-<n>-<slug>` cut from `milestone/cli-reset`. One PR per phase into
   `milestone/cli-reset`. Large phases may split into several PRs; each must leave CI green.
+- **One commit per phase** (or per PR when a phase splits). Follow-up commits only for CI
+  failures that don't reproduce locally. Tests run at checkpoints (`build` + `test:unit` after
+  source/test work; `check` + `test:browser` before the phase commit), not after every task.
+  The pre-commit hook still runs once on that commit.
 - **Never touch `main` or `development`** until Phase 9. Pushes to `main` publish to npm.
 - **Recovery point:** tag `pre-reset` (`07e91a8`) has everything as it was before the reset.
   Code that a later phase revives (the demo UI for `app`, the React Flow encoder) is copied
@@ -33,6 +37,9 @@ parallel once Phase 5 lands.
 - **Pre-commit:** husky runs lint and unit tests. Don't skip it.
 - **Honesty rule:** if something is stubbed, mocked or deferred, say so in the PR description
   and in the code, and never ship it as if it were real.
+- **Docs for handoff:** every phase commit updates its phase doc (status + Outcome), the next
+  phase doc's file paths, this table, `RESET-PLAN.md` §7, `AGENTS.md`, affected rules/skills
+  and package READMEs. A fresh agent must be able to start the next phase from the repo alone.
 - **Done means:** every exit criterion in the phase doc is checked off in the PR description,
   and the phase's status in this table and in `RESET-PLAN.md` §7 is updated in the same PR.
 
@@ -56,9 +63,10 @@ override AGENTS.md, .cursor/rules and any older docs wherever they disagree.
 Work on a new branch feat/phase-1-trim cut from milestone/cli-reset, and open one PR into
 milestone/cli-reset. Never push to main or development (pushes to main publish to npm).
 
-Follow the phase doc's task order, one commit per task. Keep the pre-commit hook on; don't
-skip tests or weaken gates to get green. If something in the doc turns out to be wrong or
-impossible, stop and tell me rather than improvising; propose the fix to the doc in the PR.
+Follow the phase doc's task order. One commit per phase (or per PR when splitting). Keep the
+pre-commit hook on; don't skip tests or weaken gates to get green. If something in the doc
+turns out to be wrong or impossible, stop and tell me rather than improvising; propose the
+fix to the doc in the PR.
 Label anything stubbed or deferred honestly.
 
 Done = every exit criterion in the phase doc checked off in the PR description with

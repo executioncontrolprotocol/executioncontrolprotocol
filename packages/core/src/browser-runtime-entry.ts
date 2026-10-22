@@ -13,16 +13,19 @@ export type { EnvironmentConfigResolver } from "./environment/config-resolver.js
 export {
   resolveEnvConfigAsync,
   cloneConfigForManifest,
-  BROWSER_SECRETS_RESOLVER_ID,
 } from "./environment/config-resolver.js"
 export { extension } from "./bindings/extension.js"
-export { harness } from "./bindings/harness.js"
 export { runtime } from "./bindings/runtime.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
-export * from "./feedback/index.js"
-export { stripMarkdownCodeFences } from "./encoding/strip-markdown-fences.js"
 export { assignUniqueStepIds } from "./workflow/assign-unique-step-ids.js"
+export {
+  toProviderChatTurns,
+  flattenProviderChatTurns,
+  type ProviderChatPriorMessage,
+  type ProviderChatTurn,
+  type ToProviderChatTurnsOptions,
+} from "./helpers/provider-chat-turns.js"
 export { createInvokeBuilder, type InvokeOperationBuilder } from "./invoke/index.js"
 export { Registry, globalRegistry, type RegistryRegistrationGuard } from "./registry/registry.js"
 export {
@@ -151,51 +154,6 @@ export {
   ecpPatchEntrySchema,
 } from "./patch/index.js"
 export { zodIssuesToValidationIssues } from "./validate/zod-mapper.js"
-export { defineHarness, HarnessDefinitionBuilder, isHarnessDefinition } from "./harness/define-harness.js"
-export {
-  catalogHarness,
-  getCatalogedHarness,
-  listCatalogedHarnessIds,
-  harnessEvaluateCapabilityId,
-  harnessIdFromCapabilityId,
-  isHarnessCapabilityId,
-} from "./harness/harness-catalog.js"
-export type {
-  ErasedHarnessHandler,
-  HarnessConfigOf,
-  HarnessDefinition,
-  HarnessHandler,
-  HarnessInputOf,
-  HarnessOutputOf,
-} from "./harness/types.js"
-export type { HarnessCapabilityContext } from "./harness/context.js"
-export { callModelGenerate } from "./harness/call-model.js"
-export {
-  isCoreFormatterId,
-  CORE_FORMATTER_IDS,
-  inferResponseFormatFromFormatter,
-} from "./harness/format-resolve.js"
-export {
-  runModelRepairLoop,
-  type ModelRepairGenerateContext,
-  type ModelRepairEvaluateResult,
-  type RunModelRepairLoopOptions,
-  type ModelRepairLoopResult,
-} from "./harness/run-model-repair-loop.js"
-export {
-  harnessPromptFixtureSchema,
-  type HarnessPromptFixture,
-} from "./harness/prompts/harness-prompt-fixture-schema.js"
-export {
-  loadSchemaExample,
-  loadSchemaExampleEql,
-  formatSchemaExampleJson,
-  formatSchemaExampleEql,
-  loadRepairNeutralExampleEql,
-} from "./harness/prompts/load-schema-example.browser.js"
-export { buildSystemPromptFromFixture } from "./harness/prompts/build-system-prompt.js"
-export { buildRepairHintFromFixture } from "./harness/prompts/build-repair-hint.js"
-export * from "./harness/authoring/index.js"
 export {
   isFileRef,
   collectFileRefs,

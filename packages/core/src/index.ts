@@ -5,8 +5,14 @@ export { ref } from "./helpers/ref.js"
 export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
 export { secrets } from "./helpers/secrets.js"
-export { browser } from "./helpers/browser.js"
 export { expr } from "./helpers/expr.js"
+export {
+  toProviderChatTurns,
+  flattenProviderChatTurns,
+  type ProviderChatPriorMessage,
+  type ProviderChatTurn,
+  type ToProviderChatTurnsOptions,
+} from "./helpers/provider-chat-turns.js"
 
 export * from "./config-schema/index.js"
 export * from "./definitions/index.js"
@@ -20,13 +26,8 @@ export type {
 export { step } from "./bindings/step.js"
 export { runtime } from "./bindings/runtime.js"
 export { extension } from "./bindings/extension.js"
-export { harness } from "./bindings/harness.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
-export * from "./harness/index.js"
-export * from "./feedback/index.js"
-export { stripMarkdownCodeFences } from "./encoding/strip-markdown-fences.js"
-export { stripHarnessTypeScriptOutput } from "./encoding/strip-harness-typescript-output.js"
 export { workflow, WorkflowBuilder } from "./workflow/builder.js"
 export { parallel, branch, loop } from "./workflow/flow.js"
 export {
@@ -66,7 +67,6 @@ export { resolveEnvConfigAsync, cloneConfigForManifest } from "./environment/con
 export {
   PROCESS_ENV_RESOLVER_ID,
   SECRETS_RESOLVER_ID,
-  BROWSER_SECRETS_RESOLVER_ID,
 } from "./environment/config-resolver.js"
 export { Registry, globalRegistry, type RegistryRegistrationGuard } from "./registry/registry.js"
 export {
