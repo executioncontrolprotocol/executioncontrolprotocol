@@ -3,9 +3,6 @@
  * @packageDocumentation
  */
 
-export { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-export * from "@executioncontrolprotocol/types"
-
 export * from "./browser.js"
 export { environment, Environment, type RunOptions } from "./environment/environment.js"
 export { EcpImpl, type Ecp } from "./environment/ecp.js"
@@ -42,6 +39,12 @@ export {
   RegistryRegistrationDeniedError,
 } from "./registry/errors.js"
 export { matchesNamespace, matchesAnyNamespace } from "./registry/namespace.js"
+export {
+  registryControlPolicy,
+  registerRegistryControlPolicy,
+  REGISTRY_CONTROL_POLICY_ID,
+  type RegistryControlPolicyConfig,
+} from "./policies/registry-control.js"
 export { InMemoryRuntimeExecutor } from "./runtime/in-memory-executor.js"
 export type { RuntimeExecutor, RuntimeExecutionContext } from "./runtime/executor.js"
 export type {

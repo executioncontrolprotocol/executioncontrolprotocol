@@ -12,7 +12,7 @@ import {
 import {
   modelGenerateInputSchema,
   modelGenerateOutputSchema
-} from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
 import { z } from "zod"
 import {
   buildAnthropicUserContent,

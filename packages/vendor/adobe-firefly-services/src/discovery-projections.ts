@@ -2,7 +2,7 @@ import {
   parseCapabilityMetadata,
   type CapabilityMetadata,
   type CapabilityProjection,
-} from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
 import type { CapabilityDefinition } from "@executioncontrolprotocol/core"
 import { EXT_ID } from "./shared.js"
 

@@ -1,5 +1,4 @@
 packages:
-  - packages/types
   - packages/core
   - packages/mcp
   - packages/cli

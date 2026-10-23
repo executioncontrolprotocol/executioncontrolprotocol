@@ -6,7 +6,7 @@ import type {
   PolicyDecision,
   PolicyLifecycleEvent,
   StoreStateHandle,
-} from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
 import { stateControlPolicy } from "../src/index.js"
 
 function handle(path: string): StoreStateHandle {

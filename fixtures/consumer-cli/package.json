@@ -12,7 +12,6 @@
     "@executioncontrolprotocol/core": "*",
     "@executioncontrolprotocol/format-toon": "*",
     "@executioncontrolprotocol/node": "*",
-    "@executioncontrolprotocol/types": "*",
     "zod": "^3.24.0"
   }
 }

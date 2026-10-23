@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   PendingMutation,
   RunResult,
@@ -7,7 +7,7 @@ import type {
   StepRunRecord,
   WorkflowManifest,
   WorkflowNode,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { RuntimeExecutor, RuntimeExecutionContext } from "./executor.js"
 import {
   createConsoleLogger,
@@ -45,7 +45,7 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function evalExpr(
-  expr: import("@executioncontrolprotocol/types").ExprValue | undefined,
+  expr: import("../types/index.js").ExprValue | undefined,
   state: Record<string, unknown>
 ): boolean {
   if (!expr) return true

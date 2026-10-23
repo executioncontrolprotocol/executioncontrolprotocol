@@ -1,4 +1,4 @@
-import type { EnvironmentDescriptor } from "@executioncontrolprotocol/types"
+import type { EnvironmentDescriptor } from "../types/index.js"
 import { validateWorkflow } from "../validate/workflow.js"
 import { evaluateWorkflowModule } from "./evaluate.js"
 import { bundleWorkflowSource, isTypeScriptFile, resolveBundleDir } from "./transpile.js"

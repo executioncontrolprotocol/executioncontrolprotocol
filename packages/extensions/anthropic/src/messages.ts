@@ -2,7 +2,7 @@ import {
   FILE_REF_KINDS,
   type FileRef,
   type ModelGenerateInput,
-} from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
 import { resolveFile, type FileCapabilityContext } from "@executioncontrolprotocol/core"
 import {
   isAnthropicDocumentMediaType,

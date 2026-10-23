@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest"
 import { globalRegistry } from "@executioncontrolprotocol/core"
-import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
+import { parseCapabilityMetadata } from "@executioncontrolprotocol/core/types"
 import {
   registerJsonataExtension,
   jsonataExtension,

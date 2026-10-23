@@ -3,7 +3,7 @@ import {
   LATEST_ECP_VERSION,
   type CapabilityId,
   type InvokeResult,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import type { CapabilityContext } from "./context.js"
 import { resolveCapabilityExecution, isBrowserRuntimeId } from "./capability-execution.js"

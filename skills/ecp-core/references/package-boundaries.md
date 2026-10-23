@@ -1,6 +1,9 @@
 # Package boundaries (ECP core)
 
-## Now (after Phase 1, before Phase 2)
+## Now (after Phase 2 PR 1, before environments)
+
+Protocol types live at `@executioncontrolprotocol/core/types`. `registry-control` lives in core.
+`packages/types` is gone.
 
 **Core is host-agnostic at its root.** The main `@executioncontrolprotocol/core` entry has no
 Node or browser I/O. Host code sits on subpaths:
@@ -12,7 +15,7 @@ Node or browser I/O. Host code sits on subpaths:
 | `@executioncontrolprotocol/core/loaders` | Node file I/O (CLI) |
 | `@executioncontrolprotocol/core/browser` | Browser compile (esbuild-wasm) |
 
-Extensions depend on `types` + `core` only, never on `node`, `browser`, `cli` or `mcp`.
+Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.
 
 ## After the reset (Phase 2 onward)
 

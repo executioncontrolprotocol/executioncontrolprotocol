@@ -8,7 +8,7 @@ const outDir = join(pkgRoot, "dist", "schemas")
 mkdirSync(outDir, { recursive: true })
 
 const baseConfig = {
-  path: join(pkgRoot, "src", "index.ts"),
+  path: join(pkgRoot, "src", "types", "index.ts"),
   tsconfig: join(pkgRoot, "tsconfig.json"),
   skipTypeCheck: true,
   extraTags: ["category"],

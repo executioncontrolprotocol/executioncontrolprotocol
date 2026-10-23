@@ -1,4 +1,4 @@
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "../types/index.js"
 import { renderNodes } from "./render-node.js"
 import { createImportNeeds } from "./render-value.js"
 import { renderJsonSchemaAsFluentArg } from "../schema/json-schema.js"

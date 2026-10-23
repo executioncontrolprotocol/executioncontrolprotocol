@@ -1,4 +1,4 @@
-import type { RefValue } from "@executioncontrolprotocol/types"
+import type { RefValue } from "../types/index.js"
 
 /** Options for optional refs. */
 export interface RefOptions {

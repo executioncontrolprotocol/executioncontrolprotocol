@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { HookDefinition } from "../definitions/types.js"
 import {
   cloneConfigForManifest,

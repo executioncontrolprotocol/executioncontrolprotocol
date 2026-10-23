@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { PolicyDefinition } from "../definitions/types.js"
 
 /** Policy binding builder. @category Environment */

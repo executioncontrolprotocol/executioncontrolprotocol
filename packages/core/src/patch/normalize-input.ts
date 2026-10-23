@@ -1,5 +1,5 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-import type { EcpPatchDocument, EcpPatchEntry, EcpPatchInput, EcpSchema } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
+import type { EcpPatchDocument, EcpPatchEntry, EcpPatchInput, EcpSchema } from "../types/index.js"
 import { ecpPatchDocumentSchema } from "./patch-document.js"
 
 function isPatchDocument(value: unknown): value is EcpPatchDocument {

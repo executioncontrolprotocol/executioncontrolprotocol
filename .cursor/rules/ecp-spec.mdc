@@ -7,8 +7,7 @@ alwaysApply: true
 
 - **Source of truth during the reset:** `RESET-PLAN.md` and `reset/` (see
   `reset-milestone.mdc`). `ecp-overhaul.md` was deleted in Phase 1.
-- **Types:** `packages/types/src` (`@executioncontrolprotocol/types`) until Phase 2 folds them
-  into `@executioncontrolprotocol/core/types`.
+- **Types:** `packages/core/src/types` (`@executioncontrolprotocol/core/types`).
 - **Fluent API and engine:** `packages/core/src` (`@executioncontrolprotocol/core`).
 - **Manifests:** workflows use `schema: "@executioncontrolprotocol.workflow"` and
   `version: "1.0"` (`LATEST_ECP_VERSION`). Phase 4 adds a separate

@@ -5,7 +5,7 @@ import type {
   CapabilityExecution,
   CapabilityMetadata,
   ExtensionMetadata,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { z } from "zod"
 import type { ConfigSchema } from "../config-schema/index.js"
 

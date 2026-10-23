@@ -1,5 +1,5 @@
-import type { FileRef } from "@executioncontrolprotocol/types"
-import { FILE_REF_KINDS } from "@executioncontrolprotocol/types"
+import type { FileRef } from "@executioncontrolprotocol/core/types"
+import { FILE_REF_KINDS } from "@executioncontrolprotocol/core/types"
 import type { OutputOptions } from "./schemas.js"
 
 /** Resolved extension limits. @category Extensions */

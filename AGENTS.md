@@ -39,13 +39,13 @@ on top. See `RESET-PLAN.md` §0–§1.
 
 | Path | What it is | Reset status |
 | --- | --- | --- |
-| `packages/types/` | Protocol types and JSON Schemas (`@executioncontrolprotocol/types`) | Folds into `core/types` in Phase 2 |
-| `packages/core/` | Fluent API, registry, validation, executor, encoding (`@executioncontrolprotocol/core`) | Stays. Harness code removed in Phase 1; host code moves out in Phase 2 |
+| `packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types (`@executioncontrolprotocol/core`, `./types`) | Host code still on subpaths until Phase 2 PR 2; `registry-control` is in core |
+| `packages/core/src/types/` | Protocol types and JSON Schemas (`@executioncontrolprotocol/core/types`) | Folded from `packages/types` in Phase 2 PR 1 |
 | `packages/runtimes/node/` | Node host (`@executioncontrolprotocol/node`) | Becomes `environments/node` in Phase 2 (same package name) |
 | `packages/runtimes/browser/` | Browser host (`@executioncontrolprotocol/browser`) | Becomes `environments/browser` in Phase 2; authoring panels and secrets provider removed in Phase 1 |
 | `packages/cli/` | `ecp` CLI (oclif) | Trimmed in Phase 1 (`serve`/`up`/`encode`/`decode` gone); rebuilt in Phase 3 |
 | `packages/mcp/` | MCP adapter | Rebuilt in Phase 7 |
-| `packages/policies/` | `budget`, `approval`, `state-control`, `registry-control` | `image-policy` removed in Phase 1; `registry-control` → core in Phase 2; the rest become plugins in Phase 5 |
+| `packages/policies/` | `budget`, `approval`, `state-control` | `image-policy` removed in Phase 1; `registry-control` folded into core in Phase 2 PR 1; the rest become plugins in Phase 5 |
 | `packages/extensions/*/` | First-party extensions | Per the audit (`RESET-PLAN.md` §5.4): some become plugins in Phase 5, some fold into the Node environment. `format-eql`, `chrome-ai`, `memory`, `telemetry`, `index`, `storage`, `browser-secrets` were **removed in Phase 1** |
 | `packages/vendor/*/` | Vendor extensions | Become plugins in Phase 5 (`slack` **removed in Phase 1**) |
 | `examples/` | Examples (workflow + environment modules today) | Trimmed in Phase 1; the rest become single `*.ecp.ts` files in Phase 4 |
@@ -68,8 +68,8 @@ workflows). See `RESET-PLAN.md` §2.3.
   browser I/O. Today, host code sits on core subpaths (`core/node`, `core/compile`,
   `core/loaders`, `core/browser`). Phase 2 moves it into the environment packages, and core is
   left with `.` and `./types`.
-- **Extensions never import hosts.** Extension and plugin packages depend on `core` (and
-  `types` until Phase 2) plus focused third-party libraries, never on `node`, `browser`, `cli`
+- **Extensions never import hosts.** Extension and plugin packages depend on `core` and
+  `core/types` plus focused third-party libraries, never on `node`, `browser`, `cli`
   or `mcp`. See `.cursor/rules/extensions.mdc`.
 - **Operational APIs live on `Ecp` after `init()`** (`run`, `validate`, `describe`, `search`,
   `invoke`, `encode`, `decode`, `patch`, `terminate`), not on the environment builder.
@@ -108,7 +108,7 @@ pnpm run test:e2e
 pnpm run test:browser        # Vitest browser project (run test:browser:install once)
 pnpm run lint
 pnpm run secrets:scan
-pnpm run generate:schema     # JSON Schemas (packages/types today, core/types after Phase 2)
+pnpm run generate:schema     # JSON Schemas (`packages/core/dist/schemas`)
 ```
 
 Removed in Phase 1:

@@ -3,6 +3,7 @@ import {
   extension,
   runtime,
   policy,
+  registerRegistryControlPolicy,
   Registry,
   globalRegistry,
 } from "@executioncontrolprotocol/core"
@@ -22,6 +23,7 @@ export async function registerBrowserHost(registry: Registry = globalRegistry): 
   await registerBrowserRegistryExtension(registry)
   await registerBrowserLocalConfigExtension(registry)
   await registerStandardPolicies(registry)
+  await registerRegistryControlPolicy(registry)
 }
 
 /**

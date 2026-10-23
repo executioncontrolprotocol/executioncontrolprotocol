@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest"
 import { createUsageLedger } from "@executioncontrolprotocol/core"
 import type { PolicyContext } from "@executioncontrolprotocol/core"
-import { registryControlPolicy } from "../src/registry-control.js"
-import type { RegistryRegistrationRequest } from "@executioncontrolprotocol/types"
+import { registryControlPolicy } from "../../src/policies/registry-control.js"
+import type { RegistryRegistrationRequest } from "@executioncontrolprotocol/core/types"
 
 async function evalPre(
   config: Record<string, unknown>,
   registryRequest: RegistryRegistrationRequest
-): Promise<import("@executioncontrolprotocol/types").PolicyDecision | void> {
+): Promise<import("@executioncontrolprotocol/core/types").PolicyDecision | void> {
   const hook = registryControlPolicy.hooks.find((h) => h.event === "policy:pre")
   if (!hook) throw new Error("missing policy:pre")
   const ctx: PolicyContext & { config: Record<string, unknown> } = {
@@ -26,7 +26,7 @@ async function evalPre(
     registryRequest,
     config,
   }
-  return (await hook.handler(ctx as never)) as import("@executioncontrolprotocol/types").PolicyDecision | void
+  return (await hook.handler(ctx as never)) as import("@executioncontrolprotocol/core/types").PolicyDecision | void
 }
 
 describe("@executioncontrolprotocol/registry-control", () => {

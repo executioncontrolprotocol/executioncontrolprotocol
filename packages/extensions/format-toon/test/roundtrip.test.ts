@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/types"
-import { LATEST_ECP_VERSION, StepNode } from "@executioncontrolprotocol/types"
+import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/core/types"
+import { LATEST_ECP_VERSION, StepNode } from "@executioncontrolprotocol/core/types"
 import {
   environment,
   extension,

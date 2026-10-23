@@ -121,9 +121,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -132,10 +129,6 @@ importers:
         version: 3.25.76
 
   packages/core:
-    dependencies:
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../types
     devDependencies:
       '@executioncontrolprotocol/node':
         specifier: workspace:^
@@ -143,6 +136,12 @@ importers:
       '@executioncontrolprotocol/policies':
         specifier: workspace:^
         version: link:../policies
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
+      ts-json-schema-generator:
+        specifier: ^2.3.0
+        version: 2.5.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -162,9 +161,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -177,9 +173,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -196,9 +189,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -211,9 +201,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -226,9 +213,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -241,9 +225,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -256,9 +237,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -285,9 +263,6 @@ importers:
       '@executioncontrolprotocol/format-toon':
         specifier: workspace:^
         version: link:../extensions/format-toon
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -300,9 +275,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -318,9 +290,6 @@ importers:
       '@executioncontrolprotocol/policies':
         specifier: workspace:^
         version: link:../../policies
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
     devDependencies:
       '@executioncontrolprotocol/format-mermaid':
         specifier: workspace:^
@@ -349,25 +318,7 @@ importers:
       '@executioncontrolprotocol/secrets':
         specifier: workspace:^
         version: link:../../extensions/secrets
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
     devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-
-  packages/types:
-    devDependencies:
-      ajv:
-        specifier: ^8.17.1
-        version: 8.20.0
-      ts-json-schema-generator:
-        specifier: ^2.3.0
-        version: 2.5.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -380,9 +331,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -402,9 +350,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -421,9 +366,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -440,9 +382,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -459,9 +398,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../../core
-      '@executioncontrolprotocol/types':
-        specifier: workspace:^
-        version: link:../../types
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { ExtensionDefinition } from "../definitions/types.js"
 
 const catalog = new Map<NamespacedId, ExtensionDefinition>()

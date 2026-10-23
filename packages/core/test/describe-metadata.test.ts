@@ -6,9 +6,9 @@ import {
   defineExtension,
   extension,
   jsonSchemaFromZod,
-  parseCapabilityMetadata,
   policy
 } from "../src/index.js"
+import { parseCapabilityMetadata } from "@executioncontrolprotocol/core/types"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 

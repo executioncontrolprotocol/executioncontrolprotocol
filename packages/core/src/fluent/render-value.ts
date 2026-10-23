@@ -1,4 +1,4 @@
-import type { InputValue } from "@executioncontrolprotocol/types"
+import type { InputValue } from "../types/index.js"
 
 /** Track which helpers are required. @category Fluent */
 export interface ImportNeeds {

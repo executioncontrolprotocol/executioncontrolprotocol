@@ -1,7 +1,7 @@
 import { capabilityFor, defineExtension } from "../definitions/index.js"
 import { ecpEncodeInputSchema, ecpEncodeResultSchema } from "../encoding/schemas.js"
 import { encodeFluent } from "../fluent/encode-fluent.js"
-import type { EcpEncodeInput } from "@executioncontrolprotocol/types"
+import type { EcpEncodeInput } from "../types/index.js"
 
 /** Core Fluent format extension (encode only in v1). @category Formats */
 export const formatFluentExtension = defineExtension("@executioncontrolprotocol", "format-fluent")

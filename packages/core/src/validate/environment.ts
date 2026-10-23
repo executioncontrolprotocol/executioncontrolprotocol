@@ -1,5 +1,5 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
+import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest } from "../types/index.js"
 import { globalRegistry } from "../registry/registry.js"
 import { validateWorkflow } from "./workflow.js"
 import type { ResolvedBindings } from "../environment/bindings.js"

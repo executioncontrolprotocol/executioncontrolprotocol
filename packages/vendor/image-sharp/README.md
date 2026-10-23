@@ -50,4 +50,4 @@ export default environment("image-demo").withExtensions([
 
 ## Image references
 
-Uses shared `FileRef` from `@executioncontrolprotocol/types` (`artifact`, `file`, `url`, `buffer`).
+Uses shared `FileRef` from `@executioncontrolprotocol/core/types` (`artifact`, `file`, `url`, `buffer`).

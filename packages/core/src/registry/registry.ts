@@ -1,4 +1,4 @@
-import type { CapabilityId, NamespacedId, RegistryRegistrationRequest } from "@executioncontrolprotocol/types"
+import type { CapabilityId, NamespacedId, RegistryRegistrationRequest } from "../types/index.js"
 import type {
   CapabilityDefinition,
   ExtensionDefinition,

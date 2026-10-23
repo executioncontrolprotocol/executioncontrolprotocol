@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { fileRefSchema } from "@executioncontrolprotocol/types"
+import { fileRefSchema } from "@executioncontrolprotocol/core/types"
 
 /** Download capability input. @category Azure */
 export const downloadInputSchema = z.object({

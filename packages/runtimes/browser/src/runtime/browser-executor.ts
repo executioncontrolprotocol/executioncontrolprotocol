@@ -1,5 +1,5 @@
 import { InMemoryRuntimeExecutor } from "@executioncontrolprotocol/core"
-import type { RunResult, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { RunResult, WorkflowManifest } from "@executioncontrolprotocol/core/types"
 import type { RuntimeExecutionContext, RuntimeExecutor } from "@executioncontrolprotocol/core"
 
 /** Browser runtime executor (delegates to in-memory engine). @category Runtime */

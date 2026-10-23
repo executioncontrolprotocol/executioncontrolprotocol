@@ -1,4 +1,4 @@
-import type { CapabilityExecution } from "@executioncontrolprotocol/types"
+import type { CapabilityExecution } from "../types/index.js"
 import { BROWSER_RUNTIME_ID, NODE_RUNTIME_ID } from "./runtime-ids.js"
 
 /** Extension shape needed to infer capability execution. @category Runtime */

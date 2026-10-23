@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/core/types"
 import {
   clearDownstreamTestState,
   flattenTestStepOrder,

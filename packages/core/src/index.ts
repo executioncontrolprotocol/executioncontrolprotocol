@@ -1,6 +1,3 @@
-export { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-export * from "@executioncontrolprotocol/types"
-
 export { ref } from "./helpers/ref.js"
 export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
@@ -83,6 +80,12 @@ export {
   RegistryRegistrationDeniedError,
 } from "./registry/errors.js"
 export { matchesNamespace, matchesAnyNamespace } from "./registry/namespace.js"
+export {
+  registryControlPolicy,
+  registerRegistryControlPolicy,
+  REGISTRY_CONTROL_POLICY_ID,
+  type RegistryControlPolicyConfig,
+} from "./policies/registry-control.js"
 export { InMemoryRuntimeExecutor } from "./runtime/in-memory-executor.js"
 export type {
   PolicyContext,

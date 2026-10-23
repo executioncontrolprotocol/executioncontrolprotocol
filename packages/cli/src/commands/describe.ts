@@ -1,5 +1,5 @@
 import { Flags } from "@oclif/core"
-import type { DescribeQuery } from "@executioncontrolprotocol/types"
+import type { DescribeQuery } from "@executioncontrolprotocol/core/types"
 import { readJsonFile, runWithCommandError } from "../lib/command-helpers.js"
 import { EnvModuleCommand } from "../lib/env-module-command.js"
 

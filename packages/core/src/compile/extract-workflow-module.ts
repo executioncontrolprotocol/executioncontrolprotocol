@@ -1,4 +1,4 @@
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "../types/index.js"
 import type { WorkflowBuilder } from "../workflow/builder.js"
 
 const WORKFLOW_EXPORT_NAMES = ["default", "workflow", "defaultWorkflow", "manifest"]

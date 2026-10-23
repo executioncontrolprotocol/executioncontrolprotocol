@@ -1,5 +1,5 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
+import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "../types/index.js"
 import type { z } from "zod"
 import { slugify } from "../util/slug.js"
 import type { StepBuilder } from "../bindings/step.js"

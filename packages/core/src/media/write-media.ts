@@ -1,4 +1,4 @@
-import { FILE_REF_KINDS, type FileRef } from "@executioncontrolprotocol/types"
+import { FILE_REF_KINDS, type FileRef } from "../types/index.js"
 import { defaultArtifactFilename } from "./artifact-filename.js"
 import {
   STORAGE_ARTIFACT_URI_PREFIX,

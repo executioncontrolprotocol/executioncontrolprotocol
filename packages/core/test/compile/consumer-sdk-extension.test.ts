@@ -121,14 +121,12 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
   // SDK lives only under the vendor package (not hoisted to the consumer).
   await writeCjsNetSdk(join(vendorExtDir, "node_modules", "fake-cjs-net-sdk"))
   await linkPkg(vendorExtDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
-  await linkPkg(vendorExtDir, "@executioncontrolprotocol/types", join(repoRoot, "packages/types"))
   await linkPkg(vendorExtDir, "zod", resolveZodDir())
 
   const consumerDir = join(work, "consumer")
   await mkdir(consumerDir, { recursive: true })
   await linkPkg(consumerDir, "@ecp-fixture/heavy-sdk-ext", vendorExtDir)
   await linkPkg(consumerDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/types", join(repoRoot, "packages/types"))
   await linkPkg(consumerDir, "@executioncontrolprotocol/node", join(repoRoot, "packages/runtimes/node"))
   await linkPkg(consumerDir, "@executioncontrolprotocol/policies", join(repoRoot, "packages/policies"))
   await linkPkg(consumerDir, "@executioncontrolprotocol/secrets", join(repoRoot, "packages/extensions/secrets"))

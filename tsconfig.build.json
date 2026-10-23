@@ -1,24 +1,59 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/types" },
-    { "path": "packages/core" },
-    { "path": "packages/vendor/fal" },
-    { "path": "packages/vendor/jsonata" },
-    { "path": "packages/vendor/image-sharp" },
-    { "path": "packages/vendor/adobe-firefly-services" },
-    { "path": "packages/vendor/azure-blob-storage" },
-    { "path": "packages/runtimes/node" },
-    { "path": "packages/runtimes/browser" },
-    { "path": "packages/policies" },
-    { "path": "packages/mcp" },
-    { "path": "packages/extensions/openai" },
-    { "path": "packages/extensions/ollama" },
-    { "path": "packages/extensions/format-toon" },
-    { "path": "packages/extensions/format-mermaid" },
-    { "path": "packages/extensions/secrets" },
-    { "path": "packages/extensions/process-env" },
-    { "path": "packages/extensions/anthropic" },
-    { "path": "packages/cli" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/vendor/fal"
+    },
+    {
+      "path": "packages/vendor/jsonata"
+    },
+    {
+      "path": "packages/vendor/image-sharp"
+    },
+    {
+      "path": "packages/vendor/adobe-firefly-services"
+    },
+    {
+      "path": "packages/vendor/azure-blob-storage"
+    },
+    {
+      "path": "packages/runtimes/node"
+    },
+    {
+      "path": "packages/runtimes/browser"
+    },
+    {
+      "path": "packages/policies"
+    },
+    {
+      "path": "packages/mcp"
+    },
+    {
+      "path": "packages/extensions/openai"
+    },
+    {
+      "path": "packages/extensions/ollama"
+    },
+    {
+      "path": "packages/extensions/format-toon"
+    },
+    {
+      "path": "packages/extensions/format-mermaid"
+    },
+    {
+      "path": "packages/extensions/secrets"
+    },
+    {
+      "path": "packages/extensions/process-env"
+    },
+    {
+      "path": "packages/extensions/anthropic"
+    },
+    {
+      "path": "packages/cli"
+    }
   ]
 }

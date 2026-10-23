@@ -1,4 +1,4 @@
-import type { EnvValue, SecretValue } from "@executioncontrolprotocol/types"
+import type { EnvValue, SecretValue } from "../types/index.js"
 
 /** Extension id for process environment resolution. @category Environment */
 export const PROCESS_ENV_RESOLVER_ID = "@executioncontrolprotocol/process-env"

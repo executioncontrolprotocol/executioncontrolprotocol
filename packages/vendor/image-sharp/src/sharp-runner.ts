@@ -1,5 +1,5 @@
 import type { SharpOptions } from "sharp"
-import type { FileRef } from "@executioncontrolprotocol/types"
+import type { FileRef } from "@executioncontrolprotocol/core/types"
 import type { CapabilityContext } from "@executioncontrolprotocol/core"
 import { readImageToBuffer, writeArtifact, mediaTypeForFormat, defaultArtifactNameForFormat } from "./artifact.js"
 import { applyOperation } from "./operations.js"

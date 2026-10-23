@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import { z } from "zod"
 import type { RuntimeDefinition } from "./types.js"
 import type { ConfigSchema } from "../config-schema/index.js"

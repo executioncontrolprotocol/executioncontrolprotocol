@@ -13,6 +13,8 @@ Use for:
 - Workflow authoring: `workflow()`, `step()`, `.accepts()` / `.returns()`, `parallel()`, etc.
 - Fluent output: `ecp.encode(manifest).as("fluent")` (no `@executioncontrolprotocol/format-fluent` extension)
 
+Protocol types and schema constants live on **`@executioncontrolprotocol/core/types`** (for example `WorkflowManifest`, `LATEST_ECP_VERSION`, `FileRef`). The main barrel does not re-export them.
+
 Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) should resolve only `@executioncontrolprotocol/core` for browser apps.
 
 ### Media resolve/write (extensions)
@@ -61,8 +63,8 @@ CLI and `@executioncontrolprotocol/node` import `@executioncontrolprotocol/core/
 
 ## Related packages
 
+- **`@executioncontrolprotocol/core/types`** — Protocol types and JSON Schema outputs (`dist/schemas/`)
 - **`@executioncontrolprotocol/node`** — Node runtime, process env, secrets, re-exports Node compile
 - **`@executioncontrolprotocol/browser`** — Browser runtime, registry, local config
-- **`@executioncontrolprotocol/types`** — Protocol types and JSON Schema outputs
 
 See [AGENTS.md](../../AGENTS.md) for monorepo commands and extension rules.

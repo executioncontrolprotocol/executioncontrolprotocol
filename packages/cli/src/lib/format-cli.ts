@@ -1,4 +1,4 @@
-import { ECP_CORE_FORMATTER_IDS, ECP_FORMATS } from "@executioncontrolprotocol/types"
+import { ECP_CORE_FORMATTER_IDS, ECP_FORMATS } from "@executioncontrolprotocol/core/types"
 
 /** CLI `--format` values. */
 export type CliFormat = "json" | "toon" | "fluent"

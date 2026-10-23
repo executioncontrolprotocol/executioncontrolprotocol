@@ -8,7 +8,7 @@ import {
   type ExtensionDefinition,
   type LifecycleContext,
 } from "@executioncontrolprotocol/core"
-import type { RegistryRegistrationRequest } from "@executioncontrolprotocol/types"
+import type { RegistryRegistrationRequest } from "@executioncontrolprotocol/core/types"
 import { z } from "zod"
 
 const EXT_ID = "@executioncontrolprotocol/browser-registry"

@@ -6,7 +6,7 @@ import {
   ecpEncodeResultSchema
 } from "../encoding/schemas.js"
 import { decodeJson, encodeJson } from "../encoding/json-codec.js"
-import type { EcpDecodeInput, EcpEncodeInput, EcpSchema } from "@executioncontrolprotocol/types"
+import type { EcpDecodeInput, EcpEncodeInput, EcpSchema } from "../types/index.js"
 import { validateWorkflow } from "../validate/workflow.js"
 import { ecpPatchDocumentSchema } from "../patch/patch-document.js"
 import { emptyValidationResult } from "../validate/workflow-schema.js"
@@ -15,9 +15,9 @@ import { zodIssuesToValidationIssues } from "../validate/zod-mapper.js"
 function validateDecodedDocument(
   document: unknown,
   targetSchema?: EcpSchema
-): import("@executioncontrolprotocol/types").ValidationResult {
+): import("../types/index.js").ValidationResult {
   if (targetSchema === "@executioncontrolprotocol.workflow") {
-    return validateWorkflow(document as import("@executioncontrolprotocol/types").WorkflowManifest)
+    return validateWorkflow(document as import("../types/index.js").WorkflowManifest)
   }
   if (targetSchema === "@executioncontrolprotocol.patch") {
     const parsed = ecpPatchDocumentSchema.safeParse(document)

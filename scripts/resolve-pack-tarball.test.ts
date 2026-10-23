@@ -9,16 +9,16 @@ import {
 } from "./resolve-pack-tarball.mjs"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
-const typesVersion = JSON.parse(
-  readFileSync(join(repoRoot, "packages/types/package.json"), "utf8"),
+const coreVersion = JSON.parse(
+  readFileSync(join(repoRoot, "packages/core/package.json"), "utf8"),
 ).version as string
-const typesTarball = `executioncontrolprotocol-types-${typesVersion}.tgz`
+const coreTarball = `executioncontrolprotocol-core-${coreVersion}.tgz`
 
 describe("parsePackTarballLine", () => {
   it("returns the last .tgz line from verbose pnpm pack output", () => {
-    const tarballPath = `tmp/ecp-consumer-cli-abc/packs/${typesTarball}`
+    const tarballPath = `tmp/ecp-consumer-cli-abc/packs/${coreTarball}`
     const output = [
-      `📦  @executioncontrolprotocol/types@${typesVersion}`,
+      `📦  @executioncontrolprotocol/core@${coreVersion}`,
       "Tarball Contents",
       "package.json",
       "Tarball Details",
@@ -29,7 +29,7 @@ describe("parsePackTarballLine", () => {
   })
 
   it("returns the final line when no .tgz suffix is present", () => {
-    expect(parsePackTarballLine(`line1\n${typesTarball}\n`)).toBe(typesTarball)
+    expect(parsePackTarballLine(`line1\n${coreTarball}\n`)).toBe(coreTarball)
   })
 })
 
@@ -37,27 +37,27 @@ describe("resolvePackTarballPath", () => {
   const packsDir = "/tmp/ecp-consumer-cli-abc/packs"
 
   it("joins a bare filename under packsDir", () => {
-    expect(resolvePackTarballPath(packsDir, typesTarball)).toBe(join(packsDir, typesTarball))
+    expect(resolvePackTarballPath(packsDir, coreTarball)).toBe(join(packsDir, coreTarball))
   })
 
   it("uses basename when pnpm prints a relative path (Linux CI)", () => {
     const resolved = resolvePackTarballPath(
       packsDir,
-      `tmp/ecp-consumer-cli-abc/packs/${typesTarball}`,
+      `tmp/ecp-consumer-cli-abc/packs/${coreTarball}`,
     )
-    expect(resolved).toBe(join(packsDir, typesTarball))
+    expect(resolved).toBe(join(packsDir, coreTarball))
     expect(resolved).not.toContain("packs/tmp/")
     expect(resolved).not.toContain("packs\\tmp\\")
   })
 
   it("preserves a POSIX absolute path", () => {
-    const absolute = `/tmp/ecp-consumer-cli/packs/${typesTarball}`
+    const absolute = `/tmp/ecp-consumer-cli/packs/${coreTarball}`
     expect(resolvePackTarballPath(packsDir, absolute)).toBe(absolute)
     expect(isAbsolutePackPath(absolute)).toBe(true)
   })
 
   it("preserves a Windows absolute path even on POSIX runners", () => {
-    const absolute = `C:\\Users\\runner\\AppData\\Local\\Temp\\ecp-consumer-cli\\packs\\${typesTarball}`
+    const absolute = `C:\\Users\\runner\\AppData\\Local\\Temp\\ecp-consumer-cli\\packs\\${coreTarball}`
     expect(resolvePackTarballPath(packsDir, absolute)).toBe(absolute)
     expect(isAbsolutePackPath(absolute)).toBe(true)
   })

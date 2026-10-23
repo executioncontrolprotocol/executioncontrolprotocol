@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 
 const validationIssueSchema = z.object({
   severity: z.enum(["error", "warning", "info"]),

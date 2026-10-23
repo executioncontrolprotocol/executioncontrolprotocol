@@ -107,5 +107,5 @@ Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
 
 - [`@executioncontrolprotocol/core`](../core/README.md): runtime-agnostic core + fluent API
 - [`@executioncontrolprotocol/node`](../runtimes/node/README.md): Node runtime host used by CLI examples
-- [`@executioncontrolprotocol/types`](../types/README.md): protocol types + generated JSON Schemas
+- [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents

@@ -5,7 +5,7 @@ import {
   type InvokeResult,
   type ValidationIssue,
   type ValidationResult,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 
 /** Pairing for same-id hops to a local invoke host. @category Runtime */
 export interface RemoteInvokeBinding {

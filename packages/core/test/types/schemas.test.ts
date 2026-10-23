@@ -4,7 +4,7 @@ import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import Ajv from "ajv"
 
-const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
+const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "../..")
 const schemasDir = join(pkgRoot, "dist", "schemas")
 
 function loadSchema(name: string): object {
@@ -27,14 +27,14 @@ describe("generated JSON schemas", () => {
 
   it("validates example workflow fixture", () => {
     const valid = JSON.parse(
-      readFileSync(join(pkgRoot, "test", "fixtures", "workflow.valid.json"), "utf8")
+      readFileSync(join(pkgRoot, "test", "types", "fixtures", "workflow.valid.json"), "utf8")
     )
     expect(ajv.validate(workflowSchemaId, valid)).toBe(true)
   })
 
   it("rejects invalid workflow fixture", () => {
     const invalid = JSON.parse(
-      readFileSync(join(pkgRoot, "test", "fixtures", "workflow.invalid.json"), "utf8")
+      readFileSync(join(pkgRoot, "test", "types", "fixtures", "workflow.invalid.json"), "utf8")
     )
     expect(ajv.validate(workflowSchemaId, invalid)).toBe(false)
   })

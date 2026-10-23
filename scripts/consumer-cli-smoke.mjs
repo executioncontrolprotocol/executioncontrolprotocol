@@ -29,7 +29,6 @@ const keep = process.env.KEEP_CONSUMER_CLI === "1"
 
 /** Workspace package names required for the echo consumer fixture + CLI binary. */
 const REQUIRED = new Set([
-  "@executioncontrolprotocol/types",
   "@executioncontrolprotocol/core",
   "@executioncontrolprotocol/policies",
   "@executioncontrolprotocol/secrets",

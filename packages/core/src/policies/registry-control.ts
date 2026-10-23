@@ -1,16 +1,16 @@
-import type { PolicyContext } from "@executioncontrolprotocol/core"
-import type { PolicyDecision } from "@executioncontrolprotocol/types"
-import { definePolicy, globalRegistry, hook, matchesAnyNamespace } from "@executioncontrolprotocol/core"
 import { z } from "zod"
+import { definePolicy } from "../definitions/policy.js"
+import { hook } from "../definitions/hook.js"
+import { globalRegistry } from "../registry/registry.js"
+import { matchesAnyNamespace } from "../registry/namespace.js"
+import type { PolicyContext } from "../runtime/context.js"
+import type { PolicyDecision, PolicyLifecycleEvent } from "../types/index.js"
 
 type PolicyHookFn = (
   ctx: PolicyContext & { config: Record<string, unknown> }
 ) => PolicyDecision | void | Promise<PolicyDecision | void>
 
-function policyHook(
-  event: import("@executioncontrolprotocol/types").PolicyLifecycleEvent,
-  fn: PolicyHookFn
-) {
+function policyHook(event: PolicyLifecycleEvent, fn: PolicyHookFn) {
   return hook(event, (lifecycleCtx) =>
     fn(lifecycleCtx as unknown as PolicyContext & { config: Record<string, unknown> })
   )
@@ -30,7 +30,7 @@ export interface RegistryControlPolicyConfig {
 
 const POLICY_ID = "@executioncontrolprotocol/registry-control"
 
-/** @executioncontrolprotocol/registry-control — governs dynamic extension registration. @category Policies */
+/** `@executioncontrolprotocol/registry-control` — governs dynamic extension registration. @category Policies */
 export const registryControlPolicy = definePolicy("@executioncontrolprotocol", "registry-control")
   .withConfig({
     allowedExtensionNamespaces: z.array(z.string()).optional(),
@@ -91,9 +91,10 @@ export const registryControlPolicy = definePolicy("@executioncontrolprotocol", "
   ])
   .build()
 
+/** Policy id for `@executioncontrolprotocol/registry-control`. @category Policies */
 export { POLICY_ID as REGISTRY_CONTROL_POLICY_ID }
 
-/** Register `@executioncontrolprotocol/registry-control` on the global registry. */
+/** Register `@executioncontrolprotocol/registry-control` on a registry. @category Policies */
 export async function registerRegistryControlPolicy(registry = globalRegistry): Promise<void> {
   if (!registry.getPolicy(POLICY_ID)) {
     await registry.registerPolicy(registryControlPolicy)

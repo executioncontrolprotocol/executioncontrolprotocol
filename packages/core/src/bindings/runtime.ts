@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { RuntimeDefinition } from "../definitions/types.js"
 
 /** Runtime binding builder. @category Environment */

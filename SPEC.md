@@ -5,7 +5,7 @@ and execution protocol**.
 
 **Source of truth during the CLI reset:** [`RESET-PLAN.md`](RESET-PLAN.md)  
 **Monorepo guide:** [`AGENTS.md`](AGENTS.md)  
-**Types:** [`packages/types`](packages/types) (`@executioncontrolprotocol/types`)
+**Types:** [`packages/core/src/types`](packages/core/src/types) (`@executioncontrolprotocol/core/types`)
 
 > **Rule 1:** Workflows are portable execution graphs. Environments execute workflows.
 
@@ -100,7 +100,7 @@ Extensions are the primary way to add capabilities and hooks.
 
 Key rules:
 
-- extensions depend on `@executioncontrolprotocol/types` + `@executioncontrolprotocol/core` only
+- extensions depend on `@executioncontrolprotocol/core` and `@executioncontrolprotocol/core/types` only
 - extensions must not import host runtimes (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, CLI, MCP)
 - first-party protocol/platform extensions under `packages/extensions/*` follow the same rules as
   third-party extensions (“dogfooding”); vendor packages live in `extensions`

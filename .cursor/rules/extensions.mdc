@@ -19,7 +19,7 @@ the phase docs build. Don't add new uses of anything marked as going away.
 
 | Package | Use for |
 | --- | --- |
-| `@executioncontrolprotocol/core` (and `@executioncontrolprotocol/types` until Phase 2) | `defineExtension`, `capabilityFor`, `definePolicy`, validation, file I/O (`resolveFile`, `writeMediaArtifact`) |
+| `@executioncontrolprotocol/core` and `@executioncontrolprotocol/core/types` | `defineExtension`, `capabilityFor`, `definePolicy`, protocol types, validation, file I/O (`resolveFile`, `writeMediaArtifact`) |
 | `zod` | Config and capability I/O schemas. Import from `"zod"` directly |
 | Focused third-party libraries | Only what the extension's job needs |
 | `@executioncontrolprotocol/plugin-sdk` (from Phase 3) | Generated CLI commands. Never hand-written oclif code |

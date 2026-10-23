@@ -38,7 +38,7 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
           }
         ]
       })
-      .withHandler((input, ctx) => encodeToToon(input as import("@executioncontrolprotocol/types").EcpEncodeInput, ctx as never)),
+      .withHandler((input, ctx) => encodeToToon(input as import("@executioncontrolprotocol/core/types").EcpEncodeInput, ctx as never)),
 
     capabilityFor("@executioncontrolprotocol/format-toon", "decode")
       .withInput(ecpDecodeInputSchema)
@@ -60,6 +60,6 @@ export const formatToonExtension = defineExtension("@executioncontrolprotocol", 
           }
         ]
       })
-      .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/types").EcpDecodeInput, ctx as never))
+      .withHandler((input, ctx) => decodeFromToon(input as import("@executioncontrolprotocol/core/types").EcpDecodeInput, ctx as never))
   ])
   .build()

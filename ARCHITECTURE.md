@@ -50,8 +50,8 @@ definitions are available.
 
 Key boundary:
 
-> **Extensions never import hosts.** Extension packages depend on `@executioncontrolprotocol/types` +
-> `@executioncontrolprotocol/core` only. Host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`) wrap core.
+> **Extensions never import hosts.** Extension packages depend on `@executioncontrolprotocol/core` and
+> `@executioncontrolprotocol/core/types` only. Host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`) wrap core.
 
 ------------------------------------------------------------------------
 
@@ -74,14 +74,14 @@ Policies can:
 
 ## Package architecture (at a glance)
 
-- `@executioncontrolprotocol/types`: protocol types + JSON Schema artifacts
-- `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine
+- `@executioncontrolprotocol/core/types`: protocol types + JSON Schema artifacts
+- `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine + `registry-control`
 - `@executioncontrolprotocol/core/compile` / `core/browser`: host-specific **compile** (Node esbuild vs browser esbuild-wasm) — not part of the runtime host packages
 - `@executioncontrolprotocol/node`: Node runtime host
 - `@executioncontrolprotocol/browser`: browser runtime host
 - `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, secrets, model providers) — written like third-party extensions
 - Vendor extensions (`fal`, `image-sharp`, `adobe`, …)
-- `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control, registry-control)
+- `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
 - `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/invoke/test
 

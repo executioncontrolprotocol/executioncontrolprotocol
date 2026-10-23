@@ -1,6 +1,6 @@
 # Vendor extensions
 
-Third-party dogfood packages. They depend on `@executioncontrolprotocol/core` and `@executioncontrolprotocol/types` through public entry points only (`workspace:^` in this monorepo; published peers for external authors).
+Third-party dogfood packages. They depend on `@executioncontrolprotocol/core` and `@executioncontrolprotocol/core/types` through public entry points only (`workspace:^` in this monorepo; published peers for external authors).
 
 Protocol/platform extensions stay in [`packages/extensions`](../extensions).
 
