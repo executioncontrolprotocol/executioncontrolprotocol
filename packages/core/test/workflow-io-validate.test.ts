@@ -180,12 +180,13 @@ describe("accepts / returns gate (edge)", () => {
     await ecp.terminate()
   })
 
-  it("rejects test-session execute when accepts input is invalid", async () => {
-    const ecp = await initTestEcp("test-session-accepts")
+  it("rejects run --to when accepts input is invalid", async () => {
+    const ecp = await initTestEcp("step-accepts")
     const manifest = echoFromInputManifest()
-    const session = await ecp.test(manifest).with({ input: {} }).start()
     const stepId = (manifest.steps[0] as { id: string }).id
-    await expect(session.runTo(stepId)).rejects.toThrow(/Workflow accepts validation failed/)
+    await expect(ecp.run(manifest, { input: {}, stopAfterStepId: stepId })).rejects.toThrow(
+      /Workflow accepts validation failed/
+    )
     await ecp.terminate()
   })
 })

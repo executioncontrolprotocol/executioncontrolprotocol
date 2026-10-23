@@ -144,6 +144,7 @@ describe("requirement id mapping", () => {
     expect(inferredPackageName("@executioncontrolprotocol/secrets")).toBeUndefined()
     expect(inferredPackageName("@executioncontrolprotocol/process-env")).toBeUndefined()
     expect(inferredPackageName("@executioncontrolprotocol/registry-control")).toBeUndefined()
+    expect(inferredPackageName("@executioncontrolprotocol/journal")).toBeUndefined()
   })
 
   it("walks flow nodes when collecting capability ids", () => {

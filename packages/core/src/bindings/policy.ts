@@ -3,6 +3,8 @@ import type { PolicyDefinition } from "../definitions/types.js"
 
 /** Policy binding builder. @category Environment */
 export class PolicyBindingBuilder {
+  /** Discriminator so `instanceof` is not required across bundled copies. */
+  readonly kind = "policy" as const
   private range?: string
   private packageName?: string
 

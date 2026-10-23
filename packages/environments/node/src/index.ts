@@ -51,6 +51,20 @@ export {
 
 export { readMediaFileFromPath } from "./loaders/read-media-file.js"
 
+export { journalExtension } from "./journal/extension.js"
+export {
+  writeInvokeJournal,
+  readRunJournal,
+  readStepJournal,
+  listRunJournals,
+  journalRunStart,
+  journalRunEnd,
+  journalStep,
+} from "./journal/writer.js"
+export { runsRoot, runDir } from "./journal/paths.js"
+export { sha256Hex, hashStepDefinition } from "./journal/hash.js"
+export { redactSecrets, recordResolvedSecret, secretMarker } from "./journal/redact.js"
+
 export {
   workflow,
   step,

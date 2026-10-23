@@ -3,6 +3,8 @@ import type { ExtensionDefinition } from "../definitions/types.js"
 
 /** Extension binding builder. @category Environment */
 export class ExtensionBindingBuilder {
+  /** Discriminator so `instanceof` is not required across bundled copies. */
+  readonly kind = "extension" as const
   private range?: string
   private packageName?: string
 

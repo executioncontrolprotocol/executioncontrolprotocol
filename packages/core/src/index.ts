@@ -77,18 +77,13 @@ export {
 } from "./environment/describe.js"
 export { EcpImpl, type Ecp, type RunOptions } from "./environment/ecp.js"
 export {
-  createTestSessionBuilder,
-  restoreTestSession,
-  type TestSession,
-  type TestSessionBuilder,
-  type TestSessionStartOptions,
-} from "./test-session/index.js"
-export {
-  flattenTestStepOrder,
-  findTestStep,
-  clearDownstreamTestState,
-  isLastTestStep,
-} from "./runtime/test-session-state.js"
+  flattenStepOrder,
+  findStep,
+  clearDownstreamState,
+  clearFromStep,
+  isLastStep,
+  canonicalStepDefinition,
+} from "./runtime/step-order.js"
 export type { RuntimeExecutor, RuntimeExecutionContext, RuntimeExecutionMode } from "./runtime/executor.js"
 export { assignUniqueStepIds } from "./workflow/assign-unique-step-ids.js"
 export { satisfiesRange } from "./util/semver-range.js"

@@ -1,7 +1,7 @@
 # Phase 4 — Workflow files and observability
 
-> Status: In progress (PR 1 landed on this branch) · Branch: `feat/phase-4-workflow-files` · Depends on: Phase 3 ·
-> Plan: §4.3, §4.4, §4.6
+> Status: ✅ Done 2026-10-23 · Branch: `feat/phase-4-journal-and-runs` (PR 2; PR 1 was
+> `feat/phase-4-workflow-files`) · Depends on: Phase 3 · Plan: §4.3, §4.4, §4.6
 
 ## Starting point after Phase 3
 
@@ -289,15 +289,16 @@ can be stepped, resumed and re-run.
 
 ## Exit criteria
 
-- [ ] On a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and runs;
-      `--json` returns `ECP_PLUGINS_MISSING` instead.
-- [ ] Every `ecp test` ability exists on the journal: `ecp run --to`, `runs resume` (including
+- [x] On a machine without `plugin-jsonata`, `ecp run demo.ecp.ts` prompts, installs and runs;
+      `--json` returns `ECP_PLUGINS_MISSING` instead. (Prompt / `--yes` / `--json` are tested
+      with mocked `plugins:install`; first-party npm install waits on Phase 5 publishing.)
+- [x] Every `ecp test` ability exists on the journal: `ecp run --to`, `runs resume` (including
       `--approve`), `runs rerun --from/--to`, `runs show`.
-- [ ] A failed step can be fixed and resumed with `ecp runs rerun <id> --from <step>`.
-- [ ] Every run writes a versioned, redacted journal; `--events` streams NDJSON.
-- [ ] Bound config is validated against `withConfig` schemas.
-- [ ] Examples are single files; `test-session` and `ecp test` are gone, replaced as above.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] A failed step can be fixed and resumed with `ecp runs rerun <id> --from <step>`.
+- [x] Every run writes a versioned, redacted journal; `--events` streams NDJSON.
+- [x] Bound config is validated against `withConfig` schemas.
+- [x] Examples are single files; `test-session` and `ecp test` are gone, replaced as above.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
 
 ## Risks
 
@@ -327,3 +328,45 @@ Shipped:
 - `ecp test *` is unchanged for this PR (session file still works). `RunStatus` includes `stopped` for PR 2.
 
 Remaining for PR 2: journal writer, `--events`, lift `stopAfterStepId` / `onlyStepId` off test mode, `ecp runs list|show|resume|rerun`, delete `test-session` after porting tests, mark the phase Done.
+
+## Outcome (PR 2)
+
+PR 2 (`feat/phase-4-journal-and-runs`) ships journals, `--events`, `ecp run --to`, and `ecp runs *`. Phase 4 is Done.
+
+Shipped:
+
+- Node journal writer (built-in `@executioncontrolprotocol/journal` host hook) writes
+  `.ecp/runs/<runId>/run.json` and `steps/<stepId>.json` (`journalVersion: 1`). Override the
+  root with `ECP_RUNS_DIR`. Secret values are recorded by the secrets resolver and replaced
+  with `"[secret:<key>]"`. Every `ecp run` and every generated capability command writes a
+  journal. The CLI always binds the journal extension, including when `--env` loads an
+  environment module compiled against a different copy of core.
+- `ecp run --events` streams NDJSON (`run.start`, `step.start`, `step.policy`, `step.end`,
+  `step.error`, `run.end`). With `--events`, the last line is `run.end`.
+- Executor `stopAfterStepId` / `onlyStepId` / `seedState` / `seedHistory` apply to normal runs
+  (they were test-mode-only). Early stop reports `stopped`, not `paused`. Policy pause stays
+  `paused` (`ECP_RUN_PAUSED`, exit 4).
+- `ecp run --to <step>` → `stopped`. `ecp runs list|show|resume|rerun` replace `ecp test`.
+  Each resume/rerun is a new run id (`parentRunId` / `resumedFrom`). `--approve` records
+  `{ stepId, approvedBy, at }` for the approval policy. Restored step definition hash
+  mismatch → `ECP_RERUN_INCOMPATIBLE`.
+- `core/src/test-session`, `runtime/test-session-state.ts`, test-session types, CLI
+  `ecp test` operations, and `test-session-io.ts` are deleted. Spawn and in-process tests were
+  ported onto the new commands first.
+- Binding builders carry `kind: "policy" | "extension"` so `Environment.with()` can classify
+  bindings across bundled copies of core (`instanceof` is not enough when `--env` modules
+  resolve a different core file).
+- `.requires()` remains on **binding** builders (`extension()` / `policy()`), not
+  `defineExtension` / `definePolicy`.
+- Workflow-file import restriction does **not** apply to `--env` environment modules.
+- `providesConfigResolver` is a definition flag; resolver registration stays a runtime hook.
+- Ollama example folders were retired stubs; they were deleted, not converted. Vendor
+  examples wait for Phase 5.
+- First-party `plugins:install` from npm is still unpublished; missing-plugin tests use
+  link/mock, not the public registry. The TTY prompt path is covered with a mocked
+  `plugins:install` and a simulated TTY.
+- Error catalogue unifies existing `ECP_*` strings and remaps old invoke codes; plugin-sdk
+  re-exports the core constants.
+- `ecp.invoke` stays fluent.
+- `Environment.with()` merge is shallow-by-key for extensions and additive for policies (no
+  shim).

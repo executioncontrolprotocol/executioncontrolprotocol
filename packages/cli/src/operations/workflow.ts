@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { readFile, writeFile } from "node:fs/promises"
-import { compileWorkflowSource } from "@executioncontrolprotocol/node"
+import { compileWorkflowSource, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import type { PublicRunEvent } from "@executioncontrolprotocol/core/types"
 import {
   defineOperation,
   EcpCliError,
@@ -12,6 +13,7 @@ import { readJsonFile } from "../lib/command-helpers.js"
 import { applyFormat } from "../lib/format-output.js"
 import { prepareWorkflowRun, throwIfRunFailed } from "../lib/prepare-workflow.js"
 import { terminateIfNeeded } from "../lib/load-ecp.js"
+import { hashWorkflowSource, pluginVersions } from "../lib/runs-io.js"
 
 /** `ecp run`. @category CLI */
 export const runOperation = defineOperation("run")
@@ -21,6 +23,8 @@ export const runOperation = defineOperation("run")
       env: z.string().optional(),
       input: z.string().optional(),
       "dry-run": z.boolean().optional(),
+      to: z.string().optional(),
+      events: z.boolean().optional(),
     })
   )
   .withMetadata({
@@ -28,7 +32,11 @@ export const runOperation = defineOperation("run")
     description:
       "Compile (if needed) and execute a workflow. --env is an optional environment file overlay; omit it to use the process host.",
     useCases: ["Execute a single-file workflow"],
-    examples: ["ecp run examples/01-echo/workflow.ecp.ts", "ecp run brief.ecp.ts --env team.ecp.ts"],
+    examples: [
+      "ecp run examples/01-echo/workflow.ecp.ts",
+      "ecp run brief.ecp.ts --to fetch",
+      "ecp run brief.ecp.ts --events",
+    ],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
@@ -42,14 +50,31 @@ export const runOperation = defineOperation("run")
       install: true,
     })
     try {
+      const workflowPath = String(input["workflow-path"])
       const workflowInput = input.input
         ? await readJsonFile<Record<string, unknown>>(String(input.input), "--input")
+        : undefined
+      const source = await readFile(workflowPath, "utf8")
+      const events = Boolean(input.events)
+      const onEvent = events
+        ? (event: PublicRunEvent) => {
+            process.stdout.write(`${JSON.stringify(event)}\n`)
+          }
         : undefined
       const result = await ecp.run(loaded.manifest, {
         input: workflowInput,
         dryRun: Boolean(input["dry-run"]),
+        stopAfterStepId: input.to ? String(input.to) : undefined,
+        onEvent,
+        journal: {
+          workflowPath,
+          workflowHash: hashWorkflowSource(source),
+          pluginVersions: pluginVersions(ctx.config),
+          environmentId: NODE_ENVIRONMENT_ID,
+        },
       })
-      return throwIfRunFailed(result)
+      const finished = throwIfRunFailed(result)
+      return events ? undefined : finished
     } finally {
       await terminateIfNeeded(ecp, terminate)
     }

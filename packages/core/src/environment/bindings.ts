@@ -35,7 +35,12 @@ export interface ResolvedBindings {
   extensions: ResolvedExtensionBinding[]
   policies: ResolvedPolicyBinding[]
   extensionHooks: HookDefinition[]
-  policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>
+  policyHooks: Array<{
+    hook: HookDefinition
+    config: Record<string, unknown>
+    /** Policy definition id. */
+    policyId?: NamespacedId
+  }>
 }
 
 /** Unresolved config for environment manifests (keeps `$env` placeholders). */
@@ -63,7 +68,11 @@ export async function resolveBindingsForRun(
     rawConfig: Record<string, unknown>
   }>,
   extensionHooks: HookDefinition[],
-  policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>,
+  policyHooks: Array<{
+    hook: HookDefinition
+    config: Record<string, unknown>
+    policyId?: NamespacedId
+  }>,
   resolvers: EnvironmentConfigResolver[]
 ): Promise<ResolvedBindings> {
   return {
@@ -93,6 +102,7 @@ export async function resolveBindingsForRun(
       policyHooks.map(async (p) => ({
         hook: p.hook,
         config: await resolveEnvConfigAsync(p.config, resolvers),
+        policyId: p.policyId,
       }))
     ),
   }

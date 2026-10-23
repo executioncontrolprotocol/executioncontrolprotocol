@@ -41,7 +41,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 | --- | --- | --- |
 | `packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types (`@executioncontrolprotocol/core`, `./types`) | Host-agnostic. Exports `.` and `./types` only. `registry-control` is in core |
 | `packages/core/src/types/` | Protocol types and JSON Schemas (`@executioncontrolprotocol/core/types`) | Folded from `packages/types` in Phase 2 PR 1 |
-| `packages/environments/node/` | Node host (`@executioncontrolprotocol/node`) | Includes compile, loaders, OS secrets and process-env |
+| `packages/environments/node/` | Node host (`@executioncontrolprotocol/node`) | Includes compile, loaders, OS secrets, process-env, and the run journal |
 | `packages/environments/browser/` | Browser host (`@executioncontrolprotocol/browser`) | Includes browser compile (esbuild-wasm). Authoring panels and secrets provider removed in Phase 1 |
 | `packages/cli/` | `ecp` CLI (oclif 5, generated operations + hooks) | Rebuilt in Phase 3 |
 | `packages/plugin-sdk/` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library | Added in Phase 3 |
@@ -133,10 +133,14 @@ definitions. The only hand-written oclif code is the hooks.
 
 ```sh
 ecp run examples/01-echo/workflow.ecp.ts
+ecp run brief.ecp.ts --to fetch
+ecp run brief.ecp.ts --events
 ecp validate examples/01-echo/workflow.ecp.ts
 ecp describe
-ecp test start examples/01-echo/workflow.ecp.ts -o session.json
-ecp test run --to echo --session session.json
+ecp runs list
+ecp runs show <id>
+ecp runs resume <id>
+ecp runs rerun <id> --from web
 ecp install brief.ecp.ts
 ecp init brief
 ecp plugins new jsonata
@@ -144,13 +148,14 @@ ecp plugins link plugins/plugin-jsonata
 ecp jsonata transform --expression '$.a' --input payload.json --json
 ```
 
-- **Phase 1** removed `serve`, `up`, `encode` and `decode`. `ecp test` stays until Phase 4 PR 2.
-- **`--env` is optional** on `run` / `validate` / `ecp test *`. Omit it to use the process host
+- **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
+  (`ecp run --to`, `ecp runs resume`, `ecp runs rerun` replace it).
+- **`--env` is optional** on `run` / `validate` / `install`. Omit it to use the process host
   (built-in Node + installed plugins). `--env <file>` is an environment overlay
   (`environment(id).with([...])`), not a required pair. `describe` / `search` / `invoke` take
   it the same way.
 - **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
-- **Phase 4 PR 2:** `ecp test` becomes `ecp run --to`, `ecp runs resume` and `ecp runs rerun`.
+- Journals live under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`).
 
 ## Extension and plugin authoring
 

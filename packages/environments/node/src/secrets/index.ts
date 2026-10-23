@@ -35,7 +35,10 @@ function attachSecretsResolver(ctx: LifecycleContext): void {
   const resolver: EnvironmentConfigResolver = {
     id: SECRETS_RESOLVER_ID,
     async resolve(name: string) {
-      return activeStore.get(name)
+      const value = await activeStore.get(name)
+      const { recordResolvedSecret } = await import("../journal/redact.js")
+      recordResolvedSecret(name, value)
+      return value
     },
   }
   host.registerConfigResolver(resolver)

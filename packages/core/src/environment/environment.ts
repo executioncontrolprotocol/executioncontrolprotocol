@@ -65,6 +65,12 @@ function isPolicyDefinition(ref: unknown): ref is PolicyDefinition {
   )
 }
 
+function isPolicyBinding(binding: EnvironmentBinding): binding is PolicyBindingBuilder {
+  if ((binding as { kind?: string }).kind === "policy") return true
+  if (binding instanceof PolicyBindingBuilder) return true
+  return isPolicyDefinition(binding.getRef())
+}
+
 function emptyWorkflowStub(): WorkflowManifest {
   return {
     schema: "@executioncontrolprotocol.workflow",
@@ -86,6 +92,20 @@ export interface RunOptions {
   signal?: AbortSignal
   /** Run-scoped browser files for mixed upload locators. */
   blobs?: CapabilityBlobStore
+  /** Inclusive stop after this leaf step (`ecp run --to`). */
+  stopAfterStepId?: string
+  /** Execute only this leaf step (`ecp runs rerun --from X --to X`). */
+  onlyStepId?: string
+  /** Seed committed state for resume/rerun. */
+  seedState?: Record<string, unknown>
+  /** Seed step history for resume/rerun. */
+  seedHistory?: Record<string, StepRunRecord>
+  /** Recorded approvals for a paused step. */
+  approvals?: import("../types/index.js").RunApproval[]
+  /** Host journal metadata. */
+  journal?: import("../types/index.js").RunJournalMeta
+  /** Public NDJSON callback (`ecp run --events`). */
+  onEvent?: (event: import("../types/index.js").PublicRunEvent) => void
 }
 
 /**
@@ -152,7 +172,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   with(bindings: EnvironmentBinding[]): this {
     for (const binding of bindings) {
       const id = resolveId(binding.getRef())
-      if (binding instanceof PolicyBindingBuilder) {
+      if (isPolicyBinding(binding)) {
         this.policyBindings.push(binding)
       } else {
         const existing = this.extensionBindings.find((b) => resolveId(b.getRef()) === id)
@@ -388,7 +408,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const policyHooks = policyBindings.flatMap((pol) => {
       const def = this.registry.getPolicy(pol.id)
       if (!def) return []
-      return def.hooks.map((hook) => ({ hook, config: pol.rawConfig }))
+      return def.hooks.map((hook) => ({ hook, config: pol.rawConfig, policyId: pol.id }))
     })
 
     this.resolved = await resolveBindingsForRun(
@@ -595,62 +615,15 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       registry: this.registry,
       bindings,
       signal: options?.signal,
+      seedState: options?.seedState,
+      seedHistory: options?.seedHistory,
+      stopAfterStepId: options?.stopAfterStepId,
+      onlyStepId: options?.onlyStepId,
+      approvals: options?.approvals,
+      journal: options?.journal,
+      onEvent: options?.onEvent,
       remoteInvoke: this.remoteInvoke,
       blobs: options?.blobs ?? this.blobStore,
-      artifacts: this.ensureArtifactStore(),
-    })
-  }
-
-  /**
-   * @internal Test-session execution (runTo / rerun).
-   * Does not emit `environment:beforeRun` (session already prepared).
-   */
-  async ecpTestExecute(
-    workflow: WorkflowManifest,
-    options: {
-      input: Record<string, unknown>
-      seedState: Record<string, unknown>
-      seedHistory: Record<string, StepRunRecord>
-      stopAfterStepId?: string
-      onlyStepId?: string
-      signal?: AbortSignal
-    }
-  ): Promise<RunResult> {
-    await this.prepareForRun()
-    const validation = await validateEnvironmentWithWorkflow(
-      workflow,
-      await this.ecpDescribe(),
-      this.resolveBindings(),
-      this.registry,
-      this.environmentDef.version
-    )
-    if (!validation.valid) {
-      throw new Error(
-        `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
-      )
-    }
-    const acceptsCheck = validateWorkflowAcceptsInput(workflow, options.input)
-    if (!acceptsCheck.ok) {
-      throw new Error(acceptsCheck.message)
-    }
-
-    const bindings = this.resolveBindings()
-    const envDef = this.registry.getEnvironment(bindings.runtime.id)!
-    const executor: RuntimeExecutor = envDef.executor
-
-    return executor.execute(workflow, {
-      runId: globalThis.crypto.randomUUID(),
-      input: options.input,
-      registry: this.registry,
-      bindings,
-      signal: options.signal,
-      mode: "test",
-      seedState: options.seedState,
-      seedHistory: options.seedHistory,
-      stopAfterStepId: options.stopAfterStepId,
-      onlyStepId: options.onlyStepId,
-      remoteInvoke: this.remoteInvoke,
-      blobs: this.blobStore,
       artifacts: this.ensureArtifactStore(),
     })
   }

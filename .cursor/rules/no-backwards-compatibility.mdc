@@ -11,8 +11,8 @@ asks for it. The reset ships as 1.0, a major version.
 - **APIs and manifests:** use current names and shapes only. Don't add loaders, commands or
   type aliases whose only job is to accept old names (for example, no `withExtensions`
   alias after Phase 2 introduces `.with([...])`).
-- **CLI:** one command path per concern. When `ecp runs` replaces `ecp test` in Phase 4, the old
-  commands are deleted, not aliased.
+- **CLI:** one command path per concern. Phase 4 deleted `ecp test` when `ecp runs` replaced
+  it; no alias.
 - **Types:** avoid `@deprecated` re-exports of renamed symbols; keep one canonical name.
 - **Published packages:** the only compatibility work is Phase 9's `npm deprecate` messages
   pointing 0.x packages at their replacements.

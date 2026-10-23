@@ -3,6 +3,15 @@
 > Status: Planned · Branch: `feat/phase-5-plugins` (one PR per few plugins) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
+## Starting point after Phase 4
+
+Examples are single `*.ecp.ts` files. There is no `ecp test` (use `ecp run --to`,
+`ecp runs list|show|resume|rerun`). Every `ecp run` and generated capability command writes a
+journal under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`). `--env` is optional.
+`plugin-jsonata` is still the only migrated plugin. Policies (`budget`, `approval`,
+`state-control`) still live in `packages/policies` until this phase migrates them. Bind
+approval via a `--env` fixture until `plugin-approval` exists.
+
 ## Goal
 
 Every first-party capability set is its own npm plugin, installable with one command,

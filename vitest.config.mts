@@ -130,10 +130,10 @@ export default defineConfig({
       ],
       thresholds: {
         // Global floor across included packages (ratchet toward 90%; never lower to green CI).
-        lines: 80,
-        functions: 84,
-        branches: 66,
-        statements: 78,
+        lines: 82,
+        functions: 86,
+        branches: 68,
+        statements: 79,
         // Package floors — raise toward 90 as suites fill positive/negative/edge cases.
         "packages/core/src/**": {
           lines: 70,

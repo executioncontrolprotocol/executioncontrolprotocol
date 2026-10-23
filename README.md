@@ -301,7 +301,7 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/environments/node/`](packages/environments/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/environments/browser/`](packages/environments/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
 | [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
-| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp test`, …) |
+| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp runs`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
 | [`packages/policies/`](packages/policies/) | Budget, approval, state-control (`registry-control` lives in core) |

@@ -76,10 +76,10 @@ export const approvalPolicy = definePolicy("@executioncontrolprotocol", "approva
   .withHooks([
     policyHook("policy:pre", (ctx) => {
       const list = (ctx.config.requireApprovalFor as string[]) ?? []
-      if (list.includes(ctx.step.capabilityId)) {
-        return { type: "pause", reason: "Approval required" }
-      }
-      return { type: "allow" }
+      if (!list.includes(ctx.step.capabilityId)) return { type: "allow" }
+      const approved = ctx.approvals?.some((a) => a.stepId === ctx.step.id)
+      if (approved) return { type: "allow" }
+      return { type: "pause", reason: "Approval required" }
     }),
   ])
   .build()

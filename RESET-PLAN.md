@@ -800,7 +800,7 @@ at `pre-reset`.
 | --- | ---: | --- |
 | `harness/**` (authoring, prompts, definitions, repair loop, call-model) | 6.0K | **Remove** |
 | `compile/*harness-artifact*` | ~0.2K | **Remove** (harness artifacts). Keep `compile/evaluate-browser.ts` and `compile/prepare-browser-source.ts`: they compile workflow modules in the browser, not harness artifacts |
-| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Keep until Phase 4.** Its abilities (run up to a step, re-run one step, resume from saved state) move into the run journal and `ecp run --to` / `runs resume` / `runs rerun`; then the module is removed |
+| `test-session/`, `runtime/test-session-state.ts` | ~0.2K | **Removed in Phase 4.** Abilities moved into the run journal and `ecp run --to` / `runs resume` / `runs rerun` |
 | `feedback/` | 0.1K | **Remove** (chat feedback for the harness) |
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences` | ~0.1K | **Remove** (model-output cleanup). Keep `encoding/utility-context.ts`: it is the encode/decode capability context |
@@ -819,7 +819,7 @@ at `pre-reset`.
 | --- | --- |
 | `run`, `validate`, `describe`, `search`, `invoke`, `compile`, `config secrets *` | Keep, rework for workflow files and `--json` |
 | `init` | Rewrite: scaffold a workflow file |
-| `test start\|run\|rerun\|status` | **Keep until Phase 4**, then replace: `test start` + `test run --to` → `ecp run --to`; continuing → `runs resume`; `test rerun <step>` → `runs rerun --from <step> --to <step>`; `test status` → `runs show` |
+| `test start\|run\|rerun\|status` | **Removed in Phase 4.** Replaced by `ecp run --to`, `runs resume`, `runs rerun --from/--to`, `runs show` |
 | `serve` | **Remove** → `mcp serve`, and the App server |
 | `up` | **Remove** → `app` |
 | `encode`, `decode` | **Remove** from the CLI → `ecp format-toon encode\|decode` in `plugin-format-toon` |
@@ -967,8 +967,7 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   loops, `call-model`, prompt primers)
 - `core/src/compile/*harness-artifact*` (`evaluate-browser.ts` and `prepare-browser-source.ts`
   stay: they compile workflow modules in the browser)
-- `core/src/feedback/` (`test-session/` and the `ecp test` commands stay until Phase 4 replaces
-  them)
+- `core/src/feedback/` (`test-session/` and the `ecp test` commands; **removed in Phase 4**)
 - `types/src/harness*.ts`, `intent.ts`, `probe-context.ts`, and the harness-only parts of
   `model.ts`
 - The `browser()` config placeholder and `BROWSER_SECRETS_RESOLVER_ID`
@@ -1106,7 +1105,7 @@ Detail: [`reset/phase-3-plugin-sdk-and-cli.md`](reset/phase-3-plugin-sdk-and-cli
 **Exit:** `ecp plugins link plugins/plugin-jsonata` gives a working
 `ecp jsonata transform --json`.
 
-### Phase 4 — Workflow files and observability (PR 1 in progress)
+### Phase 4 — Workflow files and observability (✅ Done 2026-10-23)
 
 Detail: [`reset/phase-4-workflow-files-and-observability.md`](reset/phase-4-workflow-files-and-observability.md)
 

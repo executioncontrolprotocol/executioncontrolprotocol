@@ -90,6 +90,12 @@ function capabilityCommand(
       const input = parseMerged(schema, merged)
       const host = getHost(this.config)
       const result = await host.ecp.invoke(capability.id).with(input).process()
+      await host.recordInvoke?.({
+        capabilityId: capability.id,
+        input,
+        result: result.result,
+        success: result.success,
+      })
       if (!result.success) {
         const diagnostic = result.diagnostics[0]
         const paused =
@@ -163,7 +169,7 @@ function operationCommand(operation: OperationDefinition): Command.Class {
         argv: this.argv,
         json: this.jsonEnabled(),
       })
-      this.writeSuccess(data)
+      if (!parsed.flags.events) this.writeSuccess(data)
       return data
     }
   }

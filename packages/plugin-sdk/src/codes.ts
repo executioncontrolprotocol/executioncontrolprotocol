@@ -10,6 +10,7 @@ export {
   ECP_SECRET_MISSING,
   ECP_STEP_FAILED,
   ECP_WORKFLOW_LOAD,
+  ECP_RERUN_INCOMPATIBLE,
 } from "@executioncontrolprotocol/core/types"
 
 /** Process exit code for success. @category CLI */

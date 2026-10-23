@@ -40,6 +40,7 @@ export abstract class EcpCommand extends Command {
    * @category CLI
    */
   toSuccessJson(result: unknown): unknown {
+    if (this.argv?.includes("--events")) return undefined
     return { ok: true, data: result }
   }
 

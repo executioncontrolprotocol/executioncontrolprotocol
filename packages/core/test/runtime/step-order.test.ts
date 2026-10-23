@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest"
 import type { StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/core/types"
 import {
-  clearDownstreamTestState,
-  flattenTestStepOrder,
-  findTestStep,
-  isLastTestStep,
-} from "../../src/runtime/test-session-state.js"
+  clearDownstreamState,
+  clearFromStep,
+  flattenStepOrder,
+  findStep,
+  isLastStep,
+  canonicalStepDefinition,
+} from "../../src/runtime/step-order.js"
 
 const workflow: WorkflowManifest = {
   schema: "@executioncontrolprotocol.workflow",
@@ -30,15 +32,15 @@ const workflow: WorkflowManifest = {
   ],
 }
 
-describe("test-session-state", () => {
+describe("step-order", () => {
   it("flattens leaf step order", () => {
-    expect(flattenTestStepOrder(workflow.steps).map((s) => s.id)).toEqual(["a", "b", "c"])
+    expect(flattenStepOrder(workflow.steps).map((s) => s.id)).toEqual(["a", "b", "c"])
   })
 
   it("finds steps and last-step", () => {
-    expect(findTestStep(workflow, "b")?.as).toBe("second")
-    expect(isLastTestStep(workflow, "c")).toBe(true)
-    expect(isLastTestStep(workflow, "a")).toBe(false)
+    expect(findStep(workflow, "b")?.as).toBe("second")
+    expect(isLastStep(workflow, "c")).toBe(true)
+    expect(isLastStep(workflow, "a")).toBe(false)
   })
 
   it("clears only downstream history and as-keys", () => {
@@ -52,8 +54,24 @@ describe("test-session-state", () => {
       b: { status: "completed" },
       c: { status: "completed" },
     }
-    clearDownstreamTestState(workflow, state, history, "a")
+    clearDownstreamState(workflow, state, history, "a")
     expect(state).toEqual({ first: { echo: 1 } })
     expect(history).toEqual({ a: { status: "completed" } })
+  })
+
+  it("clears from a step inclusive", () => {
+    const state: Record<string, unknown> = { first: 1, second: 2 }
+    const history: Record<string, StepRunRecord> = {
+      a: { status: "completed" },
+      b: { status: "completed" },
+    }
+    clearFromStep(workflow, state, history, "a")
+    expect(state).toEqual({})
+    expect(history).toEqual({})
+  })
+
+  it("canonicalizes a step definition", () => {
+    const step = findStep(workflow, "a")!
+    expect(canonicalStepDefinition(step)).toContain('"id":"a"')
   })
 })

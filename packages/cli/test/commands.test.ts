@@ -22,12 +22,12 @@ interface CliResult {
   stderr: string
 }
 
-function runCli(args: string[]): Promise<CliResult> {
+function runCli(args: string[], env?: NodeJS.ProcessEnv): Promise<CliResult> {
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       [cliBin, ...args],
-      { cwd: repoRoot, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+      { cwd: repoRoot, encoding: "utf8", maxBuffer: 10 * 1024 * 1024, env: env ?? process.env },
       (err, stdout, stderr) => {
         const code =
           err && typeof (err as { code?: unknown }).code === "number"
@@ -154,64 +154,47 @@ describe("ecp CLI commands", () => {
     }, 30_000)
   })
 
-  describe("test session", () => {
+  describe("runs", () => {
     const TWO_STEP_WF = "packages/cli/test/fixtures/two-step/workflow.ts"
-    const TWO_STEP_ENV = "packages/cli/test/fixtures/two-step/environment.ts"
 
-    it("start → run --to → rerun clears downstream", async () => {
-      const sessionPath = join(tmp, "session.json")
-      const start = await runCli([
-        "test",
-        "start",
-        TWO_STEP_WF,
-        "--env",
-        TWO_STEP_ENV,
-        "-o",
-        sessionPath,
-      ])
-      expect(start.code).toBe(0)
+    it("run --to then resume and rerun --from --to", async () => {
+      const runsDir = join(tmp, "runs")
+      const env = { ...process.env, ECP_RUNS_DIR: runsDir }
+      const stopped = await runCli(["run", TWO_STEP_WF, "--to", "first"], env)
+      expect(stopped.code).toBe(0)
+      const stoppedBody = JSON.parse(stopped.stdout) as {
+        run: { id: string; status: string }
+        history: Record<string, { status: string }>
+      }
+      expect(stoppedBody.run.status).toBe("stopped")
+      expect(stoppedBody.history.first?.status).toBe("completed")
+      expect(stoppedBody.history.second).toBeUndefined()
 
-      const runTo = await runCli([
-        "test",
-        "run",
-        "--to",
-        "second",
-        "--env",
-        TWO_STEP_ENV,
-        "--session",
-        sessionPath,
-      ])
-      expect(runTo.code).toBe(0)
-      const full = JSON.parse(runTo.stdout) as {
-        status: string
+      const resumed = await runCli(["runs", "resume", stoppedBody.run.id], env)
+      expect(resumed.code).toBe(0)
+      const resumedBody = JSON.parse(resumed.stdout) as {
+        run: { id: string; status: string }
         history: Record<string, { status: string }>
         state: Record<string, unknown>
       }
-      expect(full.history.first?.status).toBe("completed")
-      expect(full.history.second?.status).toBe("completed")
-      expect(full.state.second).toBeDefined()
+      expect(resumedBody.run.status).toBe("completed")
+      expect(resumedBody.history.second?.status).toBe("completed")
+      expect(resumedBody.run.id).not.toBe(stoppedBody.run.id)
 
-      const rerun = await runCli([
-        "test",
-        "rerun",
-        "first",
-        "--env",
-        TWO_STEP_ENV,
-        "--session",
-        sessionPath,
-      ])
+      const rerun = await runCli(
+        ["runs", "rerun", resumedBody.run.id, "--from", "first", "--to", "first"],
+        env
+      )
       expect(rerun.code).toBe(0)
       const after = JSON.parse(rerun.stdout) as {
-        status: string
-        cursor?: string
+        run: { status: string }
         history: Record<string, { status: string }>
         state: Record<string, unknown>
       }
-      expect(after.cursor).toBe("first")
+      expect(after.run.status).toBe("stopped")
       expect(after.history.first?.status).toBe("completed")
       expect(after.history.second).toBeUndefined()
       expect(after.state.second).toBeUndefined()
-      expect(after.status).toBe("paused")
     }, 60_000)
   })
 })
