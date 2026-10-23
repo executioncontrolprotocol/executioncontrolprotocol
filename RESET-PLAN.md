@@ -1128,11 +1128,9 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 Detail: [`reset/phase-5-plugins-to-npm.md`](reset/phase-5-plugins-to-npm.md)
 
-**Status:** In progress. PR 1 migrated model plugins and deleted `register*Extension`
-helpers. PR 2 migrated format-toon, format-mermaid, budget, approval and state-control, and
-made missing `--format` report `ECP_PLUGINS_MISSING`. PR 3 migrated fal, image-sharp and
-azure-blob-storage. PR 4 migrated `plugin-adobe-firefly-services` with a generated `firefly`
-topic alias. Changesets and `plugin-pack-smoke` wait on PR 5.
+**Status:** Done 2026-10-23. Thirteen plugins live under `plugins/`. Changesets are in
+pre-`next` at `1.0.0-next.0`. `plugin-pack-smoke` proves install from packed tarballs.
+`release-next.yml` exists and was not dispatched. First-party npm is still unpublished.
 
 1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
    format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,
@@ -1140,8 +1138,8 @@ topic alias. Changesets and `plugin-pack-smoke` wait on PR 5.
 2. Changesets with independent versions; `plugin-pack-smoke` in CI for every plugin.
 3. Prerelease publishing from the milestone branch under the `next` dist-tag.
 
-**Exit:** criteria 1, 3 and 4 of §2.4 pass with `@next` packages. First-party npm is still
-unpublished in this milestone; later PRs prove install with packed tarballs.
+**Exit:** criteria 1, 3 and 4 of §2.4 pass with packed tarballs (`plugin-pack-smoke`).
+First-party npm is still unpublished; `release-next.yml` exists and was not dispatched.
 
 ### Phase 6 — Docs site and skill
 

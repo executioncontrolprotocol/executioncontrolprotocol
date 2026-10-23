@@ -23,8 +23,7 @@
     "test:unit": "pnpm run generate:schema && vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:e2e": "vitest run --project e2e",
-    "test:consumer-cli": "node scripts/consumer-cli-smoke.mjs",
-    "test:vendor-pack": "node scripts/vendor-pack-smoke.mjs",
+    "test:plugin-pack": "node scripts/plugin-pack-smoke.mjs",
     "test:browser:install": "playwright install chromium --with-deps",
     "test:browser": "vitest run --project browser",
     "test:browser:watch": "vitest --project browser",
@@ -33,9 +32,7 @@
     "check:no-file-deps": "node scripts/check-no-file-deps.mjs",
     "secrets:scan": "secretlint \"**/*\"",
     "generate:schema": "pnpm --filter @executioncontrolprotocol/core run generate:schema",
-    "version:bump": "node scripts/bump-all-ecp-versions.mjs",
-    "version:check-vs-npm": "node scripts/check-version-gt-published.mjs",
-    "publish:workspaces": "node scripts/publish-workspaces.mjs",
+    "changeset": "changeset",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -47,6 +44,7 @@
     ]
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
     "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",

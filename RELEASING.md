@@ -1,51 +1,38 @@
 # Releasing to npm
 
+Packages are versioned independently with [Changesets](https://github.com/changesets/changesets). `baseBranch` is `development`. In-repo plugin `peerDependencies` stay `workspace:^` until publish.
+
 ## Branches
 
-- **`development`** — Open PRs here first. CI runs **version vs npm**: every non-private workspace package must use the **same** version, and that version must be **strictly greater** than the latest version on npm for each package (`pnpm run version:check-vs-npm`).
-- **`main`** — After CI passes (build, lint, unit, integration, browser), npm publish runs **only when** the repository variable **`ENABLE_NPM_PUBLISH`** is set to `true`. Otherwise merges to `main` build/test only (no npm deploy). During the CLI reset, never push to `main` (Phase 9).
-- **`feat/**`** — Push CI runs the same build/test pipeline (no publish). Open PRs into `development` or `main` as usual.
+- **`development`** — Default branch after the reset. PRs here get a Changesets status check. During the CLI reset, never push `development`.
+- **`milestone/**`** — Reset work. `changeset pre enter next` is on. Prereleases, if any, use the `next` dist-tag via `release-next.yml`.
+- **`main`** — Phase 9 publishes `latest`. npm publish runs **only when** `ENABLE_NPM_PUBLISH` is `true` **and** the ref is `main`. Leave the variable unset during the reset.
+- **`feat/**`** — Feature branches. Open PRs into `milestone/cli-reset` until Phase 9.
 
-## Merge and publish order
+## Prereleases (`next`)
 
-Publish from this monorepo only, and only when you intend a release:
+The milestone is in Changesets pre mode (`next`). Versions for `core`, `node`, `browser`, `cli`, `plugin-sdk`, and every plugin start at `1.0.0-next.0`. MCP stays `0.14.1` until Phase 7.
 
-1. Bump versions (`pnpm run version:bump`).
-2. Merge `development` → `main` (CI always builds and tests).
-3. To publish: set Actions variable **`ENABLE_NPM_PUBLISH=true`**, then push/merge to `main` (or re-run the publish job). CI runs **`pnpm run publish:workspaces`** for every non-private package under `packages/` and `plugins/` (skips versions already on the registry). Clear or set the variable back to `false` afterward if you want main merges to stay publish-silent.
-4. The former GitHub Pages demo job was removed in Phase 1. The App returns in Phase 8.
+To publish prereleases (Phase 9 operator, or a deliberate dispatch):
 
-External authors depend on the published npm versions. `pnpm run test:vendor-pack` checks that a vendor package typechecks against packed core and types.
+1. Confirm you are on a `milestone/**` branch.
+2. Dispatch [`.github/workflows/release-next.yml`](.github/workflows/release-next.yml). It builds, tests, then `changeset publish --tag next`.
+3. Do **not** dispatch it as part of Phase 5. First-party packages may still be unpublished; `pnpm run test:plugin-pack` proves install from packed tarballs.
 
-## Bump versions (all workspaces)
+## Latest (Phase 9)
 
-```bash
-pnpm run version:bump -- 0.14.0
-```
+1. Exit pre mode (`changeset pre exit`) when you are ready for 1.0.0.
+2. Merge to `main` with `ENABLE_NPM_PUBLISH=true`.
+3. The `publish` job in `ci-pipeline.yml` runs `changesets/action`.
 
-Commit the version changes on `development`, then merge to `main` when ready to publish.
-
-Check locally (same as development CI):
+## Adding a changeset
 
 ```bash
-pnpm run version:check-vs-npm
+pnpm exec changeset
 ```
 
-## Published packages (`@executioncontrolprotocol/*`)
+Commit the file under `.changeset/`. Independent versioning means each package can move on its own.
 
-All non-private packages under `packages/` and `plugins/`. Harnesses, evals and the browser demo were removed in Phase 1. First-party plugins live under `plugins/plugin-*`.
+## Smoke
 
-Core surface:
-
-- `@executioncontrolprotocol/core` — fluent API, environment, local engine, protocol types (`./types`, `dist/schemas/`)
-- `@executioncontrolprotocol/cli` — `ecp` Oclif CLI
-- `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser` — environment hosts
-- `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, format/extension packages as needed
-
-Run **`pnpm run build`** and **`pnpm run generate:schema`** from the repo root before a manual release; CI does this in the publish job. Packages ship compiled **`dist/`** JS.
-
-**Node:** use **≥ 22** locally and in CI.
-
-## GitHub secret
-
-Configure **`NPM_TOKEN`** on the repository (Settings → Secrets and variables → Actions) with publish access for the `@executioncontrolprotocol` org/scope. The publish job runs only on **push to `main`** when **`ENABLE_NPM_PUBLISH`** is `true` (Actions variable). Leave that variable unset/`false` during monorepo cutover and routine merges.
+`pnpm run test:plugin-pack` packs `core`, `node`, `plugin-sdk`, `cli`, and every plugin, installs the CLI into a hermetic prefix, then `ecp plugins install <tarball>` for each plugin. That is the install proof until `@next` exists on the registry.

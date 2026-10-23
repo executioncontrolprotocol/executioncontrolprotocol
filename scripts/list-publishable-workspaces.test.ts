@@ -29,8 +29,11 @@ describe("listPublishableWorkspaces", () => {
     expect(names.has("@executioncontrolprotocol/chrome-ai")).toBe(false)
     expect(names.has("@executioncontrolprotocol/browser-secrets")).toBe(false)
 
-    const versions = new Set(packages.map((p) => p.version))
-    expect(versions.size).toBe(1)
+    const byName = new Map(packages.map((p) => [p.name, p.version]))
+    expect(byName.get("@executioncontrolprotocol/core")).toBe("1.0.0-next.0")
+    expect(byName.get("@executioncontrolprotocol/cli")).toBe("1.0.0-next.0")
+    expect(byName.get("@executioncontrolprotocol/plugin-jsonata")).toBe("1.0.0-next.0")
+    expect(byName.get("@executioncontrolprotocol/mcp")).toBe("0.14.1")
   })
 
   it("topo-sorts so dependents follow their workspace deps", () => {

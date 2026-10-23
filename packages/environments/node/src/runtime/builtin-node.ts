@@ -13,7 +13,7 @@ import { journalExtension } from "../journal/extension.js"
 export { NodeRuntimeExecutor } from "./node-executor.js"
 export { NODE_ENVIRONMENT_ID }
 
-const NODE_ENVIRONMENT_VERSION = "0.14.1"
+const NODE_ENVIRONMENT_VERSION = "1.0.0-next.0"
 
 /** Built-in Node environment definition. @category Environment */
 export const nodeEnvironmentDefinition = defineEnvironment("@executioncontrolprotocol", "node")

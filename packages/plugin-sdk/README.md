@@ -25,3 +25,5 @@ Used by `ecp plugins new|build|check`:
 - `checkPlugin(dir)` fails when those files are stale
 
 Authors keep `src/index.ts` and a minimal `package.json`. Everything oclif needs is generated.
+
+Versioning is independent via Changesets. This package is `1.0.0-next.0` until Phase 9 publishes `latest`.

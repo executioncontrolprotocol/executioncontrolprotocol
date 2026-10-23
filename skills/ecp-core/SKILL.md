@@ -37,6 +37,7 @@ pnpm install
 pnpm run build
 pnpm run check
 pnpm run test:unit
+pnpm run test:plugin-pack
 ```
 
 **Monorepo dev:** `pnpm --filter @executioncontrolprotocol/cli start`, or `pnpm link --global`

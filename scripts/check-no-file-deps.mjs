@@ -53,8 +53,9 @@ for (const file of files) {
 const lockPath = join(root, "pnpm-lock.yaml")
 if (existsSync(lockPath)) {
   const lockText = readFileSync(lockPath, "utf8")
-  // pnpm records workspace deps as link:../… — only forbid committed file: paths.
-  if (/\bfile:/.test(lockText)) {
+  // pnpm records workspace deps as link:../… — only forbid committed file: protocol
+  // specs (`file:../pkg`). Do not match package names that end in `-file`.
+  if (/(?:^|[\s"'`[{,])file:/.test(lockText)) {
     violations.push(
       `${lockPath}: contains file: entries (use registry ranges or CI-only overrides)`
     )

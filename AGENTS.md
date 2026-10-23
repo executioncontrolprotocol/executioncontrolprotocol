@@ -116,6 +116,7 @@ pnpm run test:coverage       # the coverage gate (pre-commit + CI unit job)
 pnpm run test:integration
 pnpm run test:e2e
 pnpm run test:browser        # Vitest browser project (run test:browser:install once)
+pnpm run test:plugin-pack    # packed CLI + plugin tarball install smoke
 pnpm run lint
 pnpm run secrets:scan
 pnpm run generate:schema     # JSON Schemas (`packages/core/dist/schemas`)
@@ -126,8 +127,8 @@ Removed in Phase 1:
 - The demo scripts (`dev:demo`, `up:demo`, `build:demo`, `test:demo`).
 - The eval scripts (`test:eval:*`, `eval:*`).
 
-Replaced by Changesets in Phase 5: `version:bump`, `publish:workspaces`,
-`version:check-vs-npm`.
+Replaced by Changesets in Phase 5 (`pnpm exec changeset`, `pnpm run test:plugin-pack`).
+The old `version:bump` / `publish:workspaces` / `version:check-vs-npm` scripts are gone.
 
 Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change, then lint-staged,
 lint and the coverage gate. CI (`.github/workflows/ci.yml`) runs on `main`, `development`,

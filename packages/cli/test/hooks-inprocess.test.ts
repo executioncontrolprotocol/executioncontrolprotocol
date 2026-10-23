@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises"
+import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Hook, Interfaces } from "@oclif/core"
@@ -171,6 +171,31 @@ describe("evaluateTrust", () => {
     expect((await evaluateTrust(config, "git+https://example.com/repo.git")).allowed).toBe(false)
     expect((await evaluateTrust(config, "./local-plugin")).allowed).toBe(false)
     await expect(assertTrusted(config, "acme-plugin", [])).rejects.toBeInstanceOf(EcpCliError)
+  })
+
+  it("honors ECP_ALLOW_SOURCE and ECP_TRUST_THIRD_PARTY for path specs", async () => {
+    const prevSource = process.env.ECP_ALLOW_SOURCE
+    const prevTrust = process.env.ECP_TRUST_THIRD_PARTY
+    const dir = await mkdtemp(join(tmpdir(), "ecp-trust-env-"))
+    const config = { dataDir: dir } as Interfaces.Config
+    try {
+      delete process.env.ECP_ALLOW_SOURCE
+      delete process.env.ECP_TRUST_THIRD_PARTY
+      expect((await evaluateTrust(config, "./local-plugin", [])).allowed).toBe(false)
+      process.env.ECP_ALLOW_SOURCE = "path"
+      expect((await evaluateTrust(config, "./local-plugin", [])).allowed).toBe(false)
+      process.env.ECP_TRUST_THIRD_PARTY = "1"
+      expect((await evaluateTrust(config, "./local-plugin", [])).allowed).toBe(true)
+      process.env.ECP_ALLOW_SOURCE = "git"
+      expect((await evaluateTrust(config, "./local-plugin", [])).allowed).toBe(false)
+      expect((await evaluateTrust(config, "git+https://example.com/repo.git", [])).allowed).toBe(true)
+    } finally {
+      if (prevSource === undefined) delete process.env.ECP_ALLOW_SOURCE
+      else process.env.ECP_ALLOW_SOURCE = prevSource
+      if (prevTrust === undefined) delete process.env.ECP_TRUST_THIRD_PARTY
+      else process.env.ECP_TRUST_THIRD_PARTY = prevTrust
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 
   it("honors remembered trust and --yes", async () => {

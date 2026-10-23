@@ -21,11 +21,13 @@ For the architecture and monorepo package boundaries, start with
 
 ## Install
 
-From npm (when published):
+From npm (when a dist-tag exists):
 
 ```sh
-npm install -g @executioncontrolprotocol/cli
+npm install -g @executioncontrolprotocol/cli@next
 ```
+
+Until `@next` is on the registry, pack-install from this repo (`pnpm run test:plugin-pack`).
 
 From this monorepo (recommended for development):
 
