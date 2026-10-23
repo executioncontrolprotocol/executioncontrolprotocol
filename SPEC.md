@@ -35,8 +35,8 @@ ECP v1 separates **definitions** from **bindings**, and **environments** from
 
 In the fluent API:
 
-- **Definition**: `defineExtension(...)`, `defineRuntime(...)`, `definePolicy(...)`
-- **Binding**: `extension("@executioncontrolprotocol/x").with({ ... })`, `runtime(...)`, `policy(...)`
+- **Definition**: `defineExtension(...)`, `defineEnvironment(...)`, `definePolicy(...)`
+- **Binding**: `extension(definition).with({ ... })`, `policy(definition).with({ ... })`
 - **Invocation**: `step("@executioncontrolprotocol/x.do").with(input).as("key")`
 
 ------------------------------------------------------------------------
@@ -66,7 +66,7 @@ portability and deterministic review.
 
 An environment binds the non-portable parts:
 
-- **runtime**: execution engine + lifecycle emission
+- **executor**: host engine + lifecycle emission
 - **extensions**: capabilities and lifecycle hooks
 - **policies**: governance (`policy:pre` / `policy:post` / `policy:finally`)
 
@@ -101,21 +101,20 @@ Extensions are the primary way to add capabilities and hooks.
 Key rules:
 
 - extensions depend on `@executioncontrolprotocol/core` and `@executioncontrolprotocol/core/types` only
-- extensions must not import host runtimes (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, CLI, MCP)
+- extensions must not import host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`, CLI, MCP)
 - first-party protocol/platform extensions under `packages/extensions/*` follow the same rules as
   third-party extensions (“dogfooding”); vendor packages live in `extensions`
 
 ------------------------------------------------------------------------
 
-## Runtimes
+## Environment hosts
 
-Runtimes are host-specific adapters that wrap core:
+Environment packages wrap core with host I/O:
 
-- `@executioncontrolprotocol/node`: Node runtime host (file I/O via `@executioncontrolprotocol/core/loaders`, compile via `@executioncontrolprotocol/core/compile`)
-- `@executioncontrolprotocol/browser`: Browser runtime host (registry/session config; not the demo UI)
-- `@executioncontrolprotocol/runtime-temporal`: Temporal adapter stub
+- `@executioncontrolprotocol/node`: Node environment (file I/O, compile, OS secrets, process-env)
+- `@executioncontrolprotocol/browser`: Browser environment (registry/session config, esbuild-wasm compile; not the demo UI)
 
-Core remains runtime-agnostic; host code lives on subpaths or host packages.
+Core remains host-agnostic; exports are `.` and `./types` only.
 
 ------------------------------------------------------------------------
 

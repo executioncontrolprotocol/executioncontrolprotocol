@@ -1,5 +1,4 @@
 import {
-  catalogExtension,
   globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
@@ -23,8 +22,6 @@ export const azureBlobStorageExtension = buildAzureBlobStorageExtension(
     download: hostHop,
   }),
 )
-
-catalogExtension(azureBlobStorageExtension)
 
 /**
  * Register `@executioncontrolprotocol/azure-blob-storage` on a registry.

@@ -1,28 +1,34 @@
 import { describe, it, beforeEach, expect } from "vitest"
 import type { Environment } from "../src/environment/environment.js"
-import { workflow, step } from "../src/index.js"
 import {
-  registerLifecycleSpyExtension,
+  workflow,
+  step,
+  extension,
+  policy,
+  testExtension,
+  lifecycleSpyExtension,
+} from "../src/index.js"
+import {
   lifecycleSpyEvents,
   resetLifecycleSpy,
 } from "../src/testing/test-lifecycle-extension.js"
+import { approvalPolicy } from "@executioncontrolprotocol/policies"
 /**
  * Register shared runtime conformance tests for an environment factory.
  * @category Testing
  */
-export function registerRuntimeConformanceTests(
+export function registerEnvironmentConformanceTests(
   suiteName: string,
-  createEnv: () => Promise<Environment>
+  createEnv: () => Environment | Promise<Environment>
 ): void {
   describe(`${suiteName} runtime conformance`, () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       resetLifecycleSpy()
-      await registerLifecycleSpyExtension()
     })
 
     it("runs echo and commits .as() output", async () => {
       const env = await createEnv()
-      env.addExtensionBinding("@executioncontrolprotocol/test", {})
+      env.addExtensionBinding(testExtension)
       const manifest = workflow("Echo")
         .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: "x" }).as("echo")])
         .toManifest()
@@ -34,9 +40,13 @@ export function registerRuntimeConformanceTests(
 
     it("policy:pre deny skips capability invocation", async () => {
       const env = await createEnv()
-      env.addExtensionBinding("@executioncontrolprotocol/test", {})
-      env.addExtensionBinding("@executioncontrolprotocol/lifecycle-spy", {})
-      env.addPolicyBinding("@executioncontrolprotocol/approval", { requireApprovalFor: ["@executioncontrolprotocol/test.echo"] })
+      env.with([
+        extension(testExtension),
+        extension(lifecycleSpyExtension),
+        policy(approvalPolicy).with({
+          requireApprovalFor: ["@executioncontrolprotocol/test.echo"],
+        }),
+      ])
       lifecycleSpyEvents.length = 0
       const manifest = workflow("Deny")
         .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: 1 }).as("out")])

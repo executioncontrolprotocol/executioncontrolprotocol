@@ -14,80 +14,6 @@
     "./types": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
-    },
-    "./schemas/*": "./dist/schemas/*",
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
-    },
-    "./environment": {
-      "types": "./dist/environment/environment.d.ts",
-      "import": "./dist/environment/environment.js"
-    },
-    "./environment/config-resolver": {
-      "types": "./dist/environment/config-resolver.d.ts",
-      "import": "./dist/environment/config-resolver.js"
-    },
-    "./definitions/types": {
-      "types": "./dist/definitions/types.d.ts",
-      "import": "./dist/definitions/types.js"
-    },
-    "./registry": {
-      "types": "./dist/registry/registry.d.ts",
-      "import": "./dist/registry/registry.js"
-    },
-    "./bindings/extension": {
-      "types": "./dist/bindings/extension.d.ts",
-      "import": "./dist/bindings/extension.js"
-    },
-    "./bindings/runtime": {
-      "types": "./dist/bindings/runtime.d.ts",
-      "import": "./dist/bindings/runtime.js"
-    },
-    "./bindings/policy": {
-      "types": "./dist/bindings/policy.d.ts",
-      "import": "./dist/bindings/policy.js"
-    },
-    "./config-schema": {
-      "types": "./dist/config-schema/index.d.ts",
-      "import": "./dist/config-schema/index.js"
-    },
-    "./runtime/context": {
-      "types": "./dist/runtime/context.d.ts",
-      "import": "./dist/runtime/context.js"
-    },
-    "./runtime/store": {
-      "types": "./dist/runtime/store.d.ts",
-      "import": "./dist/runtime/store.js"
-    },
-    "./registry/errors": {
-      "types": "./dist/registry/errors.d.ts",
-      "import": "./dist/registry/errors.js"
-    },
-    "./runtime/in-memory-executor": {
-      "types": "./dist/runtime/in-memory-executor.d.ts",
-      "import": "./dist/runtime/in-memory-executor.js"
-    },
-    "./runtime/executor": {
-      "types": "./dist/runtime/executor.d.ts",
-      "import": "./dist/runtime/executor.js"
-    },
-    "./testing": {
-      "types": "./dist/testing/index.d.ts",
-      "import": "./dist/testing/index.js"
-    },
-    "./loaders": {
-      "types": "./dist/loaders/index.d.ts",
-      "import": "./dist/loaders/index.js"
-    },
-    "./compile": {
-      "types": "./dist/compile/entry.d.ts",
-      "browser": "./dist/compile/index.browser.js",
-      "import": "./dist/compile/entry.js"
-    },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js"
     }
   },
   "files": [
@@ -99,19 +25,18 @@
     "build": "tsc -b",
     "generate:schema": "node scripts/generate-schemas.mjs"
   },
+  "dependencies": {
+    "@types/semver": "^7.7.1",
+    "semver": "catalog:"
+  },
   "peerDependencies": {
     "zod": "catalog:"
   },
-  "optionalDependencies": {
-    "esbuild": "^0.25.0",
-    "esbuild-wasm": "^0.25.0"
-  },
   "devDependencies": {
+    "@executioncontrolprotocol/browser": "workspace:^",
     "@executioncontrolprotocol/node": "workspace:^",
     "@executioncontrolprotocol/policies": "workspace:^",
     "ajv": "^8.17.1",
-    "esbuild": "^0.25.0",
-    "esbuild-wasm": "^0.25.0",
     "ts-json-schema-generator": "^2.3.0",
     "typescript": "catalog:",
     "zod": "catalog:"

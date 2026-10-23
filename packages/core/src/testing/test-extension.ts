@@ -1,6 +1,5 @@
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
-import { catalogExtension } from "../registry/extension-catalog.js"
 import { globalRegistry } from "../registry/registry.js"
 import { z } from "zod"
 
@@ -124,8 +123,6 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
       .withHandler(async (input) => testStubHandler(input as { payload?: unknown }))
   ])
   .build()
-
-catalogExtension(testExtension)
 
 /** Register @executioncontrolprotocol/test capabilities for examples and tests. */
 export async function registerTestExtension(

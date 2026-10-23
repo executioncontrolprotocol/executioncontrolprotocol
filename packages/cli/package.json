@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@executioncontrolprotocol/node": "workspace:^",
-    "@executioncontrolprotocol/secrets": "workspace:^",
     "@oclif/core": "^4.10.0"
   },
   "devDependencies": {

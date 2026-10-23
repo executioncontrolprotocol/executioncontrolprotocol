@@ -9,18 +9,15 @@ Guide index: [Firefly Services docs](https://developer.adobe.com/firefly-service
 ## Binding
 
 ```ts
-import "@executioncontrolprotocol/adobe-firefly-services"
-import { environment, extension, secrets } from "@executioncontrolprotocol/node"
+import { adobeFireflyServicesExtension } from "@executioncontrolprotocol/adobe-firefly-services"
+import { environment, extension, NODE_ENVIRONMENT_ID, secrets } from "@executioncontrolprotocol/node"
 
-export default environment("adobe-demo")
-  .withExtensions([
-    extension("@executioncontrolprotocol/secrets").with({}),
-    extension("@executioncontrolprotocol/adobe-firefly-services").with({
-      clientId: secrets("adobe-firefly-services/client-id"),
-      clientSecret: secrets("adobe-firefly-services/client-secret"),
-      // scopes: optional; defaults to Firefly Services S2S scopes
-    }),
-  ])
+export default environment(NODE_ENVIRONMENT_ID, "adobe-demo").with([
+  extension(adobeFireflyServicesExtension).with({
+    clientId: secrets("adobe-firefly-services/client-id"),
+    clientSecret: secrets("adobe-firefly-services/client-secret"),
+  }),
+])
 ```
 
 ## Families

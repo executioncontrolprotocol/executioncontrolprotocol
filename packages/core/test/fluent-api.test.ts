@@ -11,18 +11,21 @@ import {
   branch,
   loop,
   extension,
-  runtime,
   policy,
   environment,
   defineExtension,
-  defineRuntime,
+  defineEnvironment,
   definePolicy,
   capability,
   capabilityFor,
   hook,
   WorkflowBuilder,
 } from "../src/index.js"
-import { NODE_RUNTIME_ID, nodeRuntimeDefinition } from "@executioncontrolprotocol/node"
+import {
+  NODE_ENVIRONMENT_ID,
+  nodeEnvironmentDefinition,
+  registerNodeEnvironment,
+} from "@executioncontrolprotocol/node"
 
 describe("fluent API surface", () => {
   it("workflow builder chains", () => {
@@ -53,9 +56,6 @@ describe("fluent API surface", () => {
     expect(typeof e.with).toBe("function")
     expect(e.getConfig()).toEqual({ a: 1 })
 
-    const r = runtime(NODE_RUNTIME_ID, "R").with({})
-    expect(typeof r.with).toBe("function")
-
     const p = policy("@executioncontrolprotocol/budget", "P").with({ maxModelCalls: 1 })
     expect(typeof p.with).toBe("function")
   })
@@ -66,7 +66,7 @@ describe("fluent API surface", () => {
     expect(typeof ext.withCapabilities).toBe("function")
     expect(typeof ext.build).toBe("function")
 
-    const rt = defineRuntime("@executioncontrolprotocol", "x")
+    const rt = defineEnvironment("@executioncontrolprotocol", "x")
     expect(typeof rt.withExecutor).toBe("function")
 
     const pol = definePolicy("@executioncontrolprotocol", "x")
@@ -93,18 +93,17 @@ describe("fluent API surface", () => {
   })
 
   it("environment builder chains", () => {
-    const envBuilder = environment("id", "label")
-    expect(typeof envBuilder.withRuntime).toBe("function")
-    expect(typeof envBuilder.withExtensions).toBe("function")
-    expect(typeof envBuilder.withPolicies).toBe("function")
+    registerNodeEnvironment()
+    const envBuilder = environment(NODE_ENVIRONMENT_ID, "id")
+    expect(typeof envBuilder.with).toBe("function")
     expect(typeof envBuilder.compile).toBe("function")
     expect(typeof envBuilder.init).toBe("function")
     expect(typeof envBuilder.getRegistry).toBe("function")
   })
 
   it("runtime definition uses withExecutor terminator", () => {
-    expect(nodeRuntimeDefinition.executor).toBeDefined()
-    expect(defineRuntime("@executioncontrolprotocol", "x").withConfig({}).withExecutor(nodeRuntimeDefinition.executor).id).toBe(
+    expect(nodeEnvironmentDefinition.executor).toBeDefined()
+    expect(defineEnvironment("@executioncontrolprotocol", "x").withConfig({}).withExecutor(nodeEnvironmentDefinition.executor).id).toBe(
       "@executioncontrolprotocol/x"
     )
   })

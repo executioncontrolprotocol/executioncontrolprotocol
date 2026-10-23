@@ -7,11 +7,11 @@ Runs **locally** in Node and browser (pure JS; no host hop).
 ## Binding
 
 ```ts
-import "@executioncontrolprotocol/jsonata"
-import { environment, extension } from "@executioncontrolprotocol/node"
+import { jsonataExtension } from "@executioncontrolprotocol/jsonata"
+import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 
-export default environment("jsonata-demo").withExtensions([
-  extension("@executioncontrolprotocol/jsonata").with({}),
+export default environment(NODE_ENVIRONMENT_ID, "jsonata-demo").with([
+  extension(jsonataExtension),
 ])
 ```
 

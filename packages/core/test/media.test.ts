@@ -175,7 +175,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const resolved = await resolveFile(
       { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}k2` },
       makeCtx({
-        call: async () => ({ value: Buffer.from([9, 10]).toString("base64") }),
+        call: async () => ({ value: "CQo=" }),
       })
     )
     expect([...resolved.bytes]).toEqual([9, 10])
@@ -350,25 +350,42 @@ describe("resolveFile / writeMediaArtifact", () => {
     ).rejects.toThrow(/Artifact not found/)
   })
 
-  it("resolves a Node file path", async () => {
-    const fs = await import("node:fs/promises")
-    const os = await import("node:os")
-    const path = await import("node:path")
-    const file = path.join(os.tmpdir(), `ecp-media-${Date.now()}.bin`)
-    await fs.writeFile(file, Buffer.from([10, 20, 30]))
-    try {
-      const resolved = await resolveFile({ kind: "file", path: file }, makeCtx())
-      expect([...resolved.bytes]).toEqual([10, 20, 30])
-    } finally {
-      await fs.unlink(file).catch(() => undefined)
+  it.skipIf(typeof process === "undefined" || !process.versions?.node)(
+    "resolves a Node file path",
+    async () => {
+      const fs = await import("node:fs/promises")
+      const os = await import("node:os")
+      const path = await import("node:path")
+      const { registerHostFileReader } = await import("../src/index.js")
+      registerHostFileReader(async (filePath) => {
+        const buf = await fs.readFile(filePath)
+        return new Uint8Array(buf)
+      })
+      const file = path.join(os.tmpdir(), `ecp-media-${Date.now()}.bin`)
+      await fs.writeFile(file, Buffer.from([10, 20, 30]))
+      try {
+        const resolved = await resolveFile({ kind: "file", path: file }, makeCtx())
+        expect([...resolved.bytes]).toEqual([10, 20, 30])
+      } finally {
+        await fs.unlink(file).catch(() => undefined)
+      }
     }
-  })
+  )
 
-  it("rejects missing Node file paths", async () => {
-    await expect(
-      resolveFile({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
-    ).rejects.toThrow()
-  })
+  it.skipIf(typeof process === "undefined" || !process.versions?.node)(
+    "rejects missing Node file paths",
+    async () => {
+      const fs = await import("node:fs/promises")
+      const { registerHostFileReader } = await import("../src/index.js")
+      registerHostFileReader(async (filePath) => {
+        const buf = await fs.readFile(filePath)
+        return new Uint8Array(buf)
+      })
+      await expect(
+        resolveFile({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
+      ).rejects.toThrow()
+    }
+  )
 
   it("writes to storage when store is storage", async () => {
     let wrote: unknown

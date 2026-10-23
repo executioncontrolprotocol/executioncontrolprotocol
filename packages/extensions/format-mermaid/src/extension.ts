@@ -1,5 +1,4 @@
 import {
-  catalogExtension,
   capabilityFor,
   defineExtension,
   ecpEncodeInputSchema,
@@ -84,4 +83,3 @@ export const formatMermaidExtension = defineExtension("@executioncontrolprotocol
   ])
   .build()
 
-catalogExtension(formatMermaidExtension)

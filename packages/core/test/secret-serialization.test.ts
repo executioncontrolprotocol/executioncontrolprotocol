@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { extension, secrets } from "../src/index.js"
-import { createTestEnvironment } from "./helpers.js"
+import { extension, secrets, testExtension } from "../src/index.js"
 import {
+  environment,
+  NODE_ENVIRONMENT_ID,
   setMemorySecret,
   setSecretsStore,
   memorySecretsStore,
   resetSecretsStore,
-} from "@executioncontrolprotocol/secrets"
+} from "@executioncontrolprotocol/node"
 
 describe("secret serialization", () => {
   it("does not embed resolved secrets in environment manifest", async () => {
     setSecretsStore(memorySecretsStore)
     setMemorySecret("API_KEY", "super-secret-value")
-    const env = (await createTestEnvironment("secret-test")).withExtensions([
-      extension("@executioncontrolprotocol/secrets").with({}),
-      extension("@executioncontrolprotocol/test").with({ token: secrets("API_KEY") }),
+    const env = environment(NODE_ENVIRONMENT_ID, "secret-test").with([
+      extension(testExtension).with({ token: secrets("API_KEY") }),
     ])
     await env.init()
     const manifest = env.compile()

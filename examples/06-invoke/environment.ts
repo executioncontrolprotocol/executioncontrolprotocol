@@ -1,6 +1,10 @@
-import { environment, extension } from "@executioncontrolprotocol/node"
-import "@executioncontrolprotocol/core/testing"
+import {
+  environment,
+  extension,
+  NODE_ENVIRONMENT_ID,
+  testExtension,
+} from "@executioncontrolprotocol/node"
 
-export default (await environment("invoke-demo", "Invoke demo")).withExtensions([
-  extension("@executioncontrolprotocol/test").with({}),
+export default environment(NODE_ENVIRONMENT_ID, "invoke-demo").with([
+  extension(testExtension),
 ])

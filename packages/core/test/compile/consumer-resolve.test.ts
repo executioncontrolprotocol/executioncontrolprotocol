@@ -4,8 +4,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
-import { compileWorkflowSource } from "../../src/compile/index.js"
-import { resolveBundleDir } from "../../src/compile/transpile.js"
+import { compileWorkflowSource, resolveBundleDir } from "@executioncontrolprotocol/node"
 import { registerTestExtension } from "../../src/testing/test-extension.js"
 
 const SAMPLE_TS = `

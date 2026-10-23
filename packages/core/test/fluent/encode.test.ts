@@ -7,7 +7,7 @@ import {
   renderWorkflowToFluent,
   encodeFluent,
 } from "../../src/index.js"
-import { compileWorkflowSource } from "../../src/compile/index.js"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { ECP_FORMATS } from "@executioncontrolprotocol/core/types"
 import { initEncodingTestEcp } from "../helpers.js"
 

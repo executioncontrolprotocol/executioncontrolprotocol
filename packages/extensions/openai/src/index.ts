@@ -2,10 +2,9 @@ import {
   defineExtension,
   capabilityFor,
   globalRegistry,
-  catalogExtension,
   toProviderChatTurns,
   type Registry,
-  NODE_RUNTIME_ID
+  NODE_ENVIRONMENT_ID
 } from "@executioncontrolprotocol/core"
 import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/core/types"
 import { z } from "zod"
@@ -45,7 +44,7 @@ async function chatComplete(
 
 /** @executioncontrolprotocol/openai extension. @category Extensions */
 export const openaiExtension = defineExtension("@executioncontrolprotocol", "openai")
-  .withSupportedRuntimes([NODE_RUNTIME_ID])
+  .supports(NODE_ENVIRONMENT_ID)
   .withConfig({
     apiKey: z.string().optional(),
     defaultModel: z.string().optional()
@@ -98,8 +97,6 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
       })
   ])
   .build()
-
-catalogExtension(openaiExtension)
 
 /** Register @executioncontrolprotocol/openai. */
 export async function registerOpenaiExtension(registry: Registry = globalRegistry): Promise<void> {

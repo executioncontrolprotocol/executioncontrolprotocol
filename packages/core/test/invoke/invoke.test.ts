@@ -8,7 +8,6 @@ import {
 } from "../../src/index.js"
 import { z } from "zod"
 import { createTestEnvironment } from "../helpers.js"
-import { globalRegistry } from "../../src/registry/registry.js"
 
 describe("ecp.invoke", () => {
   it("invokes a registered capability with validated input and output", async () => {
@@ -71,10 +70,8 @@ describe("ecp.invoke", () => {
         }),
       ])
       .build()
-    await globalRegistry.registerPolicy(denyPolicy)
-
-    const env = (await createTestEnvironment("invoke-deny-test")).withPolicies([
-      policy("@executioncontrolprotocol/invoke-scope-deny").with({}),
+    const env = createTestEnvironment("invoke-deny-test").with([
+      policy(denyPolicy).with({}),
     ])
     const ecp = await env.init()
     const result = await ecp.invoke("@executioncontrolprotocol/test.echo").with({ value: "x" }).process()

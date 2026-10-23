@@ -6,9 +6,12 @@
 ## Starting point after Phase 2
 
 Protocol types live at `@executioncontrolprotocol/core/types` (`packages/core/src/types`).
-There is no `packages/types` package. After Phase 2 PR 2 lands, hosts live in
-`packages/environments/{node,browser}` and definitions are data (no `catalogExtension`).
-Until then, PR 2 still has `packages/runtimes/*`, `withExtensions`, and `defineRuntime`.
+There is no `packages/types` package. Hosts live in `packages/environments/{node,browser}`
+(`@executioncontrolprotocol/node` and `@executioncontrolprotocol/browser`). Definitions are
+data: bind `extension(definition)` / `policy(definition)`, not string ids after a catalog
+side effect. There is no `catalogExtension`. Core exports only `.` and `./types`; compile
+and loaders live on the Node and browser packages. `environment(id, label?).with([...]).init()`
+is the host API. `globalRegistry` is still a deprecated test default; this phase deletes it.
 
 ## Goal
 

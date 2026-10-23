@@ -40,9 +40,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@executioncontrolprotocol/core/types": path.resolve(repoRoot, "packages/core/src/types/index.ts"),
-      "@executioncontrolprotocol/core/compile": path.resolve(repoRoot, "packages/core/src/compile/entry.ts"),
-      "@executioncontrolprotocol/core/loaders": path.resolve(repoRoot, "packages/core/src/loaders/index.ts"),
-      "@executioncontrolprotocol/core/browser": path.resolve(repoRoot, "packages/core/src/browser.ts"),
       "@executioncontrolprotocol/core/environment": path.resolve(
         repoRoot,
         "packages/core/src/environment/environment.ts"
@@ -59,10 +56,6 @@ export default defineConfig({
       "@executioncontrolprotocol/core/bindings/extension": path.resolve(
         repoRoot,
         "packages/core/src/bindings/extension.ts"
-      ),
-      "@executioncontrolprotocol/core/bindings/runtime": path.resolve(
-        repoRoot,
-        "packages/core/src/bindings/runtime.ts"
       ),
       "@executioncontrolprotocol/core/bindings/policy": path.resolve(
         repoRoot,
@@ -90,8 +83,8 @@ export default defineConfig({
       ),
       "@executioncontrolprotocol/core": path.resolve(repoRoot, "packages/core/src/index.ts"),
       "@executioncontrolprotocol/policies": path.resolve(repoRoot, "packages/policies/src/index.ts"),
-      "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/runtimes/node/src/index.ts"),
-      "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/runtimes/browser/src/index.ts"),
+      "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/environments/node/src/index.ts"),
+      "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/environments/browser/src/index.ts"),
       "@executioncontrolprotocol/extension-openai": path.resolve(
         repoRoot,
         "packages/extensions/openai/src/index.ts"
@@ -119,7 +112,7 @@ export default defineConfig({
         "packages/mcp/src/**/*.{ts,js}",
         "packages/extensions/format-toon/src/**/*.{ts,js}",
         "packages/extensions/format-mermaid/src/**/*.{ts,js}",
-        "packages/runtimes/node/src/**/*.{ts,js}",
+        "packages/environments/node/src/**/*.{ts,js}",
       ],
       exclude: [
         "**/*.test.ts",
@@ -181,8 +174,8 @@ export default defineConfig({
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",
             "packages/vendor/*/test/**/*.test.ts",
-            "packages/runtimes/node/**/*.test.ts",
-            "packages/runtimes/browser/test/*.test.ts",
+            "packages/environments/node/**/*.test.ts",
+            "packages/environments/browser/test/*.test.ts",
             "scripts/**/*.test.ts",
           ],
           exclude: ["**/node_modules/**"],
@@ -198,20 +191,33 @@ export default defineConfig({
             },
             {
               find: "@executioncontrolprotocol/core",
-              replacement: path.resolve(
-                repoRoot,
-                "packages/core/src/browser-runtime-entry.ts"
-              ),
-            },
-            {
-              find: "@executioncontrolprotocol/core/browser",
-              replacement: path.resolve(repoRoot, "packages/core/src/browser.ts"),
+              replacement: path.resolve(repoRoot, "packages/core/src/index.ts"),
             },
           ],
         },
         test: {
           name: "browser",
-          include: ["packages/runtimes/browser/test/browser/**/*.test.ts"],
+          include: [
+            "packages/core/test/**/*.test.ts",
+            "packages/environments/browser/test/browser/**/*.test.ts",
+          ],
+          exclude: [
+            "**/node_modules/**",
+            "packages/core/test/compile/**",
+            "packages/core/test/compile.test.ts",
+            "packages/core/test/fluent-api.test.ts",
+            "packages/core/test/fluent/encode.test.ts",
+            "packages/core/test/encoding/**",
+            "packages/core/test/patch/**",
+            "packages/core/test/testing/**",
+            "packages/core/test/environment-events.test.ts",
+            "packages/core/test/weekly-brief.test.ts",
+            "packages/core/test/secret-serialization.test.ts",
+            "packages/core/test/workflow-io.test.ts",
+            "packages/core/test/metadata-prose-guard.test.ts",
+            "packages/core/test/package-boundary.test.ts",
+            "packages/core/test/types/schemas.test.ts",
+          ],
           browser: {
             enabled: true,
             headless: true,

@@ -22,8 +22,8 @@ describe("adobe-firefly-services browser catalog", () => {
   })
 
   it("catalogs host execution for all capabilities with valid ids", () => {
-    expect(adobeFireflyServicesExtension.supportedRuntimes).toEqual([
-      "@executioncontrolprotocol/node",
+    expect(adobeFireflyServicesExtension.supportedEnvironments).toEqual([
+      { id: "@executioncontrolprotocol/node" },
     ])
     expect(adobeFireflyServicesExtension.capabilities).toHaveLength(ADOBE_GENERATED_OPERATION_COUNT)
     expect(adobeFireflyServicesExtension.capabilities).toHaveLength(meta.operationCount)

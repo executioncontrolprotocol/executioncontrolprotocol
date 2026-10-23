@@ -2,7 +2,6 @@ import {
   defineExtension,
   capabilityFor,
   globalRegistry,
-  catalogExtension,
   type Registry
 } from "@executioncontrolprotocol/core"
 import {
@@ -57,8 +56,6 @@ export const jsonataExtension = defineExtension("@executioncontrolprotocol", "js
       })
   ])
   .build()
-
-catalogExtension(jsonataExtension)
 
 /** Register @executioncontrolprotocol/jsonata. */
 export async function registerJsonataExtension(

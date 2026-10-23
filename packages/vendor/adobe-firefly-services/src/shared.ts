@@ -1,6 +1,6 @@
 import {
   defineExtension,
-  NODE_RUNTIME_ID,
+  NODE_ENVIRONMENT_ID,
   type CapabilityDefinition,
   type ExtensionDefinition
 } from "@executioncontrolprotocol/core"
@@ -21,7 +21,7 @@ export function buildAdobeFireflyServicesExtension(
   capabilities: CapabilityDefinition[],
 ): ExtensionDefinition {
   return defineExtension("@executioncontrolprotocol", "adobe-firefly-services")
-    .withSupportedRuntimes([NODE_RUNTIME_ID])
+    .supports(NODE_ENVIRONMENT_ID)
     .withMetadata({
       summary: "Call Adobe Firefly Services APIs across creative product families",
       description:

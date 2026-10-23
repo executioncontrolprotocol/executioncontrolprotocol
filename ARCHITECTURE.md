@@ -28,9 +28,9 @@ Rule:
 ECP uses three layers of composition:
 
 - **Definition**: declares reusable implementation/contract  
-  `defineExtension(...)`, `defineRuntime(...)`, `definePolicy(...)`
+  `defineExtension(...)`, `defineEnvironment(...)`, `definePolicy(...)`
 - **Binding**: configures a definition inside an environment  
-  `extension("@executioncontrolprotocol/test").with({ ... })`, `runtime("@executioncontrolprotocol/node").with({ ... })`
+  `extension(testExtension).with({ ... })`, `policy(budgetPolicy).with({ ... })`
 - **Invocation**: calls a capability from inside a workflow  
   `step("@executioncontrolprotocol/test.echo").with(input).as("echo")`
 
@@ -38,15 +38,14 @@ ECP uses three layers of composition:
 
 ## Registry + catalog model
 
-At runtime, ECP resolves everything through a registry:
+ECP resolves everything through a per-environment registry:
 
 - **extensions** register capabilities and lifecycle hooks
 - **policies** register governance hooks (`policy:pre` / `policy:post` / `policy:finally`)
-- **runtimes** provide an executor that runs the workflow graph and emits lifecycle
+- **environments** provide an executor that runs the workflow graph and emits lifecycle
 
-Extension packages “self-catalog” at module load (e.g. `catalogExtension(def)`).
-Environments bind extensions by id (string) after importing the package so its
-definitions are available.
+Definitions are data. Bind `extension(definition)` / `policy(definition)` on
+`environment(id, label?).with([...])`. There is no module-load catalog.
 
 Key boundary:
 
@@ -75,11 +74,10 @@ Policies can:
 ## Package architecture (at a glance)
 
 - `@executioncontrolprotocol/core/types`: protocol types + JSON Schema artifacts
-- `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine + `registry-control`
-- `@executioncontrolprotocol/core/compile` / `core/browser`: host-specific **compile** (Node esbuild vs browser esbuild-wasm) — not part of the runtime host packages
-- `@executioncontrolprotocol/node`: Node runtime host
-- `@executioncontrolprotocol/browser`: browser runtime host
-- `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, secrets, model providers) — written like third-party extensions
+- `@executioncontrolprotocol/core`: host-agnostic fluent API + environment + local engine + `registry-control`
+- `@executioncontrolprotocol/node`: Node environment (compile, loaders, OS secrets, process-env)
+- `@executioncontrolprotocol/browser`: browser environment (registry, local config, esbuild-wasm compile)
+- `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, model providers) — written like third-party extensions
 - Vendor extensions (`fal`, `image-sharp`, `adobe`, …)
 - `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
@@ -89,4 +87,4 @@ Policies can:
 
 ## Compile portability
 
-Apps share `compileWorkflowSource`. Implementations live on core subpaths so extensions never import runtime hosts. Swap host by resolving `core/compile` (Node) vs `core/browser` (or the `"browser"` export condition). Phase 2 moves host compile into the environment packages.
+Apps share `compileWorkflowSource`. Implementations live on the environment packages so core stays host-agnostic: Node esbuild on `@executioncontrolprotocol/node`, esbuild-wasm on `@executioncontrolprotocol/browser`.

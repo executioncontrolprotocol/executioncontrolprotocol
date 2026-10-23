@@ -88,7 +88,7 @@ const EXTENSION_INVENTORY_KEYS = [
   "capabilities",
   "summary",
   "isAuthorable",
-  "supportedRuntimes"
+  "supportedEnvironments"
 ] as const
 
 /**
@@ -249,8 +249,8 @@ function buildExtensionDescription(
     ...(meta?.summary ? { summary: meta.summary } : {}),
     // Default authorable; only surface the opt-out on inventory rows.
     ...(meta?.isAuthorable === false ? { isAuthorable: false } : {}),
-    ...(def?.supportedRuntimes?.length
-      ? { supportedRuntimes: [...def.supportedRuntimes] }
+    ...(def?.supportedEnvironments?.length
+      ? { supportedEnvironments: def.supportedEnvironments.map((s) => s.id) }
       : {})
   }
   const withMetadata = opts.detail || opts.searchIndex || opts.includeMetadata

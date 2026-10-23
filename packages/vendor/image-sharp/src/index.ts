@@ -1,5 +1,4 @@
 import {
-  catalogExtension,
   globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
@@ -180,8 +179,6 @@ export const imageSharpExtension = buildImageSharpExtension(
     },
   }),
 )
-
-catalogExtension(imageSharpExtension)
 
 /** Register @executioncontrolprotocol/image-sharp. */
 export async function registerImageSharpExtension(registry: Registry = globalRegistry): Promise<void> {

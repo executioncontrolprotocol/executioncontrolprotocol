@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest"
 import {
   environment,
   extension,
-  registerTestExtension,
-  runtime,
   testExtension,
 } from "@executioncontrolprotocol/core"
-import { NODE_RUNTIME_ID, registerNodeRuntime } from "@executioncontrolprotocol/node"
+import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
 
 describe("@executioncontrolprotocol/test", () => {
   it("registers echo and stubs, not generate", async () => {
-    await registerTestExtension()
     const ids = testExtension.capabilities.map((c) => c.id)
     expect(ids).toContain("@executioncontrolprotocol/test.echo")
     expect(ids).toContain("@executioncontrolprotocol/test.summarize")
@@ -18,11 +15,10 @@ describe("@executioncontrolprotocol/test", () => {
   })
 
   it("echo invoke returns the supplied value", async () => {
-    await registerNodeRuntime()
-    await registerTestExtension()
-    const env = environment("test-echo")
-      .withRuntime(runtime(NODE_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/test").with({})])
+    await registerNodeEnvironment()
+    const env = environment(NODE_ENVIRONMENT_ID, "test-echo").with([
+      extension(testExtension).with({}),
+    ])
     const ecp = await env.init()
     const result = await ecp.invoke("@executioncontrolprotocol/test.echo").with({ value: "hello" }).process()
     expect(result.success).toBe(true)
@@ -31,11 +27,10 @@ describe("@executioncontrolprotocol/test", () => {
   })
 
   it("echo invoke uses the default greeting when value is omitted", async () => {
-    await registerNodeRuntime()
-    await registerTestExtension()
-    const env = environment("test-echo-default")
-      .withRuntime(runtime(NODE_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/test").with({})])
+    await registerNodeEnvironment()
+    const env = environment(NODE_ENVIRONMENT_ID, "test-echo-default").with([
+      extension(testExtension).with({}),
+    ])
     const ecp = await env.init()
     const result = await ecp.invoke("@executioncontrolprotocol/test.echo").with({}).process()
     expect(result.success).toBe(true)

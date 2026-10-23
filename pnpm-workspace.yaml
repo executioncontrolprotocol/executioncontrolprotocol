@@ -5,7 +5,7 @@ packages:
   - packages/policies
   - packages/extensions/*
   - packages/vendor/*
-  - packages/runtimes/*
+  - packages/environments/*
 
 onlyBuiltDependencies:
   - sharp

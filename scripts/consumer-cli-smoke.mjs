@@ -31,8 +31,6 @@ const keep = process.env.KEEP_CONSUMER_CLI === "1"
 const REQUIRED = new Set([
   "@executioncontrolprotocol/core",
   "@executioncontrolprotocol/policies",
-  "@executioncontrolprotocol/secrets",
-  "@executioncontrolprotocol/process-env",
   "@executioncontrolprotocol/format-toon",
   "@executioncontrolprotocol/node",
   "@executioncontrolprotocol/cli",
@@ -42,7 +40,7 @@ function assertBuilt() {
   const markers = [
     join(root, "packages/core/dist/index.js"),
     join(root, "packages/cli/dist/commands/run.js"),
-    join(root, "packages/runtimes/node/dist/index.js"),
+    join(root, "packages/environments/node/dist/index.js"),
   ]
   for (const marker of markers) {
     if (!existsSync(marker)) {

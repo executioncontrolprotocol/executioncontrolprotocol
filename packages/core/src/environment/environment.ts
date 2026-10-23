@@ -13,9 +13,8 @@ import type {
 } from "../types/index.js"
 import type { NamespacedId } from "../types/index.js"
 import { extension, type ExtensionBindingBuilder } from "../bindings/extension.js"
-import { policy, type PolicyBindingBuilder } from "../bindings/policy.js"
-import type { RuntimeBindingBuilder } from "../bindings/runtime.js"
-import { Registry, globalRegistry } from "../registry/registry.js"
+import { policy, PolicyBindingBuilder } from "../bindings/policy.js"
+import { Registry } from "../registry/registry.js"
 import { ensureBoundExtensionsRegistered as ensureBoundExtensions } from "../registry/ensure-bound-extensions.js"
 import { RegistryRegistrationDeniedError } from "../registry/errors.js"
 import type { RuntimeExecutor } from "../runtime/executor.js"
@@ -38,16 +37,31 @@ import { buildDescriptor } from "./describe.js"
 import { searchCapabilities } from "./search.js"
 import { validateEnvironmentWithWorkflow } from "../validate/environment.js"
 import { registerCoreFormats } from "../formats/register-core-formats.js"
-import type { HookDefinition } from "../definitions/types.js"
+import type { EnvironmentDefinition, HookDefinition, PolicyDefinition } from "../definitions/types.js"
+import { getEnvironmentDefinition } from "../definitions/environment.js"
 import type { EncodingEnvironmentHost } from "./encoding-host.js"
 import { EcpImpl, type Ecp } from "./ecp.js"
 import { createInvokeBuilder } from "../invoke/invoke-builder.js"
 import { validateWorkflowAcceptsInput } from "../schema/workflow-io.js"
+import {
+  registryControlPolicy,
+  REGISTRY_CONTROL_POLICY_ID,
+} from "../policies/registry-control.js"
 
 function resolveId(ref: NamespacedId | { id: NamespacedId } | string): NamespacedId {
   if (typeof ref === "string") return ref as NamespacedId
   if ("id" in ref) return ref.id
   return ref as NamespacedId
+}
+
+function isPolicyDefinition(ref: unknown): ref is PolicyDefinition {
+  return (
+    typeof ref === "object" &&
+    ref !== null &&
+    "id" in ref &&
+    "hooks" in ref &&
+    !("capabilities" in ref)
+  )
 }
 
 function emptyWorkflowStub(): WorkflowManifest {
@@ -74,6 +88,36 @@ export interface RunOptions {
 }
 
 /**
+ * Options for {@link Environment.init}.
+ * @category Environment
+ */
+export interface EnvironmentInitOptions {
+  /**
+   * Override the default blob store.
+   * @category Environment
+   */
+  blobStore?: CapabilityBlobStore
+  /**
+   * Override the default artifact store.
+   * @category Environment
+   */
+  artifactStore?: CapabilityArtifactStore
+  /**
+   * Local invoke host for host/mixed capability hops.
+   * @category Environment
+   */
+  remoteInvoke?: RemoteInvokeBinding
+  /**
+   * Use this registry instead of the per-instance default.
+   * @category Environment
+   */
+  registry?: Registry
+}
+
+/** Binding accepted by {@link Environment.with}. @category Environment */
+export type EnvironmentBinding = ExtensionBindingBuilder | PolicyBindingBuilder
+
+/**
  * Configured ECP environment.
  * @category Environment
  */
@@ -84,58 +128,38 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private remoteInvoke?: RemoteInvokeBinding
   private blobStore?: CapabilityBlobStore
   private artifactStore?: CapabilityArtifactStore
+  private registry: Registry
+  private extensionBindings: ExtensionBindingBuilder[] = []
+  private policyBindings: PolicyBindingBuilder[] = []
 
   constructor(
-    private readonly envId: string,
+    private readonly environmentDef: EnvironmentDefinition,
     private readonly envLabel: string | undefined,
-    private runtimeBinding: RuntimeBindingBuilder | undefined,
-    private extensionBindings: ExtensionBindingBuilder[] = [],
-    private policyBindings: PolicyBindingBuilder[] = [],
-    private readonly registry: Registry = globalRegistry
-  ) {}
+    registry?: Registry
+  ) {
+    this.registry = registry ?? new Registry()
+  }
 
   registerConfigResolver(resolver: EnvironmentConfigResolver): void {
     this.configResolvers.push(resolver)
   }
 
-  withRuntime(binding: RuntimeBindingBuilder): this {
-    this.runtimeBinding = binding
-    this.invalidatePrepared()
-    return this
-  }
-
-  withExtensions(bindings: ExtensionBindingBuilder[]): this {
-    this.extensionBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
-  withPolicies(bindings: PolicyBindingBuilder[]): this {
-    this.policyBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
   /**
-   * Bind a local invoke host for host/mixed capability hops (`POST /v1/invoke`).
-   * Token is never included in `describe()`.
+   * Bind extensions and policies. Call more than once to accumulate.
    * @category Environment
    */
-  withRemoteInvoke(binding: RemoteInvokeBinding): this {
-    this.remoteInvoke = { url: binding.url.replace(/\/+$/, ""), token: binding.token }
+  with(bindings: EnvironmentBinding[]): this {
+    for (const binding of bindings) {
+      const id = resolveId(binding.getRef())
+      if (binding instanceof PolicyBindingBuilder) {
+        this.policyBindings = this.policyBindings.filter((b) => resolveId(b.getRef()) !== id)
+        this.policyBindings.push(binding)
+      } else {
+        this.extensionBindings = this.extensionBindings.filter((b) => resolveId(b.getRef()) !== id)
+        this.extensionBindings.push(binding)
+      }
+    }
     this.invalidatePrepared()
-    return this
-  }
-
-  /** Default blob store for invoke/run when options omit `blobs`. */
-  withBlobStore(store: CapabilityBlobStore): this {
-    this.blobStore = store
-    return this
-  }
-
-  /** Default artifact store for invoke/run host outputs. */
-  withArtifactStore(store: CapabilityArtifactStore): this {
-    this.artifactStore = store
     return this
   }
 
@@ -147,6 +171,11 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   /** @internal Blob store. */
   getBlobStore(): CapabilityBlobStore | undefined {
     return this.blobStore
+  }
+
+  /** @internal Set the default blob store (used by {@link EcpImpl.getBlobStore}). */
+  setBlobStore(store: CapabilityBlobStore): void {
+    this.blobStore = store
   }
 
   /** @internal Artifact store. */
@@ -165,21 +194,44 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.artifactStore
   }
 
-  /** Dynamically add an extension binding (e.g. browser registry auto-bind). */
-  addExtensionBinding(ref: NamespacedId, config: Record<string, unknown> = {}): void {
-    this.extensionBindings.push(extension(ref).with(config))
+  /** Dynamically add or replace an extension binding (e.g. browser registry auto-bind). */
+  addExtensionBinding(
+    ref: NamespacedId | import("../definitions/types.js").ExtensionDefinition,
+    config: Record<string, unknown> = {}
+  ): void {
+    const binding = extension(ref).with(config)
+    const id = resolveId(binding.getRef())
+    this.extensionBindings = this.extensionBindings.filter((b) => resolveId(b.getRef()) !== id)
+    this.extensionBindings.push(binding)
     this.invalidatePrepared()
   }
 
-  /** Dynamically add a policy binding. */
-  addPolicyBinding(ref: NamespacedId, config: Record<string, unknown> = {}): void {
-    this.policyBindings.push(policy(ref).with(config))
+  /** Dynamically add or replace a policy binding. */
+  addPolicyBinding(
+    ref: NamespacedId | PolicyDefinition,
+    config: Record<string, unknown> = {}
+  ): void {
+    const binding = policy(ref).with(config)
+    const id = resolveId(binding.getRef())
+    this.policyBindings = this.policyBindings.filter((b) => resolveId(b.getRef()) !== id)
+    this.policyBindings.push(binding)
     this.invalidatePrepared()
   }
 
   private invalidatePrepared(): void {
     this.resolved = undefined
     this.discoveryPrepared = false
+  }
+
+  private applyDefaultBindings(): void {
+    for (const def of this.environmentDef.defaultExtensions ?? []) {
+      if (!this.extensionBindings.some((b) => resolveId(b.getRef()) === def.id)) {
+        this.extensionBindings.unshift(extension(def))
+      }
+    }
+    if (!this.policyBindings.some((b) => resolveId(b.getRef()) === REGISTRY_CONTROL_POLICY_ID)) {
+      this.policyBindings.unshift(policy(registryControlPolicy))
+    }
   }
 
   private collectPolicyHooks(
@@ -200,7 +252,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.prepareForDiscovery()
     const ctx: PolicyContext = {
       workflow: emptyWorkflowStub(),
-      run: { id: this.envId, input: {} },
+      run: { id: this.envLabel ?? this.environmentDef.id, input: {} },
       step: REGISTRY_CHECK_STEP,
       state: {},
       input: {},
@@ -211,7 +263,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
           ? "registry.registerExtension"
           : request.kind === "policy"
             ? "registry.registerPolicy"
-            : "registry.registerRuntime",
+            : "registry.registerEnvironment",
       registryRequest: request,
     }
     const decision = await evaluatePolicies("policy:pre", this.collectPolicyHooks("policy:pre"), ctx)
@@ -229,7 +281,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const base = {
       event,
       workflow: emptyWorkflowStub(),
-      run: { id: this.envId, input: {} },
+      run: { id: this.envLabel ?? this.environmentDef.id, input: {} },
       state: {},
       environment: this,
     }
@@ -255,17 +307,36 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private async prepareForDiscovery(): Promise<void> {
     if (this.discoveryPrepared) return
 
+    this.applyDefaultBindings()
     await registerCoreFormats(this.registry)
+    if (!this.registry.getEnvironment(this.environmentDef.id)) {
+      await this.registry.registerEnvironment(this.environmentDef)
+    }
     await this.ensureBoundExtensionsRegistered()
+    await this.ensureBoundPoliciesRegistered()
 
     await this.emitEnvironmentEvent("environment:created")
 
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-
     await this.emitEnvironmentEvent("environment:configuring")
     this.discoveryPrepared = true
+  }
+
+  private async ensureBoundPoliciesRegistered(): Promise<void> {
+    for (const binding of this.policyBindings) {
+      const ref = binding.getRef()
+      if (isPolicyDefinition(ref)) {
+        if (!this.registry.getPolicy(ref.id)) {
+          await this.registry.registerPolicy(ref)
+        }
+        continue
+      }
+      const id = resolveId(ref)
+      if (!this.registry.getPolicy(id)) {
+        throw new Error(
+          `Policy ${id} is not registered. Pass policy(definition) with the imported PolicyDefinition.`
+        )
+      }
+    }
   }
 
   /** Run path: full binding resolution and ready. */
@@ -273,9 +344,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.prepareForDiscovery()
     if (this.resolved) return this.resolved
 
-    const rtId = resolveId(this.runtimeBinding!.getRef())
-    const rtDef = this.registry.getRuntime(rtId)
-    if (!rtDef) throw new Error(`Runtime ${rtId} is not registered`)
+    const envId = this.environmentDef.id
 
     const extensionBindings = this.extensionBindings.map((b, i) => ({
       id: resolveId(b.getRef()),
@@ -304,9 +373,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
     this.resolved = await resolveBindingsForRun(
       {
-        id: rtId,
-        label: this.runtimeBinding!.getLabel(),
-        rawConfig: this.runtimeBinding!.getConfig(),
+        id: envId,
+        label: this.envLabel,
+        rawConfig: {},
       },
       extensionBindings,
       policyBindings,
@@ -337,21 +406,17 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   compile(): EnvironmentManifest {
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-    const rtId = resolveId(this.runtimeBinding.getRef())
     return {
       schema: "@executioncontrolprotocol.environment",
       version: LATEST_ECP_VERSION,
       environment: {
-        id: this.envId,
+        id: this.environmentDef.id,
         ...(this.envLabel ? { label: this.envLabel } : {}),
       },
       runtime: {
-        id: rtId,
-        ...(this.runtimeBinding.getLabel() ? { label: this.runtimeBinding.getLabel() } : {}),
-        config: manifestConfig(this.runtimeBinding.getConfig()),
+        id: this.environmentDef.id,
+        ...(this.envLabel ? { label: this.envLabel } : {}),
+        config: manifestConfig({}),
       },
       extensions: this.extensionBindings.map((b, i) => ({
         id: resolveId(b.getRef()),
@@ -373,7 +438,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   /**
-   * Register extension definitions for all bindings (catalog lookup or inline def).
+   * Register extension definitions for all bindings.
    * Idempotent; safe to call before encode, decode, describe, or run.
    * @category Environment
    */
@@ -381,9 +446,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await ensureBoundExtensions(this.extensionBindings, this.registry)
   }
 
-  /** Environment id (for utility operations). @category Environment */
+  /** Environment definition id. @category Environment */
   getEnvId(): string {
-    return this.envId
+    return this.environmentDef.id
   }
 
   /** Environment label when set. @category Environment */
@@ -391,19 +456,28 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.envLabel
   }
 
-  /** Bound runtime id. @category Environment */
-  getRuntimeId(): string {
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-    return String(resolveId(this.runtimeBinding.getRef()))
+  /** Bound environment definition id. @category Environment */
+  getEnvironmentId(): string {
+    return this.environmentDef.id
   }
 
   /**
    * Initialize environment for operational use and return an {@link Ecp} instance.
    * @category Environment
    */
-  async init(): Promise<Ecp> {
+  async init(options?: EnvironmentInitOptions): Promise<Ecp> {
+    if (options?.registry) {
+      this.registry = options.registry
+      this.invalidatePrepared()
+    }
+    if (options?.blobStore) this.blobStore = options.blobStore
+    if (options?.artifactStore) this.artifactStore = options.artifactStore
+    if (options?.remoteInvoke) {
+      this.remoteInvoke = {
+        url: options.remoteInvoke.url.replace(/\/+$/, ""),
+        token: options.remoteInvoke.token,
+      }
+    }
     await this.prepareForRun()
     return new EcpImpl(this)
   }
@@ -434,7 +508,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       return validateEnvironmentWithWorkflow(
         workflow,
         await this.ecpDescribe(),
-        this.resolveBindings()
+        this.resolveBindings(),
+        this.registry,
+        this.environmentDef.version
       )
     }
     await this.prepareForDiscovery()
@@ -464,7 +540,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const validation = await validateEnvironmentWithWorkflow(
       workflow,
       await this.ecpDescribe(),
-      this.resolveBindings()
+      this.resolveBindings(),
+      this.registry,
+      this.environmentDef.version
     )
     if (!validation.valid) {
       throw new Error(
@@ -487,8 +565,8 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.emitEnvironmentEvent("environment:beforeRun")
 
     const bindings = this.resolveBindings()
-    const rtDef = this.registry.getRuntime(bindings.runtime.id)!
-    const executor: RuntimeExecutor = rtDef.executor
+    const envDef = this.registry.getEnvironment(bindings.runtime.id)!
+    const executor: RuntimeExecutor = envDef.executor
 
     return executor.execute(workflow, {
       runId: globalThis.crypto.randomUUID(),
@@ -521,7 +599,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const validation = await validateEnvironmentWithWorkflow(
       workflow,
       await this.ecpDescribe(),
-      this.resolveBindings()
+      this.resolveBindings(),
+      this.registry,
+      this.environmentDef.version
     )
     if (!validation.valid) {
       throw new Error(
@@ -534,8 +614,8 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     }
 
     const bindings = this.resolveBindings()
-    const rtDef = this.registry.getRuntime(bindings.runtime.id)!
-    const executor: RuntimeExecutor = rtDef.executor
+    const envDef = this.registry.getEnvironment(bindings.runtime.id)!
+    const executor: RuntimeExecutor = envDef.executor
 
     return executor.execute(workflow, {
       runId: globalThis.crypto.randomUUID(),
@@ -556,9 +636,16 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 }
 
 /**
- * Create an ECP environment (no default runtime; bind with `.withRuntime(...)`).
+ * Create an ECP environment. `id` is the environment definition id
+ * (for example `@executioncontrolprotocol/node`); the optional label is the instance name.
  * @category Environment
  */
-export function environment(id: string, label?: string, registry: Registry = globalRegistry): Environment {
-  return new Environment(id, label, undefined, [], [], registry)
+export function environment(id: string, label?: string): Environment {
+  const def = getEnvironmentDefinition(id)
+  if (!def) {
+    throw new Error(
+      `Environment definition ${id} is not registered. Import @executioncontrolprotocol/node or @executioncontrolprotocol/browser and call its environment() factory.`
+    )
+  }
+  return new Environment(def, label)
 }

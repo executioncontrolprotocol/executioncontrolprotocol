@@ -1,4 +1,4 @@
-import { loadWorkflowFile } from "@executioncontrolprotocol/core/loaders"
+import { loadWorkflowFile } from "@executioncontrolprotocol/node"
 import { runWithCommandError } from "../lib/command-helpers.js"
 import { WorkflowEnvCommand } from "../lib/env-module-command.js"
 
@@ -7,7 +7,7 @@ export default class Validate extends WorkflowEnvCommand {
   static summary = "Validate a workflow manifest"
 
   static description =
-    "Compile (if needed) and validate a workflow against the extensions, runtime, and policies in --env."
+    "Compile (if needed) and validate a workflow against the extensions, and policies in --env."
 
   static examples = [
     "<%= config.bin %> <%= command.id %> examples/01-echo/workflow.ts --env examples/01-echo/environment.ts",

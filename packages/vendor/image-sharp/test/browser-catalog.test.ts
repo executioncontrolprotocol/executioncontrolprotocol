@@ -19,7 +19,9 @@ describe("image-sharp browser catalog", () => {
   })
 
   it("catalogs host execution for all capabilities", () => {
-    expect(imageSharpExtension.supportedRuntimes).toEqual(["@executioncontrolprotocol/node"])
+    expect(imageSharpExtension.supportedEnvironments).toEqual([
+      { id: "@executioncontrolprotocol/node" },
+    ])
     expect(
       imageSharpExtension.capabilities.every(
         (cap) => resolveCapabilityExecution(cap, imageSharpExtension) === "host",

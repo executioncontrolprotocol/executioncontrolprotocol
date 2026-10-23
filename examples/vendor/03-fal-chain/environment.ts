@@ -1,13 +1,9 @@
-import "@executioncontrolprotocol/fal"
-import { environment, extension, env } from "@executioncontrolprotocol/node"
-import { registerFalExtension } from "@executioncontrolprotocol/fal"
+import { environment, extension, env, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { falExtension } from "@executioncontrolprotocol/fal"
 
-registerFalExtension()
-
-export default environment("fal-chain", "FAL image chain")
-  .withExtensions([
-    extension("@executioncontrolprotocol/fal", "FAL").with({
-      apiKey: env("FAL_KEY", { optional: true }),
-      defaultMode: "subscribe",
-    }),
-  ])
+export default environment(NODE_ENVIRONMENT_ID, "fal-chain").with([
+  extension(falExtension, "FAL").with({
+    apiKey: env("FAL_KEY", { optional: true }),
+    defaultMode: "subscribe",
+  }),
+])

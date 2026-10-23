@@ -184,7 +184,7 @@ Applications
 
 ### Workflow
 
-A portable, runtime-free execution graph (schema: `@executioncontrolprotocol.workflow`, version: `"1.0"`).
+A portable execution graph (schema: `@executioncontrolprotocol.workflow`, version: `"1.0"`).
 
 Workflows do **not** contain runtime config, extension config, policy config, or secrets.
 
@@ -192,7 +192,7 @@ Workflows do **not** contain runtime config, extension config, policy config, or
 
 ### Environment
 
-A configured execution container that binds a runtime, extensions, policies, and
+A configured execution container that binds extensions, policies, and
 secret sources, then executes workflows deterministically under governance.
 
 ------------------------------------------------------------------------
@@ -298,8 +298,8 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | Path | Description |
 | ---- | ----------- |
 | [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch, protocol types (`@executioncontrolprotocol/core`, `@executioncontrolprotocol/core/types`) |
-| [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
-| [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
+| [`packages/environments/node/`](packages/environments/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
+| [`packages/environments/browser/`](packages/environments/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
 | [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp test`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |

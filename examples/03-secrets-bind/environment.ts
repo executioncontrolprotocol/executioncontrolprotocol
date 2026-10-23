@@ -1,12 +1,15 @@
-import { environment, extension, secrets } from "@executioncontrolprotocol/node"
-import "@executioncontrolprotocol/core/testing"
-import "@executioncontrolprotocol/secrets"
-import "@executioncontrolprotocol/extension-openai"
+import {
+  environment,
+  extension,
+  secrets,
+  NODE_ENVIRONMENT_ID,
+  testExtension,
+} from "@executioncontrolprotocol/node"
+import { openaiExtension } from "@executioncontrolprotocol/extension-openai"
 
-export default (await environment("secrets-bind", "Secrets bind demo")).withExtensions([
-  extension("@executioncontrolprotocol/secrets").with({}),
-  extension("@executioncontrolprotocol/test").with({}),
-  extension("@executioncontrolprotocol/openai").with({
+export default environment(NODE_ENVIRONMENT_ID, "secrets-bind").with([
+  extension(testExtension),
+  extension(openaiExtension).with({
     apiKey: secrets("openai/api-key", { optional: true }),
     defaultModel: "gpt-4o-mini",
   }),

@@ -1,11 +1,13 @@
 import type { CapabilityId, NamespacedId, RegistryRegistrationRequest } from "../types/index.js"
 import type {
   CapabilityDefinition,
+  EnvironmentDefinition,
   ExtensionDefinition,
   PolicyDefinition,
-  RuntimeDefinition,
 } from "../definitions/types.js"
 import { RegistryFrozenError } from "./errors.js"
+
+export { RegistryFrozenError } from "./errors.js"
 
 /** Guard invoked before registry registration. @category Runtime */
 export type RegistryRegistrationGuard = (
@@ -13,11 +15,11 @@ export type RegistryRegistrationGuard = (
 ) => void | Promise<void>
 
 /**
- * Global definition registry.
+ * Per-environment definition registry.
  * @category Runtime
  */
 export class Registry {
-  private runtimes = new Map<string, RuntimeDefinition>()
+  private environments = new Map<string, EnvironmentDefinition>()
   private extensions = new Map<string, ExtensionDefinition>()
   private policies = new Map<string, PolicyDefinition>()
   private capabilities = new Map<string, CapabilityDefinition>()
@@ -68,13 +70,13 @@ export class Registry {
     }
   }
 
-  /** Register a runtime definition. */
-  async registerRuntime(
-    def: RuntimeDefinition,
+  /** Register an environment definition. */
+  async registerEnvironment(
+    def: EnvironmentDefinition,
     extra?: Partial<RegistryRegistrationRequest>
   ): Promise<void> {
-    await this.assertCanRegister(this.buildRequest("runtime", def, extra))
-    this.runtimes.set(def.id, def)
+    await this.assertCanRegister(this.buildRequest("environment", def, extra))
+    this.environments.set(def.id, def)
   }
 
   /** Register an extension and its capabilities. */
@@ -98,8 +100,8 @@ export class Registry {
     this.policies.set(def.id, def)
   }
 
-  getRuntime(id: string): RuntimeDefinition | undefined {
-    return this.runtimes.get(id)
+  getEnvironment(id: string): EnvironmentDefinition | undefined {
+    return this.environments.get(id)
   }
 
   getExtension(id: string): ExtensionDefinition | undefined {
@@ -135,5 +137,9 @@ export class Registry {
   }
 }
 
-/** Shared default registry. @category Runtime */
+/**
+ * Shared default registry.
+ * @deprecated Phase 3 deletes this. Prefer the per-environment registry from {@link environment}.
+ * @category Runtime
+ */
 export const globalRegistry = new Registry()

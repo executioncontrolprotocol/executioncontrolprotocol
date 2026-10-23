@@ -6,8 +6,8 @@ alwaysApply: true
 # General rules
 
 - TypeScript-first monorepo using pnpm workspaces. Workspace globs are in
-  `pnpm-workspace.yaml`. During the reset, packages move (`environments/*` in Phase 2,
-  `plugins/*` in Phase 3–5).
+  `pnpm-workspace.yaml`. Hosts live in `packages/environments/*`. Later phases move
+  plugins to `plugins/*`.
 - No Python dependencies; validation and linting use npm packages.
 - Run `pnpm install` from the repo root only.
 - `pnpm run check` runs the full suite: build, schema generation, lint, secrets scan, coverage

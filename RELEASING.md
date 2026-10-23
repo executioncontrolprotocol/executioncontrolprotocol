@@ -33,16 +33,16 @@ pnpm run version:check-vs-npm
 
 ## Published packages (`@executioncontrolprotocol/*`)
 
-All non-private packages under `packages/` (including protocol/platform `extensions/*`, vendor `vendor/*`, and `runtimes/*`). Harnesses, evals and the browser demo were removed in Phase 1.
+All non-private packages under `packages/` (including protocol/platform `extensions/*`, vendor `vendor/*`, and `environments/*`). Harnesses, evals and the browser demo were removed in Phase 1.
 
 Vendor package names are listed in [`packages/vendor/README.md`](packages/vendor/README.md).
 
 Core surface:
 
-- `@executioncontrolprotocol/core` — fluent API, environment, local runtime, protocol types (`./types`, `dist/schemas/`)
+- `@executioncontrolprotocol/core` — fluent API, environment, local engine, protocol types (`./types`, `dist/schemas/`)
 - `@executioncontrolprotocol/cli` — `ecp` Oclif CLI
-- `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser` — runtime hosts
-- `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, format/extension packages, and harness packages as needed
+- `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser` — environment hosts
+- `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, format/extension packages as needed
 
 Run **`pnpm run build`** and **`pnpm run generate:schema`** from the repo root before a manual release; CI does this in the publish job. Packages ship compiled **`dist/`** JS.
 

@@ -1,21 +1,15 @@
-import {
-  imageSharpExtension,
-  registerImageSharpExtension,
-} from "@executioncontrolprotocol/image-sharp"
-import { environment, extension } from "@executioncontrolprotocol/node"
+import { imageSharpExtension } from "@executioncontrolprotocol/image-sharp"
+import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 
-await registerImageSharpExtension()
-
-export default (await environment("image-prep", "Image prep"))
-  .withExtensions([
-    extension(imageSharpExtension, "Sharp").with({
-      limits: {
-        allowRemoteUrls: false,
-      },
-      defaults: {
-        format: "webp",
-        quality: 84,
-        stripMetadata: true,
-      },
-    }),
-  ])
+export default environment(NODE_ENVIRONMENT_ID, "image-prep").with([
+  extension(imageSharpExtension, "Sharp").with({
+    limits: {
+      allowRemoteUrls: false,
+    },
+    defaults: {
+      format: "webp",
+      quality: 84,
+      stripMetadata: true,
+    },
+  }),
+])

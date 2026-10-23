@@ -1,10 +1,11 @@
 import type { CapabilityExecution } from "../types/index.js"
-import { BROWSER_RUNTIME_ID, NODE_RUNTIME_ID } from "./runtime-ids.js"
+import { BROWSER_ENVIRONMENT_ID, NODE_ENVIRONMENT_ID } from "./runtime-ids.js"
+import type { SupportedEnvironment } from "../definitions/types.js"
 
 /** Extension shape needed to infer capability execution. @category Runtime */
 export interface ExecutionExtensionHint {
-  /** Runtimes this extension supports when restricted. */
-  supportedRuntimes?: readonly string[]
+  /** Environments this extension supports when restricted. */
+  supportedEnvironments?: readonly SupportedEnvironment[]
 }
 
 /** Capability shape needed to resolve execution. @category Runtime */
@@ -14,7 +15,7 @@ export interface ExecutionCapabilityHint {
 }
 
 /**
- * Resolve capability execution, defaulting from extension `supportedRuntimes`.
+ * Resolve capability execution, defaulting from extension `supportedEnvironments`.
  * Unrestricted capabilities default to **host**; browser-only extensions default to **local**.
  * @category Runtime
  */
@@ -23,18 +24,18 @@ export function resolveCapabilityExecution(
   ext?: ExecutionExtensionHint
 ): CapabilityExecution {
   if (cap.execution) return cap.execution
-  const supported = ext?.supportedRuntimes
-  if (supported?.length === 1 && supported[0] === NODE_RUNTIME_ID) return "host"
-  if (supported?.length === 1 && supported[0] === BROWSER_RUNTIME_ID) return "local"
+  const supported = ext?.supportedEnvironments
+  if (supported?.length === 1 && supported[0]?.id === NODE_ENVIRONMENT_ID) return "host"
+  if (supported?.length === 1 && supported[0]?.id === BROWSER_ENVIRONMENT_ID) return "local"
   return "host"
 }
 
-/** Whether this runtime id is the browser host. @category Runtime */
-export function isBrowserRuntimeId(runtimeId: string): boolean {
-  return runtimeId === BROWSER_RUNTIME_ID
+/** Whether this environment id is the browser host. @category Environment */
+export function isBrowserEnvironmentId(environmentId: string): boolean {
+  return environmentId === BROWSER_ENVIRONMENT_ID
 }
 
-/** Whether this runtime id is the Node host. @category Runtime */
-export function isNodeRuntimeId(runtimeId: string): boolean {
-  return runtimeId === NODE_RUNTIME_ID
+/** Whether this environment id is the Node host. @category Environment */
+export function isNodeEnvironmentId(environmentId: string): boolean {
+  return environmentId === NODE_ENVIRONMENT_ID
 }

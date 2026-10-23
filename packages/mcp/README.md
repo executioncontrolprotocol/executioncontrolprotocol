@@ -36,9 +36,9 @@ MCP tools cover discovery, validation, workflow run, and encode/decode. **Capabi
 
 ```ts
 import { createEcpMcpServer, serveStdio } from "@executioncontrolprotocol/mcp"
-import { environment } from "@executioncontrolprotocol/node"
+import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 
-const env = await environment("demo")
+const env = environment(NODE_ENVIRONMENT_ID, "demo")
 const ecp = await env.init()
 const server = createEcpMcpServer({ ecp })
 await serveStdio({ ecp })

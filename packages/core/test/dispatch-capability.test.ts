@@ -1,28 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
-  BROWSER_RUNTIME_ID,
+  BROWSER_ENVIRONMENT_ID,
   capabilityFor,
   defineExtension,
-  defineRuntime,
+  defineEnvironment,
   environment,
   extension,
-  globalRegistry,
   InMemoryRuntimeExecutor,
-  runtime,
+  registerEnvironmentDefinition,
   workflow,
   step,
 } from "../src/index.js"
 import { z } from "zod"
-import { registerCoreFormats } from "../src/formats/register-core-formats.js"
 
-async function ensureBrowserRuntime(): Promise<void> {
-  if (!globalRegistry.getRuntime(BROWSER_RUNTIME_ID)) {
-    await globalRegistry.registerRuntime(
-      defineRuntime("@executioncontrolprotocol", "browser").withExecutor(
-        new InMemoryRuntimeExecutor()
-      )
+function ensureBrowserEnvironment(): void {
+  registerEnvironmentDefinition(
+    defineEnvironment("@executioncontrolprotocol", "browser").withExecutor(
+      new InMemoryRuntimeExecutor()
     )
-  }
+  )
 }
 
 describe("mixed-mode dispatch", () => {
@@ -31,8 +27,7 @@ describe("mixed-mode dispatch", () => {
   })
 
   it("fails closed when a host capability has no remoteInvoke", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+    ensureBrowserEnvironment()
     const hostExt = defineExtension("@executioncontrolprotocol", "dispatch-host")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-host", "ping")
@@ -42,11 +37,10 @@ describe("mixed-mode dispatch", () => {
           .withHandler(async () => ({ ok: true })),
       ])
       .build()
-    await globalRegistry.registerExtension(hostExt)
 
-    const env = environment("browser-host-miss")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-host").with({})])
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-host-miss").with([
+      extension(hostExt),
+    ])
     const ecp = await env.init()
     const result = await ecp
       .invoke("@executioncontrolprotocol/dispatch-host.ping")
@@ -58,8 +52,7 @@ describe("mixed-mode dispatch", () => {
   })
 
   it("fails closed when mixed has no remoteInvoke", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+    ensureBrowserEnvironment()
     const mixedExt = defineExtension("@executioncontrolprotocol", "dispatch-mixed")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-mixed", "upload")
@@ -69,11 +62,10 @@ describe("mixed-mode dispatch", () => {
           .withHandler(async () => ({ ok: true })),
       ])
       .build()
-    await globalRegistry.registerExtension(mixedExt)
 
-    const env = environment("browser-mixed-miss")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-mixed").with({})])
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-mixed-miss").with([
+      extension(mixedExt),
+    ])
     const ecp = await env.init()
     const result = await ecp
       .invoke("@executioncontrolprotocol/dispatch-mixed.upload")
@@ -84,21 +76,17 @@ describe("mixed-mode dispatch", () => {
     await ecp.terminate()
   })
 
-  it("hops host capabilities and rewrites missing-host diagnostics", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+  it("hops host capabilities when remoteInvoke is bound", async () => {
+    ensureBrowserEnvironment()
     const hostExt = defineExtension("@executioncontrolprotocol", "dispatch-hop")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-hop", "work")
           .withInput(z.object({ n: z.number() }))
-          .withOutput(z.object({ n: z.number() }))
+          .withOutput(z.object({}))
           .withExecution("host")
-          .withHandler(async () => {
-            throw new Error("must not run locally")
-          }),
+          .withHandler(async () => ({})),
       ])
       .build()
-    await globalRegistry.registerExtension(hostExt)
 
     vi.stubGlobal(
       "fetch",
@@ -120,11 +108,12 @@ describe("mixed-mode dispatch", () => {
       }))
     )
 
-    const env = environment("browser-hop")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-hop").with({})])
-      .withRemoteInvoke({ url: "http://127.0.0.1:3090", token: "tok" })
-    const ecp = await env.init()
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-hop").with([
+      extension(hostExt),
+    ])
+    const ecp = await env.init({
+      remoteInvoke: { url: "http://127.0.0.1:3090", token: "tok" },
+    })
     const result = await ecp
       .invoke("@executioncontrolprotocol/dispatch-hop.work")
       .with({ n: 1 })
@@ -132,13 +121,12 @@ describe("mixed-mode dispatch", () => {
     expect(result.success).toBe(false)
     expect(result.diagnostics[0]?.code).toBe("CAPABILITY_NOT_FOUND")
     expect(result.diagnostics[0]?.message).toContain("local host environment")
-    expect(global.fetch).toHaveBeenCalled()
+    expect(globalThis.fetch).toHaveBeenCalled()
     await ecp.terminate()
   })
 
   it("records hop failures on workflow steps instead of swallowing them", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+    ensureBrowserEnvironment()
     const hostExt = defineExtension("@executioncontrolprotocol", "dispatch-step")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-step", "work")
@@ -148,11 +136,10 @@ describe("mixed-mode dispatch", () => {
           .withHandler(async () => ({})),
       ])
       .build()
-    await globalRegistry.registerExtension(hostExt)
 
-    const env = environment("browser-step")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-step").with({})])
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-step").with([
+      extension(hostExt),
+    ])
     const ecp = await env.init()
     const manifest = workflow("hop-fail")
       .run([step("@executioncontrolprotocol/dispatch-step.work", "Work").as("out")])
@@ -165,8 +152,7 @@ describe("mixed-mode dispatch", () => {
   })
 
   it("runs mixed locally after remoteInvoke is bound and hops nested host calls", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+    ensureBrowserEnvironment()
     const mixedExt = defineExtension("@executioncontrolprotocol", "dispatch-nested")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-nested", "upload")
@@ -187,7 +173,6 @@ describe("mixed-mode dispatch", () => {
           .withHandler(async () => ({ sas: "local-must-not-run" })),
       ])
       .build()
-    await globalRegistry.registerExtension(mixedExt)
 
     vi.stubGlobal(
       "fetch",
@@ -204,24 +189,24 @@ describe("mixed-mode dispatch", () => {
       }))
     )
 
-    const env = environment("browser-nested")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-nested").with({})])
-      .withRemoteInvoke({ url: "http://127.0.0.1:3090", token: "tok" })
-    const ecp = await env.init()
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-nested").with([
+      extension(mixedExt),
+    ])
+    const ecp = await env.init({
+      remoteInvoke: { url: "http://127.0.0.1:3090", token: "tok" },
+    })
     const result = await ecp
       .invoke("@executioncontrolprotocol/dispatch-nested.upload")
       .with({})
       .process()
     expect(result.success).toBe(true)
     expect(result.result).toEqual({ url: "https://example.blob/sas" })
-    expect(global.fetch).toHaveBeenCalled()
+    expect(globalThis.fetch).toHaveBeenCalled()
     await ecp.terminate()
   })
 
   it("includes execution and remoteInvoke url on describe", async () => {
-    await registerCoreFormats()
-    await ensureBrowserRuntime()
+    ensureBrowserEnvironment()
     const mixedExt = defineExtension("@executioncontrolprotocol", "dispatch-desc")
       .withCapabilities([
         capabilityFor("@executioncontrolprotocol/dispatch-desc", "upload")
@@ -231,12 +216,12 @@ describe("mixed-mode dispatch", () => {
           .withHandler(async () => ({})),
       ])
       .build()
-    await globalRegistry.registerExtension(mixedExt)
-    const env = environment("browser-desc")
-      .withRuntime(runtime(BROWSER_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/dispatch-desc").with({})])
-      .withRemoteInvoke({ url: "http://127.0.0.1:3090", token: "secret" })
-    const ecp = await env.init()
+    const env = environment(BROWSER_ENVIRONMENT_ID, "browser-desc").with([
+      extension(mixedExt),
+    ])
+    const ecp = await env.init({
+      remoteInvoke: { url: "http://127.0.0.1:3090", token: "secret" },
+    })
     const desc = await ecp.describe()
     expect(desc.remoteInvoke).toEqual({ url: "http://127.0.0.1:3090" })
     expect(JSON.stringify(desc)).not.toContain("secret")

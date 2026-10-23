@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { hook, defineExtension } from "../src/index.js"
-import { extension, runtime } from "../src/index.js"
-import { NODE_RUNTIME_ID, registerNodeRuntime } from "@executioncontrolprotocol/node"
+import { extension } from "../src/index.js"
+import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
 import { environment } from "../src/environment/environment.js"
-import { globalRegistry } from "../src/registry/registry.js"
 
 const events: string[] = []
 
@@ -31,13 +30,10 @@ const spyExt = defineExtension("@executioncontrolprotocol", "env-spy")
 describe("environment lifecycle", () => {
   it("emits configuring and ready on init, beforeRun on run, terminate on terminate", async () => {
     events.length = 0
-    await registerNodeRuntime()
-    if (!globalRegistry.getExtension("@executioncontrolprotocol/env-spy")) {
-      await globalRegistry.registerExtension(spyExt)
-    }
-    const env = environment("evt")
-      .withRuntime(runtime(NODE_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/env-spy").with({})])
+    await registerNodeEnvironment()
+    const env = environment(NODE_ENVIRONMENT_ID, "evt").with([
+      extension(spyExt).with({}),
+    ])
 
     const ecp = await env.init()
     expect(events).toContain("environment:created")

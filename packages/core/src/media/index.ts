@@ -6,10 +6,12 @@
 
 export {
   resolveFile,
+  registerHostFileReader,
   STORAGE_ARTIFACT_URI_PREFIX,
   type ResolvedFile,
   type ResolveFileOptions,
   type FileCapabilityContext,
+  type HostFileReader,
 } from "./resolve-file.js"
 export {
   writeMediaArtifact,

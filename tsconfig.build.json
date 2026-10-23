@@ -20,10 +20,10 @@
       "path": "packages/vendor/azure-blob-storage"
     },
     {
-      "path": "packages/runtimes/node"
+      "path": "packages/environments/node"
     },
     {
-      "path": "packages/runtimes/browser"
+      "path": "packages/environments/browser"
     },
     {
       "path": "packages/policies"
@@ -42,12 +42,6 @@
     },
     {
       "path": "packages/extensions/format-mermaid"
-    },
-    {
-      "path": "packages/extensions/secrets"
-    },
-    {
-      "path": "packages/extensions/process-env"
     },
     {
       "path": "packages/extensions/anthropic"

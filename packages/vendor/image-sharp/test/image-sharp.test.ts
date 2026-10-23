@@ -51,7 +51,7 @@ describe("@executioncontrolprotocol/image-sharp", () => {
 
   it("registers extension with supported runtimes", () => {
     const ext = globalRegistry.getExtension("@executioncontrolprotocol/image-sharp")
-    expect(ext?.supportedRuntimes).toEqual(["@executioncontrolprotocol/node"])
+    expect(ext?.supportedEnvironments).toEqual([{ id: "@executioncontrolprotocol/node" }])
     expect(ext?.capabilities.length).toBeGreaterThanOrEqual(10)
     expect(ext?.capabilities.every((cap) => cap.execution === undefined)).toBe(true)
   })
