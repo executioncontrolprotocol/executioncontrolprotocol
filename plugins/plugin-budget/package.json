@@ -1,0 +1,62 @@
+{
+  "name": "@executioncontrolprotocol/plugin-budget",
+  "version": "0.14.1",
+  "description": "Budget policy plugin for ECP",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b && ecp plugins build"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/cli": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  },
+  "ecp": {
+    "extension": "./dist/index.js"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "budget": {
+        "description": "budget"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

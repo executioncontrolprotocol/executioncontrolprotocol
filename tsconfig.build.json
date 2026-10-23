@@ -29,6 +29,21 @@
       "path": "plugins/plugin-ollama"
     },
     {
+      "path": "plugins/plugin-format-toon"
+    },
+    {
+      "path": "plugins/plugin-format-mermaid"
+    },
+    {
+      "path": "plugins/plugin-budget"
+    },
+    {
+      "path": "plugins/plugin-approval"
+    },
+    {
+      "path": "plugins/plugin-state-control"
+    },
+    {
       "path": "packages/vendor/fal"
     },
     {
@@ -41,16 +56,7 @@
       "path": "packages/vendor/azure-blob-storage"
     },
     {
-      "path": "packages/policies"
-    },
-    {
       "path": "packages/mcp"
-    },
-    {
-      "path": "packages/extensions/format-toon"
-    },
-    {
-      "path": "packages/extensions/format-mermaid"
     }
   ]
 }

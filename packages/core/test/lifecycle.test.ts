@@ -16,7 +16,7 @@ import {
   lifecycleSpyLastStepFailedDiagnostics,
   capabilityInvokeCount,
 } from "../src/testing/test-lifecycle-extension.js"
-import { approvalPolicy } from "@executioncontrolprotocol/policies"
+import { approvalPolicy } from "@executioncontrolprotocol/plugin-approval"
 
 async function testEnv(extraPolicies: ReturnType<typeof policy>[] = []) {
   const base = createTestEnvironment("lifecycle-test")

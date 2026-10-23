@@ -10,7 +10,7 @@ import {
   formatJsonExtension,
 } from "../src/index.js"
 import { parseCapabilityMetadata } from "@executioncontrolprotocol/core/types"
-import { budgetPolicy } from "@executioncontrolprotocol/policies"
+import { budgetPolicy } from "@executioncontrolprotocol/plugin-budget"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 
 describe("environment.describe progressive disclosure", () => {

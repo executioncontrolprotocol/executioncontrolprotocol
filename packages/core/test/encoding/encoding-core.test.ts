@@ -9,7 +9,7 @@ import {
   testExtension,
 } from "../../src/index.js"
 import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
-import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { formatToonExtension } from "@executioncontrolprotocol/plugin-format-toon"
 import { initEncodingTestEcp } from "../helpers.js"
 
 const sampleManifest = workflow("Weekly Brief")

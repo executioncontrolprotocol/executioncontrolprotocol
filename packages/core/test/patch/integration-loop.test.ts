@@ -7,7 +7,7 @@ import {
 } from "../../src/index.js"
 import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
-import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { formatToonExtension } from "@executioncontrolprotocol/plugin-format-toon"
 import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
 
 const fluentSource = `

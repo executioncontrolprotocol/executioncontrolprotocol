@@ -2,7 +2,6 @@ packages:
   - packages/core
   - packages/mcp
   - packages/cli
-  - packages/policies
   - packages/extensions/*
   - packages/vendor/*
   - packages/environments/*

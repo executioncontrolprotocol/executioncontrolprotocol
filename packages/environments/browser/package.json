@@ -23,15 +23,12 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/policies": "workspace:^"
+    "@executioncontrolprotocol/core": "workspace:^"
   },
   "optionalDependencies": {
     "esbuild-wasm": "^0.25.0"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/format-toon": "workspace:^",
-    "@executioncontrolprotocol/format-mermaid": "workspace:^",
     "esbuild-wasm": "^0.25.0",
     "typescript": "catalog:",
     "zod": "catalog:"

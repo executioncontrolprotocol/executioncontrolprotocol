@@ -302,9 +302,8 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/environments/browser/`](packages/environments/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
 | [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp runs`, …) |
-| [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
+| [`plugins/`](plugins/) | First-party plugins (jsonata, model providers, format-toon, format-mermaid, budget, approval, state-control) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
-| [`packages/policies/`](packages/policies/) | Budget, approval, state-control (`registry-control` lives in core) |
 | [`examples/`](examples/) | Single-file `*.ecp.ts` workflows (`01-echo`, `02-weekly-brief`, …) |
 | [`RESET-PLAN.md`](RESET-PLAN.md) | CLI reset plan (source of truth during the milestone) |
 

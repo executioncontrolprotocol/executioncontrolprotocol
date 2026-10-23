@@ -1128,9 +1128,10 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 Detail: [`reset/phase-5-plugins-to-npm.md`](reset/phase-5-plugins-to-npm.md)
 
-**Status:** In progress. PR 1 migrated `plugin-anthropic`, `plugin-openai` and `plugin-ollama`
-and deleted `register*Extension` helpers (including jsonata). Remaining plugins, `--format`
-`ECP_PLUGINS_MISSING`, Changesets and `plugin-pack-smoke` wait on PR 2–5.
+**Status:** In progress. PR 1 migrated model plugins and deleted `register*Extension`
+helpers. PR 2 migrated format-toon, format-mermaid, budget, approval and state-control, and
+made missing `--format` report `ECP_PLUGINS_MISSING`. Vendor plugins, Firefly, Changesets
+and `plugin-pack-smoke` wait on PR 3–5.
 
 1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
    format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,

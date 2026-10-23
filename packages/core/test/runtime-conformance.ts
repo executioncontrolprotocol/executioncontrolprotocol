@@ -12,7 +12,7 @@ import {
   lifecycleSpyEvents,
   resetLifecycleSpy,
 } from "../src/testing/test-lifecycle-extension.js"
-import { approvalPolicy } from "@executioncontrolprotocol/policies"
+import { approvalPolicy } from "@executioncontrolprotocol/plugin-approval"
 /**
  * Register shared runtime conformance tests for an environment factory.
  * @category Testing
