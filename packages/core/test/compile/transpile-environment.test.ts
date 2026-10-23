@@ -62,7 +62,7 @@ describe("bundleEnvironmentSource", () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-wf-restrict-"))
     try {
       await writeFile(join(dir, "package.json"), JSON.stringify({ name: "fixture-wf", type: "module" }))
-      const source = `import { openaiExtension } from "@executioncontrolprotocol/extension-openai"\nexport default openaiExtension`
+      const source = `import { openaiExtension } from "@executioncontrolprotocol/plugin-openai"\nexport default openaiExtension`
       await expect(bundleWorkflowSource(source, join(dir, "workflow.ecp.ts"), dir)).rejects.toThrow(
         /ECP_WORKFLOW_LOAD/
       )

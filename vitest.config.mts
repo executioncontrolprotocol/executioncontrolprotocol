@@ -90,16 +90,19 @@ export default defineConfig({
       ),
       "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/environments/node/src/index.ts"),
       "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/environments/browser/src/index.ts"),
-      "@executioncontrolprotocol/extension-openai": path.resolve(
+      "@executioncontrolprotocol/plugin-openai": path.resolve(
         repoRoot,
-        "packages/extensions/openai/src/index.ts"
+        "plugins/plugin-openai/src/index.ts"
       ),
       "@executioncontrolprotocol/format-toon": path.resolve(repoRoot, "packages/extensions/format-toon/src/index.ts"),
       "@executioncontrolprotocol/format-mermaid": path.resolve(repoRoot, "packages/extensions/format-mermaid/src/index.ts"),
-      "@executioncontrolprotocol/anthropic": path.resolve(repoRoot, "packages/extensions/anthropic/src/index.ts"),
-      "@executioncontrolprotocol/extension-ollama": path.resolve(
+      "@executioncontrolprotocol/plugin-anthropic": path.resolve(
         repoRoot,
-        "packages/extensions/ollama/src/index.ts"
+        "plugins/plugin-anthropic/src/index.ts"
+      ),
+      "@executioncontrolprotocol/plugin-ollama": path.resolve(
+        repoRoot,
+        "plugins/plugin-ollama/src/index.ts"
       ),
     },
   },
@@ -252,7 +255,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "e2e",
-          include: ["packages/extensions/ollama/test/e2e/**/*.test.ts"],
+          include: ["plugins/plugin-ollama/test/e2e/**/*.test.ts"],
         },
       },
     ],

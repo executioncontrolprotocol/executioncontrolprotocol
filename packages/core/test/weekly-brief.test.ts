@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { extension } from "../src/index.js"
 import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
-import { openaiExtension } from "@executioncontrolprotocol/extension-openai"
+import { openaiExtension } from "@executioncontrolprotocol/plugin-openai"
 
 const WEEKLY_WORKFLOW = `
 import { workflow, step, ref } from "@executioncontrolprotocol/core"

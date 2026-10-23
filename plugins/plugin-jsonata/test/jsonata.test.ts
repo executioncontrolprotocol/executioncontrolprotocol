@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 import { Registry } from "@executioncontrolprotocol/core"
 import { parseCapabilityMetadata } from "@executioncontrolprotocol/core/types"
 import {
-  registerJsonataExtension,
   jsonataExtension,
   jsonataTransformInputSchema,
   runJsonataTransform,
@@ -24,7 +23,7 @@ const ctx = {
 describe("@executioncontrolprotocol/plugin-jsonata", () => {
   it("registers the extension and exposes transform", async () => {
     const registry = new Registry()
-    await registerJsonataExtension(registry)
+    await registry.registerExtension(jsonataExtension)
     const ext = registry.getExtension("@executioncontrolprotocol/jsonata")
     expect(ext).toBe(jsonataExtension)
     expect(ext?.capabilities.map((c) => c.id)).toEqual([
@@ -105,10 +104,10 @@ describe("@executioncontrolprotocol/plugin-jsonata", () => {
     ).rejects.toThrow(/JSONata evaluation failed/)
   })
 
-  it("registerJsonataExtension is idempotent", async () => {
+  it("registerExtension is idempotent for the default-exported definition", async () => {
     const registry = new Registry()
-    await registerJsonataExtension(registry)
-    await registerJsonataExtension(registry)
+    await registry.registerExtension(jsonataExtension)
+    await registry.registerExtension(jsonataExtension)
     expect(registry.getExtension("@executioncontrolprotocol/jsonata")).toBe(jsonataExtension)
   })
 })

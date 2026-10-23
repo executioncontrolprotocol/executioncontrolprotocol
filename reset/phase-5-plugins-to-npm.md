@@ -1,6 +1,6 @@
 # Phase 5 — Plugins to npm
 
-> Status: Planned · Branch: `feat/phase-5-plugins` (one PR per few plugins) · Depends on:
+> Status: In progress · Branch: `feat/phase-5-model-plugins` (PR 1) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
 ## Starting point after Phase 4
@@ -154,3 +154,18 @@ this script uses.
 | `sharp`'s native binaries fail under oclif's plugin install | Test on all three OSes in the smoke matrix. If needed, document `npm_config_platform` overrides or pin a `sharp` version with prebuilt binaries |
 | 84 Firefly commands slow down help and autocomplete | The manifest makes help cheap. Measure with criterion 10, and keep the `firefly` alias for typing |
 | Prerelease publishing from a non-default branch leaks into `latest` | Publish only with `--tag next`, from a manual workflow restricted to the milestone branch |
+
+## Outcome (PR 1)
+
+PR 1 (`feat/phase-5-model-plugins`) migrates the model plugins. The phase is not Done.
+
+Shipped:
+
+- `packages/extensions/{anthropic,openai,ollama}` moved to `plugins/plugin-{anthropic,openai,ollama}` as `@executioncontrolprotocol/plugin-<name>`. Ids are unchanged. Default export is the definition (`ecp.extension` points at `./dist/index.js` after `ecp plugins build`).
+- `registerAnthropicExtension`, `registerOpenaiExtension`, `registerOllamaExtension` and `registerJsonataExtension` are gone. Tests and hosts call `registry.registerExtension(definition)`.
+- `.supports()` is Node+browser for anthropic, Node for openai and ollama.
+- `plugins:check` covers jsonata, anthropic, openai and ollama.
+- CLI tests: `ecp {openai,anthropic} generate --help --json` and `ecp ollama {generate,listModels} --help --json` after `plugins link`. No live API calls.
+- `packages/extensions` still holds `format-toon` and `format-mermaid`. Policies and vendor packages are unchanged.
+
+Remaining for later PRs: format plugins and `ECP_PLUGINS_MISSING` for `--format`, policy plugins, vendor plugins, Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
