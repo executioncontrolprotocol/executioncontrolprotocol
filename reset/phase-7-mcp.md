@@ -2,6 +2,11 @@
 
 > Status: Planned · Branch: `feat/phase-7-mcp` · Depends on: Phase 5 · Plan: §4.7 ·
 > Can run in parallel with Phases 6 and 8
+>
+> **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
+> Consumer skill is at `skills/ecp/` (`npx skills add executioncontrolprotocol/docs`).
+> [guides/mcp](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/mcp.mdx)
+> is a placeholder only.
 
 ## Goal
 

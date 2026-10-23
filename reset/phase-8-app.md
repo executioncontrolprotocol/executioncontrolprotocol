@@ -2,6 +2,11 @@
 
 > Status: Planned · Branch: `feat/phase-8-app` · Depends on: Phase 5 · Plan: §4.8, §8.5 ·
 > Can run in parallel with Phases 6 and 7
+>
+> **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
+> Consumer skill is at `skills/ecp/`.
+> [guides/app](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/app.mdx)
+> is a placeholder only. There is no hosted browser demo.
 
 ## Goal
 

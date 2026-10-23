@@ -12,8 +12,8 @@ description: >-
 
 Install: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`
 
-This skill is for **working inside this repository**. Consumer workflow authoring uses the
-docs `ecp` skill (rewritten in reset Phase 6).
+This skill is for **working inside this repository**. Consumer workflow authoring uses
+`npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on `feat/cli-reset-docs`).
 
 ## Start here
 

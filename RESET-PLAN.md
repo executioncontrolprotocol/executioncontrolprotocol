@@ -1141,14 +1141,17 @@ pre-`next` at `1.0.0-next.0`. `plugin-pack-smoke` proves install from packed tar
 **Exit:** criteria 1, 3 and 4 of §2.4 pass with packed tarballs (`plugin-pack-smoke`).
 First-party npm is still unpublished; `release-next.yml` exists and was not dispatched.
 
-### Phase 6 — Docs site and skill
+### Phase 6 — Docs site and skill (✅ Done 2026-10-23)
 
 Detail: [`reset/phase-6-docs-and-skill.md`](reset/phase-6-docs-and-skill.md)
 
-CLI-first rewrite of the docs repo, generated reference pages, and the rewritten `ecp` skill
-installable with `npx skills add`.
+**Status:** Done 2026-10-23. Docs rewrite is on `feat/cli-reset-docs` (not merged to docs
+`main`). Generated CLI/plugin/`llms.txt` reference comes from the ECP checkout, not `@next`.
+Consumer skill is `npx skills add executioncontrolprotocol/docs` (`skills/ecp/`). Dogfood A
+has three local proofs in `reset/dogfood/`; the 3×3 Claude Code matrix is operator follow-up.
+`release-next.yml` was not dispatched. MCP/App pages are placeholders.
 
-**Exit:** Dogfood A (§2.4 criterion 7).
+**Exit:** Dogfood A (§2.4 criterion 7) — local proofs only; see the phase Outcome.
 
 ### Phase 7 — MCP
 

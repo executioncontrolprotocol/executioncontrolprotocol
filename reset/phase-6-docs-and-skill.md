@@ -1,8 +1,8 @@
 # Phase 6 — Docs site and skill
 
-> Status: Planned · Repo: `executioncontrolprotocol/docs` (Mintlify, executioncontrolprotocol.io)
-> · Branch there: `feat/cli-reset-docs` · Depends on: Phase 5 · Plan: §4.9
-> · Can run in parallel with Phases 7 and 8
+> Status: Done 2026-10-23 · Docs branch: `feat/cli-reset-docs` (PRs 1–3) · ECP branch:
+> `feat/phase-6-dogfood-and-handoff` · Depends on: Phase 5 · Plan: §4.9
+> · Do not start Phases 7 and 8 in this PR
 >
 > **Starting point after Phase 5:** 13 plugins under `plugins/`. Changesets in pre-`next`
 > (`1.0.0-next.0` for core, node, browser, cli, plugin-sdk, and every plugin). No `@next` on
@@ -124,11 +124,50 @@ docs, skill or `--help` fix in this phase.
 ## Exit criteria
 
 - [ ] Docs site deployed with the new navigation; no page mentions harnesses, the browser
-      demo, Chrome AI or EQL.
-- [ ] CLI reference and plugin catalogue are generated and checked in CI.
+      demo, Chrome AI or EQL. **Correction:** rewrite is on `feat/cli-reset-docs`; docs `main`
+      was not merged (public site unchanged).
+- [x] CLI reference and plugin catalogue are generated and checked in CI (from the ECP
+      checkout, not unpublished `@next`).
 - [ ] `npx skills add executioncontrolprotocol/docs` installs the rewritten skill.
+      **Correction:** `skills/ecp/SKILL.md` exists on `feat/cli-reset-docs`; GitHub
+      default-branch discovery is unproven until that rewrite is on the default branch.
 - [ ] Dogfood A passes (three tasks × three runs), with records committed.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+      **Correction:** three local proofs in `reset/dogfood/phase-6-1.md` … `phase-6-3.md`.
+      The 3×3 Claude Code matrix is operator follow-up after `@next` exists.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+
+## Outcome
+
+Phase 6 is **Done** with the corrections below. Docs PRs 1–3 merged into `feat/cli-reset-docs`
+([docs#1](https://github.com/executioncontrolprotocol/docs/pull/1),
+[docs#2](https://github.com/executioncontrolprotocol/docs/pull/2),
+[docs#3](https://github.com/executioncontrolprotocol/docs/pull/3)). This ECP PR records
+dogfood fixtures and handoff.
+
+- First-party npm is still unpublished. Generated reference and dogfood use the ECP checkout /
+  local CLI (`node packages/cli/bin/run.js` + `ecp plugins link`), not
+  `npm i -g @executioncontrolprotocol/cli@next`.
+- Plugin catalogue first-party list comes from `plugins/plugin-*`. The npm keyword search for
+  `ecosystem:ecp-plugin` was empty.
+- Docs live on `feat/cli-reset-docs` and were **not** merged to docs `main`. `release-next.yml`
+  was not dispatched.
+- `npx skills add executioncontrolprotocol/docs` is the install path. The skill is at
+  `skills/ecp/` (`.mintlify/skills/ecp/` is a pointer). Unproven against GitHub default-branch
+  discovery until merge to the docs default branch.
+- Dogfood records three local proofs; §2.4 criterion 7 (3 tasks × 3 fresh Claude Code
+  sessions) is operator follow-up.
+- MCP and App pages are placeholders.
+
+Local proof notes the engine actually returned:
+
+- Task 1 injected failure: `ECP_STEP_FAILED` (wrong JSONata path).
+- Task 2 injected failure: `ECP_STEP_FAILED` (wrong `ref()` field; Zod `invalid_type`).
+  `ECP_REF_UNRESOLVED` for `thumb.nope`. `ECP_SECRET_MISSING` if `secrets()` is unbound.
+  Fixed graph paused with `ECP_RUN_PAUSED` (approval).
+- Task 3 injected failure: `ECP_PLUGINS_MISSING`. Encode needs a compiled workflow wrap
+  (`source` + `sourceSchema`). Ollama generate 404 for `llama3.2` on this host.
+
+Do not start Phase 7 or Phase 8 in this PR.
 
 ## Risks
 
