@@ -44,16 +44,16 @@
       "path": "plugins/plugin-state-control"
     },
     {
-      "path": "packages/vendor/fal"
+      "path": "plugins/plugin-fal"
     },
     {
-      "path": "packages/vendor/image-sharp"
+      "path": "plugins/plugin-image-sharp"
+    },
+    {
+      "path": "plugins/plugin-azure-blob-storage"
     },
     {
       "path": "packages/vendor/adobe-firefly-services"
-    },
-    {
-      "path": "packages/vendor/azure-blob-storage"
     },
     {
       "path": "packages/mcp"

@@ -1,6 +1,6 @@
 # Phase 5 — Plugins to npm
 
-> Status: In progress · Branch: `feat/phase-5-format-and-policy-plugins` (PR 2) · Depends on:
+> Status: In progress · Branch: `feat/phase-5-vendor-plugins` (PR 3) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
 ## Starting point after Phase 4
@@ -183,3 +183,18 @@ Shipped:
 - `registerFormatToonExtension`, `registerFormatMermaidExtension` and `registerStandardPolicies` are gone.
 
 Remaining for later PRs: vendor plugins, Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
+
+## Outcome (PR 3)
+
+PR 3 (`feat/phase-5-vendor-plugins`) migrates fal, image-sharp and azure-blob-storage. The phase is not Done.
+
+Shipped:
+
+- `packages/vendor/{fal,image-sharp,azure-blob-storage}` moved to `plugins/plugin-*` as `@executioncontrolprotocol/plugin-<name>`. Ids are unchanged. Default export is the definition. `registerFalExtension`, `registerImageSharpExtension` and `registerAzureBlobStorageExtension` are gone.
+- `.supports()` is Node for fal and image-sharp, any (unset) for azure-blob-storage.
+- Examples: `plugins/plugin-fal/examples/fal-chain.ecp.ts`, `plugins/plugin-image-sharp/examples/image-prep.ecp.ts`, `plugins/plugin-azure-blob-storage/examples/upload.ecp.ts`. Combined Azure+Firefly examples stay under `examples/vendor` until PR 4.
+- CLI tests: `ecp fal generate --help --json`, `ecp image-sharp inspect --input <1x1 png JSON fixture> --json`, `ecp azure-blob-storage upload --help --json` after `plugins link`. No live FAL or Azure calls.
+- image-sharp native binaries are documented as Ubuntu-CI-only. Do not add fal/sharp/azure to coverage include.
+- `packages/vendor` still holds `adobe-firefly-services`.
+
+Remaining for later PRs: Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.

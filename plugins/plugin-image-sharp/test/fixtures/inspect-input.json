@@ -1,0 +1,8 @@
+{
+  "image": {
+    "kind": "buffer",
+    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "mediaType": "image/png"
+  },
+  "include": ["metadata"]
+}

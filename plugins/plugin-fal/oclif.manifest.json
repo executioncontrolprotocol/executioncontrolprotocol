@@ -1,0 +1,65 @@
+{
+  "version": "0.14.1",
+  "commands": {
+    "fal:generate": {
+      "aliases": [],
+      "args": {},
+      "description": "Invokes a FAL-hosted model by endpoint id using either a direct run or a subscribe flow that polls until completion. Returns the model result payload and optional request id.\nUse cases:\n- Text-to-image or image-to-image generation on FAL\n- Long-running FAL jobs that need queue polling\nProjections:\n- Take model result data: Use data for asset URLs, media metadata, or other model fields the next step needs.\n- Keep the request id: When requestId is present, retain it for support logs or follow-up queue status checks.",
+      "examples": [
+        "ecp fal generate --endpoint <endpoint> --mode <mode> --logs <logs>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "endpoint": {
+          "description": "endpoint",
+          "name": "endpoint",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "mode": {
+          "description": "mode",
+          "name": "mode",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "run",
+            "subscribe"
+          ],
+          "type": "option"
+        },
+        "logs": {
+          "description": "logs",
+          "name": "logs",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "fal:generate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-fal",
+      "pluginName": "@executioncontrolprotocol/plugin-fal",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Run a FAL model endpoint with a model-specific payload",
+      "enableJsonFlag": true
+    }
+  }
+}

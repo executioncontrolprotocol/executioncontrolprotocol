@@ -55,9 +55,12 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |
 | `plugins/plugin-approval/` | Approval policy | Migrated in Phase 5 PR 2 |
 | `plugins/plugin-state-control/` | State-control policy | Migrated in Phase 5 PR 2 |
-| `packages/extensions/*/` | Empty after format plugins moved | Format packages moved in Phase 5 PR 2. Vendor plugins wait on PR 3–4 |
-| `packages/vendor/*/` | Vendor extensions | Become plugins in Phase 5 (`slack` **removed in Phase 1**; `jsonata` moved in Phase 3) |
-| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; vendor examples wait for Phase 5 |
+| `plugins/plugin-fal/` | FAL generative inference (`@executioncontrolprotocol/plugin-fal`) | Migrated in Phase 5 PR 3 |
+| `plugins/plugin-image-sharp/` | Sharp image processing (`@executioncontrolprotocol/plugin-image-sharp`) | Migrated in Phase 5 PR 3. Native binaries smoked on Ubuntu CI only |
+| `plugins/plugin-azure-blob-storage/` | Azure Blob upload/SAS/download | Migrated in Phase 5 PR 3 |
+| `packages/extensions/*/` | Empty after format plugins moved | Format packages moved in Phase 5 PR 2 |
+| `packages/vendor/*/` | Adobe Firefly remains until PR 4 | `fal`, `image-sharp`, `azure-blob-storage` moved in Phase 5 PR 3 (`slack` **removed in Phase 1**; `jsonata` moved in Phase 3) |
+| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; fal/image-prep/azure-upload examples live next to those plugins |
 | `skills/ecp-core/` | Contributor skill for this repo | Kept current with this file |
 | `RESET-PLAN.md`, `reset/` | The reset plan and phase docs | Source of truth during the milestone |
 

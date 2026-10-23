@@ -107,12 +107,11 @@ export default tseslint.config(
             {
               group: [
                 "node:*",
-                "@executioncontrolprotocol/fal",
-                "@executioncontrolprotocol/jsonata",
+                "@executioncontrolprotocol/plugin-fal",
                 "@executioncontrolprotocol/plugin-jsonata",
-                "@executioncontrolprotocol/image-sharp",
+                "@executioncontrolprotocol/plugin-image-sharp",
                 "@executioncontrolprotocol/adobe-firefly-services",
-                "@executioncontrolprotocol/azure-blob-storage",
+                "@executioncontrolprotocol/plugin-azure-blob-storage",
                 "**/packages/vendor/**",
               ],
               message:
