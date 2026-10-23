@@ -1131,7 +1131,8 @@ Detail: [`reset/phase-5-plugins-to-npm.md`](reset/phase-5-plugins-to-npm.md)
 **Status:** In progress. PR 1 migrated model plugins and deleted `register*Extension`
 helpers. PR 2 migrated format-toon, format-mermaid, budget, approval and state-control, and
 made missing `--format` report `ECP_PLUGINS_MISSING`. PR 3 migrated fal, image-sharp and
-azure-blob-storage. Firefly, Changesets and `plugin-pack-smoke` wait on PR 4–5.
+azure-blob-storage. PR 4 migrated `plugin-adobe-firefly-services` with a generated `firefly`
+topic alias. Changesets and `plugin-pack-smoke` wait on PR 5.
 
 1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
    format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,

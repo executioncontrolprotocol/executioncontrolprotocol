@@ -300,9 +300,8 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch, protocol types (`@executioncontrolprotocol/core`, `@executioncontrolprotocol/core/types`) |
 | [`packages/environments/node/`](packages/environments/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/environments/browser/`](packages/environments/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
-| [`packages/vendor/`](packages/vendor/) | Adobe Firefly remains until Phase 5 PR 4 — [package list](packages/vendor/README.md) |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp runs`, …) |
-| [`plugins/`](plugins/) | First-party plugins (jsonata, models, formats, policies, fal, image-sharp, azure-blob-storage) |
+| [`plugins/`](plugins/) | First-party plugins (jsonata, models, formats, policies, fal, image-sharp, azure-blob-storage, adobe-firefly-services) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
 | [`examples/`](examples/) | Single-file `*.ecp.ts` workflows (`01-echo`, `02-weekly-brief`, …) |
 | [`RESET-PLAN.md`](RESET-PLAN.md) | CLI reset plan (source of truth during the milestone) |

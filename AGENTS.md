@@ -58,9 +58,8 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-fal/` | FAL generative inference (`@executioncontrolprotocol/plugin-fal`) | Migrated in Phase 5 PR 3 |
 | `plugins/plugin-image-sharp/` | Sharp image processing (`@executioncontrolprotocol/plugin-image-sharp`) | Migrated in Phase 5 PR 3. Native binaries smoked on Ubuntu CI only |
 | `plugins/plugin-azure-blob-storage/` | Azure Blob upload/SAS/download | Migrated in Phase 5 PR 3 |
-| `packages/extensions/*/` | Empty after format plugins moved | Format packages moved in Phase 5 PR 2 |
-| `packages/vendor/*/` | Adobe Firefly remains until PR 4 | `fal`, `image-sharp`, `azure-blob-storage` moved in Phase 5 PR 3 (`slack` **removed in Phase 1**; `jsonata` moved in Phase 3) |
-| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; fal/image-prep/azure-upload examples live next to those plugins |
+| `plugins/plugin-adobe-firefly-services/` | Adobe Firefly Services (`@executioncontrolprotocol/plugin-adobe-firefly-services`) | Migrated in Phase 5 PR 4. Id stays `@executioncontrolprotocol/adobe-firefly-services`. Generated `firefly` topic alias |
+| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; plugin examples live next to each plugin |
 | `skills/ecp-core/` | Contributor skill for this repo | Kept current with this file |
 | `RESET-PLAN.md`, `reset/` | The reset plan and phase docs | Source of truth during the milestone |
 
@@ -181,8 +180,9 @@ See `.cursor/rules/extensions.mdc` for the full contract. In short:
   - `.supports(environmentId, range?)` restricts an extension or policy to an environment.
   - Hosts register the default-exported definition with `registry.registerExtension(definition)`
     (no `register*Extension` helpers, no `globalRegistry`).
-  - Phase 5 PR 2 migrated format-toon, format-mermaid, budget, approval and state-control.
-    Vendor plugins wait on PR 3–4. `ecp plugins build` generates oclif files.
+  - Phase 5 PR 4 finished first-party plugin moves, including `plugin-adobe-firefly-services`
+    with a generated `firefly` topic alias from `metadata.topicAlias`. `ecp plugins build`
+    generates oclif files.
 
 ## Agent skill
 

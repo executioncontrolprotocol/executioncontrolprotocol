@@ -1,6 +1,6 @@
 /**
- * Download Firefly Services OpenAPI specs into packages/adobe-firefly-services/openapi.
- * Usage: node packages/adobe-firefly-services/scripts/fetch-specs.mjs
+ * Download Firefly Services OpenAPI specs into plugins/plugin-adobe-firefly-services/openapi.
+ * Usage: node plugins/plugin-adobe-firefly-services/scripts/fetch-specs.mjs
  */
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"

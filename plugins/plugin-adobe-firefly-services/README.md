@@ -1,15 +1,21 @@
-# @executioncontrolprotocol/adobe-firefly-services
+# @executioncontrolprotocol/plugin-adobe-firefly-services
 
-Adobe Firefly Services extension for ECP. One package exposes **family-prefixed** capabilities generated from vendored OpenAPI specs (Photoshop **v2** only).
+Adobe Firefly Services for ECP (Execution Control Protocol). One plugin, 84 generated capabilities. Install with:
 
-Auth uses current [OAuth Server-to-Server](https://developer.adobe.com/developer-console/docs/guides/authentication/ServerToServerAuthentication/) (`client_credentials`). Bind credentials with `secrets()` / `env()` — not deprecated JWT technical accounts.
+```sh
+ecp plugins install adobe-firefly-services
+```
+
+`ecp firefly --help` is a generated topic alias for `ecp adobe-firefly-services`. Capability ids stay `@executioncontrolprotocol/adobe-firefly-services.<family>-<operation>`.
+
+Auth uses current [OAuth Server-to-Server](https://developer.adobe.com/developer-console/docs/guides/authentication/ServerToServerAuthentication/) (`client_credentials`). Bind credentials with `secrets()` — not deprecated JWT technical accounts.
 
 Guide index: [Firefly Services docs](https://developer.adobe.com/firefly-services/docs/guides/).
 
 ## Binding
 
 ```ts
-import { adobeFireflyServicesExtension } from "@executioncontrolprotocol/adobe-firefly-services"
+import adobeFireflyServicesExtension from "@executioncontrolprotocol/plugin-adobe-firefly-services"
 import { environment, extension, NODE_ENVIRONMENT_ID, secrets } from "@executioncontrolprotocol/node"
 
 export default environment(NODE_ENVIRONMENT_ID, "adobe-demo").with([
@@ -19,6 +25,24 @@ export default environment(NODE_ENVIRONMENT_ID, "adobe-demo").with([
   }),
 ])
 ```
+
+Or install the plugin and let the CLI host load it. Workflow files bind by id and never import this package.
+
+```ts
+extension("@executioncontrolprotocol/adobe-firefly-services").with({
+  clientId: secrets("adobe-firefly-services/client-id"),
+  clientSecret: secrets("adobe-firefly-services/client-secret"),
+})
+```
+
+## Secrets
+
+| Key | Config field |
+| --- | --- |
+| `adobe-firefly-services/client-id` | `clientId` (x-api-key) |
+| `adobe-firefly-services/client-secret` | `clientSecret` |
+
+Optional: `scopes`, `imsEndpoint`.
 
 ## Families
 
@@ -33,14 +57,13 @@ export default environment(NODE_ENVIRONMENT_ID, "adobe-demo").with([
 | `creative-production` | `creative-production/workflow-builder-api.yaml` | Workflow Builder |
 | `audio-video` | `audio-video/*.json` | Audio/Video + translate/lipsync |
 
-Capability ids: `@executioncontrolprotocol/adobe-firefly-services.<family>-<kebab-operationId>` (single segment after the package; no extra `.`)  
 Examples:
 
 - `@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async`
 - `@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async` (Image5)
 - `@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest`
 
-Browser apps import the package root; bundlers resolve `exports["."].browser` to a host-hop catalog (no IMS). Pair `ecp up --env …` for real execution.
+Browser apps import the package root; bundlers resolve `exports["."].browser` to a host-hop catalog (no IMS). Execution needs a Node host.
 
 Photoshop v1 and standalone Lightroom OpenAPI are **out of scope** (v2 supersedes them).
 
@@ -48,7 +71,7 @@ Photoshop v1 and standalone Lightroom OpenAPI are **out of scope** (v2 supersede
 
 ## Asset URLs via Azure Blob Storage
 
-Firefly and Photoshop accept allow-listed HTTPS SAS URLs (including Azure `*.windows.net`). Use [`@executioncontrolprotocol/plugin-azure-blob-storage`](../../../plugins/plugin-azure-blob-storage/) to upload assets and mint read/write SAS URLs, then pass them into Firefly `referenceBlobs` / Photoshop `source.url` via `ref()`. See `examples/azure-adobe-assets/`.
+Firefly and Photoshop accept allow-listed HTTPS SAS URLs (including Azure `*.windows.net`). Use `@executioncontrolprotocol/plugin-azure-blob-storage` to upload assets and mint read/write SAS URLs, then pass them into Firefly `referenceBlobs` / Photoshop `source.url` via `ref()`. See `examples/azure-adobe-assets.ecp.ts`.
 
 ## Async capabilities return final results
 
@@ -62,8 +85,7 @@ workflows:
 - **Sync** caps (list/get metadata) are unchanged.
 
 `photoshop-generate-manifest` materializes the **PSD manifest JSON** (layer tree)
-after the job succeeds so you can `ref("manifest.layers.0.id")` and inspect it with
-`ecp test` `runTo`.
+after the job succeeds so you can `ref("manifest.layers.0.id")`.
 
 ## Capability input shape
 
@@ -81,15 +103,22 @@ Generated handlers merge OpenAPI path/query/header/body into:
 }
 ```
 
+```sh
+ecp adobe-firefly-services --help --json
+ecp firefly --help
+```
+
 ## Codegen
 
 ```sh
-npm run fetch:specs -w @executioncontrolprotocol/adobe-firefly-services   # network
-npm run generate -w @executioncontrolprotocol/adobe-firefly-services      # offline from openapi/
+pnpm --filter @executioncontrolprotocol/plugin-adobe-firefly-services run fetch:specs
+pnpm --filter @executioncontrolprotocol/plugin-adobe-firefly-services run generate
 ```
 
 Generated sources under `src/generated/` are committed. Empty free-form OpenAPI objects fail the generator (use `openapi/overlays/`); `z.unknown` / `z.any` / untyped `z.record` are forbidden.
 
-## Example
+## Examples
 
-See [`examples/adobe-firefly-smoke/`](../../examples/adobe-firefly-smoke/) for a thin env + workflow, and [`examples/azure-adobe-assets/`](../../examples/azure-adobe-assets/) for Azure upload + Image5 recolor.
+- `examples/adobe-firefly-smoke.ecp.ts` — thin generate-images smoke
+- `examples/azure-adobe-assets.ecp.ts` — Azure upload + Image5 recolor
+- `examples/azure-photoshop-manifest.ecp.ts` — Azure upload + Photoshop generate-manifest

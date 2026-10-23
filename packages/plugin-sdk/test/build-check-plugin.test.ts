@@ -11,6 +11,7 @@ import { z } from "zod"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
 const jsonataDir = join(repoRoot, "plugins", "plugin-jsonata")
+const fireflyDir = join(repoRoot, "plugins", "plugin-adobe-firefly-services")
 
 const scratchDirs: string[] = []
 
@@ -67,12 +68,44 @@ describe("generatedPackageFields", () => {
     expect(next.exports).toMatchObject({ "./oclif": { import: "./dist/oclif.js" } })
     expect(next.ecp).toMatchObject({ extension: "./dist/index.js" })
   })
+
+  it("adds a topic alias from metadata.topicAlias", () => {
+    const def = defineExtension("@executioncontrolprotocol", "adobe-firefly-services")
+      .withMetadata({
+        summary: "Call Adobe Firefly Services APIs",
+        description: "Generated Adobe Firefly Services capabilities.",
+        topicAlias: "firefly",
+      })
+      .withCapabilities([])
+      .build()
+    const fields = generatedPackageFields(def)
+    const topics = fields.oclif.topics as Record<string, { description: string }>
+    expect(topics["adobe-firefly-services"]?.description).toMatch(/Firefly/)
+    expect(topics.firefly?.description).toMatch(/Firefly/)
+  })
+
+  it("keeps extra package files such as openapi when applying generated fields", () => {
+    const def = defineExtension("@executioncontrolprotocol", "demo").withCapabilities([]).build()
+    const next = applyGeneratedFields(
+      { name: "x", files: ["dist", "README.md", "openapi"] },
+      generatedPackageFields(def)
+    )
+    expect(next.files).toEqual(
+      expect.arrayContaining(["dist", "README.md", "openapi", "oclif.manifest.json"])
+    )
+  })
 })
 
 describe("checkPlugin / buildPlugin", () => {
   it("accepts the generated plugin-jsonata package", async () => {
     const report = await checkPlugin(jsonataDir)
     expect(report.ok).toBe(true)
+    expect(report.issues).toEqual([])
+  })
+
+  it("accepts firefly command aliases in the generated manifest", async () => {
+    const report = await checkPlugin(fireflyDir)
+    expect(report.ok, JSON.stringify(report.issues)).toBe(true)
     expect(report.issues).toEqual([])
   })
 

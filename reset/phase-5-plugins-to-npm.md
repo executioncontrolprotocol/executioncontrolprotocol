@@ -1,6 +1,6 @@
 # Phase 5 — Plugins to npm
 
-> Status: In progress · Branch: `feat/phase-5-vendor-plugins` (PR 3) · Depends on:
+> Status: In progress · Branch: `feat/phase-5-firefly` (PR 4) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
 ## Starting point after Phase 4
@@ -198,3 +198,18 @@ Shipped:
 - `packages/vendor` still holds `adobe-firefly-services`.
 
 Remaining for later PRs: Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
+
+## Outcome (PR 4)
+
+PR 4 (`feat/phase-5-firefly`) migrates Adobe Firefly Services. The phase is not Done.
+
+Shipped:
+
+- `packages/vendor/adobe-firefly-services` moved to `plugins/plugin-adobe-firefly-services` as `@executioncontrolprotocol/plugin-adobe-firefly-services`. Id stays `@executioncontrolprotocol/adobe-firefly-services`. Default export is the definition. `registerAdobeFireflyServicesExtension` is gone.
+- `.supports()` is Node. OpenAPI generator scripts stay with the plugin.
+- `metadata.topicAlias: "firefly"` generates an oclif topic plus command aliases (`firefly:<capability>`). No Firefly-specific branch in core or the CLI.
+- Examples: `plugins/plugin-adobe-firefly-services/examples/{adobe-firefly-smoke,azure-adobe-assets,azure-photoshop-manifest}.ecp.ts`. `examples/vendor` is deleted.
+- CLI tests: `ecp adobe-firefly-services --help --json` and `ecp firefly --help` after `plugins link`. No live Adobe calls.
+- `packages/vendor` and `packages/extensions` are gone. Do not add firefly to coverage include.
+
+Remaining for later PRs: Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.

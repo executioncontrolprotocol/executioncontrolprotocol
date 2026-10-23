@@ -9,8 +9,8 @@ export default tseslint.config(
       "**/node_modules/",
       "**/coverage/",
       "pnpm-lock.yaml",
-      "packages/vendor/**/src/generated/**",
-      "packages/vendor/**/openapi/**",
+      "plugins/plugin-adobe-firefly-services/src/generated/**",
+      "plugins/plugin-adobe-firefly-services/openapi/**",
     ],
   },
   ...tseslint.configs.recommended,
@@ -27,8 +27,7 @@ export default tseslint.config(
   // Scoped to `src` so integration tests may still use a host runtime.
   {
     files: [
-      "packages/extensions/**/src/**/*.ts",
-      "packages/vendor/**/src/**/*.ts",
+      "plugins/**/src/**/*.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -55,7 +54,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/vendor/**/src/**/*.ts"],
+    files: ["plugins/**/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -110,7 +109,7 @@ export default tseslint.config(
                 "@executioncontrolprotocol/plugin-fal",
                 "@executioncontrolprotocol/plugin-jsonata",
                 "@executioncontrolprotocol/plugin-image-sharp",
-                "@executioncontrolprotocol/adobe-firefly-services",
+                "@executioncontrolprotocol/plugin-adobe-firefly-services",
                 "@executioncontrolprotocol/plugin-azure-blob-storage",
                 "**/packages/vendor/**",
               ],

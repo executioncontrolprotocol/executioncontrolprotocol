@@ -246,11 +246,18 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
-  packages/vendor/adobe-firefly-services:
+  plugins/plugin-adobe-firefly-services:
+    dependencies:
+      '@executioncontrolprotocol/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../packages/plugin-sdk
     devDependencies:
+      '@executioncontrolprotocol/cli':
+        specifier: workspace:^
+        version: link:../../packages/cli
       '@executioncontrolprotocol/core':
         specifier: workspace:^
-        version: link:../../core
+        version: link:../../packages/core
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

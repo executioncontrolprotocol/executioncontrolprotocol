@@ -11,7 +11,7 @@ export const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 
 /** Thrown if a host Adobe handler is invoked in the browser catalog (dispatch should hop first). @category Adobe */
 export const HOST_HOP_MESSAGE =
-  "Capability requires a local host. Start `ecp up --env …`."
+  "Capability requires a Node host."
 
 /**
  * Build the Adobe Firefly Services extension from a capability list.
@@ -29,7 +29,8 @@ export function buildAdobeFireflyServicesExtension(
       useCases: [
         "Generate or edit creative assets with Adobe cloud APIs",
         "Automate Photoshop, Express, or Firefly operations from workflows"
-      ]
+      ],
+      topicAlias: "firefly",
     })
     .withConfig({
       /** Adobe Developer Console client id (x-api-key). */

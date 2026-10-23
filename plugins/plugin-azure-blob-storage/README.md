@@ -25,7 +25,7 @@ export default environment(NODE_ENVIRONMENT_ID, "azure-demo").with([
 Or install the plugin and let the CLI host load it. Workflow files bind by id
 (`extension("@executioncontrolprotocol/azure-blob-storage")`) and never import this package.
 
-See `examples/upload.ecp.ts`. Combined Azure + Firefly examples wait on `plugin-adobe-firefly-services`.
+See `examples/upload.ecp.ts`. Combined Azure + Firefly examples live in `plugins/plugin-adobe-firefly-services/examples/`.
 
 ## Capabilities
 

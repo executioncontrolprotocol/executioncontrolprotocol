@@ -6,7 +6,6 @@ import { parse as parseYaml } from "yaml"
 import { Registry, NODE_ENVIRONMENT_ID, resolveCapabilityExecution, capabilityIdSchema } from "@executioncontrolprotocol/core"
 import {
   adobeFireflyServicesExtension,
-  registerAdobeFireflyServicesExtension,
   ADOBE_GENERATED_OPERATION_COUNT,
   adobeGeneratedCapabilities,
 } from "../src/index.js"
@@ -80,7 +79,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => {
   beforeEach(async () => {
-    await registerAdobeFireflyServicesExtension(new Registry())
+    await new Registry().registerExtension(adobeFireflyServicesExtension)
   })
 
   afterEach(() => {
@@ -99,6 +98,7 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     const ids = adobeFireflyServicesExtension.capabilities.map((c) => c.id).sort()
     expect(ids).toEqual([...meta.operations].sort())
     expect(adobeFireflyServicesExtension.id).toBe("@executioncontrolprotocol/adobe-firefly-services")
+    expect(adobeFireflyServicesExtension.metadata?.topicAlias).toBe("firefly")
     expect(adobeFireflyServicesExtension.supportedEnvironments).toEqual([
       { id: NODE_ENVIRONMENT_ID },
     ])

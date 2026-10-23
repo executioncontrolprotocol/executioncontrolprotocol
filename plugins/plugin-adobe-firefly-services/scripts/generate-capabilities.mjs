@@ -1,6 +1,6 @@
 /**
  * Generate family-prefixed Adobe Firefly Services capabilities + Zod schemas from vendored OpenAPI.
- * Usage: node packages/adobe-firefly-services/scripts/generate-capabilities.mjs
+ * Usage: node plugins/plugin-adobe-firefly-services/scripts/generate-capabilities.mjs
  */
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, rmSync } from "node:fs"
 import { dirname, join, relative } from "node:path"

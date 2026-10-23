@@ -2,8 +2,6 @@ packages:
   - packages/core
   - packages/mcp
   - packages/cli
-  - packages/extensions/*
-  - packages/vendor/*
   - packages/environments/*
   - packages/plugin-sdk
   - plugins/*

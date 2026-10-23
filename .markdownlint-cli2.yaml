@@ -3,5 +3,5 @@ globs:
   - "**/*.md"
 ignores:
   - "**/node_modules/**"
-  - "packages/vendor/**/openapi/**"
+  - "plugins/plugin-adobe-firefly-services/openapi/**"
   - ".git/**"

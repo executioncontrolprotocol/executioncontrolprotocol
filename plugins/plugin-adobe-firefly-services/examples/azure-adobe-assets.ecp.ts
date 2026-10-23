@@ -1,4 +1,4 @@
-import { workflow, step, ref } from "@executioncontrolprotocol/core"
+import { workflow, step, ref, extension, secrets } from "@executioncontrolprotocol/core"
 
 /**
  * 1x1 PNG (red pixel) — tiny fixture for upload → Image5 referenceBlobs.
@@ -11,6 +11,17 @@ const FIXTURE_PNG_BASE64 =
  * Upload a reference image to Azure, then instruct-edit color with Firefly Image5.
  */
 export default workflow("Azure Blob + Firefly Image5 recolor")
+  .with([
+    extension("@executioncontrolprotocol/azure-blob-storage").with({
+      connectionString: secrets("azure-blob-storage/connection-string"),
+      defaultContainer: "artifacts",
+      defaultSasExpiresInSeconds: 3600,
+    }),
+    extension("@executioncontrolprotocol/adobe-firefly-services").with({
+      clientId: secrets("adobe-firefly-services/client-id"),
+      clientSecret: secrets("adobe-firefly-services/client-secret"),
+    }),
+  ])
   .run([
     step("@executioncontrolprotocol/azure-blob-storage.upload", "Upload reference")
       .with({
