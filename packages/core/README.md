@@ -19,7 +19,7 @@ Protocol types and schema constants live on **`@executioncontrolprotocol/core/ty
 ```ts
 import { environment, extension, policy } from "@executioncontrolprotocol/core"
 import { NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
-import { openaiExtension } from "@executioncontrolprotocol/extension-openai"
+import { openaiExtension } from "@executioncontrolprotocol/plugin-openai"
 
 const ecp = await environment(NODE_ENVIRONMENT_ID, "weekly-brief")
   .with([extension(openaiExtension).with({ defaultModel: "gpt-4o-mini" })])

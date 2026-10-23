@@ -1,7 +1,6 @@
 import {
   defineExtension,
   capabilityFor,
-  type Registry,
   NODE_ENVIRONMENT_ID,
   toProviderChatTurns
 } from "@executioncontrolprotocol/core"
@@ -160,12 +159,5 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
       })
   ])
   .build()
-
-/** Register @executioncontrolprotocol/ollama. */
-export async function registerOllamaExtension(registry: Registry): Promise<void> {
-  if (!registry.getExtension("@executioncontrolprotocol/ollama")) {
-    await registry.registerExtension(ollamaExtension)
-  }
-}
 
 export default ollamaExtension

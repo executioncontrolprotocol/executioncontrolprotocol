@@ -1,9 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
+import { Registry } from "@executioncontrolprotocol/core"
 import { openaiExtension } from "../src/index.js"
 
 describe("@executioncontrolprotocol/openai", () => {
   beforeEach(() => {
     process.env.OPENAI_API_KEY = "test-key"
+  })
+
+  it("registers the default-exported definition", async () => {
+    const registry = new Registry()
+    await registry.registerExtension(openaiExtension)
+    expect(registry.getExtension("@executioncontrolprotocol/openai")).toBe(openaiExtension)
   })
 
   it("has generate only (no generateText or evaluate)", () => {

@@ -1,7 +1,6 @@
 import {
   defineExtension,
-  capabilityFor,
-  type Registry
+  capabilityFor
 } from "@executioncontrolprotocol/core"
 import {
   jsonataTransformInputSchema,
@@ -55,13 +54,6 @@ export const jsonataExtension = defineExtension("@executioncontrolprotocol", "js
       })
   ])
   .build()
-
-/** Register @executioncontrolprotocol/jsonata. */
-export async function registerJsonataExtension(registry: Registry): Promise<void> {
-  if (!registry.getExtension("@executioncontrolprotocol/jsonata")) {
-    await registry.registerExtension(jsonataExtension)
-  }
-}
 
 export {
   jsonataTransformInputSchema,

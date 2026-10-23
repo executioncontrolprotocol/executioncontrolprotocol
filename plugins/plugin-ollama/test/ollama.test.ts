@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
 import { Registry } from "@executioncontrolprotocol/core"
-import { registerOllamaExtension, ollamaExtension } from "../src/index.js"
+import { ollamaExtension } from "../src/index.js"
 
 type Handler = (input: unknown, ctx: unknown) => Promise<unknown>
 
@@ -32,7 +32,7 @@ const ctx = {
 
 describe("@executioncontrolprotocol/ollama", () => {
   beforeEach(async () => {
-    await registerOllamaExtension(new Registry())
+    await new Registry().registerExtension(ollamaExtension)
   })
 
   afterEach(() => {

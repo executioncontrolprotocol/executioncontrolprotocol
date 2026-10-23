@@ -2,7 +2,6 @@ import { describe, expect, it, vi, afterEach } from "vitest"
 import { Registry } from "@executioncontrolprotocol/core"
 import {
   anthropicExtension,
-  registerAnthropicExtension,
   resolveAnthropicApiKey,
   resolveAnthropicSamplingOptions,
   ANTHROPIC_DEFAULT_MODEL,
@@ -12,6 +11,12 @@ describe("@executioncontrolprotocol/anthropic", () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+  })
+
+  it("registers the default-exported definition", async () => {
+    const registry = new Registry()
+    await registry.registerExtension(anthropicExtension)
+    expect(registry.getExtension("@executioncontrolprotocol/anthropic")).toBe(anthropicExtension)
   })
 
   it("exposes generate capability", () => {
@@ -43,7 +48,6 @@ describe("@executioncontrolprotocol/anthropic", () => {
   })
 
   it("generate returns text from Messages API", async () => {
-    await registerAnthropicExtension(new Registry())
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -77,7 +81,6 @@ describe("@executioncontrolprotocol/anthropic", () => {
   })
 
   it("generate maps prior messages as native Anthropic turns", async () => {
-    await registerAnthropicExtension(new Registry())
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({

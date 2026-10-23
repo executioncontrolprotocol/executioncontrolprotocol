@@ -20,6 +20,15 @@
       "path": "plugins/plugin-jsonata"
     },
     {
+      "path": "plugins/plugin-anthropic"
+    },
+    {
+      "path": "plugins/plugin-openai"
+    },
+    {
+      "path": "plugins/plugin-ollama"
+    },
+    {
       "path": "packages/vendor/fal"
     },
     {
@@ -38,19 +47,10 @@
       "path": "packages/mcp"
     },
     {
-      "path": "packages/extensions/openai"
-    },
-    {
-      "path": "packages/extensions/ollama"
-    },
-    {
       "path": "packages/extensions/format-toon"
     },
     {
       "path": "packages/extensions/format-mermaid"
-    },
-    {
-      "path": "packages/extensions/anthropic"
     }
   ]
 }

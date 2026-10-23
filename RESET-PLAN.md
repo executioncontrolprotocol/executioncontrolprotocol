@@ -1128,13 +1128,18 @@ runs; `--json` returns `ECP_PLUGINS_MISSING`; a failed step reruns with `--from`
 
 Detail: [`reset/phase-5-plugins-to-npm.md`](reset/phase-5-plugins-to-npm.md)
 
+**Status:** In progress. PR 1 migrated `plugin-anthropic`, `plugin-openai` and `plugin-ollama`
+and deleted `register*Extension` helpers (including jsonata). Remaining plugins, `--format`
+`ECP_PLUGINS_MISSING`, Changesets and `plugin-pack-smoke` wait on PR 2–5.
+
 1. Migrate the remaining extensions and policies per §5.4. Order: anthropic, openai, ollama,
    format-toon, format-mermaid (with `--format` support in `describe` and `compile`), budget,
    approval, state-control, fal, image-sharp, azure-blob-storage, then adobe-firefly-services.
 2. Changesets with independent versions; `plugin-pack-smoke` in CI for every plugin.
 3. Prerelease publishing from the milestone branch under the `next` dist-tag.
 
-**Exit:** criteria 1, 3 and 4 of §2.4 pass with `@next` packages.
+**Exit:** criteria 1, 3 and 4 of §2.4 pass with `@next` packages. First-party npm is still
+unpublished in this milestone; later PRs prove install with packed tarballs.
 
 ### Phase 6 — Docs site and skill
 

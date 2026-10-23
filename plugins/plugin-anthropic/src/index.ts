@@ -4,8 +4,7 @@ import {
   BROWSER_ENVIRONMENT_ID,
   NODE_ENVIRONMENT_ID,
   toProviderChatTurns,
-  type FileCapabilityContext,
-  type Registry
+  type FileCapabilityContext
 } from "@executioncontrolprotocol/core"
 import {
   modelGenerateInputSchema,
@@ -147,14 +146,5 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
       })
   ])
   .build()
-
-/** Register Anthropic extension. @category Extensions */
-export async function registerAnthropicExtension(
-  registry: Registry
-): Promise<void> {
-  if (!registry.getExtension("@executioncontrolprotocol/anthropic")) {
-    await registry.registerExtension(anthropicExtension)
-  }
-}
 
 export default anthropicExtension
