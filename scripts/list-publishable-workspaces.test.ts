@@ -12,7 +12,7 @@ describe("listPublishableWorkspaces", () => {
 
     expect(names.has("@executioncontrolprotocol/core")).toBe(true)
     expect(names.has("@executioncontrolprotocol/types")).toBe(false)
-    expect(names.has("@executioncontrolprotocol/format-toon")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/plugin-format-toon")).toBe(true)
     expect(names.has("@executioncontrolprotocol/node")).toBe(true)
     expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-sdk")).toBe(true)
@@ -44,7 +44,7 @@ describe("listPublishableWorkspaces", () => {
       index.get("@executioncontrolprotocol/plugin-jsonata")!,
     )
     expect(index.get("@executioncontrolprotocol/core")!).toBeLessThan(
-      index.get("@executioncontrolprotocol/format-toon")!,
+      index.get("@executioncontrolprotocol/plugin-format-toon")!,
     )
   })
 })

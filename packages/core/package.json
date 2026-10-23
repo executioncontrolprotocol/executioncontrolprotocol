@@ -35,7 +35,6 @@
   "devDependencies": {
     "@executioncontrolprotocol/browser": "workspace:^",
     "@executioncontrolprotocol/node": "workspace:^",
-    "@executioncontrolprotocol/policies": "workspace:^",
     "ajv": "^8.17.1",
     "ts-json-schema-generator": "^2.3.0",
     "typescript": "catalog:",

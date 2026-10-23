@@ -5,7 +5,7 @@ import {
   lifecycleSpyExtension,
   resetLifecycleSpy,
 } from "../src/testing/test-lifecycle-extension.js"
-import { stateControlPolicy } from "@executioncontrolprotocol/policies"
+import { stateControlPolicy } from "@executioncontrolprotocol/plugin-state-control"
 import { createTransactionalStore, createMutationBuffer } from "../src/runtime/store.js"
 
 describe("store mutations", () => {

@@ -13,8 +13,8 @@ describe("npmPackageFromSpecifier", () => {
     expect(npmPackageFromSpecifier("@executioncontrolprotocol/core/types")).toBe(
       "@executioncontrolprotocol/core"
     )
-    expect(npmPackageFromSpecifier("@executioncontrolprotocol/format-toon")).toBe(
-      "@executioncontrolprotocol/format-toon"
+    expect(npmPackageFromSpecifier("@executioncontrolprotocol/plugin-format-toon")).toBe(
+      "@executioncontrolprotocol/plugin-format-toon"
     )
   })
 
@@ -28,10 +28,10 @@ describe("collectPackagesFromEnvironmentSource", () => {
   it("collects side-effect imports and always includes node", () => {
     const pkgs = collectPackagesFromEnvironmentSource(`
 import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
-import "@executioncontrolprotocol/format-toon"
+import "@executioncontrolprotocol/plugin-format-toon"
 `)
     expect(pkgs).toContain("@executioncontrolprotocol/node")
-    expect(pkgs).toContain("@executioncontrolprotocol/format-toon")
+    expect(pkgs).toContain("@executioncontrolprotocol/plugin-format-toon")
   })
 
   it("does not invent package names from extension ids in bindings", () => {
@@ -53,11 +53,11 @@ describe("mergeMissingDependencies", () => {
         dependencies: { "@executioncontrolprotocol/node": "^0.11.1" },
         devDependencies: { "@executioncontrolprotocol/cli": "^0.11.1" },
       },
-      ["@executioncontrolprotocol/node", "@executioncontrolprotocol/format-toon"]
+      ["@executioncontrolprotocol/node", "@executioncontrolprotocol/plugin-format-toon"]
     )
     expect(next.dependencies?.["@executioncontrolprotocol/node"]).toBe("^0.11.1")
     expect(next.devDependencies?.["@executioncontrolprotocol/cli"]).toBe("^0.11.1")
-    expect(added).toEqual(["@executioncontrolprotocol/format-toon"])
+    expect(added).toEqual(["@executioncontrolprotocol/plugin-format-toon"])
   })
 
   it("creates greenfield package.json with star ranges", () => {

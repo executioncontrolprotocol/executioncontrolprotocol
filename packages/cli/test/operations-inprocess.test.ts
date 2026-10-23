@@ -10,7 +10,7 @@ import {
 } from "@executioncontrolprotocol/plugin-sdk"
 import { describe, expect, it } from "vitest"
 import { COMMANDS } from "../src/commands.js"
-import { applyFormat, formatExtensionId } from "../src/lib/format-output.js"
+import { applyFormat, formatExtensionId, formatPluginPackage } from "../src/lib/format-output.js"
 import { commandErrorMessage, readJsonFile, runWithCommandError } from "../src/lib/command-helpers.js"
 import { ecpFromEnvFlag, terminateIfNeeded } from "../src/lib/load-ecp.js"
 import { listInstalledPlugins, installedPluginNames } from "../src/lib/installed-plugins.js"
@@ -474,10 +474,16 @@ describe("lib helpers", () => {
     expect(formatExtensionId("@executioncontrolprotocol/format-json")).toBe(
       "@executioncontrolprotocol/format-json"
     )
+    expect(formatPluginPackage("toon")).toBe("@executioncontrolprotocol/plugin-format-toon")
+    expect(formatPluginPackage("mermaid")).toBe("@executioncontrolprotocol/plugin-format-mermaid")
     const { ecp, terminate } = await ecpFromEnvFlag(undefined)
     try {
       expect(await applyFormat(ecp, { a: 1 }, undefined)).toEqual({ a: 1 })
-      await expect(applyFormat(ecp, { a: 1 }, "mermaid")).rejects.toThrow()
+      await expect(applyFormat(ecp, { a: 1 }, "mermaid")).rejects.toMatchObject({
+        code: ECP_PLUGINS_MISSING,
+        details: { package: "@executioncontrolprotocol/plugin-format-mermaid" },
+        exitCode: 3,
+      })
     } finally {
       await terminateIfNeeded(ecp, terminate)
     }

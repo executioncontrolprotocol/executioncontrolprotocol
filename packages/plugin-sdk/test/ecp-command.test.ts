@@ -17,6 +17,9 @@ function stub(json: boolean): EcpCommand & { logs: string[]; exits: number[] } {
   cmd.log = (message?: string) => {
     logs.push(String(message ?? ""))
   }
+  cmd.logJson = (payload: unknown) => {
+    logs.push(JSON.stringify(payload))
+  }
   cmd.exit = ((code?: number) => {
     exits.push(code ?? 0)
     const err = new Error("EEXIT") as Error & { exitCode: number }
@@ -54,6 +57,14 @@ describe("EcpCommand", () => {
     expect(JSON.parse(cmd.logs[0] ?? "{}")).toEqual(
       failureEnvelope({ code: ECP_INPUT_INVALID, message: "bad", path: "expression" })
     )
+  })
+
+  it("catch treats --json in argv as json when jsonEnabled is false", async () => {
+    const cmd = stub(false)
+    cmd.argv = ["--json"]
+    const err = new EcpCliError(ECP_INPUT_INVALID, "bad", { exitCode: EXIT_USAGE })
+    await expect(cmd.catch(err)).rejects.toThrow(/EEXIT/)
+    expect(JSON.parse(cmd.logs[0] ?? "{}")).toEqual(failureEnvelope({ code: ECP_INPUT_INVALID, message: "bad" }))
   })
 
   it("catch without --json prints the message", async () => {

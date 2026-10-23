@@ -1,6 +1,6 @@
 # Phase 5 — Plugins to npm
 
-> Status: In progress · Branch: `feat/phase-5-model-plugins` (PR 1) · Depends on:
+> Status: In progress · Branch: `feat/phase-5-format-and-policy-plugins` (PR 2) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
 ## Starting point after Phase 4
@@ -168,4 +168,18 @@ Shipped:
 - CLI tests: `ecp {openai,anthropic} generate --help --json` and `ecp ollama {generate,listModels} --help --json` after `plugins link`. No live API calls.
 - `packages/extensions` still holds `format-toon` and `format-mermaid`. Policies and vendor packages are unchanged.
 
-Remaining for later PRs: format plugins and `ECP_PLUGINS_MISSING` for `--format`, policy plugins, vendor plugins, Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
+Remaining after PR 1: format plugins and `ECP_PLUGINS_MISSING` for `--format`, policy plugins, vendor plugins, Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
+
+## Outcome (PR 2)
+
+PR 2 (`feat/phase-5-format-and-policy-plugins`) migrates format and policy plugins. The phase is not Done.
+
+Shipped:
+
+- `plugin-format-toon` and `plugin-format-mermaid` keep ids `@executioncontrolprotocol/format-toon` / `format-mermaid`. Generated commands: `ecp format-toon encode|decode`, `ecp format-mermaid encode`.
+- Missing `--format` plugin is `ECP_PLUGINS_MISSING` (exit 3) with `details.package` `@executioncontrolprotocol/plugin-format-<name>`. `ecp describe --format toon --json` without the plugin is the spawn coverage.
+- `packages/policies` split into `plugin-budget`, `plugin-approval`, `plugin-state-control`. Each default-exports its `definePolicy(...)` definition; `toCommands()` stays empty. `ecp describe --policies --json` after link lists them.
+- `packages/policies` and the format packages under `packages/extensions` are deleted. Coverage include retargets to the new plugin paths (floors kept). Core and hosts no longer depend on `@executioncontrolprotocol/policies`. MCP's format-toon devDependency points at `plugin-format-toon`.
+- `registerFormatToonExtension`, `registerFormatMermaidExtension` and `registerStandardPolicies` are gone.
+
+Remaining for later PRs: vendor plugins, Firefly topic alias, Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.

@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/format-toon": "workspace:^",
+    "@executioncontrolprotocol/plugin-format-toon": "workspace:^",
     "typescript": "catalog:",
     "zod": "catalog:"
   }

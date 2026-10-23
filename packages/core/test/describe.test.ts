@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { extension, policy, testExtension } from "../src/index.js"
-import { budgetPolicy } from "@executioncontrolprotocol/policies"
+import { budgetPolicy } from "@executioncontrolprotocol/plugin-budget"
 import { createTestEnvironment } from "./helpers.js"
 
 describe("environment.describe", () => {

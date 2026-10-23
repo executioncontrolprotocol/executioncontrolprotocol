@@ -23,8 +23,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/policies": "workspace:^"
+    "@executioncontrolprotocol/core": "workspace:^"
   },
   "optionalDependencies": {
     "@napi-rs/keyring": "^1.2.0",

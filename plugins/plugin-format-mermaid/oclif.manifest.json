@@ -1,0 +1,62 @@
+{
+  "version": "0.14.1",
+  "commands": {
+    "format-mermaid:encode": {
+      "aliases": [],
+      "args": {},
+      "description": "Produces Mermaid flowchart text from a workflow manifest. Validates the source workflow first and returns diagnostics when invalid. Supports layout options via encode options.\nUse cases:\n- Graph editor panel visualizes the current workflow.\n- Docs site embeds a Mermaid diagram generated from a manifest.\nProjections:\n- Take the encoded document: When success is true, use the result field as Mermaid graph text for viewers or documentation embeds.",
+      "examples": [
+        "ecp format-mermaid encode --sourceSchema <sourceSchema> --sourceVersion <sourceVersion> --format <format>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "source-schema": {
+          "description": "source-schema",
+          "name": "source-schema",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "source-version": {
+          "description": "source-version",
+          "name": "source-version",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "description": "format",
+          "name": "format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "format-mermaid:encode",
+      "pluginAlias": "@executioncontrolprotocol/plugin-format-mermaid",
+      "pluginName": "@executioncontrolprotocol/plugin-format-mermaid",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Render a workflow manifest as a Mermaid graph.",
+      "enableJsonFlag": true
+    }
+  }
+}

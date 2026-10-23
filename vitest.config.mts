@@ -83,7 +83,18 @@ export default defineConfig({
       ),
       "@executioncontrolprotocol/core": path.resolve(repoRoot, "packages/core/src/index.ts"),
       "@executioncontrolprotocol/plugin-sdk": path.resolve(repoRoot, "packages/plugin-sdk/src/index.ts"),
-      "@executioncontrolprotocol/policies": path.resolve(repoRoot, "packages/policies/src/index.ts"),
+      "@executioncontrolprotocol/plugin-budget": path.resolve(
+        repoRoot,
+        "plugins/plugin-budget/src/index.ts"
+      ),
+      "@executioncontrolprotocol/plugin-approval": path.resolve(
+        repoRoot,
+        "plugins/plugin-approval/src/index.ts"
+      ),
+      "@executioncontrolprotocol/plugin-state-control": path.resolve(
+        repoRoot,
+        "plugins/plugin-state-control/src/index.ts"
+      ),
       "@executioncontrolprotocol/plugin-sdk": path.resolve(
         repoRoot,
         "packages/plugin-sdk/src/index.ts"
@@ -94,8 +105,14 @@ export default defineConfig({
         repoRoot,
         "plugins/plugin-openai/src/index.ts"
       ),
-      "@executioncontrolprotocol/format-toon": path.resolve(repoRoot, "packages/extensions/format-toon/src/index.ts"),
-      "@executioncontrolprotocol/format-mermaid": path.resolve(repoRoot, "packages/extensions/format-mermaid/src/index.ts"),
+      "@executioncontrolprotocol/plugin-format-toon": path.resolve(
+        repoRoot,
+        "plugins/plugin-format-toon/src/index.ts"
+      ),
+      "@executioncontrolprotocol/plugin-format-mermaid": path.resolve(
+        repoRoot,
+        "plugins/plugin-format-mermaid/src/index.ts"
+      ),
       "@executioncontrolprotocol/plugin-anthropic": path.resolve(
         repoRoot,
         "plugins/plugin-anthropic/src/index.ts"
@@ -115,11 +132,13 @@ export default defineConfig({
       // merged into coverage.exclude and zero the report (vitest#10164).
       include: [
         "packages/core/src/**/*.{ts,js}",
-        "packages/policies/src/**/*.{ts,js}",
         "packages/cli/src/**/*.{ts,js}",
         "packages/mcp/src/**/*.{ts,js}",
-        "packages/extensions/format-toon/src/**/*.{ts,js}",
-        "packages/extensions/format-mermaid/src/**/*.{ts,js}",
+        "plugins/plugin-format-toon/src/**/*.{ts,js}",
+        "plugins/plugin-format-mermaid/src/**/*.{ts,js}",
+        "plugins/plugin-budget/src/**/*.{ts,js}",
+        "plugins/plugin-approval/src/**/*.{ts,js}",
+        "plugins/plugin-state-control/src/**/*.{ts,js}",
         "packages/environments/node/src/**/*.{ts,js}",
         "packages/plugin-sdk/src/**/*.{ts,js}",
         "plugins/plugin-jsonata/src/**/*.{ts,js}",
@@ -150,7 +169,19 @@ export default defineConfig({
           branches: 70,
           statements: 90,
         },
-        "packages/policies/src/**": {
+        "plugins/plugin-budget/src/**": {
+          lines: 75,
+          functions: 80,
+          branches: 65,
+          statements: 75,
+        },
+        "plugins/plugin-approval/src/**": {
+          lines: 75,
+          functions: 80,
+          branches: 65,
+          statements: 75,
+        },
+        "plugins/plugin-state-control/src/**": {
           lines: 75,
           functions: 80,
           branches: 65,
@@ -185,7 +216,6 @@ export default defineConfig({
           name: "unit",
           include: [
             "packages/core/test/**/*.test.ts",
-            "packages/policies/test/**/*.test.ts",
             "packages/cli/test/**/*.test.ts",
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",

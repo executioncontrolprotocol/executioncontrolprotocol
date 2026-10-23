@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { extension, testExtension } from "../src/index.js"
-import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { formatToonExtension } from "@executioncontrolprotocol/plugin-format-toon"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 
 describe("extension bindings", () => {

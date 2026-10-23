@@ -60,8 +60,10 @@ export abstract class EcpCommand extends Command {
   async catch(error: Error & { exitCode?: number }): Promise<void> {
     const body = errorBody(error)
     const exitCode = exitCodeOf(error)
-    if (this.jsonEnabled()) {
-      this.log(JSON.stringify(failureEnvelope(body)))
+    const json = this.jsonEnabled() || (this.argv ?? []).includes("--json")
+    if (json) {
+      // `this.log` is a no-op when jsonEnabled() is true; `logJson` always writes.
+      this.logJson(this.toErrorJson(error))
       this.exit(exitCode)
     }
     this.error(body.message, { exit: exitCode })

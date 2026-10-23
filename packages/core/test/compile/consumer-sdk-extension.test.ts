@@ -128,7 +128,6 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
   await linkPkg(consumerDir, "@ecp-fixture/heavy-sdk-ext", vendorExtDir)
   await linkPkg(consumerDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
   await linkPkg(consumerDir, "@executioncontrolprotocol/node", join(repoRoot, "packages/environments/node"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/policies", join(repoRoot, "packages/policies"))
   await linkPkg(consumerDir, "zod", resolveZodDir())
 
   const envPath = join(consumerDir, "environment.ts")
