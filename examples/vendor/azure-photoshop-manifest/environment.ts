@@ -1,5 +1,5 @@
 import { environment, extension, env, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
-import { azureBlobStorageExtension } from "@executioncontrolprotocol/azure-blob-storage"
+import { azureBlobStorageExtension } from "@executioncontrolprotocol/plugin-azure-blob-storage"
 import { adobeFireflyServicesExtension } from "@executioncontrolprotocol/adobe-firefly-services"
 
 /**

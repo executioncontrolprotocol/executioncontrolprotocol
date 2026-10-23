@@ -48,7 +48,7 @@ Photoshop v1 and standalone Lightroom OpenAPI are **out of scope** (v2 supersede
 
 ## Asset URLs via Azure Blob Storage
 
-Firefly and Photoshop accept allow-listed HTTPS SAS URLs (including Azure `*.windows.net`). Use [`@executioncontrolprotocol/azure-blob-storage`](../azure-blob-storage/) to upload assets and mint read/write SAS URLs, then pass them into Firefly `referenceBlobs` / Photoshop `source.url` via `ref()`. See `examples/azure-adobe-assets/`.
+Firefly and Photoshop accept allow-listed HTTPS SAS URLs (including Azure `*.windows.net`). Use [`@executioncontrolprotocol/plugin-azure-blob-storage`](../../../plugins/plugin-azure-blob-storage/) to upload assets and mint read/write SAS URLs, then pass them into Firefly `referenceBlobs` / Photoshop `source.url` via `ref()`. See `examples/azure-adobe-assets/`.
 
 ## Async capabilities return final results
 
