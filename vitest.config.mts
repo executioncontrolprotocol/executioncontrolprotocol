@@ -130,10 +130,10 @@ export default defineConfig({
       ],
       thresholds: {
         // Global floor across included packages (ratchet toward 90%; never lower to green CI).
-        lines: 75,
-        functions: 80,
-        branches: 62,
-        statements: 75,
+        lines: 80,
+        functions: 84,
+        branches: 66,
+        statements: 78,
         // Package floors — raise toward 90 as suites fill positive/negative/edge cases.
         "packages/core/src/**": {
           lines: 70,
@@ -143,8 +143,8 @@ export default defineConfig({
         },
         "packages/core/src/types/**": {
           lines: 90,
-          functions: 65,
-          branches: 55,
+          functions: 80,
+          branches: 70,
           statements: 90,
         },
         "packages/policies/src/**": {
@@ -156,10 +156,10 @@ export default defineConfig({
         "packages/cli/src/**": {
           // Operation handlers and hooks have in-process unit tests; spawn tests still
           // cover the oclif wiring that v8 does not see.
-          lines: 60,
-          functions: 70,
-          branches: 48,
-          statements: 60,
+          lines: 70,
+          functions: 75,
+          branches: 55,
+          statements: 70,
         },
         "packages/plugin-sdk/src/**": {
           lines: 80,

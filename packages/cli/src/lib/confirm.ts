@@ -25,3 +25,23 @@ export async function confirm(message: string, argv: string[] = process.argv): P
     rl.close()
   }
 }
+
+/**
+ * Confirm an install: `--yes` wins; empty TTY answer defaults to yes.
+ * @category CLI
+ */
+export async function confirmDefaultYes(
+  message: string,
+  argv: string[] = process.argv
+): Promise<boolean> {
+  if (wantsYes(argv)) return true
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return false
+  const rl = createInterface({ input, output })
+  try {
+    const answer = (await rl.question(`${message} (Y/n) `)).trim().toLowerCase()
+    if (answer === "") return true
+    return answer === "y" || answer === "yes"
+  } finally {
+    rl.close()
+  }
+}

@@ -1,6 +1,6 @@
 # Phase 4 — Workflow files and observability
 
-> Status: Planned · Branch: `feat/phase-4-workflow-files` · Depends on: Phase 3 ·
+> Status: In progress (PR 1 landed on this branch) · Branch: `feat/phase-4-workflow-files` · Depends on: Phase 3 ·
 > Plan: §4.3, §4.4, §4.6
 
 ## Starting point after Phase 3
@@ -306,3 +306,24 @@ can be stepped, resumed and re-run.
 | Shallow config merge surprises users with nested config | Document it. Revisit deep merge only if a real plugin needs it |
 | Journals grow large (images, big payloads) | Store file outputs as `FileRef`s, not inline bytes. Add `ecp runs prune --older-than` if needed |
 | Resuming against an edited file produces subtly wrong state | Hash every restored step definition and refuse on mismatch (`ECP_RERUN_INCOMPATIBLE`) |
+
+## Outcome (PR 1)
+
+PR 1 (`feat/phase-4-workflow-files`) ships workflow files. PR 2 still owns the journal, `--events`, `ecp run --to`, `ecp runs *`, and deleting `ecp test`.
+
+Shipped:
+
+- `packages/core/src/types/errors.ts` is the §4.6 catalogue. Plugin-sdk re-exports those constants. Live invoke codes map onto it (`CAPABILITY_NOT_FOUND` → `ECP_CAPABILITY_UNKNOWN`, and so on). `ecp.invoke` stays fluent.
+- `workflow(...).with([...])` once; `extension()` / `policy()` binding builders get `.requires(range, pkg?)`. `compile()` stays the portable manifest. `requirements()` emits `@executioncontrolprotocol.requirements` v1.0.
+- `.requires()` is on **binding** builders, not `defineExtension` / `definePolicy`.
+- `defineExtension(...).providesConfigResolver()`; Node `secrets` and `process-env` set it. Resolver registration stays a runtime hook.
+- Workflow-file loader returns `{ manifest, requirements, builder? }`. TS/JS files must default-export a `WorkflowBuilder`. `.json` manifests still load. Bare imports other than `@executioncontrolprotocol/core` and `.../core/types` fail with `ECP_WORKFLOW_LOAD`. The restriction does **not** apply to `--env` environment modules.
+- `--env` is optional on `run` / `validate` / `ecp test *`. No `--env` uses the process host. `--env <file>` is an environment overlay. `ecp install <file>` installs inferred plugins without running. `ecp validate` never installs. `--json` / non-TTY missing plugins: `ECP_PLUGINS_MISSING`, exit 3.
+- First-party `plugins:install` from npm is still unpublished; missing-plugin tests mock `plugins:install` / use link, not the public registry.
+- `Environment.with()` merges extensions by id (shallow per top-level key) and appends policies. No compatibility shim.
+- Bound config is validated against `withConfig` twice: placeholders satisfy string fields; resolved values are checked after `$secret`/`$env` resolution.
+- `ecp init [name]` writes `<name>.ecp.ts`.
+- Examples `01-echo`, `02-weekly-brief`, `03-secrets-bind`, `06-invoke`, `07-accepts-returns` are `*.ecp.ts`. Their `environment.ts` files are gone. Echo has no `.with()` (`test.echo` is a Node default). Secrets-bind does not bind `secrets` in the workflow. Ollama example folders were retired stubs and were **deleted**, not converted. Vendor examples wait for Phase 5.
+- `ecp test *` is unchanged for this PR (session file still works). `RunStatus` includes `stopped` for PR 2.
+
+Remaining for PR 2: journal writer, `--events`, lift `stopAfterStepId` / `onlyStepId` off test mode, `ecp runs list|show|resume|rerun`, delete `test-session` after porting tests, mark the phase Done.

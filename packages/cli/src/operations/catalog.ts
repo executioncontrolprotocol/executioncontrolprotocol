@@ -3,6 +3,7 @@ import type { DescribeQuery } from "@executioncontrolprotocol/core/types"
 import {
   defineOperation,
   EcpCliError,
+  ECP_STEP_FAILED,
   EXIT_FAILED,
 } from "@executioncontrolprotocol/plugin-sdk"
 import { readJsonFile } from "../lib/command-helpers.js"
@@ -27,7 +28,7 @@ export const describeOperation = defineOperation("describe")
     description:
       "Return a structured catalog of extensions, capabilities, and policies. Pass --env to load an environment module; otherwise use installed plugins.",
     useCases: ["List installed capabilities", "Inspect one capability by exact id"],
-    examples: ["ecp describe --env examples/01-echo/environment.ts"],
+    examples: ["ecp describe"],
     cli: { args: ["id"] },
   })
   .withHandler(async (input, ctx) => {
@@ -75,7 +76,7 @@ export const searchOperation = defineOperation("search")
     summary: "Search environment capabilities",
     description: "Fuzzy-match capabilities by id or label. Quote multi-word queries.",
     useCases: ["Find a capability for an intent"],
-    examples: ['ecp search "echo" --env examples/01-echo/environment.ts'],
+    examples: ['ecp search "echo"'],
     cli: { args: ["query"] },
   })
   .withHandler(async (input, ctx) => {
@@ -106,7 +107,7 @@ export const invokeOperation = defineOperation("invoke")
       "Call a registered capability by id without running a workflow. Prints an InvokeResult JSON document.",
     useCases: ["Smoke-test a capability outside a workflow"],
     examples: [
-      "ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json",
+      "ecp invoke @executioncontrolprotocol/test.echo --input input.json",
     ],
     cli: { args: ["capability-id"] },
   })
@@ -120,7 +121,7 @@ export const invokeOperation = defineOperation("invoke")
       const result = await ecp.invoke(String(input["capability-id"])).with(payload).process()
       if (!result.success) {
         throw new EcpCliError(
-          result.diagnostics[0]?.code ?? "INVOKE_FAILED",
+          result.diagnostics[0]?.code ?? ECP_STEP_FAILED,
           result.diagnostics[0]?.message ?? "Capability invoke did not succeed",
           { exitCode: EXIT_FAILED }
         )

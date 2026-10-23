@@ -44,6 +44,7 @@ function attachSecretsResolver(ctx: LifecycleContext): void {
 /** OS secrets extension. @category Secrets */
 export const secretsExtension = defineExtension("@executioncontrolprotocol", "secrets")
   .supports(NODE_ENVIRONMENT_ID)
+  .providesConfigResolver()
   .withConfig(z.object({}))
   .withMetadata({
     summary: "OS keychain-backed secret resolution for Node hosts.",

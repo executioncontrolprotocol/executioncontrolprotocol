@@ -10,7 +10,6 @@
   "dependencies": {
     "@executioncontrolprotocol/cli": "*",
     "@executioncontrolprotocol/core": "*",
-    "@executioncontrolprotocol/format-toon": "*",
     "@executioncontrolprotocol/node": "*",
     "zod": "^3.24.0"
   }

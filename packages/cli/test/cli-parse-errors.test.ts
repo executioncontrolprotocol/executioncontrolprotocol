@@ -22,18 +22,9 @@ function runExpectFailure(args: string): { status: number; stderr: string } {
 }
 
 describe("ecp parse errors", () => {
-  it("run without --env exits non-zero", { timeout: 60_000 }, () => {
-    const { status, stderr } = runExpectFailure(
-      "run examples/01-echo/workflow.ts"
-    )
+  it("run without a workflow path exits non-zero", { timeout: 60_000 }, () => {
+    const { status, stderr } = runExpectFailure("run")
     expect(status).not.toBe(0)
     expect(stderr.length).toBeGreaterThan(0)
-  })
-
-  it("run without workflow path exits non-zero", { timeout: 60_000 }, () => {
-    const { status } = runExpectFailure(
-      "run --env examples/01-echo/environment.ts"
-    )
-    expect(status).not.toBe(0)
   })
 })

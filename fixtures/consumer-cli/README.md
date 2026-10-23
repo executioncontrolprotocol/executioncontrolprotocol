@@ -12,7 +12,7 @@ From the monorepo root (after `pnpm run build`):
 pnpm run test:consumer-cli
 ```
 
-That packs the required workspace packages, installs them into a fresh temp directory with these sources, then runs `ecp compile`, `validate`, and `run`.
+That packs the required workspace packages, installs them into a fresh temp directory with these sources, then runs `ecp compile`, `validate`, and `run` on a single workflow file (no `--env`).
 
 Set `KEEP_CONSUMER_CLI=1` to leave the temp install directory for inspection.
 
@@ -20,6 +20,5 @@ Set `KEEP_CONSUMER_CLI=1` to leave the temp install directory for inspection.
 
 | File | Role |
 | --- | --- |
-| `workflow.ts` | Minimal Fluent echo workflow |
-| `environment.ts` | Node environment + test + format-toon |
+| `workflow.ecp.ts` | Minimal Fluent echo workflow |
 | `package.json` | Documents required deps (smoke script installs from tarballs) |

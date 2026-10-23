@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { defineExtension, env, extension } from "@executioncontrolprotocol/core"
 import { z } from "zod"
-import { environment, NODE_ENVIRONMENT_ID } from "../src/index.js"
+import { environment, NODE_ENVIRONMENT_ID, processEnvExtension, secretsExtension } from "../src/index.js"
 
 const KEY = "ECP_PROCESS_ENV_TEST_KEY"
 
@@ -47,5 +47,12 @@ describe("Node process-env default binding", () => {
     await envBuilder.init()
     const resolved = envBuilder.ecpResolveBindings().extensions.find((e) => e.id === probe.id)
     expect(resolved?.config.value).toBeUndefined()
+  })
+})
+
+describe("config resolver definitions", () => {
+  it("marks process-env and secrets as providing a config resolver", () => {
+    expect(processEnvExtension.providesConfigResolver).toBe(true)
+    expect(secretsExtension.providesConfigResolver).toBe(true)
   })
 })

@@ -1,5 +1,31 @@
 export { LATEST_ECP_VERSION } from "./version.js"
 export type { EcpVersion } from "./version.js"
+export {
+  ECP_ERROR_CODES,
+  ECP_WORKFLOW_LOAD,
+  ECP_PLUGINS_MISSING,
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_INPUT_INVALID,
+  ECP_REF_UNRESOLVED,
+  ECP_BINDING_INVALID,
+  ECP_ENVIRONMENT_UNSUPPORTED,
+  ECP_SECRET_MISSING,
+  ECP_POLICY_DENIED,
+  ECP_RUN_PAUSED,
+  ECP_STEP_FAILED,
+  ECP_OUTPUT_INVALID,
+  ECP_PLUGIN_DENIED,
+  ECP_RERUN_INCOMPATIBLE,
+  EcpError,
+  isEcpError,
+} from "./errors.js"
+export type { EcpErrorCode, EcpErrorOptions } from "./errors.js"
+export type {
+  RequirementSource,
+  RequirementKind,
+  RequirementEntry,
+  RequirementsDocument,
+} from "./requirements.js"
 export type {
   EcpSchema,
   NamespacedId,

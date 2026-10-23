@@ -30,6 +30,8 @@ export {
   compileWorkflowSource,
   compileAndValidateWorkflowSource,
   extractWorkflowFromModule,
+  extractLoadedWorkflowFromModule,
+  type LoadedWorkflow,
   bundleWorkflowSource,
   bundleEnvironmentSource,
   resolveBundleDir,

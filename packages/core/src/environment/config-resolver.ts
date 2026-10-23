@@ -1,4 +1,5 @@
 import type { EnvValue, SecretValue } from "../types/index.js"
+import { ECP_SECRET_MISSING, EcpError } from "../types/index.js"
 
 /** Extension id for process environment resolution. @category Environment */
 export const PROCESS_ENV_RESOLVER_ID = "@executioncontrolprotocol/process-env"
@@ -53,12 +54,20 @@ export async function resolveConfigName(
     const resolver = findResolver(resolvers, resolverId)
     if (!resolver) {
       if (options?.optional) return options.fallback
-      throw new Error(missingResolverMessage(resolverId, name))
+      const message = missingResolverMessage(resolverId, name)
+      if (resolverId === SECRETS_RESOLVER_ID) {
+        throw new EcpError(ECP_SECRET_MISSING, message)
+      }
+      throw new Error(message)
     }
     const value = await resolver.resolve(name)
     if (value !== undefined) return value
     if (options?.optional) return options.fallback
-    throw new Error(`${resolverErrorLabel(resolverId)} ${name} is not set`)
+    const unset = `${resolverErrorLabel(resolverId)} ${name} is not set`
+    if (resolverId === SECRETS_RESOLVER_ID) {
+      throw new EcpError(ECP_SECRET_MISSING, unset)
+    }
+    throw new Error(unset)
   }
 
   for (const resolver of resolvers) {

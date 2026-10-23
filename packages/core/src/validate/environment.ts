@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "../types/index.js"
+import { ECP_ENVIRONMENT_UNSUPPORTED, LATEST_ECP_VERSION } from "../types/index.js"
 import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest } from "../types/index.js"
 import { validateWorkflow } from "./workflow.js"
 import type { ResolvedBindings } from "../environment/bindings.js"
@@ -10,8 +10,7 @@ import type { Registry } from "../registry/registry.js"
 import type { ExtensionDefinition, SupportedEnvironment } from "../definitions/types.js"
 import { satisfies } from "semver"
 
-/** Validation issue code when a bound extension does not support this environment. @category Validation */
-export const ECP_ENVIRONMENT_UNSUPPORTED = "ECP_ENVIRONMENT_UNSUPPORTED"
+export { ECP_ENVIRONMENT_UNSUPPORTED }
 
 function formatSupported(supported: SupportedEnvironment[]): string {
   return supported

@@ -44,12 +44,22 @@ async function loadEsbuild(): Promise<typeof import("esbuild")> {
   }
 }
 
+/** Bare imports a workflow file may resolve (CLI/host copy). @category Compile */
+const WORKFLOW_ALLOWED_BARE_IMPORTS = new Set([
+  "@executioncontrolprotocol/core",
+  "@executioncontrolprotocol/core/types",
+])
+
 /**
  * Mark npm packages external with absolute `file:` URLs so a temp-dir `import()`
  * still resolves the consumer's `node_modules` (linked packages and CJS SDKs).
  * Uses esbuild's own resolver (respects ESM package `exports`).
+ * Workflow files may only import `@executioncontrolprotocol/core` and relative files.
  */
-function createAbsoluteExternalsPlugin(resolveDir: string): Plugin {
+function createAbsoluteExternalsPlugin(
+  resolveDir: string,
+  mode: "environment" | "workflow" = "environment"
+): Plugin {
   return {
     name: "ecp-absolute-externals",
     setup(build) {
@@ -57,10 +67,28 @@ function createAbsoluteExternalsPlugin(resolveDir: string): Plugin {
         if (args.pluginData?.ecpAbsoluteExternal) return undefined
 
         if (args.path.startsWith("node:") || isBuiltin(args.path)) {
+          if (mode === "workflow") {
+            return {
+              errors: [
+                {
+                  text: `ECP_WORKFLOW_LOAD: workflow files may only import @executioncontrolprotocol/core and relative files. Found "${args.path}".`,
+                },
+              ],
+            }
+          }
           return { path: args.path, external: true }
         }
         if (/^[A-Za-z]:/.test(args.path)) {
           return { path: args.path, external: true }
+        }
+        if (mode === "workflow" && !WORKFLOW_ALLOWED_BARE_IMPORTS.has(args.path)) {
+          return {
+            errors: [
+              {
+                text: `ECP_WORKFLOW_LOAD: workflow files may only import @executioncontrolprotocol/core and relative files. Found "${args.path}".`,
+              },
+            ],
+          }
         }
 
         const result = await build.resolve(args.path, {
@@ -116,7 +144,8 @@ export async function transpileWorkflowSource(
 async function bundleModuleSource(
   source: string,
   filename: string,
-  resolveDir: string
+  resolveDir: string,
+  mode: "environment" | "workflow"
 ): Promise<string> {
   const esbuild = await loadEsbuild()
   const loader = filename.endsWith(".tsx")
@@ -138,7 +167,7 @@ async function bundleModuleSource(
     write: false,
     // Packages are externalized as absolute file: URLs by ecp-absolute-externals
     // (not packages:"external", which would leave bare names unusable from tmpdir).
-    plugins: [createAbsoluteExternalsPlugin(resolveDir)],
+    plugins: [createAbsoluteExternalsPlugin(resolveDir, mode)],
   })
   const file = result.outputFiles?.[0]
   if (!file) throw new Error("esbuild produced no output")
@@ -157,7 +186,7 @@ export async function bundleWorkflowSource(
   filename: string,
   resolveDir: string
 ): Promise<string> {
-  return bundleModuleSource(source, filename, resolveDir)
+  return bundleModuleSource(source, filename, resolveDir, "workflow")
 }
 
 /**
@@ -170,5 +199,5 @@ export async function bundleEnvironmentSource(
   filename: string,
   resolveDir: string
 ): Promise<string> {
-  return bundleModuleSource(source, filename, resolveDir)
+  return bundleModuleSource(source, filename, resolveDir, "environment")
 }

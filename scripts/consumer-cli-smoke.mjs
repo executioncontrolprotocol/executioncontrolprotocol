@@ -31,7 +31,6 @@ const keep = process.env.KEEP_CONSUMER_CLI === "1"
 const REQUIRED = new Set([
   "@executioncontrolprotocol/core",
   "@executioncontrolprotocol/policies",
-  "@executioncontrolprotocol/format-toon",
   "@executioncontrolprotocol/node",
   "@executioncontrolprotocol/plugin-sdk",
   "@executioncontrolprotocol/cli",
@@ -82,7 +81,7 @@ function runNpx(args, cwd) {
 
 assertBuilt()
 
-if (!existsSync(join(fixtureDir, "workflow.ts"))) {
+if (!existsSync(join(fixtureDir, "workflow.ecp.ts"))) {
   console.error(`Fixture not found: ${fixtureDir}`)
   process.exit(1)
 }
@@ -121,9 +120,7 @@ try {
     tarballs.push(resolvePackTarballPath(packsDir, filename))
   }
 
-  for (const name of ["workflow.ts", "environment.ts"]) {
-    copyFileSync(join(fixtureDir, name), join(consumerDir, name))
-  }
+  copyFileSync(join(fixtureDir, "workflow.ecp.ts"), join(consumerDir, "workflow.ecp.ts"))
 
   const fixturePkg = JSON.parse(readFileSync(join(fixtureDir, "package.json"), "utf8"))
   writeFileSync(
@@ -146,9 +143,9 @@ try {
 
   runNpm(["install", "--no-package-lock", "zod@^3.24.0", ...tarballs], consumerDir)
 
-  runNpx(["ecp", "compile", "workflow.ts", "-o", "workflow.json"], consumerDir)
-  runNpx(["ecp", "validate", "workflow.json", "--env", "environment.ts"], consumerDir)
-  runNpx(["ecp", "run", "workflow.ts", "--env", "environment.ts"], consumerDir)
+  runNpx(["ecp", "compile", "workflow.ecp.ts", "-o", "workflow.json"], consumerDir)
+  runNpx(["ecp", "validate", "workflow.json"], consumerDir)
+  runNpx(["ecp", "run", "workflow.ecp.ts"], consumerDir)
 
   console.log("\nconsumer-cli smoke passed")
 } catch (err) {

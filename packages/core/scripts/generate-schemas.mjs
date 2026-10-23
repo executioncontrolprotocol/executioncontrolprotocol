@@ -17,6 +17,7 @@ const baseConfig = {
 /** @type {Array<{ type: string; file: string }>} */
 const schemas = [
   { type: "WorkflowManifest", file: "workflow.manifest.json" },
+  { type: "RequirementsDocument", file: "requirements.json" },
   { type: "EnvironmentManifest", file: "environment.manifest.json" },
   { type: "EnvironmentDescriptor", file: "environment.describe.json" },
   { type: "RunResult", file: "run.result.json" },

@@ -2,6 +2,8 @@ export {
   compileWorkflowSource,
   compileAndValidateWorkflowSource,
   extractWorkflowFromModule,
+  extractLoadedWorkflowFromModule,
+  type LoadedWorkflow,
   type CompileWorkflowResult,
   type CompileWorkflowSourceOptions,
   type CompileDiagnostic,

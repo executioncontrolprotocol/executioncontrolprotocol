@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import {
-  bundleWorkflowSource,
+  bundleEnvironmentSource,
   loadEnvironmentModule,
 } from "@executioncontrolprotocol/node"
 
@@ -159,7 +159,7 @@ describe("consumer linked heavy-SDK extension", () => {
 
     const { consumerDir, envPath } = await setupConsumerWithHeavySdkExtension()
     const source = await readFile(envPath, "utf8")
-    const code = await bundleWorkflowSource(source, envPath, consumerDir)
+    const code = await bundleEnvironmentSource(source, envPath, consumerDir)
 
     expect(code).toMatch(/file:\/\/\/?.*heavy-sdk-ext/)
     expect(code).not.toMatch(/require\(["']net["']\)/)

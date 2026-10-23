@@ -1,54 +1,55 @@
 import { z } from "zod"
 import { readFile, writeFile } from "node:fs/promises"
-import { compileWorkflowSource, loadWorkflowFile } from "@executioncontrolprotocol/node"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import {
   defineOperation,
   EcpCliError,
-  EXIT_FAILED,
+  ECP_INPUT_INVALID,
+  ECP_WORKFLOW_LOAD,
   EXIT_USAGE,
 } from "@executioncontrolprotocol/plugin-sdk"
 import { readJsonFile } from "../lib/command-helpers.js"
 import { applyFormat } from "../lib/format-output.js"
-import { ecpFromEnvFlag, terminateIfNeeded } from "../lib/load-ecp.js"
+import { prepareWorkflowRun, throwIfRunFailed } from "../lib/prepare-workflow.js"
+import { terminateIfNeeded } from "../lib/load-ecp.js"
 
 /** `ecp run`. @category CLI */
 export const runOperation = defineOperation("run")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string(),
+      env: z.string().optional(),
       input: z.string().optional(),
       "dry-run": z.boolean().optional(),
     })
   )
   .withMetadata({
-    summary: "Run a workflow",
-    description: "Compile (if needed) and execute a workflow using the runtime and extensions from --env.",
-    useCases: ["Execute a workflow file against a local environment module"],
-    examples: [
-      "ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts",
-    ],
+    summary: "Run a workflow file",
+    description:
+      "Compile (if needed) and execute a workflow. --env is an optional environment file overlay; omit it to use the process host.",
+    useCases: ["Execute a single-file workflow"],
+    examples: ["ecp run examples/01-echo/workflow.ecp.ts", "ecp run brief.ecp.ts --env team.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(String(input.env), ctx.host)
+    const { loaded, ecp, terminate } = await prepareWorkflowRun({
+      workflowPath: String(input["workflow-path"]),
+      envFlag: input.env ? String(input.env) : undefined,
+      config: ctx.config,
+      argv: ctx.argv,
+      json: ctx.json,
+      host: ctx.host,
+      install: true,
+    })
     try {
       const workflowInput = input.input
         ? await readJsonFile<Record<string, unknown>>(String(input.input), "--input")
         : undefined
-      const workflow = await loadWorkflowFile(String(input["workflow-path"]))
-      const result = await ecp.run(workflow, {
+      const result = await ecp.run(loaded.manifest, {
         input: workflowInput,
         dryRun: Boolean(input["dry-run"]),
       })
-      if (result.run.status !== "completed") {
-        throw new EcpCliError(
-          "ECP_STEP_FAILED",
-          `Workflow run did not complete (status: ${result.run.status})`,
-          { exitCode: EXIT_FAILED }
-        )
-      }
-      return result
+      return throwIfRunFailed(result)
     } finally {
       await terminateIfNeeded(ecp, terminate)
     }
@@ -60,25 +61,33 @@ export const validateOperation = defineOperation("validate")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string(),
+      env: z.string().optional(),
     })
   )
   .withMetadata({
-    summary: "Validate a workflow manifest",
+    summary: "Validate a workflow file",
     description:
-      "Compile (if needed) and validate a workflow against the extensions and policies in --env.",
+      "Compile (if needed) and validate a workflow against the process host, an optional --env file, and the workflow's bindings. Never installs plugins.",
     useCases: ["Check a workflow before running it"],
-    examples: ["ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts"],
+    examples: ["ecp validate examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(String(input.env), ctx.host)
+    const { loaded, ecp, terminate } = await prepareWorkflowRun({
+      workflowPath: String(input["workflow-path"]),
+      envFlag: input.env ? String(input.env) : undefined,
+      config: ctx.config,
+      argv: ctx.argv,
+      json: ctx.json,
+      host: ctx.host,
+      install: false,
+    })
     try {
-      const workflow = await loadWorkflowFile(String(input["workflow-path"]))
-      const result = await ecp.validate(workflow)
+      const result = await ecp.validate(loaded.manifest)
       if (!result.valid) {
-        throw new EcpCliError("ECP_INPUT_INVALID", "Workflow is not valid", {
-          exitCode: EXIT_FAILED,
+        throw new EcpCliError(ECP_INPUT_INVALID, "Workflow is not valid", {
+          exitCode: EXIT_USAGE,
+          details: result.errors,
         })
       }
       return result
@@ -102,7 +111,7 @@ export const compileOperation = defineOperation("compile")
     description:
       "Bundle and evaluate a workflow module (.ts or .js), or load .json, and emit the workflow manifest.",
     useCases: ["Produce a portable workflow manifest for review"],
-    examples: ["ecp compile examples/01-echo/workflow.ts"],
+    examples: ["ecp compile examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
@@ -110,9 +119,11 @@ export const compileOperation = defineOperation("compile")
     const source = await readFile(filename, "utf8")
     const result = await compileWorkflowSource({ source, filename })
     if (!result.ok) {
-      throw new EcpCliError("ECP_WORKFLOW_LOAD", "Workflow failed to compile", {
-        exitCode: EXIT_USAGE,
-      })
+      throw new EcpCliError(
+        ECP_WORKFLOW_LOAD,
+        result.compileErrors?.[0]?.message ?? "Workflow failed to compile",
+        { exitCode: EXIT_USAGE }
+      )
     }
     let payload: unknown = result.manifest
     if (input.format && ctx.host) {

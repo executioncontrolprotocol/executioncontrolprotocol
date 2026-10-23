@@ -1,9 +1,10 @@
-import { loadEnvironmentModule } from "@executioncontrolprotocol/node"
+import { environment, loadEnvironmentModule, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 import type { Ecp } from "@executioncontrolprotocol/core"
 import { getHost, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 
 /**
  * Resolve an operational Ecp: `--env` module when provided, otherwise the process host.
+ * When the init hook has not run (in-process tests), fall back to a fresh Node environment.
  * @category CLI
  */
 export async function ecpFromEnvFlag(
@@ -15,8 +16,14 @@ export async function ecpFromEnvFlag(
     const ecp = await env.init()
     return { ecp, terminate: true }
   }
-  const resolved = host ?? getHost()
-  return { ecp: resolved.ecp, terminate: false }
+  if (host) return { ecp: host.ecp, terminate: false }
+  try {
+    return { ecp: getHost().ecp, terminate: false }
+  } catch {
+    const env = environment(NODE_ENVIRONMENT_ID, "cli")
+    const ecp = await env.init()
+    return { ecp, terminate: true }
+  }
 }
 
 /**

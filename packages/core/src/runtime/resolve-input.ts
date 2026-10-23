@@ -1,4 +1,5 @@
 import type { InputValue, RefValue, StateValue } from "../types/index.js"
+import { ECP_REF_UNRESOLVED, EcpError } from "../types/index.js"
 
 function getStatePath(ref: string): string {
   return ref.startsWith("state.") ? ref.slice(6) : ref
@@ -27,6 +28,11 @@ export function resolveStepInput(
         const r = v as RefValue
         const val = getAtPath(state, getStatePath(r.$ref))
         if (val === undefined && r.optional) return r.fallback
+        if (val === undefined) {
+          throw new EcpError(ECP_REF_UNRESOLVED, `Unresolved ref "${r.$ref}"`, {
+            path: r.$ref,
+          })
+        }
         return val
       }
       if ("$state" in v) {

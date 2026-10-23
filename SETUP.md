@@ -67,14 +67,14 @@ extensions + policies). Examples are authored in TypeScript but compile down to
 portable JSON workflow manifests.
 
 ```bash
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
-ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
+ecp validate examples/01-echo/workflow.ecp.ts
 ```
 
 Compile to JSON (optional):
 
 ```bash
-ecp compile examples/01-echo/workflow.ts -o dist/workflow.json
+ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ------------------------------------------------------------------------
@@ -108,7 +108,7 @@ The browser demo was removed in Phase 1. The visual App returns in Phase 8 from 
 `pre-reset` tag. Until then, run workflows with the CLI:
 
 ```bash
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
 ```
 
 ------------------------------------------------------------------------

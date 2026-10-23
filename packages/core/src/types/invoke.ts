@@ -1,14 +1,21 @@
 import type { CapabilityId } from "./schema.js"
 import type { EcpVersion } from "./version.js"
 import type { ValidationIssue, ValidationResult } from "./validation.js"
+import {
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_INPUT_INVALID,
+  ECP_OUTPUT_INVALID,
+  ECP_POLICY_DENIED,
+  ECP_STEP_FAILED,
+} from "./errors.js"
 
-/** Invoke error codes. @category Invoke */
+/** Invoke error codes, mapped onto the §4.6 catalogue. @category Invoke */
 export const ECP_INVOKE_ERROR_CODES = {
-  CAPABILITY_NOT_FOUND: "CAPABILITY_NOT_FOUND",
-  INVOKE_INPUT_INVALID: "INVOKE_INPUT_INVALID",
-  INVOKE_OUTPUT_INVALID: "INVOKE_OUTPUT_INVALID",
-  INVOKE_DENIED: "INVOKE_DENIED",
-  INVOKE_FAILED: "INVOKE_FAILED",
+  CAPABILITY_NOT_FOUND: ECP_CAPABILITY_UNKNOWN,
+  INVOKE_INPUT_INVALID: ECP_INPUT_INVALID,
+  INVOKE_OUTPUT_INVALID: ECP_OUTPUT_INVALID,
+  INVOKE_DENIED: ECP_POLICY_DENIED,
+  INVOKE_FAILED: ECP_STEP_FAILED,
   REMOTE_INVOKE_REQUIRED: "REMOTE_INVOKE_REQUIRED",
 } as const
 

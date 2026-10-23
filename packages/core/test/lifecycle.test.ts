@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest"
+import { z } from "zod"
 import {
   extension,
   workflow,
@@ -53,7 +54,7 @@ describe("step lifecycle ordering", () => {
 
   it("policy:pre deny skips step:started and capability", async () => {
     const denyPolicy = definePolicy("@executioncontrolprotocol", "deny-pre-test")
-      .withConfig({ capabilityId: "@executioncontrolprotocol/lifecycle-spy.echo" })
+      .withConfig({ capabilityId: z.string() })
       .withHooks([
         hook("policy:pre", (ctx) => {
           const cfg = (ctx as { config?: Record<string, unknown> }).config

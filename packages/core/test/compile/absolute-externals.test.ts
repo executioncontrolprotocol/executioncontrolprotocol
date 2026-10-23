@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import {
-  bundleWorkflowSource,
+  bundleEnvironmentSource,
   loadEnvironmentModule,
 } from "@executioncontrolprotocol/node"
 
@@ -39,7 +39,7 @@ async function writeCjsNetSdk(projectRoot: string): Promise<string> {
   return pkgDir
 }
 
-describe("bundleWorkflowSource absolute externals", () => {
+describe("bundleEnvironmentSource absolute externals", () => {
   it("loads a CJS package that dynamically requires net from a temp-dir import", async () => {
     const project = await mkdtemp(join(tmpdir(), "ecp-abs-ext-ok-"))
     temps.push(project)
@@ -54,7 +54,7 @@ export default {
 `
     await writeFile(filename, source, "utf8")
 
-    const code = await bundleWorkflowSource(source, filename, project)
+    const code = await bundleEnvironmentSource(source, filename, project)
     expect(code).toMatch(/fake-cjs-net-sdk|file:/)
     expect(code).not.toMatch(/Dynamic require of ["']net["']/)
 
@@ -76,7 +76,7 @@ export default {
     const source = `import "definitely-missing-ecp-package-xyz"\nexport default { init: async () => ({}) }\n`
     await writeFile(filename, source, "utf8")
 
-    await expect(bundleWorkflowSource(source, filename, project)).rejects.toThrow(
+    await expect(bundleEnvironmentSource(source, filename, project)).rejects.toThrow(
       /Could not resolve ["']definitely-missing-ecp-package-xyz["']/
     )
   })
@@ -105,7 +105,7 @@ import { probe } from "fake-cjs-net-sdk"
 export default { createServer, tag, probe }
 `
     await writeFile(filename, source, "utf8")
-    const code = await bundleWorkflowSource(source, filename, project)
+    const code = await bundleEnvironmentSource(source, filename, project)
 
     expect(code).toMatch(/from\s+["']node:net["']/)
     expect(code).toMatch(/file:\/\/\/?.*scoped-probe/)

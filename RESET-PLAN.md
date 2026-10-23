@@ -1106,7 +1106,7 @@ Detail: [`reset/phase-3-plugin-sdk-and-cli.md`](reset/phase-3-plugin-sdk-and-cli
 **Exit:** `ecp plugins link plugins/plugin-jsonata` gives a working
 `ecp jsonata transform --json`.
 
-### Phase 4 — Workflow files and observability
+### Phase 4 — Workflow files and observability (PR 1 in progress)
 
 Detail: [`reset/phase-4-workflow-files-and-observability.md`](reset/phase-4-workflow-files-and-observability.md)
 

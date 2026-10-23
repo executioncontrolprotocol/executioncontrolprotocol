@@ -21,6 +21,7 @@ export class ExtensionDefinitionBuilder {
   private hooks: HookDefinition[] = []
   private supportedEnvironments: SupportedEnvironment[] = []
   private metadata?: ExtensionMetadata
+  private configResolver = false
 
   constructor(
     private readonly namespace: string,
@@ -72,6 +73,16 @@ export class ExtensionDefinitionBuilder {
     return this
   }
 
+  /**
+   * Mark this extension as a config resolver (`$secret` / `$env`).
+   * Workflow files must not bind it; hosts bind it instead.
+   * @category Definitions
+   */
+  providesConfigResolver(value = true): this {
+    this.configResolver = value
+    return this
+  }
+
   /** Build extension definition. */
   build(): ExtensionDefinition {
     const id = toId(this.namespace, this.name)
@@ -85,7 +96,8 @@ export class ExtensionDefinitionBuilder {
       ...(this.supportedEnvironments.length > 0
         ? { supportedEnvironments: this.supportedEnvironments }
         : {}),
-      ...(this.metadata ? { metadata: this.metadata } : {})
+      ...(this.metadata ? { metadata: this.metadata } : {}),
+      ...(this.configResolver ? { providesConfigResolver: true } : {}),
     }
   }
 }

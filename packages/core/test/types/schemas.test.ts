@@ -45,4 +45,23 @@ describe("generated JSON schemas", () => {
     const doc = JSON.parse(readFileSync(echoPath, "utf8"))
     expect(ajv.validate(workflowSchemaId, doc)).toBe(true)
   })
+
+  it("validates a requirements document", () => {
+    const schema = loadSchema("requirements.json") as { $id: string }
+    ajv.addSchema(schema)
+    const valid = {
+      schema: "@executioncontrolprotocol.requirements",
+      version: "1.0",
+      requirements: [
+        {
+          kind: "extension",
+          id: "@executioncontrolprotocol/jsonata",
+          package: "@executioncontrolprotocol/plugin-jsonata",
+          range: "^1.0.0",
+          source: "explicit",
+        },
+      ],
+    }
+    expect(ajv.validate(schema.$id, valid)).toBe(true)
+  })
 })

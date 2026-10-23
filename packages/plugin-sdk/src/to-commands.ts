@@ -7,6 +7,8 @@ import type {
 import { z } from "zod"
 import {
   ECP_INPUT_INVALID,
+  ECP_POLICY_DENIED,
+  ECP_STEP_FAILED,
   EXIT_FAILED,
   EXIT_PAUSED,
   EXIT_USAGE,
@@ -91,10 +93,10 @@ function capabilityCommand(
       if (!result.success) {
         const diagnostic = result.diagnostics[0]
         const paused =
-          diagnostic?.code === "INVOKE_DENIED" ||
+          diagnostic?.code === ECP_POLICY_DENIED ||
           /\bpaused\b/i.test(diagnostic?.message ?? "")
         throw new EcpCliError(
-          diagnostic?.code ?? "INVOKE_FAILED",
+          diagnostic?.code ?? ECP_STEP_FAILED,
           diagnostic?.message ?? "Capability invoke did not succeed",
           {
             path: diagnostic?.path,

@@ -1,20 +1,16 @@
-/**
- * CLI envelope error: merged input failed the capability or operation schema.
- * @category CLI
- */
-export const ECP_INPUT_INVALID = "ECP_INPUT_INVALID"
-
-/**
- * CLI envelope error: a required plugin is not installed.
- * @category CLI
- */
-export const ECP_PLUGINS_MISSING = "ECP_PLUGINS_MISSING"
-
-/**
- * CLI envelope error: the plugin trust check refused an install.
- * @category CLI
- */
-export const ECP_PLUGIN_DENIED = "ECP_PLUGIN_DENIED"
+export {
+  ECP_BINDING_INVALID,
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_ENVIRONMENT_UNSUPPORTED,
+  ECP_INPUT_INVALID,
+  ECP_PLUGIN_DENIED,
+  ECP_PLUGINS_MISSING,
+  ECP_POLICY_DENIED,
+  ECP_RUN_PAUSED,
+  ECP_SECRET_MISSING,
+  ECP_STEP_FAILED,
+  ECP_WORKFLOW_LOAD,
+} from "@executioncontrolprotocol/core/types"
 
 /** Process exit code for success. @category CLI */
 export const EXIT_OK = 0

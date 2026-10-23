@@ -1,4 +1,10 @@
-import { LATEST_ECP_VERSION } from "../types/index.js"
+import {
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_POLICY_DENIED,
+  ECP_STEP_FAILED,
+  EcpError,
+  LATEST_ECP_VERSION,
+} from "../types/index.js"
 import type {
   PendingMutation,
   RunResult,
@@ -300,7 +306,24 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
 
     const cap = ctx.context.registry.getCapability(step.uses)
     if (!cap) {
-      throw new Error(`Unknown capability: ${step.uses}`)
+      const diagnostics = [
+        {
+          severity: "error" as const,
+          code: ECP_CAPABILITY_UNKNOWN,
+          message: `Unknown capability: ${step.uses}`,
+          path: `steps.${step.id}.uses`,
+        },
+      ]
+      ctx.history[step.id] = { status: "failed", diagnostics }
+      await emitLifecycle("step:failed", ctx.extensionHooks, {
+        event: "step:failed",
+        workflow: ctx.manifest,
+        run: { id: ctx.runId, input: ctx.context.input },
+        step: { id: step.id, capabilityId: step.uses, label: step.label },
+        state: ctx.state,
+        diagnostics,
+      })
+      return
     }
 
     const stepCtx = {
@@ -347,7 +370,30 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         ...lifecycleBase,
       })
 
-      const resolvedInput = resolveStepInput(step.input, ctx.state)
+      let resolvedInput: Record<string, unknown>
+      try {
+        resolvedInput = resolveStepInput(step.input, ctx.state)
+      } catch (err) {
+        if (err instanceof EcpError) {
+          stepRecord.status = "failed"
+          stepRecord.diagnostics = [
+            {
+              severity: "error",
+              code: err.code,
+              message: err.message,
+              ...(err.path ? { path: err.path } : {}),
+              ...(err.suggestions ? { suggestions: err.suggestions } : {}),
+            },
+          ]
+          await emitLifecycle("step:failed", ctx.extensionHooks, {
+            event: "step:failed",
+            ...lifecycleBase,
+            diagnostics: stepRecord.diagnostics,
+          })
+          return
+        }
+        throw err
+      }
       const mutableHandles = collectStateHandles(resolvedInput)
       const stateBeforeMutations = structuredClone(ctx.state)
 
@@ -375,7 +421,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         stepRecord.diagnostics = [
           {
             severity: "error",
-            code: preDecision.code ?? "POLICY_DENIED",
+            code: preDecision.code ?? ECP_POLICY_DENIED,
             message: preDecision.reason,
           },
         ]
@@ -446,7 +492,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           stepRecord.diagnostics = err.result.diagnostics
         } else {
           const message = err instanceof Error ? err.message : String(err)
-          stepRecord.diagnostics = [{ severity: "error", code: "STEP_FAILED", message }]
+          stepRecord.diagnostics = [{ severity: "error", code: ECP_STEP_FAILED, message }]
         }
         await emitLifecycle("step:failed", ctx.extensionHooks, {
           event: "step:failed",
@@ -478,7 +524,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           stepRecord.diagnostics = [
             {
               severity: "error",
-              code: postDecision.code ?? "POLICY_DENIED",
+              code: postDecision.code ?? ECP_POLICY_DENIED,
               message: postDecision.reason,
             },
           ]
