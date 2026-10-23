@@ -12,7 +12,7 @@ function bindingRefId(ref: NamespacedId | import("../definitions/types.js").Exte
 
 /**
  * Register all bound extensions that are not yet in the registry.
- * Resolves string refs via the extension catalog; object refs register directly.
+ * Object refs register directly; string refs must already be on the registry.
  * @category Runtime
  */
 export async function ensureBoundExtensionsRegistered(
@@ -28,7 +28,7 @@ export async function ensureBoundExtensionsRegistered(
     if (!def) {
       if (registry.getExtension(id)) continue
       throw new Error(
-        `Extension ${id} is not registered. Import its package (to populate the catalog) or pass extension(def) with the imported ExtensionDefinition.`
+        `Extension ${id} is not registered. Pass extension(definition) with the imported ExtensionDefinition.`
       )
     }
 

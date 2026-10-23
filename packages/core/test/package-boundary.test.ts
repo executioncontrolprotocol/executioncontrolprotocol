@@ -8,14 +8,7 @@ const CORE_SRC = path.join(CORE_ROOT, "src")
 const CORE_DIST_INDEX = path.join(CORE_ROOT, "dist/index.js")
 
 /** Paths (relative to `src/`) allowed to use Node built-ins or native esbuild. */
-const NODE_HOST_REL = new Set([
-  "loaders/files.ts",
-  "loaders/index.ts",
-  "compile/evaluate.ts",
-  "compile/transpile.ts",
-  "compile/index.ts",
-  "compile/entry.ts",
-])
+const NODE_HOST_REL = new Set<string>()
 
 const NODE_IMPORT_PATTERNS = [
   /from\s+["']node:/,
@@ -66,13 +59,14 @@ describe("@executioncontrolprotocol/core package boundary", () => {
   it("main barrel does not import loaders or Node compile modules", async () => {
     const indexText = await readFile(path.join(CORE_SRC, "index.ts"), "utf8")
     expect(indexText).not.toMatch(/from\s+["']\.\/loaders/)
-    expect(indexText).not.toMatch(/from\s+["']\.\/compile/)
+    expect(indexText).not.toMatch(/from\s+["']\.\/compile\/(entry|evaluate|transpile)/)
   })
 
-  it("built main entry does not reference loaders or compile subpaths", async () => {
+  it("built main entry does not reference Node loaders or host compile", async () => {
     const text = await readFile(CORE_DIST_INDEX, "utf8")
     expect(text).not.toMatch(/loaders\/index/)
     expect(text).not.toMatch(/compile\/entry/)
-    expect(text).not.toMatch(/compile\/index/)
+    expect(text).not.toMatch(/compile\/transpile/)
+    expect(text).not.toMatch(/compile\/evaluate/)
   })
 })

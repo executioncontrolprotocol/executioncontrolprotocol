@@ -1,10 +1,13 @@
-import { environment, extension, secrets } from "@executioncontrolprotocol/node"
-import "@executioncontrolprotocol/extension-openai"
-import "@executioncontrolprotocol/secrets"
+import {
+  environment,
+  extension,
+  secrets,
+  NODE_ENVIRONMENT_ID,
+} from "@executioncontrolprotocol/node"
+import { openaiExtension } from "@executioncontrolprotocol/extension-openai"
 
-export default (await environment("weekly-brief", "Weekly brief")).withExtensions([
-  extension("@executioncontrolprotocol/secrets").with({}),
-  extension("@executioncontrolprotocol/openai", "OpenAI").with({
+export default environment(NODE_ENVIRONMENT_ID, "weekly-brief").with([
+  extension(openaiExtension, "OpenAI").with({
     apiKey: secrets("openai/api-key", { optional: true }),
     defaultModel: "gpt-4o-mini",
   }),

@@ -6,7 +6,7 @@ import {
 } from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import type { CapabilityContext } from "./context.js"
-import { resolveCapabilityExecution, isBrowserRuntimeId } from "./capability-execution.js"
+import { resolveCapabilityExecution, isBrowserEnvironmentId } from "./capability-execution.js"
 import {
   hopRemoteInvoke,
   invokeFailure,
@@ -78,7 +78,7 @@ export async function dispatchCapability(options: DispatchCapabilityOptions): Pr
 
   const ext = extensionForCapability(registry, cap)
   const execution = resolveCapabilityExecution(cap, ext)
-  const onBrowser = isBrowserRuntimeId(runtimeId)
+  const onBrowser = isBrowserEnvironmentId(runtimeId)
   const hopHost = execution === "host" && onBrowser
   const mixedNeedsHost = execution === "mixed" && onBrowser
 

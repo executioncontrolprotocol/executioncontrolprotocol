@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 import {
   bundleEnvironmentSource,
   bundleWorkflowSource,
-} from "../../src/compile/transpile.js"
+} from "@executioncontrolprotocol/node"
 
 async function writeStubPackage(project: string, name: string): Promise<void> {
   const pkgDir = join(project, "node_modules", name)

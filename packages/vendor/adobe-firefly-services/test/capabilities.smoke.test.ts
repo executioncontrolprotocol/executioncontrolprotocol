@@ -3,7 +3,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { parse as parseYaml } from "yaml"
-import { globalRegistry, NODE_RUNTIME_ID, resolveCapabilityExecution, capabilityIdSchema } from "@executioncontrolprotocol/core"
+import { globalRegistry, NODE_ENVIRONMENT_ID, resolveCapabilityExecution, capabilityIdSchema } from "@executioncontrolprotocol/core"
 import {
   adobeFireflyServicesExtension,
   registerAdobeFireflyServicesExtension,
@@ -99,7 +99,9 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     const ids = adobeFireflyServicesExtension.capabilities.map((c) => c.id).sort()
     expect(ids).toEqual([...meta.operations].sort())
     expect(globalRegistry.getExtension("@executioncontrolprotocol/adobe-firefly-services")).toBe(adobeFireflyServicesExtension)
-    expect(adobeFireflyServicesExtension.supportedRuntimes).toEqual([NODE_RUNTIME_ID])
+    expect(adobeFireflyServicesExtension.supportedEnvironments).toEqual([
+      { id: NODE_ENVIRONMENT_ID },
+    ])
     expect(
       resolveCapabilityExecution(adobeFireflyServicesExtension.capabilities[0]!, adobeFireflyServicesExtension)
     ).toBe("host")

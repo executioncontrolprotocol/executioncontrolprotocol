@@ -10,7 +10,7 @@ import {
 
 describe("npmPackageFromSpecifier", () => {
   it("maps scoped subpaths to the owning package", () => {
-    expect(npmPackageFromSpecifier("@executioncontrolprotocol/core/testing")).toBe(
+    expect(npmPackageFromSpecifier("@executioncontrolprotocol/core/types")).toBe(
       "@executioncontrolprotocol/core"
     )
     expect(npmPackageFromSpecifier("@executioncontrolprotocol/format-toon")).toBe(
@@ -27,19 +27,17 @@ describe("npmPackageFromSpecifier", () => {
 describe("collectPackagesFromEnvironmentSource", () => {
   it("collects side-effect imports and always includes node", () => {
     const pkgs = collectPackagesFromEnvironmentSource(`
-import { environment, extension } from "@executioncontrolprotocol/node"
-import "@executioncontrolprotocol/core/testing"
+import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 import "@executioncontrolprotocol/format-toon"
 `)
     expect(pkgs).toContain("@executioncontrolprotocol/node")
-    expect(pkgs).toContain("@executioncontrolprotocol/core")
     expect(pkgs).toContain("@executioncontrolprotocol/format-toon")
   })
 
   it("does not invent package names from extension ids in bindings", () => {
     const pkgs = collectPackagesFromEnvironmentSource(`
-import { environment, extension } from "@executioncontrolprotocol/node"
-export default await environment("dev").withExtensions([
+import { environment, extension , NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+export default environment(NODE_ENVIRONMENT_ID, "dev").with([
   extension("@executioncontrolprotocol/openai").with({}),
 ])
 `)

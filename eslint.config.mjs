@@ -71,14 +71,6 @@ export default tseslint.config(
                 "@executioncontrolprotocol/cli/*",
                 "@executioncontrolprotocol/mcp",
                 "@executioncontrolprotocol/mcp/*",
-                "@executioncontrolprotocol/core/node",
-                "@executioncontrolprotocol/core/node/*",
-                "@executioncontrolprotocol/core/browser",
-                "@executioncontrolprotocol/core/browser/*",
-                "@executioncontrolprotocol/core/compile",
-                "@executioncontrolprotocol/core/compile/*",
-                "@executioncontrolprotocol/core/loaders",
-                "@executioncontrolprotocol/core/loaders/*",
                 "**/packages/core/src/**",
                 "**/../../core/**",
                 "**/../../../core/**",
@@ -97,9 +89,24 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
+          paths: [
+            {
+              name: "fs",
+              message: "Core must not import Node host modules.",
+            },
+            {
+              name: "path",
+              message: "Core must not import Node host modules.",
+            },
+            {
+              name: "child_process",
+              message: "Core must not import Node host modules.",
+            },
+          ],
           patterns: [
             {
               group: [
+                "node:*",
                 "@executioncontrolprotocol/fal",
                 "@executioncontrolprotocol/jsonata",
                 "@executioncontrolprotocol/image-sharp",
@@ -108,7 +115,7 @@ export default tseslint.config(
                 "**/packages/vendor/**",
               ],
               message:
-                "Core must not import vendor extensions.",
+                "Core must not import Node host modules or vendor extensions.",
             },
           ],
         },

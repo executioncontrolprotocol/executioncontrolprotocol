@@ -3,8 +3,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
-import { bundleWorkflowSource } from "../../src/compile/transpile.js"
-import { loadEnvironmentModule } from "../../src/loaders/files.js"
+import {
+  bundleWorkflowSource,
+  loadEnvironmentModule,
+} from "@executioncontrolprotocol/node"
 
 const temps: string[] = []
 

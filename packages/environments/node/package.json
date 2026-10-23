@@ -1,0 +1,38 @@
+{
+  "name": "@executioncontrolprotocol/node",
+  "version": "0.14.1",
+  "description": "ECP Node.js environment",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "zod": "catalog:"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/policies": "workspace:^"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "^1.2.0",
+    "esbuild": "^0.25.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  }
+}

@@ -4,7 +4,8 @@ import { z } from "zod"
 import type {
   CapabilityDefinition,
   ExtensionDefinition,
-  HookDefinition
+  HookDefinition,
+  SupportedEnvironment,
 } from "./types.js"
 import type { ConfigSchema } from "../config-schema/index.js"
 
@@ -18,7 +19,7 @@ export class ExtensionDefinitionBuilder {
   private configSchema?: ConfigSchema
   private capabilities: CapabilityDefinition[] = []
   private hooks: HookDefinition[] = []
-  private supportedRuntimes?: NamespacedId[]
+  private supportedEnvironments: SupportedEnvironment[] = []
   private metadata?: ExtensionMetadata
 
   constructor(
@@ -26,9 +27,16 @@ export class ExtensionDefinitionBuilder {
     private readonly name: string
   ) {}
 
-  /** Restrict this extension to specific runtime hosts. Omit for universal support. */
-  withSupportedRuntimes(runtimes: NamespacedId[]): this {
-    this.supportedRuntimes = runtimes
+  /**
+   * Restrict this extension to an environment. Call several times to allow more than one.
+   * Omit entirely for universal support. `range` is a semver range against the environment package version.
+   * @category Definitions
+   */
+  supports(environmentId: NamespacedId | string, range?: string): this {
+    this.supportedEnvironments.push({
+      id: environmentId as NamespacedId,
+      ...(range ? { range } : {}),
+    })
     return this
   }
 
@@ -74,7 +82,9 @@ export class ExtensionDefinitionBuilder {
       configSchema: this.configSchema,
       capabilities: this.capabilities,
       hooks: this.hooks,
-      supportedRuntimes: this.supportedRuntimes,
+      ...(this.supportedEnvironments.length > 0
+        ? { supportedEnvironments: this.supportedEnvironments }
+        : {}),
       ...(this.metadata ? { metadata: this.metadata } : {})
     }
   }

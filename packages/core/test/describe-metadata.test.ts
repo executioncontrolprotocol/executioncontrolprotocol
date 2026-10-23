@@ -1,25 +1,23 @@
-import { describe, expect, it, beforeEach } from "vitest"
+import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import {
   capabilityFor,
-  catalogExtension,
   defineExtension,
   extension,
   jsonSchemaFromZod,
-  policy
+  policy,
+  testExtension,
+  formatJsonExtension,
 } from "../src/index.js"
 import { parseCapabilityMetadata } from "@executioncontrolprotocol/core/types"
-import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
+import { budgetPolicy } from "@executioncontrolprotocol/policies"
 import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 
 describe("environment.describe progressive disclosure", () => {
-  beforeEach(async () => {
-    await registerStandardPolicies()
-  })
 
   it("bare describe is inventory only (summary, no metadata, no schemas)", async () => {
-    const env = (await createTestEnvironment("d", "D")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d", "D")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -33,8 +31,8 @@ describe("environment.describe progressive disclosure", () => {
   })
 
   it("exact capability id returns metadata and JSON Schema I/O", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -56,8 +54,8 @@ describe("environment.describe progressive disclosure", () => {
   })
 
   it("DescribeSelection.id aliases exact match", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -69,8 +67,8 @@ describe("environment.describe progressive disclosure", () => {
   })
 
   it("authoring include adds schemas without nested metadata", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -85,8 +83,8 @@ describe("environment.describe progressive disclosure", () => {
   })
 
   it("exact extension id returns extension metadata", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -102,10 +100,10 @@ describe("environment.describe progressive disclosure", () => {
   })
 
   it("filters capabilities by fuzzy match and projects include fields", async () => {
-    const env = (await createTestEnvironment("d", "D")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d", "D")).with([
+      extension(testExtension, "T").with({})
     ])
-      .withPolicies([policy("@executioncontrolprotocol/budget", "B").with({})])
+      .with([policy(budgetPolicy, "B").with({})])
 
     const ecp = await env.init()
     const desc = await ecp.describe({
@@ -205,8 +203,8 @@ describe("jsonSchemaFromZod constraints", () => {
 
 describe("environment.search metadata haystack", () => {
   it("ranks hits from description and useCases", async () => {
-    const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("s")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -215,8 +213,8 @@ describe("environment.search metadata haystack", () => {
   })
 
   it("keeps search results light (no schemas by default)", async () => {
-    const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("s")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -226,8 +224,8 @@ describe("environment.search metadata haystack", () => {
   })
 
   it("ranks multi-token queries", async () => {
-    const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("s")).with([
+      extension(testExtension, "T").with({})
     ])
 
     const ecp = await env.init()
@@ -252,9 +250,8 @@ describe("extension isAuthorable inventory", () => {
         }))
       ])
       .build()
-    catalogExtension(def)
     const ecp = await initEncodingTestEcp([
-      extension("@executioncontrolprotocol/host-tooling").with({})
+      extension(def).with({})
     ])
     const desc = await ecp.describe()
     const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/host-tooling")
@@ -263,8 +260,8 @@ describe("extension isAuthorable inventory", () => {
   })
 
   it("omits isAuthorable on inventory when default authorable", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({})
+    const env = (await createTestEnvironment("d")).with([
+      extension(testExtension, "T").with({})
     ])
     const ecp = await env.init()
     const desc = await ecp.describe()
@@ -274,7 +271,7 @@ describe("extension isAuthorable inventory", () => {
 
   it("surfaces isAuthorable false for bound format-json", async () => {
     const ecp = await initEncodingTestEcp([
-      extension("@executioncontrolprotocol/format-json").with({})
+      extension(formatJsonExtension).with({})
     ])
     const desc = await ecp.describe()
     const ext = desc.extensions.find((e) => e.id === "@executioncontrolprotocol/format-json")

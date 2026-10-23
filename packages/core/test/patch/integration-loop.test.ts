@@ -2,13 +2,12 @@ import { describe, expect, it } from "vitest"
 import {
   environment,
   extension,
-  runtime,
   normalizeWorkflowManifest,
-  registerTestExtension,
+  testExtension,
 } from "../../src/index.js"
-import { compileWorkflowSource } from "../../src/compile/index.js"
-import { NODE_RUNTIME_ID, registerNodeRuntime } from "@executioncontrolprotocol/node"
-import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
+import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
+import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
 import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
 
 const fluentSource = `
@@ -25,16 +24,12 @@ export default workflow("Weekly Brief")
 
 describe("patch compaction loop", () => {
   it("Fluent → JSON → TOON → patch decode → ecp.patch → compact TOON → Fluent", async () => {
-    await registerNodeRuntime()
-    await registerTestExtension()
-    await registerFormatToonExtension()
+    await registerNodeEnvironment()
 
-    const env = environment("test")
-      .withRuntime(runtime(NODE_RUNTIME_ID))
-      .withExtensions([
-        extension("@executioncontrolprotocol/test").with({}),
-        extension("@executioncontrolprotocol/format-toon").with({}),
-      ])
+    const env = environment(NODE_ENVIRONMENT_ID, "test").with([
+      extension(testExtension).with({}),
+      extension(formatToonExtension).with({}),
+    ])
     const ecp = await env.init()
 
     const compiledA = await compileWorkflowSource({

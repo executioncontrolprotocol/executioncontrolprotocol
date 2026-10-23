@@ -5,17 +5,15 @@ FAL model provider extension for ECP. Invokes any FAL endpoint from workflows wi
 ## Binding
 
 ```ts
-import "@executioncontrolprotocol/fal"
-import { environment, extension, env, secrets } from "@executioncontrolprotocol/node"
+import { falExtension } from "@executioncontrolprotocol/fal"
+import { environment, extension, NODE_ENVIRONMENT_ID, secrets } from "@executioncontrolprotocol/node"
 
-export default environment("fal-demo")
-  .withExtensions([
-    extension("@executioncontrolprotocol/secrets").with({}),
-    extension("@executioncontrolprotocol/fal").with({
-      apiKey: secrets("fal/api-key"), // or env("FAL_KEY")
-      defaultMode: "subscribe",
-    }),
-  ])
+export default environment(NODE_ENVIRONMENT_ID, "fal-demo").with([
+  extension(falExtension).with({
+    apiKey: secrets("fal/api-key"),
+    defaultMode: "subscribe",
+  }),
+])
 ```
 
 ## Capability: `@executioncontrolprotocol/fal.generate`

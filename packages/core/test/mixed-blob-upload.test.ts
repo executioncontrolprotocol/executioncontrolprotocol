@@ -39,7 +39,7 @@ describe("handleMixedBrowserBlobUpload", () => {
     expect(out.blobUrl).toBe("https://acct.blob.core.windows.net/c/n")
     expect(out.sasUrl).toContain("sig=r")
     expect(call).toHaveBeenCalledTimes(2)
-    expect(global.fetch).toHaveBeenCalled()
+    expect(globalThis.fetch).toHaveBeenCalled()
   })
 
   it("omits read SAS when createReadSas is not set", async () => {

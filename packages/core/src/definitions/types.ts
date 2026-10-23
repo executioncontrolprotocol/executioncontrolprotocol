@@ -41,6 +41,14 @@ export interface HookDefinition {
   target?: string
 }
 
+/** Environment id plus optional semver range from {@link ExtensionDefinitionBuilder.supports}. @category Definitions */
+export interface SupportedEnvironment {
+  /** Environment definition id (for example `@executioncontrolprotocol/node`). */
+  id: NamespacedId
+  /** Semver range checked against the environment package version. */
+  range?: string
+}
+
 /** Extension definition. @category Definitions */
 export interface ExtensionDefinition {
   id: NamespacedId
@@ -49,19 +57,23 @@ export interface ExtensionDefinition {
   configSchema?: ConfigSchema
   capabilities: CapabilityDefinition[]
   hooks: HookDefinition[]
-  /** When set, extension may only be bound to these runtimes. Omit = all runtimes. */
-  supportedRuntimes?: NamespacedId[]
+  /** When set, extension may only be bound to these environments. Omit = all environments. */
+  supportedEnvironments?: SupportedEnvironment[]
   /** Agent-facing docs from {@code .withMetadata()}. */
   metadata?: ExtensionMetadata
 }
 
-/** Runtime definition. @category Definitions */
-export interface RuntimeDefinition {
+/** Environment definition (host executor plus optional default extension bindings). @category Definitions */
+export interface EnvironmentDefinition {
   id: NamespacedId
   namespace: string
   name: string
   configSchema?: ConfigSchema
   executor: import("../runtime/executor.js").RuntimeExecutor
+  /** Package version used by {@link ExtensionDefinitionBuilder.supports} range checks. */
+  version?: string
+  /** Extensions bound on every instance unless the caller already bound the same id. */
+  defaultExtensions?: ExtensionDefinition[]
 }
 
 /** Policy definition. @category Definitions */
@@ -71,4 +83,6 @@ export interface PolicyDefinition {
   name: string
   configSchema?: ConfigSchema
   hooks: HookDefinition[]
+  /** When set, policy may only be bound to these environments. Omit = all environments. */
+  supportedEnvironments?: SupportedEnvironment[]
 }

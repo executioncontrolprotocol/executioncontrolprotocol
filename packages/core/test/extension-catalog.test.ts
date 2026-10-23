@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { environment, extension, testExtension, getCatalogedExtension } from "../src/index.js"
+import { extension, testExtension } from "../src/index.js"
 import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
-import "@executioncontrolprotocol/format-toon"
-import { initEncodingTestEcp } from "./helpers.js"
+import { createTestEnvironment, initEncodingTestEcp } from "./helpers.js"
 
-describe("extension catalog", () => {
-  it("resolves cataloged extension by string id", () => {
-    expect(getCatalogedExtension("@executioncontrolprotocol/format-toon")).toBe(formatToonExtension)
-  })
-
-  it("registers bound extensions on encode without prior registerFormatToonExtension", async () => {
-    const ecp = await initEncodingTestEcp([extension("@executioncontrolprotocol/format-toon").with({})])
+describe("extension bindings", () => {
+  it("registers bound extension definitions on encode", async () => {
+    const ecp = await initEncodingTestEcp([extension(formatToonExtension)])
 
     const manifest = {
       schema: "@executioncontrolprotocol.workflow" as const,
@@ -25,9 +20,7 @@ describe("extension catalog", () => {
   })
 
   it("registers inline extension definition binding", async () => {
-    const env = environment("inline-test").withExtensions([
-      extension(testExtension).with({}),
-    ])
+    const env = createTestEnvironment("inline-test").with([extension(testExtension)])
 
     await env.ensureBoundExtensionsRegistered()
     expect(env.getRegistry().getExtension("@executioncontrolprotocol/test")).toBeDefined()

@@ -124,7 +124,7 @@ function registerEcpResources(server: McpServer, ecp: Ecp): void {
     "ecp://environment/describe",
     {
       title: "Environment descriptor",
-      description: "Full ECP environment descriptor: runtime, extensions, capabilities, policies.",
+      description: "Full ECP environment descriptor: extensions, capabilities, policies.",
       mimeType: JSON_MIME,
     },
     async (uri) => jsonContents(uri, await ecp.describe())
@@ -244,7 +244,7 @@ function registerEcpPrompts(server: McpServer, ecp: Ecp): void {
                 "- Output a single JSON workflow manifest.",
                 "- Each step's `uses` must be one of the capability ids above.",
                 "- Use `as` to commit a step output to state; reference prior state with { \"$ref\": \"state.<key>\" }.",
-                "- Do not include runtime, extension, policy, or secret configuration.",
+                "- Do not include extension, policy, or secret configuration.",
                 "Then call ecp.validate_workflow to confirm it is valid before running.",
               ].join("\n"),
             },

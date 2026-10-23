@@ -1,34 +1,26 @@
 # Package boundaries (ECP core)
 
-## Now (after Phase 2 PR 1, before environments)
+## After Phase 2
 
 Protocol types live at `@executioncontrolprotocol/core/types`. `registry-control` lives in core.
-`packages/types` is gone.
+`packages/types` is gone. Hosts live in `packages/environments/{node,browser}`.
 
-**Core is host-agnostic at its root.** The main `@executioncontrolprotocol/core` entry has no
-Node or browser I/O. Host code sits on subpaths:
-
-| Subpath | Host |
-| --- | --- |
-| `@executioncontrolprotocol/core/node` | Node convenience (loaders + compile) |
-| `@executioncontrolprotocol/core/compile` | Node esbuild compile |
-| `@executioncontrolprotocol/core/loaders` | Node file I/O (CLI) |
-| `@executioncontrolprotocol/core/browser` | Browser compile (esbuild-wasm) |
-
-Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.
-
-## After the reset (Phase 2 onward)
+**Core is host-agnostic.** Exports are `.` and `./types` only. ESLint bans `node:*`, `fs`,
+`path`, and `child_process` under `packages/core/src/**`.
 
 | Package | Owns |
 | --- | --- |
-| `@executioncontrolprotocol/core` | The engine: Fluent API, registry, validation, executor, policy engine, `registry-control`, encoding, patch, journal model. Entries `.` and `./types` only |
-| `@executioncontrolprotocol/node` | The Node environment: executor, workflow file loader, journal on disk, file and media I/O, OS keychain and env-var secrets providers |
-| `@executioncontrolprotocol/browser` | The browser environment: executor, browser file and blob helpers |
+| `@executioncontrolprotocol/core` | The engine: Fluent API, registry, validation, executor, policy engine, `registry-control`, encoding, patch, journal model |
+| `@executioncontrolprotocol/node` | The Node environment: executor, workflow file loader, compile, file and media I/O, OS keychain and env-var secrets providers |
+| `@executioncontrolprotocol/browser` | The browser environment: executor, browser compile (esbuild-wasm), file and blob helpers |
 | `@executioncontrolprotocol/cli` | The `ecp` host: plugin management, hooks, operations |
-| `@executioncontrolprotocol/plugin-sdk` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library |
+| `@executioncontrolprotocol/plugin-sdk` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library (Phase 3) |
 | `@executioncontrolprotocol/mcp` | MCP server and `ecp mcp serve` |
-| `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin |
-| `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk` only |
+| `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin (Phase 8) |
+| `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk` only (Phase 5) |
+
+Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.
+Bind `extension(definition)` on `environment(id, label?).with([...])`.
 
 Operational APIs live on **`Ecp` after `init()`**: `run`, `validate`, `describe`, `search`,
 `invoke`, `encode`, `decode`, `patch`, `terminate`. Phase 4 adds stepping, resume and rerun on

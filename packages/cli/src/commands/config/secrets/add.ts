@@ -5,7 +5,7 @@ import {
   canonicalSecretKey,
   ECP_SECRET_REF_PROTOCOL_PREFIX,
   secretRefIdFromLogicalKey,
-} from "@executioncontrolprotocol/secrets"
+} from "@executioncontrolprotocol/node"
 import { getCliSecretsStore } from "../../../lib/secrets/store.js"
 
 /** Store an OS keychain secret. */

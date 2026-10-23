@@ -1,17 +1,26 @@
 # Phase 2 — Consolidate core and environments
 
-> Status: In progress · Branch: `feat/phase-2-types` (PR 1) then
+> Status: ✅ Done 2026-10-23 · Branch: `feat/phase-2-types` (PR 1) then
 > `feat/phase-2-environments` (PR 2) · Depends on: Phase 1 ·
 > Plan: §4.1, §4.4, §8.1
 
-## Outcome so far (PR 1)
+## Outcome
 
 - Protocol types live at `packages/core/src/types` and `@executioncontrolprotocol/core/types`.
   Generated JSON Schemas emit to `packages/core/dist/schemas`. `packages/types` is gone.
 - `registry-control` lives at `packages/core/src/policies/registry-control.ts` and is exported
-  from core. `packages/policies` keeps `budget`, `approval`, and `state-control`.
-- Environments still use `withExtensions` / `withRuntime` / `defineRuntime` under
-  `packages/runtimes/*`. PR 2 still has that work.
+  from core. Every environment binds it implicitly. `packages/policies` keeps `budget`,
+  `approval`, and `state-control`.
+- Hosts live at `packages/environments/{node,browser}` with unchanged package names
+  (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`).
+- `defineRuntime` is `defineEnvironment`. `environment(id, label?).with([...]).init()` is the
+  host API. `.supports(environmentId, range?)` replaces `withSupportedRuntimes`.
+- Definitions are data: no `catalogExtension`, no module-load `globalRegistry.register*`.
+  Each `environment()` instance owns a `Registry`. `globalRegistry` remains as a deprecated
+  test default until Phase 3.
+- Secrets and process-env folded into the Node environment and bind by default.
+- Core exports only `.` and `./types`. Host compile and loaders live on the environment
+  packages. `packages/core/src` is about 10K lines.
 
 ## Goal
 
@@ -24,7 +33,7 @@ object model matches the plan, even though the CLI and workflow files still work
 **In:**
 
 - Folding `types` and `registry-control` into core.
-- Moving `runtimes/*` to `environments/*` and `defineRuntime` to `defineEnvironment`.
+- Moving `runtimes/*` to `environments/*` and `defineEnvironment` to `defineEnvironment`.
 - `environment(id).with([...])`.
 - `.supports()` on definitions.
 - Making definitions plain data.
@@ -79,15 +88,15 @@ Still in core, and Phase 2 must keep or relocate them rather than delete them:
 
 ### 3. Runtimes become environments
 
-- `defineRuntime` → `defineEnvironment`; `RuntimeDefinition` → `EnvironmentDefinition`;
+- `defineEnvironment` → `defineEnvironment`; `EnvironmentDefinition` → `EnvironmentDefinition`;
   `RuntimeBindingBuilder` and `runtime()` are removed.
-- Move `packages/runtimes/node` to `packages/environments/node` and `packages/runtimes/browser`
+- Move `packages/environments/node` to `packages/environments/node` and `packages/environments/browser`
   to `packages/environments/browser`. Package names are unchanged (`@executioncontrolprotocol/node`,
-  `@executioncontrolprotocol/browser`) and are also the environment ids (`NODE_RUNTIME_ID` and
-  `BROWSER_RUNTIME_ID` become `NODE_ENVIRONMENT_ID` and `BROWSER_ENVIRONMENT_ID`).
+  `@executioncontrolprotocol/browser`) and are also the environment ids (`NODE_ENVIRONMENT_ID` and
+  `BROWSER_ENVIRONMENT_ID` become `NODE_ENVIRONMENT_ID` and `BROWSER_ENVIRONMENT_ID`).
 - An environment definition owns its executor (`node-executor`, `browser-executor`), its
   builtins, and its host stores.
-- `pnpm-workspace.yaml`: replace `packages/runtimes/*` with `packages/environments/*`.
+- `pnpm-workspace.yaml`: replace `packages/environments/*` with `packages/environments/*`.
 
 ### 4. One binding API: `environment(id).with([...])`
 
@@ -109,11 +118,11 @@ environment(id: EnvironmentId, label?: string)
 - Codemod the call sites. Before this phase there are about 48 `withExtensions`, 21
   `withRuntime` and 8 `withPolicies` call sites across packages, tests and examples.
 
-### 5. `.supports()` replaces `withSupportedRuntimes`
+### 5. `.supports()` replaces `supportsPLACEHOLDER`
 
 - Add `.supports(environmentId, range?)` to the extension and policy definition builders. It
   can be called several times; no call means "any environment".
-- Replace `withSupportedRuntimes([...])` in the files that still use it after Phase 1: core's
+- Replace `supportsPLACEHOLDER([...])` in the files that still use it after Phase 1: core's
   definition builder and its test, `anthropic` (Node and browser), `openai`, `ollama`, `fal`,
   `image-sharp`, `adobe-firefly-services` (Node), `secrets`, `process-env`, and
   `browser-local-config`. `chrome-ai` is gone.
@@ -160,7 +169,7 @@ Then:
 
 ## Tests and verification
 
-- The existing core suites (runtime, store mutation, lifecycle, registry freeze, validation,
+- The existing core suites (store mutation, lifecycle, registry freeze, validation,
   encoding, patch, describe, search) pass after the codemods, with no behaviour change.
 - New tests:
   - `environment(id).with([...])`: extension and policy bindings, labels.
@@ -174,13 +183,14 @@ Then:
 
 ## Exit criteria
 
-- [ ] `packages/types`, `packages/runtimes`, `extensions/secrets`, `extensions/process-env`
+- [x] `packages/types`, `packages/runtimes`, `extensions/secrets`, `extensions/process-env`
       are gone; `packages/environments/{node,browser}` exist with unchanged package names.
-- [ ] Core exports only `.` and `./types`, has no Node-only imports, and is about 12K lines.
-- [ ] No `withExtensions`, `withPolicies`, `withRuntime`, `runtime()`, `defineRuntime`,
+- [x] Core exports only `.` and `./types`, has no Node-only imports, and is about 10K lines
+      (under the 12K target).
+- [x] No `withExtensions`, `withPolicies`, `withRuntime`, `runtime()`, `defineRuntime`,
       `withSupportedRuntimes`, or `catalogExtension` calls remain.
-- [ ] Core tests are green in Node and in the browser project.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] Core tests are green in Node and in the browser project.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
 
 ## Risks
 

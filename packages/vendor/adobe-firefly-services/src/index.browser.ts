@@ -1,5 +1,4 @@
 import {
-  catalogExtension,
   globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
@@ -19,8 +18,6 @@ import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
 export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
   withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
 )
-
-catalogExtension(adobeFireflyServicesExtension)
 
 /**
  * Register `@executioncontrolprotocol/adobe-firefly-services` on a registry (browser catalog).

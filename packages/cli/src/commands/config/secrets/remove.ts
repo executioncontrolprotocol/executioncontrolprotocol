@@ -1,5 +1,5 @@
 import { Args, Command } from "@oclif/core"
-import { canonicalSecretKey } from "@executioncontrolprotocol/secrets"
+import { canonicalSecretKey } from "@executioncontrolprotocol/node"
 import { getCliSecretsStore } from "../../../lib/secrets/store.js"
 
 /** Remove an OS keychain secret. */

@@ -146,7 +146,7 @@ export async function executeInvoke(
   const dispatchOpts = {
     ctx: capCtx,
     registry,
-    runtimeId: env.getRuntimeId(),
+    runtimeId: env.getEnvironmentId(),
     remoteInvoke: env.getRemoteInvoke(),
   }
   capCtx.capabilities.call = createDispatchingCall(dispatchOpts)

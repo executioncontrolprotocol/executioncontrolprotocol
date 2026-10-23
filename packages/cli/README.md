@@ -78,7 +78,7 @@ ecp search "echo" --env examples/01-echo/environment.ts
 
 ### Test session (`ecp test`)
 
-Drive a workflow incrementally with frozen state (distinct from `@executioncontrolprotocol/core/testing` stubs):
+Drive a workflow incrementally with frozen state (distinct from `testExtension` stubs):
 
 ```sh
 ecp test start workflow.ts --env environment.ts -o session.json
@@ -105,7 +105,7 @@ Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
 
 ## Related packages
 
-- [`@executioncontrolprotocol/core`](../core/README.md): runtime-agnostic core + fluent API
-- [`@executioncontrolprotocol/node`](../runtimes/node/README.md): Node runtime host used by CLI examples
+- [`@executioncontrolprotocol/core`](../core/README.md): host-agnostic core + fluent API
+- [`@executioncontrolprotocol/node`](../environments/node/README.md): Node environment used by CLI examples
 - [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents

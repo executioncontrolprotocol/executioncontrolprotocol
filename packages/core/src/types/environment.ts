@@ -89,8 +89,8 @@ export interface ExtensionDescription {
   isAuthorable?: boolean
   /** Full extension metadata (exact-id describe only). */
   metadata?: ExtensionMetadata
-  /** Runtimes this extension supports when restricted; omitted when universal. */
-  supportedRuntimes?: string[]
+  /** Environments this extension supports when restricted; omitted when universal. */
+  supportedEnvironments?: string[]
 }
 
 /** Capability metadata in descriptor. @category Environment */

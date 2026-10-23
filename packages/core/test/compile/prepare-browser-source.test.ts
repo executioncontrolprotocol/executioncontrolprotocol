@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { prepareBrowserWorkflowSource } from "../../src/compile/prepare-browser-source.js"
+import { prepareBrowserWorkflowSource } from "@executioncontrolprotocol/browser"
 
 describe("prepareBrowserWorkflowSource", () => {
   it("strips @executioncontrolprotocol/browser import and injects global shim", () => {

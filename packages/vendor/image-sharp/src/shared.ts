@@ -5,7 +5,7 @@ import { z } from "zod"
 export const EXT_ID = "@executioncontrolprotocol/image-sharp"
 
 /** Node runtime id. @category Extensions */
-export const NODE_RUNTIME_ID = "@executioncontrolprotocol/node" as const
+export const NODE_ENVIRONMENT_ID = "@executioncontrolprotocol/node" as const
 
 /** Thrown if a host Sharp handler is invoked in the browser catalog (dispatch should hop first). @category Extensions */
 export const HOST_HOP_MESSAGE =
@@ -19,7 +19,7 @@ export function buildImageSharpExtension(
   capabilities: CapabilityDefinition[],
 ): ExtensionDefinition {
   return defineExtension("@executioncontrolprotocol", "image-sharp")
-    .withSupportedRuntimes([NODE_RUNTIME_ID])
+    .supports(NODE_ENVIRONMENT_ID)
     .withConfig({
       storage: z
         .object({

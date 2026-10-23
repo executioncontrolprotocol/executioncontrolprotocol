@@ -3,6 +3,7 @@ import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { globalRegistry } from "@executioncontrolprotocol/core"
+import "@executioncontrolprotocol/node"
 
 const uploadData = vi.fn()
 const download = vi.fn()

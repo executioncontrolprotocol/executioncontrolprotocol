@@ -4,6 +4,8 @@ dist/
 
 # Vitest / V8 coverage (never commit)
 coverage/
+.vitest-attachments/
+**/__screenshots__/
 coverage-tmp/
 .coverage
 @coverage/

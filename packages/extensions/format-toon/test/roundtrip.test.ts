@@ -8,17 +8,16 @@ import {
   step,
   ref,
   normalizeWorkflowManifest,
-  runtime,
 } from "@executioncontrolprotocol/core"
-import { NODE_RUNTIME_ID, registerNodeRuntime } from "@executioncontrolprotocol/node"
-import { registerFormatToonExtension } from "../src/index.js"
+import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
+import { formatToonExtension } from "../src/index.js"
 import type { Ecp } from "@executioncontrolprotocol/core"
 
 async function initToonEcp(): Promise<Ecp> {
-  await registerNodeRuntime()
-  const env = environment("test")
-    .withRuntime(runtime(NODE_RUNTIME_ID))
-    .withExtensions([extension("@executioncontrolprotocol/format-toon").with({})])
+  registerNodeEnvironment()
+  const env = environment(NODE_ENVIRONMENT_ID, "test").with([
+    extension(formatToonExtension).with({}),
+  ])
   return env.init()
 }
 import { encodeDocumentToToon, decodeDocumentFromToon } from "../src/toon-codec.js"
@@ -42,7 +41,6 @@ function sampleDescribeFixture(): EnvironmentDescriptor {
 
 describe("TOON round trip (@toon-format/toon)", () => {
   it("round trips workflow refs", async () => {
-    await registerFormatToonExtension()
     const manifest = workflow("Ref Test")
       .run([
         step("@executioncontrolprotocol/test.echo", "S")
@@ -61,7 +59,6 @@ describe("TOON round trip (@toon-format/toon)", () => {
   })
 
   it("round trips full workflow manifest", async () => {
-    await registerFormatToonExtension()
     const manifest = workflow("Echo")
       .id("echo-wf")
       .run([step("@executioncontrolprotocol/test.echo", "E").with({ value: "x" }).as("o")])
@@ -92,7 +89,6 @@ describe("TOON round trip (@toon-format/toon)", () => {
   })
 
   it("round trips environment describe via encode/decode", async () => {
-    await registerFormatToonExtension()
     const descriptor = sampleDescribeFixture()
     const ecp = await initToonEcp()
 
@@ -106,7 +102,6 @@ describe("TOON round trip (@toon-format/toon)", () => {
   })
 
   it("supports headerless compact TOON", async () => {
-    await registerFormatToonExtension()
     const manifest = workflow("Echo")
       .run([step("@executioncontrolprotocol/test.echo", "E").with({ value: "x" }).as("o")])
       .toManifest()
@@ -137,7 +132,6 @@ describe("TOON round trip (@toon-format/toon)", () => {
   })
 
   it("round trips @executioncontrolprotocol.patch headerless TOON via codec", async () => {
-    await registerFormatToonExtension()
     const manifest = workflow("Echo")
       .run([step("@executioncontrolprotocol/test.echo", "E").with({ value: "x" }).as("o")])
       .toManifest()
@@ -154,7 +148,6 @@ describe("TOON round trip (@toon-format/toon)", () => {
   })
 
   it("encodes unknown schema without validation errors", async () => {
-    await registerFormatToonExtension()
     const doc = { schema: "@executioncontrolprotocol.custom.future", version: "1.0", data: { ok: true } }
     const ecp = await initToonEcp()
     const encoded = await ecp.encode(doc).uses("@executioncontrolprotocol/format-toon").process()

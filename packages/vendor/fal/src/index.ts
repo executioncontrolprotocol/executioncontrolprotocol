@@ -2,9 +2,8 @@ import {
   defineExtension,
   capabilityFor,
   globalRegistry,
-  catalogExtension,
   type Registry,
-  NODE_RUNTIME_ID
+  NODE_ENVIRONMENT_ID
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import { falGenerateInputSchema, falGenerateOutputSchema, FAL_INFERENCE_MODES } from "./schemas.js"
@@ -14,7 +13,7 @@ import type { FalInferenceMode } from "./schemas.js"
 
 /** @executioncontrolprotocol/fal extension. @category Extensions */
 export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
-  .withSupportedRuntimes([NODE_RUNTIME_ID])
+  .supports(NODE_ENVIRONMENT_ID)
   .withMetadata({
     summary: "Run inference on FAL-hosted generative models",
     description:
@@ -78,8 +77,6 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
       })
   ])
   .build()
-
-catalogExtension(falExtension)
 
 /** Register @executioncontrolprotocol/fal. */
 export async function registerFalExtension(registry: Registry = globalRegistry): Promise<void> {

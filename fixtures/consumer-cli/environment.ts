@@ -1,9 +1,12 @@
-import { environment, extension } from "@executioncontrolprotocol/node"
+import {
+  environment,
+  extension,
+  NODE_ENVIRONMENT_ID,
+  testExtension,
+} from "@executioncontrolprotocol/node"
+import { formatToonExtension } from "@executioncontrolprotocol/format-toon"
 
-import "@executioncontrolprotocol/core/testing"
-import "@executioncontrolprotocol/format-toon"
-
-export default (await environment("consumer-cli", "Consumer CLI fixture")).withExtensions([
-  extension("@executioncontrolprotocol/test").with({}),
-  extension("@executioncontrolprotocol/format-toon").with({}),
+export default environment(NODE_ENVIRONMENT_ID, "consumer-cli").with([
+  extension(testExtension),
+  extension(formatToonExtension),
 ])

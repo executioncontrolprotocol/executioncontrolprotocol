@@ -9,7 +9,7 @@ export type RegistryRegistrationSourceType =
 /** Registry operation evaluated by environment policies before acceptance. @category Policies */
 export interface RegistryRegistrationRequest {
   /** Kind of definition being registered. */
-  kind: "extension" | "policy" | "runtime"
+  kind: "extension" | "policy" | "environment"
   /** Namespaced id of the definition. */
   id: NamespacedId
   /** Definition payload when available. */

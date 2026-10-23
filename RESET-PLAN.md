@@ -433,7 +433,7 @@ the `env()` and `secrets()` config placeholders. There are two additions:
 
 1. **`workflow(...).with([...])`:** one array for everything the workflow needs from its
    environment. Each item is an existing binding object, and its builder defines what it is.
-   There are no separate `.withExtensions()`, `.withPolicies()` or `.requires()` methods on the
+   There are no separate `.with()`, `.with()` or `.requires()` methods on the
    workflow.
 2. **`.requires(range, package?)` on binding objects:** the version pin lives on the binding it
    applies to, instead of in a separate list.
@@ -482,11 +482,11 @@ as extensions.
 
 | Today | In a workflow file |
 | --- | --- |
-| `environment(id).withExtensions([...]).withPolicies([...]).withRuntime(...)` in a separate `environment.ts` | `workflow(...).with([...])` in the same file |
+| `environment(id).with([...]).with([...]).withRuntime(...)` in a separate `environment.ts` | `workflow(...).with([...])` in the same file |
 | `import "@executioncontrolprotocol/extension-openai"` to load each plugin | Nothing to import. Plugins are referenced by id and installed by the CLI |
 | `extension(id, label).with(config)` | Unchanged |
 | `policy(id, label).with(config)` | Unchanged |
-| `runtime(id, label).with(config)` | Removed. The environment is the runtime, and the workflow never names it (§4.4) |
+| `runtime(id, label).with(config)` | Removed. The environment is the and the workflow never names it (§4.4) |
 | — | `.requires(range, package?)` on any binding |
 | `secrets("key")`, `env("KEY")` | Unchanged |
 | `browser("key")` | Removed with `browser-secrets`, its only resolver |
@@ -559,11 +559,11 @@ already match the runtime package names, so nothing is renamed:
 
 | Environment id and package | Status | Ships with |
 | --- | --- | --- |
-| `@executioncontrolprotocol/node` | Exists (`packages/runtimes/node`, moving to `environments/node`) | The CLI, as the default environment. Takes in today's `secrets` and `process-env` extensions as its built-in secrets providers |
-| `@executioncontrolprotocol/browser` | Exists (`packages/runtimes/browser`, moving to `environments/browser`). No secrets provider in this phase: `browser-secrets` is removed, so a workflow that needs secrets runs through the CLI | Apps that embed ECP in a page; later, the App's in-page mode |
+| `@executioncontrolprotocol/node` | Exists (`packages/environments/node`, moving to `environments/node`) | The CLI, as the default environment. Takes in today's `secrets` and `process-env` extensions as its built-in secrets providers |
+| `@executioncontrolprotocol/browser` | Exists (`packages/environments/browser`, moving to `environments/browser`). No secrets provider in this phase: `browser-secrets` is removed, so a workflow that needs secrets runs through the CLI | Apps that embed ECP in a page; later, the App's in-page mode |
 | `@executioncontrolprotocol/temporal` | Stub today (`runtime-temporal`, removed in Phase 1) | Later, as a separately installed package |
 
-`defineRuntime` becomes `defineEnvironment`. An environment definition owns the executor and
+`defineEnvironment` becomes `defineEnvironment`. An environment definition owns the executor and
 the host wiring that is programmatic today: `withBlobStore`, `withArtifactStore` and
 `withRemoteInvoke` move from the environment builder into the definition. The `runtime()`
 binding builder goes away, since there's nothing left to bind.
@@ -592,7 +592,7 @@ them on both objects.
 **`.supports()` on definitions.** Extension definitions (and policy definitions, for
 consistency) declare which environments they can run in, using the environment id and an
 optional version range. This mirrors `.requires(range)` on bindings. It replaces today's
-`withSupportedRuntimes([NODE_RUNTIME_ID])`, which 15 files use.
+`supportsPLACEHOLDER([NODE_ENVIRONMENT_ID])`, which 15 files use.
 
 ```ts
 defineExtension("@executioncontrolprotocol", "image-sharp")
@@ -787,9 +787,9 @@ at `pre-reset`.
 | `packages/evals` | 3.5K | **Remove** | — |
 | `packages/harnesses/browser-nano` | 5.0K | **Remove** | — |
 | `packages/harnesses/browser-coding` | 4.3K | **Remove** | — |
-| `packages/runtimes/node` | 0.2K | Keep and grow | `environments/node` (`@executioncontrolprotocol/node`), the default environment. Gains the workflow file loader, the journal on disk, and the `secrets` and `process-env` providers |
-| `packages/runtimes/browser` | 1.7K | Keep part, remove part | `environments/browser` (`@executioncontrolprotocol/browser`): executor and builtins stay; authoring panels, `browser-guide` and session config are removed |
-| `packages/runtimes/temporal` | 0.1K | **Remove** | Returns later as `@executioncontrolprotocol/temporal`, built with `defineEnvironment` |
+| `packages/environments/node` | 0.2K | Keep and grow | `environments/node` (`@executioncontrolprotocol/node`), the default environment. Gains the workflow file loader, the journal on disk, and the `secrets` and `process-env` providers |
+| `packages/environments/browser` | 1.7K | Keep part, remove part | `environments/browser` (`@executioncontrolprotocol/browser`): executor and builtins stay; authoring panels, `browser-guide` and session config are removed |
+| `packages/environments/temporal` | 0.1K | **Remove** | Returns later as `@executioncontrolprotocol/temporal`, built with `defineEnvironment` |
 | `packages/extensions/index` | 0.1K | **Remove** | Installing plugins replaces the aggregator |
 | `apps/browser-demo` | 9.9K | Carve | Graph editor, Monaco and run panel → `app`; the rest is removed |
 | — | — | **New** | `plugin-sdk` |
@@ -805,7 +805,7 @@ at `pre-reset`.
 | `testing/test-model-generate.ts` | ~0.1K | **Remove**; keep the test extension helpers |
 | `encoding/strip-harness-typescript-output`, `strip-markdown-fences` | ~0.1K | **Remove** (model-output cleanup). Keep `encoding/utility-context.ts`: it is the encode/decode capability context |
 | `bindings/harness.ts`, `validate/harness.ts` | ~0.1K | **Remove** |
-| `registry`, `definitions`, `bindings` (extension, policy, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects. `defineRuntime` becomes `defineEnvironment`, `.supports()` replaces `withSupportedRuntimes`, and `bindings/runtime.ts` is removed |
+| `registry`, `definitions`, `bindings` (extension, policy, step) | ~0.9K | Keep; drop `catalogExtension` and `globalRegistry` side effects. `defineEnvironment` becomes `defineEnvironment`, `.supports()` replaces `supportsPLACEHOLDER`, and `bindings/runtime.ts` is removed |
 | `workflow`, `helpers`, `fluent`, `formats` | ~0.9K | Keep; add `.with([...])` to the workflow builder and `.requires()` to the extension and policy binding builders |
 | `environment` | 1.5K | Change: becomes the host object (§4.4). `.with([...])` replaces `withExtensions`, `withPolicies` and `withRuntime`; store and remote-invoke wiring moves into `defineEnvironment`; adds the binding merge and compatibility rules. `describe` and `search` stay |
 | `runtime` | 1.9K | Keep; add journal writer and event emitter, and resume from a step |
@@ -958,7 +958,7 @@ two moves noted at the end. Everything stays recoverable at the `pre-reset` tag.
   `browser-secrets`
 - `packages/vendor/slack`
 - `packages/policies/src/image-policy*.ts`
-- `packages/runtimes/temporal`
+- `packages/environments/temporal`
 - `apps/browser-demo` (its graph editor, Monaco and run panel come back in Phase 8 as `app`)
 
 #### Inside surviving packages
@@ -1066,22 +1066,22 @@ Detail: [`reset/phase-1-trim.md`](reset/phase-1-trim.md)
 
 **Exit:** green CI; no harness, eval, EQL or demo code; the workspace builds.
 
-### Phase 2 — Consolidate core and environments
+### Phase 2 — Consolidate core and environments ✅ 2026-10-23
 
 Detail: [`reset/phase-2-core-and-environments.md`](reset/phase-2-core-and-environments.md)
 
 1. Fold `types` into `core/types` and `registry-control` into core.
 2. Collapse runtimes into environments:
-   - `defineRuntime` becomes `defineEnvironment`, which owns the executor and the store and
+   - `defineEnvironment` becomes `defineEnvironment`, which owns the executor and the store and
      remote-invoke wiring.
    - `environment(id).with([...])` replaces `withExtensions`, `withPolicies` and
      `withRuntime`. The `runtime()` binding is removed.
-   - `packages/runtimes/{node,browser}` move to `environments/{node,browser}`, keeping their
+   - `packages/environments/{node,browser}` move to `environments/{node,browser}`, keeping their
      package names (which are their environment ids).
    - `secrets` and `process-env` fold into the Node environment.
    - `browser-secrets` is removed; the browser environment has no secrets provider yet.
 3. Add `.supports(environmentId, range?)` to extension and policy definitions, replacing
-   `withSupportedRuntimes` in the 15 files that use it.
+   `supportsPLACEHOLDER` in the 15 files that use it.
 4. Make definitions data: remove `catalogExtension` and `globalRegistry` side effects; the
    host owns the registry.
 5. Lint that core has no Node-only imports, and run core's unit tests in both the Node and

@@ -1,7 +1,10 @@
-import { environment, extension } from "@executioncontrolprotocol/node"
+import {
+  environment,
+  extension,
+  NODE_ENVIRONMENT_ID,
+  testExtension,
+} from "@executioncontrolprotocol/node"
 
-import "@executioncontrolprotocol/core/testing"
-
-export default (await environment("two-step-test", "Two-step test")).withExtensions([
-  extension("@executioncontrolprotocol/test").with({}),
+export default environment(NODE_ENVIRONMENT_ID, "two-step-test").with([
+  extension(testExtension),
 ])

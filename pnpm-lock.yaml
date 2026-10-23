@@ -110,10 +110,7 @@ importers:
     dependencies:
       '@executioncontrolprotocol/node':
         specifier: workspace:^
-        version: link:../runtimes/node
-      '@executioncontrolprotocol/secrets':
-        specifier: workspace:^
-        version: link:../extensions/secrets
+        version: link:../environments/node
       '@oclif/core':
         specifier: ^4.10.0
         version: 4.10.0
@@ -129,10 +126,20 @@ importers:
         version: 3.25.76
 
   packages/core:
+    dependencies:
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.8.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.7.4
     devDependencies:
+      '@executioncontrolprotocol/browser':
+        specifier: workspace:^
+        version: link:../environments/browser
       '@executioncontrolprotocol/node':
         specifier: workspace:^
-        version: link:../runtimes/node
+        version: link:../environments/node
       '@executioncontrolprotocol/policies':
         specifier: workspace:^
         version: link:../policies
@@ -148,11 +155,53 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 3.25.76
+
+  packages/environments/browser:
+    dependencies:
+      '@executioncontrolprotocol/core':
+        specifier: workspace:^
+        version: link:../../core
+      '@executioncontrolprotocol/policies':
+        specifier: workspace:^
+        version: link:../../policies
+    devDependencies:
+      '@executioncontrolprotocol/format-mermaid':
+        specifier: workspace:^
+        version: link:../../extensions/format-mermaid
+      '@executioncontrolprotocol/format-toon':
+        specifier: workspace:^
+        version: link:../../extensions/format-toon
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     optionalDependencies:
-      esbuild:
+      esbuild-wasm:
         specifier: ^0.25.0
         version: 0.25.12
-      esbuild-wasm:
+
+  packages/environments/node:
+    dependencies:
+      '@executioncontrolprotocol/core':
+        specifier: workspace:^
+        version: link:../../core
+      '@executioncontrolprotocol/policies':
+        specifier: workspace:^
+        version: link:../../policies
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
+    optionalDependencies:
+      '@napi-rs/keyring':
+        specifier: ^1.2.0
+        version: 1.2.0
+      esbuild:
         specifier: ^0.25.0
         version: 0.25.12
 
@@ -220,39 +269,11 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
-  packages/extensions/process-env:
-    devDependencies:
-      '@executioncontrolprotocol/core':
-        specifier: workspace:^
-        version: link:../../core
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-
-  packages/extensions/secrets:
-    devDependencies:
-      '@executioncontrolprotocol/core':
-        specifier: workspace:^
-        version: link:../../core
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-    optionalDependencies:
-      '@napi-rs/keyring':
-        specifier: ^1.2.0
-        version: 1.2.0
-
   packages/mcp:
     dependencies:
       '@executioncontrolprotocol/node':
         specifier: workspace:^
-        version: link:../runtimes/node
+        version: link:../environments/node
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.1(zod@3.25.76)
@@ -275,50 +296,6 @@ importers:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../core
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-
-  packages/runtimes/browser:
-    dependencies:
-      '@executioncontrolprotocol/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@executioncontrolprotocol/policies':
-        specifier: workspace:^
-        version: link:../../policies
-    devDependencies:
-      '@executioncontrolprotocol/format-mermaid':
-        specifier: workspace:^
-        version: link:../../extensions/format-mermaid
-      '@executioncontrolprotocol/format-toon':
-        specifier: workspace:^
-        version: link:../../extensions/format-toon
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-
-  packages/runtimes/node:
-    dependencies:
-      '@executioncontrolprotocol/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@executioncontrolprotocol/policies':
-        specifier: workspace:^
-        version: link:../../policies
-      '@executioncontrolprotocol/process-env':
-        specifier: workspace:^
-        version: link:../../extensions/process-env
-      '@executioncontrolprotocol/secrets':
-        specifier: workspace:^
-        version: link:../../extensions/secrets
-    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -1174,6 +1151,9 @@ packages:
 
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
+
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -3563,6 +3543,8 @@ snapshots:
       undici-types: 6.21.0
 
   '@types/normalize-package-data@2.4.4': {}
+
+  '@types/semver@7.8.0': {}
 
   '@types/unist@2.0.11': {}
 

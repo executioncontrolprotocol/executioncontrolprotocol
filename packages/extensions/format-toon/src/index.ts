@@ -1,7 +1,5 @@
-import { catalogExtension, globalRegistry } from "@executioncontrolprotocol/core"
+import { globalRegistry } from "@executioncontrolprotocol/core"
 import { formatToonExtension } from "./extension.js"
-
-catalogExtension(formatToonExtension)
 
 export { formatToonExtension } from "./extension.js"
 export { encodeToToon, encodeWorkflowToToon } from "./encode.js"

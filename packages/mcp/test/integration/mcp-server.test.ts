@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { createEcpMcpServer } from "../../src/index.js"
-import { extension, workflow, step, registerTestExtension } from "@executioncontrolprotocol/core"
-import { environment } from "@executioncontrolprotocol/node"
+import { extension, workflow, step, testExtension } from "@executioncontrolprotocol/core"
+import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 import type { Ecp } from "@executioncontrolprotocol/core"
 
 type TextContent = { type: string; text: string }
@@ -24,9 +24,8 @@ describe("@executioncontrolprotocol/mcp wire protocol (Client <-> Server)", () =
   let client: Client
 
   beforeEach(async () => {
-    await registerTestExtension()
-    const env = (await environment("mcp-wire")).withExtensions([
-      extension("@executioncontrolprotocol/test", "Test").with({}),
+    const env = environment(NODE_ENVIRONMENT_ID, "mcp-wire").with([
+      extension(testExtension, "Test").with({}),
     ])
     ecp = await env.init()
 

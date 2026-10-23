@@ -1,10 +1,9 @@
 import {
-  catalogExtension,
   capabilityFor,
   defineExtension,
   globalRegistry,
-  BROWSER_RUNTIME_ID,
-  NODE_RUNTIME_ID,
+  BROWSER_ENVIRONMENT_ID,
+  NODE_ENVIRONMENT_ID,
   toProviderChatTurns,
   type FileCapabilityContext,
   type Registry
@@ -71,7 +70,7 @@ async function anthropicMessages(
 
 /** Anthropic model provider. @category Extensions */
 export const anthropicExtension = defineExtension("@executioncontrolprotocol", "anthropic")
-  .withSupportedRuntimes([NODE_RUNTIME_ID, BROWSER_RUNTIME_ID])
+  .supports(NODE_ENVIRONMENT_ID).supports(BROWSER_ENVIRONMENT_ID)
   .withConfig({
     apiKey: z.string().optional(),
     defaultModel: z.string().optional()
@@ -149,8 +148,6 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
       })
   ])
   .build()
-
-catalogExtension(anthropicExtension)
 
 /** Register Anthropic extension. @category Extensions */
 export async function registerAnthropicExtension(

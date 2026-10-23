@@ -2,8 +2,7 @@ import {
   defineExtension,
   capabilityFor,
   globalRegistry,
-  catalogExtension,
-  NODE_RUNTIME_ID,
+  NODE_ENVIRONMENT_ID,
   toProviderChatTurns
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
@@ -74,7 +73,7 @@ function envString(name: string): string | undefined {
 
 /** @executioncontrolprotocol/ollama extension. @category Extensions */
 export const ollamaExtension = defineExtension("@executioncontrolprotocol", "ollama")
-  .withSupportedRuntimes([NODE_RUNTIME_ID])
+  .supports(NODE_ENVIRONMENT_ID)
   .withConfig({
     baseURL: z.string().optional(),
     defaultModel: z.string().optional(),
@@ -161,8 +160,6 @@ export const ollamaExtension = defineExtension("@executioncontrolprotocol", "oll
       })
   ])
   .build()
-
-catalogExtension(ollamaExtension)
 
 /** Register @executioncontrolprotocol/ollama. */
 export async function registerOllamaExtension(registry = globalRegistry): Promise<void> {

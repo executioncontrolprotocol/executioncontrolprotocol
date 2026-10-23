@@ -1,7 +1,6 @@
 /**
- * Side-effect entry: catalogs {@link testExtension} for `extension("@executioncontrolprotocol/test")` bindings.
+ * Test-extension entry for examples and unit tests.
+ * Bind {@link testExtension} with `extension(testExtension)`.
  * @category Testing
  */
-import "./test-extension.js"
-
 export { registerTestExtension, testExtension } from "./test-extension.js"

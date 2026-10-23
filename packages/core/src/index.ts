@@ -15,13 +15,13 @@ export * from "./config-schema/index.js"
 export * from "./definitions/index.js"
 export type {
   ExtensionDefinition,
-  RuntimeDefinition,
+  EnvironmentDefinition,
   PolicyDefinition,
   CapabilityDefinition,
   HookDefinition,
+  SupportedEnvironment,
 } from "./definitions/types.js"
 export { step } from "./bindings/step.js"
-export { runtime } from "./bindings/runtime.js"
 export { extension } from "./bindings/extension.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
@@ -37,7 +37,7 @@ export {
 } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
-export { environment, Environment } from "./environment/environment.js"
+export { environment, Environment, type EnvironmentInitOptions } from "./environment/environment.js"
 export {
   buildDescriptor,
   DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
@@ -67,11 +67,8 @@ export {
 } from "./environment/config-resolver.js"
 export { Registry, globalRegistry, type RegistryRegistrationGuard } from "./registry/registry.js"
 export {
-  catalogExtension,
-  getCatalogedExtension,
   resolveExtensionDefinition,
   isExtensionDefinition,
-  listCatalogedExtensionIds,
   normalizeExtensionId,
 } from "./registry/extension-catalog.js"
 export { ensureBoundExtensionsRegistered } from "./registry/ensure-bound-extensions.js"
@@ -100,10 +97,10 @@ export type {
 export { createUsageLedger } from "./runtime/context.js"
 export {
   resolveCapabilityExecution,
-  isBrowserRuntimeId,
-  isNodeRuntimeId,
+  isBrowserEnvironmentId,
+  isNodeEnvironmentId,
 } from "./runtime/capability-execution.js"
-export { NODE_RUNTIME_ID, BROWSER_RUNTIME_ID } from "./runtime/runtime-ids.js"
+export { NODE_ENVIRONMENT_ID, BROWSER_ENVIRONMENT_ID } from "./runtime/runtime-ids.js"
 export {
   hopRemoteInvoke,
   invokeFailure,
@@ -138,6 +135,7 @@ export {
 } from "./runtime/artifacts.js"
 export {
   resolveFile,
+  registerHostFileReader,
   writeMediaArtifact,
   defaultArtifactFilename,
   extensionForMediaType,
@@ -152,6 +150,7 @@ export {
   type WriteMediaArtifactOptions,
   type MediaArtifactStore,
   type FileCapabilityContext,
+  type HostFileReader,
   type ArtifactFetchPathnameOptions,
 } from "./media/index.js"
 export {
@@ -160,6 +159,15 @@ export {
   type MixedBlobUploadOutput,
 } from "./runtime/mixed-blob-upload.js"
 export { registerTestExtension, testExtension } from "./testing/test-extension.js"
+export {
+  lifecycleSpyExtension,
+  registerLifecycleSpyExtension,
+  resetLifecycleSpy,
+  lifecycleSpyEvents,
+  lifecycleSpyLastStepFailedDiagnostics,
+  capabilityInvokeCount,
+} from "./testing/test-lifecycle-extension.js"
+export { formatJsonExtension } from "./formats/format-json.js"
 
 export {
   renderWorkflowToFluent,
@@ -167,6 +175,12 @@ export {
   encodeFluent,
   type RenderWorkflowToFluentOptions,
 } from "./fluent/index.js"
+export {
+  extractWorkflowFromModule,
+  type CompileWorkflowResult,
+  type CompileWorkflowSourceOptions,
+  type CompileDiagnostic,
+} from "./compile/index.js"
 export { validateWorkflow } from "./validate/workflow.js"
 export {
   capabilityIdSchema,

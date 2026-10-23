@@ -16,7 +16,7 @@ import {
   normalizeWorkflowManifest,
   applyWorkflowReturns,
 } from "../src/index.js"
-import { compileWorkflowSource } from "../src/compile/index.js"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { initTestEcp } from "./helpers.js"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")

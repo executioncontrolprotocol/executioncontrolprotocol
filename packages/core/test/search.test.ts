@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { extension } from "../src/index.js"
+import { extension, testExtension } from "../src/index.js"
 import { createTestEnvironment } from "./helpers.js"
 
 describe("environment.search", () => {
   it("ranks multi-token queries", async () => {
-    const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+    const env = (await createTestEnvironment("s")).with([
+      extension(testExtension, "T").with({}),
     ])
 
     const ecp = await env.init()
@@ -16,8 +16,8 @@ describe("environment.search", () => {
   })
 
   it("does not attach schemas on light search results", async () => {
-    const env = (await createTestEnvironment("s")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+    const env = (await createTestEnvironment("s")).with([
+      extension(testExtension, "T").with({}),
     ])
 
     const ecp = await env.init()

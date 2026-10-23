@@ -4,7 +4,7 @@ Node-native Sharp image processing for ECP workflows.
 
 ## Runtime
 
-Requires `@executioncontrolprotocol/node`. Declares `.withSupportedRuntimes(["@executioncontrolprotocol/node"])`. Capabilities execute as **host**: the browser catalog hops to `ecp up`.
+Requires `@executioncontrolprotocol/node`. Declares `.supports("@executioncontrolprotocol/node")`. Capabilities execute as **host**: the browser catalog hops to `ecp up`.
 
 Native `sharp` is **not** on the web graph. The package uses standard `exports` conditions (`browser` → catalog, `node`/`import` → Sharp). Apps import the package root:
 
@@ -30,11 +30,11 @@ Image bytes are resolved and written through core (`resolveFile` / `writeMediaAr
 ## Binding
 
 ```ts
-import "@executioncontrolprotocol/image-sharp"
-import { environment, extension } from "@executioncontrolprotocol/node"
+import { imageSharpExtension } from "@executioncontrolprotocol/image-sharp"
+import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
 
-export default environment("image-demo").withExtensions([
-  extension("@executioncontrolprotocol/image-sharp").with({}),
+export default environment(NODE_ENVIRONMENT_ID, "image-demo").with([
+  extension(imageSharpExtension),
 ])
 ```
 

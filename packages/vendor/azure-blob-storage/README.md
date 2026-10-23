@@ -5,21 +5,16 @@ Azure Blob Storage extension for ECP. Upload binaries, mint HTTPS SAS URLs, and 
 ## Binding
 
 ```ts
-import "@executioncontrolprotocol/azure-blob-storage"
-import { environment, extension, secrets } from "@executioncontrolprotocol/node"
+import { azureBlobStorageExtension } from "@executioncontrolprotocol/azure-blob-storage"
+import { environment, extension, NODE_ENVIRONMENT_ID, secrets } from "@executioncontrolprotocol/node"
 
-export default environment("azure-demo")
-  .withExtensions([
-    extension("@executioncontrolprotocol/secrets").with({}),
-    extension("@executioncontrolprotocol/azure-blob-storage").with({
-      connectionString: secrets("azure-blob-storage/connection-string"),
-      // or:
-      // accountName: secrets("azure-blob-storage/account-name"),
-      // accountKey: secrets("azure-blob-storage/account-key"),
-      defaultContainer: "artifacts",
-      defaultSasExpiresInSeconds: 3600,
-    }),
-  ])
+export default environment(NODE_ENVIRONMENT_ID, "azure-demo").with([
+  extension(azureBlobStorageExtension).with({
+    connectionString: secrets("azure-blob-storage/connection-string"),
+    defaultContainer: "artifacts",
+    defaultSasExpiresInSeconds: 3600,
+  }),
+])
 ```
 
 ## Capabilities

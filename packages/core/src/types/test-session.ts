@@ -7,7 +7,7 @@ export type TestSessionStatus = "idle" | "paused" | "completed" | "failed"
 
 /**
  * Serializable snapshot of a workflow test session (run-to / rerun).
- * Distinct from `@executioncontrolprotocol/core/testing` capability stubs.
+ * Distinct from `testExtension` capability stubs.
  * @category Test
  */
 export interface TestSessionSnapshot {

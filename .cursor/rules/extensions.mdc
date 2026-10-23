@@ -49,13 +49,13 @@ export default defineExtension("@vendor", "my-ext")
 
 | Concern | Today | Target |
 | --- | --- | --- |
-| Registration | `catalogExtension(def)` at module load, plus an optional `register*Extension()` | **Phase 2:** definitions are plain data; export the definition, and the host registers it. No module-level registration |
-| Where it can run | `.withSupportedRuntimes([NODE_RUNTIME_ID])` | **Phase 2:** `.supports("@executioncontrolprotocol/node", "^1")`. No call means "any environment" |
+| Registration | Export the definition; bind `extension(def)` on the environment | **Phase 5:** `ecp plugins build` generates CLI files. Optional `register*Extension(registry)` helpers remain until then |
+| Where it can run | `.supports("@executioncontrolprotocol/node", "^1")`. No call means any environment | Unchanged after Phase 2 |
 | Package name | Same as the extension id (`@executioncontrolprotocol/format-toon`) | **Phase 5:** `@<scope>/plugin-<extension name>` (`plugin-format-toon`). Ids don't change |
 | Location | `packages/extensions/*`, `packages/vendor/*` | **Phase 5:** `plugins/plugin-<name>` |
 | CLI | None | **Phase 3/5:** `ecp plugins build` generates commands, manifest and `package.json` fields. Nothing hand-written |
-| Policies | `packages/policies` | **Phase 5:** `plugin-budget`, `plugin-approval`, `plugin-state-control`. `registry-control` moves into core (Phase 2) |
-| Secrets providers | `extensions/secrets`, `process-env`, `browser-secrets` | **Phase 2:** `secrets` and `process-env` fold into the Node environment. `browser-secrets` is removed in Phase 1 |
+| Policies | `packages/policies` (`budget`, `approval`, `state-control`); `registry-control` is in core | **Phase 5:** `plugin-budget`, `plugin-approval`, `plugin-state-control` |
+| Secrets providers | Node environment default bindings (`secrets`, `process-env`) | Unchanged after Phase 2. `browser-secrets` was removed in Phase 1 |
 
 ## Metadata (`.withMetadata`)
 
@@ -80,8 +80,8 @@ ids or output shapes.
 - For binary data, use `resolveFile` / `writeMediaArtifact`. Don't reimplement fs, fetch or
   artifact maps.
 - **Node-only code** (native modules, `node:fs`, Node SDKs): declare it with
-  `.supports("@executioncontrolprotocol/node")` (today, `withSupportedRuntimes`). Keep the
-  package root importable in a browser, using a `browser` export condition where needed.
+  `.supports("@executioncontrolprotocol/node")`. Keep the package root importable in a
+  browser, using a `browser` export condition where needed.
 - **Format capabilities** (`encode`/`decode`):
   - Accept `unknown` documents and infer `schema` when present.
   - Validate known schemas with diagnostics.
@@ -94,7 +94,7 @@ ids or output shapes.
 - Test the extension on its own, with fixtures.
 - Use `environment()` from core for encode and decode tests; don't pull in a host to call
   `describe()` or `run()`.
-- In-repo stub: `@executioncontrolprotocol/core/testing` and
-  `extension("@executioncontrolprotocol/test")`, only when a real handler must run.
+- In-repo stub: `testExtension` from `@executioncontrolprotocol/core`, only when a real
+  handler must run.
 - From Phase 5, every plugin also has one CLI-level test of a generated command with `--json`,
   and passes `ecp plugins check`.

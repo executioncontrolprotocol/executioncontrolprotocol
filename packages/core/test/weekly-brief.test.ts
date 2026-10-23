@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { compileWorkflowSource } from "../src/compile/index.js"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { extension } from "../src/index.js"
-import { environment } from "@executioncontrolprotocol/node"
-import { registerOpenaiExtension } from "@executioncontrolprotocol/extension-openai"
+import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { openaiExtension } from "@executioncontrolprotocol/extension-openai"
 
 const WEEKLY_WORKFLOW = `
 import { workflow, step, ref } from "@executioncontrolprotocol/core"
@@ -21,10 +21,8 @@ export default workflow("Weekly leadership brief")
 
 describe("examples/02-weekly-brief", () => {
   it("workflow compiles against registered extensions", async () => {
-    await registerOpenaiExtension()
-
-    const env = (await environment("weekly-brief", "Weekly brief")).withExtensions([
-      extension("@executioncontrolprotocol/openai", "OpenAI").with({ defaultModel: "gpt-4o-mini" }),
+    const env = environment(NODE_ENVIRONMENT_ID, "weekly-brief").with([
+      extension(openaiExtension, "OpenAI").with({ defaultModel: "gpt-4o-mini" }),
     ])
 
     const compiled = await compileWorkflowSource({

@@ -3,12 +3,11 @@ import { workflow, step, parallel, branch, loop } from "@executioncontrolprotoco
 import { initEncodingTestEcp } from "../../../core/test/helpers.js"
 import { extension } from "@executioncontrolprotocol/core"
 import { workflowToMermaid } from "../src/workflow-to-mermaid.js"
-import { registerFormatMermaidExtension } from "../src/index.js"
+import { formatMermaidExtension } from "../src/index.js"
 
 describe("@executioncontrolprotocol/format-mermaid", () => {
   it("encodes workflow to mermaid flowchart with workflow subgraph", async () => {
-    await registerFormatMermaidExtension()
-    const ecp = await initEncodingTestEcp([extension("@executioncontrolprotocol/format-mermaid").with({})])
+    const ecp = await initEncodingTestEcp([extension(formatMermaidExtension).with({})])
     const manifest = workflow("Demo")
       .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: "x" }).as("echo")])
       .toManifest()
@@ -25,8 +24,7 @@ describe("@executioncontrolprotocol/format-mermaid", () => {
   })
 
   it("supports flowchart direction via encode with()", async () => {
-    await registerFormatMermaidExtension()
-    const ecp = await initEncodingTestEcp([extension("@executioncontrolprotocol/format-mermaid").with({})])
+    const ecp = await initEncodingTestEcp([extension(formatMermaidExtension).with({})])
     const manifest = workflow("Demo")
       .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: "x" }).as("echo")])
       .toManifest()

@@ -31,7 +31,7 @@ import {
 } from "../runtime/blobs.js"
 import type { CapabilityArtifactStore } from "../runtime/artifacts.js"
 
-export type { RunOptions } from "./environment.js"
+export type { RunOptions, EnvironmentInitOptions } from "./environment.js"
 
 /**
  * Initialized operational ECP instance (returned from {@link Environment.init}).
@@ -60,7 +60,7 @@ export interface Ecp {
   invoke(capabilityId: CapabilityId | string): InvokeOperationBuilder
   /**
    * Start a workflow test session (run-to / rerun with frozen state).
-   * Distinct from `@executioncontrolprotocol/core/testing` stubs.
+   * Distinct from `testExtension` stubs.
    */
   test(workflow: WorkflowManifest): TestSessionBuilder
   /** Restore a test session from a snapshot (e.g. CLI session file). */
@@ -138,7 +138,7 @@ export class EcpImpl implements Ecp {
     const existing = this.env.getBlobStore()
     if (existing) return existing
     const store = createCapabilityBlobStore()
-    this.env.withBlobStore(store)
+    this.env.setBlobStore(store)
     return store
   }
 

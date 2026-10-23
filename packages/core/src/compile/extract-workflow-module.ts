@@ -3,7 +3,7 @@ import type { WorkflowBuilder } from "../workflow/builder.js"
 
 const WORKFLOW_EXPORT_NAMES = ["default", "workflow", "defaultWorkflow", "manifest"]
 
-/** Extract workflow builder or manifest from evaluated module exports. */
+/** Extract workflow builder or manifest from evaluated module exports. @category Compile */
 export function extractWorkflowFromModule(
   mod: Record<string, unknown>
 ): WorkflowManifest {

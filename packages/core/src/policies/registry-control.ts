@@ -46,7 +46,7 @@ export const registryControlPolicy = definePolicy("@executioncontrolprotocol", "
       if (req.kind !== "extension") {
         return {
           type: "deny",
-          reason: "Dynamic policy and runtime registration is not allowed",
+          reason: "Dynamic policy and environment registration is not allowed",
           code: "REGISTRY_KIND_DENIED",
         }
       }
