@@ -1,5 +1,5 @@
 import { writeFile, readFile } from "node:fs/promises"
-import type { TestSessionSnapshot } from "@executioncontrolprotocol/types"
+import type { TestSessionSnapshot } from "@executioncontrolprotocol/core/types"
 
 /**
  * Read a test session snapshot JSON file.

@@ -1,4 +1,4 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { ExtensionBindingBuilder } from "../bindings/extension.js"
 import type { Registry } from "./registry.js"
 import { resolveExtensionDefinition, normalizeExtensionId } from "./extension-catalog.js"

@@ -10,7 +10,8 @@ describe("listPublishableWorkspaces", () => {
     const packages = listPublishableWorkspaces(repoRoot())
     const names = new Set(packages.map((p) => p.name))
 
-    expect(names.has("@executioncontrolprotocol/types")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/core")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/types")).toBe(false)
     expect(names.has("@executioncontrolprotocol/format-toon")).toBe(true)
     expect(names.has("@executioncontrolprotocol/node")).toBe(true)
     expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
@@ -28,9 +29,6 @@ describe("listPublishableWorkspaces", () => {
     const ordered = topoSortPublishable(listPublishableWorkspaces(repoRoot()))
     const index = new Map(ordered.map((p, i) => [p.name, i]))
 
-    expect(index.get("@executioncontrolprotocol/types")!).toBeLessThan(
-      index.get("@executioncontrolprotocol/core")!,
-    )
     expect(index.get("@executioncontrolprotocol/core")!).toBeLessThan(
       index.get("@executioncontrolprotocol/node")!,
     )

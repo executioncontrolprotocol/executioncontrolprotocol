@@ -8,7 +8,7 @@ import type {
   TestSessionSnapshot,
   ValidationResult,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import type { Environment, RunOptions } from "./environment.js"
 import {

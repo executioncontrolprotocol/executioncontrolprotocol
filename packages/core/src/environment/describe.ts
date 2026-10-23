@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   CapabilityDescription,
   CapabilityMetadata,
@@ -9,7 +9,7 @@ import type {
   ExtensionDescription,
   ExtensionMetadata,
   PolicyDescription
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import { resolveCapabilityExecution } from "../runtime/capability-execution.js"
 import { isZodType, jsonSchemaFromZod } from "../schema/json-schema.js"

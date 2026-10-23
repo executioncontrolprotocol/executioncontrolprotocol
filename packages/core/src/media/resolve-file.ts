@@ -1,7 +1,7 @@
 import {
   FILE_REF_KINDS,
   type FileRef,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import { isBrowserFileLocator } from "../runtime/blobs.js"
 import type { CapabilityContext } from "../runtime/context.js"
 

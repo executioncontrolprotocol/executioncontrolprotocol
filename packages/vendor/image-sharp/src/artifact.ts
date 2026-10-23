@@ -1,4 +1,4 @@
-import type { FileRef } from "@executioncontrolprotocol/types"
+import type { FileRef } from "@executioncontrolprotocol/core/types"
 import {
   assertMediaType,
   resolveFile,

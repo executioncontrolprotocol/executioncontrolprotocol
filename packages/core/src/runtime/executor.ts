@@ -1,4 +1,4 @@
-import type { RunResult, StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { RunResult, StepRunRecord, WorkflowManifest } from "../types/index.js"
 import type { RemoteInvokeBinding } from "./remote-invoke.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"

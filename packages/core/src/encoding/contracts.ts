@@ -1,4 +1,4 @@
-import { ECP_ENCODING_ERROR_CODES } from "@executioncontrolprotocol/types"
+import { ECP_ENCODING_ERROR_CODES } from "../types/index.js"
 import type { CapabilityDefinition } from "../definitions/types.js"
 import { EcpError } from "./errors.js"
 import { ecpEncodeInputSchema } from "./schemas.js"

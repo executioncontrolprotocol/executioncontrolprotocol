@@ -8,7 +8,7 @@ detail needed to do the work: scope, file-level tasks, design notes, tests and e
 | --- | --- | --- | --- |
 | 0 | [Merge and freeze](phase-0-merge-and-freeze.md) | ✅ Done 2026-10-19 | — |
 | 1 | [Trim](phase-1-trim.md) | ✅ Done 2026-10-22 | 0 |
-| 2 | [Consolidate core and environments](phase-2-core-and-environments.md) | Planned | 1 |
+| 2 | [Consolidate core and environments](phase-2-core-and-environments.md) | In progress (PR 1: types + registry-control folded) | 1 |
 | 3 | [Plugin SDK and CLI](phase-3-plugin-sdk-and-cli.md) | Planned | 2 |
 | 4 | [Workflow files and observability](phase-4-workflow-files-and-observability.md) | Planned | 3 |
 | 5 | [Plugins to npm](phase-5-plugins-to-npm.md) | Planned | 4 |

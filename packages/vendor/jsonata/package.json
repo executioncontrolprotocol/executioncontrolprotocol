@@ -24,13 +24,11 @@
   },
   "peerDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^",
     "zod": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:",
     "zod": "catalog:",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^"
+    "@executioncontrolprotocol/core": "workspace:^"
   }
 }

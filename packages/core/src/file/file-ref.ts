@@ -2,7 +2,7 @@ import {
   FILE_REF_KINDS,
   type FileRef,
   type FileRefKind,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 
 /** Whether `value` is a {@link FileRef}. @category File */
 export function isFileRef(value: unknown): value is FileRef {

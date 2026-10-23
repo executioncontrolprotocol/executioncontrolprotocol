@@ -1,9 +1,9 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   TestSessionSnapshot,
   TestSessionStatus,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Environment } from "../environment/environment.js"
 import {
   clearDownstreamTestState,

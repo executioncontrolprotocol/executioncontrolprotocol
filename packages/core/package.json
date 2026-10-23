@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./schemas/*": "./dist/schemas/*",
     "./browser": {
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
@@ -91,13 +96,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -b"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/types": "workspace:^"
+    "build": "tsc -b",
+    "generate:schema": "node scripts/generate-schemas.mjs"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/types": "workspace:^",
     "zod": "catalog:"
   },
   "optionalDependencies": {
@@ -107,8 +109,10 @@
   "devDependencies": {
     "@executioncontrolprotocol/node": "workspace:^",
     "@executioncontrolprotocol/policies": "workspace:^",
+    "ajv": "^8.17.1",
     "esbuild": "^0.25.0",
     "esbuild-wasm": "^0.25.0",
+    "ts-json-schema-generator": "^2.3.0",
     "typescript": "catalog:",
     "zod": "catalog:"
   }

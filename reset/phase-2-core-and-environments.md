@@ -1,7 +1,17 @@
 # Phase 2 — Consolidate core and environments
 
-> Status: Planned · Branch: `feat/phase-2-core-and-environments` · Depends on: Phase 1 ·
+> Status: In progress · Branch: `feat/phase-2-types` (PR 1) then
+> `feat/phase-2-environments` (PR 2) · Depends on: Phase 1 ·
 > Plan: §4.1, §4.4, §8.1
+
+## Outcome so far (PR 1)
+
+- Protocol types live at `packages/core/src/types` and `@executioncontrolprotocol/core/types`.
+  Generated JSON Schemas emit to `packages/core/dist/schemas`. `packages/types` is gone.
+- `registry-control` lives at `packages/core/src/policies/registry-control.ts` and is exported
+  from core. `packages/policies` keeps `budget`, `approval`, and `state-control`.
+- Environments still use `withExtensions` / `withRuntime` / `defineRuntime` under
+  `packages/runtimes/*`. PR 2 still has that work.
 
 ## Goal
 

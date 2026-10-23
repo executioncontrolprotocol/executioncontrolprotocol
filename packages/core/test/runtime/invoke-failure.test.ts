@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ECP_INVOKE_ERROR_CODES, LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { ECP_INVOKE_ERROR_CODES, LATEST_ECP_VERSION } from "@executioncontrolprotocol/core/types"
 import {
   buildInvokeFailureDiagnostics,
   formatValidationIssueLine,

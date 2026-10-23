@@ -1,4 +1,4 @@
-import { environment as coreEnvironment, runtime } from "@executioncontrolprotocol/core"
+import { environment as coreEnvironment, registerRegistryControlPolicy, runtime } from "@executioncontrolprotocol/core"
 import type { Environment } from "@executioncontrolprotocol/core"
 import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
 import { NODE_RUNTIME_ID, registerNodeRuntime } from "./runtime/builtin-node.js"
@@ -11,6 +11,7 @@ export async function registerNodeDefaults(): Promise<void> {
   await registerSecretsExtension()
   await registerProcessEnvExtension()
   await registerStandardPolicies()
+  await registerRegistryControlPolicy()
 }
 
 /**

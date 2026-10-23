@@ -7,8 +7,8 @@ import {
   encodeFailure,
   validateWorkflow
 } from "@executioncontrolprotocol/core"
-import { LATEST_ECP_VERSION, type EcpEncodeInput, type EncodeResult } from "@executioncontrolprotocol/types"
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION, type EcpEncodeInput, type EncodeResult } from "@executioncontrolprotocol/core/types"
+import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
 import { workflowToMermaid } from "./workflow-to-mermaid.js"
 import { type MermaidEncodeOptions } from "./options.js"
 

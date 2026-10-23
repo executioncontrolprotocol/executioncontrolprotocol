@@ -1,4 +1,4 @@
-import type { LifecycleEvent, ValidationIssue } from "@executioncontrolprotocol/types"
+import type { LifecycleEvent, ValidationIssue } from "../types/index.js"
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
 import { hook } from "../definitions/hook.js"
@@ -105,7 +105,7 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
       })
       .withHandler(async (input, ctx) => {
         capabilityInvokeCount++
-        const handle = (input as { target: import("@executioncontrolprotocol/types").StoreStateHandle<Record<string, unknown>> })
+        const handle = (input as { target: import("../types/index.js").StoreStateHandle<Record<string, unknown>> })
           .target
         await ctx.store.merge(handle, { merged: true })
         return { ok: true }

@@ -1,5 +1,5 @@
 /**
- * Pack core, types, and one vendor package, then typecheck an import against the
+ * Pack core and one vendor package, then typecheck an import against the
  * tarballs (not the workspace link). Proves vendor code compiles on the published surface.
  *
  * Usage (from monorepo root, after `pnpm run build`):
@@ -25,15 +25,14 @@ import { parsePackTarballLine, resolvePackTarballPath } from "./resolve-pack-tar
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const keep = process.env.KEEP_VENDOR_PACK === "1"
 const PACK_NAMES = [
-  "@executioncontrolprotocol/types",
   "@executioncontrolprotocol/core",
   "@executioncontrolprotocol/jsonata",
 ]
 
 function assertBuilt() {
   const markers = [
-    join(root, "packages/types/dist/index.js"),
     join(root, "packages/core/dist/index.js"),
+    join(root, "packages/core/dist/types/index.js"),
     join(root, "packages/vendor/jsonata/dist/index.js"),
   ]
   for (const marker of markers) {
@@ -131,7 +130,7 @@ try {
     [
       'import "@executioncontrolprotocol/jsonata"',
       'import { defineExtension } from "@executioncontrolprotocol/core"',
-      'import type { FileRef } from "@executioncontrolprotocol/types"',
+      'import type { FileRef } from "@executioncontrolprotocol/core/types"',
       "void defineExtension",
       "export type ProbeFile = FileRef",
       "",

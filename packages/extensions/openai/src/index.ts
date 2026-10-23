@@ -7,7 +7,7 @@ import {
   type Registry,
   NODE_RUNTIME_ID
 } from "@executioncontrolprotocol/core"
-import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
+import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/core/types"
 import { z } from "zod"
 import { resolveOpenaiApiKey } from "./resolve-api-key.js"
 

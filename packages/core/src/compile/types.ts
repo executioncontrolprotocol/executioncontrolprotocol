@@ -1,4 +1,4 @@
-import type { ValidationResult, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { ValidationResult, WorkflowManifest } from "../types/index.js"
 
 /** Transpile or syntax error. @category Compile */
 export interface CompileDiagnostic {

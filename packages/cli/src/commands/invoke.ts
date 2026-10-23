@@ -1,5 +1,5 @@
 import { Args, Flags } from "@oclif/core"
-import type { InvokeResult } from "@executioncontrolprotocol/types"
+import type { InvokeResult } from "@executioncontrolprotocol/core/types"
 import { readJsonFile, runWithCommandError } from "../lib/command-helpers.js"
 import { EnvModuleCommand } from "../lib/env-module-command.js"
 

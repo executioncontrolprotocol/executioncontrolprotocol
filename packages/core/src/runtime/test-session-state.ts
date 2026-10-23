@@ -3,7 +3,7 @@ import type {
   StepRunRecord,
   WorkflowManifest,
   WorkflowNode,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 
 /**
  * Flatten leaf steps in document-order DFS (test order).

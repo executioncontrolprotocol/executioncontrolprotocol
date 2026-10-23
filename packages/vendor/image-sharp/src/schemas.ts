@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { fileRefSchema, IMAGE_OUTPUT_FORMATS } from "@executioncontrolprotocol/types"
+import { fileRefSchema, IMAGE_OUTPUT_FORMATS } from "@executioncontrolprotocol/core/types"
 
 /** Image input refs with UI MIME hint (`image/*`). @category Extensions */
 export const imageFileRefSchema = fileRefSchema({ contentMediaType: "image/*" })

@@ -75,7 +75,6 @@ describe("compileWorkflowSource consumer resolution", () => {
       const nested = join(project, "nested", "deep")
       await mkdir(nested, { recursive: true })
       await linkPkg(project, "core", join(repoRoot, "packages/core"))
-      await linkPkg(project, "types", join(repoRoot, "packages/types"))
 
       const filename = join(nested, "workflow.ts")
       await writeFile(filename, SAMPLE_TS, "utf8")
@@ -109,7 +108,6 @@ describe("compileWorkflowSource consumer resolution", () => {
     const nested = join(project, "apps", "bot", "workflows")
     await mkdir(nested, { recursive: true })
     await linkPkg(project, "core", join(repoRoot, "packages/core"))
-    await linkPkg(project, "types", join(repoRoot, "packages/types"))
 
     const filename = join(nested, "workflow.ts")
     await writeFile(filename, SAMPLE_TS, "utf8")

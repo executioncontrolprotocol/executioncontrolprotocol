@@ -2,7 +2,7 @@ import { z } from "zod"
 import {
   FILE_REF_KINDS,
   type FileRef,
-} from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
 import {
   isBrowserFileLocator,
   resolveFile,

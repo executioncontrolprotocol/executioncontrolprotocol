@@ -8,7 +8,7 @@ import {
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 
-import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/types"
+import { modelGenerateInputSchema, modelGenerateOutputSchema } from "@executioncontrolprotocol/core/types"
 import { listOllamaModels } from "./list-models.js"
 
 export { listOllamaModels, type ListOllamaModelsOptions } from "./list-models.js"

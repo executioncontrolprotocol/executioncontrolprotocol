@@ -1,10 +1,10 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   EnvironmentDescriptor,
   SearchOptions,
   SearchResult,
   SearchResultItem
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 
 function tokenize(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean)

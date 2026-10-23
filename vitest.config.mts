@@ -39,7 +39,7 @@ export default defineConfig({
   root: repoRoot,
   resolve: {
     alias: {
-      "@executioncontrolprotocol/types": path.resolve(repoRoot, "packages/types/src/index.ts"),
+      "@executioncontrolprotocol/core/types": path.resolve(repoRoot, "packages/core/src/types/index.ts"),
       "@executioncontrolprotocol/core/compile": path.resolve(repoRoot, "packages/core/src/compile/entry.ts"),
       "@executioncontrolprotocol/core/loaders": path.resolve(repoRoot, "packages/core/src/loaders/index.ts"),
       "@executioncontrolprotocol/core/browser": path.resolve(repoRoot, "packages/core/src/browser.ts"),
@@ -114,7 +114,6 @@ export default defineConfig({
       // merged into coverage.exclude and zero the report (vitest#10164).
       include: [
         "packages/core/src/**/*.{ts,js}",
-        "packages/types/src/**/*.{ts,js}",
         "packages/policies/src/**/*.{ts,js}",
         "packages/cli/src/**/*.{ts,js}",
         "packages/mcp/src/**/*.{ts,js}",
@@ -142,7 +141,7 @@ export default defineConfig({
           branches: 55,
           statements: 70,
         },
-        "packages/types/src/**": {
+        "packages/core/src/types/**": {
           lines: 90,
           functions: 65,
           branches: 55,
@@ -176,7 +175,6 @@ export default defineConfig({
         test: {
           name: "unit",
           include: [
-            "packages/types/**/*.test.ts",
             "packages/core/test/**/*.test.ts",
             "packages/policies/test/**/*.test.ts",
             "packages/cli/test/**/*.test.ts",
@@ -194,6 +192,10 @@ export default defineConfig({
         extends: true,
         resolve: {
           alias: [
+            {
+              find: "@executioncontrolprotocol/core/types",
+              replacement: path.resolve(repoRoot, "packages/core/src/types/index.ts"),
+            },
             {
               find: "@executioncontrolprotocol/core",
               replacement: path.resolve(

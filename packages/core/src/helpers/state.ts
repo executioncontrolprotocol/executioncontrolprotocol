@@ -1,4 +1,4 @@
-import type { StateValue, StoreStateHandle } from "@executioncontrolprotocol/types"
+import type { StateValue, StoreStateHandle } from "../types/index.js"
 
 /** Options for optional state handles. */
 export interface StateOptions {

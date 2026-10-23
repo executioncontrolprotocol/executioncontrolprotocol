@@ -3,8 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { z } from "zod"
 import type { Ecp } from "@executioncontrolprotocol/core"
-import type { EcpEncodeInput, RunResult, WorkflowManifest } from "@executioncontrolprotocol/types"
-import { ECP_FORMATS } from "@executioncontrolprotocol/types"
+import type { EcpEncodeInput, RunResult, WorkflowManifest } from "@executioncontrolprotocol/core/types"
+import { ECP_FORMATS } from "@executioncontrolprotocol/core/types"
 import { createServer, type Server } from "node:http"
 
 /** Options for MCP server creation. @category MCP */
@@ -47,7 +47,7 @@ function registerEcpTools(server: McpServer, ecp: Ecp): void {
     "ecp.search",
     { query: z.string(), options: z.record(z.unknown()).optional() },
     async ({ query, options: searchOpts }) =>
-      toolText(await ecp.search(query, searchOpts as import("@executioncontrolprotocol/types").SearchOptions))
+      toolText(await ecp.search(query, searchOpts as import("@executioncontrolprotocol/core/types").SearchOptions))
   )
 
   server.tool(

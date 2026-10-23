@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ECP_INVOKE_ERROR_CODES, httpStatusForInvokeResult, type InvokeResult } from "../src/index.js"
+import { ECP_INVOKE_ERROR_CODES, httpStatusForInvokeResult, type InvokeResult } from "../../src/types/index.js"
 
 function result(code?: string, success = false): InvokeResult {
   return {

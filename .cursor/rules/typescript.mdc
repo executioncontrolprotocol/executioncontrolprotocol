@@ -13,8 +13,8 @@ alwaysApply: true
   types (`z.infer<typeof schema>`) are fine where a schema is the source of truth.
 - No `any` without an `eslint-disable` comment explaining why.
 - **Use the protocol's type aliases for ECP values,** not bare primitives. Ids, schema names,
-  versions and closed sets have dedicated types in `@executioncontrolprotocol/types` (in
-  `core/types` after Phase 2): for example `NamespacedId`, `EcpSchema`, `LATEST_ECP_VERSION`,
+  versions and closed sets have dedicated types in `@executioncontrolprotocol/core/types`:
+  for example `NamespacedId`, `EcpSchema`, `LATEST_ECP_VERSION`,
   `ValidationSeverity`. Primitives are for generic fields (`name`, `description`) and free-form
   content.
 - Run `pnpm run build` (`tsc -b`) and `pnpm run lint:ts` before committing.

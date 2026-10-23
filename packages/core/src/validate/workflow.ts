@@ -1,5 +1,5 @@
-import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
-import { ECP_PATCH_ERROR_CODES } from "@executioncontrolprotocol/types"
+import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "../types/index.js"
+import { ECP_PATCH_ERROR_CODES } from "../types/index.js"
 import { buildStepIndex } from "../patch/step-index.js"
 import { emptyValidationResult, workflowManifestSchema } from "./workflow-schema.js"
 import { zodIssuesToValidationIssues } from "./zod-mapper.js"
@@ -10,7 +10,7 @@ function collectStepCommits(
 ): void {
   for (const node of nodes) {
     if (!node.type || node.type === "step") {
-      const step = node as import("@executioncontrolprotocol/types").StepNode
+      const step = node as import("../types/index.js").StepNode
       if (step.as) {
         if (commits.has(step.as)) {
           commits.set(step.as, "duplicate")
@@ -108,7 +108,7 @@ function validateNodeAgainstDescriptor(
   result: ValidationResult
 ): void {
   if (!node.type || node.type === "step") {
-    const step = node as import("@executioncontrolprotocol/types").StepNode
+    const step = node as import("../types/index.js").StepNode
     const found = descriptor.capabilities.some((c) => c.id === step.uses)
     if (!found) {
       result.valid = false

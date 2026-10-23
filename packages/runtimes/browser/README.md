@@ -33,7 +33,7 @@ Use **`@executioncontrolprotocol/core/browser`** for `compileWorkflowSource` (no
 
 ## Dependencies
 
-This package depends on `@executioncontrolprotocol/core`, `@executioncontrolprotocol/types`, and `@executioncontrolprotocol/policies`. Model providers and format extensions are **app** dependencies.
+This package depends on `@executioncontrolprotocol/core` and `@executioncontrolprotocol/policies`. Protocol types come from `@executioncontrolprotocol/core/types`. Model providers and format extensions are **app** dependencies.
 
 ## Tests
 

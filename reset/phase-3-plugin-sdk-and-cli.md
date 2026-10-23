@@ -3,6 +3,13 @@
 > Status: Planned · Branch: `feat/phase-3-plugin-sdk-and-cli` · Depends on: Phase 2 ·
 > Plan: §4.2, §4.5, §6
 
+## Starting point after Phase 2
+
+Protocol types live at `@executioncontrolprotocol/core/types` (`packages/core/src/types`).
+There is no `packages/types` package. After Phase 2 PR 2 lands, hosts live in
+`packages/environments/{node,browser}` and definitions are data (no `catalogExtension`).
+Until then, PR 2 still has `packages/runtimes/*`, `withExtensions`, and `defineRuntime`.
+
 ## Goal
 
 Rebuild the `ecp` CLI as a thin oclif host with plugin management, and ship

@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^",
     "@executioncontrolprotocol/policies": "workspace:^",
     "@executioncontrolprotocol/secrets": "workspace:^",
     "@executioncontrolprotocol/process-env": "workspace:^"

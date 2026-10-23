@@ -9,7 +9,7 @@ import {
 import { compileWorkflowSource } from "../../src/compile/index.js"
 import { NODE_RUNTIME_ID, registerNodeRuntime } from "@executioncontrolprotocol/node"
 import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
 
 const fluentSource = `
 import { workflow, step } from "@executioncontrolprotocol/core";
@@ -61,7 +61,7 @@ describe("patch compaction loop", () => {
     expect(decodedWorkflow.success).toBe(true)
 
     const writeBriefId = (
-      (decodedWorkflow.result as WorkflowManifest).steps[0] as import("@executioncontrolprotocol/types").StepNode
+      (decodedWorkflow.result as WorkflowManifest).steps[0] as import("@executioncontrolprotocol/core/types").StepNode
     ).id
 
     const patched = await ecp

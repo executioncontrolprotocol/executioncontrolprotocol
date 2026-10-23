@@ -1,4 +1,4 @@
-import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
+import type { StepNode, WorkflowManifest, WorkflowNode } from "../types/index.js"
 import { slugify } from "../util/slug.js"
 
 function ensureUniqueId(base: string, used: Set<string>): string {

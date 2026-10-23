@@ -297,15 +297,14 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 
 | Path | Description |
 | ---- | ----------- |
-| [`packages/types/`](packages/types/) | Protocol types and generated JSON Schema (`@executioncontrolprotocol/types`) |
-| [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch (`@executioncontrolprotocol/core`; subpaths `@executioncontrolprotocol/core/node`, `@executioncontrolprotocol/core/browser`, …) |
+| [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch, protocol types (`@executioncontrolprotocol/core`, `@executioncontrolprotocol/core/types`) |
 | [`packages/runtimes/node/`](packages/runtimes/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/runtimes/browser/`](packages/runtimes/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
 | [`packages/vendor/`](packages/vendor/) | Vendor integrations (fal, image-sharp, Adobe, …) — [package list](packages/vendor/README.md) |
 | [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp test`, …) |
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
-| [`packages/policies/`](packages/policies/) | Budget, approval, state-control, registry-control |
+| [`packages/policies/`](packages/policies/) | Budget, approval, state-control (`registry-control` lives in core) |
 | [`examples/`](examples/) | Fluent workflow + environment examples (`workflow.ts`, `environment.ts`) |
 | [`RESET-PLAN.md`](RESET-PLAN.md) | CLI reset plan (source of truth during the milestone) |
 

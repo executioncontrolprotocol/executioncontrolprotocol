@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { findBannedMetadataProsePhrase } from "@executioncontrolprotocol/types"
+import { findBannedMetadataProsePhrase } from "@executioncontrolprotocol/core/types"
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url))
 

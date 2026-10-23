@@ -6,9 +6,14 @@
     "composite": true
   },
   "references": [
-    { "path": "../../types" },
-    { "path": "../../core" },
-    { "path": "../../policies" }
+    {
+      "path": "../../core"
+    },
+    {
+      "path": "../../policies"
+    }
   ],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

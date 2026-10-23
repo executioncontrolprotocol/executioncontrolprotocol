@@ -24,8 +24,7 @@
   },
   "dependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/policies": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^"
+    "@executioncontrolprotocol/policies": "workspace:^"
   },
   "devDependencies": {
     "@executioncontrolprotocol/format-toon": "workspace:^",

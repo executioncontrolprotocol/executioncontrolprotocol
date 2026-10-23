@@ -1,4 +1,4 @@
-import type { PolicyDecision, PolicyLifecycleEvent } from "@executioncontrolprotocol/types"
+import type { PolicyDecision, PolicyLifecycleEvent } from "../types/index.js"
 import type { HookDefinition } from "../definitions/types.js"
 import type { PolicyContext } from "./context.js"
 

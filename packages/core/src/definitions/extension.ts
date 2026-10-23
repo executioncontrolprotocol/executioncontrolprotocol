@@ -1,5 +1,5 @@
-import type { ExtensionMetadata, NamespacedId } from "@executioncontrolprotocol/types"
-import { parseExtensionMetadata } from "@executioncontrolprotocol/types"
+import type { ExtensionMetadata, NamespacedId } from "../types/index.js"
+import { parseExtensionMetadata } from "../types/index.js"
 import { z } from "zod"
 import type {
   CapabilityDefinition,

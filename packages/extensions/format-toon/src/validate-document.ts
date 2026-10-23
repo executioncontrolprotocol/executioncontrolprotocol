@@ -3,8 +3,8 @@ import {
   validateWorkflow,
   zodIssuesToValidationIssues,
 } from "@executioncontrolprotocol/core"
-import type { EcpSchema, ValidationIssue, ValidationResult } from "@executioncontrolprotocol/types"
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import type { EcpSchema, ValidationIssue, ValidationResult } from "@executioncontrolprotocol/core/types"
+import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/core/types"
 import { z } from "zod"
 
 const bindingSchema = z.object({
@@ -156,7 +156,7 @@ export function validateEcpDocument(
 
   switch (resolved) {
     case "@executioncontrolprotocol.workflow":
-      return validateWorkflow(document as import("@executioncontrolprotocol/types").WorkflowManifest)
+      return validateWorkflow(document as import("@executioncontrolprotocol/core/types").WorkflowManifest)
     case "@executioncontrolprotocol.environment":
       return zodToResult(environmentManifestSchema.safeParse(document))
     case "@executioncontrolprotocol.environment.describe":

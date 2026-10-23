@@ -31,7 +31,7 @@
     "check": "pnpm run build && pnpm run generate:schema && pnpm run lint && pnpm run secrets:scan && pnpm run check:no-file-deps && pnpm run test:coverage && pnpm run test:integration && pnpm run test:e2e",
     "check:no-file-deps": "node scripts/check-no-file-deps.mjs",
     "secrets:scan": "secretlint \"**/*\"",
-    "generate:schema": "pnpm --filter @executioncontrolprotocol/types run generate:schema",
+    "generate:schema": "pnpm --filter @executioncontrolprotocol/core run generate:schema",
     "version:bump": "node scripts/bump-all-ecp-versions.mjs",
     "version:check-vs-npm": "node scripts/check-version-gt-published.mjs",
     "publish:workspaces": "node scripts/publish-workspaces.mjs",

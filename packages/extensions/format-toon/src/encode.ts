@@ -2,8 +2,8 @@ import {
   ECP_ENCODING_ERROR_CODES,
   ECP_FORMATS,
   LATEST_ECP_VERSION,
-} from "@executioncontrolprotocol/types"
-import type { EcpEncodeInput, EncodeResult } from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
+import type { EcpEncodeInput, EncodeResult } from "@executioncontrolprotocol/core/types"
 import { EcpError, encodeFailure, validateWorkflow, type UtilityCapabilityContext } from "@executioncontrolprotocol/core"
 import { encodeDocumentToToon } from "./toon-codec.js"
 import { validateEcpDocument, validationToDiagnostics } from "./validate-document.js"
@@ -28,7 +28,7 @@ export function encodeToToon(
   const diagnostics = validationToDiagnostics(validation)
 
   if (sourceSchema === "@executioncontrolprotocol.workflow") {
-    const wfValidation = validateWorkflow(input.source as import("@executioncontrolprotocol/types").WorkflowManifest)
+    const wfValidation = validateWorkflow(input.source as import("@executioncontrolprotocol/core/types").WorkflowManifest)
     if (!wfValidation.valid) {
       return encodeFailure({
         format: ECP_FORMATS.TOON,

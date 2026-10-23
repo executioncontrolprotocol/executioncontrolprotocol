@@ -1,8 +1,8 @@
 import {
   ECP_ENCODING_ERROR_CODES,
   LATEST_ECP_VERSION,
-} from "@executioncontrolprotocol/types"
-import type { DecodeResult, EcpDecodeInput, EcpSchema } from "@executioncontrolprotocol/types"
+} from "@executioncontrolprotocol/core/types"
+import type { DecodeResult, EcpDecodeInput, EcpSchema } from "@executioncontrolprotocol/core/types"
 import { EcpError, decodeFailure, validateWorkflow, type UtilityCapabilityContext } from "@executioncontrolprotocol/core"
 import { decodeDocumentFromToon } from "./toon-codec.js"
 import { validateEcpDocument, validationToDiagnostics } from "./validate-document.js"
@@ -62,7 +62,7 @@ export function decodeFromToon(
 
   let validation = validateEcpDocument(document, targetSchema)
   if (targetSchema === "@executioncontrolprotocol.workflow") {
-    validation = validateWorkflow(document as import("@executioncontrolprotocol/types").WorkflowManifest)
+    validation = validateWorkflow(document as import("@executioncontrolprotocol/core/types").WorkflowManifest)
   }
 
   const diagnostics = validationToDiagnostics(validation)

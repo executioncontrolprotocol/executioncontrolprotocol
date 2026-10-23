@@ -6,7 +6,7 @@ import {
   fileRefSchemaOptions,
   fileRefValueSchemaHint,
   isFileRefSchema,
-} from "../src/file-ref.js"
+} from "../../src/types/file-ref.js"
 
 describe("fileRefSchema", () => {
   it("parses all four portable kinds", () => {

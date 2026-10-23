@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest"
 import { defineExtension, capabilityFor, globalRegistry, catalogExtension } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import { validateEnvironmentWithWorkflow } from "../src/validate/environment.js"
-import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/core/types"
 
 const nodeOnlyHostExtension = defineExtension("@executioncontrolprotocol", "test-node-only")
   .withSupportedRuntimes(["@executioncontrolprotocol/node"])

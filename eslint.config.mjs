@@ -23,7 +23,7 @@ export default tseslint.config(
     },
   },
   // Package boundary: extensions are environment-agnostic and must
-  // depend only on @executioncontrolprotocol/types + @executioncontrolprotocol/core. They may not import host packages.
+  // depend only on @executioncontrolprotocol/core (including ./types). They may not import host packages.
   // Scoped to `src` so integration tests may still use a host runtime.
   {
     files: [
@@ -47,7 +47,7 @@ export default tseslint.config(
                 "@executioncontrolprotocol/mcp/*",
               ],
               message:
-                "Extensions must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/types and @executioncontrolprotocol/core only.",
+                "Extensions must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/core (including ./types) only.",
             },
           ],
         },
@@ -71,17 +71,20 @@ export default tseslint.config(
                 "@executioncontrolprotocol/cli/*",
                 "@executioncontrolprotocol/mcp",
                 "@executioncontrolprotocol/mcp/*",
-                "@executioncontrolprotocol/core/*",
-                "@executioncontrolprotocol/types/*",
+                "@executioncontrolprotocol/core/node",
+                "@executioncontrolprotocol/core/node/*",
+                "@executioncontrolprotocol/core/browser",
+                "@executioncontrolprotocol/core/browser/*",
+                "@executioncontrolprotocol/core/compile",
+                "@executioncontrolprotocol/core/compile/*",
+                "@executioncontrolprotocol/core/loaders",
+                "@executioncontrolprotocol/core/loaders/*",
                 "**/packages/core/src/**",
-                "**/packages/types/src/**",
                 "**/../../core/**",
-                "**/../../types/**",
                 "**/../../../core/**",
-                "**/../../../types/**",
               ],
               message:
-                "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/types entry points, the same surface external authors get.",
+                "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/core/types entry points, the same surface external authors get.",
             },
           ],
         },
@@ -89,7 +92,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/core/**/src/**/*.ts", "packages/types/**/src/**/*.ts"],
+    files: ["packages/core/**/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -105,7 +108,7 @@ export default tseslint.config(
                 "**/packages/vendor/**",
               ],
               message:
-                "Core and types must not import vendor extensions.",
+                "Core must not import vendor extensions.",
             },
           ],
         },

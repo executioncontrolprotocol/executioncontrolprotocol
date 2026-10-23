@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { workflow, step, applyPatch, buildStepIndex, parallel } from "../../src/index.js"
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
 
 function weeklyBriefManifest(): WorkflowManifest {
   return workflow("Weekly Brief")
@@ -34,7 +34,7 @@ describe("applyPatch", () => {
     const index = buildStepIndex(patched.result!)
     const path = index.pathsById.get("write-brief")!
     const stepNode = path.match(/^steps\[(\d+)\]/)?.[1]
-    const stepAt = patched.result!.steps[Number(stepNode)] as import("@executioncontrolprotocol/types").StepNode
+    const stepAt = patched.result!.steps[Number(stepNode)] as import("@executioncontrolprotocol/core/types").StepNode
     expect(stepAt.input?.prompt).toBe("Create a concise executive brief.")
   })
 
@@ -156,7 +156,7 @@ describe("applyPatch", () => {
     const index = buildStepIndex(patched.result!)
     const stepNode = patched.result!.steps[
       Number(index.pathsById.get("write-brief")!.match(/^steps\[(\d+)\]/)?.[1])
-    ] as import("@executioncontrolprotocol/types").StepNode
+    ] as import("@executioncontrolprotocol/core/types").StepNode
     expect(stepNode.input?.options).toMatchObject({ tone: "executive", maxWords: 100 })
   })
 
@@ -174,7 +174,7 @@ describe("applyPatch", () => {
     const index = buildStepIndex(patched.result!)
     const stepNode = patched.result!.steps[
       Number(index.pathsById.get("write-brief")!.match(/^steps\[(\d+)\]/)?.[1])
-    ] as import("@executioncontrolprotocol/types").StepNode
+    ] as import("@executioncontrolprotocol/core/types").StepNode
     expect(stepNode.input).toEqual({ prompt: "Only this remains." })
   })
 
@@ -214,8 +214,8 @@ describe("applyPatch", () => {
         ]),
       ])
       .toManifest()
-    const parallelNode = manifest.steps[0] as import("@executioncontrolprotocol/types").ParallelNode
-    const innerStep = parallelNode.branches[0]![0] as import("@executioncontrolprotocol/types").StepNode
+    const parallelNode = manifest.steps[0] as import("@executioncontrolprotocol/core/types").ParallelNode
+    const innerStep = parallelNode.branches[0]![0] as import("@executioncontrolprotocol/core/types").StepNode
     const index = buildStepIndex(manifest)
     const innerPath = index.pathsById.get(innerStep.id)
     expect(innerPath).toMatch(/^steps\[0\]\.branches\[/)
@@ -235,7 +235,7 @@ describe("assignUniqueStepIds via toManifest", () => {
       ])
       .toManifest()
 
-    const ids = manifest.steps.map((s) => (s as import("@executioncontrolprotocol/types").StepNode).id)
+    const ids = manifest.steps.map((s) => (s as import("@executioncontrolprotocol/core/types").StepNode).id)
     expect(new Set(ids).size).toBe(2)
   })
 })

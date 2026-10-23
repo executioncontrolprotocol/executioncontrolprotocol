@@ -39,8 +39,7 @@ Vendor package names are listed in [`packages/vendor/README.md`](packages/vendor
 
 Core surface:
 
-- `@executioncontrolprotocol/types` — protocol types and generated JSON Schemas (`dist/schemas/`)
-- `@executioncontrolprotocol/core` — fluent API, environment, local runtime
+- `@executioncontrolprotocol/core` — fluent API, environment, local runtime, protocol types (`./types`, `dist/schemas/`)
 - `@executioncontrolprotocol/cli` — `ecp` Oclif CLI
 - `@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser` — runtime hosts
 - `@executioncontrolprotocol/policies`, `@executioncontrolprotocol/mcp`, format/extension packages, and harness packages as needed

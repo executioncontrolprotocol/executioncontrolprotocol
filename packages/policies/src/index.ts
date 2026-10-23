@@ -1,15 +1,14 @@
 import type { PolicyContext } from "@executioncontrolprotocol/core"
-import type { PolicyDecision } from "@executioncontrolprotocol/types"
+import type { PolicyDecision } from "@executioncontrolprotocol/core/types"
 import { definePolicy, hook, globalRegistry } from "@executioncontrolprotocol/core"
 import { z } from "zod"
-import { registerRegistryControlPolicy } from "./registry-control.js"
 
 type PolicyHookFn = (
   ctx: PolicyContext & { config: Record<string, unknown> }
 ) => PolicyDecision | void | Promise<PolicyDecision | void>
 
 function policyHook(
-  event: import("@executioncontrolprotocol/types").PolicyLifecycleEvent,
+  event: import("@executioncontrolprotocol/core/types").PolicyLifecycleEvent,
   fn: PolicyHookFn
 ) {
   return hook(event, (lifecycleCtx) =>
@@ -167,14 +166,7 @@ export const stateControlPolicy = definePolicy("@executioncontrolprotocol", "sta
   ])
   .build()
 
-export {
-  registryControlPolicy,
-  registerRegistryControlPolicy,
-  REGISTRY_CONTROL_POLICY_ID,
-  type RegistryControlPolicyConfig,
-} from "./registry-control.js"
-
-/** Register all standard policies. @category Policies */
+/** Register budget, approval, and state-control. @category Policies */
 export async function registerStandardPolicies(registry = globalRegistry): Promise<void> {
   if (!registry.getPolicy("@executioncontrolprotocol/budget")) {
     await registry.registerPolicy(budgetPolicy)
@@ -185,5 +177,4 @@ export async function registerStandardPolicies(registry = globalRegistry): Promi
   if (!registry.getPolicy("@executioncontrolprotocol/state-control")) {
     await registry.registerPolicy(stateControlPolicy)
   }
-  await registerRegistryControlPolicy(registry)
 }

@@ -5,6 +5,8 @@
     "rootDir": "src",
     "composite": true
   },
-  "include": ["src/**/*.ts", "src/import-meta-glob.d.ts"],
-  "references": [{ "path": "../types" }]
+  "include": [
+    "src/**/*.ts",
+    "src/import-meta-glob.d.ts"
+  ]
 }

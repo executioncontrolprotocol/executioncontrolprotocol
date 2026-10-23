@@ -1,4 +1,4 @@
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "../types/index.js"
 import { extractWorkflowFromModule } from "./extract-workflow-module.js"
 
 export { extractWorkflowFromModule } from "./extract-workflow-module.js"

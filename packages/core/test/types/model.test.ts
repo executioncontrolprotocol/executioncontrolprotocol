@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { modelGenerateInputSchema } from "../src/model.js"
+import { modelGenerateInputSchema } from "../../src/types/model.js"
 
 describe("modelGenerateInputSchema", () => {
   it("requires prompt", () => {

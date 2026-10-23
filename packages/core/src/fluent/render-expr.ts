@@ -1,4 +1,4 @@
-import type { ExprValue } from "@executioncontrolprotocol/types"
+import type { ExprValue } from "../types/index.js"
 
 /**
  * Render expression to Fluent `expr.*` call.

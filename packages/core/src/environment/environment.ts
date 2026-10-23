@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   DescribeQuery,
   EnvironmentDescriptor,
@@ -10,8 +10,8 @@ import type {
   StepRunRecord,
   ValidationResult,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import type { NamespacedId } from "../types/index.js"
 import { extension, type ExtensionBindingBuilder } from "../bindings/extension.js"
 import { policy, type PolicyBindingBuilder } from "../bindings/policy.js"
 import type { RuntimeBindingBuilder } from "../bindings/runtime.js"
@@ -183,7 +183,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   private collectPolicyHooks(
-    event: import("@executioncontrolprotocol/types").PolicyLifecycleEvent
+    event: import("../types/index.js").PolicyLifecycleEvent
   ): Array<{ hook: HookDefinition; config: Record<string, unknown> }> {
     return this.policyBindings.flatMap((b) => {
       const id = resolveId(b.getRef())
@@ -224,7 +224,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   private async emitEnvironmentEvent(
-    event: import("@executioncontrolprotocol/types").EnvironmentLifecycleEvent
+    event: import("../types/index.js").EnvironmentLifecycleEvent
   ): Promise<void> {
     const base = {
       event,
@@ -454,7 +454,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   /** @internal {@link EcpImpl} — invoke. */
-  ecpInvoke(capabilityId: import("@executioncontrolprotocol/types").CapabilityId) {
+  ecpInvoke(capabilityId: import("../types/index.js").CapabilityId) {
     return createInvokeBuilder(this, capabilityId)
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createUsageLedger } from "@executioncontrolprotocol/core"
 import type { PolicyContext, UsageLedger } from "@executioncontrolprotocol/core"
-import type { PolicyDecision, PolicyLifecycleEvent } from "@executioncontrolprotocol/types"
+import type { PolicyDecision, PolicyLifecycleEvent } from "@executioncontrolprotocol/core/types"
 import { budgetPolicy } from "../src/index.js"
 
 function ledger(values: Partial<Pick<UsageLedger, "modelCalls" | "costUsd" | "tokens" | "retries">>): UsageLedger {
