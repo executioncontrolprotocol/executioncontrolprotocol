@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { globalRegistry } from "@executioncontrolprotocol/core"
+import { Registry } from "@executioncontrolprotocol/core"
 import "@executioncontrolprotocol/node"
 
 const uploadData = vi.fn()
@@ -84,7 +84,7 @@ const ctx = {
 
 describe("@executioncontrolprotocol/azure-blob-storage", () => {
   beforeEach(async () => {
-    await registerAzureBlobStorageExtension()
+    await registerAzureBlobStorageExtension(new Registry())
     uploadData.mockReset()
     download.mockReset()
     generateBlobSASQueryParameters.mockReset()
@@ -101,7 +101,7 @@ describe("@executioncontrolprotocol/azure-blob-storage", () => {
   })
 
   it("registers upload, create-sas-url, and download", () => {
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/azure-blob-storage")
+    const ext = azureBlobStorageExtension
     expect(ext).toBe(azureBlobStorageExtension)
     const ids = ext?.capabilities.map((c) => c.id) ?? []
     expect(ids).toEqual([

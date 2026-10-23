@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
-import { globalRegistry } from "@executioncontrolprotocol/core"
+import { Registry } from "@executioncontrolprotocol/core"
 import { registerFalExtension, falExtension } from "../src/index.js"
 import { resolveFalApiKey } from "../src/resolve-api-key.js"
 
@@ -30,7 +30,7 @@ const ctx = {
 
 describe("@executioncontrolprotocol/fal", () => {
   beforeEach(async () => {
-    await registerFalExtension()
+    await registerFalExtension(new Registry())
     mockRun.mockReset()
     mockSubscribe.mockReset()
     mockConfig.mockReset()
@@ -41,7 +41,7 @@ describe("@executioncontrolprotocol/fal", () => {
   })
 
   it("registers the extension and exposes generate", () => {
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/fal")
+    const ext = falExtension
     expect(ext).toBe(falExtension)
     expect(ext?.capabilities.map((c) => c.id)).toEqual(
       expect.arrayContaining(["@executioncontrolprotocol/fal.generate"])

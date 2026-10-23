@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest"
-import { createCapabilityArtifactStore, globalRegistry } from "@executioncontrolprotocol/core"
+import { createCapabilityArtifactStore, Registry } from "@executioncontrolprotocol/core"
 import {
   registerImageSharpExtension,
   imageSharpExtension,
@@ -46,11 +46,11 @@ const bufferImage = {
 describe("@executioncontrolprotocol/image-sharp", () => {
   beforeEach(async () => {
     clearImageArtifactStore()
-    await registerImageSharpExtension()
+    await registerImageSharpExtension(new Registry())
   })
 
   it("registers extension with supported runtimes", () => {
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/image-sharp")
+    const ext = imageSharpExtension
     expect(ext?.supportedEnvironments).toEqual([{ id: "@executioncontrolprotocol/node" }])
     expect(ext?.capabilities.length).toBeGreaterThanOrEqual(10)
     expect(ext?.capabilities.every((cap) => cap.execution === undefined)).toBe(true)

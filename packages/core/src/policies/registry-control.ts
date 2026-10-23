@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { definePolicy } from "../definitions/policy.js"
 import { hook } from "../definitions/hook.js"
-import { globalRegistry } from "../registry/registry.js"
+import type { Registry } from "../registry/registry.js"
 import { matchesAnyNamespace } from "../registry/namespace.js"
 import type { PolicyContext } from "../runtime/context.js"
 import type { PolicyDecision, PolicyLifecycleEvent } from "../types/index.js"
@@ -95,7 +95,7 @@ export const registryControlPolicy = definePolicy("@executioncontrolprotocol", "
 export { POLICY_ID as REGISTRY_CONTROL_POLICY_ID }
 
 /** Register `@executioncontrolprotocol/registry-control` on a registry. @category Policies */
-export async function registerRegistryControlPolicy(registry = globalRegistry): Promise<void> {
+export async function registerRegistryControlPolicy(registry: Registry): Promise<void> {
   if (!registry.getPolicy(POLICY_ID)) {
     await registry.registerPolicy(registryControlPolicy)
   }

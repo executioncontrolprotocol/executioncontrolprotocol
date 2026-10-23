@@ -64,7 +64,6 @@ export {
   hook,
   Environment,
   Registry,
-  globalRegistry,
   BROWSER_FILE_LOCATOR_PREFIX,
   isBrowserFileLocator,
   createBrowserFileLocator,

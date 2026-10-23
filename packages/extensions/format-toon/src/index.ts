@@ -1,4 +1,4 @@
-import { globalRegistry } from "@executioncontrolprotocol/core"
+import type { Registry } from "@executioncontrolprotocol/core"
 import { formatToonExtension } from "./extension.js"
 
 export { formatToonExtension } from "./extension.js"
@@ -23,7 +23,7 @@ export { getEcpSchema } from "./schema.js"
 
 /** Register TOON format extension on the registry. @category Extensions */
 export async function registerFormatToonExtension(
-  registry = globalRegistry
+  registry: Registry
 ): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/format-toon")) {
     await registry.registerExtension(formatToonExtension)

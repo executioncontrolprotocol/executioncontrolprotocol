@@ -1,5 +1,4 @@
 import {
-  globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
 import {
@@ -33,7 +32,7 @@ export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
  * @category Extensions
  */
 export async function registerAdobeFireflyServicesExtension(
-  registry: Registry = globalRegistry,
+  registry: Registry,
 ): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(adobeFireflyServicesExtension)

@@ -1,7 +1,7 @@
 import {
   defineExtension,
   hook,
-  globalRegistry,
+  type Registry,
   RegistryRegistrationDeniedError,
   type Environment,
   type EnvironmentLifecycleHost,
@@ -138,7 +138,7 @@ export const browserRegistryExtension = defineExtension("@executioncontrolprotoc
   .build()
 
 /** Register `@executioncontrolprotocol/browser-registry`. */
-export async function registerBrowserRegistryExtension(registry = globalRegistry): Promise<void> {
+export async function registerBrowserRegistryExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(browserRegistryExtension)
   }

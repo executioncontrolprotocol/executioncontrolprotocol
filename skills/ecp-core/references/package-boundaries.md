@@ -17,7 +17,7 @@ Protocol types live at `@executioncontrolprotocol/core/types`. `registry-control
 | `@executioncontrolprotocol/plugin-sdk` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library (Phase 3) |
 | `@executioncontrolprotocol/mcp` | MCP server and `ecp mcp serve` |
 | `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin (Phase 8) |
-| `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk` only (Phase 5) |
+| `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk`. `plugin-jsonata` shipped in Phase 3; the rest move in Phase 5 |
 
 Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.
 Bind `extension(definition)` on `environment(id, label?).with([...])`.

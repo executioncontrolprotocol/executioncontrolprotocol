@@ -1,0 +1,34 @@
+{
+  "name": "@executioncontrolprotocol/plugin-sdk",
+  "version": "0.14.1",
+  "description": "Generate oclif commands and plugin files from ECP definitions",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@oclif/core": "^5.1.8"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  }
+}

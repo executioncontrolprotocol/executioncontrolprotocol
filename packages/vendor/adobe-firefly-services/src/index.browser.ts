@@ -1,7 +1,4 @@
-import {
-  globalRegistry,
-  type Registry,
-} from "@executioncontrolprotocol/core"
+import { type Registry } from "@executioncontrolprotocol/core"
 import {
   adobeGeneratedCapabilities,
   ADOBE_GENERATED_OPERATION_COUNT,
@@ -25,7 +22,7 @@ export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
  * @category Extensions
  */
 export async function registerAdobeFireflyServicesExtension(
-  registry: Registry = globalRegistry,
+  registry: Registry,
 ): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(adobeFireflyServicesExtension)

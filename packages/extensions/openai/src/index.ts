@@ -1,7 +1,6 @@
 import {
   defineExtension,
   capabilityFor,
-  globalRegistry,
   toProviderChatTurns,
   type Registry,
   NODE_ENVIRONMENT_ID
@@ -99,7 +98,7 @@ export const openaiExtension = defineExtension("@executioncontrolprotocol", "ope
   .build()
 
 /** Register @executioncontrolprotocol/openai. */
-export async function registerOpenaiExtension(registry: Registry = globalRegistry): Promise<void> {
+export async function registerOpenaiExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/openai")) {
     await registry.registerExtension(openaiExtension)
   }

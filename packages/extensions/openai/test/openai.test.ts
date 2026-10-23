@@ -1,10 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
-import { openaiExtension, registerOpenaiExtension } from "../src/index.js"
-import { globalRegistry } from "@executioncontrolprotocol/core"
+import { openaiExtension } from "../src/index.js"
 
 describe("@executioncontrolprotocol/openai", () => {
   beforeEach(() => {
-    registerOpenaiExtension()
     process.env.OPENAI_API_KEY = "test-key"
   })
 
@@ -25,7 +23,7 @@ describe("@executioncontrolprotocol/openai", () => {
         }),
       }))
     )
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/openai")
+    const ext = openaiExtension
     const generate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.generate")
     const result = await generate?.handler(
       { prompt: "hello", system: "be brief" },
@@ -41,7 +39,7 @@ describe("@executioncontrolprotocol/openai", () => {
       }),
     })
     vi.stubGlobal("fetch", fetchMock)
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/openai")
+    const ext = openaiExtension
     const generate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.generate")
     await generate?.handler(
       {

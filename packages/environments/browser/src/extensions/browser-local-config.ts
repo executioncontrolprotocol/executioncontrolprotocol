@@ -1,7 +1,7 @@
 import {
   defineExtension,
   hook,
-  globalRegistry,
+  type Registry,
   BROWSER_ENVIRONMENT_ID,
   type EnvironmentConfigResolver,
   type LifecycleContext,
@@ -72,7 +72,7 @@ export const browserLocalConfigExtension = defineExtension("@executioncontrolpro
 
 /** Register `@executioncontrolprotocol/browser-local-config`. */
 export async function registerBrowserLocalConfigExtension(
-  registry = globalRegistry
+  registry: Registry
 ): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(browserLocalConfigExtension)

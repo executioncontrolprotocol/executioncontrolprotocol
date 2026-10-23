@@ -1,5 +1,6 @@
 node_modules/
-dist/
+**/dist/**
+!**/dist/oclif.js
 *.tsbuildinfo
 
 # Vitest / V8 coverage (never commit)

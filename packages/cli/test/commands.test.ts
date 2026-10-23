@@ -106,6 +106,14 @@ describe("ecp CLI commands", () => {
       const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
       expect(descriptor.capabilities.some((c) => c.id.includes("echo"))).toBe(true)
     }, 30_000)
+
+    it("prints the --json envelope", async () => {
+      const res = await runCli(["describe", "--env", ECHO_ENV, "--json"])
+      expect(res.code).toBe(0)
+      const body = JSON.parse(res.stdout) as { ok: boolean; data: { capabilities: { id: string }[] } }
+      expect(body.ok).toBe(true)
+      expect(body.data.capabilities.some((c) => c.id.includes("echo"))).toBe(true)
+    }, 30_000)
   })
 
   describe("search", () => {

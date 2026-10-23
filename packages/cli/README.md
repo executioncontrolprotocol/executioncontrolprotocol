@@ -1,7 +1,8 @@
 # @executioncontrolprotocol/cli
 
-ECP command-line interface for running **workflows** (`@executioncontrolprotocol.workflow`) in configured
-**environments** (runtime + extensions + policies).
+ECP (Execution Control Protocol) command-line interface. An oclif 5 host whose own commands
+are `defineOperation` definitions compiled by `@executioncontrolprotocol/plugin-sdk`. Plugin
+commands come from extension definitions; there are no hand-written command classes.
 
 This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosystem:
 
@@ -11,6 +12,7 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Run workflows and print structured run results
 - Invoke a single capability outside a workflow (`ecp invoke`)
 - Test workflows with a persistent session (`ecp test start|run|rerun|status`)
+- Author and check plugins (`ecp plugins new|build|check`) next to oclif's `plugins install|link`
 - Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
 For the architecture and monorepo package boundaries, start with
@@ -103,9 +105,27 @@ ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environmen
 
 Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
 
+Pass `--json` for `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
+
+### Plugins
+
+```sh
+ecp plugins new my-transform
+ecp plugins build
+ecp plugins check
+ecp plugins link plugins/plugin-jsonata
+ecp jsonata transform --expression '$.a' --input payload.json --json
+ecp discover jsonata --json
+```
+
+`--env` is required on `run`, `validate`, and `ecp test *` until Phase 4. `describe`, `search`,
+and `invoke` take `--env` as an optional override of the process host (installed plugins).
+
 ## Related packages
 
 - [`@executioncontrolprotocol/core`](../core/README.md): host-agnostic core + fluent API
+- [`@executioncontrolprotocol/plugin-sdk`](../plugin-sdk/README.md): command generation and plugin build library
 - [`@executioncontrolprotocol/node`](../environments/node/README.md): Node environment used by CLI examples
 - [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents
+- [`@executioncontrolprotocol/plugin-jsonata`](../../plugins/plugin-jsonata/README.md): reference plugin

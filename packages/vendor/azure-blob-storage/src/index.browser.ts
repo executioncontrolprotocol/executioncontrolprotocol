@@ -1,7 +1,4 @@
-import {
-  globalRegistry,
-  type Registry,
-} from "@executioncontrolprotocol/core"
+import { type Registry } from "@executioncontrolprotocol/core"
 import { handleMixedUpload } from "./capabilities/upload-mixed.js"
 import { buildAzureBlobCapabilities } from "./capability-catalog.js"
 import { buildAzureBlobStorageExtension, EXT_ID, HOST_HOP_MESSAGE } from "./shared.js"
@@ -28,7 +25,7 @@ export const azureBlobStorageExtension = buildAzureBlobStorageExtension(
  * @category Extensions
  */
 export async function registerAzureBlobStorageExtension(
-  registry: Registry = globalRegistry,
+  registry: Registry,
 ): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(azureBlobStorageExtension)

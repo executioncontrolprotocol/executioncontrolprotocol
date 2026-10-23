@@ -70,7 +70,6 @@ export {
   hook,
   Environment,
   Registry,
-  globalRegistry,
   registerTestExtension,
   testExtension,
   validateWorkflow,

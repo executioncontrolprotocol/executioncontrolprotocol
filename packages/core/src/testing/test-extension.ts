@@ -1,6 +1,6 @@
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
-import { globalRegistry } from "../registry/registry.js"
+import type { Registry } from "../registry/registry.js"
 import { z } from "zod"
 
 const TestStubInput = z.object({ payload: z.unknown().optional() })
@@ -125,9 +125,7 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
   .build()
 
 /** Register @executioncontrolprotocol/test capabilities for examples and tests. */
-export async function registerTestExtension(
-  registry = globalRegistry
-): Promise<void> {
+export async function registerTestExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/test")) {
     await registry.registerExtension(testExtension)
   }

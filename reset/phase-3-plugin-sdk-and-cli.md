@@ -1,6 +1,6 @@
 # Phase 3 — Plugin SDK and CLI
 
-> Status: Planned · Branch: `feat/phase-3-plugin-sdk-and-cli` · Depends on: Phase 2 ·
+> Status: Done · Branch: `feat/phase-3-plugin-sdk-and-cli` · Depends on: Phase 2 ·
 > Plan: §4.2, §4.5, §6
 
 ## Starting point after Phase 2
@@ -270,17 +270,38 @@ Reserve root command names (`init`, `search`, `describe`, `validate`, `install`,
 
 ## Exit criteria
 
-- [ ] `plugin-sdk` is published-ready (built, tested, README with the contract), including the
+- [x] `plugin-sdk` is published-ready (built, tested, README with the contract), including the
       plugin build library.
-- [ ] `ecp plugins new|build|check` ship bundled in the CLI.
-- [ ] `plugin-jsonata` and `packages/cli` contain no hand-written oclif command classes; the
+- [x] `ecp plugins new|build|check` ship bundled in the CLI.
+- [x] `plugin-jsonata` and `packages/cli` contain no hand-written oclif command classes; the
       CLI's own commands are operations.
-- [ ] `ecp plugins link plugins/plugin-jsonata` gives a working `ecp jsonata transform` with
+- [x] `ecp plugins link plugins/plugin-jsonata` gives a working `ecp jsonata transform` with
       `--json`.
-- [ ] `discover`, `update`, `rollback`, the not-found hook and the trust hook work and are
+- [x] `discover`, `update`, `rollback`, the not-found hook and the trust hook work and are
       tested.
-- [ ] `globalRegistry` is gone; the CLI host owns the registry.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] `globalRegistry` is gone; the CLI host owns the registry.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+
+## Outcome
+
+Shipped on `feat/phase-3-plugin-sdk-and-cli` into `milestone/cli-reset`.
+
+- `@executioncontrolprotocol/plugin-sdk` generates commands (`toCommands`, `EcpCommand`,
+  `defineOperation`) and plugin files (`scaffoldPlugin`, `buildPlugin`, `checkPlugin`).
+- CLI is `@oclif/core` **5.1.9** with explicit `COMMANDS`, bundled help/plugins/not-found/
+  autocomplete/warn-if-update-available. No JIT `mcp` / `plugin-app` entries (Phases 7 and 8).
+- Host commands are operations. `--env` stays **required** on `run` / `validate` / `ecp test *`.
+  `describe` / `search` / `invoke` take optional `--env`. Envelope is `--json` only.
+- `ecp.invoke` stays fluent; generated commands call `.with(input).process()`.
+- `plugins/plugin-jsonata` is the reference plugin (`@executioncontrolprotocol/plugin-jsonata`).
+  Capability id `@executioncontrolprotocol/jsonata.transform` is unchanged.
+- `globalRegistry` is deleted. `register*` helpers take an explicit `Registry`.
+- `ECP_INPUT_INVALID`, `ECP_PLUGINS_MISSING`, `ECP_PLUGIN_DENIED` are introduced.
+- Unknown topics map to `@executioncontrolprotocol/plugin-<topic>` and exit 3 with
+  `ECP_PLUGINS_MISSING` (first-party plugins are unpublished until later phases).
+- `ecp --help` with bundled plugins is ~900 ms warm on Windows; the 300 ms target in the task
+  list is not achievable with oclif 5 plus the five bundled plugins. CI records the number
+  with a 2 s cap.
 
 ## Risks
 
