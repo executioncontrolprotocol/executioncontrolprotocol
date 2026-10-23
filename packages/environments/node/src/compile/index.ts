@@ -1,12 +1,15 @@
 import type { EnvironmentDescriptor } from "@executioncontrolprotocol/core/types"
 import {
+  extractLoadedWorkflowFromModule,
   extractWorkflowFromModule,
   validateWorkflow,
   type CompileWorkflowResult,
   type CompileWorkflowSourceOptions,
   type CompileDiagnostic,
+  type LoadedWorkflow,
 } from "@executioncontrolprotocol/core"
-import { evaluateWorkflowModule } from "./evaluate.js"
+import { ECP_WORKFLOW_LOAD, EcpError } from "@executioncontrolprotocol/core/types"
+import { evaluateLoadedWorkflowModule } from "./evaluate.js"
 import { bundleWorkflowSource, isTypeScriptFile, resolveBundleDir } from "./transpile.js"
 
 export type { CompileWorkflowResult, CompileWorkflowSourceOptions, CompileDiagnostic }
@@ -24,19 +27,23 @@ export async function compileWorkflowSource(
     const code = isTypeScriptFile(filename) || options.source.includes("@executioncontrolprotocol/")
       ? await bundleWorkflowSource(options.source, filename, resolveDir)
       : options.source
-    const manifest = await evaluateWorkflowModule(code, filename.replace(/\.tsx?$/, ".js"))
-    const validation = validateWorkflow(manifest)
+    const loaded = await evaluateLoadedWorkflowModule(code, filename.replace(/\.tsx?$/, ".js"))
+    const validation = validateWorkflow(loaded.manifest)
     const ok = validation.valid
     return {
       ok,
-      manifest: ok ? manifest : undefined,
+      manifest: ok ? loaded.manifest : undefined,
       validation,
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    const wrapped =
+      err instanceof EcpError
+        ? err
+        : new EcpError(ECP_WORKFLOW_LOAD, message)
     return {
       ok: false,
-      compileErrors: [{ message, filename }],
+      compileErrors: [{ message: wrapped.message, filename }],
     }
   }
 }
@@ -59,4 +66,5 @@ export async function compileAndValidateWorkflowSource(
   }
 }
 
-export { extractWorkflowFromModule }
+export { extractWorkflowFromModule, extractLoadedWorkflowFromModule }
+export type { LoadedWorkflow }

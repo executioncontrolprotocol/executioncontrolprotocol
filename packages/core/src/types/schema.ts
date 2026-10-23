@@ -6,6 +6,7 @@ export type EcpSchema =
   | "@executioncontrolprotocol.environment"
   | "@executioncontrolprotocol.environment.describe"
   | "@executioncontrolprotocol.environment.search"
+  | "@executioncontrolprotocol.requirements"
   | "@executioncontrolprotocol.run.request"
   | "@executioncontrolprotocol.run.result"
   | "@executioncontrolprotocol.run.event"
@@ -33,6 +34,7 @@ export type RunStatus =
   | "failed"
   | "cancelled"
   | "paused"
+  | "stopped"
 
 /** Workflow reference to committed state. @category Workflow */
 export interface RefValue {

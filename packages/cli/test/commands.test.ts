@@ -8,8 +8,7 @@ import { tmpdir } from "node:os"
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
 const cliBin = join(repoRoot, "packages/cli/bin/run.js")
 
-const ECHO_ENV = "examples/01-echo/environment.ts"
-const ECHO_WORKFLOW_TS = "examples/01-echo/workflow.ts"
+const ECHO_WORKFLOW_TS = "examples/01-echo/workflow.ecp.ts"
 const BROKEN_WORKFLOW = JSON.stringify({
   schema: "@executioncontrolprotocol.workflow",
   version: "1.0",
@@ -80,35 +79,35 @@ describe("ecp CLI commands", () => {
 
   describe("validate", () => {
     it("reports a valid workflow and exits 0", async () => {
-      const res = await runCli(["validate", ECHO_WORKFLOW_TS, "--env", ECHO_ENV])
+      const res = await runCli(["validate", ECHO_WORKFLOW_TS])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { valid: boolean }
       expect(result.valid).toBe(true)
     }, 30_000)
 
     it("exits non-zero for an unknown capability", async () => {
-      const res = await runCli(["validate", brokenWorkflowPath, "--env", ECHO_ENV])
+      const res = await runCli(["validate", brokenWorkflowPath])
       expect(res.code).not.toBe(0)
     }, 30_000)
   })
 
   describe("run", () => {
     it("exits non-zero when the workflow cannot run", async () => {
-      const res = await runCli(["run", brokenWorkflowPath, "--env", ECHO_ENV])
+      const res = await runCli(["run", brokenWorkflowPath])
       expect(res.code).not.toBe(0)
     }, 30_000)
   })
 
   describe("describe", () => {
     it("returns a descriptor including the echo capability", async () => {
-      const res = await runCli(["describe", "--env", ECHO_ENV])
+      const res = await runCli(["describe"])
       expect(res.code).toBe(0)
       const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
       expect(descriptor.capabilities.some((c) => c.id.includes("echo"))).toBe(true)
     }, 30_000)
 
     it("prints the --json envelope", async () => {
-      const res = await runCli(["describe", "--env", ECHO_ENV, "--json"])
+      const res = await runCli(["describe", "--json"])
       expect(res.code).toBe(0)
       const body = JSON.parse(res.stdout) as { ok: boolean; data: { capabilities: { id: string }[] } }
       expect(body.ok).toBe(true)
@@ -118,7 +117,7 @@ describe("ecp CLI commands", () => {
 
   describe("search", () => {
     it("returns search results for a query", async () => {
-      const res = await runCli(["search", "echo", "--env", ECHO_ENV])
+      const res = await runCli(["search", "echo"])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { results: unknown[] }
       expect(Array.isArray(result.results)).toBe(true)
@@ -132,8 +131,6 @@ describe("ecp CLI commands", () => {
       const res = await runCli([
         "invoke",
         "@executioncontrolprotocol/test.echo",
-        "--env",
-        ECHO_ENV,
         "--input",
         inputPath,
       ])
@@ -152,8 +149,6 @@ describe("ecp CLI commands", () => {
       const res = await runCli([
         "invoke",
         "@executioncontrolprotocol/test.does-not-exist",
-        "--env",
-        ECHO_ENV,
       ])
       expect(res.code).not.toBe(0)
     }, 30_000)

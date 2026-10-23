@@ -1,5 +1,5 @@
 import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "../types/index.js"
-import { ECP_PATCH_ERROR_CODES } from "../types/index.js"
+import { ECP_CAPABILITY_UNKNOWN, ECP_PATCH_ERROR_CODES } from "../types/index.js"
 import { buildStepIndex } from "../patch/step-index.js"
 import { emptyValidationResult, workflowManifestSchema } from "./workflow-schema.js"
 import { zodIssuesToValidationIssues } from "./zod-mapper.js"
@@ -113,7 +113,7 @@ function validateNodeAgainstDescriptor(
     if (!found) {
       result.valid = false
       result.errors.push({
-        code: "UNKNOWN_CAPABILITY",
+        code: ECP_CAPABILITY_UNKNOWN,
         message: `Capability ${step.uses} is not registered.`,
         path: `steps.${step.id}.uses`,
         suggestions: descriptor.capabilities

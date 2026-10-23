@@ -1,8 +1,8 @@
-import { mkdtemp, writeFile } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Interfaces } from "@oclif/core"
-import { EcpCliError } from "@executioncontrolprotocol/plugin-sdk"
+import { EcpCliError, ECP_PLUGINS_MISSING } from "@executioncontrolprotocol/plugin-sdk"
 import { describe, expect, it } from "vitest"
 import { COMMANDS } from "../src/commands.js"
 import { applyFormat, formatExtensionId } from "../src/lib/format-output.js"
@@ -24,6 +24,8 @@ import {
   searchOperation,
 } from "../src/operations/catalog.js"
 import { compileOperation, runOperation, validateOperation } from "../src/operations/workflow.js"
+import { installOperation } from "../src/operations/install.js"
+import { initOperation } from "../src/operations/init.js"
 import { discoverOperation } from "../src/operations/discover.js"
 import { rollbackOperation } from "../src/operations/rollback.js"
 import { updateOperation } from "../src/operations/update.js"
@@ -45,8 +47,7 @@ import {
 } from "../src/operations/test-session.js"
 import { repoRoot } from "./helpers.js"
 
-const echoWf = join(repoRoot, "examples", "01-echo", "workflow.ts")
-const echoEnv = join(repoRoot, "examples", "01-echo", "environment.ts")
+const echoWf = join(repoRoot, "examples", "01-echo", "workflow.ecp.ts")
 
 function mockConfig(
   plugins: Array<{ name: string; type?: string; version?: string }> = [],
@@ -75,6 +76,7 @@ function ctx(
 describe("generated COMMANDS", () => {
   it("includes host operations and no duplicate plugins ids", () => {
     expect(COMMANDS.run).toBeDefined()
+    expect(COMMANDS.install).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
     const pluginIds = Object.keys(COMMANDS).filter((id) => id === "plugins" || id.startsWith("plugins:"))
@@ -92,10 +94,10 @@ describe("workflow operations", () => {
     const written = await compileOperation.handler({ "workflow-path": echoWf, output: out }, ctx())
     expect(written).toBeUndefined()
 
-    const valid = await validateOperation.handler({ "workflow-path": echoWf, env: echoEnv }, ctx())
+    const valid = await validateOperation.handler({ "workflow-path": echoWf }, ctx())
     expect(valid).toMatchObject({ valid: true })
 
-    const ran = (await runOperation.handler({ "workflow-path": echoWf, env: echoEnv }, ctx())) as {
+    const ran = (await runOperation.handler({ "workflow-path": echoWf }, ctx())) as {
       run: { status: string }
     }
     expect(ran.run.status).toBe("completed")
@@ -110,24 +112,24 @@ describe("workflow operations", () => {
 
 describe("catalog operations", () => {
   it("describe, search and invoke against the echo environment", async () => {
-    const described = (await describeOperation.handler({ env: echoEnv, policies: true }, ctx())) as {
+    const described = (await describeOperation.handler({ policies: true }, ctx())) as {
       extensions: unknown[]
     }
     expect(described.extensions.length).toBeGreaterThan(0)
 
     const filtered = (await describeOperation.handler(
-      { env: echoEnv, capability: "@executioncontrolprotocol/test.echo", extension: "@executioncontrolprotocol/test" },
+      { capability: "@executioncontrolprotocol/test.echo", extension: "@executioncontrolprotocol/test" },
       ctx()
     )) as { capabilities: unknown[] }
     expect(Array.isArray(filtered.capabilities)).toBe(true)
 
-    const hits = (await searchOperation.handler({ query: "echo", env: echoEnv }, ctx())) as {
+    const hits = (await searchOperation.handler({ query: "echo" }, ctx())) as {
       results: unknown[]
     }
     expect(Array.isArray(hits.results)).toBe(true)
 
     const invoked = (await invokeOperation.handler(
-      { "capability-id": "@executioncontrolprotocol/test.echo", env: echoEnv },
+      { "capability-id": "@executioncontrolprotocol/test.echo" },
       ctx()
     )) as { success: boolean }
     expect(invoked.success).toBe(true)
@@ -135,7 +137,7 @@ describe("catalog operations", () => {
 
   it("invoke with a missing capability fails", async () => {
     await expect(
-      invokeOperation.handler({ "capability-id": "@executioncontrolprotocol/missing.nope", env: echoEnv }, ctx())
+      invokeOperation.handler({ "capability-id": "@executioncontrolprotocol/missing.nope" }, ctx())
     ).rejects.toBeInstanceOf(EcpCliError)
   }, 30_000)
 })
@@ -145,12 +147,12 @@ describe("test session operations", () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-session-"))
     const session = join(dir, "session.json")
     await testStartOperation.handler(
-      { "workflow-path": echoWf, env: echoEnv, output: session },
+      { "workflow-path": echoWf, output: session },
       ctx()
     )
-    const advanced = await testRunOperation.handler({ env: echoEnv, to: "echo", session }, ctx())
+    const advanced = await testRunOperation.handler({ to: "echo", session }, ctx())
     expect(advanced).toBeDefined()
-    await testRerunOperation.handler({ "step-id": "echo", env: echoEnv, session }, ctx())
+    await testRerunOperation.handler({ "step-id": "echo", session }, ctx())
     const status = await testStatusOperation.handler({ session }, ctx())
     expect(status).toMatchObject({ schema: "@executioncontrolprotocol.test.session" })
     const help = await testTopicOperation.handler({}, ctx())
@@ -300,7 +302,7 @@ describe("lib helpers", () => {
     expect(formatExtensionId("@executioncontrolprotocol/format-json")).toBe(
       "@executioncontrolprotocol/format-json"
     )
-    const { ecp, terminate } = await ecpFromEnvFlag(echoEnv)
+    const { ecp, terminate } = await ecpFromEnvFlag(undefined)
     try {
       expect(await applyFormat(ecp, { a: 1 }, undefined)).toEqual({ a: 1 })
       await expect(applyFormat(ecp, { a: 1 }, "mermaid")).rejects.toThrow()
@@ -376,4 +378,96 @@ describe("lib helpers", () => {
       globalThis.fetch = original
     }
   })
+})
+
+describe("install, init, missing plugins", () => {
+  it("writes a workflow file from ecp init", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-init-"))
+    const previous = process.cwd()
+    process.chdir(dir)
+    try {
+      const result = (await initOperation.handler({ name: "brief" }, ctx())) as { path: string }
+      expect(result.path).toMatch(/brief\.ecp\.ts$/)
+    } finally {
+      process.chdir(previous)
+    }
+  })
+
+  async function withRepoTemp(prefix: string, fn: (dir: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(repoRoot, prefix))
+    try {
+      await fn(dir)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
+
+  const jsonataSource = `import { workflow, step } from "@executioncontrolprotocol/core"
+export default workflow("Needs jsonata").run([
+  step("@executioncontrolprotocol/jsonata.transform", "T").with({ expression: "$" }).as("out"),
+])
+`
+
+  it("validate of a jsonata workflow reports ECP_PLUGINS_MISSING without installing", async () => {
+    await withRepoTemp("tmp-ecp-missing-", async (dir) => {
+      const file = join(dir, "needs-jsonata.ecp.ts")
+      await writeFile(file, jsonataSource, "utf8")
+      const installed: string[] = []
+      const config = mockConfig([], async (id, argv) => {
+        installed.push(`${id}:${argv?.[0] ?? ""}`)
+      })
+      await expect(validateOperation.handler({ "workflow-path": file }, ctx(config))).rejects.toMatchObject({
+        code: ECP_PLUGINS_MISSING,
+      })
+      expect(installed).toEqual([])
+    })
+  }, 30_000)
+
+  it("run --json of a missing plugin does not call plugins:install", async () => {
+    await withRepoTemp("tmp-ecp-missing-run-", async (dir) => {
+      const file = join(dir, "needs-jsonata.ecp.ts")
+      await writeFile(file, jsonataSource, "utf8")
+      const installed: string[] = []
+      const config = mockConfig([], async (id, argv) => {
+        installed.push(`${id}:${argv?.[0] ?? ""}`)
+      })
+      await expect(
+        runOperation.handler({ "workflow-path": file }, { ...ctx(config), json: true })
+      ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
+      expect(installed).toEqual([])
+    })
+  }, 30_000)
+
+  it("install --yes installs the inferred package via plugins:install", async () => {
+    await withRepoTemp("tmp-ecp-install-", async (dir) => {
+      const file = join(dir, "needs-jsonata.ecp.ts")
+      await writeFile(file, jsonataSource, "utf8")
+      const installed: string[] = []
+      const config = mockConfig([], async (id, argv) => {
+        installed.push(`${id} ${argv?.[0] ?? ""}`)
+      })
+      await expect(
+        installOperation.handler({ "workflow-path": file }, { ...ctx(config, ["--yes"]), json: false })
+      ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
+      expect(installed.some((row) => row.includes("plugin-jsonata"))).toBe(true)
+    })
+  }, 30_000)
+
+  it("rejects a workflow that binds secrets", async () => {
+    await withRepoTemp("tmp-ecp-secrets-bind-", async (dir) => {
+      const file = join(dir, "bad.ecp.ts")
+      await writeFile(
+        file,
+        `import { workflow, step, extension } from "@executioncontrolprotocol/core"
+export default workflow("Bad secrets")
+  .with([extension("@executioncontrolprotocol/secrets")])
+  .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: 1 }).as("echo")])
+`,
+        "utf8"
+      )
+      await expect(runOperation.handler({ "workflow-path": file }, ctx())).rejects.toMatchObject({
+        code: "ECP_BINDING_INVALID",
+      })
+    })
+  }, 30_000)
 })

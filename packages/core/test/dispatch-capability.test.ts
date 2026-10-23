@@ -100,7 +100,7 @@ describe("mixed-mode dispatch", () => {
           diagnostics: [
             {
               severity: "error",
-              code: "CAPABILITY_NOT_FOUND",
+              code: "ECP_CAPABILITY_UNKNOWN",
               message: "Capability not registered",
             },
           ],
@@ -119,7 +119,7 @@ describe("mixed-mode dispatch", () => {
       .with({ n: 1 })
       .process()
     expect(result.success).toBe(false)
-    expect(result.diagnostics[0]?.code).toBe("CAPABILITY_NOT_FOUND")
+    expect(result.diagnostics[0]?.code).toBe("ECP_CAPABILITY_UNKNOWN")
     expect(result.diagnostics[0]?.message).toContain("local host environment")
     expect(globalThis.fetch).toHaveBeenCalled()
     await ecp.terminate()

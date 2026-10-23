@@ -2,10 +2,14 @@ import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
+import type { Environment, LoadedWorkflow } from "@executioncontrolprotocol/core"
+import {
+  extractLoadedWorkflowFromModule,
+  inferRequirementsFromManifest,
+} from "@executioncontrolprotocol/core"
+import { ECP_WORKFLOW_LOAD, EcpError } from "@executioncontrolprotocol/core/types"
 import type { WorkflowManifest } from "@executioncontrolprotocol/core/types"
-import type { Environment } from "@executioncontrolprotocol/core"
-import { compileWorkflowSource } from "../compile/index.js"
-import { bundleEnvironmentSource } from "../compile/transpile.js"
+import { bundleWorkflowSource, bundleEnvironmentSource } from "../compile/transpile.js"
 
 /** Read file as utf-8. */
 export async function readTextFile(path: string): Promise<string> {
@@ -18,20 +22,41 @@ export async function loadWorkflowJson(path: string): Promise<WorkflowManifest> 
   return JSON.parse(text) as WorkflowManifest
 }
 
-/** Load workflow from .json, .ts, or .js path. */
-export async function loadWorkflowFile(path: string): Promise<WorkflowManifest> {
-  if (path.endsWith(".json")) return loadWorkflowJson(path)
+/**
+ * Load a workflow file: `{ manifest, requirements, builder? }`.
+ * `.json` manifests have no builder; TypeScript/JavaScript must default-export a WorkflowBuilder.
+ */
+export async function loadWorkflowFile(path: string): Promise<LoadedWorkflow> {
+  if (path.endsWith(".json")) {
+    const manifest = await loadWorkflowJson(path)
+    return {
+      manifest,
+      requirements: inferRequirementsFromManifest(manifest.steps),
+    }
+  }
   const abs = resolve(path)
   const source = await readTextFile(abs)
-  const result = await compileWorkflowSource({ source, filename: abs })
-  if (!result.ok || !result.manifest) {
-    throw new Error(
-      result.compileErrors?.[0]?.message ??
-        result.validation?.errors[0]?.message ??
-        "Failed to compile workflow"
-    )
+  const dir = await mkdtemp(join(tmpdir(), "ecp-wf-"))
+  const file = join(dir, "module.mjs")
+  try {
+    const code = await bundleWorkflowSource(source, abs, dirname(abs))
+    await writeFile(file, code, "utf8")
+    const mod = (await import(pathToFileURL(file).href)) as Record<string, unknown>
+    const loaded = extractLoadedWorkflowFromModule(mod)
+    if (!loaded.builder) {
+      throw new EcpError(
+        ECP_WORKFLOW_LOAD,
+        "Workflow files must default-export a WorkflowBuilder (workflow(...)). Raw JSON manifests use the .json extension."
+      )
+    }
+    return loaded
+  } catch (err) {
+    if (err instanceof EcpError) throw err
+    const message = err instanceof Error ? err.message : String(err)
+    throw new EcpError(ECP_WORKFLOW_LOAD, message, { cause: err })
+  } finally {
+    await rm(dir, { recursive: true, force: true })
   }
-  return result.manifest
 }
 
 async function loadBundledModule<T extends Record<string, unknown>>(
@@ -70,7 +95,7 @@ export async function loadEnvironmentModule(path: string): Promise<Environment> 
   return value
 }
 
-/** Load workflow module and return manifest. */
-export async function loadWorkflowModule(path: string): Promise<WorkflowManifest> {
+/** Load workflow module and return the loaded file. */
+export async function loadWorkflowModule(path: string): Promise<LoadedWorkflow> {
   return loadWorkflowFile(path)
 }

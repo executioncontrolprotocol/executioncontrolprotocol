@@ -10,11 +10,12 @@ alwaysApply: true
 - **Types:** `packages/core/src/types` (`@executioncontrolprotocol/core/types`).
 - **Fluent API and engine:** `packages/core/src` (`@executioncontrolprotocol/core`).
 - **Manifests:** workflows use `schema: "@executioncontrolprotocol.workflow"` and
-  `version: "1.0"` (`LATEST_ECP_VERSION`). Phase 4 adds a separate
-  `@executioncontrolprotocol.requirements` schema for a workflow file's bindings.
+  `version: "1.0"` (`LATEST_ECP_VERSION`). Workflow-file bindings compile into a
+  separate `@executioncontrolprotocol.requirements` block (`requirements()`), never into
+  the portable manifest.
 - **Portability:**
   - A compiled workflow manifest never contains secrets or host config.
-  - After Phase 4, a workflow *file* declares its extension and policy bindings with
+  - A workflow *file* declares its extension and policy bindings with
     `workflow(...).with([...])`, and compiling splits them into the requirements block.
   - Environments are hosts (Node, browser, later Temporal) that add their own bindings and
     always-on policies.

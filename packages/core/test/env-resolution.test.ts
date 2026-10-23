@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { env, secrets } from "../src/index.js"
+import { env, secrets, ECP_SECRET_MISSING } from "../src/index.js"
+import { EcpError } from "../src/types/index.js"
 import {
   PROCESS_ENV_RESOLVER_ID,
   SECRETS_RESOLVER_ID,
@@ -65,6 +66,16 @@ describe("env resolution chain", () => {
         { id: SECRETS_RESOLVER_ID, resolve: () => undefined },
       ])
     ).rejects.toThrow("Secret missing/key is not set")
+    await expect(
+      resolveEnvConfigAsync({ x: secrets("missing/key") }, [
+        { id: SECRETS_RESOLVER_ID, resolve: () => undefined },
+      ])
+    ).rejects.toMatchObject({ code: ECP_SECRET_MISSING })
+    await expect(
+      resolveEnvConfigAsync({ x: secrets("missing/key") }, [
+        { id: SECRETS_RESOLVER_ID, resolve: () => undefined },
+      ])
+    ).rejects.toBeInstanceOf(EcpError)
   })
 
   it("uses optional fallback when secrets resolver is missing", async () => {

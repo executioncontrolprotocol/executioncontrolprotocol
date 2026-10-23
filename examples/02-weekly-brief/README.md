@@ -1,6 +1,6 @@
 # 02 — Weekly brief
 
-Multi-step workflow with `ref()` and OpenAI. Weekly signals are workflow input, not a memory lookup.
+Workflow file with `.with()` + `ref()` and OpenAI. Weekly signals are workflow input.
 
 Store a key first:
 
@@ -9,7 +9,8 @@ ecp config secrets add openai/api-key
 ```
 
 ```bash
-ecp run examples/02-weekly-brief/workflow.ts --env examples/02-weekly-brief/environment.ts --input '{"signals":[]}'
+ecp run examples/02-weekly-brief/workflow.ecp.ts --input '{"signals":[]}'
+ecp run examples/02-weekly-brief/workflow.ecp.ts --input '{"signals":[]}' --dry-run
 ```
 
-The environment binds `apiKey: secrets("openai/api-key", { optional: true })`.
+The workflow binds `apiKey: secrets("openai/api-key", { optional: true })`. The OpenAI plugin must be installed (`ecp install examples/02-weekly-brief/workflow.ecp.ts`).

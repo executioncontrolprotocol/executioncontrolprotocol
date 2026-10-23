@@ -33,7 +33,7 @@ export const testStartOperation = defineOperation("test:start")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string(),
+      env: z.string().optional(),
       input: z.string().optional(),
       output: z.string(),
     })
@@ -43,18 +43,21 @@ export const testStartOperation = defineOperation("test:start")
     description: "Create an idle test session snapshot for a workflow.",
     useCases: ["Begin a stepped test session"],
     examples: [
-      "ecp test start examples/01-echo/workflow.ts --env examples/01-echo/environment.ts -o session.json",
+      "ecp test start examples/01-echo/workflow.ecp.ts -o session.json",
     ],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(String(input.env), ctx.host)
+    const { ecp, terminate } = await ecpFromEnvFlag(
+      input.env ? String(input.env) : undefined,
+      ctx.host
+    )
     try {
       const workflowInput = input.input
         ? await readJsonFile<Record<string, unknown>>(String(input.input), "--input")
         : {}
       const workflow = await loadWorkflowFile(String(input["workflow-path"]))
-      const session = await ecp.test(workflow).with({ input: workflowInput }).start()
+      const session = await ecp.test(workflow.manifest).with({ input: workflowInput }).start()
       const snap = session.snapshot()
       await writeTestSessionFile(String(input.output), snap)
       return snap
@@ -68,7 +71,7 @@ export const testStartOperation = defineOperation("test:start")
 export const testRunOperation = defineOperation("test:run")
   .withInput(
     z.object({
-      env: z.string(),
+      env: z.string().optional(),
       to: z.string(),
       session: z.string(),
     })
@@ -77,10 +80,13 @@ export const testRunOperation = defineOperation("test:run")
     summary: "Run a test session through a step",
     description: "Inclusively execute through --to <step-id> and rewrite --session.",
     useCases: ["Advance a test session to a step"],
-    examples: ["ecp test run --to echo --env examples/01-echo/environment.ts --session session.json"],
+    examples: ["ecp test run --to echo --session session.json"],
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(String(input.env), ctx.host)
+    const { ecp, terminate } = await ecpFromEnvFlag(
+      input.env ? String(input.env) : undefined,
+      ctx.host
+    )
     try {
       const snap = await readTestSessionFile(String(input.session))
       const session = await ecp.restoreTestSession(snap)
@@ -98,7 +104,7 @@ export const testRerunOperation = defineOperation("test:rerun")
   .withInput(
     z.object({
       "step-id": z.string(),
-      env: z.string(),
+      env: z.string().optional(),
       session: z.string(),
     })
   )
@@ -106,11 +112,14 @@ export const testRerunOperation = defineOperation("test:rerun")
     summary: "Rerun one step in a test session",
     description: "Execute a single step against frozen prior state and clear downstream history.",
     useCases: ["Replay one step after changing its input"],
-    examples: ["ecp test rerun echo --env examples/01-echo/environment.ts --session session.json"],
+    examples: ["ecp test rerun echo --session session.json"],
     cli: { args: ["step-id"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(String(input.env), ctx.host)
+    const { ecp, terminate } = await ecpFromEnvFlag(
+      input.env ? String(input.env) : undefined,
+      ctx.host
+    )
     try {
       const snap = await readTestSessionFile(String(input.session))
       const session = await ecp.restoreTestSession(snap)

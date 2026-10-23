@@ -36,6 +36,7 @@ import type { EnvironmentConfigResolver } from "./config-resolver.js"
 import { buildDescriptor } from "./describe.js"
 import { searchCapabilities } from "./search.js"
 import { validateEnvironmentWithWorkflow } from "../validate/environment.js"
+import { validateBoundConfig } from "./validate-binding-config.js"
 import { registerCoreFormats } from "../formats/register-core-formats.js"
 import type { EnvironmentDefinition, HookDefinition, PolicyDefinition } from "../definitions/types.js"
 import { getEnvironmentDefinition } from "../definitions/environment.js"
@@ -152,11 +153,16 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     for (const binding of bindings) {
       const id = resolveId(binding.getRef())
       if (binding instanceof PolicyBindingBuilder) {
-        this.policyBindings = this.policyBindings.filter((b) => resolveId(b.getRef()) !== id)
         this.policyBindings.push(binding)
       } else {
-        this.extensionBindings = this.extensionBindings.filter((b) => resolveId(b.getRef()) !== id)
-        this.extensionBindings.push(binding)
+        const existing = this.extensionBindings.find((b) => resolveId(b.getRef()) === id)
+        if (existing) {
+          existing.with(binding.getConfig())
+          const range = binding.getRange()
+          if (range) existing.requires(range, binding.getPackage())
+        } else {
+          this.extensionBindings.push(binding)
+        }
       }
     }
     this.invalidatePrepared()
@@ -194,28 +200,20 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.artifactStore
   }
 
-  /** Dynamically add or replace an extension binding (e.g. browser registry auto-bind). */
+  /** Dynamically add or shallow-merge an extension binding (e.g. browser registry auto-bind). */
   addExtensionBinding(
     ref: NamespacedId | import("../definitions/types.js").ExtensionDefinition,
     config: Record<string, unknown> = {}
   ): void {
-    const binding = extension(ref).with(config)
-    const id = resolveId(binding.getRef())
-    this.extensionBindings = this.extensionBindings.filter((b) => resolveId(b.getRef()) !== id)
-    this.extensionBindings.push(binding)
-    this.invalidatePrepared()
+    this.with([extension(ref).with(config)])
   }
 
-  /** Dynamically add or replace a policy binding. */
+  /** Dynamically add a policy binding (policies are additive). */
   addPolicyBinding(
     ref: NamespacedId | PolicyDefinition,
     config: Record<string, unknown> = {}
   ): void {
-    const binding = policy(ref).with(config)
-    const id = resolveId(binding.getRef())
-    this.policyBindings = this.policyBindings.filter((b) => resolveId(b.getRef()) !== id)
-    this.policyBindings.push(binding)
-    this.invalidatePrepared()
+    this.with([policy(ref).with(config)])
   }
 
   private invalidatePrepared(): void {
@@ -317,8 +315,30 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
     await this.emitEnvironmentEvent("environment:created")
 
+    this.validateBindingConfigs("placeholder")
     await this.emitEnvironmentEvent("environment:configuring")
     this.discoveryPrepared = true
+  }
+
+  private validateBindingConfigs(phase: "placeholder" | "resolved"): void {
+    for (const binding of this.extensionBindings) {
+      const id = resolveId(binding.getRef())
+      const def = this.registry.getExtension(id)
+      const config =
+        phase === "resolved"
+          ? (this.resolved?.extensions.find((e) => e.id === id)?.config ?? binding.getConfig())
+          : binding.getConfig()
+      validateBoundConfig(def?.configSchema, config, id, phase)
+    }
+    for (const binding of this.policyBindings) {
+      const id = resolveId(binding.getRef())
+      const def = this.registry.getPolicy(id)
+      const config =
+        phase === "resolved"
+          ? (this.resolved?.policies.find((p) => p.id === id)?.config ?? binding.getConfig())
+          : binding.getConfig()
+      validateBoundConfig(def?.configSchema, config, id, phase)
+    }
   }
 
   private async ensureBoundPoliciesRegistered(): Promise<void> {
@@ -383,6 +403,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       policyHooks,
       this.configResolvers
     )
+    this.validateBindingConfigs("resolved")
 
     await this.emitEnvironmentEvent("environment:ready")
     return this.resolved

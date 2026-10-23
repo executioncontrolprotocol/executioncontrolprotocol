@@ -28,11 +28,11 @@ describe("JSON envelope", () => {
   })
 
   it("capability failure envelopes keep the invoke code", () => {
-    const err = new EcpCliError("INVOKE_FAILED", "capability failed", { exitCode: 1 })
+    const err = new EcpCliError("ECP_STEP_FAILED", "capability failed", { exitCode: 1 })
     const body = EcpCommand.prototype.toErrorJson.call({ jsonEnabled: () => true } as never, err)
     expect(body).toEqual({
       ok: false,
-      error: { code: "INVOKE_FAILED", message: "capability failed" },
+      error: { code: "ECP_STEP_FAILED", message: "capability failed" },
     })
   })
 })

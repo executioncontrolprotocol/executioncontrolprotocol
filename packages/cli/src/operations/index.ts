@@ -23,6 +23,7 @@ import {
   testTopicOperation,
 } from "./test-session.js"
 import { updateOperation } from "./update.js"
+import { installOperation } from "./install.js"
 import { compileOperation, runOperation, validateOperation } from "./workflow.js"
 
 /** Host operations compiled into the CLI `COMMANDS` map. @category CLI */
@@ -30,6 +31,7 @@ export const operations: OperationDefinition[] = [
   runOperation,
   validateOperation,
   compileOperation,
+  installOperation,
   describeOperation,
   searchOperation,
   invokeOperation,

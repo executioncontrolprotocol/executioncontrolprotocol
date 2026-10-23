@@ -1,3 +1,21 @@
+export {
+  ECP_ERROR_CODES,
+  ECP_WORKFLOW_LOAD,
+  ECP_PLUGINS_MISSING,
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_INPUT_INVALID,
+  ECP_REF_UNRESOLVED,
+  ECP_BINDING_INVALID,
+  ECP_ENVIRONMENT_UNSUPPORTED,
+  ECP_SECRET_MISSING,
+  ECP_POLICY_DENIED,
+  ECP_RUN_PAUSED,
+  ECP_STEP_FAILED,
+  ECP_OUTPUT_INVALID,
+  ECP_PLUGIN_DENIED,
+  ECP_RERUN_INCOMPATIBLE,
+} from "./types/index.js"
+export type { EcpErrorCode, RequirementsDocument, RequirementEntry } from "./types/index.js"
 export { ref } from "./helpers/ref.js"
 export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
@@ -26,6 +44,16 @@ export { extension } from "./bindings/extension.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
 export { workflow, WorkflowBuilder } from "./workflow/builder.js"
+export {
+  BUILTIN_REQUIREMENT_IDS,
+  buildRequirementsDocument,
+  capabilityToExtensionId,
+  collectCapabilityIds,
+  inferRequirementsFromManifest,
+  inferredPackageName,
+  isBuiltinRequirementId,
+  type WorkflowBinding,
+} from "./workflow/requirements.js"
 export { parallel, branch, loop } from "./workflow/flow.js"
 export {
   jsonSchemaFromZod,
@@ -37,7 +65,12 @@ export {
 } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
-export { environment, Environment, type EnvironmentInitOptions } from "./environment/environment.js"
+export {
+  environment,
+  Environment,
+  type EnvironmentInitOptions,
+  type EnvironmentBinding,
+} from "./environment/environment.js"
 export {
   buildDescriptor,
   DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
@@ -58,8 +91,10 @@ export {
 } from "./runtime/test-session-state.js"
 export type { RuntimeExecutor, RuntimeExecutionContext, RuntimeExecutionMode } from "./runtime/executor.js"
 export { assignUniqueStepIds } from "./workflow/assign-unique-step-ids.js"
+export { satisfiesRange } from "./util/semver-range.js"
 export { createInvokeBuilder, type InvokeOperationBuilder } from "./invoke/index.js"
 export type { EnvironmentConfigResolver } from "./environment/config-resolver.js"
+export { validateBoundConfig, substituteConfigPlaceholders } from "./environment/validate-binding-config.js"
 export { resolveEnvConfigAsync, cloneConfigForManifest } from "./environment/config-resolver.js"
 export {
   PROCESS_ENV_RESOLVER_ID,
@@ -177,6 +212,8 @@ export {
 } from "./fluent/index.js"
 export {
   extractWorkflowFromModule,
+  extractLoadedWorkflowFromModule,
+  type LoadedWorkflow,
   type CompileWorkflowResult,
   type CompileWorkflowSourceOptions,
   type CompileDiagnostic,

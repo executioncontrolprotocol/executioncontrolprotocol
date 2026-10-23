@@ -13,19 +13,22 @@ export class EcpCliError extends Error {
   readonly path?: string
   /** Optional recovery hints. */
   readonly suggestions?: string[]
+  /** Structured extras (for example missing-plugin rows). */
+  readonly details?: unknown
   /** Process exit code. */
   readonly exitCode: number
 
   constructor(
     code: string,
     message: string,
-    options: { path?: string; suggestions?: string[]; exitCode?: number } = {}
+    options: { path?: string; suggestions?: string[]; exitCode?: number; details?: unknown } = {}
   ) {
     super(message)
     this.name = "EcpCliError"
     this.code = code
     this.path = options.path
     this.suggestions = options.suggestions
+    this.details = options.details
     this.exitCode = options.exitCode ?? EXIT_FAILED
   }
 
@@ -36,6 +39,7 @@ export class EcpCliError extends Error {
       message: this.message,
       ...(this.path !== undefined ? { path: this.path } : {}),
       ...(this.suggestions !== undefined ? { suggestions: this.suggestions } : {}),
+      ...(this.details !== undefined ? { details: this.details } : {}),
     }
   }
 }

@@ -44,13 +44,13 @@ Consumer skill: `npx skills add https://executioncontrolprotocol.io`
 **Run an example** (from the repo root):
 
 ```bash
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
 ```
 
 **Validate a workflow against an environment:**
 
 ```bash
-ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp validate examples/01-echo/workflow.ecp.ts
 ```
 
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
@@ -283,7 +283,7 @@ Instead of defining **fixed workflows**, ECP defines **execution environments fo
 The smallest runnable workflow in this repo is the echo example:
 
 ```bash
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
 ```
 
 The canonical artifact is the JSON workflow manifest (`@executioncontrolprotocol.workflow`), even when
@@ -305,7 +305,7 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/extensions/`](packages/extensions/) | First-party extensions (TOON, Mermaid, providers, …) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
 | [`packages/policies/`](packages/policies/) | Budget, approval, state-control (`registry-control` lives in core) |
-| [`examples/`](examples/) | Fluent workflow + environment examples (`workflow.ts`, `environment.ts`) |
+| [`examples/`](examples/) | Single-file `*.ecp.ts` workflows (`01-echo`, `02-weekly-brief`, …) |
 | [`RESET-PLAN.md`](RESET-PLAN.md) | CLI reset plan (source of truth during the milestone) |
 
 ------------------------------------------------------------------------

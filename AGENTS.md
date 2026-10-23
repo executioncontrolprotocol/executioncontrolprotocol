@@ -50,7 +50,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `packages/policies/` | `budget`, `approval`, `state-control` | `image-policy` removed in Phase 1; `registry-control` folded into core in Phase 2 PR 1; the rest become plugins in Phase 5 |
 | `packages/extensions/*/` | First-party extensions | Per the audit (`RESET-PLAN.md` §5.4): some become plugins in Phase 5, some fold into the Node environment. `format-eql`, `chrome-ai`, `memory`, `telemetry`, `index`, `storage`, `browser-secrets` were **removed in Phase 1** |
 | `packages/vendor/*/` | Vendor extensions | Become plugins in Phase 5 (`slack` **removed in Phase 1**; `jsonata` moved in Phase 3) |
-| `examples/` | Examples (workflow + environment modules today) | Trimmed in Phase 1; the rest become single `*.ecp.ts` files in Phase 4 |
+| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; vendor examples wait for Phase 5 |
 | `skills/ecp-core/` | Contributor skill for this repo | Kept current with this file |
 | `RESET-PLAN.md`, `reset/` | The reset plan and phase docs | Source of truth during the milestone |
 
@@ -77,9 +77,9 @@ workflows). See `RESET-PLAN.md` §2.3.
 - **Fluent rendering is in core** (`toFluentSource`, `ecp.encode(...).as("fluent")`). There's no
   `format-fluent` extension.
 - **Workflow manifests** use `schema: "@executioncontrolprotocol.workflow"`, version `1.0`. The
-  compiled manifest never contains secrets or host config. Phase 4 adds workflow-file bindings
-  (`workflow(...).with([...])`) that compile into a separate requirements block, never into the
-  manifest.
+  compiled manifest never contains secrets or host config. Workflow-file bindings
+  (`workflow(...).with([...])`) compile into a separate `@executioncontrolprotocol.requirements`
+  block, never into the manifest.
 - **Secrets:**
   - Never commit live keys; use `.env` (gitignored), the OS keychain, or CI secrets.
   - Workflow and environment files reference secrets with `secrets("key")`, never values.
@@ -132,23 +132,25 @@ The CLI uses oclif v5 (`@oclif/core`). Commands are generated: the CLI's own com
 definitions. The only hand-written oclif code is the hooks.
 
 ```sh
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
-ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
-ecp describe --env examples/01-echo/environment.ts
-ecp test start examples/01-echo/workflow.ts --env examples/01-echo/environment.ts -o session.json
-ecp test run --to echo --env examples/01-echo/environment.ts --session session.json
+ecp run examples/01-echo/workflow.ecp.ts
+ecp validate examples/01-echo/workflow.ecp.ts
+ecp describe
+ecp test start examples/01-echo/workflow.ecp.ts -o session.json
+ecp test run --to echo --session session.json
+ecp install brief.ecp.ts
+ecp init brief
 ecp plugins new jsonata
 ecp plugins link plugins/plugin-jsonata
 ecp jsonata transform --expression '$.a' --input payload.json --json
 ```
 
-- **Phase 1** removed `serve`, `up`, `encode` and `decode`. `ecp test` stays until Phase 4.
-- **`--env` is still required** on `run` / `validate` / `ecp test *` until Phase 4.
-  `describe` / `search` / `invoke` take it as an optional override of the process host.
+- **Phase 1** removed `serve`, `up`, `encode` and `decode`. `ecp test` stays until Phase 4 PR 2.
+- **`--env` is optional** on `run` / `validate` / `ecp test *`. Omit it to use the process host
+  (built-in Node + installed plugins). `--env <file>` is an environment overlay
+  (`environment(id).with([...])`), not a required pair. `describe` / `search` / `invoke` take
+  it the same way.
 - **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
-- **Phase 4:** workflow files run directly (`ecp run product.ecp.ts`). There's no `--env`
-  module; `--env <file>` points at an environment file instead.
-  - `ecp test` becomes `ecp run --to`, `ecp runs resume` and `ecp runs rerun`.
+- **Phase 4 PR 2:** `ecp test` becomes `ecp run --to`, `ecp runs resume` and `ecp runs rerun`.
 
 ## Extension and plugin authoring
 

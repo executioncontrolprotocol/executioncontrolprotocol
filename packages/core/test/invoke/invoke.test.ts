@@ -32,7 +32,7 @@ describe("ecp.invoke", () => {
     const ecp = await (await createTestEnvironment("invoke-missing")).init()
     const result = await ecp.invoke("@executioncontrolprotocol/missing.cap").with({}).process()
     expect(result.success).toBe(false)
-    expect(result.diagnostics[0]?.code).toBe("CAPABILITY_NOT_FOUND")
+    expect(result.diagnostics[0]?.code).toBe("ECP_CAPABILITY_UNKNOWN")
     await ecp.terminate()
   })
 
@@ -76,7 +76,7 @@ describe("ecp.invoke", () => {
     const ecp = await env.init()
     const result = await ecp.invoke("@executioncontrolprotocol/test.echo").with({ value: "x" }).process()
     expect(result.success).toBe(false)
-    expect(result.diagnostics[0]?.code).toBe("INVOKE_DENIED")
+    expect(result.diagnostics[0]?.code).toBe("ECP_POLICY_DENIED")
     await ecp.terminate()
   })
 })

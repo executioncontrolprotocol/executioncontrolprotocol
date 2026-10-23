@@ -11,6 +11,8 @@ export interface EcpErrorBody {
   path?: string
   /** Optional recovery hints. */
   suggestions?: string[]
+  /** Structured extras (for example missing-plugin rows). */
+  details?: unknown
 }
 
 /**

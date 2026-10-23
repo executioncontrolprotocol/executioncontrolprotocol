@@ -59,6 +59,11 @@ export interface ExtensionDefinition {
   hooks: HookDefinition[]
   /** When set, extension may only be bound to these environments. Omit = all environments. */
   supportedEnvironments?: SupportedEnvironment[]
+  /**
+   * When true, this extension registers a config resolver at `environment:configuring`.
+   * Workflow files must not bind it.
+   */
+  providesConfigResolver?: boolean
   /** Agent-facing docs from {@code .withMetadata()}. */
   metadata?: ExtensionMetadata
 }
