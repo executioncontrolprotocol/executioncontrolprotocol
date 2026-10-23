@@ -15,6 +15,8 @@ describe("listPublishableWorkspaces", () => {
     expect(names.has("@executioncontrolprotocol/format-toon")).toBe(true)
     expect(names.has("@executioncontrolprotocol/node")).toBe(true)
     expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/plugin-sdk")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/plugin-jsonata")).toBe(true)
     expect(names.has("@executioncontrolprotocol/evals")).toBe(false)
     expect(names.has("@executioncontrolprotocol/harnesses-browser-nano")).toBe(false)
     expect(names.has("@executioncontrolprotocol/format-eql")).toBe(false)
@@ -34,6 +36,12 @@ describe("listPublishableWorkspaces", () => {
     )
     expect(index.get("@executioncontrolprotocol/node")!).toBeLessThan(
       index.get("@executioncontrolprotocol/cli")!,
+    )
+    expect(index.get("@executioncontrolprotocol/plugin-sdk")!).toBeLessThan(
+      index.get("@executioncontrolprotocol/cli")!,
+    )
+    expect(index.get("@executioncontrolprotocol/plugin-sdk")!).toBeLessThan(
+      index.get("@executioncontrolprotocol/plugin-jsonata")!,
     )
     expect(index.get("@executioncontrolprotocol/core")!).toBeLessThan(
       index.get("@executioncontrolprotocol/format-toon")!,
