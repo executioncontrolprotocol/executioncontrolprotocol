@@ -15,7 +15,7 @@ export type EcpSchema =
   | "@executioncontrolprotocol.patch.result"
   | "@executioncontrolprotocol.encode.result"
   | "@executioncontrolprotocol.decode.result"
-  | "@executioncontrolprotocol.test.session"
+  | "@executioncontrolprotocol.run.journal"
 
 /** Namespaced definition id (`@namespace/name`). @category Common */
 export type NamespacedId = `@${string}/${string}`

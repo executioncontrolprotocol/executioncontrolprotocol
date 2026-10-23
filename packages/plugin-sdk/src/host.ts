@@ -18,6 +18,13 @@ export interface EcpHost {
   environmentId: string
   /** Preferred output mode for this process. */
   output: OutputMode
+  /** Optional journal writer for generated capability commands. */
+  recordInvoke?: (entry: {
+    capabilityId: string
+    input: unknown
+    result: unknown
+    success: boolean
+  }) => Promise<void>
 }
 
 /** `globalThis` key for the CLI host. @category CLI */

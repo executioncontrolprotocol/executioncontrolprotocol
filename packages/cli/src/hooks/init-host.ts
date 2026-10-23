@@ -1,5 +1,5 @@
 import type { Hook } from "@oclif/core"
-import { NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { NODE_ENVIRONMENT_ID, writeInvokeJournal } from "@executioncontrolprotocol/node"
 import { setHost } from "@executioncontrolprotocol/plugin-sdk"
 import { createProcessEnvironment } from "../lib/plugin-bindings.js"
 
@@ -25,6 +25,9 @@ const hook: Hook<"init"> = async function (options) {
     registry: ecp.getRegistry(),
     environmentId: NODE_ENVIRONMENT_ID,
     output: "pretty",
+    recordInvoke: async (entry) => {
+      await writeInvokeJournal(entry)
+    },
   })
 }
 

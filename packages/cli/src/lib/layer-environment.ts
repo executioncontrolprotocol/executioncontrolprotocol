@@ -4,13 +4,14 @@ import type { Interfaces } from "@oclif/core"
 import {
   PROCESS_ENV_RESOLVER_ID,
   SECRETS_RESOLVER_ID,
+  extension,
   type Ecp,
   type Environment,
   type Registry,
   type WorkflowBinding,
 } from "@executioncontrolprotocol/core"
 import { ECP_BINDING_INVALID, EcpError } from "@executioncontrolprotocol/core/types"
-import { loadEnvironmentModule } from "@executioncontrolprotocol/node"
+import { journalExtension, loadEnvironmentModule } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import { setHost } from "@executioncontrolprotocol/plugin-sdk"
 import { createProcessEnvironment } from "./plugin-bindings.js"
@@ -86,6 +87,8 @@ export async function layerRunEnvironment(options: {
   } else {
     env = await createProcessEnvironment(options.config)
   }
+
+  env.with([extension(journalExtension)])
 
   if (bindings.length > 0) {
     assertWorkflowBindingsAllowed(bindings, options.host?.registry)

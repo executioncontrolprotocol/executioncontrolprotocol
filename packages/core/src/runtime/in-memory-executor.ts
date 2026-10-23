@@ -1,12 +1,15 @@
 import {
   ECP_CAPABILITY_UNKNOWN,
   ECP_POLICY_DENIED,
+  ECP_RUN_PAUSED,
   ECP_STEP_FAILED,
   EcpError,
   LATEST_ECP_VERSION,
+  publicRunEvent,
 } from "../types/index.js"
 import type {
   PendingMutation,
+  PolicyJournalDecision,
   RunResult,
   RunStatus,
   StepNode,
@@ -32,7 +35,7 @@ import {
   type MutationBuffer,
 } from "./store.js"
 import { commitTransaction } from "./commit.js"
-import { isLastTestStep } from "./test-session-state.js"
+import { isLastStep } from "./step-order.js"
 import { applyWorkflowReturns } from "../schema/workflow-io.js"
 import {
   CapabilityDispatchError,
@@ -110,8 +113,6 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       context.maxConcurrency ??
       (context.bindings.runtime.config.maxConcurrency as number | undefined) ??
       4
-    const mode = context.mode ?? "run"
-
     const state: Record<string, unknown> = context.seedState
       ? { ...context.seedState }
       : { ...context.input }
@@ -126,6 +127,8 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       workflow: manifest,
       run: { id: runId, input: context.input },
       state,
+      journal: context.journal,
+      approvals: context.approvals,
     }
 
     await emitLifecycle("run:before", extensionHooks, {
@@ -136,6 +139,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       event: "run:started",
       ...runBase,
     })
+    context.onEvent?.(publicRunEvent("run.start", runId, { status: "started" }))
 
     const stepCtx: StepRunCtx = {
       manifest,
@@ -151,35 +155,37 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       stoppedAfter: false,
     }
 
+    let status: RunStatus = "failed"
     try {
       throwIfAborted(signal)
       await this.runNodes(manifest.steps, stepCtx)
 
-      let status: RunStatus = "completed"
-      if (mode === "test" && stepCtx.stoppedAfter) {
+      status = "completed"
+      if (stepCtx.stoppedAfter) {
         const stopId = context.stopAfterStepId
-        status =
-          stopId && isLastTestStep(manifest, stopId) ? "completed" : "paused"
-      } else if (mode === "test" && context.onlyStepId) {
-        status = isLastTestStep(manifest, context.onlyStepId) ? "completed" : "paused"
+        status = stopId && isLastStep(manifest, stopId) ? "completed" : "stopped"
+      } else if (context.onlyStepId) {
+        status = isLastStep(manifest, context.onlyStepId) ? "completed" : "stopped"
       }
 
       const stepStatuses = Object.values(history).map((h) => h.status)
       if (stepStatuses.includes("failed")) status = "failed"
       else if (stepStatuses.includes("cancelled")) status = "cancelled"
-      else if (status === "completed" && stepStatuses.includes("paused")) status = "paused"
+      else if (stepStatuses.includes("paused")) status = "paused"
 
       if (status === "completed") {
         await emitLifecycle("run:completed", extensionHooks, {
           event: "run:completed",
           ...runBase,
           state,
+          status,
         })
       } else if (status === "failed") {
         await emitLifecycle("run:failed", extensionHooks, {
           event: "run:failed",
           ...runBase,
           state,
+          status,
         })
       }
 
@@ -197,29 +203,33 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       )
     } catch (err) {
       if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) {
+        status = "cancelled"
         await emitLifecycle("run:cancelled", extensionHooks, {
           event: "run:cancelled",
           ...runBase,
           state,
+          status,
         })
         return {
           schema: "@executioncontrolprotocol.run.result",
           version: LATEST_ECP_VERSION,
-          run: { id: runId, status: "cancelled" },
+          run: { id: runId, status },
           state,
           history,
           usage: { ...usage },
         }
       }
+      status = "failed"
       await emitLifecycle("run:failed", extensionHooks, {
         event: "run:failed",
         ...runBase,
         state,
+        status,
       })
       return {
         schema: "@executioncontrolprotocol.run.result",
         version: LATEST_ECP_VERSION,
-        run: { id: runId, status: "failed" },
+        run: { id: runId, status },
         state,
         history,
         usage: { ...usage },
@@ -229,7 +239,9 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         event: "run:finally",
         ...runBase,
         state,
+        status,
       })
+      context.onEvent?.(publicRunEvent("run.end", runId, { status }))
     }
   }
 
@@ -276,18 +288,13 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
     const step = node as StepNode
     if (step.when && !evalExpr(step.when, ctx.state)) return
 
-    const mode = ctx.context.mode ?? "run"
     const onlyStepId = ctx.context.onlyStepId
 
-    if (mode === "test" && onlyStepId && step.id !== onlyStepId) {
+    if (onlyStepId && step.id !== onlyStepId) {
       return
     }
 
-    if (
-      mode === "test" &&
-      !onlyStepId &&
-      ctx.history[step.id]?.status === "completed"
-    ) {
+    if (!onlyStepId && ctx.history[step.id]?.status === "completed") {
       if (ctx.context.stopAfterStepId === step.id) {
         ctx.stoppedAfter = true
       }
@@ -296,7 +303,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
 
     await this.executeStep(step, ctx)
 
-    if (mode === "test" && ctx.context.stopAfterStepId === step.id) {
+    if (ctx.context.stopAfterStepId === step.id) {
       ctx.stoppedAfter = true
     }
   }
@@ -322,7 +329,15 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         step: { id: step.id, capabilityId: step.uses, label: step.label },
         state: ctx.state,
         diagnostics,
+        journal: ctx.context.journal,
       })
+      ctx.context.onEvent?.(
+        publicRunEvent("step.error", ctx.runId, {
+          stepId: step.id,
+          status: "failed",
+          error: { code: ECP_CAPABILITY_UNKNOWN, message: diagnostics[0]!.message },
+        })
+      )
       return
     }
 
@@ -340,11 +355,31 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       "output" | "pendingMutations" | "proposedState"
     >
 
+    const policyDetails: PolicyJournalDecision[] = []
+    const startedAt = Date.now()
+
     const lifecycleBase = {
       workflow: ctx.manifest,
       run: { id: ctx.runId, input: ctx.context.input },
       step: stepCtx,
       state: ctx.state,
+      journal: ctx.context.journal,
+      approvals: ctx.context.approvals,
+      policyDecisions: policyDetails,
+    }
+
+    const emitStepError = (diagnostics?: StepRunRecord["diagnostics"]): void => {
+      const first = diagnostics?.[0]
+      ctx.context.onEvent?.(
+        publicRunEvent("step.error", ctx.runId, {
+          stepId: step.id,
+          status: "failed",
+          durationMs: Date.now() - startedAt,
+          error: first
+            ? { code: first.code, message: first.message }
+            : { message: "step failed" },
+        })
+      )
     }
 
     const runStepFinally = async (): Promise<void> => {
@@ -390,6 +425,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
             ...lifecycleBase,
             diagnostics: stepRecord.diagnostics,
           })
+          emitStepError(stepRecord.diagnostics)
           return
         }
         throw err
@@ -408,13 +444,20 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           __brand: undefined,
         })),
         usage: ctx.usage,
+        approvals: ctx.context.approvals,
       }
 
       const preDecision = await evaluatePolicies(
         "policy:pre",
         ctx.context.bindings.policyHooks,
-        policyCtxBase as PolicyContext
+        policyCtxBase as PolicyContext,
+        policyDetails
       )
+      for (const detail of policyDetails.filter((d) => d.event === "policy:pre")) {
+        ctx.context.onEvent?.(
+          publicRunEvent("step.policy", ctx.runId, { stepId: step.id, policy: detail })
+        )
+      }
 
       if (preDecision.type === "deny") {
         stepRecord.status = "failed"
@@ -430,10 +473,24 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           ...lifecycleBase,
           diagnostics: stepRecord.diagnostics,
         })
+        emitStepError(stepRecord.diagnostics)
         return
       }
       if (preDecision.type === "pause") {
         stepRecord.status = "paused"
+        stepRecord.diagnostics = [
+          {
+            severity: "error",
+            code: ECP_RUN_PAUSED,
+            message: preDecision.reason,
+          },
+        ]
+        await emitLifecycle("step:paused", ctx.extensionHooks, {
+          event: "step:paused",
+          ...lifecycleBase,
+          resolvedInput,
+          diagnostics: stepRecord.diagnostics,
+        })
         return
       }
 
@@ -477,7 +534,11 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       await emitLifecycle("step:started", ctx.extensionHooks, {
         event: "step:started",
         ...lifecycleBase,
+        resolvedInput,
       })
+      ctx.context.onEvent?.(
+        publicRunEvent("step.start", ctx.runId, { stepId: step.id, status: "started" })
+      )
 
       try {
         output = await dispatchCapability({
@@ -499,6 +560,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           ...lifecycleBase,
           diagnostics: stepRecord.diagnostics,
         })
+        emitStepError(stepRecord.diagnostics)
         return
       }
 
@@ -513,8 +575,14 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           output,
           pendingMutations: buffer.pending(),
           proposedState,
-        } as PolicyContext
+        } as PolicyContext,
+        policyDetails
       )
+      for (const detail of policyDetails.filter((d) => d.event === "policy:post")) {
+        ctx.context.onEvent?.(
+          publicRunEvent("step.policy", ctx.runId, { stepId: step.id, policy: detail })
+        )
+      }
 
       if (postDecision.type === "deny" || postDecision.type === "pause") {
         buffer.discard()
@@ -530,6 +598,20 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           ]
           await emitLifecycle("step:failed", ctx.extensionHooks, {
             event: "step:failed",
+            ...lifecycleBase,
+            diagnostics: stepRecord.diagnostics,
+          })
+          emitStepError(stepRecord.diagnostics)
+        } else {
+          stepRecord.diagnostics = [
+            {
+              severity: "error",
+              code: ECP_RUN_PAUSED,
+              message: postDecision.reason,
+            },
+          ]
+          await emitLifecycle("step:paused", ctx.extensionHooks, {
+            event: "step:paused",
             ...lifecycleBase,
             diagnostics: stepRecord.diagnostics,
           })
@@ -550,7 +632,6 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       const pending = buffer.pending()
       let commitMode = step.mode
       if (
-        (ctx.context.mode ?? "run") === "test" &&
         step.as !== undefined &&
         (commitMode === undefined || commitMode === "create") &&
         ctx.state[step.as] !== undefined
@@ -569,6 +650,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       stepRecord.status = "completed"
       stepRecord.output = output
       stepRecord.committedAs = step.as ?? null
+      stepRecord.attempts = 1
       stepRecord.mutations = pendingToMutationRecords(
         pending,
         step.id,
@@ -580,7 +662,16 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         event: "step:completed",
         ...lifecycleBase,
         output,
+        resolvedInput,
+        pendingMutations: pending,
       })
+      ctx.context.onEvent?.(
+        publicRunEvent("step.end", ctx.runId, {
+          stepId: step.id,
+          status: "completed",
+          durationMs: Date.now() - startedAt,
+        })
+      )
     } finally {
       ctx.history[step.id] = stepRecord
       if (policyCtxBase!) {

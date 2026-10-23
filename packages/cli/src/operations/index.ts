@@ -16,12 +16,12 @@ import {
   configSecretsRemoveOperation,
 } from "./secrets.js"
 import {
-  testRerunOperation,
-  testRunOperation,
-  testStartOperation,
-  testStatusOperation,
-  testTopicOperation,
-} from "./test-session.js"
+  runsListOperation,
+  runsRerunOperation,
+  runsResumeOperation,
+  runsShowOperation,
+  runsTopicOperation,
+} from "./runs.js"
 import { updateOperation } from "./update.js"
 import { installOperation } from "./install.js"
 import { compileOperation, runOperation, validateOperation } from "./workflow.js"
@@ -35,11 +35,11 @@ export const operations: OperationDefinition[] = [
   describeOperation,
   searchOperation,
   invokeOperation,
-  testTopicOperation,
-  testStartOperation,
-  testRunOperation,
-  testRerunOperation,
-  testStatusOperation,
+  runsTopicOperation,
+  runsListOperation,
+  runsShowOperation,
+  runsResumeOperation,
+  runsRerunOperation,
   initOperation,
   configSecretsOperation,
   configSecretsAddOperation,

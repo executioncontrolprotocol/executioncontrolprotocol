@@ -1,6 +1,7 @@
 # @executioncontrolprotocol/node
 
-**Node.js environment** for ECP: Node executor, default secrets and process-env bindings, workflow compile, and file loaders.
+**Node.js environment** for ECP: Node executor, default secrets, process-env, and journal
+bindings, workflow compile, and file loaders.
 
 ## vs `@executioncontrolprotocol/core`
 
@@ -34,7 +35,9 @@ await ecp.run(
 )
 ```
 
-`secrets()` and `env()` resolve with no explicit binding: the Node definition binds those extensions by default.
+`secrets()` and `env()` resolve with no explicit binding: the Node definition binds those
+extensions by default, along with the journal writer (`@executioncontrolprotocol/journal`).
+Journals land under `.ecp/runs/<runId>/` unless `ECP_RUNS_DIR` is set.
 
 ## Related
 

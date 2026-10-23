@@ -95,7 +95,18 @@ export type {
 } from "./lifecycle.js"
 export type { PendingMutation, MutationRecord, StoreStateHandle } from "./store.js"
 export type { RunRequest, RunResult, StepRunRecord } from "./run.js"
-export type { TestSessionSnapshot, TestSessionStatus } from "./test-session.js"
+export {
+  JOURNAL_VERSION,
+} from "./journal.js"
+export type {
+  JournalRunDocument,
+  JournalStepDocument,
+  PolicyJournalDecision,
+  RunApproval,
+  RunJournalMeta,
+} from "./journal.js"
+export { publicRunEvent } from "./run-events.js"
+export type { PublicRunEvent, PublicRunEventType } from "./run-events.js"
 export type {
   RegistryRegistrationRequest,
   RegistryRegistrationSourceType,

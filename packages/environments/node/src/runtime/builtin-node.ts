@@ -8,6 +8,7 @@ import { NodeRuntimeExecutor } from "./node-executor.js"
 import { testExtension } from "@executioncontrolprotocol/core"
 import { secretsExtension } from "../secrets/index.js"
 import { processEnvExtension } from "../secrets/process-env.js"
+import { journalExtension } from "../journal/extension.js"
 
 export { NodeRuntimeExecutor } from "./node-executor.js"
 export { NODE_ENVIRONMENT_ID }
@@ -20,7 +21,7 @@ export const nodeEnvironmentDefinition = defineEnvironment("@executioncontrolpro
     maxConcurrency: z.number().optional(),
   })
   .withVersion(NODE_ENVIRONMENT_VERSION)
-  .withDefaultExtensions([secretsExtension, processEnvExtension, testExtension])
+  .withDefaultExtensions([secretsExtension, processEnvExtension, testExtension, journalExtension])
   .withExecutor(new NodeRuntimeExecutor())
 
 /** Register the Node environment definition for {@link environment} lookup. @category Environment */

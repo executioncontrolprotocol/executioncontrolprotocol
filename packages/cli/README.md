@@ -9,9 +9,9 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Compile workflow files (`*.ecp.ts` / `.js`) to portable JSON manifests
 - Validate workflows against the process host or an optional `--env` overlay
 - Describe/search environment capabilities for agent/UI discovery
-- Run workflows and print structured run results
+- Run workflows and print structured run results (`ecp run --to`, `ecp run --events`)
 - Invoke a single capability outside a workflow (`ecp invoke`)
-- Test workflows with a persistent session (`ecp test start|run|rerun|status`; Phase 4 PR 2 replaces this with `ecp runs *`)
+- Inspect and continue run journals (`ecp runs list|show|resume|rerun`)
 - Install inferred plugins for a workflow file (`ecp install`)
 - Author and check plugins (`ecp plugins new|build|check`) next to oclif's `plugins install|link`
 - Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
@@ -78,22 +78,26 @@ ecp describe
 ecp search "echo"
 ```
 
-### Test session (`ecp test`)
+### Run journals (`ecp runs`)
 
-Drive a workflow incrementally with frozen state (distinct from `testExtension` stubs):
+Every `ecp run` writes `.ecp/runs/<runId>/` (`run.json` plus `steps/<stepId>.json`). Override
+the directory with `ECP_RUNS_DIR`.
 
 ```sh
-ecp test start workflow.ecp.ts -o session.json
-ecp test run --to step-b --session session.json
-ecp test rerun step-a --session session.json
-ecp test status --session session.json
+ecp run workflow.ecp.ts --to step-b
+ecp runs list
+ecp runs show <id>
+ecp runs resume <id>
+ecp runs resume <id> --approve
+ecp runs rerun <id> --from step-a --to step-a
 ```
 
-- `run --to <step-id>` is **inclusive** (runs through that step, then pauses).
-- `rerun <step-id>` re-executes one step and **clears** downstream history and `.as` state keys.
-- Session file schema: `@executioncontrolprotocol.test.session`.
-
-Fluent API: `ecp.test(workflow).with({ input }).start()` then `session.runTo(id)` / `session.rerun(id)`.
+- `ecp run --to <step-id>` is **inclusive** (runs through that step, then stops with status
+  `stopped`).
+- `runs resume` continues a `stopped` or `paused` run as a new run id.
+- `runs rerun --from <step>` re-executes from that step using the current file; `--from X --to X`
+  re-runs exactly one step and clears later outputs.
+- `runs resume --approve` records `{ stepId, approvedBy, at }` for a policy-paused step.
 
 ### Invoke a capability
 
@@ -118,8 +122,8 @@ ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp discover jsonata --json
 ```
 
-`--env` is optional on `run`, `validate`, `install`, and `ecp test *`. `describe`, `search`,
-and `invoke` take it the same way. Phase 4 PR 2 replaces `ecp test` with `ecp runs *`.
+`--env` is optional on `run`, `validate`, and `install`. `describe`, `search`, and `invoke`
+take it the same way.
 
 ## Related packages
 

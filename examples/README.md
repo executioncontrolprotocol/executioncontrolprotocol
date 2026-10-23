@@ -16,4 +16,4 @@ Vendor examples live under `examples/vendor/` (fal, image-sharp, Adobe) until Ph
 
 Offline examples (`01-echo`, `03-secrets-bind`, `06-invoke`, `07-accepts-returns`) run in CI. `02-weekly-brief` needs the OpenAI plugin and an API key; use `--dry-run` without a key.
 
-`ecp test` still works until Phase 4 PR 2 replaces it with `ecp runs *`.
+Step a run with `ecp run <file> --to <step>`, then `ecp runs resume` / `ecp runs rerun`. Journals live under `.ecp/runs/`.

@@ -61,6 +61,15 @@ The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own ver
 workflow file against the process host when the flag is omitted. The file is
 `environment(id).with([...])`, not a required workflow+environment pair.
 
+## Run, events, and journals
+
+- `ecp run <file> --to <step>` stops after that leaf step with status `stopped`.
+- `ecp run --events` streams NDJSON (`run.start`, `step.start`, `step.policy`, `step.end`,
+  `step.error`, `run.end`). The last line is `run.end`.
+- `ecp runs list|show|resume|rerun` inspect and continue journals under `.ecp/runs/`.
+  `resume --approve` records an approval for a paused step. `rerun --from` / `--to` reuse
+  earlier journal outputs. There is no `ecp test`.
+
 ## One path per concern
 
 - Don't add parallel command trees for the same thing (for example `extensions` and `plugins`).

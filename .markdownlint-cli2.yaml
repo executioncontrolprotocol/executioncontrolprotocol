@@ -4,3 +4,4 @@ globs:
 ignores:
   - "**/node_modules/**"
   - "packages/vendor/**/openapi/**"
+  - ".git/**"

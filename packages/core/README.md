@@ -10,7 +10,8 @@ Use for:
 
 - Building environments: `environment()`, `extension()`, `policy()`, `defineEnvironment()`
 - Operational APIs on **`Ecp`** after `await env.init()`: `run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, `invoke`, `terminate`
-- Workflow authoring: `workflow()`, `step()`, `.accepts()` / `.returns()`, `parallel()`, etc.
+- Workflow authoring: `workflow()`, `step()`, `.with([...])`, `.accepts()` / `.returns()`, `parallel()`, etc.
+- Run options: `stopAfterStepId`, `onlyStepId`, `seedState`, `seedHistory`, `approvals`, `journal`, `onEvent`. Status includes `stopped` (inclusive `--to`) and `paused` (policy). There is no `ecp.test()`.
 - Fluent output: `ecp.encode(manifest).as("fluent")`
 
 Protocol types and schema constants live on **`@executioncontrolprotocol/core/types`** (for example `WorkflowManifest`, `LATEST_ECP_VERSION`, `FileRef`). The main barrel does not re-export them.

@@ -1,7 +1,10 @@
 import type {
   LifecycleEvent,
   PolicyEvaluationScope,
+  PolicyJournalDecision,
   RegistryRegistrationRequest,
+  RunApproval,
+  RunJournalMeta,
   ValidationIssue,
   WorkflowManifest,
 } from "../types/index.js"
@@ -60,6 +63,18 @@ export interface LifecycleContext {
   output?: unknown
   /** Failure diagnostics when the step did not complete (e.g. `step:failed`). */
   diagnostics?: ValidationIssue[]
+  /** Resolved step input after `ref()` substitution. */
+  resolvedInput?: Record<string, unknown>
+  /** Policy evaluations for this step. */
+  policyDecisions?: PolicyJournalDecision[]
+  /** Pending mutations at commit time. */
+  pendingMutations?: import("../types/index.js").PendingMutation[]
+  /** Journal metadata from {@link RunOptions}. */
+  journal?: RunJournalMeta
+  /** Recorded approvals for this run. */
+  approvals?: RunApproval[]
+  /** Run status on `run:*` end events. */
+  status?: import("../types/index.js").RunStatus
   /** Present on `environment:*` events. */
   environment?: EnvironmentLifecycleHost
 }
@@ -84,6 +99,8 @@ export interface PolicyContext {
   registryRequest?: RegistryRegistrationRequest
   /** Present when {@link PolicyEvaluationScope} is `invoke`. */
   capabilityId?: import("../types/index.js").CapabilityId
+  /** Recorded approvals so an approval policy can allow a paused step. */
+  approvals?: RunApproval[]
 }
 
 /** Minimal logger. @category Runtime */

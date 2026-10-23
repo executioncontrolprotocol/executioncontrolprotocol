@@ -44,10 +44,16 @@ describe("CLI flag and arg naming (kebab-case)", () => {
     expect(out).not.toMatch(/--usesProvider\b/)
   })
 
-  it("test run exposes --to and --session", { timeout: 60_000 }, () => {
-    const out = help("test run")
+  it("run exposes --to and --events", { timeout: 60_000 }, () => {
+    const out = help("run")
     expect(out).toMatch(/--to\b/)
-    expect(out).toMatch(/--session\b/)
-    expect(out).toMatch(/--env\b/)
+    expect(out).toMatch(/--events\b/)
+  })
+
+  it("runs resume exposes --to and --approve", { timeout: 60_000 }, () => {
+    const out = help("runs resume")
+    expect(out).toMatch(/--to\b/)
+    expect(out).toMatch(/--approve\b/)
+    expect(out).toMatch(/\bRUN-ID\b/)
   })
 })

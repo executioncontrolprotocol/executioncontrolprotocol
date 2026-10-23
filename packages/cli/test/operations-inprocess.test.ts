@@ -1,8 +1,13 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Interfaces } from "@oclif/core"
-import { EcpCliError, ECP_PLUGINS_MISSING } from "@executioncontrolprotocol/plugin-sdk"
+import {
+  EcpCliError,
+  ECP_PLUGINS_MISSING,
+  ECP_RUN_PAUSED,
+  ECP_RERUN_INCOMPATIBLE,
+} from "@executioncontrolprotocol/plugin-sdk"
 import { describe, expect, it } from "vitest"
 import { COMMANDS } from "../src/commands.js"
 import { applyFormat, formatExtensionId } from "../src/lib/format-output.js"
@@ -39,12 +44,12 @@ import {
   configSecretsAddOperation,
 } from "../src/operations/secrets.js"
 import {
-  testRerunOperation,
-  testRunOperation,
-  testStartOperation,
-  testStatusOperation,
-  testTopicOperation,
-} from "../src/operations/test-session.js"
+  runsListOperation,
+  runsRerunOperation,
+  runsResumeOperation,
+  runsShowOperation,
+  runsTopicOperation,
+} from "../src/operations/runs.js"
 import { repoRoot } from "./helpers.js"
 
 const echoWf = join(repoRoot, "examples", "01-echo", "workflow.ecp.ts")
@@ -76,6 +81,7 @@ function ctx(
 describe("generated COMMANDS", () => {
   it("includes host operations and no duplicate plugins ids", () => {
     expect(COMMANDS.run).toBeDefined()
+    expect(COMMANDS["runs:list"]).toBeDefined()
     expect(COMMANDS.install).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
@@ -142,21 +148,187 @@ describe("catalog operations", () => {
   }, 30_000)
 })
 
-describe("test session operations", () => {
-  it("starts, runs, reruns and reports status", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "ecp-session-"))
-    const session = join(dir, "session.json")
-    await testStartOperation.handler(
-      { "workflow-path": echoWf, output: session },
-      ctx()
-    )
-    const advanced = await testRunOperation.handler({ to: "echo", session }, ctx())
-    expect(advanced).toBeDefined()
-    await testRerunOperation.handler({ "step-id": "echo", session }, ctx())
-    const status = await testStatusOperation.handler({ session }, ctx())
-    expect(status).toMatchObject({ schema: "@executioncontrolprotocol.test.session" })
-    const help = await testTopicOperation.handler({}, ctx())
-    expect(String(help)).toMatch(/ecp test/)
+describe("runs operations", () => {
+  it("run --to, list, show, resume, rerun", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-runs-"))
+    const previous = process.env.ECP_RUNS_DIR
+    process.env.ECP_RUNS_DIR = dir
+    try {
+      const twoStep = join(repoRoot, "packages", "cli", "test", "fixtures", "two-step", "workflow.ts")
+      const stopped = (await runOperation.handler(
+        { "workflow-path": twoStep, to: "first" },
+        ctx()
+      )) as { run: { id: string; status: string }; history: Record<string, { status: string }> }
+      expect(stopped.run.status).toBe("stopped")
+      expect(stopped.history.first?.status).toBe("completed")
+
+      const listed = (await runsListOperation.handler({}, ctx())) as Array<{ runId: string }>
+      expect(listed.some((item) => item.runId === stopped.run.id)).toBe(true)
+
+      const shown = await runsShowOperation.handler({ "run-id": stopped.run.id }, ctx())
+      expect(shown).toMatchObject({ runId: stopped.run.id, status: "stopped" })
+
+      const resumed = (await runsResumeOperation.handler(
+        { "run-id": stopped.run.id },
+        ctx()
+      )) as { run: { id: string; status: string }; history: Record<string, { status: string }> }
+      expect(resumed.run.status).toBe("completed")
+      expect(resumed.history.second?.status).toBe("completed")
+      expect(resumed.run.id).not.toBe(stopped.run.id)
+
+      const rerun = (await runsRerunOperation.handler(
+        { "run-id": resumed.run.id, from: "first", to: "first" },
+        ctx()
+      )) as { run: { status: string }; history: Record<string, { status: string }> }
+      expect(rerun.run.status).toBe("stopped")
+      expect(rerun.history.second).toBeUndefined()
+
+      const help = await runsTopicOperation.handler({}, ctx())
+      expect(String(help)).toMatch(/ecp runs/)
+    } finally {
+      if (previous === undefined) delete process.env.ECP_RUNS_DIR
+      else process.env.ECP_RUNS_DIR = previous
+    }
+  }, 30_000)
+
+  it("streams --events NDJSON in order", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-events-"))
+    const previous = process.env.ECP_RUNS_DIR
+    process.env.ECP_RUNS_DIR = dir
+    const chunks: string[] = []
+    const orig = process.stdout.write.bind(process.stdout)
+    process.stdout.write = ((chunk: string | Uint8Array, ..._rest: unknown[]) => {
+      chunks.push(String(chunk))
+      return true
+    }) as typeof process.stdout.write
+    try {
+      const result = await runOperation.handler({ "workflow-path": echoWf, events: true }, ctx())
+      expect(result).toBeUndefined()
+      const lines = chunks
+        .join("")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as { type: string })
+      expect(lines[0]?.type).toBe("run.start")
+      expect(lines.some((line) => line.type === "step.start")).toBe(true)
+      expect(lines.some((line) => line.type === "step.end")).toBe(true)
+      expect(lines.at(-1)?.type).toBe("run.end")
+    } finally {
+      process.stdout.write = orig
+      if (previous === undefined) delete process.env.ECP_RUNS_DIR
+      else process.env.ECP_RUNS_DIR = previous
+    }
+  }, 30_000)
+
+  it("pauses on approval and continues only with --approve", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-approve-"))
+    const previous = process.env.ECP_RUNS_DIR
+    process.env.ECP_RUNS_DIR = dir
+    const workflowPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "workflow.ecp.ts")
+    const envPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "environment.ts")
+    try {
+      await expect(
+        runOperation.handler({ "workflow-path": workflowPath, env: envPath }, ctx())
+      ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
+      const listed = (await runsListOperation.handler({ status: "paused" }, ctx())) as Array<{
+        runId: string
+      }>
+      const pausedId = listed[0]?.runId
+      expect(pausedId).toBeDefined()
+      await expect(
+        runsResumeOperation.handler({ "run-id": pausedId!, env: envPath }, ctx())
+      ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
+      const continued = (await runsResumeOperation.handler(
+        { "run-id": pausedId!, env: envPath, approve: true },
+        ctx()
+      )) as { run: { status: string; id: string } }
+      expect(continued.run.status).toBe("completed")
+      const shown = (await runsShowOperation.handler({ "run-id": continued.run.id }, ctx())) as {
+        approvals?: Array<{ stepId: string }>
+      }
+      expect(shown.approvals?.[0]?.stepId).toBe("echo")
+    } finally {
+      if (previous === undefined) delete process.env.ECP_RUNS_DIR
+      else process.env.ECP_RUNS_DIR = previous
+    }
+  }, 30_000)
+
+  it("rejects rerun when an earlier step definition changed", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-incompat-"))
+    const work = join(repoRoot, `tmp-ecp-incompat-${Date.now()}`)
+    const previous = process.env.ECP_RUNS_DIR
+    process.env.ECP_RUNS_DIR = dir
+    await mkdir(work, { recursive: true })
+    const file = join(work, "workflow.ecp.ts")
+    const source = (value: string) => `import { workflow, step, ref } from "@executioncontrolprotocol/core"
+export default workflow("two").run([
+  step("@executioncontrolprotocol/test.echo", "First").id("first").with({ value: "${value}" }).as("first"),
+  step("@executioncontrolprotocol/test.echo", "Second").id("second").with({ value: ref("first.echo") }).as("second"),
+])
+`
+    try {
+      await writeFile(file, source("one"), "utf8")
+      const ran = (await runOperation.handler({ "workflow-path": file }, ctx())) as {
+        run: { id: string; status: string }
+      }
+      expect(ran.run.status).toBe("completed")
+      await writeFile(file, source("changed"), "utf8")
+      await expect(
+        runsRerunOperation.handler({ "run-id": ran.run.id, from: "second" }, ctx())
+      ).rejects.toMatchObject({ code: ECP_RERUN_INCOMPATIBLE })
+    } finally {
+      await rm(work, { recursive: true, force: true })
+      if (previous === undefined) delete process.env.ECP_RUNS_DIR
+      else process.env.ECP_RUNS_DIR = previous
+    }
+  }, 30_000)
+
+  it("reruns from a failed step and reuses earlier outputs", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-fail-rerun-"))
+    const work = join(repoRoot, `tmp-ecp-fail-${Date.now()}`)
+    const previous = process.env.ECP_RUNS_DIR
+    process.env.ECP_RUNS_DIR = dir
+    await mkdir(work, { recursive: true })
+    const file = join(work, "workflow.ecp.ts")
+    const broken = `import { workflow, step, ref } from "@executioncontrolprotocol/core"
+export default workflow("fail").run([
+  step("@executioncontrolprotocol/test.echo", "First").id("first").with({ value: "ok" }).as("first"),
+  step("@executioncontrolprotocol/test.echo", "Second").id("second").with({ value: ref("missing.echo") }).as("second"),
+])
+`
+    const fixed = `import { workflow, step, ref } from "@executioncontrolprotocol/core"
+export default workflow("fail").run([
+  step("@executioncontrolprotocol/test.echo", "First").id("first").with({ value: "ok" }).as("first"),
+  step("@executioncontrolprotocol/test.echo", "Second").id("second").with({ value: ref("first.echo") }).as("second"),
+])
+`
+    try {
+      await writeFile(file, broken, "utf8")
+      await expect(runOperation.handler({ "workflow-path": file }, ctx())).rejects.toBeInstanceOf(
+        EcpCliError
+      )
+      const listed = (await runsListOperation.handler({ status: "failed" }, ctx())) as Array<{
+        runId: string
+      }>
+      const failedId = listed[0]?.runId
+      expect(failedId).toBeDefined()
+      await writeFile(file, fixed, "utf8")
+      const rerun = (await runsRerunOperation.handler(
+        { "run-id": failedId!, from: "second" },
+        ctx()
+      )) as {
+        run: { status: string }
+        history: Record<string, { status: string; output?: unknown }>
+      }
+      expect(rerun.run.status).toBe("completed")
+      expect(rerun.history.first?.status).toBe("completed")
+      expect(rerun.history.second?.status).toBe("completed")
+    } finally {
+      await rm(work, { recursive: true, force: true })
+      if (previous === undefined) delete process.env.ECP_RUNS_DIR
+      else process.env.ECP_RUNS_DIR = previous
+    }
   }, 30_000)
 })
 

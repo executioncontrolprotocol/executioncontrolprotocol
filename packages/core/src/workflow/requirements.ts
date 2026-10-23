@@ -20,6 +20,7 @@ export const BUILTIN_REQUIREMENT_IDS = new Set<string>([
   "@executioncontrolprotocol/process-env",
   "@executioncontrolprotocol/node",
   "@executioncontrolprotocol/browser",
+  "@executioncontrolprotocol/journal",
 ])
 
 function resolveBindingId(ref: NamespacedId | { id: NamespacedId } | string): NamespacedId {
@@ -91,7 +92,7 @@ function entryFromBinding(binding: WorkflowBinding): RequirementEntry {
   const range = binding.getRange()
   const config = cloneConfigForManifest(binding.getConfig())
   const kind: RequirementEntry["kind"] =
-    binding instanceof PolicyBindingBuilder ? "policy" : "extension"
+    binding.kind === "policy" || binding instanceof PolicyBindingBuilder ? "policy" : "extension"
   return {
     kind,
     id,

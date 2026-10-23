@@ -12,7 +12,8 @@ alwaysApply: true
 - **Manifests:** workflows use `schema: "@executioncontrolprotocol.workflow"` and
   `version: "1.0"` (`LATEST_ECP_VERSION`). Workflow-file bindings compile into a
   separate `@executioncontrolprotocol.requirements` block (`requirements()`), never into
-  the portable manifest.
+  the portable manifest. Run journals use `schema: "@executioncontrolprotocol.run.journal"`
+  (`journalVersion: 1`).
 - **Portability:**
   - A compiled workflow manifest never contains secrets or host config.
   - A workflow *file* declares its extension and policy bindings with
