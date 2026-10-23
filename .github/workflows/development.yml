@@ -27,6 +27,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Fetch base branch for Changesets
-        run: git fetch origin development --depth=1 || true
+        run: git fetch origin development:development
       - name: Changesets status
         run: pnpm exec changeset status
