@@ -218,8 +218,6 @@ export default defineConfig({
             "packages/core/test/**/*.test.ts",
             "packages/cli/test/**/*.test.ts",
             "packages/mcp/**/*.test.ts",
-            "packages/extensions/**/*.test.ts",
-            "packages/vendor/*/test/**/*.test.ts",
             "packages/plugin-sdk/test/**/*.test.ts",
             "packages/environments/node/**/*.test.ts",
             "plugins/**/*.test.ts",

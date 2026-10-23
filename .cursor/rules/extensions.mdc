@@ -1,6 +1,6 @@
 ---
 description: How to build ECP extensions and plugins without host coupling
-globs: packages/{extensions,vendor}/**/*,plugins/**/*
+globs: plugins/**/*
 alwaysApply: false
 ---
 
@@ -52,7 +52,7 @@ export default defineExtension("@vendor", "my-ext")
 | Registration | Export the definition; bind `extension(def)` on the environment. Hosts call `registry.registerExtension(definition)` (no `register*` helpers) | **Phase 5:** remaining packages move to `plugins/`. `ecp plugins build` already generates CLI files |
 | Where it can run | `.supports("@executioncontrolprotocol/node", "^1")`. No call means any environment | Unchanged after Phase 2 |
 | Package name | Same as the extension id (`@executioncontrolprotocol/format-toon`) | **Phase 5:** `@<scope>/plugin-<extension name>` (`plugin-format-toon`). Ids don't change |
-| Location | Model, format and policy plugins live in `plugins/plugin-*`. Vendor packages remain in `packages/vendor/*` | **Phase 5 PR 3–4:** remaining vendor packages move to `plugins/plugin-<name>` |
+| Location | First-party plugins live in `plugins/plugin-*` | Unchanged after Phase 5 PR 4 |
 | CLI | None | **Phase 3/5:** `ecp plugins build` generates commands, manifest and `package.json` fields. Nothing hand-written |
 | Policies | `plugin-budget`, `plugin-approval`, `plugin-state-control`; `registry-control` is in core | Unchanged after Phase 5 PR 2 |
 | Secrets providers | Node environment default bindings (`secrets`, `process-env`) | Unchanged after Phase 2. `browser-secrets` was removed in Phase 1 |

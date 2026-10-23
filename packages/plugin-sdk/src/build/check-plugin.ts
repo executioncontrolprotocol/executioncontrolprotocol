@@ -1,11 +1,24 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import type { Command } from "@oclif/core"
 import type { ExtensionDefinition, PolicyDefinition } from "@executioncontrolprotocol/core"
 import { applyGeneratedFields, generatedPackageFields } from "./generated-pjson.js"
 import { isReservedRootName } from "../reserved-names.js"
 import { toCommands } from "../to-commands.js"
 import type { CheckIssue, CheckReport } from "./types.js"
+
+function commandIdsIncludingAliases(
+  definition: ExtensionDefinition | PolicyDefinition
+): string[] {
+  const commands = toCommands(definition)
+  const ids = new Set<string>()
+  for (const [id, cls] of Object.entries(commands) as [string, Command.Class][]) {
+    ids.add(id)
+    for (const alias of cls.aliases ?? []) ids.add(alias)
+  }
+  return [...ids].sort()
+}
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown
@@ -78,7 +91,7 @@ export async function checkPlugin(dir: string): Promise<CheckReport> {
     const manifest = (await readJson(join(dir, "oclif.manifest.json"))) as {
       commands?: Record<string, unknown>
     }
-    const expectedIds = Object.keys(toCommands(definition)).sort()
+    const expectedIds = commandIdsIncludingAliases(definition)
     const actualIds = Object.keys(manifest.commands ?? {}).sort()
     if (JSON.stringify(expectedIds) !== JSON.stringify(actualIds)) {
       issues.push({

@@ -1,33 +1,19 @@
-import { type Registry } from "@executioncontrolprotocol/core"
 import {
   adobeGeneratedCapabilities,
   ADOBE_GENERATED_OPERATION_COUNT,
 } from "./generated/index.browser.js"
 import { withPhotoshopDiscoveryProjections } from "./discovery-projections.js"
-import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
+import { buildAdobeFireflyServicesExtension } from "./shared.js"
 
 /**
  * Browser catalog for `@executioncontrolprotocol/adobe-firefly-services`.
- * Host-hop stubs only — IMS and Adobe HTTP stay on the Node graph / `ecp up`.
+ * Host-hop stubs only — IMS and Adobe HTTP stay on the Node host.
  *
  * @category Extensions
  */
 export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
   withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
 )
-
-/**
- * Register `@executioncontrolprotocol/adobe-firefly-services` on a registry (browser catalog).
- *
- * @category Extensions
- */
-export async function registerAdobeFireflyServicesExtension(
-  registry: Registry,
-): Promise<void> {
-  if (!registry.getExtension(EXT_ID)) {
-    await registry.registerExtension(adobeFireflyServicesExtension)
-  }
-}
 
 export { ADOBE_GENERATED_OPERATION_COUNT, adobeGeneratedCapabilities }
 export {

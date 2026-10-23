@@ -1,0 +1,72 @@
+{
+  "name": "@executioncontrolprotocol/plugin-adobe-firefly-services",
+  "version": "0.14.1",
+  "description": "Adobe Firefly Services plugin for ECP (family-prefixed kebab capability ids)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "openapi",
+    "oclif.manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc -b && ecp plugins build",
+    "fetch:specs": "node ./scripts/fetch-specs.mjs",
+    "generate": "node ./scripts/generate-capabilities.mjs",
+    "codegen": "npm run fetch:specs && npm run generate"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/cli": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "yaml": "^2.9.0",
+    "zod": "catalog:"
+  },
+  "ecp": {
+    "extension": "./dist/index.js"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "adobe-firefly-services": {
+        "description": "Call Adobe Firefly Services APIs across creative product families"
+      },
+      "firefly": {
+        "description": "Call Adobe Firefly Services APIs across creative product families"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

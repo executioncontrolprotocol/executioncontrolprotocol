@@ -59,6 +59,9 @@ function capabilityCommand(
   capability: CapabilityDefinition
 ): Command.Class {
   const commandId = `${extension.name}:${capability.name}`
+  const topicAlias = extension.metadata?.topicAlias
+  const aliases =
+    topicAlias && topicAlias !== extension.name ? [`${topicAlias}:${capability.name}`] : []
   const schema = capability.inputSchema
   const fields = schemaFieldNames(schema)
   const generatedFlags = flagsFromSchema(schema)
@@ -68,6 +71,7 @@ function capabilityCommand(
 
   class CapabilityCommand extends EcpCommand {
     static id = commandId
+    static aliases = aliases
     static summary = summary
     static description = description
     static examples = examples

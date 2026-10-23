@@ -40,6 +40,34 @@ describe("toCommands", () => {
     expect(cls?.flags).toHaveProperty("expression")
     expect(cls?.flags).toHaveProperty("input")
     expect(cls?.flags).not.toHaveProperty("payload")
+    expect(cls?.aliases ?? []).toEqual([])
+  })
+
+  it("adds command aliases from metadata.topicAlias without a second definition", () => {
+    const ext = defineExtension("@executioncontrolprotocol", "adobe-firefly-services")
+      .withMetadata({
+        summary: "Call Adobe Firefly Services APIs",
+        description: "Generated Adobe Firefly Services capabilities.",
+        topicAlias: "firefly",
+      })
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/adobe-firefly-services", "generate-images")
+          .withInput(z.object({ prompt: z.string() }))
+          .withOutput(z.object({ ok: z.boolean() }))
+          .withMetadata({
+            summary: "Generate images",
+            description: "Calls Firefly image generation.",
+            useCases: ["Create a still from a prompt"],
+            projections: [{ summary: "Take the job", description: "Use the job id for status." }],
+          })
+          .withHandler(async () => ({ ok: true })),
+      ])
+      .build()
+    const commands = toCommands(ext)
+    expect(Object.keys(commands)).toEqual(["adobe-firefly-services:generate-images"])
+    expect(commands["adobe-firefly-services:generate-images"]?.aliases).toEqual([
+      "firefly:generate-images",
+    ])
   })
 
   it("returns an empty map for a policy-only definition", () => {

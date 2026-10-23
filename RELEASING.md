@@ -12,7 +12,7 @@ Publish from this monorepo only, and only when you intend a release:
 
 1. Bump versions (`pnpm run version:bump`).
 2. Merge `development` → `main` (CI always builds and tests).
-3. To publish: set Actions variable **`ENABLE_NPM_PUBLISH=true`**, then push/merge to `main` (or re-run the publish job). CI runs **`pnpm run publish:workspaces`** for every non-private package under `packages/`, including `packages/vendor/*` (skips versions already on the registry). Clear or set the variable back to `false` afterward if you want main merges to stay publish-silent.
+3. To publish: set Actions variable **`ENABLE_NPM_PUBLISH=true`**, then push/merge to `main` (or re-run the publish job). CI runs **`pnpm run publish:workspaces`** for every non-private package under `packages/` and `plugins/` (skips versions already on the registry). Clear or set the variable back to `false` afterward if you want main merges to stay publish-silent.
 4. The former GitHub Pages demo job was removed in Phase 1. The App returns in Phase 8.
 
 External authors depend on the published npm versions. `pnpm run test:vendor-pack` checks that a vendor package typechecks against packed core and types.
@@ -33,9 +33,7 @@ pnpm run version:check-vs-npm
 
 ## Published packages (`@executioncontrolprotocol/*`)
 
-All non-private packages under `packages/` (including protocol/platform `extensions/*`, vendor `vendor/*`, and `environments/*`). Harnesses, evals and the browser demo were removed in Phase 1.
-
-Vendor package names are listed in [`packages/vendor/README.md`](packages/vendor/README.md).
+All non-private packages under `packages/` and `plugins/`. Harnesses, evals and the browser demo were removed in Phase 1. First-party plugins live under `plugins/plugin-*`.
 
 Core surface:
 

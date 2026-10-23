@@ -34,6 +34,18 @@ export function generatedPackageFields(
   const summary = isExtension(definition)
     ? definition.metadata?.summary ?? definition.name
     : definition.name
+  const topics: Record<string, { description: string }> = {
+    [topic]: { description: summary },
+  }
+  const topicAlias = isExtension(definition) ? definition.metadata?.topicAlias : undefined
+  if (topicAlias && topicAlias !== topic) {
+    if (isReservedRootName(topicAlias)) {
+      throw new Error(
+        `Plugin topic alias "${topicAlias}" collides with a reserved CLI root command. Rename metadata.topicAlias.`
+      )
+    }
+    topics[topicAlias] = { description: summary }
+  }
   const keywords = [...new Set([...existingKeywords, "ecosystem:ecp-plugin", "oclif-plugin"])]
   return {
     "ecp.extension": "./dist/index.js",
@@ -47,9 +59,7 @@ export function generatedPackageFields(
         target: "./dist/oclif.js",
         identifier: "COMMANDS",
       },
-      topics: {
-        [topic]: { description: summary },
-      },
+      topics,
     },
     keywords,
     files: ["dist", "oclif.manifest.json", "README.md"],
@@ -77,12 +87,13 @@ export function applyGeneratedFields(
       ? { ...(pkg.ecp as Record<string, unknown>) }
       : {}
   ecp.extension = fields["ecp.extension"]
+  const existingFiles = Array.isArray(pkg.files) ? pkg.files.map(String) : []
   return {
     ...pkg,
     ecp,
     exports: exportsValue,
     oclif: fields.oclif,
     keywords: fields.keywords,
-    files: fields.files,
+    files: [...new Set([...existingFiles, ...fields.files])],
   }
 }

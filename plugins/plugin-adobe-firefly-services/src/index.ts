@@ -1,12 +1,9 @@
 import {
-  type Registry,
-} from "@executioncontrolprotocol/core"
-import {
   adobeGeneratedCapabilities,
   ADOBE_GENERATED_OPERATION_COUNT,
 } from "./generated/index.js"
 import { withPhotoshopDiscoveryProjections } from "./discovery-projections.js"
-import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
+import { buildAdobeFireflyServicesExtension } from "./shared.js"
 
 /**
  * `@executioncontrolprotocol/adobe-firefly-services` — Adobe Firefly Services extension.
@@ -25,19 +22,6 @@ import { buildAdobeFireflyServicesExtension, EXT_ID } from "./shared.js"
 export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
   withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
 )
-
-/**
- * Register `@executioncontrolprotocol/adobe-firefly-services` on a registry.
- *
- * @category Extensions
- */
-export async function registerAdobeFireflyServicesExtension(
-  registry: Registry,
-): Promise<void> {
-  if (!registry.getExtension(EXT_ID)) {
-    await registry.registerExtension(adobeFireflyServicesExtension)
-  }
-}
 
 export { ADOBE_GENERATED_OPERATION_COUNT, adobeGeneratedCapabilities }
 export {

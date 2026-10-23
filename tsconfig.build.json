@@ -53,7 +53,7 @@
       "path": "plugins/plugin-azure-blob-storage"
     },
     {
-      "path": "packages/vendor/adobe-firefly-services"
+      "path": "plugins/plugin-adobe-firefly-services"
     },
     {
       "path": "packages/mcp"

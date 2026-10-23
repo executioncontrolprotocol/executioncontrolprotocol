@@ -1,4 +1,4 @@
-import { workflow, step, ref } from "@executioncontrolprotocol/core"
+import { workflow, step, ref, extension, secrets } from "@executioncontrolprotocol/core"
 
 /**
  * Minimal 1x1 RGB PSD (`sample.psd`) — enough for upload + generate-manifest smoke.
@@ -10,10 +10,20 @@ const FIXTURE_PSD_BASE64 =
 /**
  * Upload a PSD to Azure, mint a write SAS for the manifest JSON, then call Photoshop
  * generate-manifest. The capability polls internally and returns the PSD manifest JSON
- * (layer tree) as step output — ready for author-time `ecp test` runTo inspection and
- * runtime `ref("manifest.layers.0.id")` sequencing.
+ * (layer tree) as step output.
  */
 export default workflow("Azure Blob + Photoshop generate-manifest")
+  .with([
+    extension("@executioncontrolprotocol/azure-blob-storage").with({
+      connectionString: secrets("azure-blob-storage/connection-string"),
+      defaultContainer: "artifacts",
+      defaultSasExpiresInSeconds: 3600,
+    }),
+    extension("@executioncontrolprotocol/adobe-firefly-services").with({
+      clientId: secrets("adobe-firefly-services/client-id"),
+      clientSecret: secrets("adobe-firefly-services/client-secret"),
+    }),
+  ])
   .run([
     step("@executioncontrolprotocol/azure-blob-storage.upload", "Upload PSD")
       .with({
