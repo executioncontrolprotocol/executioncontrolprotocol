@@ -3,6 +3,11 @@
 > Status: Planned · Repo: `executioncontrolprotocol/docs` (Mintlify, executioncontrolprotocol.io)
 > · Branch there: `feat/cli-reset-docs` · Depends on: Phase 5 · Plan: §4.9
 > · Can run in parallel with Phases 7 and 8
+>
+> **Starting point after Phase 5:** 13 plugins under `plugins/`. Changesets in pre-`next`
+> (`1.0.0-next.0` for core, node, browser, cli, plugin-sdk, and every plugin). No `@next` on
+> the registry yet — install is proven with packed tarballs (`plugin-pack-smoke`). Journals
+> and `ecp runs` shipped in Phase 4. MCP is still `0.14.1` until Phase 7.
 
 ## Goal
 

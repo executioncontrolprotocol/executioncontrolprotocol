@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/plugin-fal",
-  "version": "0.14.1",
+  "version": "1.0.0-next.0",
   "description": "FAL model provider plugin for ECP",
   "license": "Apache-2.0",
   "type": "module",

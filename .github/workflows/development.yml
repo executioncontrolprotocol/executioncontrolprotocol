@@ -1,23 +1,23 @@
-# On `development`, ensure publishable packages are versioned above npm latest
-# before merging to main (where publish runs).
+# Changesets status on PRs into development and the reset milestone.
 
-name: devversion
+name: changesets
 
 on:
-  push:
-    branches: [development]
   pull_request:
-    branches: [development]
+    branches: [development, "milestone/**"]
 
 permissions:
   contents: read
 
 jobs:
-  version:
-    name: version
+  status:
+    name: changeset-status
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.12.1
@@ -26,5 +26,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Check workspace versions vs registry
-        run: node scripts/check-version-gt-published.mjs
+      - name: Fetch base branch for Changesets
+        run: git fetch origin development --depth=1 || true
+      - name: Changesets status
+        run: pnpm exec changeset status

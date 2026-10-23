@@ -11,7 +11,7 @@ Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). `--env` i
 | `05-test-session` | `ecp test start` / `run --to` / `rerun` / `status` | **Removed in Phase 1**; use `ecp run --to` / `runs resume` / `runs rerun` |
 | `06-invoke` | `ecp invoke` outside a workflow | Single `workflow.ecp.ts` |
 | `07-accepts-returns` | `.accepts()` / `.returns()`, `ecp run --input` | Single `workflow.ecp.ts` |
-| `vendor/*` | Vendor extension examples | Move next to their plugins in Phase 5 (Slack example removed in Phase 1) |
+| `plugins/plugin-*/examples` | Plugin `*.ecp.ts` examples | Moved in Phase 5 (Slack example removed in Phase 1) |
 | `08-ollama-*` | Retired stubs | **Deleted in Phase 4 PR 1** (they were empty READMEs, not converted) |
 
 See `examples/README.md` and `RESET-PLAN.md` §5.5.

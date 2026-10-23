@@ -4,4 +4,5 @@ globs:
 ignores:
   - "**/node_modules/**"
   - "plugins/plugin-adobe-firefly-services/openapi/**"
+  - ".changeset/**"
   - ".git/**"

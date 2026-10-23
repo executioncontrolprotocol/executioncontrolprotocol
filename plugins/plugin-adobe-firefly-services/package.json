@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/plugin-adobe-firefly-services",
-  "version": "0.14.1",
+  "version": "1.0.0-next.0",
   "description": "Adobe Firefly Services plugin for ECP (family-prefixed kebab capability ids)",
   "license": "Apache-2.0",
   "type": "module",

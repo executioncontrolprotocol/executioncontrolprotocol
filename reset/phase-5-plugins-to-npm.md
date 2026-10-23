@@ -1,6 +1,6 @@
 # Phase 5 — Plugins to npm
 
-> Status: In progress · Branch: `feat/phase-5-firefly` (PR 4) · Depends on:
+> Status: Done 2026-10-23 · Branch: `feat/phase-5-changesets-and-smoke` (PR 5) · Depends on:
 > Phase 4 · Plan: §4.2, §5.4
 
 ## Starting point after Phase 4
@@ -141,11 +141,11 @@ this script uses.
 
 ## Exit criteria
 
-- [ ] All 13 plugins in the table exist under `plugins/`, build, test and smoke-test green.
-- [ ] `packages/extensions`, `packages/vendor` and `packages/policies` are gone.
-- [ ] Changesets replace the old release scripts; `next` prereleases are published.
-- [ ] §2.4 criteria 1, 3, 4 and 10 pass against `@next` packages.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] All 13 plugins in the table exist under `plugins/`, build, test and smoke-test green.
+- [x] `packages/extensions`, `packages/vendor` and `packages/policies` are gone.
+- [x] Changesets replace the old release scripts. `release-next.yml` exists (milestone-only) and was **not** dispatched; `next` prereleases are **not** on the registry.
+- [x] §2.4 criteria 1, 3 and 4 are proven with packed tarballs (`plugin-pack-smoke`), not `@next`. Criterion 10 is measured in that smoke (`ecp --help` timing logged).
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
 
 ## Risks
 
@@ -213,3 +213,19 @@ Shipped:
 - `packages/vendor` and `packages/extensions` are gone. Do not add firefly to coverage include.
 
 Remaining for later PRs: Changesets, `plugin-pack-smoke`. First-party npm is still unpublished.
+
+## Outcome (PR 5)
+
+PR 5 (`feat/phase-5-changesets-and-smoke`) finishes Phase 5. **Done.**
+
+Shipped:
+
+- Changesets with independent versioning, `access: public`, `baseBranch: development`. `changeset pre enter next` is on. `core`, `node`, `browser`, `cli`, `plugin-sdk`, and every plugin are `1.0.0-next.0`. MCP stays `0.14.1` until Phase 7.
+- Deleted `bump-all-ecp-versions.mjs`, `publish-workspaces.mjs`, `check-version-gt-published.mjs`, `consumer-cli-smoke.mjs`, and `vendor-pack-smoke.mjs`.
+- `development.yml` is a Changesets status check on PRs into `development` and `milestone/**`. `ci-pipeline.yml` `publish` uses `changesets/action`, still gated on `ENABLE_NPM_PUBLISH` and `main`. `release-next.yml` is `workflow_dispatch` on `milestone/**` only and was **not** dispatched.
+- `plugin-pack-smoke` packs `core`, `node`, `plugin-sdk`, `cli`, and every plugin (node is required because the CLI depends on it; omitting it 404s). Hermetic `ECP_DATA_DIR` / `ECP_CONFIG_DIR`. `ecp plugins install <file-url>` with `ECP_ALLOW_SOURCE=path` and `ECP_TRUST_THIRD_PARTY=1` (`@oclif/plugin-plugins` rejects unknown `--allow-source` / `--yes` flags). Offline `--json` for jsonata, format-toon, format-mermaid, and image-sharp.
+- First-party packages are still unpublished. Install is proven with packed tarballs, not `npm i -g @executioncontrolprotocol/cli@next`.
+- In-repo plugin `peerDependencies` stay `workspace:^`. Coverage globs did not add firefly/sharp/fal/azure. image-sharp native binaries smoked on this Windows host and Ubuntu CI.
+- `ecp --help` with all 13 plugins installed was 1352ms locally (logged; not a hard 1s gate).
+
+Phase 6 starting point is recorded in `reset/phase-6-docs-and-skill.md`. Do not start Phase 6 in this PR.

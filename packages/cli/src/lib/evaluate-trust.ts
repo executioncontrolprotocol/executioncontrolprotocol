@@ -10,6 +10,26 @@ import { isFirstPartyPackage } from "./npm-registry.js"
 import { pluginNameFromSpec, pluginSourceKind } from "./plugin-source.js"
 import { rememberTrust, rememberedTrust } from "./trust-store.js"
 
+/** Comma-separated git/path sources allowed without `--allow-source`. @category CLI */
+export const ECP_ALLOW_SOURCE_ENV = "ECP_ALLOW_SOURCE"
+
+/**
+ * Source kinds permitted by `--allow-source` and {@link ECP_ALLOW_SOURCE_ENV}.
+ * @category CLI
+ */
+export function allowedPluginSources(argv: string[] = process.argv): Set<string> {
+  const values = new Set<string>()
+  const fromFlag = argvFlagValue(argv, "allow-source")
+  if (fromFlag) values.add(fromFlag)
+  const fromEnv = process.env[ECP_ALLOW_SOURCE_ENV]
+  if (fromEnv) {
+    for (const part of fromEnv.split(/[,\s]+/)) {
+      if (part) values.add(part)
+    }
+  }
+  return values
+}
+
 /** Decision from the plugin trust check. @category CLI */
 export interface TrustDecision {
   /** Whether the install may proceed. */
@@ -29,17 +49,17 @@ export async function evaluateTrust(
 ): Promise<TrustDecision> {
   const kind = pluginSourceKind(spec)
   const name = pluginNameFromSpec(spec)
-  const allowSource = argvFlagValue(argv, "allow-source")
-  if (kind === "git" && allowSource !== "git") {
+  const sources = allowedPluginSources(argv)
+  if (kind === "git" && !sources.has("git")) {
     return {
       allowed: false,
-      reason: "Git plugin sources need --allow-source git",
+      reason: "Git plugin sources need --allow-source git or ECP_ALLOW_SOURCE=git",
     }
   }
-  if (kind === "path" && allowSource !== "path") {
+  if (kind === "path" && !sources.has("path")) {
     return {
       allowed: false,
-      reason: "Local plugin paths need --allow-source path",
+      reason: "Local plugin paths need --allow-source path or ECP_ALLOW_SOURCE=path",
     }
   }
   if (kind === "npm" && isFirstPartyPackage(name)) {
