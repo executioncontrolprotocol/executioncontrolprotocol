@@ -1,7 +1,6 @@
 import {
   capabilityFor,
   defineExtension,
-  globalRegistry,
   BROWSER_ENVIRONMENT_ID,
   NODE_ENVIRONMENT_ID,
   toProviderChatTurns,
@@ -151,7 +150,7 @@ export const anthropicExtension = defineExtension("@executioncontrolprotocol", "
 
 /** Register Anthropic extension. @category Extensions */
 export async function registerAnthropicExtension(
-  registry: Registry = globalRegistry
+  registry: Registry
 ): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/anthropic")) {
     await registry.registerExtension(anthropicExtension)

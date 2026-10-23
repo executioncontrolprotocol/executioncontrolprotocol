@@ -1,7 +1,4 @@
-import {
-  globalRegistry,
-  type Registry,
-} from "@executioncontrolprotocol/core"
+import { type Registry } from "@executioncontrolprotocol/core"
 import { buildImageSharpCapabilities } from "./capability-catalog.js"
 import { buildImageSharpExtension, EXT_ID, HOST_HOP_MESSAGE } from "./shared.js"
 
@@ -27,7 +24,7 @@ export const imageSharpExtension = buildImageSharpExtension(
 )
 
 /** Register `@executioncontrolprotocol/image-sharp` (catalog only in the browser). */
-export async function registerImageSharpExtension(registry: Registry = globalRegistry): Promise<void> {
+export async function registerImageSharpExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(imageSharpExtension)
   }

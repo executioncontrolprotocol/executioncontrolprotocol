@@ -1,7 +1,6 @@
 import {
   defineExtension,
   capabilityFor,
-  globalRegistry,
   type Registry,
   NODE_ENVIRONMENT_ID
 } from "@executioncontrolprotocol/core"
@@ -79,7 +78,7 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
   .build()
 
 /** Register @executioncontrolprotocol/fal. */
-export async function registerFalExtension(registry: Registry = globalRegistry): Promise<void> {
+export async function registerFalExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/fal")) {
     await registry.registerExtension(falExtension)
   }

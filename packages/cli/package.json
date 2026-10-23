@@ -23,18 +23,44 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
     "@executioncontrolprotocol/node": "workspace:^",
-    "@oclif/core": "^4.10.0"
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "@oclif/core": "^5.1.8",
+    "@oclif/plugin-autocomplete": "^3.2.38",
+    "@oclif/plugin-help": "^6.2.33",
+    "@oclif/plugin-not-found": "^3.2.68",
+    "@oclif/plugin-plugins": "^5.4.46",
+    "@oclif/plugin-warn-if-update-available": "^3.1.46",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
-    "zod": "catalog:"
+    "typescript": "catalog:"
   },
   "oclif": {
     "bin": "ecp",
-    "commands": "./dist/commands",
     "dirname": "ecp",
-    "topicSeparator": " "
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/commands.js",
+      "identifier": "COMMANDS"
+    },
+    "scope": "executioncontrolprotocol",
+    "pluginPrefix": "plugin",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-plugins",
+      "@oclif/plugin-not-found",
+      "@oclif/plugin-autocomplete",
+      "@oclif/plugin-warn-if-update-available"
+    ],
+    "hooks": {
+      "init": "./dist/hooks/init-host.js",
+      "command_not_found": "./dist/hooks/command-not-found.js",
+      "jit_plugin_not_installed": "./dist/hooks/jit-install.js",
+      "plugins:preinstall": "./dist/hooks/trust.js"
+    }
   }
 }

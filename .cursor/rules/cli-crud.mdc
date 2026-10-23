@@ -42,14 +42,11 @@ The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own ver
 
 ## How commands are defined
 
-- **Today (until Phase 3):** one oclif command class per file under
-  `packages/cli/src/commands/`. Don't add new commands this way; Phase 3 replaces them.
-- **From Phase 3:**
-  - Every command is generated. The CLI's own commands are `defineOperation(...)`
-    definitions (zod input, metadata, handler, optional `cli: { args: [...] }` for positional
-    arguments) turned into commands by `toCommands()`.
-  - Plugin commands come from extension definitions.
-  - No hand-written oclif command classes. The only hand-written oclif code is the CLI's hooks.
+- Every command is generated. The CLI's own commands are `defineOperation(...)`
+  definitions (zod input, metadata, handler, optional `cli: { args: [...] }` for positional
+  arguments) turned into commands by `toCommands()`.
+- Plugin commands come from extension definitions (`ecp plugins build`).
+- No hand-written oclif command classes. The only hand-written oclif code is the CLI's hooks.
 - **`--json`:** every command supports it, printing the envelope `{ ok, data }` or
   `{ ok: false, error: { code, message, path, suggestions } }`. Errors use `ECP_*` codes and
   the exit codes in `RESET-PLAN.md` §4.6. `EcpCommand` owns this, so oclif's own JSON error

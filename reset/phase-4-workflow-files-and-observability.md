@@ -3,6 +3,15 @@
 > Status: Planned · Branch: `feat/phase-4-workflow-files` · Depends on: Phase 3 ·
 > Plan: §4.3, §4.4, §4.6
 
+## Starting point after Phase 3
+
+There are no hand-written oclif command classes. `packages/plugin-sdk` exists.
+`plugins/plugin-jsonata` is the reference plugin (`@executioncontrolprotocol/plugin-jsonata`).
+`globalRegistry` is gone; `register*` helpers require an explicit `Registry`. `ecp run` still
+takes `--env <module>` until this phase. The CLI is oclif 5 with generated `COMMANDS`, bundled
+plugin-plugins, and hooks (`init-host`, not-found, trust, JIT). JIT `mcp` / `plugin-app`
+entries are still omitted. `ecp.invoke` is fluent (`.with(input).process()`).
+
 ## Goal
 
 Make one `*.ecp.ts` file run a whole workflow: bindings, policies and plugin needs included.

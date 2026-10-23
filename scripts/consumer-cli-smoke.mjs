@@ -33,13 +33,14 @@ const REQUIRED = new Set([
   "@executioncontrolprotocol/policies",
   "@executioncontrolprotocol/format-toon",
   "@executioncontrolprotocol/node",
+  "@executioncontrolprotocol/plugin-sdk",
   "@executioncontrolprotocol/cli",
 ])
 
 function assertBuilt() {
   const markers = [
     join(root, "packages/core/dist/index.js"),
-    join(root, "packages/cli/dist/commands/run.js"),
+    join(root, "packages/cli/dist/commands.js"),
     join(root, "packages/environments/node/dist/index.js"),
   ]
   for (const marker of markers) {

@@ -5,10 +5,22 @@
       "path": "packages/core"
     },
     {
-      "path": "packages/vendor/fal"
+      "path": "packages/plugin-sdk"
     },
     {
-      "path": "packages/vendor/jsonata"
+      "path": "packages/environments/node"
+    },
+    {
+      "path": "packages/environments/browser"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "plugins/plugin-jsonata"
+    },
+    {
+      "path": "packages/vendor/fal"
     },
     {
       "path": "packages/vendor/image-sharp"
@@ -18,12 +30,6 @@
     },
     {
       "path": "packages/vendor/azure-blob-storage"
-    },
-    {
-      "path": "packages/environments/node"
-    },
-    {
-      "path": "packages/environments/browser"
     },
     {
       "path": "packages/policies"
@@ -45,9 +51,6 @@
     },
     {
       "path": "packages/extensions/anthropic"
-    },
-    {
-      "path": "packages/cli"
     }
   ]
 }

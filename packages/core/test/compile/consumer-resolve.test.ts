@@ -5,6 +5,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import { compileWorkflowSource, resolveBundleDir } from "@executioncontrolprotocol/node"
+import { Registry } from "@executioncontrolprotocol/core"
 import { registerTestExtension } from "../../src/testing/test-extension.js"
 
 const SAMPLE_TS = `
@@ -68,7 +69,7 @@ describe("compileWorkflowSource consumer resolution", () => {
   it(
     "resolves @executioncontrolprotocol/core from the project node_modules via absolute filename",
     async () => {
-      await registerTestExtension()
+      await registerTestExtension(new Registry())
       const project = await mkdtemp(join(tmpdir(), "ecp-consumer-ok-"))
       temps.push(project)
       const nested = join(project, "nested", "deep")
@@ -101,7 +102,7 @@ describe("compileWorkflowSource consumer resolution", () => {
   })
 
   it("resolves from a nested absolute path even when cwd is elsewhere", async () => {
-    await registerTestExtension()
+    await registerTestExtension(new Registry())
     const project = await mkdtemp(join(tmpdir(), "ecp-consumer-nested-"))
     temps.push(project)
     const nested = join(project, "apps", "bot", "workflows")

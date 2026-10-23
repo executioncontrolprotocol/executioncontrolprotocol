@@ -26,14 +26,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const keep = process.env.KEEP_VENDOR_PACK === "1"
 const PACK_NAMES = [
   "@executioncontrolprotocol/core",
-  "@executioncontrolprotocol/jsonata",
+  "@executioncontrolprotocol/plugin-sdk",
+  "@executioncontrolprotocol/plugin-jsonata",
 ]
 
 function assertBuilt() {
   const markers = [
     join(root, "packages/core/dist/index.js"),
     join(root, "packages/core/dist/types/index.js"),
-    join(root, "packages/vendor/jsonata/dist/index.js"),
+    join(root, "packages/plugin-sdk/dist/index.js"),
+    join(root, "plugins/plugin-jsonata/dist/index.js"),
   ]
   for (const marker of markers) {
     if (!existsSync(marker)) {
@@ -128,7 +130,7 @@ try {
   writeFileSync(
     join(consumerDir, "probe.ts"),
     [
-      'import "@executioncontrolprotocol/jsonata"',
+      'import "@executioncontrolprotocol/plugin-jsonata"',
       'import { defineExtension } from "@executioncontrolprotocol/core"',
       'import type { FileRef } from "@executioncontrolprotocol/core/types"',
       "void defineExtension",

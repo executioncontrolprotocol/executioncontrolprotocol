@@ -1,5 +1,4 @@
 import {
-  globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
 import { handleUpload } from "./capabilities/upload.js"
@@ -34,7 +33,7 @@ export const azureBlobStorageExtension = buildAzureBlobStorageExtension(
  * @category Extensions
  */
 export async function registerAzureBlobStorageExtension(
-  registry: Registry = globalRegistry,
+  registry: Registry,
 ): Promise<void> {
   if (!registry.getExtension("@executioncontrolprotocol/azure-blob-storage")) {
     await registry.registerExtension(azureBlobStorageExtension)

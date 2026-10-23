@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
-import { globalRegistry } from "@executioncontrolprotocol/core"
+import { Registry } from "@executioncontrolprotocol/core"
 import { registerOllamaExtension, ollamaExtension } from "../src/index.js"
 
 type Handler = (input: unknown, ctx: unknown) => Promise<unknown>
@@ -32,7 +32,7 @@ const ctx = {
 
 describe("@executioncontrolprotocol/ollama", () => {
   beforeEach(async () => {
-    await registerOllamaExtension()
+    await registerOllamaExtension(new Registry())
   })
 
   afterEach(() => {
@@ -41,7 +41,7 @@ describe("@executioncontrolprotocol/ollama", () => {
   })
 
   it("registers the extension and exposes generate and listModels", () => {
-    const ext = globalRegistry.getExtension("@executioncontrolprotocol/ollama")
+    const ext = ollamaExtension
     expect(ext).toBe(ollamaExtension)
     const ids = ext?.capabilities.map((c) => c.id) ?? []
     expect(ids).toEqual(

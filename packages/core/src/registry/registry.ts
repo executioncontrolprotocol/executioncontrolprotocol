@@ -136,10 +136,3 @@ export class Registry {
     return ref as NamespacedId
   }
 }
-
-/**
- * Shared default registry.
- * @deprecated Phase 3 deletes this. Prefer the per-environment registry from {@link environment}.
- * @category Runtime
- */
-export const globalRegistry = new Registry()

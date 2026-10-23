@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest"
+import { Registry } from "@executioncontrolprotocol/core"
 import {
   anthropicExtension,
   registerAnthropicExtension,
@@ -42,7 +43,7 @@ describe("@executioncontrolprotocol/anthropic", () => {
   })
 
   it("generate returns text from Messages API", async () => {
-    await registerAnthropicExtension()
+    await registerAnthropicExtension(new Registry())
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -76,7 +77,7 @@ describe("@executioncontrolprotocol/anthropic", () => {
   })
 
   it("generate maps prior messages as native Anthropic turns", async () => {
-    await registerAnthropicExtension()
+    await registerAnthropicExtension(new Registry())
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({

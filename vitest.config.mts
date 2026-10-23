@@ -82,7 +82,12 @@ export default defineConfig({
         "packages/core/src/definitions/types.ts"
       ),
       "@executioncontrolprotocol/core": path.resolve(repoRoot, "packages/core/src/index.ts"),
+      "@executioncontrolprotocol/plugin-sdk": path.resolve(repoRoot, "packages/plugin-sdk/src/index.ts"),
       "@executioncontrolprotocol/policies": path.resolve(repoRoot, "packages/policies/src/index.ts"),
+      "@executioncontrolprotocol/plugin-sdk": path.resolve(
+        repoRoot,
+        "packages/plugin-sdk/src/index.ts"
+      ),
       "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/environments/node/src/index.ts"),
       "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/environments/browser/src/index.ts"),
       "@executioncontrolprotocol/extension-openai": path.resolve(
@@ -113,6 +118,8 @@ export default defineConfig({
         "packages/extensions/format-toon/src/**/*.{ts,js}",
         "packages/extensions/format-mermaid/src/**/*.{ts,js}",
         "packages/environments/node/src/**/*.{ts,js}",
+        "packages/plugin-sdk/src/**/*.{ts,js}",
+        "plugins/plugin-jsonata/src/**/*.{ts,js}",
       ],
       exclude: [
         "**/*.test.ts",
@@ -123,10 +130,10 @@ export default defineConfig({
       ],
       thresholds: {
         // Global floor across included packages (ratchet toward 90%; never lower to green CI).
-        lines: 70,
-        functions: 75,
-        branches: 58,
-        statements: 70,
+        lines: 75,
+        functions: 80,
+        branches: 62,
+        statements: 75,
         // Package floors — raise toward 90 as suites fill positive/negative/edge cases.
         "packages/core/src/**": {
           lines: 70,
@@ -147,12 +154,18 @@ export default defineConfig({
           statements: 75,
         },
         "packages/cli/src/**": {
-          // Phase 1 deleted serve/up/encode/decode, which had unit coverage. Remaining
-          // command classes are exercised by process-spawn tests that do not count here.
-          lines: 11,
-          functions: 8,
-          branches: 21,
-          statements: 12,
+          // Operation handlers and hooks have in-process unit tests; spawn tests still
+          // cover the oclif wiring that v8 does not see.
+          lines: 60,
+          functions: 70,
+          branches: 48,
+          statements: 60,
+        },
+        "packages/plugin-sdk/src/**": {
+          lines: 80,
+          functions: 85,
+          branches: 70,
+          statements: 80,
         },
         "packages/mcp/src/**": {
           lines: 40,
@@ -174,7 +187,9 @@ export default defineConfig({
             "packages/mcp/**/*.test.ts",
             "packages/extensions/**/*.test.ts",
             "packages/vendor/*/test/**/*.test.ts",
+            "packages/plugin-sdk/test/**/*.test.ts",
             "packages/environments/node/**/*.test.ts",
+            "plugins/**/*.test.ts",
             "packages/environments/browser/test/*.test.ts",
             "scripts/**/*.test.ts",
           ],

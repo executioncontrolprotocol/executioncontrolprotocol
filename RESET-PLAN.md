@@ -1090,7 +1090,7 @@ Detail: [`reset/phase-2-core-and-environments.md`](reset/phase-2-core-and-enviro
 **Exit:** `core` about 12K lines and environment-agnostic; tests green in Node and browser;
 the Node and browser environments build on `defineEnvironment`.
 
-### Phase 3 — Plugin SDK and CLI
+### Phase 3 — Plugin SDK and CLI ✅ 2026-10-23
 
 Detail: [`reset/phase-3-plugin-sdk-and-cli.md`](reset/phase-3-plugin-sdk-and-cli.md)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest"
-import { defineExtension, capabilityFor, globalRegistry } from "@executioncontrolprotocol/core"
+import { defineExtension, capabilityFor, Registry } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import { validateEnvironmentWithWorkflow, ECP_ENVIRONMENT_UNSUPPORTED } from "../src/validate/environment.js"
 import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/core/types"
@@ -94,12 +94,14 @@ function bindings(environmentId: string, extId: string): ResolvedBindings {
 }
 
 describe("environment compatibility", () => {
+  const registry = new Registry()
+
   beforeEach(async () => {
-    if (!globalRegistry.getExtension("@executioncontrolprotocol/test-node-only")) {
-      await globalRegistry.registerExtension(nodeOnlyHostExtension)
+    if (!registry.getExtension("@executioncontrolprotocol/test-node-only")) {
+      await registry.registerExtension(nodeOnlyHostExtension)
     }
-    if (!globalRegistry.getExtension("@executioncontrolprotocol/test-node-local")) {
-      await globalRegistry.registerExtension(nodeOnlyLocalExtension)
+    if (!registry.getExtension("@executioncontrolprotocol/test-node-local")) {
+      await registry.registerExtension(nodeOnlyLocalExtension)
     }
   })
 
@@ -113,7 +115,7 @@ describe("environment compatibility", () => {
         ["@executioncontrolprotocol/node"]
       ),
       bindings("@executioncontrolprotocol/browser", "@executioncontrolprotocol/test-node-only"),
-      globalRegistry
+      registry
     )
     expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(false)
   })
@@ -128,7 +130,7 @@ describe("environment compatibility", () => {
         ["@executioncontrolprotocol/node"]
       ),
       bindings("@executioncontrolprotocol/browser", "@executioncontrolprotocol/test-node-local"),
-      globalRegistry
+      registry
     )
     expect(result.valid).toBe(false)
     expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(true)
@@ -144,7 +146,7 @@ describe("environment compatibility", () => {
         ["@executioncontrolprotocol/node"]
       ),
       bindings("@executioncontrolprotocol/node", "@executioncontrolprotocol/test-node-only"),
-      globalRegistry
+      registry
     )
     expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(false)
   })

@@ -65,7 +65,7 @@ export {
   PROCESS_ENV_RESOLVER_ID,
   SECRETS_RESOLVER_ID,
 } from "./environment/config-resolver.js"
-export { Registry, globalRegistry, type RegistryRegistrationGuard } from "./registry/registry.js"
+export { Registry, type RegistryRegistrationGuard } from "./registry/registry.js"
 export {
   resolveExtensionDefinition,
   isExtensionDefinition,

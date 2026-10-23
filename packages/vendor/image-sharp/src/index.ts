@@ -1,5 +1,4 @@
 import {
-  globalRegistry,
   type Registry,
 } from "@executioncontrolprotocol/core"
 import { z } from "zod"
@@ -181,7 +180,7 @@ export const imageSharpExtension = buildImageSharpExtension(
 )
 
 /** Register @executioncontrolprotocol/image-sharp. */
-export async function registerImageSharpExtension(registry: Registry = globalRegistry): Promise<void> {
+export async function registerImageSharpExtension(registry: Registry): Promise<void> {
   if (!registry.getExtension(EXT_ID)) {
     await registry.registerExtension(imageSharpExtension)
   }

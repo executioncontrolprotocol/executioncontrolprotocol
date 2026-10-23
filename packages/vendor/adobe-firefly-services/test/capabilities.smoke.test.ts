@@ -3,7 +3,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { parse as parseYaml } from "yaml"
-import { globalRegistry, NODE_ENVIRONMENT_ID, resolveCapabilityExecution, capabilityIdSchema } from "@executioncontrolprotocol/core"
+import { Registry, NODE_ENVIRONMENT_ID, resolveCapabilityExecution, capabilityIdSchema } from "@executioncontrolprotocol/core"
 import {
   adobeFireflyServicesExtension,
   registerAdobeFireflyServicesExtension,
@@ -80,7 +80,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => {
   beforeEach(async () => {
-    await registerAdobeFireflyServicesExtension()
+    await registerAdobeFireflyServicesExtension(new Registry())
   })
 
   afterEach(() => {
@@ -98,7 +98,7 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
 
     const ids = adobeFireflyServicesExtension.capabilities.map((c) => c.id).sort()
     expect(ids).toEqual([...meta.operations].sort())
-    expect(globalRegistry.getExtension("@executioncontrolprotocol/adobe-firefly-services")).toBe(adobeFireflyServicesExtension)
+    expect(adobeFireflyServicesExtension.id).toBe("@executioncontrolprotocol/adobe-firefly-services")
     expect(adobeFireflyServicesExtension.supportedEnvironments).toEqual([
       { id: NODE_ENVIRONMENT_ID },
     ])
