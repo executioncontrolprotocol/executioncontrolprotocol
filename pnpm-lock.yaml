@@ -216,16 +216,22 @@ importers:
       '@executioncontrolprotocol/node':
         specifier: workspace:^
         version: link:../environments/node
+      '@executioncontrolprotocol/plugin-sdk':
+        specifier: workspace:^
+        version: link:../plugin-sdk
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.1(zod@3.25.76)
+      '@oclif/core':
+        specifier: ^5.1.8
+        version: 5.1.9
     devDependencies:
       '@executioncontrolprotocol/core':
         specifier: workspace:^
         version: link:../core
-      '@executioncontrolprotocol/plugin-format-toon':
+      '@executioncontrolprotocol/plugin-jsonata':
         specifier: workspace:^
-        version: link:../../plugins/plugin-format-toon
+        version: link:../../plugins/plugin-jsonata
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

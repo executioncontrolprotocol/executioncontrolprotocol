@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0-next.0",
+  "commands": {
+    "mcp:serve": {
+      "aliases": [],
+      "args": {},
+      "description": "Expose the process host as MCP tools over stdio. Use --tools meta when a client cannot handle a large capability catalogue.",
+      "flags": {
+        "stdio": {
+          "description": "Serve over stdio (default)",
+          "name": "stdio",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "tools": {
+          "description": "Tool set: all (default) or meta-only",
+          "name": "tools",
+          "options": ["all", "meta"],
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "mcp:serve",
+      "pluginAlias": "@executioncontrolprotocol/mcp",
+      "pluginName": "@executioncontrolprotocol/mcp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Serve ECP as an MCP server"
+    }
+  }
+}

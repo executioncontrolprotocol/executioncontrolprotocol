@@ -6,7 +6,7 @@
     "@executioncontrolprotocol/core": "1.0.0-next.0",
     "@executioncontrolprotocol/browser": "1.0.0-next.0",
     "@executioncontrolprotocol/node": "1.0.0-next.0",
-    "@executioncontrolprotocol/mcp": "0.14.1",
+    "@executioncontrolprotocol/mcp": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-sdk": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-adobe-firefly-services": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-anthropic": "1.0.0-next.0",

@@ -11,7 +11,7 @@ Packages are versioned independently with [Changesets](https://github.com/change
 
 ## Prereleases (`next`)
 
-The milestone is in Changesets pre mode (`next`). Versions for `core`, `node`, `browser`, `cli`, `plugin-sdk`, and every plugin start at `1.0.0-next.0`. MCP stays `0.14.1` until Phase 7.
+The milestone is in Changesets pre mode (`next`). Versions for `core`, `node`, `browser`, `cli`, `mcp`, `plugin-sdk`, and every plugin start at `1.0.0-next.0`.
 
 To publish prereleases (Phase 9 operator, or a deliberate dispatch):
 
