@@ -1166,14 +1166,19 @@ loopback HTTP). CLI `oclif.jitPlugins` pins the package; JIT from npm cannot ful
 
 **Exit:** Dogfood B (§2.4 criterion 8) — local MCP SDK proofs only; see the phase Outcome.
 
-### Phase 8 — App (In progress)
+### Phase 8 — App (✅ Done 2026-10-24)
 
 Detail: [`reset/phase-8-app.md`](reset/phase-8-app.md)
 
-**Status:** In progress. PR1 adds `@executioncontrolprotocol/app` (`HostAdapter`, graph encoder,
-`dist/web`). `plugin-app` / `ecp app` / Dogfood C follow in later PRs.
+**Status:** Done 2026-10-24. `@executioncontrolprotocol/app` is `1.0.0-next.0` (`HostAdapter`,
+graph encoder, `dist/web`). `@executioncontrolprotocol/plugin-app` serves that bundle as
+`ecp app` on 127.0.0.1 with a pairing token. CLI `oclif.jitPlugins` pins the package; JIT from
+npm cannot fully pass until `@next` is published (proven with `ecp plugins link plugins/plugin-app`).
+Docs `guides/app` is on `feat/cli-reset-docs` (not docs `main`). Dogfood C has a local
+plugin-app + Playwright proof in `reset/dogfood/phase-8.md`; a live Claude Code graph session
+is operator follow-up.
 
-**Exit:** Dogfood C.
+**Exit:** Dogfood C (§2.4 criterion 9) — local file↔graph proofs only; see the phase Outcome.
 
 ### Phase 9 — 1.0 release
 
