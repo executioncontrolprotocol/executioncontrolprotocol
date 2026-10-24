@@ -1,4 +1,4 @@
-# Phase 6 and 7 dogfood fixtures
+# Phase 6, 7, and 8 dogfood fixtures
 
 Materials for Dogfood A ([`phase-6-docs-and-skill.md`](../phase-6-docs-and-skill.md) task 4)
 and Dogfood B ([`phase-7-mcp.md`](../phase-7-mcp.md)).
@@ -15,6 +15,9 @@ matrices.
 
 MCP proofs are driven by `phase-7-mcp-client.mjs` (`ecp plugins link packages/mcp`, then
 MCP SDK stdio).
+
+Dogfood C (criterion 9) is `phase-8.md`: plugin-app WebSocket file watch within 1 s and
+Playwright graph → file. Not a live Claude Code session.
 
 ## Prompts (for later Claude Code runs)
 

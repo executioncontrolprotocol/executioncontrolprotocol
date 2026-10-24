@@ -1,12 +1,10 @@
 # Phase 8 — App
 
-> Status: In progress · Branch: `feat/phase-8-app-library` · Depends on: Phase 5 · Plan: §4.8, §8.5 ·
-> PR1: App library (`packages/app`). Server/JIT/Playwright land in PR2. Do not start Phase 9.
+> Status: ✅ Done 2026-10-24 · Branch: `milestone/cli-reset` · Depends on: Phase 5 · Plan: §4.8, §8.5 ·
+> PRs: #48 library, #49 plugin-app, docs#5 `guides/app`. Do not start Phase 9.
 >
-> **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
-> Consumer skill is at `skills/ecp/`.
-> [guides/app](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/app.mdx)
-> is a placeholder only. There is no hosted browser demo.
+> **Docs:** [guides/app](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/app.mdx)
+> is filled on `feat/cli-reset-docs` (not docs `main`). There is no hosted browser demo.
 
 ## Goal
 
@@ -147,12 +145,31 @@ The UI only talks to `HostAdapter`. This is what keeps a later in-page adapter p
 
 ## Exit criteria
 
-- [ ] `ecp app <file>` installs on first use and opens a live graph.
-- [ ] Two-way sync works, with read-only mode for files that can't round-trip.
-- [ ] Runs from the App use the same journal and events as the CLI.
-- [ ] The App stores no secrets and makes no model calls itself.
-- [ ] Dogfood C passes.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] `ecp app <file>` opens a live graph after `ecp plugins link plugins/plugin-app`. JIT from
+  npm cannot fully pass (`@next` unpublished); `oclif.jitPlugins` pins `"^1"`.
+- [x] Two-way sync works, with read-only mode for files that can't round-trip (`canRoundTrip`).
+- [x] Runs from the App use the same host, journal, and events as the CLI.
+- [x] The App stores no secrets and makes no model calls itself.
+- [x] Dogfood C local proof in `reset/dogfood/phase-8.md`. Claude Code live session is operator
+  follow-up.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+
+## Outcome
+
+Phase 8 is **Done** with the corrections below.
+
+- `@executioncontrolprotocol/app` `1.0.0-next.0`: `HostAdapter`, graph encoder (from
+  `format-reactflow`), `canRoundTrip`, AppShell around the adapter, Vite `dist/web`. React is
+  an optional peer. Keep-list demo components that imported dropped modules were not copied.
+- `@executioncontrolprotocol/plugin-app` `1.0.0-next.0`: `ecp app` on 127.0.0.1, pairing token,
+  `fs.watch` (directory, 150 ms, content-hash self-write ignore), journal-backed runs via
+  `getHost()`. Does not depend on `cli` (JIT cycle) or `mcp`.
+- CLI `oclif.jitPlugins` pins `"@executioncontrolprotocol/plugin-app": "^1"`. First-use JIT
+  from the registry cannot pass until `@next` is published.
+- Playwright round-trip runs in `pnpm run test:browser` (`app-live` project) because the
+  Vitest in-browser project cannot start a Node HTTP server.
+- Docs `guides/app` is on `feat/cli-reset-docs` (docs#5). Not merged to docs `main`.
+- **Do not start Phase 9** from this PR.
 
 ## Risks
 

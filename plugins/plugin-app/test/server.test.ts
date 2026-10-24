@@ -107,11 +107,11 @@ describe("serveApp", () => {
   it("emits a file change event within 1s after a disk edit", async () => {
     const { origin, filePath } = await start()
     const socket = new WebSocket(`${origin.replace("http", "ws")}/api/events?${APP_TOKEN_QUERY}=${TEST_TOKEN}`)
+    const pending = waitForWsMessage(socket, 1000)
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener("open", () => resolve())
       socket.addEventListener("error", () => reject(new Error("websocket failed")))
     })
-    const pending = waitForWsMessage(socket, 1000)
     await writeFile(filePath, ECHO_SOURCE.replace("hi", "from-disk"), "utf8")
     const message = await pending
     socket.close()

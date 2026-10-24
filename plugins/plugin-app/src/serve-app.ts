@@ -8,7 +8,7 @@ import {
   type ServerResponse,
 } from "node:http"
 import type { AddressInfo } from "node:net"
-import { extname, isAbsolute, relative, resolve } from "node:path"
+import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path"
 import {
   APP_BEARER_PREFIX,
   APP_TOKEN_QUERY,
@@ -362,7 +362,10 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     httpServer.listen(options.httpPort ?? DEFAULT_PLUGIN_APP_PORT, httpHost, () => resolveListen())
   })
 
-  const watcher = watch(filePath, () => {
+  const watchedName = basename(filePath)
+  const watcher = watch(dirname(filePath), (_event, filename) => {
+    const name = filename === null || filename === undefined ? "" : String(filename)
+    if (name && name !== watchedName) return
     if (debounce) clearTimeout(debounce)
     debounce = setTimeout(() => {
       debounce = undefined

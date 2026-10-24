@@ -16,7 +16,7 @@ Protocol types live at `@executioncontrolprotocol/core/types`. `registry-control
 | `@executioncontrolprotocol/cli` | The `ecp` host: plugin management, hooks, operations |
 | `@executioncontrolprotocol/plugin-sdk` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library (Phase 3) |
 | `@executioncontrolprotocol/mcp` | MCP server and `ecp mcp serve` |
-| `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin (Phase 8) |
+| `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin (Phase 8 Done). `plugin-app` may import `node` and `app`; it must not import `cli` or `mcp` |
 | `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk`. All 13 first-party plugins live under `plugins/` after Phase 5 |
 
 Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.

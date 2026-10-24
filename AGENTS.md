@@ -50,7 +50,8 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
 | `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `@executioncontrolprotocol/mcp`. JIT from npm cannot fully pass until `@next` is published |
-| `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 PR1: `HostAdapter`, graph encoder, prebuilt `dist/web`. `ecp app` / `plugin-app` land in PR2 |
+| `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 Done: `HostAdapter`, graph encoder, prebuilt `dist/web`. React is an optional peer |
+| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^1"`. JIT from npm cannot fully pass until `@next` is published. Proven with `ecp plugins link plugins/plugin-app` |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |
@@ -66,7 +67,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 
 Removed in Phase 1 (recoverable at `pre-reset`): `packages/harnesses/*`, `packages/evals`,
 `packages/runtimes/temporal`, `apps/browser-demo`, `packages/extensions/format-reactflow`.
-The demo graph editor returns as `packages/app` in Phase 8.
+The demo graph editor returned as `packages/app` + `plugins/plugin-app` in Phase 8.
 
 Target layout after the milestone: `packages/{core,cli,mcp,plugin-sdk,app}`,
 `packages/environments/{node,browser}`, `plugins/plugin-*`, `examples/` (single-file
@@ -160,6 +161,8 @@ ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp mcp serve
 ecp mcp serve --tools meta
 ecp mcp serve --http
+ecp app examples/01-echo/workflow.ecp.ts
+ecp app brief.ecp.ts --no-open
 ```
 
 - **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
