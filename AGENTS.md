@@ -198,4 +198,4 @@ See `.cursor/rules/extensions.mdc` for the full contract. In short:
 
 Contributor skill for this repo: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`.
 The consumer `ecp` skill: `npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on
-`feat/cli-reset-docs`; not on docs `main` yet).
+docs `main`).
