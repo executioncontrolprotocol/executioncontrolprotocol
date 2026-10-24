@@ -1,6 +1,7 @@
 packages:
   - packages/core
   - packages/mcp
+  - packages/app
   - packages/cli
   - packages/environments/*
   - packages/plugin-sdk

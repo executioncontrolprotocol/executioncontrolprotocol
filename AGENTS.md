@@ -50,6 +50,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
 | `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `@executioncontrolprotocol/mcp`. JIT from npm cannot fully pass until `@next` is published |
+| `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 PR1: `HostAdapter`, graph encoder, prebuilt `dist/web`. `ecp app` / `plugin-app` land in PR2 |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |

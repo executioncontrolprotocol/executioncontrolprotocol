@@ -1,0 +1,57 @@
+{
+  "name": "@executioncontrolprotocol/app",
+  "version": "1.0.0-next.0",
+  "description": "ECP visual App: HostAdapter, graph encoder, and prebuilt web bundle",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b && vite build"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.4"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@monaco-editor/react": "^4.7.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@xyflow/react": "^12.11.3",
+    "autoprefixer": "^10.5.0",
+    "mermaid": "^11.4.0",
+    "monaco-editor": "^0.56.0",
+    "postcss": "^8.5.15",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^3.4.19",
+    "typescript": "catalog:",
+    "vite": "^6.4.3",
+    "zod": "catalog:"
+  }
+}

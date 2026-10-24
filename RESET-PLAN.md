@@ -1166,12 +1166,12 @@ loopback HTTP). CLI `oclif.jitPlugins` pins the package; JIT from npm cannot ful
 
 **Exit:** Dogfood B (§2.4 criterion 8) — local MCP SDK proofs only; see the phase Outcome.
 
-### Phase 8 — App
+### Phase 8 — App (In progress)
 
 Detail: [`reset/phase-8-app.md`](reset/phase-8-app.md)
 
-`app` and `plugin-app` per §4.8, carved from `pre-reset`: the `HostAdapter` interface and the
-local adapter behind `ecp app`.
+**Status:** In progress. PR1 adds `@executioncontrolprotocol/app` (`HostAdapter`, graph encoder,
+`dist/web`). `plugin-app` / `ecp app` / Dogfood C follow in later PRs.
 
 **Exit:** Dogfood C.
 

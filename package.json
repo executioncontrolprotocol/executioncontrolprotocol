@@ -11,7 +11,7 @@
     "clean": "node scripts/clean-dist.mjs",
     "clean:coverage": "node scripts/clean-dist.mjs coverage",
     "clean:dist": "node scripts/clean-dist.mjs dist",
-    "build": "tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json && pnpm --filter @executioncontrolprotocol/app exec vite build",
     "lint": "eslint . && markdownlint-cli2 && pnpm run lint:yaml",
     "lint:ts": "eslint .",
     "lint:md": "markdownlint-cli2",
