@@ -1153,13 +1153,18 @@ has three local proofs in `reset/dogfood/`; the 3×3 Claude Code matrix is opera
 
 **Exit:** Dogfood A (§2.4 criterion 7) — local proofs only; see the phase Outcome.
 
-### Phase 7 — MCP
+### Phase 7 — MCP (✅ Done 2026-10-24)
 
 Detail: [`reset/phase-7-mcp.md`](reset/phase-7-mcp.md)
 
-`@executioncontrolprotocol/mcp` per §4.7.
+**Status:** Done 2026-10-24. `@executioncontrolprotocol/mcp` is `1.0.0-next.0` with
+`createEcpMcpServer({ host })`, generated capability tools, and `ecp mcp serve` (stdio +
+loopback HTTP). CLI `oclif.jitPlugins` pins the package; JIT from npm cannot fully pass until
+`@next` is published (proven with `ecp plugins link packages/mcp`). Docs `guides/mcp` is on
+`feat/cli-reset-docs` (not docs `main`). Dogfood B has three local MCP SDK stdio proofs in
+`reset/dogfood/phase-7-*.md`; the 3×3 Claude Desktop matrix is operator follow-up.
 
-**Exit:** Dogfood B.
+**Exit:** Dogfood B (§2.4 criterion 8) — local MCP SDK proofs only; see the phase Outcome.
 
 ### Phase 8 — App
 
