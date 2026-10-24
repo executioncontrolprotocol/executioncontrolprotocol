@@ -1,4 +1,4 @@
-import type { CapabilityId, HarnessId, NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import type { HookDefinition } from "../definitions/types.js"
 import {
   cloneConfigForManifest,
@@ -29,22 +29,18 @@ export interface ResolvedPolicyBinding {
   config: Record<string, unknown>
 }
 
-/** Resolved harness binding. */
-export interface ResolvedHarnessBinding {
-  id: HarnessId
-  label?: string
-  uses: CapabilityId
-  config: Record<string, unknown>
-}
-
 /** All resolved bindings for execution. */
 export interface ResolvedBindings {
   runtime: ResolvedRuntimeBinding
   extensions: ResolvedExtensionBinding[]
   policies: ResolvedPolicyBinding[]
-  harnesses: ResolvedHarnessBinding[]
   extensionHooks: HookDefinition[]
-  policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>
+  policyHooks: Array<{
+    hook: HookDefinition
+    config: Record<string, unknown>
+    /** Policy definition id. */
+    policyId?: NamespacedId
+  }>
 }
 
 /** Unresolved config for environment manifests (keeps `$env` placeholders). */
@@ -71,14 +67,12 @@ export async function resolveBindingsForRun(
     order: number
     rawConfig: Record<string, unknown>
   }>,
-  harnessBindings: Array<{
-    id: HarnessId
-    label?: string
-    uses: CapabilityId
-    rawConfig: Record<string, unknown>
-  }>,
   extensionHooks: HookDefinition[],
-  policyHooks: Array<{ hook: HookDefinition; config: Record<string, unknown> }>,
+  policyHooks: Array<{
+    hook: HookDefinition
+    config: Record<string, unknown>
+    policyId?: NamespacedId
+  }>,
   resolvers: EnvironmentConfigResolver[]
 ): Promise<ResolvedBindings> {
   return {
@@ -103,19 +97,12 @@ export async function resolveBindingsForRun(
         config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
       }))
     ),
-    harnesses: await Promise.all(
-      harnessBindings.map(async (b) => ({
-        id: b.id,
-        label: b.label,
-        uses: b.uses,
-        config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
-      }))
-    ),
     extensionHooks,
     policyHooks: await Promise.all(
       policyHooks.map(async (p) => ({
         hook: p.hook,
         config: await resolveEnvConfigAsync(p.config, resolvers),
+        policyId: p.policyId,
       }))
     ),
   }

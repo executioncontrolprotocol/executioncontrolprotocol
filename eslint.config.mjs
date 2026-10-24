@@ -8,11 +8,9 @@ export default tseslint.config(
       "**/dist/",
       "**/node_modules/",
       "**/coverage/",
-      "archive/**",
       "pnpm-lock.yaml",
-      "apps/browser-demo/**",
-      "packages/vendor/**/src/generated/**",
-      "packages/vendor/**/openapi/**",
+      "plugins/plugin-adobe-firefly-services/src/generated/**",
+      "plugins/plugin-adobe-firefly-services/openapi/**",
     ],
   },
   ...tseslint.configs.recommended,
@@ -24,15 +22,14 @@ export default tseslint.config(
       ],
     },
   },
-  // Package boundary: extensions and harnesses are environment-agnostic and must
-  // depend only on @executioncontrolprotocol/types + @executioncontrolprotocol/core. They may not import host packages.
+  // Package boundary: extensions are environment-agnostic and must
+  // depend only on @executioncontrolprotocol/core (including ./types). They may not import host packages.
   // Scoped to `src` so integration tests may still use a host runtime.
   {
     files: [
-      "packages/extensions/**/src/**/*.ts",
-      "packages/vendor/**/src/**/*.ts",
-      "packages/harnesses/**/src/**/*.ts",
+      "plugins/**/src/**/*.ts",
     ],
+    ignores: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -50,7 +47,7 @@ export default tseslint.config(
                 "@executioncontrolprotocol/mcp/*",
               ],
               message:
-                "Extensions and harnesses must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/types and @executioncontrolprotocol/core only.",
+                "Extensions must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/core (including ./types) only.",
             },
           ],
         },
@@ -58,7 +55,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/vendor/**/src/**/*.ts"],
+    files: ["plugins/**/src/**/*.ts"],
+    ignores: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -74,17 +72,12 @@ export default tseslint.config(
                 "@executioncontrolprotocol/cli/*",
                 "@executioncontrolprotocol/mcp",
                 "@executioncontrolprotocol/mcp/*",
-                "@executioncontrolprotocol/core/*",
-                "@executioncontrolprotocol/types/*",
                 "**/packages/core/src/**",
-                "**/packages/types/src/**",
                 "**/../../core/**",
-                "**/../../types/**",
                 "**/../../../core/**",
-                "**/../../../types/**",
               ],
               message:
-                "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/types entry points, the same surface external authors get.",
+                "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/core/types entry points, the same surface external authors get.",
             },
           ],
         },
@@ -92,7 +85,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/core/**/src/**/*.ts", "packages/types/**/src/**/*.ts"],
+    files: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -100,17 +93,52 @@ export default tseslint.config(
           patterns: [
             {
               group: [
-                "@executioncontrolprotocol/fal",
-                "@executioncontrolprotocol/slack",
-                "@executioncontrolprotocol/jsonata",
-                "@executioncontrolprotocol/image-sharp",
-                "@executioncontrolprotocol/adobe-firefly-services",
-                "@executioncontrolprotocol/azure-blob-storage",
-                "**/packages/vendor/**",
-                "**/apps/browser-demo/**",
+                "@executioncontrolprotocol/cli",
+                "@executioncontrolprotocol/cli/*",
+                "@executioncontrolprotocol/mcp",
+                "@executioncontrolprotocol/mcp/*",
               ],
               message:
-                "Core and types must not import vendor extensions or the browser demo app.",
+                "plugin-app must not depend on cli (JIT cycle) or mcp. Use plugin-sdk getHost(), node loaders, and app's prebuilt dist/web.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/core/**/src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "fs",
+              message: "Core must not import Node host modules.",
+            },
+            {
+              name: "path",
+              message: "Core must not import Node host modules.",
+            },
+            {
+              name: "child_process",
+              message: "Core must not import Node host modules.",
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                "node:*",
+                "@executioncontrolprotocol/plugin-fal",
+                "@executioncontrolprotocol/plugin-jsonata",
+                "@executioncontrolprotocol/plugin-image-sharp",
+                "@executioncontrolprotocol/plugin-adobe-firefly-services",
+                "@executioncontrolprotocol/plugin-azure-blob-storage",
+                "**/packages/vendor/**",
+              ],
+              message:
+                "Core must not import Node host modules or vendor extensions.",
             },
           ],
         },

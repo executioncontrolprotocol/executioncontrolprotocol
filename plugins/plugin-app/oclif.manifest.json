@@ -1,0 +1,42 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "app": {
+      "aliases": [],
+      "args": {
+        "file": {
+          "description": "Workflow file (*.ecp.ts)",
+          "name": "file",
+          "required": true
+        }
+      },
+      "description": "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until 0.50.0 is on the registry, install with ecp plugins link plugins/plugin-app.",
+      "flags": {
+        "host": {
+          "description": "HTTP bind address (loopback only)",
+          "name": "host",
+          "type": "option"
+        },
+        "port": {
+          "description": "HTTP bind port (0 = ephemeral)",
+          "name": "port",
+          "type": "option"
+        },
+        "no-open": {
+          "description": "Do not open the default browser",
+          "name": "no-open",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "app",
+      "pluginAlias": "@executioncontrolprotocol/plugin-app",
+      "pluginName": "@executioncontrolprotocol/plugin-app",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Open a live graph of a workflow file"
+    }
+  }
+}

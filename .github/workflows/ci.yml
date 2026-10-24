@@ -1,13 +1,13 @@
-# Runs the full CI pipeline (build, lint, validate, unit/integration/browser/demo tests) on pushes and PRs.
+# Runs the full CI pipeline (build, lint, validate, unit/integration/browser tests) on pushes and PRs.
 # npm publish is opt-in on `main` only (see `ci-pipeline.yml` + `ENABLE_NPM_PUBLISH`).
 
 name: ci
 
 on:
   push:
-    branches: [main, development, "feat/**"]
+    branches: [main, development, "feat/**", "milestone/**"]
   pull_request:
-    branches: [main, development]
+    branches: [main, development, "milestone/**"]
   workflow_dispatch:
 
 concurrency:

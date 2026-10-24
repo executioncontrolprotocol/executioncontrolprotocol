@@ -1,0 +1,65 @@
+{
+  "name": "@executioncontrolprotocol/plugin-azure-blob-storage",
+  "version": "0.50.0",
+  "description": "Azure Blob Storage plugin for ECP (upload, SAS URLs, download)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b && ecp plugins build"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "@azure/storage-blob": "^12.27.0"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/cli": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  },
+  "ecp": {
+    "extension": "./dist/index.js"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "azure-blob-storage": {
+        "description": "Upload, download, and mint SAS URLs for Azure Blob Storage"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

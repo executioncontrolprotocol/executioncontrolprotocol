@@ -1,33 +1,59 @@
-export { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-export * from "@executioncontrolprotocol/types"
-
+export {
+  ECP_ERROR_CODES,
+  ECP_WORKFLOW_LOAD,
+  ECP_PLUGINS_MISSING,
+  ECP_CAPABILITY_UNKNOWN,
+  ECP_INPUT_INVALID,
+  ECP_REF_UNRESOLVED,
+  ECP_BINDING_INVALID,
+  ECP_ENVIRONMENT_UNSUPPORTED,
+  ECP_SECRET_MISSING,
+  ECP_POLICY_DENIED,
+  ECP_RUN_PAUSED,
+  ECP_STEP_FAILED,
+  ECP_OUTPUT_INVALID,
+  ECP_PLUGIN_DENIED,
+  ECP_RERUN_INCOMPATIBLE,
+} from "./types/index.js"
+export type { EcpErrorCode, RequirementsDocument, RequirementEntry } from "./types/index.js"
 export { ref } from "./helpers/ref.js"
 export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
 export { secrets } from "./helpers/secrets.js"
-export { browser } from "./helpers/browser.js"
 export { expr } from "./helpers/expr.js"
+export {
+  toProviderChatTurns,
+  flattenProviderChatTurns,
+  type ProviderChatPriorMessage,
+  type ProviderChatTurn,
+  type ToProviderChatTurnsOptions,
+} from "./helpers/provider-chat-turns.js"
 
 export * from "./config-schema/index.js"
 export * from "./definitions/index.js"
 export type {
   ExtensionDefinition,
-  RuntimeDefinition,
+  EnvironmentDefinition,
   PolicyDefinition,
   CapabilityDefinition,
   HookDefinition,
+  SupportedEnvironment,
 } from "./definitions/types.js"
 export { step } from "./bindings/step.js"
-export { runtime } from "./bindings/runtime.js"
 export { extension } from "./bindings/extension.js"
-export { harness } from "./bindings/harness.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
-export * from "./harness/index.js"
-export * from "./feedback/index.js"
-export { stripMarkdownCodeFences } from "./encoding/strip-markdown-fences.js"
-export { stripHarnessTypeScriptOutput } from "./encoding/strip-harness-typescript-output.js"
 export { workflow, WorkflowBuilder } from "./workflow/builder.js"
+export {
+  BUILTIN_REQUIREMENT_IDS,
+  buildRequirementsDocument,
+  capabilityToExtensionId,
+  collectCapabilityIds,
+  inferRequirementsFromManifest,
+  inferredPackageName,
+  isBuiltinRequirementId,
+  type WorkflowBinding,
+} from "./workflow/requirements.js"
 export { parallel, branch, loop } from "./workflow/flow.js"
 export {
   jsonSchemaFromZod,
@@ -39,42 +65,40 @@ export {
 } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
-export { environment, Environment } from "./environment/environment.js"
+export {
+  environment,
+  Environment,
+  type EnvironmentInitOptions,
+  type EnvironmentBinding,
+} from "./environment/environment.js"
 export {
   buildDescriptor,
   DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
 } from "./environment/describe.js"
 export { EcpImpl, type Ecp, type RunOptions } from "./environment/ecp.js"
 export {
-  createTestSessionBuilder,
-  restoreTestSession,
-  type TestSession,
-  type TestSessionBuilder,
-  type TestSessionStartOptions,
-} from "./test-session/index.js"
-export {
-  flattenTestStepOrder,
-  findTestStep,
-  clearDownstreamTestState,
-  isLastTestStep,
-} from "./runtime/test-session-state.js"
+  flattenStepOrder,
+  findStep,
+  clearDownstreamState,
+  clearFromStep,
+  isLastStep,
+  canonicalStepDefinition,
+} from "./runtime/step-order.js"
 export type { RuntimeExecutor, RuntimeExecutionContext, RuntimeExecutionMode } from "./runtime/executor.js"
 export { assignUniqueStepIds } from "./workflow/assign-unique-step-ids.js"
+export { satisfiesRange } from "./util/semver-range.js"
 export { createInvokeBuilder, type InvokeOperationBuilder } from "./invoke/index.js"
 export type { EnvironmentConfigResolver } from "./environment/config-resolver.js"
+export { validateBoundConfig, substituteConfigPlaceholders } from "./environment/validate-binding-config.js"
 export { resolveEnvConfigAsync, cloneConfigForManifest } from "./environment/config-resolver.js"
 export {
   PROCESS_ENV_RESOLVER_ID,
   SECRETS_RESOLVER_ID,
-  BROWSER_SECRETS_RESOLVER_ID,
 } from "./environment/config-resolver.js"
-export { Registry, globalRegistry, type RegistryRegistrationGuard } from "./registry/registry.js"
+export { Registry, type RegistryRegistrationGuard } from "./registry/registry.js"
 export {
-  catalogExtension,
-  getCatalogedExtension,
   resolveExtensionDefinition,
   isExtensionDefinition,
-  listCatalogedExtensionIds,
   normalizeExtensionId,
 } from "./registry/extension-catalog.js"
 export { ensureBoundExtensionsRegistered } from "./registry/ensure-bound-extensions.js"
@@ -83,6 +107,12 @@ export {
   RegistryRegistrationDeniedError,
 } from "./registry/errors.js"
 export { matchesNamespace, matchesAnyNamespace } from "./registry/namespace.js"
+export {
+  registryControlPolicy,
+  registerRegistryControlPolicy,
+  REGISTRY_CONTROL_POLICY_ID,
+  type RegistryControlPolicyConfig,
+} from "./policies/registry-control.js"
 export { InMemoryRuntimeExecutor } from "./runtime/in-memory-executor.js"
 export type {
   PolicyContext,
@@ -97,14 +127,16 @@ export type {
 export { createUsageLedger } from "./runtime/context.js"
 export {
   resolveCapabilityExecution,
-  isBrowserRuntimeId,
-  isNodeRuntimeId,
+  isBrowserEnvironmentId,
+  isNodeEnvironmentId,
 } from "./runtime/capability-execution.js"
-export { NODE_RUNTIME_ID, BROWSER_RUNTIME_ID } from "./runtime/runtime-ids.js"
+export { NODE_ENVIRONMENT_ID, BROWSER_ENVIRONMENT_ID } from "./runtime/runtime-ids.js"
 export {
   hopRemoteInvoke,
   invokeFailure,
   isInvokeResult,
+  buildInvokeFailureDiagnostics,
+  formatValidationIssueLine,
   type RemoteInvokeBinding,
 } from "./runtime/remote-invoke.js"
 export {
@@ -133,6 +165,7 @@ export {
 } from "./runtime/artifacts.js"
 export {
   resolveFile,
+  registerHostFileReader,
   writeMediaArtifact,
   defaultArtifactFilename,
   extensionForMediaType,
@@ -147,6 +180,7 @@ export {
   type WriteMediaArtifactOptions,
   type MediaArtifactStore,
   type FileCapabilityContext,
+  type HostFileReader,
   type ArtifactFetchPathnameOptions,
 } from "./media/index.js"
 export {
@@ -155,6 +189,15 @@ export {
   type MixedBlobUploadOutput,
 } from "./runtime/mixed-blob-upload.js"
 export { registerTestExtension, testExtension } from "./testing/test-extension.js"
+export {
+  lifecycleSpyExtension,
+  registerLifecycleSpyExtension,
+  resetLifecycleSpy,
+  lifecycleSpyEvents,
+  lifecycleSpyLastStepFailedDiagnostics,
+  capabilityInvokeCount,
+} from "./testing/test-lifecycle-extension.js"
+export { formatJsonExtension } from "./formats/format-json.js"
 
 export {
   renderWorkflowToFluent,
@@ -162,6 +205,14 @@ export {
   encodeFluent,
   type RenderWorkflowToFluentOptions,
 } from "./fluent/index.js"
+export {
+  extractWorkflowFromModule,
+  extractLoadedWorkflowFromModule,
+  type LoadedWorkflow,
+  type CompileWorkflowResult,
+  type CompileWorkflowSourceOptions,
+  type CompileDiagnostic,
+} from "./compile/index.js"
 export { validateWorkflow } from "./validate/workflow.js"
 export {
   capabilityIdSchema,

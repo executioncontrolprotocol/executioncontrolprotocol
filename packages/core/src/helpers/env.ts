@@ -1,4 +1,4 @@
-import type { EnvValue } from "@executioncontrolprotocol/types"
+import type { EnvValue } from "../types/index.js"
 
 /** Options for environment variable refs. */
 export interface EnvOptions {

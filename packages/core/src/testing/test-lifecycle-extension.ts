@@ -1,9 +1,8 @@
-import type { LifecycleEvent, ValidationIssue } from "@executioncontrolprotocol/types"
+import type { LifecycleEvent, ValidationIssue } from "../types/index.js"
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
 import { hook } from "../definitions/hook.js"
-import { catalogExtension } from "../registry/extension-catalog.js"
-import { globalRegistry } from "../registry/registry.js"
+import type { Registry } from "../registry/registry.js"
 import { z } from "zod"
 
 /** Recorded extension lifecycle hook events (reset via `resetLifecycleSpy()`). */
@@ -37,7 +36,7 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
   .withMetadata({
     summary: "Lifecycle hook spy and fault-injection capabilities.",
     description:
-      "Records lifecycle events and exposes echo, throw, and merge-state capabilities for engine conformance and store tests.",
+      "Records lifecycle events and exposes echo, throw, and merge-state capabilities for engine conformance and store tests."
   })
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/lifecycle-spy", "echo")
@@ -49,12 +48,14 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Mirrors test.echo but increments capabilityInvokeCount so tests can assert step invocation order alongside hook events.",
         useCases: [
           "Lifecycle test verifies step:started fires before handler runs.",
-          "Conformance suite counts capability invocations per run.",
+          "Conformance suite counts capability invocations per run."
         ],
-        samplePrompts: [
-          "Run lifecycle-spy echo with value probe.",
-          "Invoke spy echo to trigger step hooks.",
-        ],
+        projections: [
+          {
+            summary: "Use the echoed value",
+            description: "Take the echo field as the step output while tests assert hook ordering."
+          }
+        ]
       })
       .withHandler(async (input) => {
         capabilityInvokeCount++
@@ -69,12 +70,15 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Throws a fixed error on every invoke. Used to assert failure diagnostics and finally hooks without external dependencies.",
         useCases: [
           "Test asserts step:failed captures handler errors.",
-          "Run cancellation path after a forced step failure.",
+          "Run cancellation path after a forced step failure."
         ],
-        samplePrompts: [
-          "Run the lifecycle-spy throw step.",
-          "Trigger a failing capability for hook tests.",
-        ],
+        projections: [
+          {
+            summary: "Expect a step failure",
+            description:
+              "This capability always throws; invoke only when tests need step:failed, not a success payload."
+          }
+        ]
       })
       .withHandler(async () => {
         capabilityInvokeCount++
@@ -89,35 +93,35 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
           "Calls ctx.store.merge on a supplied state handle. Verifies store wiring from capability handlers during integration tests.",
         useCases: [
           "Store test confirms merge from a step handler.",
-          "Multi-step run accumulates shared state through spy merge.",
+          "Multi-step run accumulates shared state through spy merge."
         ],
-        samplePrompts: [
-          "Merge { merged: true } into the run state handle.",
-          "Invoke lifecycle-spy merge-state on the shared target.",
-        ],
+        projections: [
+          {
+            summary: "Confirm store merge",
+            description: "When ok is true, the target state handle received the merged test fields."
+          }
+        ]
       })
       .withHandler(async (input, ctx) => {
         capabilityInvokeCount++
-        const handle = (input as { target: import("@executioncontrolprotocol/types").StoreStateHandle<Record<string, unknown>> })
+        const handle = (input as { target: import("../types/index.js").StoreStateHandle<Record<string, unknown>> })
           .target
         await ctx.store.merge(handle, { merged: true })
         return { ok: true }
-      }),
+      })
   ])
   .withHooks([
     spyHook("step:before"),
     spyHook("step:started"),
     spyHook("step:completed"),
     spyHook("step:failed"),
-    spyHook("step:finally"),
+    spyHook("step:finally")
   ])
   .build()
 
-catalogExtension(lifecycleSpyExtension)
-
-/** Register lifecycle spy extension on global registry. */
-export async function registerLifecycleSpyExtension(): Promise<void> {
-  if (!globalRegistry.getExtension("@executioncontrolprotocol/lifecycle-spy")) {
-    await globalRegistry.registerExtension(lifecycleSpyExtension)
+/** Register lifecycle spy extension on a registry. */
+export async function registerLifecycleSpyExtension(registry: Registry): Promise<void> {
+  if (!registry.getExtension("@executioncontrolprotocol/lifecycle-spy")) {
+    await registry.registerExtension(lifecycleSpyExtension)
   }
 }

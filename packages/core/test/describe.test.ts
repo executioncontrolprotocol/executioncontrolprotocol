@@ -1,18 +1,14 @@
-import { describe, expect, it, beforeEach } from "vitest"
-import { extension, policy } from "../src/index.js"
-import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
+import { describe, expect, it } from "vitest"
+import { extension, policy, testExtension } from "../src/index.js"
+import { budgetPolicy } from "@executioncontrolprotocol/plugin-budget"
 import { createTestEnvironment } from "./helpers.js"
 
 describe("environment.describe", () => {
-  beforeEach(async () => {
-    await registerStandardPolicies()
-  })
-
   it("filters policies section", async () => {
-    const env = (await createTestEnvironment("d")).withExtensions([
-      extension("@executioncontrolprotocol/test", "T").with({}),
+    const env = createTestEnvironment("d").with([
+      extension(testExtension, "T").with({}),
+      policy(budgetPolicy, "B").with({ maxModelCalls: 1 }),
     ])
-      .withPolicies([policy("@executioncontrolprotocol/budget", "B").with({ maxModelCalls: 1 })])
 
     const ecp = await env.init()
     const desc = await ecp.describe({

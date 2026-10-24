@@ -1,0 +1,73 @@
+import type { EnvironmentDescriptor } from "@executioncontrolprotocol/core/types"
+import {
+  extractWorkflowFromModule,
+  validateWorkflow,
+  type CompileWorkflowResult,
+  type CompileWorkflowSourceOptions,
+  type CompileDiagnostic,
+} from "@executioncontrolprotocol/core"
+import { evaluateWorkflowModule } from "./evaluate-browser.js"
+import { bundleWorkflowSource, isTypeScriptFile } from "./transpile-browser.js"
+
+export type { CompileWorkflowResult, CompileWorkflowSourceOptions, CompileDiagnostic }
+
+export { extractWorkflowFromModule }
+export {
+  warmBrowserWorkflowCompile,
+  ESBUILD_WASM_URL_KEY,
+  unpkgEsbuildWasmUrl,
+  resolveEsbuildWasmInitializeUrl,
+} from "./transpile-browser.js"
+
+/**
+ * Compile TypeScript or JavaScript workflow source to a manifest (browser-safe).
+ * Defaults to {@link CompileWorkflowSourceOptions.resolveImports} `"browser-global"`
+ * so bare `@executioncontrolprotocol/core` imports resolve via `globalThis.__ecpWorkflowShim`
+ * (blob URL evaluation cannot resolve package specifiers).
+ * @category Compile
+ */
+export async function compileWorkflowSource(
+  options: CompileWorkflowSourceOptions
+): Promise<CompileWorkflowResult> {
+  const filename = options.filename ?? "workflow.ts"
+  const resolveImports = options.resolveImports ?? "browser-global"
+  try {
+    const code =
+      isTypeScriptFile(filename) ||
+      options.source.includes("@executioncontrolprotocol/") ||
+      resolveImports === "browser-global"
+        ? await bundleWorkflowSource(options.source, filename, ".", resolveImports)
+        : options.source
+    const manifest = await evaluateWorkflowModule(code, filename.replace(/\.tsx?$/, ".js"))
+    const validation = validateWorkflow(manifest)
+    return {
+      ok: validation.valid,
+      manifest,
+      validation,
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return {
+      ok: false,
+      compileErrors: [{ message, filename }],
+    }
+  }
+}
+
+/**
+ * Compile and validate workflow source (optional environment descriptor).
+ * @category Compile
+ */
+export async function compileAndValidateWorkflowSource(
+  options: CompileWorkflowSourceOptions & { descriptor?: EnvironmentDescriptor }
+): Promise<CompileWorkflowResult> {
+  const compiled = await compileWorkflowSource(options)
+  if (!compiled.ok || !compiled.manifest) return compiled
+  const validation = validateWorkflow(compiled.manifest, options.descriptor)
+  return {
+    ok: validation.valid,
+    manifest: validation.valid ? compiled.manifest : undefined,
+    validation,
+    compileErrors: compiled.compileErrors,
+  }
+}

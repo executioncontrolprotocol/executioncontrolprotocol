@@ -3,7 +3,9 @@ import {
   LATEST_ECP_VERSION,
   type CapabilityId,
   type InvokeResult,
-} from "@executioncontrolprotocol/types"
+  type ValidationIssue,
+  type ValidationResult,
+} from "../types/index.js"
 
 /** Pairing for same-id hops to a local invoke host. @category Runtime */
 export interface RemoteInvokeBinding {
@@ -11,6 +13,42 @@ export interface RemoteInvokeBinding {
   url: string
   /** Bearer token for `POST /v1/invoke`. */
   token: string
+}
+
+/**
+ * Format a validation issue as `path: message` (or message alone).
+ * @category Runtime
+ */
+export function formatValidationIssueLine(issue: ValidationIssue): string {
+  const path = issue.path?.trim()
+  return path ? `${path}: ${issue.message}` : issue.message
+}
+
+/**
+ * Build invoke failure diagnostics, expanding schema validation issues when present.
+ * Lead entry keeps the summary code with a joined detail message for single-message consumers.
+ * @category Runtime
+ */
+export function buildInvokeFailureDiagnostics(
+  code: string,
+  message: string,
+  validation?: ValidationResult
+): ValidationIssue[] {
+  const errors = validation?.errors ?? []
+  if (errors.length === 0) {
+    return [{ severity: "error", code, message }]
+  }
+  const joined = errors.map(formatValidationIssueLine).join("; ")
+  const lead: ValidationIssue = {
+    severity: "error",
+    code,
+    message: `${message}: ${joined}`,
+  }
+  const detail: ValidationIssue[] = errors.map((issue) => ({
+    ...issue,
+    severity: issue.severity ?? "error",
+  }))
+  return [lead, ...detail]
 }
 
 /** Whether a JSON value looks like an invoke result. @category Runtime */
@@ -27,13 +65,15 @@ export function isInvokeResult(value: unknown): value is InvokeResult {
 
 /**
  * Build a failed invoke result.
+ * When `validation.errors` is present, diagnostics include the full issue list
+ * (lead summary + per-issue entries) so UI and model consumers see Zod path/message detail.
  * @category Runtime
  */
 export function invokeFailure(
   capabilityId: string,
   code: string,
   message: string,
-  validation?: import("@executioncontrolprotocol/types").ValidationResult
+  validation?: ValidationResult
 ): InvokeResult {
   return {
     schema: "@executioncontrolprotocol.invoke.result",
@@ -41,7 +81,7 @@ export function invokeFailure(
     success: false,
     capabilityId: capabilityId as CapabilityId,
     validation,
-    diagnostics: [{ severity: "error", code, message }],
+    diagnostics: buildInvokeFailureDiagnostics(code, message, validation),
   }
 }
 

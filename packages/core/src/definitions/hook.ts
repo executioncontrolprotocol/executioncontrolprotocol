@@ -1,4 +1,4 @@
-import type { LifecycleEvent } from "@executioncontrolprotocol/types"
+import type { LifecycleEvent } from "../types/index.js"
 import type { HookDefinition, HookHandler } from "./types.js"
 
 /**

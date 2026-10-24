@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { readFileSync, readdirSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { findBannedMetadataProsePhrase } from "@executioncontrolprotocol/types"
+import { findBannedMetadataProsePhrase } from "@executioncontrolprotocol/core/types"
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url))
 
 function walkTsFiles(dir: string, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name === "dist" || name === "test") continue
     const full = join(dir, name)
@@ -43,6 +44,7 @@ function extractWithMetadataBlocks(source: string): string[] {
 function packageFromPath(filePath: string): string | undefined {
   const norm = filePath.replace(/\\/g, "/")
   const m =
+    norm.match(/plugins\/plugin-([^/]+)\//) ??
     norm.match(/packages\/extensions\/([^/]+)\//) ??
     norm.match(/packages\/core\/src\/formats\//) ??
     norm.match(/packages\/core\/src\/testing\//)
@@ -54,10 +56,16 @@ function packageFromPath(filePath: string): string | undefined {
 describe("first-party capability metadata prose", () => {
   const roots = [
     join(repoRoot, "packages/extensions"),
+    join(repoRoot, "plugins"),
     join(repoRoot, "packages/core/src/formats"),
     join(repoRoot, "packages/core/src/testing"),
   ]
   const files = roots.flatMap((r) => walkTsFiles(r))
+
+  it("scans plugins even when packages/extensions is gone", () => {
+    expect(files.some((f) => f.replace(/\\/g, "/").includes("/plugins/plugin-"))).toBe(true)
+    expect(() => walkTsFiles(join(repoRoot, "packages/does-not-exist"))).not.toThrow()
+  })
 
   it("does not embed schema how-to phrases", () => {
     const offenders: string[] = []

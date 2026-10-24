@@ -10,8 +10,7 @@ const execFileAsync = promisify(execFile)
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
 const cliBin = join(repoRoot, "packages/cli/bin/run.js")
 
-const ACCEPTS_WORKFLOW = "examples/07-accepts-returns/workflow.ts"
-const ACCEPTS_ENV = "examples/07-accepts-returns/environment.ts"
+const ACCEPTS_WORKFLOW = "examples/07-accepts-returns/workflow.ecp.ts"
 const ACCEPTS_INPUT = "examples/07-accepts-returns/input.json"
 
 interface CliResult {
@@ -46,9 +45,7 @@ describe("ecp run workflow source", () => {
       [
         cliBin,
         "run",
-        "examples/01-echo/workflow.ts",
-        "--env",
-        "examples/01-echo/environment.ts",
+        "examples/01-echo/workflow.ecp.ts",
       ],
       { cwd: repoRoot, encoding: "utf8" }
     )
@@ -58,7 +55,7 @@ describe("ecp run workflow source", () => {
   }, 30_000)
 
   it("runs accepts/returns example with --input", async () => {
-    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--env", ACCEPTS_ENV, "--input", ACCEPTS_INPUT])
+    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT])
     expect(res.code).toBe(0)
     const result = JSON.parse(res.stdout) as {
       run: { status: string }
@@ -73,7 +70,7 @@ describe("ecp run workflow source", () => {
     const badInput = join(tmp, "bad.json")
     await writeFile(badInput, JSON.stringify({ value: 1 }), "utf8")
     try {
-      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--env", ACCEPTS_ENV, "--input", badInput])
+      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", badInput])
       expect(res.code).not.toBe(0)
       expect(`${res.stderr}\n${res.stdout}`).toMatch(/accepts validation failed/)
     } finally {
@@ -85,8 +82,6 @@ describe("ecp run workflow source", () => {
     const res = await runCli([
       "run",
       ACCEPTS_WORKFLOW,
-      "--env",
-      ACCEPTS_ENV,
       "--input",
       ACCEPTS_INPUT,
       "--dry-run",
@@ -111,8 +106,6 @@ describe("ecp run workflow source", () => {
       const res = await runCli([
         "run",
         ACCEPTS_WORKFLOW,
-        "--env",
-        ACCEPTS_ENV,
         "--input",
         emptyInput,
         "--dry-run",

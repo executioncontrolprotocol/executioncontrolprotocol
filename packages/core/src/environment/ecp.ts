@@ -5,10 +5,9 @@ import type {
   RunResult,
   SearchOptions,
   SearchResult,
-  TestSessionSnapshot,
   ValidationResult,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import type { Environment, RunOptions } from "./environment.js"
 import {
@@ -20,18 +19,12 @@ import {
 import { createPatchBuilder, type PatchOperationBuilder } from "../patch/index.js"
 import type { InvokeOperationBuilder } from "../invoke/invoke-builder.js"
 import {
-  createTestSessionBuilder,
-  restoreTestSession,
-  type TestSession,
-  type TestSessionBuilder,
-} from "../test-session/index.js"
-import {
   createCapabilityBlobStore,
   type CapabilityBlobStore,
 } from "../runtime/blobs.js"
 import type { CapabilityArtifactStore } from "../runtime/artifacts.js"
 
-export type { RunOptions } from "./environment.js"
+export type { RunOptions, EnvironmentInitOptions } from "./environment.js"
 
 /**
  * Initialized operational ECP instance (returned from {@link Environment.init}).
@@ -58,13 +51,6 @@ export interface Ecp {
   run(workflow: WorkflowManifest, options?: RunOptions): Promise<RunResult>
   /** Invoke a registered capability outside workflow execution. */
   invoke(capabilityId: CapabilityId | string): InvokeOperationBuilder
-  /**
-   * Start a workflow test session (run-to / rerun with frozen state).
-   * Distinct from `@executioncontrolprotocol/core/testing` stubs.
-   */
-  test(workflow: WorkflowManifest): TestSessionBuilder
-  /** Restore a test session from a snapshot (e.g. CLI session file). */
-  restoreTestSession(snapshot: TestSessionSnapshot): Promise<TestSession>
   /** Underlying registry. */
   getRegistry(): Registry
   /** Run-scoped browser file blob store (created on first use). */
@@ -122,14 +108,6 @@ export class EcpImpl implements Ecp {
     return this.env.ecpInvoke(capabilityId as CapabilityId)
   }
 
-  test(workflow: WorkflowManifest): TestSessionBuilder {
-    return createTestSessionBuilder(this.env, workflow)
-  }
-
-  restoreTestSession(snapshot: TestSessionSnapshot): Promise<TestSession> {
-    return restoreTestSession(this.env, snapshot)
-  }
-
   getRegistry(): Registry {
     return this.env.getRegistry()
   }
@@ -138,7 +116,7 @@ export class EcpImpl implements Ecp {
     const existing = this.env.getBlobStore()
     if (existing) return existing
     const store = createCapabilityBlobStore()
-    this.env.withBlobStore(store)
+    this.env.setBlobStore(store)
     return store
   }
 

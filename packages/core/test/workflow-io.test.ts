@@ -16,7 +16,7 @@ import {
   normalizeWorkflowManifest,
   applyWorkflowReturns,
 } from "../src/index.js"
-import { compileWorkflowSource } from "../src/compile/index.js"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
 import { initTestEcp } from "./helpers.js"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
@@ -81,10 +81,10 @@ describe("workflow accepts / returns", () => {
   })
 
   it("compiles examples/07-accepts-returns workflow source", async () => {
-    const source = await readFile(join(repoRoot, "examples/07-accepts-returns/workflow.ts"), "utf8")
+    const source = await readFile(join(repoRoot, "examples/07-accepts-returns/workflow.ecp.ts"), "utf8")
     const compiled = await compileWorkflowSource({
       source,
-      filename: "examples/07-accepts-returns/workflow.ts",
+      filename: "examples/07-accepts-returns/workflow.ecp.ts",
     })
     expect(compiled.ok, compiled.compileErrors?.map((e) => e.message).join("; ")).toBe(true)
     expect(compiled.manifest?.workflow.accepts).toMatchObject({

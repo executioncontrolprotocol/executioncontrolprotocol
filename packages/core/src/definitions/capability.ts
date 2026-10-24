@@ -3,8 +3,8 @@ import type {
   CapabilityMetadata,
   NamespacedId,
   CapabilityExecution,
-} from "@executioncontrolprotocol/types"
-import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import { parseCapabilityMetadata } from "../types/index.js"
 import type { z } from "zod"
 import type { CapabilityDefinition, CapabilityHandler } from "./types.js"
 
@@ -40,7 +40,8 @@ export class CapabilityBuilder {
   }
 
   /**
-   * Attach agent-facing docs (summary, description, useCases, samplePrompts, …).
+   * Attach agent-facing docs (summary, description, useCases, projections).
+   * Typed from {@link CapabilityMetadata}; runtime parse rejects unknown keys and banned prose.
    * @category Definitions
    */
   withMetadata(metadata: CapabilityMetadata): this {
@@ -62,7 +63,7 @@ export class CapabilityBuilder {
       outputSchema: this.outputSchema,
       handler: this.handlerFn,
       ...(this.execution ? { execution: this.execution } : {}),
-      ...(this.metadata ? { metadata: this.metadata } : {}),
+      ...(this.metadata ? { metadata: this.metadata } : {})
     }
   }
 }

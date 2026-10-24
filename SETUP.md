@@ -1,13 +1,12 @@
 # ECP Setup Guide
 
 This guide covers building the monorepo, installing the `ecp` CLI, and running
-workflows locally (Node) or in the browser demo.
+workflows locally on Node.
 
 For architecture and the current spec, see:
 
 - [`AGENTS.md`](AGENTS.md) — monorepo commands + package boundaries
-- [`ecp-overhaul.md`](ecp-overhaul.md) — implementation spec (source of truth)
-- [`docs/`](docs/) — browser demo, harness evals, patch model, etc.
+- [`RESET-PLAN.md`](RESET-PLAN.md) — CLI reset plan (source of truth during the milestone)
 
 ------------------------------------------------------------------------
 
@@ -68,14 +67,14 @@ extensions + policies). Examples are authored in TypeScript but compile down to
 portable JSON workflow manifests.
 
 ```bash
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
-ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
+ecp validate examples/01-echo/workflow.ecp.ts
 ```
 
 Compile to JSON (optional):
 
 ```bash
-ecp compile examples/01-echo/workflow.ts -o dist/workflow.json
+ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ------------------------------------------------------------------------
@@ -105,40 +104,12 @@ ollama pull gemma3:1b
 
 ------------------------------------------------------------------------
 
-## Browser demo
-
-The browser demo app lives in this monorepo at [`apps/browser-demo`](apps/browser-demo). Full startup matrix: [`apps/browser-demo/README.md`](apps/browser-demo/README.md#local-startup-options).
-
-### Chrome AI / UI only
+The browser demo was removed in Phase 1. The visual App returns in Phase 8 from the
+`pre-reset` tag. Until then, run workflows with the CLI:
 
 ```bash
-pnpm install
-pnpm run build
-pnpm run dev:demo
+ecp run examples/01-echo/workflow.ecp.ts
 ```
-
-Open `http://localhost:5173` (or the URL Vite prints).
-
-### With local `ecp up` (Ollama / host hops)
-
-Use two terminals from the monorepo root after `pnpm run build`:
-
-```bash
-# Terminal 1 — Vite
-pnpm run dev:demo
-
-# Terminal 2 — daemon (host env + Ollama); opens the demo with ?token=
-pnpm run up:demo
-```
-
-| Command | What it hosts |
-| ------- | ------------- |
-| `pnpm run up:demo` | [`apps/browser-demo/host`](apps/browser-demo/host) (Sharp, fal, OpenAI, Anthropic, …) **plus** Ollama + storage |
-| `pnpm run up:demo -- --ollama-only` | Ollama + storage only (no Sharp/fal host bindings) |
-
-Daemon default: `http://127.0.0.1:3090`. Pairing URL includes `?token=` and `?bridge=`. Details: [`apps/browser-demo/host/README.md`](apps/browser-demo/host/README.md).
-
-GitHub Pages deploys the app from `main` (`.github/workflows/pages.yml`) after a workspace install and `pnpm run build` (not npm publish).
 
 ------------------------------------------------------------------------
 

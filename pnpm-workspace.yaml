@@ -1,15 +1,11 @@
 packages:
-  - packages/types
   - packages/core
   - packages/mcp
+  - packages/app
   - packages/cli
-  - packages/policies
-  - packages/evals
-  - packages/harnesses/*
-  - packages/extensions/*
-  - packages/vendor/*
-  - packages/runtimes/*
-  - apps/*
+  - packages/environments/*
+  - packages/plugin-sdk
+  - plugins/*
 
 onlyBuiltDependencies:
   - sharp

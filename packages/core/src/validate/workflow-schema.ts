@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import { z } from "zod"
 
 /** Capability id pattern: `@namespace/name.capability`. @category Validation */
@@ -48,15 +48,6 @@ export const secretValueSchema = z
   })
   .strict()
 
-/** Browser encrypted secrets reference (not portable in workflows). @category Validation */
-export const browserValueSchema = z
-  .object({
-    $browser: z.string().min(1),
-    optional: z.boolean().optional(),
-    fallback: z.unknown().optional(),
-  })
-  .strict()
-
 /** Recursive step input value. @category Validation */
 export const inputValueSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
@@ -70,7 +61,6 @@ export const inputValueSchema: z.ZodType<unknown> = z.lazy(() =>
     stateValueSchema,
     envValueSchema,
     secretValueSchema,
-    browserValueSchema,
   ])
 )
 
@@ -173,7 +163,7 @@ export function parseWorkflowManifest(manifest: unknown): ParsedWorkflowManifest
 }
 
 /** Empty validation result template. */
-export function emptyValidationResult(valid: boolean): import("@executioncontrolprotocol/types").ValidationResult {
+export function emptyValidationResult(valid: boolean): import("../types/index.js").ValidationResult {
   return {
     schema: "@executioncontrolprotocol.validation.result",
     version: LATEST_ECP_VERSION,

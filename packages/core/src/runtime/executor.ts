@@ -1,4 +1,11 @@
-import type { RunResult, StepRunRecord, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type {
+  PublicRunEvent,
+  RunApproval,
+  RunJournalMeta,
+  RunResult,
+  StepRunRecord,
+  WorkflowManifest,
+} from "../types/index.js"
 import type { RemoteInvokeBinding } from "./remote-invoke.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
@@ -18,14 +25,20 @@ export interface RuntimeExecutionContext {
   maxConcurrency?: number
   /** Execution mode (default `"run"`). */
   mode?: RuntimeExecutionMode
-  /** Seed state for test sessions (replaces input-only seed when set). */
+  /** Seed state for resume/rerun (replaces input-only seed when set). */
   seedState?: Record<string, unknown>
-  /** Seed step history for test sessions. */
+  /** Seed step history for resume/rerun. */
   seedHistory?: Record<string, StepRunRecord>
-  /** Inclusive stop after this leaf step id (test `runTo`). */
+  /** Inclusive stop after this leaf step id (`ecp run --to`). */
   stopAfterStepId?: string
-  /** Execute only this leaf step id (test `rerun`). */
+  /** Execute only this leaf step id (`ecp runs rerun --from X --to X`). */
   onlyStepId?: string
+  /** Recorded approvals for `plugin-approval`. */
+  approvals?: RunApproval[]
+  /** Host journal metadata (path, hash, parent run). */
+  journal?: RunJournalMeta
+  /** Public NDJSON stream (`ecp run --events`). */
+  onEvent?: (event: PublicRunEvent) => void
   /** Local invoke host for host/mixed hops. */
   remoteInvoke?: RemoteInvokeBinding
   /** Run-scoped browser file map. */

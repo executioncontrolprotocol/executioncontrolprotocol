@@ -1,0 +1,159 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "azure-blob-storage:create-sas-url": {
+      "aliases": [],
+      "args": {},
+      "description": "Generates a shared-access signature URL with chosen read, write, or delete permissions and expiry for an existing blob in a container.\nUse cases:\n- Share a temporary read link with an external API\n- Authorize a browser PUT for mixed upload flows\nProjections:\n- Share the temporary URL: Give the SAS URL to the caller or external API that needs time-limited access.",
+      "examples": [
+        "ecp azure-blob-storage create-sas-url --container <container> --blobName <blobName> --permissions <permissions>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "container": {
+          "description": "container",
+          "name": "container",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "blob-name": {
+          "description": "blob-name",
+          "name": "blob-name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "permissions": {
+          "description": "permissions",
+          "name": "permissions",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "options": [
+            "r",
+            "w",
+            "c",
+            "d",
+            "l"
+          ],
+          "type": "option"
+        },
+        "expires-in-seconds": {
+          "description": "expires-in-seconds",
+          "name": "expires-in-seconds",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "azure-blob-storage:create-sas-url",
+      "pluginAlias": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginName": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Mint a time-limited SAS URL for a blob",
+      "enableJsonFlag": true
+    },
+    "azure-blob-storage:download": {
+      "aliases": [],
+      "args": {},
+      "description": "Fetches blob bytes from Azure Storage and stores them as a media artifact with content type and name for local processing.\nUse cases:\n- Pull stored assets back into a workflow for editing\n- Retrieve remote blobs for inspection or transformation\nProjections:\n- Use the downloaded artifact: Pass the returned media artifact into image or file steps that need local bytes.",
+      "examples": [
+        "ecp azure-blob-storage download --container <container> --blobName <blobName>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "container": {
+          "description": "container",
+          "name": "container",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "blob-name": {
+          "description": "blob-name",
+          "name": "blob-name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "azure-blob-storage:download",
+      "pluginAlias": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginName": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Download a blob into a workflow artifact",
+      "enableJsonFlag": true
+    },
+    "azure-blob-storage:upload": {
+      "aliases": [],
+      "args": {},
+      "description": "Writes content to a named blob in a container from a base64 payload, local path, artifact locator, or browser file reference. Returns the blob location and optional SAS URL.\nUse cases:\n- Persist workflow output to durable cloud storage\n- Stage user uploads before downstream processing\nProjections:\n- Keep the blob location: Save the container and blob name (and SAS URL if returned) for later download or sharing.",
+      "examples": [
+        "ecp azure-blob-storage upload --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "azure-blob-storage:upload",
+      "pluginAlias": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginName": "@executioncontrolprotocol/plugin-azure-blob-storage",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Upload bytes or a file reference to a blob",
+      "enableJsonFlag": true
+    }
+  }
+}

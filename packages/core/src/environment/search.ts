@@ -1,10 +1,10 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   EnvironmentDescriptor,
   SearchOptions,
   SearchResult,
-  SearchResultItem,
-} from "@executioncontrolprotocol/types"
+  SearchResultItem
+} from "../types/index.js"
 
 function tokenize(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean)
@@ -22,6 +22,11 @@ function scoreText(text: string, tokens: string[]): number {
 
 function capabilityHaystack(cap: EnvironmentDescriptor["capabilities"][number]): string {
   const meta = cap.metadata
+  const projectionLines =
+    meta?.projections?.flatMap((projection) => [
+      projection.summary,
+      projection.description,
+    ]) ?? []
   return [
     cap.id,
     cap.label ?? "",
@@ -29,7 +34,7 @@ function capabilityHaystack(cap: EnvironmentDescriptor["capabilities"][number]):
     cap.summary ?? "",
     meta?.description ?? "",
     ...(meta?.useCases ?? []),
-    ...(meta?.samplePrompts ?? []),
+    ...projectionLines,
   ].join(" ")
 }
 
@@ -41,7 +46,6 @@ function extensionHaystack(ext: EnvironmentDescriptor["extensions"][number]): st
     ext.summary ?? "",
     meta?.description ?? "",
     ...(meta?.useCases ?? []),
-    ...(meta?.samplePrompts ?? []),
   ].join(" ")
 }
 
@@ -64,7 +68,7 @@ export function searchCapabilities(
           id: cap.id,
           label: cap.label,
           score,
-          reason: `Matched ${Math.round(score * 100)}% of query tokens`,
+          reason: `Matched ${Math.round(score * 100)}% of query tokens`
         }
         if (options?.include?.includes("inputSchema")) item.inputSchema = cap.inputSchema
         if (options?.include?.includes("outputSchema")) item.outputSchema = cap.outputSchema
@@ -82,7 +86,7 @@ export function searchCapabilities(
           id: ext.id,
           label: ext.label,
           score,
-          reason: `Extension matched query`,
+          reason: `Extension matched query`
         })
       }
     }
@@ -98,7 +102,7 @@ export function searchCapabilities(
           id: pol.id,
           label: pol.label,
           score,
-          reason: `Policy matched query`,
+          reason: `Policy matched query`
         })
       }
     }
@@ -110,6 +114,6 @@ export function searchCapabilities(
   return {
     schema: "@executioncontrolprotocol.environment.search",
     version: LATEST_ECP_VERSION,
-    results: results.slice(0, limit),
+    results: results.slice(0, limit)
   }
 }

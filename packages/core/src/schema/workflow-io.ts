@@ -1,4 +1,4 @@
-import type { RunResult, ValidationIssue, WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { RunResult, ValidationIssue, WorkflowManifest } from "../types/index.js"
 import {
   pickWorkflowReturns,
   validateAgainstJsonSchema,

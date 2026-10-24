@@ -1,9 +1,12 @@
 node_modules/
-dist/
+**/dist/**
+!**/dist/oclif.js
 *.tsbuildinfo
 
 # Vitest / V8 coverage (never commit)
 coverage/
+.vitest-attachments/
+**/__screenshots__/
 coverage-tmp/
 .coverage
 @coverage/

@@ -1,0 +1,37 @@
+# Manual next-tag publish from a milestone branch only. Do not dispatch during
+# the reset unless you intend to publish. First-party packages may still be
+# unpublished; plugin-pack-smoke uses packed tarballs instead.
+
+name: release-next
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-next:
+    if: startsWith(github.ref, 'refs/heads/milestone/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:coverage
+      - run: pnpm run test:integration
+      - name: Publish prereleases under next
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm exec changeset publish --tag next

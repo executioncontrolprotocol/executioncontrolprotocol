@@ -1,5 +1,5 @@
-import type { EncodeResult, EcpFormatOptions, EcpSchema, EcpVersion, NamespacedId } from "@executioncontrolprotocol/types"
-import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import type { EncodeResult, EcpFormatOptions, EcpSchema, EcpVersion, NamespacedId } from "../types/index.js"
+import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION } from "../types/index.js"
 import type { EncodingEnvironmentHost } from "../environment/encoding-host.js"
 import { encodeFailure, getEcpSchema } from "./json-codec.js"
 import { EcpError } from "./errors.js"
@@ -87,7 +87,7 @@ export function createEncodeBuilder(
 
       if (sourceSchema === "@executioncontrolprotocol.workflow") {
         const validation = validateWorkflow(
-          state.source as import("@executioncontrolprotocol/types").WorkflowManifest
+          state.source as import("../types/index.js").WorkflowManifest
         )
         if (!validation.valid) {
           return encodeFailure({

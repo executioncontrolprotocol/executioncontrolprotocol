@@ -4,8 +4,10 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
-import { bundleWorkflowSource } from "../../src/compile/transpile.js"
-import { loadEnvironmentModule } from "../../src/loaders/files.js"
+import {
+  bundleEnvironmentSource,
+  loadEnvironmentModule,
+} from "@executioncontrolprotocol/node"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const resolveZodDir = (): string =>
@@ -95,7 +97,7 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
   await writeFile(
     join(vendorExtDir, "dist", "index.js"),
     [
-      'import { defineExtension, capabilityFor, catalogExtension } from "@executioncontrolprotocol/core"',
+      'import { defineExtension, capabilityFor } from "@executioncontrolprotocol/core"',
       'import { z } from "zod"',
       'import { createRequire } from "node:module"',
       "",
@@ -112,8 +114,6 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
       "  ])",
       "  .build()",
       "",
-      "catalogExtension(heavySdkExtension)",
-      "",
     ].join("\n"),
     "utf8"
   )
@@ -121,33 +121,24 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
   // SDK lives only under the vendor package (not hoisted to the consumer).
   await writeCjsNetSdk(join(vendorExtDir, "node_modules", "fake-cjs-net-sdk"))
   await linkPkg(vendorExtDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
-  await linkPkg(vendorExtDir, "@executioncontrolprotocol/types", join(repoRoot, "packages/types"))
   await linkPkg(vendorExtDir, "zod", resolveZodDir())
 
   const consumerDir = join(work, "consumer")
   await mkdir(consumerDir, { recursive: true })
   await linkPkg(consumerDir, "@ecp-fixture/heavy-sdk-ext", vendorExtDir)
   await linkPkg(consumerDir, "@executioncontrolprotocol/core", join(repoRoot, "packages/core"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/types", join(repoRoot, "packages/types"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/node", join(repoRoot, "packages/runtimes/node"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/policies", join(repoRoot, "packages/policies"))
-  await linkPkg(consumerDir, "@executioncontrolprotocol/secrets", join(repoRoot, "packages/extensions/secrets"))
-  await linkPkg(
-    consumerDir,
-    "@executioncontrolprotocol/process-env",
-    join(repoRoot, "packages/extensions/process-env")
-  )
+  await linkPkg(consumerDir, "@executioncontrolprotocol/node", join(repoRoot, "packages/environments/node"))
   await linkPkg(consumerDir, "zod", resolveZodDir())
 
   const envPath = join(consumerDir, "environment.ts")
   await writeFile(
     envPath,
     [
-      'import { environment, extension } from "@executioncontrolprotocol/node"',
-      'import "@ecp-fixture/heavy-sdk-ext"',
+      'import { environment, extension, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"',
+      'import { heavySdkExtension } from "@ecp-fixture/heavy-sdk-ext"',
       "",
-      'export default (await environment("consumer-heavy-sdk")).withExtensions([',
-      '  extension("@ecp-fixture/heavy-sdk-ext").with({}),',
+      'export default environment(NODE_ENVIRONMENT_ID, "consumer-heavy-sdk").with([',
+      "  extension(heavySdkExtension),",
       "])",
       "",
     ].join("\n"),
@@ -160,14 +151,14 @@ async function setupConsumerWithHeavySdkExtension(): Promise<{
 describe("consumer linked heavy-SDK extension", () => {
   it("bundles env without inlining the nested CJS SDK", async () => {
     const coreDist = join(repoRoot, "packages/core/dist/index.js")
-    const nodeDist = join(repoRoot, "packages/runtimes/node/dist/index.js")
+    const nodeDist = join(repoRoot, "packages/environments/node/dist/index.js")
     if (!(await pathExists(coreDist)) || !(await pathExists(nodeDist))) {
       throw new Error("Run npm run build before consumer-sdk-extension tests (core/node dist required)")
     }
 
     const { consumerDir, envPath } = await setupConsumerWithHeavySdkExtension()
     const source = await readFile(envPath, "utf8")
-    const code = await bundleWorkflowSource(source, envPath, consumerDir)
+    const code = await bundleEnvironmentSource(source, envPath, consumerDir)
 
     expect(code).toMatch(/file:\/\/\/?.*heavy-sdk-ext/)
     expect(code).not.toMatch(/require\(["']net["']\)/)
@@ -176,7 +167,7 @@ describe("consumer linked heavy-SDK extension", () => {
 
   it("loadEnvironmentModule + init + invoke serves the extension capability", async () => {
     const coreDist = join(repoRoot, "packages/core/dist/index.js")
-    const nodeDist = join(repoRoot, "packages/runtimes/node/dist/index.js")
+    const nodeDist = join(repoRoot, "packages/environments/node/dist/index.js")
     if (!(await pathExists(coreDist)) || !(await pathExists(nodeDist))) {
       throw new Error("Run npm run build before consumer-sdk-extension tests (core/node dist required)")
     }

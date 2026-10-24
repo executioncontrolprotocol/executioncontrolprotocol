@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 import {
   bundleEnvironmentSource,
   bundleWorkflowSource,
-} from "../../src/compile/transpile.js"
+} from "@executioncontrolprotocol/node"
 
 async function writeStubPackage(project: string, name: string): Promise<void> {
   const pkgDir = join(project, "node_modules", name)
@@ -51,7 +51,20 @@ describe("bundleEnvironmentSource", () => {
         /Could not resolve ["']ecp-missing-native-dep["']/
       )
       await expect(bundleWorkflowSource(source, join(dir, "workflow.ts"), dir)).rejects.toThrow(
-        /Could not resolve ["']ecp-missing-native-dep["']/
+        /ECP_WORKFLOW_LOAD/
+      )
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("rejects workflow files that import anything except core", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-wf-restrict-"))
+    try {
+      await writeFile(join(dir, "package.json"), JSON.stringify({ name: "fixture-wf", type: "module" }))
+      const source = `import { openaiExtension } from "@executioncontrolprotocol/plugin-openai"\nexport default openaiExtension`
+      await expect(bundleWorkflowSource(source, join(dir, "workflow.ecp.ts"), dir)).rejects.toThrow(
+        /ECP_WORKFLOW_LOAD/
       )
     } finally {
       await rm(dir, { recursive: true, force: true })

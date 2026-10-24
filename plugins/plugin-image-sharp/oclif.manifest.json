@@ -1,0 +1,541 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "image-sharp:composite": {
+      "aliases": [],
+      "args": {},
+      "description": "Composites one or more overlay images onto a base image with optional position, gravity, blend mode, and tiling.\nUse cases:\n- Add a watermark or logo to a photo\n- Stack badges or stickers on a marketing asset\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp composite --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:composite",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Layer overlay images onto a base image",
+      "enableJsonFlag": true
+    },
+    "image-sharp:convert": {
+      "aliases": [],
+      "args": {},
+      "description": "Re-encodes a source image to the requested output format and quality without additional geometric transforms.\nUse cases:\n- Turn PNG uploads into smaller WebP or JPEG assets\n- Normalize format before sending images to downstream services\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp convert --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:convert",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Convert an image to another format",
+      "enableJsonFlag": true
+    },
+    "image-sharp:crop": {
+      "aliases": [],
+      "args": {},
+      "description": "Extracts a box defined by left, top, width, and height from the source image and returns the cropped result as a new artifact.\nUse cases:\n- Remove borders or focus on a subject region\n- Produce square crops for avatars or thumbnails\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp crop --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:crop",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Crop a rectangular region from an image",
+      "enableJsonFlag": true
+    },
+    "image-sharp:derive": {
+      "aliases": [],
+      "args": {},
+      "description": "Runs independent pipelines for each named variant against the same source image and returns all outputs in one result object.\nUse cases:\n- Export social, print, and thumbnail variants in one step\n- Batch custom pipelines for A/B or platform-specific assets\nProjections:\n- Use named variants: Take each variant image reference and info from the variants map for the next storage or publish step.",
+      "examples": [
+        "ecp image-sharp derive --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:derive",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Produce multiple named variants from one source",
+      "enableJsonFlag": true
+    },
+    "image-sharp:inspect": {
+      "aliases": [],
+      "args": {},
+      "description": "Reads an image from a path, URL, artifact, or buffer and returns format metadata, dimensions, orientation, and optional channel statistics without modifying pixels.\nUse cases:\n- Validate an upload before resize or conversion\n- Read width, height, and format for layout or model prep\nProjections:\n- Read dimensions and format: Take width, height, and format from the result so later steps can size or convert correctly.\n- Note orientation: Use the derived orientation when deciding whether to normalize or rotate.",
+      "examples": [
+        "ecp image-sharp inspect --include <include> --animated <animated> --failOn <failOn>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "include": {
+          "description": "include",
+          "name": "include",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "options": [
+            "metadata",
+            "stats",
+            "dominantColor",
+            "hash"
+          ],
+          "type": "option"
+        },
+        "animated": {
+          "description": "animated",
+          "name": "animated",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "fail-on": {
+          "description": "fail-on",
+          "name": "fail-on",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "none",
+            "truncated",
+            "error",
+            "warning"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:inspect",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Inspect image format, dimensions, and optional stats",
+      "enableJsonFlag": true
+    },
+    "image-sharp:metadata": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns embedded metadata such as EXIF tags, density, and orientation for a single image without running a full inspect or transform pipeline.\nUse cases:\n- Check camera orientation or DPI before normalization\n- Surface EXIF fields for cataloging or debugging\nProjections:\n- Take EXIF and orientation: Read orientation, density, and other EXIF fields from metadata before normalize or layout steps.",
+      "examples": [
+        "ecp image-sharp metadata --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:metadata",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Read EXIF and embedded image metadata",
+      "enableJsonFlag": true
+    },
+    "image-sharp:normalize": {
+      "aliases": [],
+      "args": {},
+      "description": "Applies auto-rotation from EXIF orientation, converts colors to sRGB, and removes embedded metadata for web-safe, consistent output.\nUse cases:\n- Fix phone photos uploaded with wrong orientation\n- Prepare images for consistent display across browsers\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp normalize --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:normalize",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Auto-orient, convert to sRGB, and strip metadata",
+      "enableJsonFlag": true
+    },
+    "image-sharp:resize": {
+      "aliases": [],
+      "args": {},
+      "description": "Scales an image to requested width and height using fit modes such as cover, contain, or inside, with optional enlargement guards and kernel selection.\nUse cases:\n- Fit product photos to a fixed canvas size\n- Downscale large uploads before storage or inference\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp resize --animated <animated> --failOn <failOn> --width <width>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "animated": {
+          "description": "animated",
+          "name": "animated",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "fail-on": {
+          "description": "fail-on",
+          "name": "fail-on",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "none",
+            "truncated",
+            "error",
+            "warning"
+          ],
+          "type": "option"
+        },
+        "width": {
+          "description": "width",
+          "name": "width",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "height": {
+          "description": "height",
+          "name": "height",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "fit": {
+          "description": "fit",
+          "name": "fit",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "cover",
+            "contain",
+            "fill",
+            "inside",
+            "outside"
+          ],
+          "type": "option"
+        },
+        "position": {
+          "description": "position",
+          "name": "position",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "center",
+            "top",
+            "right top",
+            "right",
+            "right bottom",
+            "bottom",
+            "left bottom",
+            "left",
+            "left top",
+            "entropy",
+            "attention"
+          ],
+          "type": "option"
+        },
+        "kernel": {
+          "description": "kernel",
+          "name": "kernel",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "nearest",
+            "cubic",
+            "mitchell",
+            "lanczos2",
+            "lanczos3"
+          ],
+          "type": "option"
+        },
+        "without-enlargement": {
+          "description": "without-enlargement",
+          "name": "without-enlargement",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "without-reduction": {
+          "description": "without-reduction",
+          "name": "without-reduction",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:resize",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Resize an image to target dimensions",
+      "enableJsonFlag": true
+    },
+    "image-sharp:stats": {
+      "aliases": [],
+      "args": {},
+      "description": "Calculates per-channel min, max, mean, and related stats for an image, useful for exposure checks and automated quality gates.\nUse cases:\n- Detect mostly blank or clipped images before publishing\n- Compare brightness across variants in a batch\nProjections:\n- Use channel stats for quality gates: Take per-channel min, max, and mean from stats to decide whether the image is usable.",
+      "examples": [
+        "ecp image-sharp stats --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:stats",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Compute channel statistics for an image",
+      "enableJsonFlag": true
+    },
+    "image-sharp:thumbnail": {
+      "aliases": [],
+      "args": {},
+      "description": "Builds a map of named thumbnails from one source image, each resized with a shared fit mode and output settings.\nUse cases:\n- Create responsive image size sets for a gallery\n- Produce preview, card, and hero sizes in one call\nProjections:\n- Use named thumbnails: Take each named thumbnail image reference from the map for gallery or responsive delivery steps.",
+      "examples": [
+        "ecp image-sharp thumbnail --fit <fit>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "fit": {
+          "description": "fit",
+          "name": "fit",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "cover",
+            "contain",
+            "fill",
+            "inside",
+            "outside"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:thumbnail",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Generate multiple named thumbnail sizes",
+      "enableJsonFlag": true
+    },
+    "image-sharp:transform": {
+      "aliases": [],
+      "args": {},
+      "description": "Applies an ordered list of resize, crop, rotate, blur, tint, composite, and other Sharp operations, then writes the result as an artifact with chosen format and quality.\nUse cases:\n- Apply multi-step edits in one workflow step\n- Express non-trivial image edits as a reusable pipeline\nProjections:\n- Use the output image: Pass the returned image file reference into the next step that needs the edited pixels.\n- Read output info: Take width, height, format, and size from info when you need to confirm the result or name an artifact.",
+      "examples": [
+        "ecp image-sharp transform --animated <animated> --failOn <failOn>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "animated": {
+          "description": "animated",
+          "name": "animated",
+          "required": false,
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "fail-on": {
+          "description": "fail-on",
+          "name": "fail-on",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "none",
+            "truncated",
+            "error",
+            "warning"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "image-sharp:transform",
+      "pluginAlias": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginName": "@executioncontrolprotocol/plugin-image-sharp",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Run a declarative Sharp pipeline on one image",
+      "enableJsonFlag": true
+    }
+  }
+}

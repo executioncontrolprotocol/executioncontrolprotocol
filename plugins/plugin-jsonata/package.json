@@ -1,0 +1,63 @@
+{
+  "name": "@executioncontrolprotocol/plugin-jsonata",
+  "version": "0.50.0",
+  "description": "JSONata expression transform plugin for ECP",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b && ecp plugins build"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "jsonata": "^2.2.2"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/cli": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  },
+  "ecp": {
+    "extension": "./dist/index.js"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "jsonata": {
+        "description": "Transform JSON payloads with JSONata expressions"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

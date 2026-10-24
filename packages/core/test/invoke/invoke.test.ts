@@ -8,7 +8,6 @@ import {
 } from "../../src/index.js"
 import { z } from "zod"
 import { createTestEnvironment } from "../helpers.js"
-import { globalRegistry } from "../../src/registry/registry.js"
 
 describe("ecp.invoke", () => {
   it("invokes a registered capability with validated input and output", async () => {
@@ -33,7 +32,7 @@ describe("ecp.invoke", () => {
     const ecp = await (await createTestEnvironment("invoke-missing")).init()
     const result = await ecp.invoke("@executioncontrolprotocol/missing.cap").with({}).process()
     expect(result.success).toBe(false)
-    expect(result.diagnostics[0]?.code).toBe("CAPABILITY_NOT_FOUND")
+    expect(result.diagnostics[0]?.code).toBe("ECP_CAPABILITY_UNKNOWN")
     await ecp.terminate()
   })
 
@@ -71,15 +70,13 @@ describe("ecp.invoke", () => {
         }),
       ])
       .build()
-    await globalRegistry.registerPolicy(denyPolicy)
-
-    const env = (await createTestEnvironment("invoke-deny-test")).withPolicies([
-      policy("@executioncontrolprotocol/invoke-scope-deny").with({}),
+    const env = createTestEnvironment("invoke-deny-test").with([
+      policy(denyPolicy).with({}),
     ])
     const ecp = await env.init()
     const result = await ecp.invoke("@executioncontrolprotocol/test.echo").with({ value: "x" }).process()
     expect(result.success).toBe(false)
-    expect(result.diagnostics[0]?.code).toBe("INVOKE_DENIED")
+    expect(result.diagnostics[0]?.code).toBe("ECP_POLICY_DENIED")
     await ecp.terminate()
   })
 })

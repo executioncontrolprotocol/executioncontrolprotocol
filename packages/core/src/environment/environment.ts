@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   DescribeQuery,
   EnvironmentDescriptor,
@@ -10,13 +10,11 @@ import type {
   StepRunRecord,
   ValidationResult,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import type { NamespacedId } from "../types/index.js"
 import { extension, type ExtensionBindingBuilder } from "../bindings/extension.js"
-import type { HarnessBindingBuilder } from "../bindings/harness.js"
-import { policy, type PolicyBindingBuilder } from "../bindings/policy.js"
-import type { RuntimeBindingBuilder } from "../bindings/runtime.js"
-import { Registry, globalRegistry } from "../registry/registry.js"
+import { policy, PolicyBindingBuilder } from "../bindings/policy.js"
+import { Registry } from "../registry/registry.js"
 import { ensureBoundExtensionsRegistered as ensureBoundExtensions } from "../registry/ensure-bound-extensions.js"
 import { RegistryRegistrationDeniedError } from "../registry/errors.js"
 import type { RuntimeExecutor } from "../runtime/executor.js"
@@ -38,18 +36,39 @@ import type { EnvironmentConfigResolver } from "./config-resolver.js"
 import { buildDescriptor } from "./describe.js"
 import { searchCapabilities } from "./search.js"
 import { validateEnvironmentWithWorkflow } from "../validate/environment.js"
-import { validateHarnessBindings } from "../validate/harness.js"
+import { validateBoundConfig } from "./validate-binding-config.js"
 import { registerCoreFormats } from "../formats/register-core-formats.js"
-import type { HookDefinition } from "../definitions/types.js"
+import type { EnvironmentDefinition, HookDefinition, PolicyDefinition } from "../definitions/types.js"
+import { getEnvironmentDefinition } from "../definitions/environment.js"
 import type { EncodingEnvironmentHost } from "./encoding-host.js"
 import { EcpImpl, type Ecp } from "./ecp.js"
 import { createInvokeBuilder } from "../invoke/invoke-builder.js"
 import { validateWorkflowAcceptsInput } from "../schema/workflow-io.js"
+import {
+  registryControlPolicy,
+  REGISTRY_CONTROL_POLICY_ID,
+} from "../policies/registry-control.js"
 
 function resolveId(ref: NamespacedId | { id: NamespacedId } | string): NamespacedId {
   if (typeof ref === "string") return ref as NamespacedId
   if ("id" in ref) return ref.id
   return ref as NamespacedId
+}
+
+function isPolicyDefinition(ref: unknown): ref is PolicyDefinition {
+  return (
+    typeof ref === "object" &&
+    ref !== null &&
+    "id" in ref &&
+    "hooks" in ref &&
+    !("capabilities" in ref)
+  )
+}
+
+function isPolicyBinding(binding: EnvironmentBinding): binding is PolicyBindingBuilder {
+  if ((binding as { kind?: string }).kind === "policy") return true
+  if (binding instanceof PolicyBindingBuilder) return true
+  return isPolicyDefinition(binding.getRef())
 }
 
 function emptyWorkflowStub(): WorkflowManifest {
@@ -73,7 +92,51 @@ export interface RunOptions {
   signal?: AbortSignal
   /** Run-scoped browser files for mixed upload locators. */
   blobs?: CapabilityBlobStore
+  /** Inclusive stop after this leaf step (`ecp run --to`). */
+  stopAfterStepId?: string
+  /** Execute only this leaf step (`ecp runs rerun --from X --to X`). */
+  onlyStepId?: string
+  /** Seed committed state for resume/rerun. */
+  seedState?: Record<string, unknown>
+  /** Seed step history for resume/rerun. */
+  seedHistory?: Record<string, StepRunRecord>
+  /** Recorded approvals for a paused step. */
+  approvals?: import("../types/index.js").RunApproval[]
+  /** Host journal metadata. */
+  journal?: import("../types/index.js").RunJournalMeta
+  /** Public NDJSON callback (`ecp run --events`). */
+  onEvent?: (event: import("../types/index.js").PublicRunEvent) => void
 }
+
+/**
+ * Options for {@link Environment.init}.
+ * @category Environment
+ */
+export interface EnvironmentInitOptions {
+  /**
+   * Override the default blob store.
+   * @category Environment
+   */
+  blobStore?: CapabilityBlobStore
+  /**
+   * Override the default artifact store.
+   * @category Environment
+   */
+  artifactStore?: CapabilityArtifactStore
+  /**
+   * Local invoke host for host/mixed capability hops.
+   * @category Environment
+   */
+  remoteInvoke?: RemoteInvokeBinding
+  /**
+   * Use this registry instead of the per-instance default.
+   * @category Environment
+   */
+  registry?: Registry
+}
+
+/** Binding accepted by {@link Environment.with}. @category Environment */
+export type EnvironmentBinding = ExtensionBindingBuilder | PolicyBindingBuilder
 
 /**
  * Configured ECP environment.
@@ -86,66 +149,43 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private remoteInvoke?: RemoteInvokeBinding
   private blobStore?: CapabilityBlobStore
   private artifactStore?: CapabilityArtifactStore
+  private registry: Registry
+  private extensionBindings: ExtensionBindingBuilder[] = []
+  private policyBindings: PolicyBindingBuilder[] = []
 
   constructor(
-    private readonly envId: string,
+    private readonly environmentDef: EnvironmentDefinition,
     private readonly envLabel: string | undefined,
-    private runtimeBinding: RuntimeBindingBuilder | undefined,
-    private extensionBindings: ExtensionBindingBuilder[] = [],
-    private policyBindings: PolicyBindingBuilder[] = [],
-    private harnessBindings: HarnessBindingBuilder[] = [],
-    private readonly registry: Registry = globalRegistry
-  ) {}
+    registry?: Registry
+  ) {
+    this.registry = registry ?? new Registry()
+  }
 
   registerConfigResolver(resolver: EnvironmentConfigResolver): void {
     this.configResolvers.push(resolver)
   }
 
-  withRuntime(binding: RuntimeBindingBuilder): this {
-    this.runtimeBinding = binding
-    this.invalidatePrepared()
-    return this
-  }
-
-  withExtensions(bindings: ExtensionBindingBuilder[]): this {
-    this.extensionBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
-  withPolicies(bindings: PolicyBindingBuilder[]): this {
-    this.policyBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
-  /** Bind harness definitions with default providers and config. */
-  withHarnesses(bindings: HarnessBindingBuilder[]): this {
-    this.harnessBindings = bindings
-    this.invalidatePrepared()
-    return this
-  }
-
   /**
-   * Bind a local invoke host for host/mixed capability hops (`POST /v1/invoke`).
-   * Token is never included in `describe()`.
+   * Bind extensions and policies. Call more than once to accumulate.
    * @category Environment
    */
-  withRemoteInvoke(binding: RemoteInvokeBinding): this {
-    this.remoteInvoke = { url: binding.url.replace(/\/+$/, ""), token: binding.token }
+  with(bindings: EnvironmentBinding[]): this {
+    for (const binding of bindings) {
+      const id = resolveId(binding.getRef())
+      if (isPolicyBinding(binding)) {
+        this.policyBindings.push(binding)
+      } else {
+        const existing = this.extensionBindings.find((b) => resolveId(b.getRef()) === id)
+        if (existing) {
+          existing.with(binding.getConfig())
+          const range = binding.getRange()
+          if (range) existing.requires(range, binding.getPackage())
+        } else {
+          this.extensionBindings.push(binding)
+        }
+      }
+    }
     this.invalidatePrepared()
-    return this
-  }
-
-  /** Default blob store for invoke/run when options omit `blobs`. */
-  withBlobStore(store: CapabilityBlobStore): this {
-    this.blobStore = store
-    return this
-  }
-
-  /** Default artifact store for invoke/run host outputs. */
-  withArtifactStore(store: CapabilityArtifactStore): this {
-    this.artifactStore = store
     return this
   }
 
@@ -157,6 +197,11 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   /** @internal Blob store. */
   getBlobStore(): CapabilityBlobStore | undefined {
     return this.blobStore
+  }
+
+  /** @internal Set the default blob store (used by {@link EcpImpl.getBlobStore}). */
+  setBlobStore(store: CapabilityBlobStore): void {
+    this.blobStore = store
   }
 
   /** @internal Artifact store. */
@@ -175,16 +220,20 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.artifactStore
   }
 
-  /** Dynamically add an extension binding (e.g. browser registry auto-bind). */
-  addExtensionBinding(ref: NamespacedId, config: Record<string, unknown> = {}): void {
-    this.extensionBindings.push(extension(ref).with(config))
-    this.invalidatePrepared()
+  /** Dynamically add or shallow-merge an extension binding (e.g. browser registry auto-bind). */
+  addExtensionBinding(
+    ref: NamespacedId | import("../definitions/types.js").ExtensionDefinition,
+    config: Record<string, unknown> = {}
+  ): void {
+    this.with([extension(ref).with(config)])
   }
 
-  /** Dynamically add a policy binding. */
-  addPolicyBinding(ref: NamespacedId, config: Record<string, unknown> = {}): void {
-    this.policyBindings.push(policy(ref).with(config))
-    this.invalidatePrepared()
+  /** Dynamically add a policy binding (policies are additive). */
+  addPolicyBinding(
+    ref: NamespacedId | PolicyDefinition,
+    config: Record<string, unknown> = {}
+  ): void {
+    this.with([policy(ref).with(config)])
   }
 
   private invalidatePrepared(): void {
@@ -192,8 +241,19 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     this.discoveryPrepared = false
   }
 
+  private applyDefaultBindings(): void {
+    for (const def of this.environmentDef.defaultExtensions ?? []) {
+      if (!this.extensionBindings.some((b) => resolveId(b.getRef()) === def.id)) {
+        this.extensionBindings.unshift(extension(def))
+      }
+    }
+    if (!this.policyBindings.some((b) => resolveId(b.getRef()) === REGISTRY_CONTROL_POLICY_ID)) {
+      this.policyBindings.unshift(policy(registryControlPolicy))
+    }
+  }
+
   private collectPolicyHooks(
-    event: import("@executioncontrolprotocol/types").PolicyLifecycleEvent
+    event: import("../types/index.js").PolicyLifecycleEvent
   ): Array<{ hook: HookDefinition; config: Record<string, unknown> }> {
     return this.policyBindings.flatMap((b) => {
       const id = resolveId(b.getRef())
@@ -210,7 +270,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.prepareForDiscovery()
     const ctx: PolicyContext = {
       workflow: emptyWorkflowStub(),
-      run: { id: this.envId, input: {} },
+      run: { id: this.envLabel ?? this.environmentDef.id, input: {} },
       step: REGISTRY_CHECK_STEP,
       state: {},
       input: {},
@@ -221,7 +281,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
           ? "registry.registerExtension"
           : request.kind === "policy"
             ? "registry.registerPolicy"
-            : "registry.registerRuntime",
+            : "registry.registerEnvironment",
       registryRequest: request,
     }
     const decision = await evaluatePolicies("policy:pre", this.collectPolicyHooks("policy:pre"), ctx)
@@ -234,12 +294,12 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   private async emitEnvironmentEvent(
-    event: import("@executioncontrolprotocol/types").EnvironmentLifecycleEvent
+    event: import("../types/index.js").EnvironmentLifecycleEvent
   ): Promise<void> {
     const base = {
       event,
       workflow: emptyWorkflowStub(),
-      run: { id: this.envId, input: {} },
+      run: { id: this.envLabel ?? this.environmentDef.id, input: {} },
       state: {},
       environment: this,
     }
@@ -265,17 +325,58 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private async prepareForDiscovery(): Promise<void> {
     if (this.discoveryPrepared) return
 
+    this.applyDefaultBindings()
     await registerCoreFormats(this.registry)
+    if (!this.registry.getEnvironment(this.environmentDef.id)) {
+      await this.registry.registerEnvironment(this.environmentDef)
+    }
     await this.ensureBoundExtensionsRegistered()
+    await this.ensureBoundPoliciesRegistered()
 
     await this.emitEnvironmentEvent("environment:created")
 
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-
+    this.validateBindingConfigs("placeholder")
     await this.emitEnvironmentEvent("environment:configuring")
     this.discoveryPrepared = true
+  }
+
+  private validateBindingConfigs(phase: "placeholder" | "resolved"): void {
+    for (const binding of this.extensionBindings) {
+      const id = resolveId(binding.getRef())
+      const def = this.registry.getExtension(id)
+      const config =
+        phase === "resolved"
+          ? (this.resolved?.extensions.find((e) => e.id === id)?.config ?? binding.getConfig())
+          : binding.getConfig()
+      validateBoundConfig(def?.configSchema, config, id, phase)
+    }
+    for (const binding of this.policyBindings) {
+      const id = resolveId(binding.getRef())
+      const def = this.registry.getPolicy(id)
+      const config =
+        phase === "resolved"
+          ? (this.resolved?.policies.find((p) => p.id === id)?.config ?? binding.getConfig())
+          : binding.getConfig()
+      validateBoundConfig(def?.configSchema, config, id, phase)
+    }
+  }
+
+  private async ensureBoundPoliciesRegistered(): Promise<void> {
+    for (const binding of this.policyBindings) {
+      const ref = binding.getRef()
+      if (isPolicyDefinition(ref)) {
+        if (!this.registry.getPolicy(ref.id)) {
+          await this.registry.registerPolicy(ref)
+        }
+        continue
+      }
+      const id = resolveId(ref)
+      if (!this.registry.getPolicy(id)) {
+        throw new Error(
+          `Policy ${id} is not registered. Pass policy(definition) with the imported PolicyDefinition.`
+        )
+      }
+    }
   }
 
   /** Run path: full binding resolution and ready. */
@@ -283,9 +384,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.prepareForDiscovery()
     if (this.resolved) return this.resolved
 
-    const rtId = resolveId(this.runtimeBinding!.getRef())
-    const rtDef = this.registry.getRuntime(rtId)
-    if (!rtDef) throw new Error(`Runtime ${rtId} is not registered`)
+    const envId = this.environmentDef.id
 
     const extensionBindings = this.extensionBindings.map((b, i) => ({
       id: resolveId(b.getRef()),
@@ -309,43 +408,22 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const policyHooks = policyBindings.flatMap((pol) => {
       const def = this.registry.getPolicy(pol.id)
       if (!def) return []
-      return def.hooks.map((hook) => ({ hook, config: pol.rawConfig }))
-    })
-
-    const harnessBindings = this.harnessBindings.map((b) => {
-      const id = b.getRef()
-      const uses = b.getUses()
-      if (!uses) {
-        throw new Error(`Harness ${id} requires .uses(providerCapabilityId)`)
-      }
-      return {
-        id,
-        label: b.getLabel(),
-        uses,
-        rawConfig: b.getConfig(),
-      }
+      return def.hooks.map((hook) => ({ hook, config: pol.rawConfig, policyId: pol.id }))
     })
 
     this.resolved = await resolveBindingsForRun(
       {
-        id: rtId,
-        label: this.runtimeBinding!.getLabel(),
-        rawConfig: this.runtimeBinding!.getConfig(),
+        id: envId,
+        label: this.envLabel,
+        rawConfig: {},
       },
       extensionBindings,
       policyBindings,
-      harnessBindings,
       extensionHooks,
       policyHooks,
       this.configResolvers
     )
-
-    const harnessValidation = validateHarnessBindings(this.registry, this.resolved)
-    if (!harnessValidation.valid) {
-      throw new Error(
-        `Harness validation failed: ${harnessValidation.errors.map((e) => e.message).join("; ")}`
-      )
-    }
+    this.validateBindingConfigs("resolved")
 
     await this.emitEnvironmentEvent("environment:ready")
     return this.resolved
@@ -369,21 +447,17 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   compile(): EnvironmentManifest {
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-    const rtId = resolveId(this.runtimeBinding.getRef())
     return {
       schema: "@executioncontrolprotocol.environment",
       version: LATEST_ECP_VERSION,
       environment: {
-        id: this.envId,
+        id: this.environmentDef.id,
         ...(this.envLabel ? { label: this.envLabel } : {}),
       },
       runtime: {
-        id: rtId,
-        ...(this.runtimeBinding.getLabel() ? { label: this.runtimeBinding.getLabel() } : {}),
-        config: manifestConfig(this.runtimeBinding.getConfig()),
+        id: this.environmentDef.id,
+        ...(this.envLabel ? { label: this.envLabel } : {}),
+        config: manifestConfig({}),
       },
       extensions: this.extensionBindings.map((b, i) => ({
         id: resolveId(b.getRef()),
@@ -405,7 +479,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   /**
-   * Register extension definitions for all bindings (catalog lookup or inline def).
+   * Register extension definitions for all bindings.
    * Idempotent; safe to call before encode, decode, describe, or run.
    * @category Environment
    */
@@ -413,9 +487,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await ensureBoundExtensions(this.extensionBindings, this.registry)
   }
 
-  /** Environment id (for utility operations). @category Environment */
+  /** Environment definition id. @category Environment */
   getEnvId(): string {
-    return this.envId
+    return this.environmentDef.id
   }
 
   /** Environment label when set. @category Environment */
@@ -423,19 +497,28 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this.envLabel
   }
 
-  /** Bound runtime id. @category Environment */
-  getRuntimeId(): string {
-    if (!this.runtimeBinding) {
-      throw new Error("Environment requires a runtime binding (.withRuntime(...))")
-    }
-    return String(resolveId(this.runtimeBinding.getRef()))
+  /** Bound environment definition id. @category Environment */
+  getEnvironmentId(): string {
+    return this.environmentDef.id
   }
 
   /**
    * Initialize environment for operational use and return an {@link Ecp} instance.
    * @category Environment
    */
-  async init(): Promise<Ecp> {
+  async init(options?: EnvironmentInitOptions): Promise<Ecp> {
+    if (options?.registry) {
+      this.registry = options.registry
+      this.invalidatePrepared()
+    }
+    if (options?.blobStore) this.blobStore = options.blobStore
+    if (options?.artifactStore) this.artifactStore = options.artifactStore
+    if (options?.remoteInvoke) {
+      this.remoteInvoke = {
+        url: options.remoteInvoke.url.replace(/\/+$/, ""),
+        token: options.remoteInvoke.token,
+      }
+    }
     await this.prepareForRun()
     return new EcpImpl(this)
   }
@@ -466,21 +549,19 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       return validateEnvironmentWithWorkflow(
         workflow,
         await this.ecpDescribe(),
-        this.resolveBindings()
+        this.resolveBindings(),
+        this.registry,
+        this.environmentDef.version
       )
     }
     await this.prepareForDiscovery()
-    if (this.harnessBindings.length === 0) {
-      return {
-        schema: "@executioncontrolprotocol.validation.result",
-        version: LATEST_ECP_VERSION,
-        valid: true,
-        errors: [],
-        warnings: [],
-      }
+    return {
+      schema: "@executioncontrolprotocol.validation.result",
+      version: LATEST_ECP_VERSION,
+      valid: true,
+      errors: [],
+      warnings: [],
     }
-    await this.prepareForRun()
-    return validateHarnessBindings(this.registry, this.resolveBindings())
   }
 
   /** @internal {@link EcpImpl} — terminate. */
@@ -490,7 +571,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   }
 
   /** @internal {@link EcpImpl} — invoke. */
-  ecpInvoke(capabilityId: import("@executioncontrolprotocol/types").CapabilityId) {
+  ecpInvoke(capabilityId: import("../types/index.js").CapabilityId) {
     return createInvokeBuilder(this, capabilityId)
   }
 
@@ -500,7 +581,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const validation = await validateEnvironmentWithWorkflow(
       workflow,
       await this.ecpDescribe(),
-      this.resolveBindings()
+      this.resolveBindings(),
+      this.registry,
+      this.environmentDef.version
     )
     if (!validation.valid) {
       throw new Error(
@@ -523,8 +606,8 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     await this.emitEnvironmentEvent("environment:beforeRun")
 
     const bindings = this.resolveBindings()
-    const rtDef = this.registry.getRuntime(bindings.runtime.id)!
-    const executor: RuntimeExecutor = rtDef.executor
+    const envDef = this.registry.getEnvironment(bindings.runtime.id)!
+    const executor: RuntimeExecutor = envDef.executor
 
     return executor.execute(workflow, {
       runId: globalThis.crypto.randomUUID(),
@@ -532,69 +615,31 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       registry: this.registry,
       bindings,
       signal: options?.signal,
+      seedState: options?.seedState,
+      seedHistory: options?.seedHistory,
+      stopAfterStepId: options?.stopAfterStepId,
+      onlyStepId: options?.onlyStepId,
+      approvals: options?.approvals,
+      journal: options?.journal,
+      onEvent: options?.onEvent,
       remoteInvoke: this.remoteInvoke,
       blobs: options?.blobs ?? this.blobStore,
-      artifacts: this.ensureArtifactStore(),
-    })
-  }
-
-  /**
-   * @internal Test-session execution (runTo / rerun).
-   * Does not emit `environment:beforeRun` (session already prepared).
-   */
-  async ecpTestExecute(
-    workflow: WorkflowManifest,
-    options: {
-      input: Record<string, unknown>
-      seedState: Record<string, unknown>
-      seedHistory: Record<string, StepRunRecord>
-      stopAfterStepId?: string
-      onlyStepId?: string
-      signal?: AbortSignal
-    }
-  ): Promise<RunResult> {
-    await this.prepareForRun()
-    const validation = await validateEnvironmentWithWorkflow(
-      workflow,
-      await this.ecpDescribe(),
-      this.resolveBindings()
-    )
-    if (!validation.valid) {
-      throw new Error(
-        `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
-      )
-    }
-    const acceptsCheck = validateWorkflowAcceptsInput(workflow, options.input)
-    if (!acceptsCheck.ok) {
-      throw new Error(acceptsCheck.message)
-    }
-
-    const bindings = this.resolveBindings()
-    const rtDef = this.registry.getRuntime(bindings.runtime.id)!
-    const executor: RuntimeExecutor = rtDef.executor
-
-    return executor.execute(workflow, {
-      runId: globalThis.crypto.randomUUID(),
-      input: options.input,
-      registry: this.registry,
-      bindings,
-      signal: options.signal,
-      mode: "test",
-      seedState: options.seedState,
-      seedHistory: options.seedHistory,
-      stopAfterStepId: options.stopAfterStepId,
-      onlyStepId: options.onlyStepId,
-      remoteInvoke: this.remoteInvoke,
-      blobs: this.blobStore,
       artifacts: this.ensureArtifactStore(),
     })
   }
 }
 
 /**
- * Create an ECP environment (no default runtime; bind with `.withRuntime(...)`).
+ * Create an ECP environment. `id` is the environment definition id
+ * (for example `@executioncontrolprotocol/node`); the optional label is the instance name.
  * @category Environment
  */
-export function environment(id: string, label?: string, registry: Registry = globalRegistry): Environment {
-  return new Environment(id, label, undefined, [], [], [], registry)
+export function environment(id: string, label?: string): Environment {
+  const def = getEnvironmentDefinition(id)
+  if (!def) {
+    throw new Error(
+      `Environment definition ${id} is not registered. Import @executioncontrolprotocol/node or @executioncontrolprotocol/browser and call its environment() factory.`
+    )
+  }
+  return new Environment(def, label)
 }

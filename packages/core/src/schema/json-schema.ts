@@ -3,7 +3,7 @@ import {
   fileRefSchemaOptions,
   fileRefValueSchemaHint,
   isFileRefSchema,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 
 function unwrapZodType(type: z.ZodType): z.ZodType {
   if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType)

@@ -1,11 +1,12 @@
 import { describe, expect, it, beforeEach } from "vitest"
-import { defineExtension, capabilityFor, globalRegistry, catalogExtension } from "@executioncontrolprotocol/core"
+import { defineExtension, capabilityFor, Registry } from "@executioncontrolprotocol/core"
 import { z } from "zod"
-import { validateEnvironmentWithWorkflow } from "../src/validate/environment.js"
-import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/types"
+import { validateEnvironmentWithWorkflow, ECP_ENVIRONMENT_UNSUPPORTED } from "../src/validate/environment.js"
+import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/core/types"
+import type { ResolvedBindings } from "../src/environment/bindings.js"
 
 const nodeOnlyHostExtension = defineExtension("@executioncontrolprotocol", "test-node-only")
-  .withSupportedRuntimes(["@executioncontrolprotocol/node"])
+  .supports("@executioncontrolprotocol/node")
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/test-node-only", "echo")
       .withInput(z.object({}))
@@ -14,10 +15,8 @@ const nodeOnlyHostExtension = defineExtension("@executioncontrolprotocol", "test
   ])
   .build()
 
-catalogExtension(nodeOnlyHostExtension)
-
 const nodeOnlyLocalExtension = defineExtension("@executioncontrolprotocol", "test-node-local")
-  .withSupportedRuntimes(["@executioncontrolprotocol/node"])
+  .supports("@executioncontrolprotocol/node")
   .withCapabilities([
     capabilityFor("@executioncontrolprotocol/test-node-local", "echo")
       .withExecution("local")
@@ -26,8 +25,6 @@ const nodeOnlyLocalExtension = defineExtension("@executioncontrolprotocol", "tes
       .withHandler(async () => ({})),
   ])
   .build()
-
-catalogExtension(nodeOnlyLocalExtension)
 
 const hostWorkflow: WorkflowManifest = {
   schema: "@executioncontrolprotocol.workflow",
@@ -58,22 +55,22 @@ const localWorkflow: WorkflowManifest = {
 }
 
 function descriptor(
-  runtimeId: string,
+  environmentId: string,
   extId: string,
   capabilityId: string,
-  supportedRuntimes: string[]
+  supportedEnvironments: string[]
 ): EnvironmentDescriptor {
   return {
     schema: "@executioncontrolprotocol.environment.describe",
     version: "1.0",
-    environment: { id: "test" },
-    runtime: { id: runtimeId, features: {} },
+    environment: { id: environmentId },
+    runtime: { id: environmentId, features: {} },
     extensions: [
       {
         id: extId,
         order: 0,
         capabilities: [capabilityId],
-        supportedRuntimes,
+        supportedEnvironments,
       },
     ],
     capabilities: [
@@ -86,17 +83,29 @@ function descriptor(
   }
 }
 
-describe("runtime compatibility", () => {
+function bindings(environmentId: string, extId: string): ResolvedBindings {
+  return {
+    runtime: { id: environmentId as never, config: {} },
+    extensions: [{ id: extId as never, config: {}, order: 0 }],
+    policies: [],
+    extensionHooks: [],
+    policyHooks: [],
+  }
+}
+
+describe("environment compatibility", () => {
+  const registry = new Registry()
+
   beforeEach(async () => {
-    if (!globalRegistry.getExtension("@executioncontrolprotocol/test-node-only")) {
-      await globalRegistry.registerExtension(nodeOnlyHostExtension)
+    if (!registry.getExtension("@executioncontrolprotocol/test-node-only")) {
+      await registry.registerExtension(nodeOnlyHostExtension)
     }
-    if (!globalRegistry.getExtension("@executioncontrolprotocol/test-node-local")) {
-      await globalRegistry.registerExtension(nodeOnlyLocalExtension)
+    if (!registry.getExtension("@executioncontrolprotocol/test-node-local")) {
+      await registry.registerExtension(nodeOnlyLocalExtension)
     }
   })
 
-  it("allows node-only host catalog on browser runtime (hop)", () => {
+  it("allows node-only host catalog on browser environment (hop)", () => {
     const result = validateEnvironmentWithWorkflow(
       hostWorkflow,
       descriptor(
@@ -105,17 +114,13 @@ describe("runtime compatibility", () => {
         "@executioncontrolprotocol/test-node-only.echo",
         ["@executioncontrolprotocol/node"]
       ),
-      {
-        runtime: { id: "@executioncontrolprotocol/browser", config: {} },
-        extensions: [{ id: "@executioncontrolprotocol/test-node-only", config: {}, order: 0 }],
-        policies: [],
-        harnesses: [],
-      }
+      bindings("@executioncontrolprotocol/browser", "@executioncontrolprotocol/test-node-only"),
+      registry
     )
-    expect(result.errors.some((e) => e.code === "UNSUPPORTED_RUNTIME_EXTENSION")).toBe(false)
+    expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(false)
   })
 
-  it("denies node-only local capability on browser runtime", () => {
+  it("denies node-only local capability on browser environment", () => {
     const result = validateEnvironmentWithWorkflow(
       localWorkflow,
       descriptor(
@@ -124,18 +129,14 @@ describe("runtime compatibility", () => {
         "@executioncontrolprotocol/test-node-local.echo",
         ["@executioncontrolprotocol/node"]
       ),
-      {
-        runtime: { id: "@executioncontrolprotocol/browser", config: {} },
-        extensions: [{ id: "@executioncontrolprotocol/test-node-local", config: {}, order: 0 }],
-        policies: [],
-        harnesses: [],
-      }
+      bindings("@executioncontrolprotocol/browser", "@executioncontrolprotocol/test-node-local"),
+      registry
     )
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.code === "UNSUPPORTED_RUNTIME_EXTENSION")).toBe(true)
+    expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(true)
   })
 
-  it("allows node-only extension on node runtime", () => {
+  it("allows node-only extension on node environment", () => {
     const result = validateEnvironmentWithWorkflow(
       hostWorkflow,
       descriptor(
@@ -144,13 +145,9 @@ describe("runtime compatibility", () => {
         "@executioncontrolprotocol/test-node-only.echo",
         ["@executioncontrolprotocol/node"]
       ),
-      {
-        runtime: { id: "@executioncontrolprotocol/node", config: {} },
-        extensions: [{ id: "@executioncontrolprotocol/test-node-only", config: {}, order: 0 }],
-        policies: [],
-        harnesses: [],
-      }
+      bindings("@executioncontrolprotocol/node", "@executioncontrolprotocol/test-node-only"),
+      registry
     )
-    expect(result.errors.some((e) => e.code === "UNSUPPORTED_RUNTIME_EXTENSION")).toBe(false)
+    expect(result.errors.some((e) => e.code === ECP_ENVIRONMENT_UNSUPPORTED)).toBe(false)
   })
 })

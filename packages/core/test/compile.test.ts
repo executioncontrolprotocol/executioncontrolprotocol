@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { compileWorkflowSource, compileAndValidateWorkflowSource } from "../src/compile/index.js"
-import { registerTestExtension } from "../src/testing/test-extension.js"
-import { extension } from "../src/index.js"
+import { compileWorkflowSource, compileAndValidateWorkflowSource } from "@executioncontrolprotocol/node"
 import { createTestEnvironment } from "./helpers.js"
 
 const SAMPLE_TS = `
@@ -12,7 +10,6 @@ export default workflow("Compiled")
 
 describe("compileWorkflowSource", () => {
   it("compiles TypeScript workflow source", async () => {
-    await registerTestExtension()
     const result = await compileWorkflowSource({
       source: SAMPLE_TS,
       filename: "workflow.ts",
@@ -23,7 +20,7 @@ describe("compileWorkflowSource", () => {
   })
 
   it("validates against environment descriptor", async () => {
-    const env = (await createTestEnvironment("t")).withExtensions([extension("@executioncontrolprotocol/test").with({})])
+    const env = createTestEnvironment("t")
     const ecp = await env.init()
     const descriptor = await ecp.describe()
     const result = await compileAndValidateWorkflowSource({

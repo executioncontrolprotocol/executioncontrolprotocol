@@ -1,0 +1,46 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "jsonata:transform": {
+      "aliases": [],
+      "args": {},
+      "description": "Compiles and runs a JSONata expression against the provided payload with optional variable bindings, returning the evaluated result. Use after inspect or fetch when the raw object is too large for chat or later steps.\nUse cases:\n- After an inspect or fetch, project only the fields needed (from that capability’s projections or the user’s ask) into workflow state\n- Flatten nested objects so later steps take simple refs instead of deep paths\n- Drop large nested bags while keeping the facts needed to continue authoring\nProjections:\n- Take the evaluated result: Use result as the transformed JSON value for refs, steps, or downstream mapping.\n- Project a complex object to a small fact bag: Keep only the fields the next step needs (dimensions, ids, labels, status, and similar facts) and drop the rest of the payload.",
+      "examples": [
+        "ecp jsonata transform --expression <expression>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "expression": {
+          "description": "expression",
+          "name": "expression",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "jsonata:transform",
+      "pluginAlias": "@executioncontrolprotocol/plugin-jsonata",
+      "pluginName": "@executioncontrolprotocol/plugin-jsonata",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Evaluate a JSONata expression on a JSON payload",
+      "enableJsonFlag": true
+    }
+  }
+}

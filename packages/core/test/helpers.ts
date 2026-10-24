@@ -1,33 +1,41 @@
 import type { Ecp } from "../src/environment/ecp.js"
-import { environment as nodeEnvironment, NODE_RUNTIME_ID, registerNodeRuntime, runtime } from "@executioncontrolprotocol/node"
-import { environment as coreEnvironment } from "../src/environment/environment.js"
+import {
+  environment,
+  defineEnvironment,
+  getEnvironmentDefinition,
+  registerEnvironmentDefinition,
+  NODE_ENVIRONMENT_ID,
+  InMemoryRuntimeExecutor,
+  extension,
+} from "../src/index.js"
 import type { ExtensionBindingBuilder } from "../src/bindings/extension.js"
-import { extension } from "../src/bindings/extension.js"
-import { registerTestExtension } from "../src/testing/test-extension.js"
-import { registerCoreFormats } from "../src/formats/register-core-formats.js"
-/** Test environment with `@executioncontrolprotocol/node` runtime and test extension registered. */
-export async function createTestEnvironment(id = "test", label?: string) {
-  await registerCoreFormats()
-  await registerTestExtension()
-  const env = await nodeEnvironment(id, label)
-  return env.withExtensions([extension("@executioncontrolprotocol/test").with({})])
+import { testExtension } from "../src/testing/test-extension.js"
+
+function ensureInMemoryNodeEnvironment(): void {
+  if (getEnvironmentDefinition(NODE_ENVIRONMENT_ID)) return
+  registerEnvironmentDefinition(
+    defineEnvironment("@executioncontrolprotocol", "node").withExecutor(
+      new InMemoryRuntimeExecutor()
+    )
+  )
 }
 
-/** Initialized {@link Ecp} for tests (node runtime + test extension). */
-export async function initTestEcp(id = "test", label?: string): Promise<Ecp> {
-  const env = await createTestEnvironment(id, label)
-  return env.init()
+/** Test environment with an in-memory node executor and the test extension bound. */
+export function createTestEnvironment(id = "test") {
+  ensureInMemoryNodeEnvironment()
+  return environment(NODE_ENVIRONMENT_ID, id).with([extension(testExtension)])
 }
 
-/** Initialized {@link Ecp} with node runtime and optional extension bindings (encode/decode tests). */
+/** Initialized {@link Ecp} for tests (in-memory node environment + test extension). */
+export async function initTestEcp(id = "test"): Promise<Ecp> {
+  return createTestEnvironment(id).init()
+}
+
+/** Initialized {@link Ecp} with the in-memory node environment and optional extra extension bindings. */
 export async function initEncodingTestEcp(
   extraExtensions: ExtensionBindingBuilder[] = [],
   id = "encoding-test"
 ): Promise<Ecp> {
-  await registerCoreFormats()
-  await registerNodeRuntime()
-  const env = coreEnvironment(id)
-    .withRuntime(runtime(NODE_RUNTIME_ID))
-    .withExtensions(extraExtensions)
-  return env.init()
+  ensureInMemoryNodeEnvironment()
+  return environment(NODE_ENVIRONMENT_ID, id).with(extraExtensions).init()
 }

@@ -1,0 +1,75 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "openai:generate": {
+      "aliases": [],
+      "args": {},
+      "description": "Runs chat completion against a remote model endpoint. Suited for production Node workloads that need widely available frontier models. Requires a configured API key. Does not accept file attachments yet.\nUse cases:\n- Server-side workflow step drafts content with a cloud model.\n- CLI invokes a hosted model for integration tests.\nProjections:\n- Use the model text: Take the text field as the generated assistant or step output for downstream steps.",
+      "examples": [
+        "ecp openai generate --prompt <prompt> --system <system> --model <model>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "prompt": {
+          "description": "prompt",
+          "name": "prompt",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "description": "system",
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "model": {
+          "description": "model",
+          "name": "model",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "response-format": {
+          "description": "response-format",
+          "name": "response-format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "text",
+            "json",
+            "toon"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "openai:generate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-openai",
+      "pluginName": "@executioncontrolprotocol/plugin-openai",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Generate text via a hosted cloud chat API.",
+      "enableJsonFlag": true
+    }
+  }
+}

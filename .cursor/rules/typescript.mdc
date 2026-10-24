@@ -4,37 +4,36 @@ globs: "**/*.ts"
 alwaysApply: true
 ---
 
-# TypeScript Rules
+# TypeScript rules
 
-- All code MUST be written in TypeScript with strict mode enabled.
-- Use ES module syntax (`import`/`export`), not CommonJS (`require`/`module.exports`).
-- File extensions in import paths must use `.js` (Node16 module resolution).
-- Prefer `interface` over `type` for object shapes; use `type` for unions and intersections.
-- No `any` unless explicitly justified with an `eslint-disable` comment.
-- **Never use primitive types (`string`, `number`, etc.) for ECP spec-specific values.** Use the dedicated type aliases and unions defined in `src/types/ecp.ts` (e.g. `OrchestrationStrategy`, `MountStage`, `ExecutorType`, `WriteControlMode`, `TriggerType`, `ProtocolType`, `JsonSchemaType`, `InputType`). Primitives are only for truly generic properties like `name`, `description`, `version`, or free-form user content like `instructions`.
-- Run `pnpm run build` (tsc --noEmit) to verify types before committing.
-- Run `pnpm run lint:ts` (eslint) to verify lint rules before committing.
+- All code is TypeScript with strict mode on.
+- ES modules only (`import` / `export`), never CommonJS.
+- Import paths use `.js` extensions (Node16 module resolution).
+- Prefer `interface` for object shapes; use `type` for unions and intersections. Zod-inferred
+  types (`z.infer<typeof schema>`) are fine where a schema is the source of truth.
+- No `any` without an `eslint-disable` comment explaining why.
+- **Use the protocol's type aliases for ECP values,** not bare primitives. Ids, schema names,
+  versions and closed sets have dedicated types in `@executioncontrolprotocol/core/types`:
+  for example `NamespacedId`, `EcpSchema`, `LATEST_ECP_VERSION`,
+  `ValidationSeverity`. Primitives are for generic fields (`name`, `description`) and free-form
+  content.
+- Run `pnpm run build` (`tsc -b`) and `pnpm run lint:ts` before committing.
 
-## Naming Conventions (from OpenAPI Specification)
+## Naming
 
-- **Field names:** camelCase (e.g. `outputSchemaRef`, `maxToolCalls`, `fromSchema`).
-- **Enum / union literal values:** kebab-case (e.g. `"controller-specialist"`, `"tool-event"`, `"propose-only"`). Never camelCase or snake_case.
-- **CLI (`ecp` …):** user-facing **flag names**, **subcommand segments**, and **keys** in `key=value` parameters use **kebab-case** in the same family as enum/union literals above. See `.cursor/rules/cli-crud.mdc`. (TS field names in saved config stay camelCase; the CLI is a separate surface.)
-- **Type and interface names:** PascalCase (e.g. `ECPContext`, `MountStage`, `WriteControlMode`).
-- **Schema component names** (in `spec.yaml` → `schemas:`): PascalCase (e.g. `Plan`, `RevenueFindings`).
-- **Optional `description`** field: every major ECP object interface SHOULD include an optional `description?: string` field, following OpenAPI's pattern of allowing documentation at every level.
-- **JSON Schema alignment:** Schema-related types (`SchemaDefinition`, `SchemaProperty`) MUST use `JsonSchemaType` for their `type` field, aligned with JSON Schema Draft 2020-12.
+- **Field names:** camelCase (`outputSchema`, `maxCostUsd`).
+- **Enum and union literal values:** kebab-case (`"state-control"`, `"policy:pre"` keeps its
+  existing event syntax). Never camelCase or snake_case.
+- **CLI tokens** (flags, subcommands, `key=value` keys): kebab-case. See `cli-crud.mdc`.
+- **Types and interfaces:** PascalCase.
+- **Error codes:** `ECP_*` in SCREAMING_SNAKE_CASE (`ECP_PLUGINS_MISSING`). See
+  `RESET-PLAN.md` §4.6.
 
-## Documentation Conventions (from MCP Schema)
+## Documentation
 
-- **JSDoc on every export:** every exported `interface`, `type`, and `const` MUST have a `/** ... */` JSDoc block describing its purpose.
-- **`@category` tag:** every exported JSDoc block MUST include a `@category` tag grouping it (e.g. `@category Context`, `@category Executors`, `@category Mounts`, `@category Policies`, `@category Schema`, `@category Common`).
-- **Property-level JSDoc:** every property on an exported interface MUST have a `/** ... */` comment explaining what it represents.
-- **`{@link Type}` references:** use `{@link TypeName}` in JSDoc to cross-reference related types.
-
-## Composition Conventions (from MCP Schema)
-
-- **`BaseMetadata`:** objects that have a programmatic `name` and optional `title` SHOULD extend `BaseMetadata` (mirrors MCP's `BaseMetadata`).
-- **`Extensible`:** major objects SHOULD extend `Extensible` to include the optional `_meta?: Record<string, unknown>` bag for non-standard extensions (mirrors MCP's `_meta` pattern).
-- **`extends` over repetition:** prefer interface composition (`extends`) over repeating `name`, `title`, `_meta`, or `description` fields across types.
-- **Version constant:** use `export const LATEST_PROTOCOL_VERSION` for the current spec version, and reference it via `typeof` where appropriate.
+- **JSDoc on every export:** every exported interface, type, function and const has a
+  `/** … */` block describing its purpose.
+- **`@category` tag** on every exported JSDoc block (for example `@category Definitions`,
+  `@category Environment`, `@category Policies`, `@category CLI`).
+- **Property-level JSDoc** on every property of an exported interface.
+- Use `{@link TypeName}` to cross-reference related types.

@@ -4,7 +4,7 @@ import type {
   ParallelNode,
   StepNode,
   WorkflowNode,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import { slugify } from "../util/slug.js"
 import { renderExprValue } from "./render-expr.js"
 import { renderInputValue, type ImportNeeds } from "./render-value.js"

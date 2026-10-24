@@ -1,7 +1,7 @@
 {
   "name": "@executioncontrolprotocol/mcp",
-  "version": "0.14.0",
-  "description": "MCP server adapter for ECP environments",
+  "version": "0.50.0",
+  "description": "MCP server and JIT CLI plugin for ECP (ecp mcp serve)",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,25 +10,53 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
     }
   },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -b"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^",
     "zod": "catalog:"
   },
   "dependencies": {
     "@executioncontrolprotocol/node": "workspace:^",
-    "@modelcontextprotocol/sdk": "^1.12.0"
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@oclif/core": "^5.1.8"
   },
   "devDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/format-toon": "workspace:^",
-    "@executioncontrolprotocol/types": "workspace:^",
+    "@executioncontrolprotocol/plugin-jsonata": "workspace:^",
     "typescript": "catalog:",
     "zod": "catalog:"
-  }
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "mcp": {
+        "description": "Serve ECP as an MCP server"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
 }

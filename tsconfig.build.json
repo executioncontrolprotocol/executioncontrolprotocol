@@ -1,37 +1,68 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/types" },
-    { "path": "packages/core" },
-    { "path": "packages/vendor/fal" },
-    { "path": "packages/vendor/slack" },
-    { "path": "packages/vendor/jsonata" },
-    { "path": "packages/vendor/image-sharp" },
-    { "path": "packages/vendor/adobe-firefly-services" },
-    { "path": "packages/vendor/azure-blob-storage" },
-    { "path": "packages/runtimes/node" },
-    { "path": "packages/runtimes/browser" },
-    { "path": "packages/harnesses/browser-nano" },
-    { "path": "packages/harnesses/browser-coding" },
-    { "path": "packages/policies" },
-    { "path": "packages/mcp" },
-    { "path": "packages/extensions/memory" },
-    { "path": "packages/extensions/openai" },
-    { "path": "packages/extensions/ollama" },
-    { "path": "packages/extensions/storage" },
-    { "path": "packages/extensions/telemetry" },
-    { "path": "packages/extensions/format-toon" },
-    { "path": "packages/extensions/format-eql" },
-    { "path": "packages/extensions/format-mermaid" },
-    { "path": "packages/extensions/format-reactflow" },
-    { "path": "packages/extensions/secrets" },
-    { "path": "packages/extensions/browser-secrets" },
-    { "path": "packages/extensions/process-env" },
-    { "path": "packages/extensions/chrome-ai" },
-    { "path": "packages/extensions/anthropic" },
-    { "path": "packages/extensions/index" },
-    { "path": "packages/runtimes/temporal" },
-    { "path": "packages/cli" },
-    { "path": "packages/evals" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/plugin-sdk"
+    },
+    {
+      "path": "packages/environments/node"
+    },
+    {
+      "path": "packages/environments/browser"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "plugins/plugin-jsonata"
+    },
+    {
+      "path": "plugins/plugin-anthropic"
+    },
+    {
+      "path": "plugins/plugin-openai"
+    },
+    {
+      "path": "plugins/plugin-ollama"
+    },
+    {
+      "path": "plugins/plugin-format-toon"
+    },
+    {
+      "path": "plugins/plugin-format-mermaid"
+    },
+    {
+      "path": "plugins/plugin-budget"
+    },
+    {
+      "path": "plugins/plugin-approval"
+    },
+    {
+      "path": "plugins/plugin-state-control"
+    },
+    {
+      "path": "plugins/plugin-fal"
+    },
+    {
+      "path": "plugins/plugin-image-sharp"
+    },
+    {
+      "path": "plugins/plugin-azure-blob-storage"
+    },
+    {
+      "path": "plugins/plugin-adobe-firefly-services"
+    },
+    {
+      "path": "packages/mcp"
+    },
+    {
+      "path": "packages/app"
+    },
+    {
+      "path": "plugins/plugin-app"
+    }
   ]
 }
