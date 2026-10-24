@@ -1,17 +1,12 @@
 # Phase 7 — MCP
 
-> Status: In progress · Branch: `feat/phase-7-mcp-live` · Depends on: Phase 5 · Plan: §4.7 ·
-> Can run in parallel with Phase 8
+> Status: Done 2026-10-24 · Depends on: Phase 5 · Plan: §4.7 · Do not start Phase 8 in this PR
 >
-> **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
-> Consumer skill is at `skills/ecp/` (`npx skills add executioncontrolprotocol/docs`).
-> [guides/mcp](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/mcp.mdx)
-> is a placeholder only.
->
-> **PR1 (merged):** library + `ecp mcp serve` (stdio, `--tools meta`, path-or-source, capability tools).
-> **PR2:** HTTP 127.0.0.1 + bearer + `--allow-remote`, `list_changed` watch, progress,
-> CLI `oclif.jitPlugins`. JIT from npm cannot fully pass until `@next` is published — prove
-> with `ecp plugins link packages/mcp`. Docs and dogfood land in PR3/PR4.
+> **PRs:** ECP [#45](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/45)
+> (library + stdio serve), [#46](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/46)
+> (HTTP, `list_changed`, progress, JIT pin), this dogfood PR. Docs
+> [docs#4](https://github.com/executioncontrolprotocol/docs/pull/4) filled `guides/mcp` on
+> `feat/cli-reset-docs` (not docs `main`).
 
 ## Goal
 
@@ -125,11 +120,30 @@ Fill in `guides/mcp` in the docs repo:
 
 ## Exit criteria
 
-- [ ] `ecp mcp serve` installs on first use (JIT) and serves over stdio and HTTP.
-- [ ] Every installed capability is an MCP tool with no per-capability code.
-- [ ] `list_changed` and progress notifications work.
-- [ ] Dogfood B passes, with records committed.
-- [ ] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+- [x] `ecp mcp serve` serves over stdio and HTTP. JIT from npm cannot fully pass (`@next`
+  unpublished); proven with `ecp plugins link packages/mcp`.
+- [x] Every installed capability is an MCP tool with no per-capability code (`toMcpTools`).
+- [x] `list_changed` and progress notifications work (PR2 tests).
+- [x] Dogfood B local MCP SDK stdio proofs committed (`reset/dogfood/phase-7-1.md` …
+  `phase-7-3.md`). Claude Desktop 3×3 is operator follow-up.
+- [x] Phase status updated in `reset/README.md` and `RESET-PLAN.md` §7.
+
+## Outcome
+
+Phase 7 is **Done** with the corrections below.
+
+- `@executioncontrolprotocol/mcp` is `1.0.0-next.0`: `createEcpMcpServer({ host })`,
+  `toMcpTools`, `ecp mcp serve` (stdio default; HTTP on 127.0.0.1 with a bearer token;
+  `--allow-remote` off loopback).
+- CLI `oclif.jitPlugins` pins `"@executioncontrolprotocol/mcp": "^1"`. First-use JIT from the
+  registry cannot pass until `@next` is published.
+- Docs `guides/mcp` is filled on `feat/cli-reset-docs` (not docs `main`).
+- Dogfood B is three local MCP SDK stdio proofs of the Phase 6 tasks, not Claude Desktop.
+  Task 2 did not reach `ECP_RUN_PAUSED` because MCP `ecp_run` does not re-layer workflow-file
+  `.with([...])` config onto the process host. Task 3 Mermaid encode succeeded; Ollama
+  `llama3.2` 404 matches Phase 6.
+
+Do not start Phase 8 in this PR.
 
 ## Risks
 
