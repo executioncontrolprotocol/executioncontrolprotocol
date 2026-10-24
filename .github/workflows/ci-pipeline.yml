@@ -172,10 +172,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run generate:schema
-      - name: Publish with Changesets
-        uses: changesets/action@v1
-        with:
-          publish: pnpm exec changeset publish
+      # setup-node registry-url authenticates with NODE_AUTH_TOKEN, not NPM_TOKEN.
+      - name: Require NPM_TOKEN
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "NPM_TOKEN is empty in this reusable-workflow job."
+            echo "Allow the org secret for this repo and keep secrets: inherit on ci.yml."
+            exit 1
+          fi
+          echo "NPM_TOKEN is present."
+      # Direct publish, same as the old publish:workspaces job and release-next.yml.
+      # changesets/action also tries to git push package tags; this job is
+      # contents: read so github-actions[bot] cannot push.
+      - name: Publish unpublished versions
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm exec changeset publish
