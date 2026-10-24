@@ -16,7 +16,9 @@ Ground rules for every phase:
 
 - Branch `feat/phase-<n>-<slug>` from `milestone/cli-reset`; open the PR into
   `milestone/cli-reset`.
-- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **Never push to `main` or `development` except the Phase 9 field-test merge path**
+  (`milestone/cli-reset` → `development` → `main` with `ENABLE_NPM_PUBLISH`). Pushes to
+  `main` publish to npm. Phase 9 publishes **0.50.0**, not 1.0.
 - Keep the pre-commit hook on. Don't skip, delete or weaken valid tests to get CI green, except
   for removals a phase doc explicitly lists.
 - **Don't reintroduce Phase 1 removals** (harnesses, evals, EQL, the demo, `browser-secrets`,
@@ -49,9 +51,9 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
-| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `@executioncontrolprotocol/mcp`. JIT from npm cannot fully pass until `@next` is published |
+| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.50"`. First-use JIT from npm waits on the 0.50.0 publish |
 | `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 Done: `HostAdapter`, graph encoder, prebuilt `dist/web`. React is an optional peer |
-| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^1"`. JIT from npm cannot fully pass until `@next` is published. Proven with `ecp plugins link plugins/plugin-app` |
+| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.50"`. First-use JIT from npm waits on the 0.50.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |

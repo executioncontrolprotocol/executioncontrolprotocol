@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "1.0.0-next.0",
+  "version": "0.50.0",
   "description": "ECP command-line interface",
   "license": "Apache-2.0",
   "type": "module",
@@ -63,8 +63,8 @@
       "plugins:preinstall": "./dist/hooks/trust.js"
     },
     "jitPlugins": {
-      "@executioncontrolprotocol/mcp": "^1",
-      "@executioncontrolprotocol/plugin-app": "^1"
+      "@executioncontrolprotocol/mcp": "^0.50",
+      "@executioncontrolprotocol/plugin-app": "^0.50"
     }
   }
 }

@@ -5,6 +5,7 @@ builds on and what has to be true first. When one is picked up, it gets its own 
 
 | Item | What it is | Builds on | Before starting |
 | --- | --- | --- | --- |
+| 1.0 release | Exit 0.50 field-test: `npm deprecate` renamed/removed 0.14 packages with pointers; archive `extensions` and `browser-demo`; turn off monorepo GitHub Pages; live Dogfood A/B/C (Claude Code 3×3, Desktop MCP, App graph); bump to `1.0.0`; annotated tag `ecp-1.0.0` (do not reuse `v1.0.0`); set `RESET-PLAN.md` to Shipped | Phase 9 0.50.0 on npm `latest` | Field-test feedback; operator dogfood sessions |
 | Healing automation | `ecp run --on-failure "<command>"` wakes an agent (for example `claude -p`) with the journal path when an unattended run fails, plus `ecp schedule` for recurring runs | Journal and error codes (Phase 4) | Decide where schedules live (OS scheduler vs a small daemon) |
 | In-page App | A browser `HostAdapter` running on the browser environment, for a docs playground, hosted demo or Strata embedding | `app`'s `HostAdapter` (Phase 8) | A browser custody provider. `browser-secrets` was removed; design a replacement |
 | `plugin-reflex` | System-1 typed decisions (`decide.choice`, `decide.yesno`, `decide.score`) as capabilities, backed by so1 readout, Laya or Jev | Plugin SDK; journal for drift signals | Results from the Reflex test harness plan (agent-os `reflex/`) |
