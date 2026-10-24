@@ -15,7 +15,7 @@ alwaysApply: false
 
 - For **reusable workflows** (`jobs.<caller>.uses: ./.github/workflows/...`), the status check is **not** reliably the top-level workflow `name:` from `ci.yml` (e.g. `ci`). What often appears as the **first** segment is the **caller job id** — the key under `jobs:` that invokes the reusable workflow (e.g. `pipeline` → contexts like `pipeline / build`).
 - So the **parent workflow name** (`name:` on the entry workflow file) may **not** participate in the context string GitHub shows; **do not assume** it must be `ci / …` without verifying on a PR.
-- **Single-job workflows** may report a **one-part** context (e.g. `version` only), with no `workflow / job` prefix — still copy the exact string from the Checks UI.
+- **Single-job workflows** may report a **one-part** context (e.g. `changeset-status` only), with no `workflow / job` prefix — still copy the exact string from the Checks UI. The old lockstep job reported as `version`; do not require that name after Phase 5.
 
 ## `integration_id`
 

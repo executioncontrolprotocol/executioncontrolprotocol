@@ -36,15 +36,11 @@
             "integration_id": 15368
           },
           {
-            "context": "pipeline / e2e",
-            "integration_id": 15368
-          },
-          {
             "context": "pipeline / integration",
             "integration_id": 15368
           },
           {
-            "context": "version",
+            "context": "changeset-status",
             "integration_id": 15368
           }
         ]
