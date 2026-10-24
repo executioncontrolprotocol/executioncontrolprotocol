@@ -49,7 +49,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
-| `packages/mcp/` | MCP adapter | Rebuilt in Phase 7 |
+| `packages/mcp/` | MCP adapter | Phase 7 PR1: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio, `--tools meta`). HTTP, `list_changed`, progress, and CLI `jitPlugins` land in PR2 |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |
@@ -156,6 +156,8 @@ ecp init brief
 ecp plugins new jsonata
 ecp plugins link plugins/plugin-jsonata
 ecp jsonata transform --expression '$.a' --input payload.json --json
+ecp mcp serve
+ecp mcp serve --tools meta
 ```
 
 - **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`

@@ -121,6 +121,10 @@ export default defineConfig({
         repoRoot,
         "plugins/plugin-ollama/src/index.ts"
       ),
+      "@executioncontrolprotocol/plugin-jsonata": path.resolve(
+        repoRoot,
+        "plugins/plugin-jsonata/src/index.ts"
+      ),
     },
   },
   test: {
@@ -202,10 +206,10 @@ export default defineConfig({
           statements: 80,
         },
         "packages/mcp/src/**": {
-          lines: 40,
-          functions: 50,
-          branches: 15,
-          statements: 40,
+          lines: 80,
+          functions: 80,
+          branches: 60,
+          statements: 80,
         },
       },
     },

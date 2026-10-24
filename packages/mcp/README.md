@@ -1,47 +1,46 @@
 # `@executioncontrolprotocol/mcp`
 
-MCP (Model Context Protocol) adapter that exposes an initialized ECP environment to agents.
+MCP (Model Context Protocol) adapter that exposes an initialized ECP host as tools
+and resources. The same package is the JIT CLI plugin behind `ecp mcp serve`.
 
-## Status
-
-MCP tools cover discovery, validation, workflow run, and encode/decode. **Capability invoke is not yet an MCP tool.** To call a single capability outside a workflow, use:
-
-- Fluent API: `ecp.invoke(capabilityId).with(input).process()`
-- CLI: `ecp invoke <capability-id> --env environment.ts --input input.json`
-- HTTP: `ecp serve --env environment.ts` then `POST /v1/invoke` (or `ecp up` for the Ollama demo bridge)
-
-## Tools (current)
-
-| Tool | Maps to |
-| ---- | ------- |
-| `ecp.describe_environment` | `ecp.describe` |
-| `ecp.search` | `ecp.search` |
-| `ecp.validate_workflow` | `ecp.validate` |
-| `ecp.run_workflow` | `ecp.run` |
-| `ecp.encode` | `ecp.encode` |
-| `ecp.decode` | `ecp.decode` |
-| `ecp.get_run_status` | in-process run store |
-
-## Resources
-
-| Resource | URI |
-| -------- | --- |
-| Environment descriptor | `ecp://environment/describe` |
-| Capabilities | `ecp://capabilities` |
-| Capability detail | `ecp://capabilities/{id}` |
-| Policies | `ecp://policies` |
-| Run detail | `ecp://runs/{runId}` |
-
-## Usage
+## Library
 
 ```ts
-import { createEcpMcpServer, serveStdio } from "@executioncontrolprotocol/mcp"
-import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { createEcpMcpServer, toMcpTools } from "@executioncontrolprotocol/mcp"
+import { getHost } from "@executioncontrolprotocol/plugin-sdk"
 
-const env = environment(NODE_ENVIRONMENT_ID, "demo")
-const ecp = await env.init()
-const server = createEcpMcpServer({ ecp })
-await serveStdio({ ecp })
+const host = getHost()
+const tools = toMcpTools(host.registry)
+const server = createEcpMcpServer({ host })
 ```
 
-See [`AGENTS.md`](../../AGENTS.md) and [`RESET-PLAN.md`](../../RESET-PLAN.md) for architecture.
+`createEcpMcpServer({ host })` takes the process host the CLI `init` hook stores, not a
+bare `Ecp`. Capability tools are generated from the registry (`jsonata_transform`); there
+is no per-capability MCP code. Format plugins show up as capability tools
+(`format_toon_encode`), not root `encode` / `decode` tools.
+
+## CLI
+
+```sh
+ecp mcp serve
+ecp mcp serve --tools meta
+```
+
+stdio is the default. Streamable HTTP, `list_changed`, and run-progress notifications
+ship in the next Phase 7 PR. Until `@next` is on the registry, install from the workspace
+with `ecp plugins link packages/mcp` (or a packed tarball plus `ECP_ALLOW_SOURCE=path`).
+
+## Meta tools
+
+| Tool | Does |
+| --- | --- |
+| `ecp_search` | Search capabilities |
+| `ecp_describe` | Describe the environment (`format` for `toon`) |
+| `ecp_validate` | Validate a workflow `path` or Fluent `source` |
+| `ecp_run` | Run a workflow `path` or `source`; returns `runId` |
+| `ecp_runs_show` | Show a journal |
+| `ecp_runs_rerun` | Rerun from a step |
+| `ecp_invoke` | Invoke one capability |
+| `ecp_plugins_install` | Install a plugin (`confirm: true`; trust policy applies) |
+
+`--tools meta` serves only this set. Capabilities are still reachable with `ecp_invoke`.

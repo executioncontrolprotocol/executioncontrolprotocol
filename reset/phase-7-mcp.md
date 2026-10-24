@@ -1,12 +1,16 @@
 # Phase 7 — MCP
 
-> Status: Planned · Branch: `feat/phase-7-mcp` · Depends on: Phase 5 · Plan: §4.7 ·
-> Can run in parallel with Phases 6 and 8
+> Status: In progress · Branch: `feat/phase-7-mcp-server` · Depends on: Phase 5 · Plan: §4.7 ·
+> Can run in parallel with Phase 8
 >
 > **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
 > Consumer skill is at `skills/ecp/` (`npx skills add executioncontrolprotocol/docs`).
 > [guides/mcp](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/mcp.mdx)
 > is a placeholder only.
+>
+> **PR1:** library + `ecp mcp serve` (stdio, `--tools meta`, path-or-source, capability tools).
+> HTTP, `list_changed`, progress, CLI `jitPlugins`, and docs land in later PRs. JIT from npm
+> cannot fully pass until `@next` is published — prove with `ecp plugins link packages/mcp`.
 
 ## Goal
 

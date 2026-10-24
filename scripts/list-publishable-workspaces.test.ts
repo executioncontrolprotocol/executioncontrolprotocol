@@ -33,7 +33,7 @@ describe("listPublishableWorkspaces", () => {
     expect(byName.get("@executioncontrolprotocol/core")).toBe("1.0.0-next.0")
     expect(byName.get("@executioncontrolprotocol/cli")).toBe("1.0.0-next.0")
     expect(byName.get("@executioncontrolprotocol/plugin-jsonata")).toBe("1.0.0-next.0")
-    expect(byName.get("@executioncontrolprotocol/mcp")).toBe("0.14.1")
+    expect(byName.get("@executioncontrolprotocol/mcp")).toBe("1.0.0-next.0")
   })
 
   it("topo-sorts so dependents follow their workspace deps", () => {
