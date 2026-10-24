@@ -11,7 +11,7 @@ export class AppCommand extends Command {
   static id = "app"
   static summary = "Open a live graph of a workflow file"
   static description =
-    "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until @next is published, install with ecp plugins link plugins/plugin-app."
+    "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until 0.50.0 is on the registry, install with ecp plugins link plugins/plugin-app."
   static args = {
     file: Args.string({
       required: true,

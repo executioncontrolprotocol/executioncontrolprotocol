@@ -1180,19 +1180,26 @@ is operator follow-up.
 
 **Exit:** Dogfood C (§2.4 criterion 9) — local file↔graph proofs only; see the phase Outcome.
 
-### Phase 9 — 1.0 release
+### Phase 9 — 0.50.0 field-test (In progress)
 
 Detail: [`reset/phase-9-release.md`](reset/phase-9-release.md)
 
-1. Confirm every §2.4 criterion.
-2. Merge `milestone/cli-reset` → `development` → `main`. This publishes 1.0 (publishing runs
-   on `main`).
-3. Deprecate the retired 0.x packages on npm with a pointer to their replacements.
+**Status:** In progress. Retargeted from 1.0 to a **0.50.0 `latest` field-test**. Merge
+`milestone/cli-reset` → `development` → `main` with `ENABLE_NPM_PUBLISH` publishes 0.50.0
+(not 1.0.0). Do not dispatch `release-next.yml`. Do not reuse tag `v1.0.0`.
+
+**Deferred to Later (1.0):** `npm deprecate` of 0.14 names, repo archives, live Claude
+dogfood (criteria 7–9 as written), calling the milestone Shipped.
+
+**Exit:** 0.50.0 on npm `latest`; post-publish criterion 1 and JIT smoke in
+`reset/dogfood/phase-9.md`.
 
 ### Later
 
 Detail: [`reset/later.md`](reset/later.md)
 
+- **1.0 release:** after the 0.50.0 field-test: deprecate renamed/removed 0.14 packages,
+  archive old repos, live Dogfood A/B/C, publish `1.0.0`, tag `ecp-1.0.0`, status Shipped.
 - **Healing automation:** `--on-failure <command>` wakes an agent (for example `claude -p`)
   with the journal path when an unattended run fails, plus a scheduler (`ecp schedule`).
 - **`plugin-reflex`:** `decide.choice`, `decide.yesno` and `decide.score` backed by so1

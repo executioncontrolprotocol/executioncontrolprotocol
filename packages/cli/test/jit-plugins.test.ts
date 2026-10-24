@@ -8,8 +8,8 @@ const cliRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
 
 describe("jitPluginForTopic", () => {
   const jit = {
-    "@executioncontrolprotocol/mcp": "^1",
-    "@executioncontrolprotocol/plugin-app": "^1",
+    "@executioncontrolprotocol/mcp": "^0.50",
+    "@executioncontrolprotocol/plugin-app": "^0.50",
   }
 
   it("maps mcp to the unprefixed JIT package", () => {
@@ -22,7 +22,7 @@ describe("jitPluginForTopic", () => {
 
   it("maps plugin-prefixed JIT packages", () => {
     expect(
-      jitPluginForTopic("app", { "@executioncontrolprotocol/plugin-app": "^1" })
+      jitPluginForTopic("app", { "@executioncontrolprotocol/plugin-app": "^0.50" })
     ).toBe("@executioncontrolprotocol/plugin-app")
   })
 
@@ -34,7 +34,7 @@ describe("jitPluginForTopic", () => {
     const pkg = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")) as {
       oclif: { jitPlugins: Record<string, string> }
     }
-    expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/mcp"]).toBe("^1")
-    expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/plugin-app"]).toBe("^1")
+    expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/mcp"]).toBe("^0.50")
+    expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/plugin-app"]).toBe("^0.50")
   })
 })

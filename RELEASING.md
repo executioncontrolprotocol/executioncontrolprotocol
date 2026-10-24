@@ -4,26 +4,24 @@ Packages are versioned independently with [Changesets](https://github.com/change
 
 ## Branches
 
-- **`development`** — Default branch after the reset. PRs here get a Changesets status check. During the CLI reset, never push `development`.
-- **`milestone/**`** — Reset work. `changeset pre enter next` is on. Prereleases, if any, use the `next` dist-tag via `release-next.yml`.
-- **`main`** — Phase 9 publishes `latest`. npm publish runs **only when** `ENABLE_NPM_PUBLISH` is `true` **and** the ref is `main`. Leave the variable unset during the reset.
-- **`feat/**`** — Feature branches. Open PRs into `milestone/cli-reset` until Phase 9.
+- **`development`** — Default branch after the reset. PRs here get a Changesets status check.
+- **`milestone/cli-reset`** — Reset work. Keep it after the 0.50.0 field-test for a later 1.0.
+- **`main`** — Publishes `latest` when `ENABLE_NPM_PUBLISH` is `true`. Phase 9 field-test is
+  **0.50.0**, not 1.0.0. Do not reuse the existing `v1.0.0` tag (`a938230`).
+- **`feat/**`** — Feature branches. Open PRs into `milestone/cli-reset` until the field-test
+  merge path; then into `development`.
 
-## Prereleases (`next`)
+## Latest (Phase 9 field-test)
 
-The milestone is in Changesets pre mode (`next`). Versions for `core`, `node`, `browser`, `cli`, `mcp`, `plugin-sdk`, and every plugin start at `1.0.0-next.0`.
+Changesets pre mode (`next` / `1.0.0-next.0`) is **off**. Packages are **0.50.0**. CLI
+`oclif.jitPlugins` pins `mcp` and `plugin-app` at `^0.50`.
 
-To publish prereleases (Phase 9 operator, or a deliberate dispatch):
-
-1. Confirm you are on a `milestone/**` branch.
-2. Dispatch [`.github/workflows/release-next.yml`](.github/workflows/release-next.yml). It builds, tests, then `changeset publish --tag next`.
-3. Do **not** dispatch it as part of Phase 5. First-party packages may still be unpublished; `pnpm run test:plugin-pack` proves install from packed tarballs.
-
-## Latest (Phase 9)
-
-1. Exit pre mode (`changeset pre exit`) when you are ready for 1.0.0.
-2. Merge to `main` with `ENABLE_NPM_PUBLISH=true`.
-3. The `publish` job in `ci-pipeline.yml` runs `changesets/action`.
+1. Merge to `main` with `ENABLE_NPM_PUBLISH=true`.
+2. The `publish` job in `ci-pipeline.yml` runs `changesets/action` → `changeset publish` to
+   **`latest`**.
+3. Do **not** dispatch [`release-next.yml`](.github/workflows/release-next.yml) for this
+   release. Do **not** bump to 1.0.0 here. 1.0 (deprecate 0.14 names, archives, live dogfood)
+   is Later.
 
 ## Adding a changeset
 
@@ -31,8 +29,8 @@ To publish prereleases (Phase 9 operator, or a deliberate dispatch):
 pnpm exec changeset
 ```
 
-Commit the file under `.changeset/`. Independent versioning means each package can move on its own.
+Commit the file under `.changeset/`. Independent versioning means each package can move on its own. A `major` bump from 0.50.0 becomes 1.0.0 — do not add one until the 1.0 release.
 
 ## Smoke
 
-`pnpm run test:plugin-pack` packs `core`, `node`, `plugin-sdk`, `cli`, and every plugin, installs the CLI into a hermetic prefix, then `ecp plugins install <tarball>` for each plugin. That is the install proof until `@next` exists on the registry.
+`pnpm run test:plugin-pack` packs `core`, `node`, `plugin-sdk`, `cli`, and every plugin, installs the CLI into a hermetic prefix, then `ecp plugins install <tarball>` for each plugin. After 0.50.0 is on the registry, criterion 1 is `npm i -g @executioncontrolprotocol/cli` then `ecp plugins install jsonata`.

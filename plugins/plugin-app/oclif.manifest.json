@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0-next.0",
+  "version": "0.50.0",
   "commands": {
     "app": {
       "aliases": [],
@@ -10,7 +10,7 @@
           "required": true
         }
       },
-      "description": "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until @next is published, install with ecp plugins link plugins/plugin-app.",
+      "description": "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until 0.50.0 is on the registry, install with ecp plugins link plugins/plugin-app.",
       "flags": {
         "host": {
           "description": "HTTP bind address (loopback only)",

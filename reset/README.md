@@ -15,7 +15,7 @@ detail needed to do the work: scope, file-level tasks, design notes, tests and e
 | 6 | [Docs site and skill](phase-6-docs-and-skill.md) | ✅ Done 2026-10-23 | 5 |
 | 7 | [MCP](phase-7-mcp.md) | ✅ Done 2026-10-24 | 5 |
 | 8 | [App](phase-8-app.md) | ✅ Done 2026-10-24 | 5 |
-| 9 | [1.0 release](phase-9-release.md) | Planned | 6, 7, 8 |
+| 9 | [0.50.0 field-test](phase-9-release.md) | In progress | 6, 7, 8 |
 | — | [Later](later.md) | Not scheduled | 9 |
 
 Phases 6, 7 and 8 only depend on Phase 5 and touch different packages, so they can run in
