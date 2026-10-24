@@ -4,11 +4,33 @@
     "mcp:serve": {
       "aliases": [],
       "args": {},
-      "description": "Expose the process host as MCP tools over stdio. Use --tools meta when a client cannot handle a large capability catalogue.",
+      "description": "Expose the process host as MCP tools. stdio is the default (stdout is the protocol stream). --http binds 127.0.0.1 and requires a bearer token printed once to stderr. Use --tools meta when a client cannot handle a large capability catalogue.",
       "flags": {
         "stdio": {
           "description": "Serve over stdio (default)",
           "name": "stdio",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "http": {
+          "description": "Serve over streamable HTTP instead of stdio",
+          "name": "http",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "host": {
+          "description": "HTTP bind address (loopback by default)",
+          "name": "host",
+          "type": "option"
+        },
+        "port": {
+          "description": "HTTP bind port",
+          "name": "port",
+          "type": "option"
+        },
+        "allow-remote": {
+          "description": "Allow binding HTTP beyond loopback",
+          "name": "allow-remote",
           "allowNo": false,
           "type": "boolean"
         },

@@ -127,6 +127,17 @@ ecp discover jsonata --json
 `--env` is optional on `run`, `validate`, and `install`. `describe`, `search`, and `invoke`
 take it the same way.
 
+### MCP
+
+`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). Until `@next` is published,
+link the workspace package:
+
+```sh
+ecp plugins link packages/mcp
+ecp mcp serve
+ecp mcp serve --http
+```
+
 ## Related packages
 
 - [`@executioncontrolprotocol/core`](../core/README.md): host-agnostic core + fluent API

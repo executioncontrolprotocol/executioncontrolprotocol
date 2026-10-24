@@ -1,16 +1,15 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { listRunJournals, readRunJournal } from "@executioncontrolprotocol/node"
-import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import { JSON_MIME } from "./constants.js"
 import { jsonContents } from "./result.js"
+import type { McpSessionState } from "./session.js"
 
 /**
  * Register discovery and journal-backed run resources.
+ * Describe/capabilities/policies read the live host; run resources read the journal.
  * @category MCP
  */
-export function registerResources(server: McpServer, host: EcpHost): void {
-  const ecp = host.ecp
-
+export function registerResources(server: McpServer, state: McpSessionState): void {
   server.registerResource(
     "environment",
     "ecp://environment",
@@ -19,7 +18,7 @@ export function registerResources(server: McpServer, host: EcpHost): void {
       description: "Full ECP environment descriptor: extensions, capabilities, policies.",
       mimeType: JSON_MIME,
     },
-    async (uri) => jsonContents(uri, await ecp.describe(), JSON_MIME)
+    async (uri) => jsonContents(uri, await state.host.ecp.describe(), JSON_MIME)
   )
 
   server.registerResource(
@@ -30,7 +29,7 @@ export function registerResources(server: McpServer, host: EcpHost): void {
       description: "All capabilities available in this environment.",
       mimeType: JSON_MIME,
     },
-    async (uri) => jsonContents(uri, (await ecp.describe()).capabilities, JSON_MIME)
+    async (uri) => jsonContents(uri, (await state.host.ecp.describe()).capabilities, JSON_MIME)
   )
 
   server.registerResource(
@@ -41,14 +40,14 @@ export function registerResources(server: McpServer, host: EcpHost): void {
       description: "All policies governing this environment.",
       mimeType: JSON_MIME,
     },
-    async (uri) => jsonContents(uri, (await ecp.describe()).policies, JSON_MIME)
+    async (uri) => jsonContents(uri, (await state.host.ecp.describe()).policies, JSON_MIME)
   )
 
   server.registerResource(
     "capability",
     new ResourceTemplate("ecp://capability/{+id}", {
       list: async () => {
-        const descriptor = await ecp.describe()
+        const descriptor = await state.host.ecp.describe()
         return {
           resources: descriptor.capabilities.map((c) => ({
             uri: `ecp://capability/${c.id}`,
@@ -66,7 +65,7 @@ export function registerResources(server: McpServer, host: EcpHost): void {
     },
     async (uri, variables) => {
       const id = String(variables.id)
-      const descriptor = await ecp.describe()
+      const descriptor = await state.host.ecp.describe()
       const capability = descriptor.capabilities.find((c) => c.id === id)
       return jsonContents(uri, capability ?? { error: "Capability not found", id }, JSON_MIME)
     }

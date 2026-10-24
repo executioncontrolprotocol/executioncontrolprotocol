@@ -14,8 +14,10 @@ import {
   sha256Hex,
 } from "@executioncontrolprotocol/node"
 import { applyFormat } from "./format.js"
+import { progressFromRunEvent } from "./progress.js"
 import { loadParentRun, rerunOptionsFromJournal } from "./rerun.js"
 import { toolCaught, toolOk } from "./result.js"
+import type { McpSessionState } from "./session.js"
 import { loadWorkflowPathOrSource } from "./source.js"
 import type { CreateEcpMcpServerOptions } from "./types.js"
 
@@ -28,17 +30,16 @@ const recordSchema = z.record(z.unknown())
  */
 export function registerMetaTools(
   server: McpServer,
-  options: CreateEcpMcpServerOptions
+  options: CreateEcpMcpServerOptions,
+  state: McpSessionState
 ): void {
-  const { host } = options
-
   server.tool(
     "ecp_search",
     "Search environment capabilities by id or label.",
     { query: z.string() },
     async ({ query }) => {
       try {
-        return toolOk(await host.ecp.search(query))
+        return toolOk(await state.host.ecp.search(query))
       } catch (err) {
         return toolCaught(err)
       }
@@ -66,8 +67,8 @@ export function registerMetaTools(
                   : {}),
               }
             : undefined
-        const descriptor = await host.ecp.describe(query)
-        return toolOk(await applyFormat(host.ecp, descriptor, format))
+        const descriptor = await state.host.ecp.describe(query)
+        return toolOk(await applyFormat(state.host.ecp, descriptor, format))
       } catch (err) {
         return toolCaught(err)
       }
@@ -82,7 +83,7 @@ export function registerMetaTools(
       try {
         const loaded = await loadWorkflowPathOrSource({ path, source })
         try {
-          return toolOk(await host.ecp.validate(loaded.loaded.manifest))
+          return toolOk(await state.host.ecp.validate(loaded.loaded.manifest))
         } finally {
           await loaded.cleanup()
         }
@@ -101,19 +102,21 @@ export function registerMetaTools(
       input: recordSchema.optional(),
       dryRun: z.boolean().optional(),
       to: z.string().optional(),
+      events: z.boolean().optional(),
     },
-    async ({ path, source, input, dryRun, to }) => {
+    async ({ path, source, input, dryRun, to, events }, extra) => {
       try {
         const loaded = await loadWorkflowPathOrSource({ path, source })
         // Keep inlined source on disk so ecp_runs_rerun can reload journal.workflowPath.
-        const result = await host.ecp.run(loaded.loaded.manifest, {
+        const result = await state.host.ecp.run(loaded.loaded.manifest, {
           input,
           dryRun,
           stopAfterStepId: to,
+          onEvent: progressFromRunEvent(extra, events),
           journal: {
             workflowPath: loaded.workflowPath,
             workflowHash: sha256Hex(loaded.sourceText),
-            environmentId: host.environmentId,
+            environmentId: state.host.environmentId,
           },
         })
         return toolOk({ ...result, runId: result.run.id })
@@ -161,12 +164,12 @@ export function registerMetaTools(
           toStepId: to,
         })
         const sourceText = await readTextFile(parent.workflowPath)
-        const result = await host.ecp.run(loaded.manifest, {
+        const result = await state.host.ecp.run(loaded.manifest, {
           ...extras,
           journal: {
             workflowPath: parent.workflowPath,
             workflowHash: sha256Hex(sourceText),
-            environmentId: host.environmentId,
+            environmentId: state.host.environmentId,
             parentRunId: parent.runId,
           },
         })
@@ -183,7 +186,7 @@ export function registerMetaTools(
     { capabilityId: z.string(), input: recordSchema.optional() },
     async ({ capabilityId, input }) => {
       try {
-        const result = await host.ecp.invoke(capabilityId).with(input ?? {}).process()
+        const result = await state.host.ecp.invoke(capabilityId).with(input ?? {}).process()
         if (!result.success) {
           const diagnostic = result.diagnostics[0]
           throw new EcpError(
@@ -218,10 +221,12 @@ export function registerMetaTools(
         }
         if (options.installPlugin) {
           const data = await options.installPlugin(spec)
+          await options.onPluginsChanged?.()
           return toolOk(data ?? { installed: spec })
         }
         if (options.config) {
           await options.config.runCommand("plugins:install", [spec])
+          await options.onPluginsChanged?.()
           return toolOk({ installed: spec })
         }
         throw new EcpError(

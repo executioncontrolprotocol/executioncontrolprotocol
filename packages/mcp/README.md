@@ -24,11 +24,18 @@ is no per-capability MCP code. Format plugins show up as capability tools
 ```sh
 ecp mcp serve
 ecp mcp serve --tools meta
+ecp mcp serve --http
+ecp mcp serve --http --host 0.0.0.0 --port 3847 --allow-remote
 ```
 
-stdio is the default. Streamable HTTP, `list_changed`, and run-progress notifications
-ship in the next Phase 7 PR. Until `@next` is on the registry, install from the workspace
-with `ecp plugins link packages/mcp` (or a packed tarball plus `ECP_ALLOW_SOURCE=path`).
+stdio is the default (stdout is the protocol stream). `--http` binds `127.0.0.1` and
+prints a bearer token once to stderr; `--allow-remote` is required to bind beyond
+loopback. Plugin installs update the tool list (`notifications/tools/list_changed`).
+`ecp_run` with `events: true` maps the run event stream to MCP progress notifications.
+
+Until `@next` is on the registry, install from the workspace with
+`ecp plugins link packages/mcp` (or a packed tarball plus `ECP_ALLOW_SOURCE=path`).
+JIT from npm (`oclif.jitPlugins`) cannot fully pass until `@next` is published.
 
 ## Meta tools
 

@@ -1,6 +1,6 @@
 # Phase 7 — MCP
 
-> Status: In progress · Branch: `feat/phase-7-mcp-server` · Depends on: Phase 5 · Plan: §4.7 ·
+> Status: In progress · Branch: `feat/phase-7-mcp-live` · Depends on: Phase 5 · Plan: §4.7 ·
 > Can run in parallel with Phase 8
 >
 > **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
@@ -8,9 +8,10 @@
 > [guides/mcp](https://github.com/executioncontrolprotocol/docs/blob/feat/cli-reset-docs/guides/mcp.mdx)
 > is a placeholder only.
 >
-> **PR1:** library + `ecp mcp serve` (stdio, `--tools meta`, path-or-source, capability tools).
-> HTTP, `list_changed`, progress, CLI `jitPlugins`, and docs land in later PRs. JIT from npm
-> cannot fully pass until `@next` is published — prove with `ecp plugins link packages/mcp`.
+> **PR1 (merged):** library + `ecp mcp serve` (stdio, `--tools meta`, path-or-source, capability tools).
+> **PR2:** HTTP 127.0.0.1 + bearer + `--allow-remote`, `list_changed` watch, progress,
+> CLI `oclif.jitPlugins`. JIT from npm cannot fully pass until `@next` is published — prove
+> with `ecp plugins link packages/mcp`. Docs and dogfood land in PR3/PR4.
 
 ## Goal
 

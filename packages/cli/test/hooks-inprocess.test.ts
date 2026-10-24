@@ -12,13 +12,17 @@ import { clearHost, getHost } from "@executioncontrolprotocol/plugin-sdk"
 import { evaluateTrust, assertTrusted } from "../src/lib/evaluate-trust.js"
 import { rememberTrust } from "../src/lib/trust-store.js"
 
-function hookThis(): {
+function hookThis(jitPlugins: Record<string, string> = {}): {
   logs: string[]
   exits: number[]
   log: (message?: string) => void
   exit: (code?: number) => never
   error: (message: string, opts?: { exit?: number }) => never
-  config: { runCommand: (id: string, argv?: string[]) => Promise<void>; dataDir: string }
+  config: {
+    runCommand: (id: string, argv?: string[]) => Promise<void>
+    dataDir: string
+    pjson: { oclif: { jitPlugins: Record<string, string> } }
+  }
 } {
   const logs: string[] = []
   const exits: number[] = []
@@ -42,6 +46,7 @@ function hookThis(): {
     config: {
       runCommand: async () => undefined,
       dataDir: join(tmpdir(), "ecp-hook-data"),
+      pjson: { oclif: { jitPlugins } },
     },
   }
 }
@@ -80,6 +85,27 @@ describe("command_not_found", () => {
     ).rejects.toThrow(/EEXIT/)
     expect(self.logs[0]).toMatch(/ecp plugins install jsonata/)
   })
+
+  it("skips JIT topics so oclif can install @executioncontrolprotocol/mcp", async () => {
+    const self = hookThis({ "@executioncontrolprotocol/mcp": "^1" })
+    await (commandNotFound as Hook<"command_not_found">).call(self as never, {
+      id: "mcp:serve",
+      argv: [],
+    })
+    expect(self.exits).toEqual([])
+    expect(self.logs).toEqual([])
+  })
+
+  it("still maps jsonata when mcp is the only JIT plugin", async () => {
+    const self = hookThis({ "@executioncontrolprotocol/mcp": "^1" })
+    await expect(
+      (commandNotFound as Hook<"command_not_found">).call(self as never, {
+        id: "jsonata",
+        argv: ["--json"],
+      })
+    ).rejects.toThrow(/EEXIT/)
+    expect(self.logs[0]).toMatch(/plugin-jsonata/)
+  })
 })
 
 describe("jit_plugin_not_installed", () => {
@@ -90,7 +116,7 @@ describe("jit_plugin_not_installed", () => {
     try {
       await expect(
         (jitInstall as Hook<"jit_plugin_not_installed">).call(self as never, {
-          pluginName: "@executioncontrolprotocol/plugin-mcp",
+          pluginName: "@executioncontrolprotocol/mcp",
           pluginVersion: "1.0.0",
         })
       ).rejects.toThrow(/EEXIT/)
@@ -161,6 +187,12 @@ describe("init-host", () => {
     const host = getHost()
     expect(host.environmentId).toBe("@executioncontrolprotocol/node")
     expect(host.ecp).toBeDefined()
+    expect(host.rebuild).toBeTypeOf("function")
+    const next = await host.rebuild?.()
+    expect(next).toBeDefined()
+    expect(next).not.toBe(host)
+    expect(getHost()).toBe(next)
+    await next?.ecp.terminate()
   }, 30_000)
 })
 

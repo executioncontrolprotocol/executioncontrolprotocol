@@ -25,6 +25,12 @@ export interface EcpHost {
     result: unknown
     success: boolean
   }) => Promise<void>
+  /**
+   * Re-init the environment from currently installed plugins.
+   * The CLI `init` hook sets this so MCP can rebuild after `plugins install`
+   * without importing `@executioncontrolprotocol/cli`.
+   */
+  rebuild?: () => Promise<EcpHost>
 }
 
 /** `globalThis` key for the CLI host. @category CLI */

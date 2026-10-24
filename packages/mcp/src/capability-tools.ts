@@ -1,8 +1,8 @@
 import { z } from "zod"
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { ECP_STEP_FAILED, EcpError } from "@executioncontrolprotocol/core/types"
-import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import { toolCaught, toolOk } from "./result.js"
+import type { McpSessionState } from "./session.js"
 import { toMcpTools } from "./to-mcp-tools.js"
 
 function zodShape(schema: z.ZodType | undefined): z.ZodRawShape {
@@ -12,15 +12,18 @@ function zodShape(schema: z.ZodType | undefined): z.ZodRawShape {
 
 /**
  * Register one MCP tool per capability from {@link toMcpTools}.
+ * Returns the registrations so a later host rebuild can `remove()` them.
  * @category MCP
  */
-export function registerCapabilityTools(server: McpServer, host: EcpHost): void {
-  for (const tool of toMcpTools(host.registry)) {
-    server.tool(
-      tool.name,
-      tool.description,
-      zodShape(tool.inputZod),
-      async (args) => {
+export function registerCapabilityTools(
+  server: McpServer,
+  state: McpSessionState
+): RegisteredTool[] {
+  const registered: RegisteredTool[] = []
+  for (const tool of toMcpTools(state.host.registry)) {
+    registered.push(
+      server.tool(tool.name, tool.description, zodShape(tool.inputZod), async (args) => {
+        const host = state.host
         try {
           const input = tool.inputZod ? tool.inputZod.parse(args) : args
           const result = await host.ecp.invoke(tool.capabilityId).with(input).process()
@@ -42,7 +45,8 @@ export function registerCapabilityTools(server: McpServer, host: EcpHost): void 
         } catch (err) {
           return toolCaught(err)
         }
-      }
+      })
     )
   }
+  return registered
 }
