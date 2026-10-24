@@ -172,6 +172,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run generate:schema
+      # setup-node registry-url authenticates with NODE_AUTH_TOKEN, not NPM_TOKEN.
+      - name: Require NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "NPM_TOKEN is empty in this reusable-workflow job."
+            echo "Allow the org secret for this repo and keep secrets: inherit on ci.yml."
+            exit 1
+          fi
+          echo "NPM_TOKEN is present."
       - name: Publish with Changesets
         uses: changesets/action@v1
         with:
@@ -179,3 +190,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
