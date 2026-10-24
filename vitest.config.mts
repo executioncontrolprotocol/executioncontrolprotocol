@@ -254,7 +254,7 @@ export default defineConfig({
           exclude: [
             "**/node_modules/**",
             "packages/mcp/test/integration/stdio-serve.test.ts",
-            "plugins/plugin-app/test/integration/**",
+            "plugins/plugin-app/test/browser/**",
           ],
         },
       },
@@ -307,10 +307,14 @@ export default defineConfig({
         extends: true,
         test: {
           name: "integration",
-          include: [
-            "packages/mcp/test/integration/**/*.test.ts",
-            "plugins/plugin-app/test/integration/**/*.test.ts",
-          ],
+          include: ["packages/mcp/test/integration/**/*.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "app-live",
+          include: ["plugins/plugin-app/test/browser/**/*.test.ts"],
         },
       },
       {

@@ -12,6 +12,12 @@ import type { Ecp } from "@executioncontrolprotocol/core"
 const TEST_TOKEN = "unit-test-token-unit-test-token-unit"
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..")
 
+/**
+ * Node + Playwright against plugin-app. Lives under `test:browser` because
+ * the Vitest in-browser project cannot start a Node HTTP server, and the
+ * integration CI job does not install Chromium.
+ * @category App
+ */
 describe("plugin-app Playwright round-trip", () => {
   let ecp: Ecp | undefined
   let handle: AppServeHandle | undefined
