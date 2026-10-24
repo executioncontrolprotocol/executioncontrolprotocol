@@ -6,6 +6,7 @@ import {
 } from "@executioncontrolprotocol/plugin-sdk"
 import { argvHasFlag } from "../lib/argv.js"
 import { confirm } from "../lib/confirm.js"
+import { jitPluginForTopic, type JitPluginMap } from "../lib/jit-plugins.js"
 
 function firstToken(id: string | undefined): string {
   if (!id) return ""
@@ -46,6 +47,12 @@ const hook: Hook<"command_not_found"> = async function (options) {
 
   const topic = firstToken(id)
   if (!topic) return
+  const jitPlugins = (this.config.pjson?.oclif as { jitPlugins?: JitPluginMap } | undefined)
+    ?.jitPlugins ?? {}
+  // JIT packages (`mcp`, later `app`) are not `plugin-<topic>`. Let oclif's
+  // plugin-not-found hook install from `oclif.jitPlugins` instead of mapping
+  // `ecp mcp` to `@executioncontrolprotocol/plugin-mcp`.
+  if (jitPluginForTopic(topic, jitPlugins)) return
   // First-party plugins are unpublished until later phases. Map the unknown
   // topic to plugin-<topic> so `ecp jsonata` returns ECP_PLUGINS_MISSING
   // (exit 3) instead of oclif's not-found exit 127.

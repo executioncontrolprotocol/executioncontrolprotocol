@@ -61,6 +61,9 @@
       "command_not_found": "./dist/hooks/command-not-found.js",
       "jit_plugin_not_installed": "./dist/hooks/jit-install.js",
       "plugins:preinstall": "./dist/hooks/trust.js"
+    },
+    "jitPlugins": {
+      "@executioncontrolprotocol/mcp": "^1"
     }
   }
 }

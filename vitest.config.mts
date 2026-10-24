@@ -206,10 +206,10 @@ export default defineConfig({
           statements: 80,
         },
         "packages/mcp/src/**": {
-          lines: 80,
-          functions: 80,
-          branches: 60,
-          statements: 80,
+          lines: 82,
+          functions: 82,
+          branches: 65,
+          statements: 81,
         },
       },
     },
@@ -228,7 +228,10 @@ export default defineConfig({
             "packages/environments/browser/test/*.test.ts",
             "scripts/**/*.test.ts",
           ],
-          exclude: ["**/node_modules/**"],
+          exclude: [
+            "**/node_modules/**",
+            "packages/mcp/test/integration/stdio-serve.test.ts",
+          ],
         },
       },
       {

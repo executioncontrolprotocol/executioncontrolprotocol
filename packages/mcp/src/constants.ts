@@ -28,5 +28,17 @@ export type MetaToolName = (typeof META_TOOL_NAMES)[number]
 /** Default MCP server name. @category MCP */
 export const DEFAULT_MCP_SERVER_NAME = "ecp"
 
-/** Default MCP endpoint path for HTTP (Phase 7 PR2). @category MCP */
+/** Default MCP endpoint path for streamable HTTP. @category MCP */
 export const DEFAULT_MCP_PATH = "/mcp"
+
+/** Default HTTP bind address (loopback only). @category MCP */
+export const DEFAULT_MCP_HOST = "127.0.0.1"
+
+/** Default HTTP bind port. @category MCP */
+export const DEFAULT_MCP_PORT = 3847
+
+/** Debounce for oclif `dataDir/package.json` watches. @category MCP */
+export const PLUGIN_MANIFEST_WATCH_MS = 100
+
+/** Authorization scheme required on HTTP requests. @category MCP */
+export const MCP_BEARER_PREFIX = "Bearer "
