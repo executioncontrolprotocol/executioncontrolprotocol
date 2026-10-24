@@ -1,7 +1,7 @@
 # Phase 8 — App
 
-> Status: Planned · Branch: `feat/phase-8-app` · Depends on: Phase 5 · Plan: §4.8, §8.5 ·
-> Can run in parallel with Phases 6 and 7
+> Status: In progress · Branch: `feat/phase-8-app-library` · Depends on: Phase 5 · Plan: §4.8, §8.5 ·
+> PR1: App library (`packages/app`). Server/JIT/Playwright land in PR2. Do not start Phase 9.
 >
 > **Starting point after Phase 6:** docs rewrite is on `feat/cli-reset-docs` (not docs `main`).
 > Consumer skill is at `skills/ecp/`.

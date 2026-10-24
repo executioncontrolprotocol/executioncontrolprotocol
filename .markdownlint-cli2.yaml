@@ -6,3 +6,4 @@ ignores:
   - "plugins/plugin-adobe-firefly-services/openapi/**"
   - ".changeset/**"
   - ".git/**"
+  - "packages/app/DESIGN.md"

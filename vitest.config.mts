@@ -125,6 +125,7 @@ export default defineConfig({
         repoRoot,
         "plugins/plugin-jsonata/src/index.ts"
       ),
+      "@executioncontrolprotocol/app": path.resolve(repoRoot, "packages/app/src/index.ts"),
     },
   },
   test: {
@@ -146,6 +147,8 @@ export default defineConfig({
         "packages/environments/node/src/**/*.{ts,js}",
         "packages/plugin-sdk/src/**/*.{ts,js}",
         "plugins/plugin-jsonata/src/**/*.{ts,js}",
+        "packages/app/src/graph/**/*.{ts,js}",
+        "packages/app/src/host/**/*.{ts,js}",
       ],
       exclude: [
         "**/*.test.ts",
@@ -211,6 +214,18 @@ export default defineConfig({
           branches: 65,
           statements: 81,
         },
+        "packages/app/src/graph/**": {
+          lines: 80,
+          functions: 85,
+          branches: 60,
+          statements: 75,
+        },
+        "packages/app/src/host/**": {
+          lines: 65,
+          functions: 50,
+          branches: 50,
+          statements: 60,
+        },
       },
     },
     projects: [
@@ -222,6 +237,7 @@ export default defineConfig({
             "packages/core/test/**/*.test.ts",
             "packages/cli/test/**/*.test.ts",
             "packages/mcp/**/*.test.ts",
+            "packages/app/test/**/*.test.ts",
             "packages/plugin-sdk/test/**/*.test.ts",
             "packages/environments/node/**/*.test.ts",
             "plugins/**/*.test.ts",
