@@ -96,6 +96,16 @@ describe("command_not_found", () => {
     expect(self.logs).toEqual([])
   })
 
+  it("skips the app JIT topic so oclif does not map ecp app to plugin-app via prefix", async () => {
+    const self = hookThis({ "@executioncontrolprotocol/plugin-app": "^1" })
+    await (commandNotFound as Hook<"command_not_found">).call(self as never, {
+      id: "app",
+      argv: [],
+    })
+    expect(self.exits).toEqual([])
+    expect(self.logs).toEqual([])
+  })
+
   it("still maps jsonata when mcp is the only JIT plugin", async () => {
     const self = hookThis({ "@executioncontrolprotocol/mcp": "^1" })
     await expect(

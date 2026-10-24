@@ -138,6 +138,17 @@ ecp mcp serve
 ecp mcp serve --http
 ```
 
+### App
+
+`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). Until `@next` is published,
+link the workspace package:
+
+```sh
+ecp plugins link plugins/plugin-app
+ecp app examples/01-echo/workflow.ecp.ts
+ecp app brief.ecp.ts --no-open
+```
+
 ## Related packages
 
 - [`@executioncontrolprotocol/core`](../core/README.md): host-agnostic core + fluent API

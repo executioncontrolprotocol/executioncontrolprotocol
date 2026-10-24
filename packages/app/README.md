@@ -4,7 +4,7 @@ Visual App for ECP (Execution Control Protocol): a `HostAdapter` UI, the React F
 graph encoder, and a prebuilt static bundle (`dist/web`). The App is a viewer and
 co-editor of workflow files. It stores no secrets and makes no model calls.
 
-Open it with the JIT CLI plugin (Phase 8 PR2):
+Open it with the JIT CLI plugin:
 
 ```sh
 ecp plugins link plugins/plugin-app

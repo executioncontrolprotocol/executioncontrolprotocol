@@ -60,6 +60,9 @@
     },
     {
       "path": "packages/app"
+    },
+    {
+      "path": "plugins/plugin-app"
     }
   ]
 }

@@ -29,6 +29,7 @@ export default tseslint.config(
     files: [
       "plugins/**/src/**/*.ts",
     ],
+    ignores: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -55,6 +56,7 @@ export default tseslint.config(
   },
   {
     files: ["plugins/**/src/**/*.ts"],
+    ignores: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -76,6 +78,28 @@ export default tseslint.config(
               ],
               message:
                 "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/core/types entry points, the same surface external authors get.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["plugins/plugin-app/src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@executioncontrolprotocol/cli",
+                "@executioncontrolprotocol/cli/*",
+                "@executioncontrolprotocol/mcp",
+                "@executioncontrolprotocol/mcp/*",
+              ],
+              message:
+                "plugin-app must not depend on cli (JIT cycle) or mcp. Use plugin-sdk getHost(), node loaders, and app's prebuilt dist/web.",
             },
           ],
         },

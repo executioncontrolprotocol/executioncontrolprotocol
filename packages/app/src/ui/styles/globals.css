@@ -40,6 +40,7 @@ body,
 }
 
 .ecp-app-body {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(16rem, 28%) 1fr;
   min-height: 0;
@@ -74,4 +75,48 @@ body,
 
 .ecp-app-graph {
   min-height: 0;
+}
+
+.ecp-rf-node {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ecp-border);
+  border-radius: 0.375rem;
+  background: var(--ecp-panel);
+  color: var(--ecp-text);
+  font-size: 0.85rem;
+}
+
+.ecp-app-config {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.75rem;
+  background: var(--ecp-panel);
+  border: 1px solid var(--ecp-border);
+}
+
+.ecp-app-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--ecp-muted);
+}
+
+.ecp-app-config input {
+  background: var(--ecp-bg);
+  color: var(--ecp-text);
+  border: 1px solid var(--ecp-border);
+  padding: 0.35rem 0.5rem;
+}
+
+.ecp-app-config button {
+  background: var(--ecp-accent);
+  color: #0f1419;
+  border: 0;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
 }
