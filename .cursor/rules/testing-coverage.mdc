@@ -1,42 +1,54 @@
 ---
-description: Unit test case shapes and coverage accountability for ECP packages
-globs: packages/**/*.{ts,tsx},vitest.config.mts
+description: Test case shapes, test locations and coverage accountability for ECP packages
+globs: packages/**/*.{ts,tsx},plugins/**/*.{ts,tsx},vitest.config.mts
 alwaysApply: false
 ---
 
 # Testing and coverage
 
-## Case shapes (required for behavior changes)
-
-For every new feature or behavior change, add tests that cover:
+## Case shapes (required for behaviour changes)
 
 | Shape | Intent | Examples |
-| ----- | ------ | -------- |
-| **Positive** | Happy path succeeds | Valid invoke, inclusive `runTo`, successful encode |
-| **Negative** | Invalid / denied / missing fails clearly | Unknown capability, policy deny, missing session file |
-| **Edge** | Boundaries and frozen/partial state | Empty input, last step completes, skip already-completed priors, clear-downstream after rerun |
+| --- | --- | --- |
+| **Positive** | The happy path succeeds | Valid invoke, `ecp run --to` stops at the step, successful encode |
+| **Negative** | Invalid, denied or missing input fails clearly | Unknown capability, policy deny, `ECP_PLUGINS_MISSING`, bad config (`ECP_BINDING_INVALID`) |
+| **Edge** | Boundaries and partial state | Empty input, last step, resume after a stop, rerun clearing later outputs, `ECP_RERUN_INCOMPATIBLE` |
 
-Do not ship only a single happy-path test.
+Don't ship only a happy-path test.
+
+## Where tests go
+
+- Vitest. Put tests next to the package's source in `test/` (for example
+  `packages/core/test/**`), following existing patterns in that package.
+- **CLI behaviour:** integration tests run the CLI in a hermetic oclif data directory
+  (`ECP_DATA_DIR`, `ECP_CONFIG_DIR` pointing at temp folders).
+- **Core:** unit tests run in both the Node project and the browser project
+  (`pnpm run test:browser`).
+- **Plugins (from Phase 5):** each plugin has a CLI-level `--json` test and passes
+  `ecp plugins check`. `scripts/plugin-pack-smoke.mjs` installs each packed plugin into a clean
+  CLI.
 
 ## Coverage commands
 
 ```sh
-pnpm run build            # compile only — no coverage gate
-pnpm run test:coverage    # unit project + V8 report + thresholds (ship gate)
-pnpm run clean:coverage   # remove coverage/ (and related dump dirs)
-pnpm run test:coverage:clean  # run gate then delete local coverage artifacts
-pnpm run check            # includes test:coverage
+pnpm run build                 # compile only, no coverage gate
+pnpm run test:coverage         # unit project + V8 report + thresholds (the gate)
+pnpm run clean:coverage        # remove coverage/
+pnpm run test:coverage:clean   # run the gate, then delete local coverage artifacts
+pnpm run check                 # includes test:coverage
 ```
-
-Coverage JSON/HTML under `coverage/` is gitignored. CI uploads a summary artifact; local trees are removed with `pnpm run clean` / `pnpm run clean:coverage`.
 
 ## Thresholds
 
-- Floors live in root [`vitest.config.mts`](vitest.config.mts) under `test.coverage.thresholds`.
-- **Never lower** a threshold to green CI; raise toward **90%** (lines, functions, branches, statements) as suites grow.
-- Target remains 90% for included packages (`core`, `types`, `policies`, `cli`, `mcp`, format extensions, `runtimes/node`).
+- Floors live in `vitest.config.mts` under `test.coverage.thresholds`.
+- **Never lower** a threshold to get CI green; raise it toward 90% (lines, functions, branches,
+  statements) as suites grow.
+- When a phase deletes well-tested code (Phase 1), coverage is re-measured on what remains.
+  Adjust a floor only if the remaining code's own coverage is unchanged, and say so in the PR.
 
-## Vitest projects + coverage
+## Vitest projects and coverage
 
-- **Never** use negated globs (`!…`) in `test.include` — Vitest 4 merges them into `coverage.exclude` and zeros the report ([vitest#10164](https://github.com/vitest-dev/vitest/issues/10164)).
-- Prefer `test.exclude` for “all except …” patterns.
+- **Never** use negated globs (`!…`) in `test.include`. Vitest 4 merges them into
+  `coverage.exclude` and zeros the report
+  ([vitest#10164](https://github.com/vitest-dev/vitest/issues/10164)).
+- Use `test.exclude` for "everything except …" patterns.

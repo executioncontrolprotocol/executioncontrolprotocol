@@ -1,4 +1,4 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION } from "../types/index.js"
 import type {
   CapabilityDescription,
   CapabilityMetadata,
@@ -9,7 +9,7 @@ import type {
   ExtensionDescription,
   ExtensionMetadata,
   PolicyDescription
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Registry } from "../registry/registry.js"
 import { resolveCapabilityExecution } from "../runtime/capability-execution.js"
 import { isZodType, jsonSchemaFromZod } from "../schema/json-schema.js"
@@ -88,7 +88,7 @@ const EXTENSION_INVENTORY_KEYS = [
   "capabilities",
   "summary",
   "isAuthorable",
-  "supportedRuntimes"
+  "supportedEnvironments"
 ] as const
 
 /**
@@ -249,8 +249,8 @@ function buildExtensionDescription(
     ...(meta?.summary ? { summary: meta.summary } : {}),
     // Default authorable; only surface the opt-out on inventory rows.
     ...(meta?.isAuthorable === false ? { isAuthorable: false } : {}),
-    ...(def?.supportedRuntimes?.length
-      ? { supportedRuntimes: [...def.supportedRuntimes] }
+    ...(def?.supportedEnvironments?.length
+      ? { supportedEnvironments: def.supportedEnvironments.map((s) => s.id) }
       : {})
   }
   const withMetadata = opts.detail || opts.searchIndex || opts.includeMetadata

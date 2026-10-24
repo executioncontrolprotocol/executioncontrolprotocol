@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs"
-import path from "node:path"
-import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import {
   workflow,
@@ -10,23 +7,18 @@ import {
   renderWorkflowToFluent,
   encodeFluent,
 } from "../../src/index.js"
-import { compileWorkflowSource } from "../../src/compile/index.js"
-import { ECP_FORMATS, type WorkflowManifest } from "@executioncontrolprotocol/types"
+import { compileWorkflowSource } from "@executioncontrolprotocol/node"
+import { ECP_FORMATS } from "@executioncontrolprotocol/core/types"
 import { initEncodingTestEcp } from "../helpers.js"
-
-const workflowFixturesRoot = path.resolve(
-  fileURLToPath(new URL(".", import.meta.url)),
-  "../../../harnesses/browser-nano/fixtures/workflows"
-)
 
 describe("renderWorkflowToFluent", () => {
   it("renders workflow manifest to Fluent API source", () => {
     const manifest = workflow("Weekly Brief")
       .id("weekly-brief")
       .run([
-        step("@executioncontrolprotocol/memory.search", "Collect")
+        step("@executioncontrolprotocol/test.echo", "Collect")
           .id("collect")
-          .with({ query: "q" })
+          .with({ value: "q" })
           .as("signals"),
       ])
       .toManifest()
@@ -35,18 +27,6 @@ describe("renderWorkflowToFluent", () => {
     expect(source).toContain("export default workflow")
     expect(source).toContain("step(")
     expect(source).toContain('.id("collect")')
-  })
-
-  it("renders haiku-explain workflow with stable step .id for coding patch baselines", () => {
-    const raw = readFileSync(
-      path.join(workflowFixturesRoot, "haiku-explain-workflow.json"),
-      "utf8"
-    )
-    const manifest = JSON.parse(raw) as WorkflowManifest
-    const source = renderWorkflowToFluent(manifest)
-    expect(source).toContain('.id("haiku")')
-    expect(source).toContain('.id("explain")')
-    expect(source).toContain('.id("haiku-explain")')
   })
 
   it("generated Fluent source compiles back to manifest", async () => {

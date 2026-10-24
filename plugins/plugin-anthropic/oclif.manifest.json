@@ -1,0 +1,75 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "anthropic:generate": {
+      "aliases": [],
+      "args": {},
+      "description": "Runs chat completion against the Anthropic Messages API. Accepts images and documents on the final user turn in browser and Node hosts. Requires a configured API key. Supports system prompts, prior turns, and sampling options.\nUse cases:\n- Workflow step analyzes an uploaded image alongside a user question.\n- Browser or server workflow needs long-context chat with document attachments.\nProjections:\n- Use the model text: Take the text field as the generated assistant or step output for downstream steps.",
+      "examples": [
+        "ecp anthropic generate --prompt <prompt> --system <system> --model <model>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "prompt": {
+          "description": "prompt",
+          "name": "prompt",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "description": "system",
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "model": {
+          "description": "model",
+          "name": "model",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "response-format": {
+          "description": "response-format",
+          "name": "response-format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "text",
+            "json",
+            "toon"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "anthropic:generate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-anthropic",
+      "pluginName": "@executioncontrolprotocol/plugin-anthropic",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Generate text with multimodal Anthropic Messages.",
+      "enableJsonFlag": true
+    }
+  }
+}

@@ -1,0 +1,203 @@
+import { isBuiltin } from "node:module"
+import { existsSync } from "node:fs"
+import { dirname, isAbsolute, join, resolve } from "node:path"
+import { pathToFileURL } from "node:url"
+import type { Plugin } from "esbuild"
+
+/** Whether filename indicates TypeScript. */
+export function isTypeScriptFile(filename: string): boolean {
+  return /\.tsx?$/i.test(filename)
+}
+
+/**
+ * Directory used for esbuild package resolution.
+ * Absolute filenames resolve from their parent directory; relative paths walk up
+ * to the nearest `node_modules` ancestor (consumer project layout).
+ * Bare filenames use `process.cwd()` with the same walk-up.
+ * @category Compile
+ */
+export function resolveBundleDir(filename: string): string {
+  const cwd =
+    typeof process !== "undefined" && typeof process.cwd === "function"
+      ? process.cwd()
+      : "."
+  const startDir = isAbsolute(filename)
+    ? dirname(filename)
+    : resolve(cwd, dirname(filename) || ".")
+
+  let dir = startDir
+  while (true) {
+    if (existsSync(join(dir, "node_modules"))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return startDir
+    dir = parent
+  }
+}
+
+async function loadEsbuild(): Promise<typeof import("esbuild")> {
+  try {
+    return await import("esbuild")
+  } catch {
+    throw new Error(
+      "esbuild is required to compile TypeScript workflow sources. Run: npm install esbuild"
+    )
+  }
+}
+
+/** Bare imports a workflow file may resolve (CLI/host copy). @category Compile */
+const WORKFLOW_ALLOWED_BARE_IMPORTS = new Set([
+  "@executioncontrolprotocol/core",
+  "@executioncontrolprotocol/core/types",
+])
+
+/**
+ * Mark npm packages external with absolute `file:` URLs so a temp-dir `import()`
+ * still resolves the consumer's `node_modules` (linked packages and CJS SDKs).
+ * Uses esbuild's own resolver (respects ESM package `exports`).
+ * Workflow files may only import `@executioncontrolprotocol/core` and relative files.
+ */
+function createAbsoluteExternalsPlugin(
+  resolveDir: string,
+  mode: "environment" | "workflow" = "environment"
+): Plugin {
+  return {
+    name: "ecp-absolute-externals",
+    setup(build) {
+      build.onResolve({ filter: /^[^./]/ }, async (args) => {
+        if (args.pluginData?.ecpAbsoluteExternal) return undefined
+
+        if (args.path.startsWith("node:") || isBuiltin(args.path)) {
+          if (mode === "workflow") {
+            return {
+              errors: [
+                {
+                  text: `ECP_WORKFLOW_LOAD: workflow files may only import @executioncontrolprotocol/core and relative files. Found "${args.path}".`,
+                },
+              ],
+            }
+          }
+          return { path: args.path, external: true }
+        }
+        if (/^[A-Za-z]:/.test(args.path)) {
+          return { path: args.path, external: true }
+        }
+        if (mode === "workflow" && !WORKFLOW_ALLOWED_BARE_IMPORTS.has(args.path)) {
+          return {
+            errors: [
+              {
+                text: `ECP_WORKFLOW_LOAD: workflow files may only import @executioncontrolprotocol/core and relative files. Found "${args.path}".`,
+              },
+            ],
+          }
+        }
+
+        const result = await build.resolve(args.path, {
+          kind: args.kind,
+          resolveDir: args.resolveDir || resolveDir,
+          importer: args.importer,
+          namespace: args.namespace,
+          pluginData: { ...args.pluginData, ecpAbsoluteExternal: true },
+        })
+        if (result.errors.length > 0) {
+          return {
+            errors: [
+              {
+                text: `Could not resolve "${args.path}" from ${args.resolveDir || resolveDir}`,
+              },
+            ],
+          }
+        }
+        if (!result.path) {
+          return {
+            errors: [
+              {
+                text: `Could not resolve "${args.path}" from ${args.resolveDir || resolveDir}`,
+              },
+            ],
+          }
+        }
+        return {
+          path: pathToFileURL(result.path).href,
+          external: true,
+        }
+      })
+    },
+  }
+}
+
+/** Transpile TS to ESM using esbuild (Node host). */
+export async function transpileWorkflowSource(
+  source: string,
+  filename: string
+): Promise<string> {
+  if (!isTypeScriptFile(filename)) return source
+
+  const esbuild = await loadEsbuild()
+  const result = await esbuild.transform(source, {
+    loader: filename.endsWith(".tsx") ? "tsx" : "ts",
+    format: "esm",
+    target: "es2022",
+  })
+  return result.code
+}
+
+async function bundleModuleSource(
+  source: string,
+  filename: string,
+  resolveDir: string,
+  mode: "environment" | "workflow"
+): Promise<string> {
+  const esbuild = await loadEsbuild()
+  const loader = filename.endsWith(".tsx")
+    ? "tsx"
+    : filename.endsWith(".ts")
+      ? "ts"
+      : "js"
+  const result = await esbuild.build({
+    stdin: {
+      contents: source,
+      loader,
+      resolveDir,
+      sourcefile: filename,
+    },
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node22",
+    write: false,
+    // Packages are externalized as absolute file: URLs by ecp-absolute-externals
+    // (not packages:"external", which would leave bare names unusable from tmpdir).
+    plugins: [createAbsoluteExternalsPlugin(resolveDir, mode)],
+  })
+  const file = result.outputFiles?.[0]
+  if (!file) throw new Error("esbuild produced no output")
+  return file.text
+}
+
+/**
+ * Bundle workflow module with dependencies (Node host).
+ * Resolves `@executioncontrolprotocol/*` and other imports from {@link resolveDir}
+ * via normal `node_modules` lookup (no monorepo path aliases).
+ * npm packages are left external as absolute paths so CJS SDKs (dynamic `require`)
+ * load under Node instead of being inlined into ESM.
+ */
+export async function bundleWorkflowSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir, "workflow")
+}
+
+/**
+ * Bundle an environment module for Node, keeping `node_modules` as runtime imports.
+ * Native packages (e.g. `sharp`) cannot be inlined; they resolve to absolute `file:` URLs.
+ * @category Compile
+ */
+export async function bundleEnvironmentSource(
+  source: string,
+  filename: string,
+  resolveDir: string
+): Promise<string> {
+  return bundleModuleSource(source, filename, resolveDir, "environment")
+}

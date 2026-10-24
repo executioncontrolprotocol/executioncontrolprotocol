@@ -1,29 +1,33 @@
 # @executioncontrolprotocol/cli
 
-ECP command-line interface for running **workflows** (`@executioncontrolprotocol.workflow`) in configured
-**environments** (runtime + extensions + policies).
+ECP (Execution Control Protocol) command-line interface. An oclif 5 host whose own commands
+are `defineOperation` definitions compiled by `@executioncontrolprotocol/plugin-sdk`. Plugin
+commands come from extension definitions; there are no hand-written command classes.
 
 This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosystem:
 
-- Compile workflow source modules (`.ts` / `.js`) to portable JSON manifests
-- Validate workflows against an environment’s registered capabilities
+- Compile workflow files (`*.ecp.ts` / `.js`) to portable JSON manifests
+- Validate workflows against the process host or an optional `--env` overlay
 - Describe/search environment capabilities for agent/UI discovery
-- Run workflows and print structured run results
+- Run workflows and print structured run results (`ecp run --to`, `ecp run --events`)
 - Invoke a single capability outside a workflow (`ecp invoke`)
-- Serve an environment over loopback HTTP for `POST /v1/invoke` (`ecp serve`)
-- Test workflows with a persistent session (`ecp test start|run|rerun|status`)
-- Encode/decode workflows using format extensions (TOON, Fluent, JSON)
+- Inspect and continue run journals (`ecp runs list|show|resume|rerun`)
+- Install inferred plugins for a workflow file (`ecp install`)
+- Author and check plugins (`ecp plugins new|build|check`) next to oclif's `plugins install|link`
+- Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
 For the architecture and monorepo package boundaries, start with
-[`AGENTS.md`](../../AGENTS.md) and [`ecp-overhaul.md`](../../ecp-overhaul.md).
+[`AGENTS.md`](../../AGENTS.md) and [`RESET-PLAN.md`](../../RESET-PLAN.md).
 
 ## Install
 
-From npm (when published):
+From npm (when a dist-tag exists):
 
 ```sh
-npm install -g @executioncontrolprotocol/cli
+npm install -g @executioncontrolprotocol/cli@next
 ```
+
+Until `@next` is on the registry, pack-install from this repo (`pnpm run test:plugin-pack`).
 
 From this monorepo (recommended for development):
 
@@ -36,135 +40,120 @@ npm link
 
 ## Usage
 
-All operational commands that need an environment accept:
-
-- `--env <path>`: a module that exports the environment builder (`default export`)
+`--env <file>` is an optional overlay (`environment(id).with([...])`). Omit it to use the
+process host (built-in Node plus installed plugins).
 
 ### Run
 
 ```sh
-ecp run examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp run examples/01-echo/workflow.ecp.ts
 ```
 
 Provide workflow input (JSON file):
 
 ```sh
-ecp run workflow.json --env environment.ts --input input.json
+ecp run workflow.ecp.ts --input input.json
 ```
 
 Dry run (validate + plan without invoking capabilities):
 
 ```sh
-ecp run workflow.ts --env environment.ts --dry-run
+ecp run workflow.ecp.ts --dry-run
 ```
 
 ### Validate
 
 ```sh
-ecp validate examples/01-echo/workflow.ts --env examples/01-echo/environment.ts
+ecp validate examples/01-echo/workflow.ecp.ts
 ```
 
 ### Compile (portable JSON)
 
 ```sh
-ecp compile examples/01-echo/workflow.ts -o dist/workflow.json
+ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ### Describe / search environment capabilities
 
 ```sh
-ecp describe --env examples/01-echo/environment.ts
-ecp search "echo" --env examples/01-echo/environment.ts
+ecp describe
+ecp search "echo"
 ```
 
-### Test session (`ecp test`)
+### Run journals (`ecp runs`)
 
-Drive a workflow incrementally with frozen state (distinct from `@executioncontrolprotocol/core/testing` stubs):
+Every `ecp run` writes `.ecp/runs/<runId>/` (`run.json` plus `steps/<stepId>.json`). Override
+the directory with `ECP_RUNS_DIR`.
 
 ```sh
-ecp test start workflow.ts --env environment.ts -o session.json
-ecp test run --to step-b --env environment.ts --session session.json
-ecp test rerun step-a --env environment.ts --session session.json
-ecp test status --session session.json
+ecp run workflow.ecp.ts --to step-b
+ecp runs list
+ecp runs show <id>
+ecp runs resume <id>
+ecp runs resume <id> --approve
+ecp runs rerun <id> --from step-a --to step-a
 ```
 
-- `run --to <step-id>` is **inclusive** (runs through that step, then pauses).
-- `rerun <step-id>` re-executes one step and **clears** downstream history and `.as` state keys.
-- Session file schema: `@executioncontrolprotocol.test.session`.
-
-Fluent API: `ecp.test(workflow).with({ input }).start()` then `session.runTo(id)` / `session.rerun(id)`.
+- `ecp run --to <step-id>` is **inclusive** (runs through that step, then stops with status
+  `stopped`).
+- `runs resume` continues a `stopped` or `paused` run as a new run id.
+- `runs rerun --from <step>` re-executes from that step using the current file; `--from X --to X`
+  re-runs exactly one step and clears later outputs.
+- `runs resume --approve` records `{ stepId, approvedBy, at }` for a policy-paused step.
 
 ### Invoke a capability
 
 Call a single bound capability without a workflow:
 
 ```sh
-ecp invoke @executioncontrolprotocol/test.echo --env examples/01-echo/environment.ts --input input.json
+ecp invoke @executioncontrolprotocol/test.echo --input input.json
 ```
 
-Optional `--uses <provider-capability-id>` overrides the harness default provider. Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
+Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
 
-### Serve (`ecp serve`)
+Pass `--json` for `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
 
-Expose any `--env` over loopback HTTP (no auth; loopback-only trust):
+### Plugins
 
 ```sh
-ecp serve --env examples/01-echo/environment.ts
-ecp serve --env environment.ts --port 3090 --cors-origin http://localhost:5173
+ecp plugins new my-transform
+ecp plugins build
+ecp plugins check
+ecp plugins link plugins/plugin-jsonata
+ecp jsonata transform --expression '$.a' --input payload.json --json
+ecp discover jsonata --json
 ```
 
-- `GET /health` — `{ ok, version }`
-- `POST /v1/invoke` — body `{ capability, input?, provider? }` → `ecp.invoke(...).with(...).process()`
+`--env` is optional on `run`, `validate`, and `install`. `describe`, `search`, and `invoke`
+take it the same way.
 
-Default port **3090** (ECP leet), host `127.0.0.1`.
+### MCP
 
-### Local daemon (`ecp up`)
-
-Loopback **demo bridge** for the browser Graph Editor: always hosts **Ollama** + **storage**, optional `--env` merges a project Node environment (e.g. Sharp) alongside them. Prefer `ecp serve` for general HTTP invoke without the demo pairing flow.
+`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). Until `@next` is published,
+link the workspace package:
 
 ```sh
-ecp up
-# Opens https://demo.executioncontrolprotocol.io/?token=<uuid>&bridge=http://127.0.0.1:3090
-
-ecp up --open-url http://localhost:5173/
-ecp up --no-open
-ecp up --env ./host/environment.ts --open-url http://localhost:5173/
+ecp plugins link packages/mcp
+ecp mcp serve
+ecp mcp serve --http
 ```
 
-**Monorepo (browser-demo):** from the repo root after `pnpm run build`:
+### App
+
+`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). Until `@next` is published,
+link the workspace package:
 
 ```sh
-pnpm run dev:demo          # terminal 1 — Vite on :5173
-pnpm run up:demo           # terminal 2 — host env + Ollama; opens local demo with ?token=
-pnpm run up:demo -- --ollama-only   # Ollama + storage only
+ecp plugins link plugins/plugin-app
+ecp app examples/01-echo/workflow.ecp.ts
+ecp app brief.ecp.ts --no-open
 ```
-
-See [`apps/browser-demo/README.md`](../../apps/browser-demo/README.md#local-startup-options) and [`apps/browser-demo/host/README.md`](../../apps/browser-demo/host/README.md).
-
-- `GET /health` — `{ ok, version, ollamaReachable }` (no auth; used by the demo to enable Ollama)
-- `POST /v1/invoke` — Bearer token required; same body shape as `ecp serve`
-- `GET /v1/describe` — Bearer or `?token=`
-
-Default port **3090**. The demo reads `?token=` (and optional `?bridge=`) automatically. Hosted HTTPS demos need **Chromium** (Chrome/Edge) for Private Network Access. Extra page origins: `--cors-origin` (also inferred from `--open-url`).
-
-### Encode / decode formats
-
-Encoding and decoding uses **format extensions** bound in your environment.
-
-```sh
-ecp encode workflow.json --format toon --env environment.ts -o workflow.toon
-ecp encode workflow.json --format fluent --env environment.ts -o workflow.generated.ts
-ecp decode workflow.toon --format toon --env environment.ts -o workflow.json
-```
-
-Notes:
-
-- Fluent **decode** is not supported. Use `ecp compile` for TypeScript/Fluent source → manifest.
-- JSON is the canonical manifest format; other formats are optional extensions.
 
 ## Related packages
 
-- [`@executioncontrolprotocol/core`](../core/README.md): runtime-agnostic core + fluent API
-- [`@executioncontrolprotocol/node`](../runtimes/node/README.md): Node runtime host used by CLI examples
-- [`@executioncontrolprotocol/types`](../types/README.md): protocol types + generated JSON Schemas
+- [`@executioncontrolprotocol/core`](../core/README.md): host-agnostic core + fluent API
+- [`@executioncontrolprotocol/plugin-sdk`](../plugin-sdk/README.md): command generation and plugin build library
+- [`@executioncontrolprotocol/node`](../environments/node/README.md): Node environment used by CLI examples
+- [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents
+- [`@executioncontrolprotocol/plugin-jsonata`](../../plugins/plugin-jsonata/README.md): reference plugin

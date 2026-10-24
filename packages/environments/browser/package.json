@@ -1,0 +1,36 @@
+{
+  "name": "@executioncontrolprotocol/browser",
+  "version": "0.50.0",
+  "description": "ECP browser runtime and environment extensions",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "zod": "catalog:"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/core": "workspace:^"
+  },
+  "optionalDependencies": {
+    "esbuild-wasm": "^0.25.0"
+  },
+  "devDependencies": {
+    "esbuild-wasm": "^0.25.0",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  }
+}

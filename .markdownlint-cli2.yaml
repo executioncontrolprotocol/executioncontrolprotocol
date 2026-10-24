@@ -3,7 +3,7 @@ globs:
   - "**/*.md"
 ignores:
   - "**/node_modules/**"
-  - "docs/ecp-implementation-assessment.md"
-  - "apps/browser-demo/DESIGN.md"
-  - "apps/browser-demo/docs/**"
-  - "packages/vendor/**/openapi/**"
+  - "plugins/plugin-adobe-firefly-services/openapi/**"
+  - ".changeset/**"
+  - ".git/**"
+  - "packages/app/DESIGN.md"

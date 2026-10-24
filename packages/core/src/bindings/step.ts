@@ -1,6 +1,6 @@
-import type { CapabilityId, CommitMode, InputValue } from "@executioncontrolprotocol/types"
-import type { ExprValue } from "@executioncontrolprotocol/types"
-import type { StepNode } from "@executioncontrolprotocol/types"
+import type { CapabilityId, CommitMode, InputValue } from "../types/index.js"
+import type { ExprValue } from "../types/index.js"
+import type { StepNode } from "../types/index.js"
 import { slugify } from "../util/slug.js"
 
 /** Commit options for `.as()`. */

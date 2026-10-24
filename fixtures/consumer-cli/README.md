@@ -1,25 +1,25 @@
-# Consumer CLI fixture
+# Plugin pack smoke fixture
 
-Isolated **non-workspace** project that mimics a greenfield consumer of `@executioncontrolprotocol/cli` and related packages.
+Isolated **non-workspace** sources used by `scripts/plugin-pack-smoke.mjs`.
 
-It is **not** listed in the pnpm workspace. In-repo `examples/` and workspace `pnpm install` hide pack/install resolution bugs; this fixture does not.
+The smoke packs `core`, `node`, `plugin-sdk`, `cli`, and every `plugins/plugin-*` tarball, installs the CLI into a temp prefix with hermetic `ECP_DATA_DIR` / `ECP_CONFIG_DIR`, then `ecp plugins install <file-url>` for each plugin (`ECP_ALLOW_SOURCE=path`, `ECP_TRUST_THIRD_PARTY=1`).
+
+First-party npm is still unpublished, so this proves install from packed tarballs rather than `npm i -g @executioncontrolprotocol/cli@next`.
 
 ## Run
 
 From the monorepo root (after `pnpm run build`):
 
 ```sh
-pnpm run test:consumer-cli
+pnpm run test:plugin-pack
 ```
 
-That packs the required workspace packages, installs them into a fresh temp directory with these sources, then runs `ecp compile`, `validate`, and `run`.
-
-Set `KEEP_CONSUMER_CLI=1` to leave the temp install directory for inspection.
+Set `KEEP_PLUGIN_PACK=1` to leave the temp install directory.
 
 ## Layout
 
 | File | Role |
 | --- | --- |
-| `workflow.ts` | Minimal Fluent echo workflow |
-| `environment.ts` | Node environment + test + format-toon |
+| `workflow.ecp.ts` | Minimal Fluent echo workflow (packed CLI compile/validate/run) |
+| `payload.json` in `fixtures/plugin-pack-smoke/` | Offline jsonata `--json` input |
 | `package.json` | Documents required deps (smoke script installs from tarballs) |

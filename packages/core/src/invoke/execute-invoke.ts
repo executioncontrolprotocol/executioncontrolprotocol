@@ -4,17 +4,15 @@ import {
   type CapabilityId,
   type InvokeResult,
   type UsageSummary,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type { Environment } from "../environment/environment.js"
 import type { ResolvedBindings } from "../environment/bindings.js"
-import { isHarnessCapabilityId } from "../harness/harness-catalog.js"
-import { executeHarnessInvoke } from "../harness/execute-harness.js"
 import { createUtilityCapabilityContext } from "../encoding/utility-context.js"
 import { evaluatePolicies } from "../runtime/policy-engine.js"
 import { createUsageLedger, type CapabilityContext, type PolicyContext } from "../runtime/context.js"
 import { emptyValidationResult } from "../validate/workflow-schema.js"
 import { zodIssuesToValidationIssues } from "../validate/zod-mapper.js"
-import { LATEST_ECP_VERSION as CORE_VERSION } from "@executioncontrolprotocol/types"
+import { LATEST_ECP_VERSION as CORE_VERSION } from "../types/index.js"
 import {
   CapabilityDispatchError,
   createDispatchingCall,
@@ -63,20 +61,10 @@ function findExtensionConfig(
 export async function executeInvoke(
   env: Environment,
   capabilityId: CapabilityId,
-  input: unknown,
-  providerOverride?: CapabilityId
+  input: unknown
 ): Promise<InvokeResult> {
   await env.ensureBoundExtensionsRegistered()
   await env.ensureReady()
-
-  if (isHarnessCapabilityId(capabilityId)) {
-    return executeHarnessInvoke(
-      env,
-      capabilityId as import("@executioncontrolprotocol/types").HarnessCapabilityId,
-      input,
-      providerOverride
-    )
-  }
 
   const registry = env.getRegistry()
   const cap = registry.getCapability(capabilityId)
@@ -158,7 +146,7 @@ export async function executeInvoke(
   const dispatchOpts = {
     ctx: capCtx,
     registry,
-    runtimeId: env.getRuntimeId(),
+    runtimeId: env.getEnvironmentId(),
     remoteInvoke: env.getRemoteInvoke(),
   }
   capCtx.capabilities.call = createDispatchingCall(dispatchOpts)

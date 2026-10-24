@@ -1,0 +1,72 @@
+import { describe, expect, it, vi, beforeEach } from "vitest"
+import { Registry } from "@executioncontrolprotocol/core"
+import { openaiExtension } from "../src/index.js"
+
+describe("@executioncontrolprotocol/openai", () => {
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = "test-key"
+  })
+
+  it("registers the default-exported definition", async () => {
+    const registry = new Registry()
+    await registry.registerExtension(openaiExtension)
+    expect(registry.getExtension("@executioncontrolprotocol/openai")).toBe(openaiExtension)
+  })
+
+  it("has generate only (no generateText or evaluate)", () => {
+    const ids = openaiExtension.capabilities.map((c) => c.id)
+    expect(ids).toContain("@executioncontrolprotocol/openai.generate")
+    expect(ids).not.toContain("@executioncontrolprotocol/openai.evaluate")
+    expect(ids).not.toContain("@executioncontrolprotocol/openai.generateText")
+  })
+
+  it("generate returns text from Chat Completions API", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "openai reply" } }],
+        }),
+      }))
+    )
+    const ext = openaiExtension
+    const generate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.generate")
+    const result = await generate?.handler(
+      { prompt: "hello", system: "be brief" },
+      { extensionConfig: {}, usage: { increment: vi.fn() } } as never
+    )
+    expect(result).toEqual({ text: "openai reply" })
+  })
+  it("generate maps prior messages as native chat turns", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "openai reply" } }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const ext = openaiExtension
+    const generate = ext?.capabilities.find((c) => c.id === "@executioncontrolprotocol/openai.generate")
+    await generate?.handler(
+      {
+        prompt: "fix it",
+        system: "be brief",
+        messages: [
+          { role: "user", content: "hi" },
+          { role: "assistant", content: "hello" },
+        ],
+      },
+      { extensionConfig: {}, usage: { increment: vi.fn() } } as never
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(body.messages).toEqual([
+      { role: "system", content: "be brief" },
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "fix it" },
+    ])
+  })
+})

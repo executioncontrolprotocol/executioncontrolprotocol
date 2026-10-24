@@ -1,15 +1,19 @@
 ---
-description: Prefer breaking clarity over legacy aliases — no default backward compatibility for now
+description: Prefer breaking clarity over legacy aliases — no default backward compatibility
 alwaysApply: true
 ---
 
-# Compatibility policy (current)
+# Compatibility policy
 
-**Default: do not preserve backward compatibility** unless the user explicitly asks to keep legacy behavior.
+**Default: don't preserve backward compatibility** unless a phase doc or the user explicitly
+asks for it. The reset ships as 1.0, a major version.
 
-- **Config and manifests:** use current keys and shapes only (e.g. `plugins`, `loggers`). Do not add loaders, CLI commands, or type aliases whose only purpose is to accept old names or deprecated fields.
-- **CLI:** one command path per concern — avoid duplicate topics (e.g. `extensions` vs `plugins`) that do the same thing.
-- **Types:** avoid `@deprecated` re-exports of renamed symbols unless there is a strong external API commitment; prefer a single canonical name.
-- **When in doubt:** choose the simpler, stricter behavior and document the migration in prose if needed, rather than silently accepting legacy input.
-
-If the user later requests compatibility for a specific migration, implement it narrowly for that case.
+- **APIs and manifests:** use current names and shapes only. Don't add loaders, commands or
+  type aliases whose only job is to accept old names (for example, no `withExtensions`
+  alias after Phase 2 introduces `.with([...])`).
+- **CLI:** one command path per concern. Phase 4 deleted `ecp test` when `ecp runs` replaced
+  it; no alias.
+- **Types:** avoid `@deprecated` re-exports of renamed symbols; keep one canonical name.
+- **Published packages:** the only compatibility work is Phase 9's `npm deprecate` messages
+  pointing 0.x packages at their replacements.
+- **When in doubt,** choose the simpler, stricter behaviour and explain the change in the PR.

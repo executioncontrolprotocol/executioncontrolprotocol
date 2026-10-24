@@ -1,4 +1,4 @@
-import type { WorkflowManifest } from "@executioncontrolprotocol/types"
+import type { WorkflowManifest } from "../types/index.js"
 import { renderNodes } from "./render-node.js"
 import { createImportNeeds } from "./render-value.js"
 import { renderJsonSchemaAsFluentArg } from "../schema/json-schema.js"
@@ -19,7 +19,6 @@ function renderImports(
   if (needs.ref) names.push("ref")
   if (needs.state) names.push("state")
   if (needs.secrets) names.push("secrets")
-  if (needs.browser) names.push("browser")
   if (needs.expr) names.push("expr")
   if (needs.loop) names.push("loop")
   if (needs.parallel) names.push("parallel")

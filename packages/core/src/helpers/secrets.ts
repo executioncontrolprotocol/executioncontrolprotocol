@@ -1,4 +1,4 @@
-import type { SecretValue } from "@executioncontrolprotocol/types"
+import type { SecretValue } from "../types/index.js"
 
 /** Options for OS secret refs. */
 export interface SecretsOptions {

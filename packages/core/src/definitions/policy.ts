@@ -1,6 +1,6 @@
-import type { NamespacedId } from "@executioncontrolprotocol/types"
+import type { NamespacedId } from "../types/index.js"
 import { z } from "zod"
-import type { HookDefinition, PolicyDefinition } from "./types.js"
+import type { HookDefinition, PolicyDefinition, SupportedEnvironment } from "./types.js"
 import type { ConfigSchema } from "../config-schema/index.js"
 
 function toId(namespace: string, name: string): NamespacedId {
@@ -12,11 +12,25 @@ function toId(namespace: string, name: string): NamespacedId {
 export class PolicyDefinitionBuilder {
   private configSchema?: ConfigSchema
   private hooks: HookDefinition[] = []
+  private supportedEnvironments: SupportedEnvironment[] = []
 
   constructor(
     private readonly namespace: string,
     private readonly name: string
   ) {}
+
+  /**
+   * Restrict this policy to an environment. Call several times to allow more than one.
+   * Omit entirely for universal support. `range` is a semver range against the environment package version.
+   * @category Definitions
+   */
+  supports(environmentId: NamespacedId | string, range?: string): this {
+    this.supportedEnvironments.push({
+      id: environmentId as NamespacedId,
+      ...(range ? { range } : {}),
+    })
+    return this
+  }
 
   /** Set policy config schema. */
   withConfig(schema: ConfigSchema | z.ZodRawShape): this {
@@ -43,6 +57,9 @@ export class PolicyDefinitionBuilder {
       name: this.name,
       configSchema: this.configSchema,
       hooks: this.hooks,
+      ...(this.supportedEnvironments.length > 0
+        ? { supportedEnvironments: this.supportedEnvironments }
+        : {}),
     }
   }
 }

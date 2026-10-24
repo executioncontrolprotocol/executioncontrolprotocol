@@ -4,8 +4,8 @@ import type {
   EcpSchema,
   EcpVersion,
   NamespacedId,
-} from "@executioncontrolprotocol/types"
-import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION, ecpIntentSchema } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import { ECP_ENCODING_ERROR_CODES, LATEST_ECP_VERSION } from "../types/index.js"
 import type { EncodingEnvironmentHost } from "../environment/encoding-host.js"
 import { EcpError } from "./errors.js"
 import { invokeDecodeCapability } from "./invoke-utility.js"
@@ -38,19 +38,12 @@ interface DecodeState {
 function validateDecodedDocument(
   document: unknown,
   targetSchema?: EcpSchema
-): import("@executioncontrolprotocol/types").ValidationResult {
+): import("../types/index.js").ValidationResult {
   if (targetSchema === "@executioncontrolprotocol.workflow") {
-    return validateWorkflow(document as import("@executioncontrolprotocol/types").WorkflowManifest)
+    return validateWorkflow(document as import("../types/index.js").WorkflowManifest)
   }
   if (targetSchema === "@executioncontrolprotocol.patch") {
     const parsed = ecpPatchDocumentSchema.safeParse(document)
-    if (parsed.success) return emptyValidationResult(true)
-    const result = emptyValidationResult(false)
-    result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))
-    return result
-  }
-  if (targetSchema === "@executioncontrolprotocol.intent") {
-    const parsed = ecpIntentSchema.safeParse(document)
     if (parsed.success) return emptyValidationResult(true)
     const result = emptyValidationResult(false)
     result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))

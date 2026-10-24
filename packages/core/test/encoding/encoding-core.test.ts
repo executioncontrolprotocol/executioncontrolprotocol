@@ -4,12 +4,12 @@ import {
   extension,
   workflow,
   step,
-  registerTestExtension,
   hook,
   defineExtension,
+  testExtension,
 } from "../../src/index.js"
-import { NODE_RUNTIME_ID, registerNodeRuntime, runtime } from "@executioncontrolprotocol/node"
-import { registerFormatToonExtension } from "@executioncontrolprotocol/format-toon"
+import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
+import { formatToonExtension } from "@executioncontrolprotocol/plugin-format-toon"
 import { initEncodingTestEcp } from "../helpers.js"
 
 const sampleManifest = workflow("Weekly Brief")
@@ -59,7 +59,7 @@ describe("ecp.encode/decode", () => {
     const decoded = await ecp
       .decode('```json\n{"broken":')
       .uses("@executioncontrolprotocol/format-json")
-      .to("@executioncontrolprotocol.intent")
+      .to("@executioncontrolprotocol.workflow")
       .process()
     expect(decoded.success).toBe(false)
     expect(decoded.diagnostics.some((d) => d.message.includes("JSON parse failed"))).toBe(
@@ -77,8 +77,7 @@ describe("ecp.encode/decode", () => {
   })
 
   it("encodes TOON when extension is registered", async () => {
-    await registerFormatToonExtension()
-    const ecp = await initEncodingTestEcp([extension("@executioncontrolprotocol/format-toon").with({})])
+    const ecp = await initEncodingTestEcp([extension(formatToonExtension).with({})])
     const encoded = await ecp
       .encode(sampleManifest)
       .uses("@executioncontrolprotocol/format-toon")
@@ -95,9 +94,6 @@ describe("ecp.encode/decode", () => {
 describe("encode/decode lifecycle isolation", () => {
   it("does not emit run or step lifecycle during encode/decode", async () => {
     const events: string[] = []
-    await registerTestExtension()
-    await registerFormatToonExtension()
-
     const spy = defineExtension("@executioncontrolprotocol", "telemetry-spy")
       .withHooks([
         hook("run:before", async () => {
@@ -110,9 +106,8 @@ describe("encode/decode lifecycle isolation", () => {
       .build()
 
     const ecp = await initEncodingTestEcp([
-      extension("@executioncontrolprotocol/test").with({}),
       extension(spy).with({}),
-      extension("@executioncontrolprotocol/format-toon").with({}),
+      extension(formatToonExtension).with({}),
     ])
 
     const toon = await ecp.encode(sampleManifest).uses("@executioncontrolprotocol/format-toon").process()
@@ -127,11 +122,10 @@ describe("encode/decode lifecycle isolation", () => {
 
 describe("env.init", () => {
   it("initializes an Ecp operational instance", async () => {
-    await registerNodeRuntime()
-    await registerTestExtension()
-    const env = environment("test")
-      .withRuntime(runtime(NODE_RUNTIME_ID))
-      .withExtensions([extension("@executioncontrolprotocol/test").with({})])
+    await registerNodeEnvironment()
+    const env = environment(NODE_ENVIRONMENT_ID, "test").with([
+      extension(testExtension).with({}),
+    ])
     const ecp = await env.init()
     expect(ecp.encode).toBeTypeOf("function")
     expect(ecp.decode).toBeTypeOf("function")

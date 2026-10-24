@@ -3,7 +3,7 @@
 This repository implements ECP as a **TypeScript-first workflow authoring and
 execution protocol**.
 
-**Source of truth:** [`ecp-overhaul.md`](ecp-overhaul.md)  
+**Source of truth during the CLI reset:** [`RESET-PLAN.md`](RESET-PLAN.md)  
 **Monorepo guide:** [`AGENTS.md`](AGENTS.md)
 
 ------------------------------------------------------------------------
@@ -28,30 +28,29 @@ Rule:
 ECP uses three layers of composition:
 
 - **Definition**: declares reusable implementation/contract  
-  `defineExtension(...)`, `defineRuntime(...)`, `definePolicy(...)`
+  `defineExtension(...)`, `defineEnvironment(...)`, `definePolicy(...)`
 - **Binding**: configures a definition inside an environment  
-  `extension("@executioncontrolprotocol/memory").with({ ... })`, `runtime("@executioncontrolprotocol/local").with({ ... })`
+  `extension(testExtension).with({ ... })`, `policy(budgetPolicy).with({ ... })`
 - **Invocation**: calls a capability from inside a workflow  
-  `step("@executioncontrolprotocol/memory.search").with(input).as("signals")`
+  `step("@executioncontrolprotocol/test.echo").with(input).as("echo")`
 
 ------------------------------------------------------------------------
 
 ## Registry + catalog model
 
-At runtime, ECP resolves everything through a registry:
+ECP resolves everything through a per-environment registry:
 
 - **extensions** register capabilities and lifecycle hooks
 - **policies** register governance hooks (`policy:pre` / `policy:post` / `policy:finally`)
-- **runtimes** provide an executor that runs the workflow graph and emits lifecycle
+- **environments** provide an executor that runs the workflow graph and emits lifecycle
 
-Extension packages “self-catalog” at module load (e.g. `catalogExtension(def)`).
-Environments bind extensions by id (string) after importing the package so its
-definitions are available.
+Definitions are data. Bind `extension(definition)` / `policy(definition)` on
+`environment(id, label?).with([...])`. There is no module-load catalog.
 
 Key boundary:
 
-> **Extensions never import hosts.** Extension packages depend on `@executioncontrolprotocol/types` +
-> `@executioncontrolprotocol/core` only. Host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`) wrap core.
+> **Extensions never import hosts.** Extension packages depend on `@executioncontrolprotocol/core` and
+> `@executioncontrolprotocol/core/types` only. Host packages (`@executioncontrolprotocol/node`, `@executioncontrolprotocol/browser`) wrap core.
 
 ------------------------------------------------------------------------
 
@@ -74,35 +73,18 @@ Policies can:
 
 ## Package architecture (at a glance)
 
-- `@executioncontrolprotocol/types`: protocol types + JSON Schema artifacts
-- `@executioncontrolprotocol/core`: runtime-agnostic fluent API + environment + local engine
-- `@executioncontrolprotocol/core/compile` / `core/browser`: host-specific **compile** (Node esbuild vs browser esbuild-wasm) — not part of the runtime host packages
-- `@executioncontrolprotocol/node`: Node runtime host
-- `@executioncontrolprotocol/browser`: browser runtime host (not the demo UI; **harness-independent**)
-- `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, secrets, memory, model providers) — written like third-party extensions
-- Vendor extensions (`fal`, `slack`, `image-sharp`, `adobe`, …): [extensions](https://github.com/executioncontrolprotocol/extensions)
+- `@executioncontrolprotocol/core/types`: protocol types + JSON Schema artifacts
+- `@executioncontrolprotocol/core`: host-agnostic fluent API + environment + local engine + `registry-control`
+- `@executioncontrolprotocol/node`: Node environment (compile, loaders, OS secrets, process-env)
+- `@executioncontrolprotocol/browser`: browser environment (registry, local config, esbuild-wasm compile)
+- `@executioncontrolprotocol/extensions/*`: protocol/platform first-party extensions (formats, model providers) — written like third-party extensions
+- Vendor extensions (`fal`, `image-sharp`, `adobe`, …)
 - `@executioncontrolprotocol/policies`: standard policies (budget, approval, state-control)
 - `@executioncontrolprotocol/mcp`: MCP adapter exposing an environment to agents
-- `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/encode/decode
-- `@executioncontrolprotocol/harnesses-browser-nano`: harness tasks (EQL); bound by apps/evals, not by the browser host
-- `@executioncontrolprotocol/harnesses-browser-coding`: Fluent/TS harness; bound by apps/evals
-- `@executioncontrolprotocol/evals` (private): harness/provider eval fixtures + matrix tests
-- [browser-demo](https://github.com/executioncontrolprotocol/browser-demo): reference UI app — **owns** harness + provider composition
+- `@executioncontrolprotocol/cli`: CLI for compile/validate/describe/search/run/invoke/test
 
 ------------------------------------------------------------------------
 
 ## Compile portability
 
-Harnesses and apps share compile APIs (`compileWorkflowSource`, `compileHarnessArtifactSource`). Implementations live on core subpaths so harnesses never import runtime hosts. Swap host by resolving `core/compile` (Node) vs `core/browser` (or the `"browser"` export condition).
-
-------------------------------------------------------------------------
-
-## Harnesses vs evals
-
-- **Harnesses** define how ECP calls models/providers to author/repair/assist with
-  ECP artifacts (prompts, repair loop, decode/validation feedback).
-- **Evals** are fixture-driven tests that hold harnesses accountable across
-  provider profiles.
-- **Apps** (e.g. browser-demo) bind which harness and which generate capability to use.
-
-Harnesses should not own fixtures; evals should not re-implement harness logic. Runtime hosts should not depend on harness packages.
+Apps share `compileWorkflowSource`. Implementations live on the environment packages so core stays host-agnostic: Node esbuild on `@executioncontrolprotocol/node`, esbuild-wasm on `@executioncontrolprotocol/browser`.

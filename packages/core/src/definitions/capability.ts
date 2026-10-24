@@ -3,8 +3,8 @@ import type {
   CapabilityMetadata,
   NamespacedId,
   CapabilityExecution,
-} from "@executioncontrolprotocol/types"
-import { parseCapabilityMetadata } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import { parseCapabilityMetadata } from "../types/index.js"
 import type { z } from "zod"
 import type { CapabilityDefinition, CapabilityHandler } from "./types.js"
 

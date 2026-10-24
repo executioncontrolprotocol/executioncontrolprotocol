@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest"
+import { z } from "zod"
 import {
   extension,
   workflow,
@@ -6,30 +7,27 @@ import {
   policy,
   definePolicy,
   hook,
-  globalRegistry,
 } from "../src/index.js"
 import { createTestEnvironment } from "./helpers.js"
 import {
-  registerLifecycleSpyExtension,
+  lifecycleSpyExtension,
   resetLifecycleSpy,
   lifecycleSpyEvents,
   lifecycleSpyLastStepFailedDiagnostics,
   capabilityInvokeCount,
 } from "../src/testing/test-lifecycle-extension.js"
-import { registerStandardPolicies } from "@executioncontrolprotocol/policies"
+import { approvalPolicy } from "@executioncontrolprotocol/plugin-approval"
 
 async function testEnv(extraPolicies: ReturnType<typeof policy>[] = []) {
-  const base = await createTestEnvironment("lifecycle-test")
+  const base = createTestEnvironment("lifecycle-test")
   return base
-    .withExtensions([extension("@executioncontrolprotocol/lifecycle-spy", "Spy").with({})])
-    .withPolicies(extraPolicies)
+    .with([extension(lifecycleSpyExtension, "Spy").with({})])
+    .with(extraPolicies)
 }
 
 describe("step lifecycle ordering", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     resetLifecycleSpy()
-    await registerLifecycleSpyExtension()
-    await registerStandardPolicies()
   })
 
   it("happy path emits step:before → step:started → step:completed → step:finally", async () => {
@@ -56,7 +54,7 @@ describe("step lifecycle ordering", () => {
 
   it("policy:pre deny skips step:started and capability", async () => {
     const denyPolicy = definePolicy("@executioncontrolprotocol", "deny-pre-test")
-      .withConfig({ capabilityId: "@executioncontrolprotocol/lifecycle-spy.echo" })
+      .withConfig({ capabilityId: z.string() })
       .withHooks([
         hook("policy:pre", (ctx) => {
           const cfg = (ctx as { config?: Record<string, unknown> }).config
@@ -67,11 +65,11 @@ describe("step lifecycle ordering", () => {
         }),
       ])
       .build()
-    await globalRegistry.registerPolicy(denyPolicy)
 
-    const env = await testEnv([policy("@executioncontrolprotocol/deny-pre-test").with({ capabilityId: "@executioncontrolprotocol/lifecycle-spy.echo" })])
+    const env = await testEnv([
+      policy(denyPolicy).with({ capabilityId: "@executioncontrolprotocol/lifecycle-spy.echo" }),
+    ])
     resetLifecycleSpy()
-    registerLifecycleSpyExtension()
 
     const manifest = workflow("Deny")
       .run([step("@executioncontrolprotocol/lifecycle-spy.echo", "Echo").with({ value: "x" })])
@@ -92,12 +90,11 @@ describe("step lifecycle ordering", () => {
 
   it("policy:pre pause skips capability and sets paused status", async () => {
     const env = await testEnv([
-      policy("@executioncontrolprotocol/approval").with({
+      policy(approvalPolicy).with({
         requireApprovalFor: ["@executioncontrolprotocol/lifecycle-spy.echo"],
       }),
     ])
     resetLifecycleSpy()
-    registerLifecycleSpyExtension()
 
     const manifest = workflow("Pause")
       .run([step("@executioncontrolprotocol/lifecycle-spy.echo", "Echo").with({ value: "x" }).as("echo")])

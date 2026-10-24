@@ -1,0 +1,81 @@
+import {
+  defineExtension,
+  hook,
+  NODE_ENVIRONMENT_ID,
+  SECRETS_RESOLVER_ID,
+  type EnvironmentConfigResolver,
+  type LifecycleContext,
+} from "@executioncontrolprotocol/core"
+import { z } from "zod"
+import { createOsSecretsStore } from "./os-keychain-store.js"
+import { memorySecretsStore, setMemorySecret, clearMemorySecrets } from "./memory-store.js"
+import type { SecretsStore } from "./store.js"
+
+let activeStore: SecretsStore = createOsSecretsStore()
+
+/** Replace the active secrets store (e.g. in-memory for tests). @category Secrets */
+export function setSecretsStore(store: SecretsStore): void {
+  activeStore = store
+}
+
+/** Alias for {@link setSecretsStore}. @category Secrets */
+export function setSecretsProvider(store: SecretsStore): void {
+  setSecretsStore(store)
+}
+
+/** Restore the default OS keychain store. @category Secrets */
+export function resetSecretsStore(): void {
+  activeStore = createOsSecretsStore()
+}
+
+function attachSecretsResolver(ctx: LifecycleContext): void {
+  const host = ctx.environment
+  if (!host) return
+
+  const resolver: EnvironmentConfigResolver = {
+    id: SECRETS_RESOLVER_ID,
+    async resolve(name: string) {
+      const value = await activeStore.get(name)
+      const { recordResolvedSecret } = await import("../journal/redact.js")
+      recordResolvedSecret(name, value)
+      return value
+    },
+  }
+  host.registerConfigResolver(resolver)
+}
+
+/** OS secrets extension. @category Secrets */
+export const secretsExtension = defineExtension("@executioncontrolprotocol", "secrets")
+  .supports(NODE_ENVIRONMENT_ID)
+  .providesConfigResolver()
+  .withConfig(z.object({}))
+  .withMetadata({
+    summary: "OS keychain-backed secret resolution for Node hosts.",
+    description:
+      "Registers a config resolver that reads secrets from the operating system keychain during environment configuration. Extensions resolve secret refs without embedding values in manifests.",
+    isAuthorable: false,
+  })
+  .withHooks([
+    hook("environment:configuring", attachSecretsResolver),
+    hook("environment:terminate", () => undefined),
+  ])
+  .build()
+
+export { memorySecretsStore, setMemorySecret, clearMemorySecrets }
+export { createOsSecretsStore, secretRefId, OsKeychainSecretsStore } from "./os-keychain-store.js"
+export { redactSecret } from "./redaction.js"
+export { canonicalSecretKey, secretRefIdFromLogicalKey } from "./ref.js"
+export {
+  normalizeOsKeychainAccountKey,
+  osKeychainCredentialTarget,
+  canonicalSecretKeyForOsStorage,
+} from "./os-keychain-account-key.js"
+export { ECP_SECRET_REF_PROTOCOL_PREFIX, ECP_KEYRING_SERVICE } from "./constants.js"
+export type { SecretsStore } from "./store.js"
+
+/** @category Secrets */
+export const memorySecretsProvider = memorySecretsStore
+
+export { processEnvExtension } from "./process-env.js"
+
+export default secretsExtension

@@ -1,7 +1,7 @@
 import {
   FILE_REF_KINDS,
   type FileRef,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import { isBrowserFileLocator } from "../runtime/blobs.js"
 import type { CapabilityContext } from "../runtime/context.js"
 
@@ -32,15 +32,29 @@ export type FileCapabilityContext = CapabilityContext & {
   extensionConfig?: Record<string, unknown>
 }
 
+/**
+ * Host file reader registered by the Node environment.
+ * @category File
+ */
+export type HostFileReader = (path: string) => Promise<Uint8Array>
+
+let hostFileReader: HostFileReader | undefined
+
+/**
+ * Register the Node (or other host) reader used for `kind: "file"` path refs.
+ * @category File
+ */
+export function registerHostFileReader(reader: HostFileReader): void {
+  hostFileReader = reader
+}
+
 async function readFileFromPath(path: string): Promise<Uint8Array> {
-  try {
-    const mod = await import("../loaders/read-media-file.js")
-    return mod.readMediaFileFromPath(path)
-  } catch {
+  if (!hostFileReader) {
     throw new Error(
       "File media refs require Node.js (node:fs/promises is not available in this runtime)"
     )
   }
+  return hostFileReader(path)
 }
 
 async function readBrowserLocator(

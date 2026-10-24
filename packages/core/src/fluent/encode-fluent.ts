@@ -2,14 +2,14 @@ import {
   ECP_ENCODING_ERROR_CODES,
   ECP_FORMATS,
   LATEST_ECP_VERSION,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import type {
   EcpFormatOptions,
   EcpSchema,
   EcpVersion,
   EncodeResult,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import { encodeFailure } from "../encoding/json-codec.js"
 import { validateWorkflow } from "../validate/workflow.js"
 import { renderWorkflowToFluent } from "./render-workflow.js"

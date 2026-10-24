@@ -1,0 +1,116 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "ollama:generate": {
+      "aliases": [],
+      "args": {},
+      "description": "Runs chat completion against an Ollama instance on the configured base URL. Suited for local development and offline Node workloads. Does not accept file attachments yet. Override the model per call or set a default in extension config.\nUse cases:\n- CLI or workflow needs a local model without cloud credentials.\n- Local development runs chat turns against a pinned model tag.\nProjections:\n- Use the model text: Take the text field as the generated assistant or step output for downstream steps.",
+      "examples": [
+        "ecp ollama generate --prompt <prompt> --system <system> --model <model>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "prompt": {
+          "description": "prompt",
+          "name": "prompt",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "description": "system",
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "model": {
+          "description": "model",
+          "name": "model",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "response-format": {
+          "description": "response-format",
+          "name": "response-format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "text",
+            "json",
+            "toon"
+          ],
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "ollama:generate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-ollama",
+      "pluginName": "@executioncontrolprotocol/plugin-ollama",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Generate text via a local Ollama server.",
+      "enableJsonFlag": true
+    },
+    "ollama:listModels": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns model tags reported by the Ollama tags API. Use before generate to pick an installed model or to populate a model picker in local dev tools.\nUse cases:\n- Settings UI shows which models are pulled locally.\n- Script verifies a required model tag exists before a generate step.\nProjections:\n- Take available model tags: Use the models array to pick a tag for generate or to confirm a required model is installed.",
+      "examples": [
+        "ecp ollama listModels --baseURL <baseURL>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "base-url": {
+          "description": "base-url",
+          "name": "base-url",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "ollama:listModels",
+      "pluginAlias": "@executioncontrolprotocol/plugin-ollama",
+      "pluginName": "@executioncontrolprotocol/plugin-ollama",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "List models available on the Ollama server.",
+      "enableJsonFlag": true
+    }
+  }
+}

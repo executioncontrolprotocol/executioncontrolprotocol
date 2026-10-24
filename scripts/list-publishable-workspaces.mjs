@@ -1,5 +1,6 @@
 /**
- * Shared helpers for discovering non-private workspace packages under packages/.
+ * Shared helpers for discovering non-private workspace packages under
+ * packages/ and plugins/.
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { join, dirname } from "node:path"
@@ -45,11 +46,13 @@ export function walkPackageJsonFiles(dir, out = []) {
  * @returns {WorkspacePackage[]}
  */
 export function listPublishableWorkspaces(root = repoRoot()) {
-  const packagesDir = join(root, "packages")
   /** @type {WorkspacePackage[]} */
   const publishable = []
 
-  for (const pkgPath of walkPackageJsonFiles(packagesDir)) {
+  for (const pkgPath of [
+    ...walkPackageJsonFiles(join(root, "packages")),
+    ...walkPackageJsonFiles(join(root, "plugins")),
+  ]) {
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"))
     if (pkg.private === true) continue
     if (typeof pkg.name !== "string" || !pkg.name.startsWith("@executioncontrolprotocol/")) {

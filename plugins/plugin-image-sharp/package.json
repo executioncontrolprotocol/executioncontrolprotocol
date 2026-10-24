@@ -1,0 +1,65 @@
+{
+  "name": "@executioncontrolprotocol/plugin-image-sharp",
+  "version": "0.50.0",
+  "description": "Sharp image processing plugin for ECP",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b && ecp plugins build"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "sharp": "^0.34.2"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/cli": "workspace:^",
+    "@executioncontrolprotocol/core": "workspace:^",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  },
+  "ecp": {
+    "extension": "./dist/index.js"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "image-sharp": {
+        "description": "Resize, convert, inspect, and batch-process images with Sharp"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

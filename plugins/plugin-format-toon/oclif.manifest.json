@@ -1,0 +1,119 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "format-toon:decode": {
+      "aliases": [],
+      "args": {},
+      "description": "Decodes TOON input into the requested target document. Validates the result and returns diagnostics when parsing or schema checks fail.\nUse cases:\n- Import a TOON file back into an editable workflow manifest.\n- Patch pipeline applies TOON-decoded changes to a workflow.\nProjections:\n- Take the decoded document: When success is true, use the result field as the parsed manifest or patch document for authoring or apply.",
+      "examples": [
+        "ecp format-toon decode --format <format> --targetSchema <targetSchema> --targetVersion <targetVersion>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "format": {
+          "description": "format",
+          "name": "format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "target-schema": {
+          "description": "target-schema",
+          "name": "target-schema",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "target-version": {
+          "description": "target-version",
+          "name": "target-version",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "format-toon:decode",
+      "pluginAlias": "@executioncontrolprotocol/plugin-format-toon",
+      "pluginName": "@executioncontrolprotocol/plugin-format-toon",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Parse TOON text into an ECP document.",
+      "enableJsonFlag": true
+    },
+    "format-toon:encode": {
+      "aliases": [],
+      "args": {},
+      "description": "Encodes a supported source into TOON for compact interchange or CLI export. Honors encode options such as headers and compact layout.\nUse cases:\n- CLI exports a validated workflow as TOON for sharing.\n- Workflow panel shows a compact TOON view alongside JSON.\nProjections:\n- Take the encoded document: When success is true, use the result field as the TOON text for export, display, or the next decode step.",
+      "examples": [
+        "ecp format-toon encode --sourceSchema <sourceSchema> --sourceVersion <sourceVersion> --format <format>"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "source-schema": {
+          "description": "source-schema",
+          "name": "source-schema",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "source-version": {
+          "description": "source-version",
+          "name": "source-version",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "format": {
+          "description": "format",
+          "name": "format",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "format-toon:encode",
+      "pluginAlias": "@executioncontrolprotocol/plugin-format-toon",
+      "pluginName": "@executioncontrolprotocol/plugin-format-toon",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Serialize an ECP document to TOON text.",
+      "enableJsonFlag": true
+    }
+  }
+}

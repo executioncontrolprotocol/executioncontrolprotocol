@@ -6,8 +6,7 @@ import {
   ecpEncodeResultSchema
 } from "../encoding/schemas.js"
 import { decodeJson, encodeJson } from "../encoding/json-codec.js"
-import type { EcpDecodeInput, EcpEncodeInput, EcpSchema } from "@executioncontrolprotocol/types"
-import { ecpIntentSchema } from "@executioncontrolprotocol/types"
+import type { EcpDecodeInput, EcpEncodeInput, EcpSchema } from "../types/index.js"
 import { validateWorkflow } from "../validate/workflow.js"
 import { ecpPatchDocumentSchema } from "../patch/patch-document.js"
 import { emptyValidationResult } from "../validate/workflow-schema.js"
@@ -16,19 +15,12 @@ import { zodIssuesToValidationIssues } from "../validate/zod-mapper.js"
 function validateDecodedDocument(
   document: unknown,
   targetSchema?: EcpSchema
-): import("@executioncontrolprotocol/types").ValidationResult {
+): import("../types/index.js").ValidationResult {
   if (targetSchema === "@executioncontrolprotocol.workflow") {
-    return validateWorkflow(document as import("@executioncontrolprotocol/types").WorkflowManifest)
+    return validateWorkflow(document as import("../types/index.js").WorkflowManifest)
   }
   if (targetSchema === "@executioncontrolprotocol.patch") {
     const parsed = ecpPatchDocumentSchema.safeParse(document)
-    if (parsed.success) return emptyValidationResult(true)
-    const result = emptyValidationResult(false)
-    result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))
-    return result
-  }
-  if (targetSchema === "@executioncontrolprotocol.intent") {
-    const parsed = ecpIntentSchema.safeParse(document)
     if (parsed.success) return emptyValidationResult(true)
     const result = emptyValidationResult(false)
     result.errors.push(...zodIssuesToValidationIssues(parsed.error.issues))
@@ -42,7 +34,7 @@ export const formatJsonExtension = defineExtension("@executioncontrolprotocol", 
   .withMetadata({
     summary: "Canonical JSON encode and decode for ECP documents.",
     description:
-      "Passthrough JSON serialization and parsing with optional target validation for workflows, patches, and intent documents.",
+      "Passthrough JSON serialization and parsing with optional target validation for workflows and patches.",
     isAuthorable: false
   })
   .withCapabilities([

@@ -1,18 +1,17 @@
 {
-  "name": "@executioncontrolprotocol/fixture-consumer-cli",
+  "name": "@executioncontrolprotocol/fixture-plugin-pack-smoke",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Isolated CLI consumer fixture (not an npm workspace). Installed via scripts/consumer-cli-smoke.mjs from packed tarballs.",
+  "description": "Isolated CLI + plugin pack-smoke fixture (not an npm workspace). Installed via scripts/plugin-pack-smoke.mjs from packed tarballs.",
   "engines": {
     "node": ">=22.0.0"
   },
   "dependencies": {
     "@executioncontrolprotocol/cli": "*",
     "@executioncontrolprotocol/core": "*",
-    "@executioncontrolprotocol/format-toon": "*",
     "@executioncontrolprotocol/node": "*",
-    "@executioncontrolprotocol/types": "*",
+    "@executioncontrolprotocol/plugin-sdk": "*",
     "zod": "^3.24.0"
   }
 }

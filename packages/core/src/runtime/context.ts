@@ -1,11 +1,14 @@
 import type {
   LifecycleEvent,
   PolicyEvaluationScope,
+  PolicyJournalDecision,
   RegistryRegistrationRequest,
+  RunApproval,
+  RunJournalMeta,
   ValidationIssue,
   WorkflowManifest,
-} from "@executioncontrolprotocol/types"
-import type { PendingMutation, StoreStateHandle } from "@executioncontrolprotocol/types"
+} from "../types/index.js"
+import type { PendingMutation, StoreStateHandle } from "../types/index.js"
 import type { StoreContext } from "./store.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
@@ -44,7 +47,7 @@ export interface CapabilityContext {
 export interface EnvironmentLifecycleHost {
   registerConfigResolver(resolver: import("../environment/config-resolver.js").EnvironmentConfigResolver): void
   getRegistry(): import("../registry/registry.js").Registry
-  addExtensionBinding?(ref: import("@executioncontrolprotocol/types").NamespacedId, config?: Record<string, unknown>): void
+  addExtensionBinding?(ref: import("../types/index.js").NamespacedId, config?: Record<string, unknown>): void
   /** Evaluate bound policies before accepting a registry registration. */
   evaluateRegistryRegistration?(request: RegistryRegistrationRequest): Promise<void>
 }
@@ -60,6 +63,18 @@ export interface LifecycleContext {
   output?: unknown
   /** Failure diagnostics when the step did not complete (e.g. `step:failed`). */
   diagnostics?: ValidationIssue[]
+  /** Resolved step input after `ref()` substitution. */
+  resolvedInput?: Record<string, unknown>
+  /** Policy evaluations for this step. */
+  policyDecisions?: PolicyJournalDecision[]
+  /** Pending mutations at commit time. */
+  pendingMutations?: import("../types/index.js").PendingMutation[]
+  /** Journal metadata from {@link RunOptions}. */
+  journal?: RunJournalMeta
+  /** Recorded approvals for this run. */
+  approvals?: RunApproval[]
+  /** Run status on `run:*` end events. */
+  status?: import("../types/index.js").RunStatus
   /** Present on `environment:*` events. */
   environment?: EnvironmentLifecycleHost
 }
@@ -83,7 +98,9 @@ export interface PolicyContext {
   /** Present when evaluating dynamic registry registration. */
   registryRequest?: RegistryRegistrationRequest
   /** Present when {@link PolicyEvaluationScope} is `invoke`. */
-  capabilityId?: import("@executioncontrolprotocol/types").CapabilityId
+  capabilityId?: import("../types/index.js").CapabilityId
+  /** Recorded approvals so an approval policy can allow a paused step. */
+  approvals?: RunApproval[]
 }
 
 /** Minimal logger. @category Runtime */

@@ -1,5 +1,11 @@
-import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/types"
-import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/types"
+import { ECP_BINDING_INVALID, EcpError, LATEST_ECP_VERSION } from "../types/index.js"
+import type {
+  EnvironmentDescriptor,
+  RequirementsDocument,
+  ValidationResult,
+  WorkflowManifest,
+  WorkflowNode,
+} from "../types/index.js"
 import type { z } from "zod"
 import { slugify } from "../util/slug.js"
 import type { StepBuilder } from "../bindings/step.js"
@@ -10,6 +16,10 @@ import {
   type RenderWorkflowToFluentOptions,
 } from "../fluent/render-workflow.js"
 import { isZodType, jsonSchemaFromZod } from "../schema/json-schema.js"
+import {
+  buildRequirementsDocument,
+  type WorkflowBinding,
+} from "./requirements.js"
 
 type NodeInput = StepBuilder | WorkflowNode
 
@@ -42,8 +52,22 @@ export class WorkflowBuilder {
   private workflowId?: string
   private acceptsSchema?: Record<string, unknown>
   private returnsSchema?: Record<string, unknown>
+  private bindings?: WorkflowBinding[]
 
   constructor(private readonly label: string) {}
+
+  /**
+   * Bind extensions and policies this workflow file requires.
+   * Call at most once. Bindings compile into a requirements document, never into the manifest.
+   * @category Workflow
+   */
+  with(bindings: WorkflowBinding[]): this {
+    if (this.bindings !== undefined) {
+      throw new EcpError(ECP_BINDING_INVALID, "workflow().with() can be called only once")
+    }
+    this.bindings = bindings
+    return this
+  }
 
   /** Add sequential steps or flow nodes. */
   run(nodes: NodeInput[]): this {
@@ -78,6 +102,20 @@ export class WorkflowBuilder {
   /** Build manifest without validation. */
   compile(): WorkflowManifest {
     return this.toManifest()
+  }
+
+  /**
+   * Requirements compiled from `.with()` plus inferred step ids.
+   * Not part of the portable workflow manifest.
+   * @category Workflow
+   */
+  requirements(): RequirementsDocument {
+    return buildRequirementsDocument(this.bindings, this.toManifest().steps)
+  }
+
+  /** Bindings from `.with()`, if any. @category Workflow */
+  getBindings(): WorkflowBinding[] {
+    return this.bindings ? [...this.bindings] : []
   }
 
   /** Alias for compile(). */

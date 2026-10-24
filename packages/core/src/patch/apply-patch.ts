@@ -9,13 +9,13 @@ import {
   type ValidationIssue,
   type WorkflowManifest,
   type WorkflowNode,
-} from "@executioncontrolprotocol/types"
+} from "../types/index.js"
 import { validateWorkflow } from "../validate/workflow.js"
 import { deepMerge, getAtPath, setAtPath } from "../util/path.js"
 import { buildStepIndex } from "./step-index.js"
 import { normalizePatchInput, validatePatchDocument } from "./normalize-input.js"
 import { resolveEcpPatchPath } from "./resolve-path.js"
-import type { EcpPatchInput } from "@executioncontrolprotocol/types"
+import type { EcpPatchInput } from "../types/index.js"
 
 function emptyDiagnostics(): ValidationIssue[] {
   return []

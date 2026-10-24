@@ -1,9 +1,8 @@
-import type { LifecycleEvent, ValidationIssue } from "@executioncontrolprotocol/types"
+import type { LifecycleEvent, ValidationIssue } from "../types/index.js"
 import { defineExtension } from "../definitions/extension.js"
 import { capabilityFor } from "../definitions/capability.js"
 import { hook } from "../definitions/hook.js"
-import { catalogExtension } from "../registry/extension-catalog.js"
-import { globalRegistry } from "../registry/registry.js"
+import type { Registry } from "../registry/registry.js"
 import { z } from "zod"
 
 /** Recorded extension lifecycle hook events (reset via `resetLifecycleSpy()`). */
@@ -105,7 +104,7 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
       })
       .withHandler(async (input, ctx) => {
         capabilityInvokeCount++
-        const handle = (input as { target: import("@executioncontrolprotocol/types").StoreStateHandle<Record<string, unknown>> })
+        const handle = (input as { target: import("../types/index.js").StoreStateHandle<Record<string, unknown>> })
           .target
         await ctx.store.merge(handle, { merged: true })
         return { ok: true }
@@ -120,11 +119,9 @@ export const lifecycleSpyExtension = defineExtension("@executioncontrolprotocol"
   ])
   .build()
 
-catalogExtension(lifecycleSpyExtension)
-
-/** Register lifecycle spy extension on global registry. */
-export async function registerLifecycleSpyExtension(): Promise<void> {
-  if (!globalRegistry.getExtension("@executioncontrolprotocol/lifecycle-spy")) {
-    await globalRegistry.registerExtension(lifecycleSpyExtension)
+/** Register lifecycle spy extension on a registry. */
+export async function registerLifecycleSpyExtension(registry: Registry): Promise<void> {
+  if (!registry.getExtension("@executioncontrolprotocol/lifecycle-spy")) {
+    await registry.registerExtension(lifecycleSpyExtension)
   }
 }

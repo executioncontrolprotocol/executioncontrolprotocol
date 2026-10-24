@@ -1,19 +1,32 @@
 # @executioncontrolprotocol/core
 
-Runtime-agnostic ECP core: fluent workflow API, environment builder, registry, in-memory executor, encode/decode/patch/invoke, and Fluent rendering.
+Host-agnostic ECP core: fluent workflow API, environment builder, registry, in-memory executor, encode/decode/patch/invoke, Fluent rendering, and protocol types.
 
-**This package has no Node or browser I/O on its main entry.** Host-specific compile and file loading live on subpaths (see below).
+**This package has no Node or browser I/O.** Host compile and file loading live on `@executioncontrolprotocol/node` and `@executioncontrolprotocol/browser`. Exports are `.` and `./types` only.
 
 ## Main entry (`@executioncontrolprotocol/core`)
 
 Use for:
 
-- Building environments: `environment()`, `extension()`, `runtime()`, `policy()`
+- Building environments: `environment()`, `extension()`, `policy()`, `defineEnvironment()`
 - Operational APIs on **`Ecp`** after `await env.init()`: `run`, `encode`, `decode`, `patch`, `validate`, `describe`, `search`, `invoke`, `terminate`
-- Workflow authoring: `workflow()`, `step()`, `.accepts()` / `.returns()`, `parallel()`, etc.
-- Fluent output: `ecp.encode(manifest).as("fluent")` (no `@executioncontrolprotocol/format-fluent` extension)
+- Workflow authoring: `workflow()`, `step()`, `.with([...])`, `.accepts()` / `.returns()`, `parallel()`, etc.
+- Run options: `stopAfterStepId`, `onlyStepId`, `seedState`, `seedHistory`, `approvals`, `journal`, `onEvent`. Status includes `stopped` (inclusive `--to`) and `paused` (policy). There is no `ecp.test()`.
+- Fluent output: `ecp.encode(manifest).as("fluent")`
 
-Do **not** import Node built-ins from the main barrel. Bundlers (Vite, etc.) should resolve only `@executioncontrolprotocol/core` for browser apps.
+Protocol types and schema constants live on **`@executioncontrolprotocol/core/types`** (for example `WorkflowManifest`, `LATEST_ECP_VERSION`, `FileRef`). The main barrel does not re-export them.
+
+```ts
+import { environment, extension, policy } from "@executioncontrolprotocol/core"
+import { NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { openaiExtension } from "@executioncontrolprotocol/plugin-openai"
+
+const ecp = await environment(NODE_ENVIRONMENT_ID, "weekly-brief")
+  .with([extension(openaiExtension).with({ defaultModel: "gpt-4o-mini" })])
+  .init()
+```
+
+Do **not** import Node built-ins from this package. Bundlers (Vite, etc.) should resolve only `@executioncontrolprotocol/core` for browser apps.
 
 ### Media resolve/write (extensions)
 
@@ -23,46 +36,22 @@ Portable `ImageRef` values (`buffer` | `file` | `url` | `artifact`) are resolved
 import { resolveFile, writeMediaArtifact } from "@executioncontrolprotocol/core"
 
 const { bytes, mediaType } = await resolveFile(input.image, ctx)
-// …domain processing…
 return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "artifacts/images" }, ctx) }
 ```
 
-`file.path` may be a Node path or an `ecp://browser/<id>` locator (`ctx.blobs`). Host hops already walk nested payloads (including ImageRef trees) via `collectBrowserLocators`.
-
-```ts
-import { workflow, step, ref } from "@executioncontrolprotocol/core"
-
-const manifest = workflow("Weekly brief")
-  .accepts({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] })
-  .returns({ type: "object", properties: { echo: { type: "object" } } })
-  .run([step("@executioncontrolprotocol/test.echo", "Echo").with({ value: ref("prompt") }).as("echo")])
-  .toManifest()
-```
-
-## Host subpaths
-
-| Subpath | Host | Purpose |
-| ------- | ---- | ------- |
-| `@executioncontrolprotocol/core/node` | Node | Re-exports `@executioncontrolprotocol/core/loaders` + `@executioncontrolprotocol/core/compile` |
-| `@executioncontrolprotocol/core/compile` | Node | `compileWorkflowSource`, `compileHarnessArtifactSource` (intent/reply TS), temp-file module eval |
-| `@executioncontrolprotocol/core/loaders` | Node | File I/O for CLI and Node apps |
-| `@executioncontrolprotocol/core/browser` | Browser | Authoring subset: builders, validate, Fluent encode, **browser-safe** `compileWorkflowSource` + `compileHarnessArtifactSource` (esbuild-wasm + blob `import`) |
-
-CLI and `@executioncontrolprotocol/node` import `@executioncontrolprotocol/core/compile` and `@executioncontrolprotocol/core/loaders` directly—not the main barrel.
-
-**Why compile is here (not on runtime hosts):** harnesses must compile Fluent/TS artifacts without importing `@executioncontrolprotocol/node` or `@executioncontrolprotocol/browser`. Same APIs; Node vs browser entry (or `"browser"` condition on `./compile`). Hosts may re-export for convenience.
+`file.path` may be a Node path (the Node environment registers a host file reader) or an `ecp://browser/<id>` locator (`ctx.blobs`).
 
 ## Environment vs Ecp
 
 | `Environment` (builder) | `Ecp` (after `init()`) |
 | ----------------------- | ---------------------- |
-| `withRuntime`, `withExtensions`, `withPolicies` | `run`, `encode`, `decode`, `patch`, `validate`, `invoke` |
-| `init()` | `describe`, `search`, `terminate` |
+| `.with([...])`, `init({ blobStore, artifactStore, remoteInvoke })` | `run`, `encode`, `decode`, `patch`, `validate`, `invoke` |
+| | `describe`, `search`, `terminate` |
 
 ## Related packages
 
-- **`@executioncontrolprotocol/node`** — Node runtime, process env, secrets, re-exports Node compile
-- **`@executioncontrolprotocol/browser`** — Browser runtime, registry, session config (not the demo app)
-- **`@executioncontrolprotocol/types`** — Protocol types and JSON Schema outputs
+- **`@executioncontrolprotocol/core/types`** — Protocol types and JSON Schema outputs (`dist/schemas/`)
+- **`@executioncontrolprotocol/node`** — Node environment: compile, loaders, OS secrets, process-env
+- **`@executioncontrolprotocol/browser`** — Browser environment: registry, local config, esbuild-wasm compile
 
 See [AGENTS.md](../../AGENTS.md) for monorepo commands and extension rules.

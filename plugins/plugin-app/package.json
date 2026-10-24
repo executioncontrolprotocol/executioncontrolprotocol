@@ -1,0 +1,63 @@
+{
+  "name": "@executioncontrolprotocol/plugin-app",
+  "version": "0.50.0",
+  "description": "JIT CLI plugin for ecp app: loopback HostAdapter server and file watcher",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./oclif": {
+      "types": "./dist/oclif.d.ts",
+      "import": "./dist/oclif.js"
+    }
+  },
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/app": "workspace:^",
+    "@executioncontrolprotocol/node": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "@oclif/core": "^5.1.8",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/core": "workspace:^",
+    "@types/ws": "^8.18.1",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/oclif.js",
+      "identifier": "COMMANDS"
+    },
+    "topics": {
+      "app": {
+        "description": "Open a live graph of a workflow file"
+      }
+    }
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ]
+}

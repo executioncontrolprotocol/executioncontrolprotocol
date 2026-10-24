@@ -3,6 +3,6 @@ if git diff --cached --name-only | grep -qE '^(pnpm-lock\.yaml|package\.json|pnp
   pnpm install
   git add pnpm-lock.yaml
 fi
-pnpm exec lint-staged
+pnpm exec lint-staged --max-arg-length 2000
 pnpm run check:no-file-deps
 pnpm run lint && pnpm run test:coverage:clean
