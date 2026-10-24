@@ -63,7 +63,8 @@
       "plugins:preinstall": "./dist/hooks/trust.js"
     },
     "jitPlugins": {
-      "@executioncontrolprotocol/mcp": "^1"
+      "@executioncontrolprotocol/mcp": "^1",
+      "@executioncontrolprotocol/plugin-app": "^1"
     }
   }
 }

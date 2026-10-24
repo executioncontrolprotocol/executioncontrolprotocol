@@ -1,4 +1,5 @@
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
+export { renderPatchedStepInput } from "./patch-source.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
 export {
   acceptsReactFlowNode,

@@ -9,6 +9,7 @@ const cliRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
 describe("jitPluginForTopic", () => {
   const jit = {
     "@executioncontrolprotocol/mcp": "^1",
+    "@executioncontrolprotocol/plugin-app": "^1",
   }
 
   it("maps mcp to the unprefixed JIT package", () => {
@@ -34,5 +35,6 @@ describe("jitPluginForTopic", () => {
       oclif: { jitPlugins: Record<string, string> }
     }
     expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/mcp"]).toBe("^1")
+    expect(pkg.oclif.jitPlugins["@executioncontrolprotocol/plugin-app"]).toBe("^1")
   })
 })

@@ -20,6 +20,7 @@
     "@executioncontrolprotocol/plugin-image-sharp": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-jsonata": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-ollama": "1.0.0-next.0",
+    "@executioncontrolprotocol/plugin-app": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-openai": "1.0.0-next.0",
     "@executioncontrolprotocol/plugin-state-control": "1.0.0-next.0"
   },

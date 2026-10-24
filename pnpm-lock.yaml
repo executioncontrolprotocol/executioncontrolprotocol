@@ -351,6 +351,37 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
+  plugins/plugin-app:
+    dependencies:
+      '@executioncontrolprotocol/app':
+        specifier: workspace:^
+        version: link:../../packages/app
+      '@executioncontrolprotocol/node':
+        specifier: workspace:^
+        version: link:../../packages/environments/node
+      '@executioncontrolprotocol/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../packages/plugin-sdk
+      '@oclif/core':
+        specifier: ^5.1.8
+        version: 5.1.9
+      ws:
+        specifier: ^8.18.3
+        version: 8.19.0
+    devDependencies:
+      '@executioncontrolprotocol/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
+
   plugins/plugin-approval:
     dependencies:
       '@executioncontrolprotocol/plugin-sdk':
@@ -1968,6 +1999,9 @@ packages:
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typescript-eslint/eslint-plugin@8.56.1':
     resolution: {integrity: sha512-Jz9ZztpB37dNC+HU2HI28Bs9QXpzCz+y/twHOwhyrIRdbuVDxSytJNDl6z/aAKlaRIwC7y8wJdkBv7FxYGgi0A==}
@@ -6116,6 +6150,10 @@ snapshots:
     optional: true
 
   '@types/unist@2.0.11': {}
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 22.20.1
 
   '@typescript-eslint/eslint-plugin@8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.3(jiti@1.21.7))(typescript@5.9.3)':
     dependencies:

@@ -149,6 +149,7 @@ export default defineConfig({
         "plugins/plugin-jsonata/src/**/*.{ts,js}",
         "packages/app/src/graph/**/*.{ts,js}",
         "packages/app/src/host/**/*.{ts,js}",
+        "plugins/plugin-app/src/**/*.{ts,js}",
       ],
       exclude: [
         "**/*.test.ts",
@@ -226,6 +227,12 @@ export default defineConfig({
           branches: 50,
           statements: 60,
         },
+        "plugins/plugin-app/src/**": {
+          lines: 80,
+          functions: 80,
+          branches: 65,
+          statements: 80,
+        },
       },
     },
     projects: [
@@ -247,6 +254,7 @@ export default defineConfig({
           exclude: [
             "**/node_modules/**",
             "packages/mcp/test/integration/stdio-serve.test.ts",
+            "plugins/plugin-app/test/integration/**",
           ],
         },
       },
@@ -299,7 +307,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: "integration",
-          include: ["packages/mcp/test/integration/**/*.test.ts"],
+          include: [
+            "packages/mcp/test/integration/**/*.test.ts",
+            "plugins/plugin-app/test/integration/**/*.test.ts",
+          ],
         },
       },
       {
