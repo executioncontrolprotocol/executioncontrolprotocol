@@ -165,8 +165,12 @@ export {
 } from "./runtime/artifacts.js"
 export {
   resolveFile,
-  registerHostFileReader,
+  requireMediaStore,
+  mediaStoreContextFrom,
   writeMediaArtifact,
+  readBrowserLocator,
+  bytesToBase64,
+  base64ToBytes,
   defaultArtifactFilename,
   extensionForMediaType,
   resolveArtifactFilename,
@@ -174,21 +178,39 @@ export {
   isArtifactFetchPathname,
   parseArtifactFetchPathname,
   ARTIFACT_HTTP_PATH_PREFIX,
-  STORAGE_ARTIFACT_URI_PREFIX,
+  DEFAULT_MEDIA_PREFIX,
   type ResolvedFile,
   type ResolveFileOptions,
   type WriteMediaArtifactOptions,
-  type MediaArtifactStore,
   type FileCapabilityContext,
-  type HostFileReader,
   type ArtifactFetchPathnameOptions,
 } from "./media/index.js"
+export {
+  ServiceMap,
+  snapshotServiceId,
+  isService,
+  MEDIA_STORE_ID,
+  FILE_ARTIFACT_URI_PREFIX,
+  MEDIA_HTTP_PATH,
+  MediaStore,
+  type ServiceProvider,
+  type ServiceToken,
+  type MediaStoreContext,
+  type MediaWriteOptions,
+  type MediaHttpWriteRequest,
+  type MediaHttpReadResponse,
+} from "./services/index.js"
 export {
   handleMixedBrowserBlobUpload,
   type MixedBlobUploadInput,
   type MixedBlobUploadOutput,
 } from "./runtime/mixed-blob-upload.js"
 export { registerTestExtension, testExtension } from "./testing/test-extension.js"
+export {
+  createMemoryMediaStore,
+  type MemoryMediaStore,
+  type MemoryMediaRecord,
+} from "./testing/memory-media-store.js"
 export {
   lifecycleSpyExtension,
   registerLifecycleSpyExtension,

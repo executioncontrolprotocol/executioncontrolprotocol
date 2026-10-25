@@ -222,6 +222,37 @@ describe("serveApp", () => {
     expect(missing.status).toBe(404)
   })
 
+  it("writes and reads /v1/media through the bound disk store", async () => {
+    const { origin, headers } = await start()
+    const previous = process.env.ECP_ARTIFACTS_DIR
+    process.env.ECP_ARTIFACTS_DIR = join(dir!, "artifacts")
+    try {
+      const bytes = Buffer.from([7, 8, 9]).toString("base64")
+      const post = await fetch(`${origin}/v1/media`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bytes,
+          mediaType: "image/png",
+          name: "t.png",
+          prefix: "artifacts/images",
+        }),
+      })
+      expect(post.status).toBe(200)
+      const ref = (await post.json()) as { kind: string; uri: string }
+      expect(ref.kind).toBe("artifact")
+      expect(ref.uri).toContain("ecp://file/")
+      const get = await fetch(`${origin}/v1/media?uri=${encodeURIComponent(ref.uri)}`, { headers })
+      expect(get.status).toBe(200)
+      const body = (await get.json()) as { bytes: string; sizeBytes: number }
+      expect(body.sizeBytes).toBe(3)
+      expect(body.bytes).toBe(bytes)
+    } finally {
+      if (previous === undefined) delete process.env.ECP_ARTIFACTS_DIR
+      else process.env.ECP_ARTIFACTS_DIR = previous
+    }
+  })
+
   it("does not bind beyond loopback", async () => {
     dir = await fixtureDir()
     const filePath = join(dir, "workflow.ecp.ts")

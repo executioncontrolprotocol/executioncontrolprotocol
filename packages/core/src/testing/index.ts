@@ -4,3 +4,8 @@
  * @category Testing
  */
 export { registerTestExtension, testExtension } from "./test-extension.js"
+export {
+  createMemoryMediaStore,
+  type MemoryMediaStore,
+  type MemoryMediaRecord,
+} from "./memory-media-store.js"

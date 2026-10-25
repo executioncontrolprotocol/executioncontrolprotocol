@@ -137,6 +137,8 @@ export async function executeInvoke(
     extensionConfig,
     blobs: env.getBlobStore(),
     artifacts: env.ensureArtifactStore(),
+    services: env.getServices(),
+    remoteInvoke: env.getRemoteInvoke(),
     capabilities: {
       call: async (id) => {
         throw new Error(`nested call not bound: ${id}`)

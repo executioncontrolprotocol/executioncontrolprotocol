@@ -38,9 +38,11 @@ export async function buildPlugin(dir: string): Promise<BuildReport> {
 
   const commands = toCommands(definition)
   const commandIds = Object.keys(commands)
+  const wanted = new Set(commandIds)
   const config = await Config.load({ root: dir })
   const cached: Record<string, unknown> = {}
   for (const cmd of config.commands) {
+    if (!wanted.has(cmd.id)) continue
     cached[cmd.id] = cmd
   }
   const manifest = {

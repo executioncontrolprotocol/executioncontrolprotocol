@@ -517,6 +517,8 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         extensionConfig: extBinding?.config,
         blobs: ctx.context.blobs,
         artifacts: ctx.context.artifacts,
+        services: ctx.context.services,
+        remoteInvoke: ctx.context.remoteInvoke,
         capabilities: {
           call: async (id) => {
             throw new Error(`nested call not bound: ${id}`)

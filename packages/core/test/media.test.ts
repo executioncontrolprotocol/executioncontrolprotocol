@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  FILE_ARTIFACT_URI_PREFIX,
+  ServiceMap,
   collectBrowserLocators,
   createCapabilityArtifactStore,
   createCapabilityBlobStore,
+  createMemoryMediaStore,
   createUsageLedger,
   hydrateCapabilityBlobs,
   resolveFile,
   serializeCapabilityBlobs,
   writeMediaArtifact,
-  STORAGE_ARTIFACT_URI_PREFIX,
   stashCapabilityBlob,
 } from "../src/index.js"
 
@@ -18,9 +20,14 @@ const PNG_1X1_BASE64 =
 function makeCtx(overrides: {
   artifacts?: ReturnType<typeof createCapabilityArtifactStore>
   blobs?: ReturnType<typeof createCapabilityBlobStore>
+  services?: ServiceMap
+  media?: ReturnType<typeof createMemoryMediaStore>
   call?: (id: string, input: unknown) => Promise<unknown>
   extensionConfig?: Record<string, unknown>
 } = {}) {
+  const services = overrides.services ?? new ServiceMap()
+  if (overrides.media) services.use(overrides.media)
+  else if (!overrides.services) services.use(createMemoryMediaStore())
   return {
     store: {
       merge: async () => undefined,
@@ -36,6 +43,7 @@ function makeCtx(overrides: {
     capabilities: { call: overrides.call ?? (async () => ({})) },
     artifacts: overrides.artifacts,
     blobs: overrides.blobs,
+    services,
     extensionConfig: overrides.extensionConfig,
   }
 }
@@ -49,7 +57,7 @@ describe("resolveFile / writeMediaArtifact", () => {
   it("resolves buffer refs", async () => {
     const resolved = await resolveFile(
       { kind: "buffer", data: PNG_1X1_BASE64, mediaType: "image/png" },
-      makeCtx()
+      makeCtx({ services: new ServiceMap() })
     )
     expect(resolved.sizeBytes).toBeGreaterThan(0)
     expect(resolved.mediaType).toBe("image/png")
@@ -158,57 +166,25 @@ describe("resolveFile / writeMediaArtifact", () => {
     ).rejects.toThrow(/Failed to fetch media URL: 404/)
   })
 
-  it("reads durable storage artifacts via capability hop", async () => {
-    const resolved = await resolveFile(
-      { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}k1`, mediaType: "text/plain" },
-      makeCtx({
-        call: async (id) => {
-          expect(id).toBe("@executioncontrolprotocol/storage.read")
-          return { value: new Uint8Array([7]) }
-        },
-      })
-    )
-    expect([...resolved.bytes]).toEqual([7])
-  })
-
-  it("reads durable storage artifacts encoded as base64 strings", async () => {
-    const resolved = await resolveFile(
-      { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}k2` },
-      makeCtx({
-        call: async () => ({ value: "CQo=" }),
-      })
-    )
-    expect([...resolved.bytes]).toEqual([9, 10])
-  })
-
-  it("rejects storage artifacts with empty read payloads", async () => {
-    await expect(
-      resolveFile(
-        { kind: "artifact", uri: `${STORAGE_ARTIFACT_URI_PREFIX}missing` },
-        makeCtx({ call: async () => ({}) })
-      )
-    ).rejects.toThrow(/Artifact not found/)
-  })
-
-  it("writes artifacts to ctx.artifacts and returns ImageRef", async () => {
+  it("writes artifacts through MediaStore and mirrors into ctx.artifacts", async () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([4, 5]),
-      { mediaType: "image/png", name: "out.png", prefix: "artifacts/images", store: "memory" },
+      { mediaType: "image/png", name: "out.png", prefix: "artifacts/images" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind !== "artifact") throw new Error("expected artifact")
-    expect(ref.uri).toContain("artifacts/images/out.png")
+    expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}artifacts/images/out.png`)
     expect(artifacts.get(ref.uri)?.size).toBe(2)
   })
 
-  it("round-trips write then resolve through ctx.artifacts", async () => {
+  it("round-trips write then resolve through MediaStore", async () => {
     const artifacts = createCapabilityArtifactStore()
     const ctx = makeCtx({ artifacts })
     const written = await writeMediaArtifact(
       new Uint8Array([21, 22, 23]),
-      { mediaType: "application/octet-stream", name: "rt.bin", store: "memory" },
+      { mediaType: "application/octet-stream", name: "rt.bin" },
       ctx
     )
     const resolved = await resolveFile(written, ctx)
@@ -219,12 +195,12 @@ describe("resolveFile / writeMediaArtifact", () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([1]),
-      { mediaType: "image/png", name: "default.png", store: "memory" },
+      { mediaType: "image/png", name: "default.png" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe("ecp://artifacts/media/default.png")
+      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}artifacts/media/default.png`)
     }
   })
 
@@ -232,7 +208,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([1, 2]),
-      { mediaType: "image/webp", store: "memory" },
+      { mediaType: "image/webp" },
       makeCtx({ artifacts })
     )
     expect(ref.kind).toBe("artifact")
@@ -243,93 +219,39 @@ describe("resolveFile / writeMediaArtifact", () => {
     }
   })
 
-  it("honors extensionConfig storage.outputPrefix and defaultStore", async () => {
-    let wrote: unknown
+  it("honors extensionConfig artifacts.outputPrefix", async () => {
     const ref = await writeMediaArtifact(
       new Uint8Array([3]),
       { mediaType: "image/png", name: "cfg.png" },
       makeCtx({
         extensionConfig: {
-          storage: { outputPrefix: "uploads", defaultStore: "storage" },
-        },
-        call: async (_id, input) => {
-          wrote = input
-          return { ok: true, uri: `${STORAGE_ARTIFACT_URI_PREFIX}temp/uploads/cfg.png`, tier: "temp" }
+          artifacts: { outputPrefix: "uploads" },
         },
       })
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}temp/uploads/cfg.png`)
+      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}uploads/cfg.png`)
     }
-    expect(wrote).toMatchObject({ key: "uploads/cfg.png", tier: "temp", encoding: "base64" })
   })
 
-  it("fails write when artifact store is missing", async () => {
+  it("fails write when MediaStore is missing", async () => {
     await expect(
-      writeMediaArtifact(new Uint8Array([1]), { mediaType: "image/png", store: "memory" }, makeCtx())
-    ).rejects.toThrow(/artifact store/)
+      writeMediaArtifact(
+        new Uint8Array([1]),
+        { mediaType: "image/png" },
+        makeCtx({ services: new ServiceMap() })
+      )
+    ).rejects.toThrow(/No MediaStore is bound/)
   })
 
-  it("defaults to temp storage tier when storage.write succeeds", async () => {
-    let wrote: unknown
-    const artifacts = createCapabilityArtifactStore()
-    const ref = await writeMediaArtifact(
-      new Uint8Array([7, 8]),
-      { mediaType: "image/png", name: "t.png", prefix: "artifacts/images" },
-      makeCtx({
-        artifacts,
-        call: async (id, input) => {
-          expect(id).toBe("@executioncontrolprotocol/storage.write")
-          wrote = input
-          return { ok: true, uri: "ecp://storage/temp/artifacts/images/t.png", tier: "temp" }
-        },
-      })
-    )
-    expect(ref.kind).toBe("artifact")
-    if (ref.kind === "artifact") {
-      expect(ref.uri).toBe("ecp://storage/temp/artifacts/images/t.png")
-    }
-    expect(wrote).toMatchObject({ tier: "temp", encoding: "base64", key: "artifacts/images/t.png" })
-    expect(artifacts.get("ecp://storage/temp/artifacts/images/t.png")?.size).toBe(2)
-  })
-
-  it("writes durable when store is durable", async () => {
-    let wrote: unknown
-    const ref = await writeMediaArtifact(
-      new Uint8Array([1]),
-      { mediaType: "image/png", name: "d.png", store: "durable" },
-      makeCtx({
-        call: async (_id, input) => {
-          wrote = input
-          return { ok: true, uri: "ecp://storage/artifacts/artifacts/media/d.png", tier: "durable" }
-        },
-      })
-    )
-    expect(ref.kind).toBe("artifact")
-    if (ref.kind === "artifact") {
-      expect(ref.uri).toContain("ecp://storage/artifacts/")
-    }
-    expect(wrote).toMatchObject({ tier: "durable" })
-  })
-
-  it("falls back to memory when storage is unavailable", async () => {
-    const artifacts = createCapabilityArtifactStore()
-    const ref = await writeMediaArtifact(
-      new Uint8Array([3]),
-      { mediaType: "image/png", name: "fb.png" },
-      makeCtx({
-        artifacts,
-        call: async () => {
-          throw new Error("storage not bound")
-        },
-      })
-    )
-    expect(ref.kind).toBe("artifact")
-    if (ref.kind === "artifact") {
-      expect(ref.uri).toBe("ecp://artifacts/media/fb.png")
-    }
-    expect(artifacts.get("ecp://artifacts/media/fb.png")?.size).toBe(1)
+  it("fails file resolve when MediaStore is missing", async () => {
+    await expect(
+      resolveFile(
+        { kind: "file", path: "./missing.jpg" },
+        makeCtx({ services: new ServiceMap() })
+      )
+    ).rejects.toThrow(/No MediaStore is bound/)
   })
 
   it("rejects missing browser locator", async () => {
@@ -344,67 +266,26 @@ describe("resolveFile / writeMediaArtifact", () => {
   it("rejects missing host artifact", async () => {
     await expect(
       resolveFile(
-        { kind: "artifact", uri: "ecp://artifacts/gone" },
+        { kind: "artifact", uri: "ecp://file/gone" },
         makeCtx({ artifacts: createCapabilityArtifactStore() })
       )
     ).rejects.toThrow(/Artifact not found/)
   })
 
-  it.skipIf(typeof process === "undefined" || !process.versions?.node)(
-    "resolves a Node file path",
-    async () => {
-      const fs = await import("node:fs/promises")
-      const os = await import("node:os")
-      const path = await import("node:path")
-      const { registerHostFileReader } = await import("../src/index.js")
-      registerHostFileReader(async (filePath) => {
-        const buf = await fs.readFile(filePath)
-        return new Uint8Array(buf)
-      })
-      const file = path.join(os.tmpdir(), `ecp-media-${Date.now()}.bin`)
-      await fs.writeFile(file, Buffer.from([10, 20, 30]))
-      try {
-        const resolved = await resolveFile({ kind: "file", path: file }, makeCtx())
-        expect([...resolved.bytes]).toEqual([10, 20, 30])
-      } finally {
-        await fs.unlink(file).catch(() => undefined)
-      }
-    }
-  )
-
-  it.skipIf(typeof process === "undefined" || !process.versions?.node)(
-    "rejects missing Node file paths",
-    async () => {
-      const fs = await import("node:fs/promises")
-      const { registerHostFileReader } = await import("../src/index.js")
-      registerHostFileReader(async (filePath) => {
-        const buf = await fs.readFile(filePath)
-        return new Uint8Array(buf)
-      })
-      await expect(
-        resolveFile({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
-      ).rejects.toThrow()
-    }
-  )
-
-  it("writes to storage when store is storage", async () => {
-    let wrote: unknown
-    const ref = await writeMediaArtifact(
-      new Uint8Array([1, 2]),
-      { mediaType: "image/png", name: "x.png", prefix: "out", store: "storage" },
-      makeCtx({
-        call: async (id, input) => {
-          expect(id).toBe("@executioncontrolprotocol/storage.write")
-          wrote = input
-          return { ok: true, uri: `${STORAGE_ARTIFACT_URI_PREFIX}temp/out/x.png`, tier: "temp" }
-        },
-      })
+  it("resolves a file path from ctx.services without a module singleton", async () => {
+    const media = createMemoryMediaStore()
+    media.files.set("./foo.jpg", { bytes: new Uint8Array([10, 20, 30]), mediaType: "image/jpeg" })
+    const resolved = await resolveFile(
+      { kind: "file", path: "./foo.jpg" },
+      makeCtx({ media })
     )
-    expect(ref.kind).toBe("artifact")
-    if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${STORAGE_ARTIFACT_URI_PREFIX}temp/out/x.png`)
-    }
-    expect(wrote).toMatchObject({ key: "out/x.png", tier: "temp", encoding: "base64" })
+    expect([...resolved.bytes]).toEqual([10, 20, 30])
+  })
+
+  it("rejects missing file paths on the bound MediaStore", async () => {
+    await expect(
+      resolveFile({ kind: "file", path: "C:\\definitely-missing-ecp-media.bin" }, makeCtx())
+    ).rejects.toThrow(/File not found/)
   })
 
   it("host-hop serializes ImageRef browser locators then resolveFile on hydrate", async () => {

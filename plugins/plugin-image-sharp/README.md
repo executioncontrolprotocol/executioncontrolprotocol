@@ -57,7 +57,7 @@ No `secrets("…")` keys.
 | --- | --- |
 | `limits` | Size, pixel, remote-URL, and variant caps. |
 | `defaults` | Output format, quality, stripMetadata, failOn. |
-| `storage` | Temp and output prefixes. |
+| `artifacts` | Output prefix for written files (`artifacts/images` by default). |
 | `concurrency` | Optional Sharp thread count. |
 
 ## Authoring

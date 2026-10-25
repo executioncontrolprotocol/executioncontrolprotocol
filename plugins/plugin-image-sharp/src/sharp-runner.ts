@@ -80,7 +80,6 @@ export async function runPipeline(
     mediaType: mediaTypeForFormat(format),
     name: options.output?.artifact?.name ?? defaultArtifactNameForFormat(format),
     prefix: options.output?.artifact?.prefix,
-    store: options.output?.artifact?.store,
   }, ctx)
 
   return {

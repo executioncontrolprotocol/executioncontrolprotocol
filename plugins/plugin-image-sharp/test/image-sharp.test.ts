@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach } from "vitest"
-import { createCapabilityArtifactStore, Registry } from "@executioncontrolprotocol/core"
+import {
+  createCapabilityArtifactStore,
+  createMemoryMediaStore,
+  Registry,
+  ServiceMap,
+} from "@executioncontrolprotocol/core"
 import {
   imageSharpExtension,
   clearImageArtifactStore,
@@ -15,6 +20,8 @@ function capability(id: string): Handler {
 }
 
 function makeCtx(artifacts = createCapabilityArtifactStore()) {
+  const services = new ServiceMap()
+  services.use(createMemoryMediaStore())
   return {
     extensionConfig: {
       limits: { allowRemoteUrls: false, maxPixels: 80_000_000 },
@@ -33,6 +40,7 @@ function makeCtx(artifacts = createCapabilityArtifactStore()) {
     step: { id: "s1", capabilityId: "@executioncontrolprotocol/image-sharp.transform" },
     logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
     artifacts,
+    services,
   }
 }
 
