@@ -7,6 +7,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   useUpdateNodeInternals,
   type Connection,
   type Edge,
@@ -42,6 +43,9 @@ import { WORKFLOW_ACCEPTS_NODE_ID } from "../../graph/index.js"
 const EDGE_INTERACTION_WIDTH = 24
 /** Match React Flow elevated edges/nodes; ellipsis overlay uses a higher tier in CSS. */
 const SELECTED_EDGE_Z_INDEX = 1000
+/** Allow the graph to shrink into a narrow split pane. */
+const MIN_ZOOM = 0.15
+const FIT_VIEW_MIN_EDGE_PX = 32
 
 const nodeTypes = {
   "ecp-step": EcpStepNode,
@@ -50,6 +54,32 @@ const nodeTypes = {
 
 const edgeTypes = {
   "ecp-data": EcpDataEdge,
+}
+
+/** Frame the graph once the pane has a real size (flex layout can be 0 on first paint). */
+function FitViewWhenSized({
+  width,
+  height,
+  nodeKey,
+  nodeCount,
+}: {
+  width: number
+  height: number
+  nodeKey: string
+  nodeCount: number
+}) {
+  const { fitView } = useReactFlow()
+
+  useEffect(() => {
+    if (nodeCount === 0) return
+    if (width < FIT_VIEW_MIN_EDGE_PX || height < FIT_VIEW_MIN_EDGE_PX) return
+    const frame = requestAnimationFrame(() => {
+      void fitView({ padding: 0.16, duration: 0, minZoom: MIN_ZOOM })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [fitView, height, nodeCount, nodeKey, width])
+
+  return null
 }
 
 /** Re-measure all nodes after the encoded document changes so edges attach to handles. */
@@ -175,6 +205,20 @@ function ReactFlowCanvasInner({
   const [edgeControl, setEdgeControl] = useState<EdgeMenuControlState | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const edgeMenuRef = useRef<HTMLDivElement>(null)
+  const [paneSize, setPaneSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const update = () => {
+      const rect = el.getBoundingClientRect()
+      setPaneSize({ width: rect.width, height: rect.height })
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!doc) {
@@ -433,12 +477,16 @@ function ReactFlowCanvasInner({
 
   return (
     <section
-      className="node-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      className="node-canvas relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-background"
       id="graph-drawer"
     >
       <PanelHeader icon="account_tree" label="Workflow Canvas" />
 
-      <div ref={canvasRef} className="relative min-h-0 flex-1 overflow-hidden">
+      <div
+        ref={canvasRef}
+        data-testid="ecp-react-flow"
+        className="relative min-h-0 flex-1 overflow-hidden"
+      >
         {hasWorkflow && doc ? (
           <ReactFlowConfigureContext.Provider value={onConfigureStep}>
             <ReactFlowEdgeControlRegistryContext.Provider value={setEdgeControl}>
@@ -472,6 +520,8 @@ function ReactFlowCanvasInner({
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView
+              fitViewOptions={{ padding: 0.16, minZoom: MIN_ZOOM }}
+              minZoom={MIN_ZOOM}
               nodesDraggable={false}
               nodesConnectable={!readOnly}
               elementsSelectable
@@ -481,6 +531,12 @@ function ReactFlowCanvasInner({
               proOptions={{ hideAttribution: true }}
             >
               <ReactFlowInternalsSync nodeIds={stepIds} />
+              <FitViewWhenSized
+                width={paneSize.width}
+                height={paneSize.height}
+                nodeKey={stepIds.join("\0")}
+                nodeCount={nodes.length}
+              />
               <Background gap={24} color="var(--color-surface-container-highest)" />
               <Controls className="ecp-rf-controls" showInteractive={false}>
                 <button

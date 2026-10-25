@@ -39,7 +39,9 @@ export function SplitPane({ left, right, leftWidth, leftCollapsed = false, onDiv
           }}
         />
       ) : null}
-      <section className="relative min-h-0 min-w-0 flex-1 overflow-hidden">{right}</section>
+      <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {right}
+      </section>
     </div>
   )
 }

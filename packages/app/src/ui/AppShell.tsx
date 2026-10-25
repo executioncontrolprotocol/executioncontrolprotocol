@@ -300,7 +300,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
           {loadError.errors.map((issue) => issue.message).join("; ")}
         </div>
       ) : null}
-      <div className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <SplitPane
           left={
             <CodePanel
@@ -317,7 +317,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
             />
           }
           right={
-            <div className="flex h-full min-h-0 flex-col">
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
               <nav className="flex shrink-0 border-b border-outline-variant bg-surface-container-low px-2">
                 {(
                   [
@@ -340,7 +340,13 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
                   </button>
                 ))}
               </nav>
-              <div className={workspaceTab === "workflow" ? "relative min-h-0 flex-1 overflow-hidden" : "hidden min-h-0 flex-1"}>
+              <div
+                className={
+                  workspaceTab === "workflow"
+                    ? "relative flex min-h-0 flex-1 flex-col overflow-hidden"
+                    : "hidden min-h-0 flex-1"
+                }
+              >
                 <ReactFlowCanvas
                   reactflowJson={graphJson}
                   runBusy={runBusy}
@@ -360,7 +366,13 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
                   readOnly={readOnly}
                 />
               </div>
-              <div className={workspaceTab === "run" ? "relative min-h-0 flex-1 overflow-hidden" : "hidden min-h-0 flex-1"}>
+              <div
+                className={
+                  workspaceTab === "run"
+                    ? "relative flex min-h-0 flex-1 flex-col overflow-hidden"
+                    : "hidden min-h-0 flex-1"
+                }
+              >
                 <RunPanel
                   phase={runPhase}
                   runBusy={runBusy}

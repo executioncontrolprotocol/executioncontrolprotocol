@@ -17,9 +17,11 @@ export interface UseSplitPaneOptions {
 /** Manage draggable horizontal split pane width. */
 export function useSplitPane(options: UseSplitPaneOptions = {}) {
   const { minWidth = 280, maxRatio = 0.8 } = options
-  const [leftWidth, setLeftWidth] = useState(
-    () => readStoredSplitWidth() ?? SPLIT_DEFAULT_WIDTH()
-  )
+  const [leftWidth, setLeftWidth] = useState(() => {
+    const raw = readStoredSplitWidth() ?? SPLIT_DEFAULT_WIDTH()
+    const viewport = typeof window === "undefined" ? 960 : window.innerWidth
+    return clampSplitWidth(raw, viewport, minWidth, maxRatio)
+  })
   const dragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(leftWidth)

@@ -12,7 +12,11 @@
   html,
   body,
   #root {
-    @apply m-0 h-full;
+    @apply m-0 h-full min-h-0;
+  }
+
+  #root {
+    @apply flex flex-col;
   }
 
   body {

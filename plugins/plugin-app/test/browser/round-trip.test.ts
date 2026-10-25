@@ -60,8 +60,14 @@ describe("plugin-app Playwright round-trip", () => {
     try {
       const page = await browser.newPage()
       await page.goto(handle.url, { waitUntil: "domcontentloaded" })
+      const canvas = page.getByTestId("ecp-react-flow")
+      await canvas.waitFor({ timeout: 15_000 })
+      await expect
+        .poll(async () => (await canvas.boundingBox())?.height ?? 0, { timeout: 10_000 })
+        .toBeGreaterThan(80)
       const step = page.getByTestId("ecp-step-echo")
       await step.waitFor({ timeout: 15_000 })
+      expect((await step.boundingBox())?.height ?? 0).toBeGreaterThan(8)
       await step.evaluate((el) => (el as HTMLElement).click())
       const dialog = page.getByRole("dialog")
       await dialog.waitFor({ timeout: 10_000 })
