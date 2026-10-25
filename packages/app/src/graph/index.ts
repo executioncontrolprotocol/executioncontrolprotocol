@@ -1,5 +1,6 @@
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
-export { renderPatchedStepInput } from "./patch-source.js"
+export { renderPatchedManifest, renderPatchedStepInput } from "./patch-source.js"
+export { shouldApplyWatchedSource } from "./dirty-buffer.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
 export {
   acceptsReactFlowNode,

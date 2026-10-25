@@ -49,18 +49,23 @@ function createMockTransport(overrides?: {
     },
     async put(_path: string, body: unknown) {
       puts.push(body)
+      return {
+        path: "workflow.ecp.ts",
+        source: typeof body === "object" && body && "source" in body ? (body as { source: string }).source : "",
+        manifest: MANIFEST,
+        requirements: REQUIREMENTS,
+        roundTrip: { ok: true, reasons: [] },
+      }
     },
     async post(path: string, body: unknown) {
       if (path === "/api/validate") {
         return { schema: "@executioncontrolprotocol.validation.result", version: "1.0", valid: true, errors: [], warnings: [] }
       }
       if (path === "/api/run") {
-        queueMicrotask(() => {
-          for (const message of overrides?.events ?? []) {
-            for (const listener of listeners) listener(message)
-          }
-        })
-        return { runId: "run-1" }
+        for (const message of overrides?.events ?? []) {
+          for (const listener of listeners) listener(message)
+        }
+        return { runId: "run-1", status: "completed", output: { value: "hi" } }
       }
       return body
     },
@@ -147,10 +152,13 @@ describe("createLocalHostAdapter", () => {
       }),
     })
     const seen: string[] = []
-    for await (const event of adapter.run("source", {})) {
+    const response = await adapter.run("source", {}, (event) => {
       seen.push(event.type)
-    }
+    })
     expect(seen).toEqual(["run.start", "run.end"])
+    expect(response.runId).toBe("run-1")
+    expect(response.status).toBe("completed")
+    expect(response.output).toEqual({ value: "hi" })
   })
 
   it("rejects non-ok fetch responses without logging the token", async () => {

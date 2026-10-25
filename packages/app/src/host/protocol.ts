@@ -2,7 +2,10 @@ import type {
   EnvironmentDescriptor,
   PublicRunEvent,
   RequirementsDocument,
+  RunStatus,
   SearchResultItem,
+  StepRunRecord,
+  ValidationIssue,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
@@ -54,6 +57,14 @@ export interface AppRunRequest {
 export interface AppRunResponse {
   /** Journal run id (same as `ecp run`). */
   runId: string
+  /** Terminal run status. */
+  status: RunStatus
+  /** Public `returns` output when the workflow declares it. */
+  output?: Record<string, unknown>
+  /** Run-level diagnostics. */
+  diagnostics?: ValidationIssue[]
+  /** Per-step history. */
+  history?: Record<string, StepRunRecord>
 }
 
 /**

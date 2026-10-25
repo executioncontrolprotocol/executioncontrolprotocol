@@ -138,8 +138,13 @@ describe("serveApp", () => {
       body: JSON.stringify({ source: ECHO_SOURCE }),
     })
     expect(run.status).toBe(200)
-    const body = (await run.json()) as { runId: string }
+    const body = (await run.json()) as {
+      runId: string
+      status?: string
+      output?: unknown
+    }
     expect(body.runId).toBeTruthy()
+    expect(body.status).toBe("completed")
     await expect.poll(() => events.some((item) => item.type === "run")).toBe(true)
     socket.close()
     const runEvents = events.filter((item) => item.type === "run")

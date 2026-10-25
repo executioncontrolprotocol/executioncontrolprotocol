@@ -299,7 +299,13 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
           environmentId: options.host.environmentId ?? NODE_ENVIRONMENT_ID,
         },
       })
-      sendJson(res, 200, { runId: result.run.id })
+      sendJson(res, 200, {
+        runId: result.run.id,
+        status: result.run.status,
+        output: result.output,
+        diagnostics: result.diagnostics,
+        history: result.history,
+      })
       return
     }
     sendText(res, 404, "Not found")
