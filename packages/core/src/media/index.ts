@@ -6,18 +6,16 @@
 
 export {
   resolveFile,
-  registerHostFileReader,
-  STORAGE_ARTIFACT_URI_PREFIX,
+  requireMediaStore,
+  mediaStoreContextFrom,
+  DEFAULT_MEDIA_PREFIX,
   type ResolvedFile,
   type ResolveFileOptions,
   type FileCapabilityContext,
-  type HostFileReader,
 } from "./resolve-file.js"
-export {
-  writeMediaArtifact,
-  type WriteMediaArtifactOptions,
-  type MediaArtifactStore,
-} from "./write-media.js"
+export { writeMediaArtifact, type WriteMediaArtifactOptions } from "./write-media.js"
+export { readBrowserLocator } from "./browser-locator.js"
+export { bytesToBase64, base64ToBytes } from "./base64.js"
 export {
   ARTIFACT_HTTP_PATH_PREFIX,
   artifactFetchPathname,

@@ -25,6 +25,15 @@ export {
 } from "./secrets/index.js"
 
 export { environment } from "./environment.js"
+export {
+  createDiskMediaStore,
+  artifactsRoot,
+  assertRelativeArtifactKey,
+  resolveUnderRoot,
+  handleMediaHttp,
+  type DiskMediaStoreOptions,
+  type MediaHttpResult,
+} from "./media/index.js"
 
 export {
   compileWorkflowSource,

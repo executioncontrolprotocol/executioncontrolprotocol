@@ -12,6 +12,8 @@ import type { PendingMutation, StoreStateHandle } from "../types/index.js"
 import type { StoreContext } from "./store.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
+import type { RemoteInvokeBinding } from "./remote-invoke.js"
+import type { ServiceMap } from "../services/map.js"
 
 /** Run-level context. @category Runtime */
 export interface RunContext {
@@ -41,6 +43,10 @@ export interface CapabilityContext {
   blobs?: CapabilityBlobStore
   /** Environment-scoped host artifacts keyed by `ecp://…` URIs. */
   artifacts?: CapabilityArtifactStore
+  /** Host services bound with `environment().use(...)`. */
+  services?: ServiceMap
+  /** Local invoke host when this environment hops. */
+  remoteInvoke?: RemoteInvokeBinding
 }
 
 /** Host surface exposed on environment lifecycle hooks. @category Environment */

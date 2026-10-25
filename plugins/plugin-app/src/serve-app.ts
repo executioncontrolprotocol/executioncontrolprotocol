@@ -20,9 +20,11 @@ import {
   type AppSourceWrite,
 } from "@executioncontrolprotocol/app"
 import type { LoadedWorkflow } from "@executioncontrolprotocol/core"
+import { MEDIA_HTTP_PATH, MediaStore } from "@executioncontrolprotocol/core"
 import {
   NODE_ENVIRONMENT_ID,
   compileAndValidateWorkflowSource,
+  handleMediaHttp,
   loadWorkflowFile,
 } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
@@ -327,6 +329,21 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }
     void (async () => {
       try {
+        const mediaStore = options.host.ecp.getService(MediaStore)
+        if (mediaStore && url.pathname === MEDIA_HTTP_PATH) {
+          const method = req.method ?? "GET"
+          const mediaBody = method === "POST" ? await readJsonBody(req) : undefined
+          const media = await handleMediaHttp({
+            store: mediaStore,
+            method,
+            url,
+            body: mediaBody,
+          })
+          if (media) {
+            sendJson(res, media.status, media.json)
+            return
+          }
+        }
         if (url.pathname.startsWith("/api/")) {
           await handleApi(req, res, url)
           return

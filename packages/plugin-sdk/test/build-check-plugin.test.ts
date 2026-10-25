@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -180,6 +180,10 @@ describe("checkPlugin / buildPlugin", () => {
     expect(report.definitionId).toBe("@executioncontrolprotocol/jsonata")
     expect(report.commandIds).toEqual(["jsonata:transform"])
     expect(report.written).toEqual(["package.json", "dist/oclif.js", "oclif.manifest.json"])
+    const manifest = JSON.parse(
+      await readFile(join(jsonataDir, "oclif.manifest.json"), "utf8")
+    ) as { commands?: Record<string, unknown> }
+    expect(Object.keys(manifest.commands ?? {})).toEqual(["jsonata:transform"])
     const recheck = await checkPlugin(jsonataDir)
     expect(recheck.ok).toBe(true)
   }, 30_000)

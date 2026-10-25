@@ -9,6 +9,7 @@ import type {
 import type { RemoteInvokeBinding } from "./remote-invoke.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
+import type { ServiceMap } from "../services/map.js"
 
 /** Runtime execution mode. @category Runtime */
 export type RuntimeExecutionMode = "run" | "test"
@@ -45,6 +46,8 @@ export interface RuntimeExecutionContext {
   blobs?: CapabilityBlobStore
   /** Environment-scoped host artifact map. */
   artifacts?: CapabilityArtifactStore
+  /** Host services bound with {@link Environment.use}. */
+  services?: ServiceMap
 }
 
 /** Runtime executor interface. @category Runtime */

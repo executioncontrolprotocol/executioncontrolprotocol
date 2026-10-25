@@ -24,8 +24,13 @@ import {
   createCapabilityArtifactStore,
   type CapabilityArtifactStore,
 } from "../runtime/artifacts.js"
-import type { CapabilityBlobStore } from "../runtime/blobs.js"
+import {
+  createCapabilityBlobStore,
+  type CapabilityBlobStore,
+} from "../runtime/blobs.js"
 import type { RemoteInvokeBinding } from "../runtime/remote-invoke.js"
+import { ServiceMap } from "../services/map.js"
+import type { ServiceProvider, ServiceToken } from "../services/provider.js"
 import { evaluatePolicies } from "../runtime/policy-engine.js"
 import {
   manifestConfig,
@@ -149,6 +154,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   private remoteInvoke?: RemoteInvokeBinding
   private blobStore?: CapabilityBlobStore
   private artifactStore?: CapabilityArtifactStore
+  private readonly services = new ServiceMap()
   private registry: Registry
   private extensionBindings: ExtensionBindingBuilder[] = []
   private policyBindings: PolicyBindingBuilder[] = []
@@ -163,6 +169,29 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
   registerConfigResolver(resolver: EnvironmentConfigResolver): void {
     this.configResolvers.push(resolver)
+  }
+
+  /**
+   * Bind a host service (for example a MediaStore).
+   * A second call with the same `service` id replaces the previous one.
+   * @category Environment
+   */
+  use(provider: ServiceProvider): this {
+    this.services.use(provider)
+    return this
+  }
+
+  /**
+   * Look up a service bound with {@link Environment.use}.
+   * @category Environment
+   */
+  get<T extends ServiceProvider>(token: ServiceToken<T>): T | undefined {
+    return this.services.get(token)
+  }
+
+  /** @internal Service map for run/invoke capability context. */
+  getServices(): ServiceMap {
+    return this.services.clone()
   }
 
   /**
@@ -202,6 +231,17 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
   /** @internal Set the default blob store (used by {@link EcpImpl.getBlobStore}). */
   setBlobStore(store: CapabilityBlobStore): void {
     this.blobStore = store
+  }
+
+  /**
+   * Ensure a blob store exists for browser locators / mixed hops.
+   * @internal
+   */
+  ensureBlobStore(): CapabilityBlobStore {
+    if (!this.blobStore) {
+      this.blobStore = createCapabilityBlobStore()
+    }
+    return this.blobStore
   }
 
   /** @internal Artifact store. */
@@ -623,8 +663,9 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
       journal: options?.journal,
       onEvent: options?.onEvent,
       remoteInvoke: this.remoteInvoke,
-      blobs: options?.blobs ?? this.blobStore,
+      blobs: options?.blobs ?? this.ensureBlobStore(),
       artifacts: this.ensureArtifactStore(),
+      services: this.getServices(),
     })
   }
 }

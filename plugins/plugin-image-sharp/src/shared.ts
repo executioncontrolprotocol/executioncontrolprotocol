@@ -20,10 +20,8 @@ export function buildImageSharpExtension(
   return defineExtension("@executioncontrolprotocol", "image-sharp")
     .supports(NODE_ENVIRONMENT_ID)
     .withConfig({
-      storage: z
+      artifacts: z
         .object({
-          defaultStore: z.string().optional(),
-          tempPrefix: z.string().default("tmp/image-sharp"),
           outputPrefix: z.string().default("artifacts/images")
         })
         .optional(),

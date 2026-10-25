@@ -18,11 +18,9 @@ import {
 } from "../encoding/index.js"
 import { createPatchBuilder, type PatchOperationBuilder } from "../patch/index.js"
 import type { InvokeOperationBuilder } from "../invoke/invoke-builder.js"
-import {
-  createCapabilityBlobStore,
-  type CapabilityBlobStore,
-} from "../runtime/blobs.js"
+import type { CapabilityBlobStore } from "../runtime/blobs.js"
 import type { CapabilityArtifactStore } from "../runtime/artifacts.js"
+import type { ServiceProvider, ServiceToken } from "../services/provider.js"
 
 export type { RunOptions, EnvironmentInitOptions } from "./environment.js"
 
@@ -57,6 +55,11 @@ export interface Ecp {
   getBlobStore(): CapabilityBlobStore
   /** Environment-scoped host artifact store (created on first use). */
   getArtifactStore(): CapabilityArtifactStore
+  /**
+   * Look up a service bound with {@link Environment.use}.
+   * @category Environment
+   */
+  getService<T extends ServiceProvider>(token: ServiceToken<T>): T | undefined
   /** Terminate the environment and release resources. */
   terminate(): Promise<void>
 }
@@ -113,15 +116,15 @@ export class EcpImpl implements Ecp {
   }
 
   getBlobStore(): CapabilityBlobStore {
-    const existing = this.env.getBlobStore()
-    if (existing) return existing
-    const store = createCapabilityBlobStore()
-    this.env.setBlobStore(store)
-    return store
+    return this.env.ensureBlobStore()
   }
 
   getArtifactStore(): CapabilityArtifactStore {
     return this.env.ensureArtifactStore()
+  }
+
+  getService<T extends ServiceProvider>(token: ServiceToken<T>): T | undefined {
+    return this.env.get(token)
   }
 
   terminate(): Promise<void> {
