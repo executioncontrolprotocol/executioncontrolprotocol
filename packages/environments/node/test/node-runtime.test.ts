@@ -26,6 +26,19 @@ registerEnvironmentConformanceTests("@executioncontrolprotocol/node", () =>
 )
 
 describe("@executioncontrolprotocol/node environment", () => {
+  it("does not register test.echo by default", async () => {
+    const ecp = await environment(NODE_ENVIRONMENT_ID, "bare-node").init()
+    try {
+      const desc = await ecp.describe()
+      expect(desc.extensions.some((ext) => ext.id === "@executioncontrolprotocol/test")).toBe(false)
+      expect(desc.capabilities.some((cap) => cap.id === "@executioncontrolprotocol/test.echo")).toBe(
+        false
+      )
+    } finally {
+      await ecp.terminate()
+    }
+  })
+
   it("runs echo workflow", async () => {
     const envBuilder = environment(NODE_ENVIRONMENT_ID, "node-test").with([
       extension(testExtension),

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import type { Interfaces } from "@oclif/core"
 import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/core/types"
-import { ECP_PLUGINS_MISSING } from "@executioncontrolprotocol/plugin-sdk"
+import { ECP_PLUGINS_MISSING, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 
 const question = vi.fn(async () => "")
 vi.mock("node:readline/promises", () => ({
@@ -43,6 +45,22 @@ const jsonataRequirements = {
   ],
 }
 
+const testRequirements = {
+  schema: "@executioncontrolprotocol.requirements" as const,
+  version: LATEST_ECP_VERSION,
+  requirements: [
+    {
+      kind: "extension" as const,
+      id: "@executioncontrolprotocol/test",
+      package: "@executioncontrolprotocol/plugin-test",
+      source: "inferred" as const,
+    },
+  ],
+}
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
+const TEST_ENV = join(repoRoot, "packages/cli/test/fixtures/test-extension-env.ts")
+
 describe("ensurePluginsInstalled TTY prompt", () => {
   const stdinDesc = Object.getOwnPropertyDescriptor(process.stdin, "isTTY")
   const stdoutDesc = Object.getOwnPropertyDescriptor(process.stdout, "isTTY")
@@ -78,4 +96,51 @@ describe("ensurePluginsInstalled TTY prompt", () => {
       true
     )
   })
+})
+
+describe("ensurePluginsInstalled already-bound skip", () => {
+  it("skips a requirement whose id is already on the host registry", async () => {
+    const host = {
+      registry: {
+        getExtension: (id: string) =>
+          id === "@executioncontrolprotocol/jsonata" ? { id } : undefined,
+      },
+    } as unknown as EcpHost
+    await expect(
+      ensurePluginsInstalled({
+        requirements: jsonataRequirements,
+        config: mockConfig([]),
+        argv: [],
+        json: true,
+        install: false,
+        host,
+      })
+    ).resolves.toBe(host)
+  })
+
+  it("skips plugin-test when --env binds testExtension", async () => {
+    await expect(
+      ensurePluginsInstalled({
+        requirements: testRequirements,
+        config: mockConfig([]),
+        argv: [],
+        json: true,
+        install: false,
+        envFlag: TEST_ENV,
+      })
+    ).resolves.toBeUndefined()
+  }, 30_000)
+
+  it("still reports jsonata missing when --env only binds testExtension", async () => {
+    await expect(
+      ensurePluginsInstalled({
+        requirements: jsonataRequirements,
+        config: mockConfig([]),
+        argv: [],
+        json: true,
+        install: false,
+        envFlag: TEST_ENV,
+      })
+    ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
+  }, 30_000)
 })

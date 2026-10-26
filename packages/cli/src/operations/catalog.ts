@@ -107,6 +107,7 @@ export const invokeOperation = defineOperation("invoke")
       "Call a registered capability by id without running a workflow. Prints an InvokeResult JSON document.",
     useCases: ["Smoke-test a capability outside a workflow"],
     examples: [
+      "ecp plugins link plugins/plugin-test",
       "ecp invoke @executioncontrolprotocol/test.echo --input input.json",
     ],
     cli: { args: ["capability-id"] },

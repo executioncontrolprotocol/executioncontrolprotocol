@@ -139,7 +139,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       event: "run:started",
       ...runBase,
     })
-    context.onEvent?.(publicRunEvent("run.start", runId, { status: "started" }))
+    await context.onEvent?.(publicRunEvent("run.start", runId, { status: "started" }))
 
     const stepCtx: StepRunCtx = {
       manifest,
@@ -241,7 +241,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         state,
         status,
       })
-      context.onEvent?.(publicRunEvent("run.end", runId, { status }))
+      await context.onEvent?.(publicRunEvent("run.end", runId, { status }))
     }
   }
 

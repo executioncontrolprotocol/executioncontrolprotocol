@@ -17,6 +17,7 @@ describe("listPublishableWorkspaces", () => {
     expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-sdk")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-jsonata")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/plugin-test")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-fal")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-image-sharp")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-azure-blob-storage")).toBe(true)

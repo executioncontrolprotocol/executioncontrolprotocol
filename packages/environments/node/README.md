@@ -37,7 +37,9 @@ await ecp.run(
 
 `secrets()` and `env()` resolve with no explicit binding: the Node definition binds those
 extensions by default, along with the journal writer (`@executioncontrolprotocol/journal`).
-Journals land under `.ecp/runs/<runId>/` unless `ECP_RUNS_DIR` is set.
+`test.echo` is **not** a Node default; bind `testExtension` or install
+`@executioncontrolprotocol/plugin-test`. Journals land under `.ecp/runs/<runId>/` unless
+`ECP_RUNS_DIR` is set.
 
 ## Related
 

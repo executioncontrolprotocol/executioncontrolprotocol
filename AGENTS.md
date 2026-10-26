@@ -48,6 +48,7 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `packages/cli/` | `ecp` CLI (oclif 5, generated operations + hooks) | Rebuilt in Phase 3 |
 | `packages/plugin-sdk/` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library | Added in Phase 3 |
 | `plugins/plugin-jsonata/` | Reference plugin (`@executioncontrolprotocol/plugin-jsonata`) | Migrated in Phase 3 |
+| `plugins/plugin-test/` | Stub echo/placeholder plugin (`@executioncontrolprotocol/plugin-test`) | Not a Node default; `ecp plugins link plugins/plugin-test` |
 | `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
@@ -146,6 +147,7 @@ The CLI uses oclif v5 (`@oclif/core`). Commands are generated: the CLI's own com
 definitions. The only hand-written oclif code is the hooks.
 
 ```sh
+ecp plugins link plugins/plugin-test
 ecp run examples/01-echo/workflow.ecp.ts
 ecp run brief.ecp.ts --to fetch
 ecp run brief.ecp.ts --events

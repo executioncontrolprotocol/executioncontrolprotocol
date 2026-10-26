@@ -15,7 +15,6 @@ export type WorkflowBinding = ExtensionBindingBuilder | PolicyBindingBuilder
 /** Built-in ids that never map to an npm plugin install. @category Workflow */
 export const BUILTIN_REQUIREMENT_IDS = new Set<string>([
   "@executioncontrolprotocol/registry-control",
-  "@executioncontrolprotocol/test",
   "@executioncontrolprotocol/secrets",
   "@executioncontrolprotocol/process-env",
   "@executioncontrolprotocol/node",
