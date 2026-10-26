@@ -57,6 +57,7 @@ export async function prepareWorkflowRun(options: {
     json: options.json,
     install: options.install,
     host: options.host,
+    envFlag: options.envFlag,
   })
   try {
     const layered = await layerRunEnvironment({

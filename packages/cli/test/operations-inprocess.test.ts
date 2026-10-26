@@ -7,8 +7,11 @@ import {
   ECP_PLUGINS_MISSING,
   ECP_RUN_PAUSED,
   ECP_RERUN_INCOMPATIBLE,
+  type EcpHost,
 } from "@executioncontrolprotocol/plugin-sdk"
-import { describe, expect, it } from "vitest"
+import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { createEchoHost } from "./echo-host.js"
 import { COMMANDS } from "../src/commands.js"
 import { applyFormat, formatExtensionId, formatPluginPackage } from "../src/lib/format-output.js"
 import { commandErrorMessage, readJsonFile, runWithCommandError } from "../src/lib/command-helpers.js"
@@ -71,11 +74,21 @@ function mockConfig(
   } as unknown as Interfaces.Config
 }
 
+let echoHost: EcpHost | undefined
+
+beforeAll(async () => {
+  echoHost = await createEchoHost()
+})
+
+afterAll(async () => {
+  await echoHost?.ecp.terminate()
+})
+
 function ctx(
   config: Interfaces.Config = mockConfig(),
   argv: string[] = []
-): { host: undefined; config: Interfaces.Config; argv: string[]; json: boolean } {
-  return { host: undefined, config, argv, json: true }
+): { host: EcpHost | undefined; config: Interfaces.Config; argv: string[]; json: boolean } {
+  return { host: echoHost, config, argv, json: true }
 }
 
 describe("generated COMMANDS", () => {
@@ -585,6 +598,23 @@ export default workflow("Needs jsonata").run([
   step("@executioncontrolprotocol/jsonata.transform", "T").with({ expression: "$" }).as("out"),
 ])
 `
+
+  it("validate of 01-echo without plugin-test reports ECP_PLUGINS_MISSING", async () => {
+    const ecp = await environment(NODE_ENVIRONMENT_ID, "bare-cli-echo").init()
+    try {
+      const host: EcpHost = {
+        ecp,
+        registry: ecp.getRegistry(),
+        environmentId: NODE_ENVIRONMENT_ID,
+        output: "pretty",
+      }
+      await expect(
+        validateOperation.handler({ "workflow-path": echoWf }, { host, config: mockConfig(), argv: [], json: true })
+      ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
+    } finally {
+      await ecp.terminate()
+    }
+  }, 30_000)
 
   it("validate of a jsonata workflow reports ECP_PLUGINS_MISSING without installing", async () => {
     await withRepoTemp("tmp-ecp-missing-", async (dir) => {

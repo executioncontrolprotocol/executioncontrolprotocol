@@ -23,11 +23,37 @@ describe("findMissingPlugins", () => {
       {
         schema: "@executioncontrolprotocol.requirements",
         version: LATEST_ECP_VERSION,
-        requirements: [{ kind: "extension", id: "@executioncontrolprotocol/test", source: "inferred" }],
+        requirements: [{ kind: "extension", id: "@executioncontrolprotocol/secrets", source: "inferred" }],
       },
       mockConfig([])
     )
     expect(missing).toEqual([])
+  })
+
+  it("reports missing plugin-test", () => {
+    const missing = findMissingPlugins(
+      {
+        schema: "@executioncontrolprotocol.requirements",
+        version: LATEST_ECP_VERSION,
+        requirements: [
+          {
+            kind: "extension",
+            id: "@executioncontrolprotocol/test",
+            package: "@executioncontrolprotocol/plugin-test",
+            source: "inferred",
+          },
+        ],
+      },
+      mockConfig([])
+    )
+    expect(missing).toEqual([
+      {
+        id: "@executioncontrolprotocol/test",
+        package: "@executioncontrolprotocol/plugin-test",
+        reason: "missing",
+        command: "ecp plugins install @executioncontrolprotocol/plugin-test",
+      },
+    ])
   })
 
   it("reports missing packages with an install command", () => {

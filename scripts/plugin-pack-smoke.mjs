@@ -44,6 +44,13 @@ export const HOST_PACK_NAMES = [
  */
 export const PLUGIN_SMOKES = [
   {
+    package: "@executioncontrolprotocol/plugin-test",
+    dir: "plugins/plugin-test",
+    topic: "test",
+    args: ["test", "echo", "--help", "--json"],
+    match: /echo/i,
+  },
+  {
     package: "@executioncontrolprotocol/plugin-jsonata",
     dir: "plugins/plugin-jsonata",
     topic: "jsonata",
@@ -304,6 +311,24 @@ if (isMain()) {
       }
     }
 
+    /** @type {Set<string>} */
+    const installedPlugins = new Set()
+    /**
+     * @param {string} packageName
+     */
+    function installPlugin(packageName) {
+      if (installedPlugins.has(packageName)) return
+      const tarball = tarballs.get(packageName)
+      const spec = pathToFileURL(tarball).href
+      const installed = runEcp(["plugins", "install", spec])
+      if (installed.code !== 0) {
+        throw new Error(`${packageName} plugins install failed\n${installed.stdout}\n${installed.stderr}`)
+      }
+      installedPlugins.add(packageName)
+    }
+
+    installPlugin("@executioncontrolprotocol/plugin-test")
+
     const compiled = runEcp(["compile", join(fixtureDir, "workflow.ecp.ts"), "-o", "workflow.json"])
     if (compiled.code !== 0) {
       throw new Error(`ecp compile failed\n${compiled.stdout}\n${compiled.stderr}`)
@@ -318,14 +343,7 @@ if (isMain()) {
     }
 
     for (const smoke of PLUGIN_SMOKES) {
-      const tarball = tarballs.get(smoke.package)
-      const spec = pathToFileURL(tarball).href
-      const installed = runEcp(["plugins", "install", spec])
-      if (installed.code !== 0) {
-        throw new Error(
-          `${smoke.package} plugins install failed\n${installed.stdout}\n${installed.stderr}`,
-        )
-      }
+      installPlugin(smoke.package)
       const help = runEcp([smoke.topic, "--help"])
       if (help.code !== 0 && !smoke.package.includes("plugin-budget") && !smoke.package.includes("plugin-approval") && !smoke.package.includes("plugin-state-control")) {
         throw new Error(`${smoke.topic} --help failed\n${help.stdout}\n${help.stderr}`)

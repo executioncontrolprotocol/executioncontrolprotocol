@@ -1,0 +1,170 @@
+{
+  "version": "0.50.0",
+  "commands": {
+    "test:echo": {
+      "aliases": [],
+      "args": {},
+      "description": "Echoes the supplied value or a default greeting. Used to verify wiring, refs, and step output propagation in minimal workflows.\nUse cases:\n- 01-echo example demonstrates a single-step workflow.\n- Integration test asserts invoke and run paths return payloads.\nProjections:\n- Use the echoed value: Take the echo field as the step output for refs and downstream wiring checks.",
+      "examples": [
+        "ecp test echo --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:echo",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Return the input value unchanged.",
+      "enableJsonFlag": true
+    },
+    "test:notify": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns a fixed ok stub. Stands in for notification side effects in tutorials and tests.\nUse cases:\n- Example workflow ends with a notify step after processing.\n- Unit test covers invoke on a non-echo capability id.\nProjections:\n- Use the stub result: Take ok and result when present as placeholder output for multi-capability demos.",
+      "examples": [
+        "ecp test notify --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:notify",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Placeholder notify step for multi-capability demos.",
+      "enableJsonFlag": true
+    },
+    "test:summarize": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns a fixed ok stub. Useful in sample workflows that list several capability kinds without real summarization logic.\nUse cases:\n- Demo manifest shows a summarize step beside echo and translate.\n- Test verifies multiple capabilities register on one extension.\nProjections:\n- Use the stub result: Take ok and result when present as placeholder output for multi-capability demos.",
+      "examples": [
+        "ecp test summarize --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:summarize",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Placeholder summarize step for multi-capability demos.",
+      "enableJsonFlag": true
+    },
+    "test:translate": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns a fixed ok stub. Represents a translate-shaped step in examples without calling a real translation service.\nUse cases:\n- Sample workflow chains translate after summarize.\n- Registry test lists distinct capability names on test extension.\nProjections:\n- Use the stub result: Take ok and result when present as placeholder output for multi-capability demos.",
+      "examples": [
+        "ecp test translate --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:translate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Placeholder translate step for multi-capability demos.",
+      "enableJsonFlag": true
+    },
+    "test:validate": {
+      "aliases": [],
+      "args": {},
+      "description": "Returns a fixed ok stub. Represents a validation-shaped step in sample graphs without running real validators.\nUse cases:\n- Tutorial workflow includes validate before notify.\n- Conformance test enumerates all test extension capability ids.\nProjections:\n- Use the stub result: Take ok and result when present as placeholder output for multi-capability demos.",
+      "examples": [
+        "ecp test validate --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:validate",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Placeholder validate step for multi-capability demos.",
+      "enableJsonFlag": true
+    }
+  }
+}

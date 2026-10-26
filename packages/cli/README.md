@@ -46,6 +46,7 @@ process host (built-in Node plus installed plugins).
 ### Run
 
 ```sh
+ecp plugins link plugins/plugin-test
 ecp run examples/01-echo/workflow.ecp.ts
 ```
 
@@ -120,6 +121,7 @@ ecp plugins new my-transform
 ecp plugins build
 ecp plugins check
 ecp plugins link plugins/plugin-jsonata
+ecp plugins link plugins/plugin-test
 ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp discover jsonata --json
 ```
@@ -157,3 +159,4 @@ ecp app brief.ecp.ts --no-open
 - [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents
 - [`@executioncontrolprotocol/plugin-jsonata`](../../plugins/plugin-jsonata/README.md): reference plugin
+- [`@executioncontrolprotocol/plugin-test`](../../plugins/plugin-test/README.md): stub echo capabilities (not a Node default)

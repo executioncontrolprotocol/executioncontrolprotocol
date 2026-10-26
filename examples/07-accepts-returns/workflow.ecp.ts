@@ -1,4 +1,4 @@
-import { workflow, step, ref } from "@executioncontrolprotocol/core"
+import { workflow, step, ref, extension } from "@executioncontrolprotocol/core"
 
 export default workflow("Echo from input")
   .id("echo-from-input")
@@ -12,6 +12,7 @@ export default workflow("Echo from input")
     properties: { echo: { type: "object" } },
     required: ["echo"],
   })
+  .with([extension("@executioncontrolprotocol/test")])
   .run([
     step("@executioncontrolprotocol/test.echo", "Echo")
       .with({ value: ref("value") })

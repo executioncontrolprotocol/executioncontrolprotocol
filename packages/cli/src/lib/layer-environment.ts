@@ -62,8 +62,15 @@ export async function userEnvironmentFile(configDir: string): Promise<string | u
   return undefined
 }
 
+function isDefinitionBinding(binding: WorkflowBinding): boolean {
+  const ref = binding.getRef()
+  return typeof ref === "object" && ref !== null
+}
+
 /**
- * Layer built-in Node + installed plugins, optional `--env` / user environment, then workflow `.with()`.
+ * Layer built-in Node + installed plugins, optional `--env` / user environment, then
+ * workflow `.with()` **definition objects**. String-id bindings record requirements only;
+ * the process host (or `--env`) must already provide those extensions.
  * @category CLI
  */
 export async function layerRunEnvironment(options: {
@@ -73,11 +80,16 @@ export async function layerRunEnvironment(options: {
   host?: EcpHost
 }): Promise<{ ecp: Ecp; terminate: boolean }> {
   const bindings = options.workflowBindings ?? []
+  const definitionBindings = bindings.filter(isDefinitionBinding)
   const envFile =
     options.envFlag ??
     (options.config.configDir ? await userEnvironmentFile(options.config.configDir) : undefined)
 
-  if (!envFile && bindings.length === 0) {
+  if (bindings.length > 0) {
+    assertWorkflowBindingsAllowed(bindings, options.host?.registry)
+  }
+
+  if (!envFile && definitionBindings.length === 0) {
     return ecpFromEnvFlag(undefined, options.host)
   }
 
@@ -90,9 +102,8 @@ export async function layerRunEnvironment(options: {
 
   env.with([extension(journalExtension)])
 
-  if (bindings.length > 0) {
-    assertWorkflowBindingsAllowed(bindings, options.host?.registry)
-    env.with(bindings)
+  if (definitionBindings.length > 0) {
+    env.with(definitionBindings)
   }
 
   const ecp = await env.init()
