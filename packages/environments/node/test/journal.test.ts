@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { workflow, step, secrets } from "@executioncontrolprotocol/core"
+import { workflow, step, secrets, extension, testExtension } from "@executioncontrolprotocol/core"
 import {
   environment,
   NODE_ENVIRONMENT_ID,
@@ -34,7 +34,9 @@ describe("journal writer", () => {
     setMemorySecret("TOKEN", "super-secret-token")
     recordResolvedSecret("TOKEN", "super-secret-token")
 
-    const env = environment(NODE_ENVIRONMENT_ID, "journal-test")
+    const env = environment(NODE_ENVIRONMENT_ID, "journal-test").with([
+      extension(testExtension),
+    ])
     const ecp = await env.init()
     try {
       const manifest = workflow("echo")

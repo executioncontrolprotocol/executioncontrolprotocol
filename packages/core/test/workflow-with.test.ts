@@ -81,8 +81,10 @@ describe("workflow().with() and requirements()", () => {
       .requirements()
 
     const byId = Object.fromEntries(req.requirements.map((r) => [r.id, r]))
-    expect(byId["@executioncontrolprotocol/test"]?.package).toBeUndefined()
-    expect(byId["@executioncontrolprotocol/test"]?.source).toBe("inferred")
+    expect(byId["@executioncontrolprotocol/test"]).toMatchObject({
+      package: "@executioncontrolprotocol/plugin-test",
+      source: "inferred",
+    })
     expect(byId["@executioncontrolprotocol/jsonata"]).toMatchObject({
       package: "@executioncontrolprotocol/plugin-jsonata",
       source: "inferred",
@@ -139,8 +141,10 @@ describe("requirement id mapping", () => {
     expect(inferredPackageName("@executioncontrolprotocol/jsonata")).toBe(
       "@executioncontrolprotocol/plugin-jsonata"
     )
-    expect(isBuiltinRequirementId("@executioncontrolprotocol/test")).toBe(true)
-    expect(inferredPackageName("@executioncontrolprotocol/test")).toBeUndefined()
+    expect(isBuiltinRequirementId("@executioncontrolprotocol/test")).toBe(false)
+    expect(inferredPackageName("@executioncontrolprotocol/test")).toBe(
+      "@executioncontrolprotocol/plugin-test"
+    )
     expect(inferredPackageName("@executioncontrolprotocol/secrets")).toBeUndefined()
     expect(inferredPackageName("@executioncontrolprotocol/process-env")).toBeUndefined()
     expect(inferredPackageName("@executioncontrolprotocol/registry-control")).toBeUndefined()

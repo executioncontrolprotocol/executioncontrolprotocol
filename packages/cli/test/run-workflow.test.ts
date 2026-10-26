@@ -12,6 +12,7 @@ const cliBin = join(repoRoot, "packages/cli/bin/run.js")
 
 const ACCEPTS_WORKFLOW = "examples/07-accepts-returns/workflow.ecp.ts"
 const ACCEPTS_INPUT = "examples/07-accepts-returns/input.json"
+const TEST_ENV = "packages/cli/test/fixtures/test-extension-env.ts"
 
 interface CliResult {
   code: number
@@ -46,6 +47,8 @@ describe("ecp run workflow source", () => {
         cliBin,
         "run",
         "examples/01-echo/workflow.ecp.ts",
+        "--env",
+        TEST_ENV,
       ],
       { cwd: repoRoot, encoding: "utf8" }
     )
@@ -55,7 +58,7 @@ describe("ecp run workflow source", () => {
   }, 30_000)
 
   it("runs accepts/returns example with --input", async () => {
-    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT])
+    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--env", TEST_ENV])
     expect(res.code).toBe(0)
     const result = JSON.parse(res.stdout) as {
       run: { status: string }
@@ -70,7 +73,7 @@ describe("ecp run workflow source", () => {
     const badInput = join(tmp, "bad.json")
     await writeFile(badInput, JSON.stringify({ value: 1 }), "utf8")
     try {
-      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", badInput])
+      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", badInput, "--env", TEST_ENV])
       expect(res.code).not.toBe(0)
       expect(`${res.stderr}\n${res.stdout}`).toMatch(/accepts validation failed/)
     } finally {
@@ -85,6 +88,8 @@ describe("ecp run workflow source", () => {
       "--input",
       ACCEPTS_INPUT,
       "--dry-run",
+      "--env",
+      TEST_ENV,
     ])
     expect(res.code).toBe(0)
     const result = JSON.parse(res.stdout) as {
@@ -109,6 +114,8 @@ describe("ecp run workflow source", () => {
         "--input",
         emptyInput,
         "--dry-run",
+        "--env",
+        TEST_ENV,
       ])
       expect(res.code).not.toBe(0)
       expect(`${res.stderr}\n${res.stdout}`).toMatch(/accepts validation failed/)

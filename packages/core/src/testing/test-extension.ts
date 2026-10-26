@@ -10,7 +10,12 @@ function testStubHandler(input: { payload?: unknown }) {
   return { ok: true, result: input.payload ?? "test-stub" }
 }
 
-/** In-repo stub extension for examples and tests. @category Testing */
+/**
+ * In-repo stub extension for examples and tests.
+ * Production CLI loads the same definition from `@executioncontrolprotocol/plugin-test`;
+ * it is not a Node default.
+ * @category Testing
+ */
 export const testExtension = defineExtension("@executioncontrolprotocol", "test")
   .withConfig({})
   .withMetadata({

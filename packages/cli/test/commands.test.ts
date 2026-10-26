@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
+import { hermeticCliEnv } from "./helpers.js"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
 const cliBin = join(repoRoot, "packages/cli/bin/run.js")
 
 const ECHO_WORKFLOW_TS = "examples/01-echo/workflow.ecp.ts"
+const TEST_ENV = "packages/cli/test/fixtures/test-extension-env.ts"
 const BROKEN_WORKFLOW = JSON.stringify({
   schema: "@executioncontrolprotocol.workflow",
   version: "1.0",
@@ -79,7 +81,7 @@ describe("ecp CLI commands", () => {
 
   describe("validate", () => {
     it("reports a valid workflow and exits 0", async () => {
-      const res = await runCli(["validate", ECHO_WORKFLOW_TS])
+      const res = await runCli(["validate", ECHO_WORKFLOW_TS, "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { valid: boolean }
       expect(result.valid).toBe(true)
@@ -99,15 +101,25 @@ describe("ecp CLI commands", () => {
   })
 
   describe("describe", () => {
+    it("does not list test.echo on a hermetic process host", async () => {
+      const hermetic = await hermeticCliEnv()
+      const res = await runCli(["describe"], hermetic.env)
+      expect(res.code).toBe(0)
+      const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
+      expect(
+        descriptor.capabilities.some((c) => c.id === "@executioncontrolprotocol/test.echo")
+      ).toBe(false)
+    }, 30_000)
+
     it("returns a descriptor including the echo capability", async () => {
-      const res = await runCli(["describe"])
+      const res = await runCli(["describe", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
       expect(descriptor.capabilities.some((c) => c.id.includes("echo"))).toBe(true)
     }, 30_000)
 
     it("prints the --json envelope", async () => {
-      const res = await runCli(["describe", "--json"])
+      const res = await runCli(["describe", "--json", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const body = JSON.parse(res.stdout) as { ok: boolean; data: { capabilities: { id: string }[] } }
       expect(body.ok).toBe(true)
@@ -117,7 +129,7 @@ describe("ecp CLI commands", () => {
 
   describe("search", () => {
     it("returns search results for a query", async () => {
-      const res = await runCli(["search", "echo"])
+      const res = await runCli(["search", "echo", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { results: unknown[] }
       expect(Array.isArray(result.results)).toBe(true)
@@ -133,6 +145,8 @@ describe("ecp CLI commands", () => {
         "@executioncontrolprotocol/test.echo",
         "--input",
         inputPath,
+        "--env",
+        TEST_ENV,
       ])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as {
@@ -160,7 +174,7 @@ describe("ecp CLI commands", () => {
     it("run --to then resume and rerun --from --to", async () => {
       const runsDir = join(tmp, "runs")
       const env = { ...process.env, ECP_RUNS_DIR: runsDir }
-      const stopped = await runCli(["run", TWO_STEP_WF, "--to", "first"], env)
+      const stopped = await runCli(["run", TWO_STEP_WF, "--to", "first", "--env", TEST_ENV], env)
       expect(stopped.code).toBe(0)
       const stoppedBody = JSON.parse(stopped.stdout) as {
         run: { id: string; status: string }
@@ -170,7 +184,7 @@ describe("ecp CLI commands", () => {
       expect(stoppedBody.history.first?.status).toBe("completed")
       expect(stoppedBody.history.second).toBeUndefined()
 
-      const resumed = await runCli(["runs", "resume", stoppedBody.run.id], env)
+      const resumed = await runCli(["runs", "resume", stoppedBody.run.id, "--env", TEST_ENV], env)
       expect(resumed.code).toBe(0)
       const resumedBody = JSON.parse(resumed.stdout) as {
         run: { id: string; status: string }
@@ -182,7 +196,7 @@ describe("ecp CLI commands", () => {
       expect(resumedBody.run.id).not.toBe(stoppedBody.run.id)
 
       const rerun = await runCli(
-        ["runs", "rerun", resumedBody.run.id, "--from", "first", "--to", "first"],
+        ["runs", "rerun", resumedBody.run.id, "--from", "first", "--to", "first", "--env", TEST_ENV],
         env
       )
       expect(rerun.code).toBe(0)

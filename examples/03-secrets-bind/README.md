@@ -11,13 +11,14 @@ ecp config secrets add openai/api-key
 
 ## Files
 
-- `workflow.ecp.ts` — echo step (always runnable). Do not bind `secrets` here.
+- `workflow.ecp.ts` — echo step (`plugin-test`). Do not bind `secrets` here.
 
 Put `extension("@executioncontrolprotocol/openai").with({ apiKey: secrets("openai/api-key") })` on `<configDir>/environment.ecp.ts` or `--env`, not on the workflow.
 
 ## Run
 
 ```bash
+ecp plugins link plugins/plugin-test
 ecp validate examples/03-secrets-bind/workflow.ecp.ts
 ecp run examples/03-secrets-bind/workflow.ecp.ts
 ```

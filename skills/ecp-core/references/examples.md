@@ -4,7 +4,7 @@ Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). `--env` i
 
 | Folder | Teaches | Reset |
 | --- | --- | --- |
-| `01-echo` | Minimal Fluent, built-in `test.echo`, CLI | Single `workflow.ecp.ts`; no `.with()` |
+| `01-echo` | Minimal Fluent + `plugin-test` (`test.echo`) | Single `workflow.ecp.ts`; `.with([extension("@executioncontrolprotocol/test")])` |
 | `02-weekly-brief` | Multi-step, `ref()`, a model step | Single `workflow.ecp.ts`; `memory` replaced by workflow input in Phase 1 |
 | `03-secrets-bind` | Keychain and `secrets()` in extension config | Single `workflow.ecp.ts`; does not bind `secrets` in the workflow |
 | `04-encode-decode` | TOON round-trip | **Removed in Phase 1** (format plugins cover it) |
