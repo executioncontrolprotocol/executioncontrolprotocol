@@ -38,8 +38,8 @@ export interface RuntimeExecutionContext {
   approvals?: RunApproval[]
   /** Host journal metadata (path, hash, parent run). */
   journal?: RunJournalMeta
-  /** Public NDJSON stream (`ecp run --events`). */
-  onEvent?: (event: PublicRunEvent) => void
+  /** Public NDJSON stream (`ecp run --events`). May return a promise so hosts can flush. */
+  onEvent?: (event: PublicRunEvent) => void | Promise<void>
   /** Local invoke host for host/mixed hops. */
   remoteInvoke?: RemoteInvokeBinding
   /** Run-scoped browser file map. */

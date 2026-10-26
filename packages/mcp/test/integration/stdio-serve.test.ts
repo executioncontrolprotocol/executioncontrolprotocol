@@ -144,11 +144,14 @@ describe("ecp mcp serve over stdio", () => {
     const { client } = await connect(env)
     try {
       const progress: { message?: string }[] = []
-      await client.callTool(
+      const res = await client.callTool(
         { name: "ecp_run", arguments: { source: JSONATA_SOURCE, events: true } },
         CallToolResultSchema,
         { onprogress: (event) => progress.push(event) }
       )
+      const text = (res.content as TextContent[]).find((c) => c.type === "text")?.text
+      const envelope = JSON.parse(text ?? "{}") as { ok: boolean }
+      expect(envelope.ok).toBe(true)
       expect(progress.some((p) => p.message === "run.start")).toBe(true)
       expect(progress.some((p) => p.message === "run.end")).toBe(true)
     } finally {

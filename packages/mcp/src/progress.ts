@@ -26,14 +26,14 @@ export interface McpProgressSink {
 export function progressFromRunEvent(
   extra: McpProgressSink,
   events: boolean | undefined
-): ((event: PublicRunEvent) => void) | undefined {
+): ((event: PublicRunEvent) => void | Promise<void>) | undefined {
   if (!events) return undefined
   const token = extra._meta?.progressToken
   if (token === undefined) return undefined
   let n = 0
-  return (event) => {
+  return async (event) => {
     n += 1
-    void extra.sendNotification({
+    await extra.sendNotification({
       method: "notifications/progress",
       params: {
         progressToken: token,

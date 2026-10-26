@@ -109,8 +109,8 @@ export interface RunOptions {
   approvals?: import("../types/index.js").RunApproval[]
   /** Host journal metadata. */
   journal?: import("../types/index.js").RunJournalMeta
-  /** Public NDJSON callback (`ecp run --events`). */
-  onEvent?: (event: import("../types/index.js").PublicRunEvent) => void
+  /** Public NDJSON callback (`ecp run --events`). May return a promise so hosts can flush. */
+  onEvent?: (event: import("../types/index.js").PublicRunEvent) => void | Promise<void>
 }
 
 /**
