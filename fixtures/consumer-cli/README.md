@@ -20,6 +20,6 @@ Set `KEEP_PLUGIN_PACK=1` to leave the temp install directory.
 
 | File | Role |
 | --- | --- |
-| `workflow.ecp.ts` | Minimal Fluent echo workflow (packed CLI compile/validate/run) |
+| `workflow.ecp.ts` | Minimal Fluent echo workflow (packed CLI compile/validate/run after `plugin-test` is installed) |
 | `payload.json` in `fixtures/plugin-pack-smoke/` | Offline jsonata `--json` input |
 | `package.json` | Documents required deps (smoke script installs from tarballs) |

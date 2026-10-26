@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest"
 import { HOST_PACK_NAMES, PLUGIN_SMOKES, parseJsonEnvelope } from "./plugin-pack-smoke.mjs"
 
 describe("plugin-pack-smoke catalog", () => {
-  it("covers all 13 first-party plugins", () => {
-    expect(PLUGIN_SMOKES).toHaveLength(13)
+  it("covers all 14 first-party plugins", () => {
+    expect(PLUGIN_SMOKES).toHaveLength(14)
     const names = PLUGIN_SMOKES.map((smoke) => smoke.package)
     expect(names).toEqual(
       expect.arrayContaining([
+        "@executioncontrolprotocol/plugin-test",
         "@executioncontrolprotocol/plugin-jsonata",
         "@executioncontrolprotocol/plugin-adobe-firefly-services",
         "@executioncontrolprotocol/plugin-budget",
       ]),
     )
-    expect(new Set(names).size).toBe(13)
+    expect(new Set(names).size).toBe(14)
   })
 
   it("packs the CLI host graph so install does not hit unpublished npm", () => {
