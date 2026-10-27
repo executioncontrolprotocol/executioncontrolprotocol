@@ -19,7 +19,7 @@ export function createEcpMcpServer(options: CreateEcpMcpServerOptions): McpServe
   const state: McpSessionState = { host: options.host }
   const server = new McpServer({
     name: options.name ?? DEFAULT_MCP_SERVER_NAME,
-    version: options.version ?? "0.50.0",
+    version: options.version ?? "0.51.0",
   })
   const capabilityTools: RegisteredTool[] = []
 

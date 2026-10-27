@@ -11,8 +11,8 @@ ecp plugins link plugins/plugin-app
 ecp app product.ecp.ts
 ```
 
-Until `0.50.0` is on the registry, do not expect first-use JIT from npm. There is no
-hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.50"`.
+Until `0.51.0` is on the registry, do not expect first-use JIT from npm. There is no
+hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.51"`.
 
 ## Library
 

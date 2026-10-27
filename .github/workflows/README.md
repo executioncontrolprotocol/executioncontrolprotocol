@@ -4,7 +4,7 @@
 | ---- | ------- |
 | **`ci.yml`** | Workflow `ci`: runs on pushes to `main` / `development` / `feat/**` / `milestone/**` and on PRs targeting those branches. Calls `ci-pipeline.yml`. |
 | **`ci-pipeline.yml`** | Reusable workflow `ci`: jobs `secrets`, `build`, `unit`, `integration`, `browser`, `consumer-cli` (`test:plugin-pack`); **publish** on **push to `main`** only when `ENABLE_NPM_PUBLISH=true` (`changesets/action`). |
-| **`development.yml`** | Workflow `changesets`: on PRs into `development` and `milestone/**`, runs `changeset status`. |
+| **`development.yml`** | Workflow `changesets`: on PRs into `development` and `milestone/**`, runs `changeset status`. On push/PR to `development`, job `version` runs `pnpm run version:check-vs-npm` so every publishable package.json is strictly greater than npm latest. |
 | **`release-next.yml`** | Manual `workflow_dispatch` on `milestone/**` only: build/test then `changeset publish --tag next`. Do not dispatch during Phase 5. |
 
 To run the full quality gate locally: `npm run check` (build + lint + **coverage** + integration + e2e). Browser tests: `npm run test:browser:install` then `npm run test:browser`.

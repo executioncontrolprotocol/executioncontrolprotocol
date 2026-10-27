@@ -26,4 +26,4 @@ Used by `ecp plugins new|build|check`:
 
 Authors keep `src/index.ts` and a minimal `package.json`. Everything oclif needs is generated.
 
-Versioning is independent via Changesets. This package is `0.50.0` (Phase 9 field-test `latest`). 1.0 is Later.
+Versioning is independent via Changesets. This package is `0.51.0`. 1.0 is Later.

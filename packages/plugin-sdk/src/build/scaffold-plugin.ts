@@ -26,7 +26,7 @@ export async function scaffoldPlugin(dir: string, name: string): Promise<void> {
   await mkdir(join(dir, "src"), { recursive: true })
   const packageJson = {
     name: pkgName,
-    version: "0.50.0",
+    version: "0.51.0",
     description: `ECP plugin ${extName}`,
     license: "Apache-2.0",
     type: "module",

@@ -11,7 +11,7 @@ import { browserLocalConfigExtension } from "../extensions/browser-local-config.
 export { BrowserRuntimeExecutor } from "./browser-executor.js"
 export { BROWSER_ENVIRONMENT_ID }
 
-const BROWSER_ENVIRONMENT_VERSION = "0.50.0"
+const BROWSER_ENVIRONMENT_VERSION = "0.51.0"
 
 /** Built-in browser environment definition. @category Environment */
 export const browserEnvironmentDefinition = defineEnvironment("@executioncontrolprotocol", "browser")

@@ -13,8 +13,8 @@ Packages are versioned independently with [Changesets](https://github.com/change
 
 ## Latest (Phase 9 field-test)
 
-Changesets pre mode (`next` / `1.0.0-next.0`) is **off**. Packages are **0.50.0**. CLI
-`oclif.jitPlugins` pins `mcp` and `plugin-app` at `^0.50`.
+Changesets pre mode (`next` / `1.0.0-next.0`) is **off**. Packages are **0.51.0**. CLI
+`oclif.jitPlugins` pins `mcp` and `plugin-app` at `^0.51`.
 
 1. Merge to `main` with `ENABLE_NPM_PUBLISH=true`.
 2. The `publish` job in `ci-pipeline.yml` runs `changesets/action` → `changeset publish` to
