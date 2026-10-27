@@ -10,9 +10,9 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Validate workflows against the process host or an optional `--env` overlay
 - Describe/search environment capabilities for agent/UI discovery
 - Run workflows and print structured run results (`ecp run --to`, `ecp run --events`)
-- Invoke a single capability outside a workflow (`ecp invoke`)
+- Invoke a single capability outside a workflow (`ecp environments invoke`)
 - Inspect and continue run journals (`ecp runs list|show|resume|rerun`)
-- Install inferred plugins for a workflow file (`ecp install`)
+- Install inferred plugins for a workflow file (`ecp workflows install`)
 - Author and check plugins (`ecp plugins new|build|check`) next to oclif's `plugins install|link`
 - Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
@@ -65,20 +65,20 @@ ecp run workflow.ecp.ts --dry-run
 ### Validate
 
 ```sh
-ecp validate examples/01-echo/workflow.ecp.ts
+ecp workflows validate examples/01-echo/workflow.ecp.ts
 ```
 
 ### Compile (portable JSON)
 
 ```sh
-ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
+ecp workflows compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ### Describe / search environment capabilities
 
 ```sh
-ecp describe
-ecp search "echo"
+ecp environments describe
+ecp environments search "echo"
 ```
 
 ### Run journals (`ecp runs`)
@@ -107,7 +107,7 @@ ecp runs rerun <id> --from step-a --to step-a
 Call a single bound capability without a workflow:
 
 ```sh
-ecp invoke @executioncontrolprotocol/test.echo --input input.json
+ecp environments invoke @executioncontrolprotocol/test.echo --input input.json
 ```
 
 Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
@@ -123,11 +123,11 @@ ecp plugins check
 ecp plugins link plugins/plugin-jsonata
 ecp plugins link plugins/plugin-test
 ecp jsonata transform --expression '$.a' --input payload.json --json
-ecp discover jsonata --json
+ecp plugins discover jsonata --json
 ```
 
-`--env` is optional on `run`, `validate`, and `install`. `describe`, `search`, and `invoke`
-take it the same way.
+`--env` is optional on `run`, `workflows validate`, and `workflows install`.
+`environments describe`, `search`, and `invoke` take it the same way.
 
 ### MCP
 

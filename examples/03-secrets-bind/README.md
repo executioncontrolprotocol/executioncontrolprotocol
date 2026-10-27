@@ -19,7 +19,7 @@ Put `extension("@executioncontrolprotocol/openai").with({ apiKey: secrets("opena
 
 ```bash
 ecp plugins link plugins/plugin-test
-ecp validate examples/03-secrets-bind/workflow.ecp.ts
+ecp workflows validate examples/03-secrets-bind/workflow.ecp.ts
 ecp run examples/03-secrets-bind/workflow.ecp.ts
 ```
 

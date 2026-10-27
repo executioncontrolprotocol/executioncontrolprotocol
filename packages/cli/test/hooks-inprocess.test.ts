@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Hook, Interfaces } from "@oclif/core"
@@ -7,7 +7,10 @@ import { afterEach, describe, expect, it } from "vitest"
 import commandNotFound from "../src/hooks/command-not-found.js"
 import jitInstall from "../src/hooks/jit-install.js"
 import trust from "../src/hooks/trust.js"
+import postinstallAddToEnv from "../src/hooks/postinstall-add-to-env.js"
 import initHost from "../src/hooks/init-host.js"
+import { setPendingAddToEnv, takePendingAddToEnv } from "../src/lib/add-to-env.js"
+import { defaultEnvironmentPath } from "../src/lib/environment-file.js"
 import { clearHost, getHost } from "@executioncontrolprotocol/plugin-sdk"
 import { evaluateTrust, assertTrusted } from "../src/lib/evaluate-trust.js"
 import { rememberTrust } from "../src/lib/trust-store.js"
@@ -18,11 +21,12 @@ function hookThis(jitPlugins: Record<string, string> = {}): {
   log: (message?: string) => void
   exit: (code?: number) => never
   error: (message: string, opts?: { exit?: number }) => never
-  config: {
-    runCommand: (id: string, argv?: string[]) => Promise<void>
-    dataDir: string
-    pjson: { oclif: { jitPlugins: Record<string, string> } }
-  }
+    config: {
+      runCommand: (id: string, argv?: string[]) => Promise<void>
+      dataDir: string
+      configDir: string
+      pjson: { oclif: { jitPlugins: Record<string, string> } }
+    }
 } {
   const logs: string[] = []
   const exits: number[] = []
@@ -46,6 +50,7 @@ function hookThis(jitPlugins: Record<string, string> = {}): {
     config: {
       runCommand: async () => undefined,
       dataDir: join(tmpdir(), "ecp-hook-data"),
+      configDir: join(tmpdir(), "ecp-hook-config"),
       pjson: { oclif: { jitPlugins } },
     },
   }
@@ -151,6 +156,34 @@ describe("jit_plugin_not_installed", () => {
   })
 })
 
+describe("plugins:postinstall --add-to-env", () => {
+  it("writes nothing when the flag was omitted", async () => {
+    takePendingAddToEnv()
+    const dir = await mkdtemp(join(tmpdir(), "ecp-post-none-"))
+    const self = hookThis()
+    self.config.configDir = dir
+    await postinstallAddToEnv.call(self as never, {
+      plugin: { name: "@executioncontrolprotocol/plugin-jsonata" },
+    })
+    await expect(readFile(defaultEnvironmentPath(dir), "utf8")).rejects.toThrow()
+  })
+
+  it("appends a commented stub to the default environment file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-post-stub-"))
+    setPendingAddToEnv(true)
+    const self = hookThis()
+    self.config.configDir = dir
+    await postinstallAddToEnv.call(self as never, {
+      plugin: {
+        name: "@executioncontrolprotocol/plugin-jsonata",
+        pjson: { ecp: { id: "@executioncontrolprotocol/jsonata" } },
+      },
+    })
+    const source = await readFile(defaultEnvironmentPath(dir), "utf8")
+    expect(source).toMatch(/extension\("@executioncontrolprotocol\/jsonata"\)/)
+  })
+})
+
 describe("plugins:preinstall trust", () => {
   it("allows first-party npm packages", async () => {
     const self = hookThis()
@@ -190,7 +223,7 @@ describe("init-host", () => {
 
   it("creates a host from installed plugin definitions", async () => {
     await (initHost as Hook<"init">).call({} as never, {
-      id: "describe",
+      id: "environments:describe",
       argv: [],
       config: { getPluginsList: () => [] } as unknown as Interfaces.Config,
     })

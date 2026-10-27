@@ -10,8 +10,8 @@ import { readJsonFile } from "../lib/command-helpers.js"
 import { applyFormat } from "../lib/format-output.js"
 import { ecpFromEnvFlag, terminateIfNeeded } from "../lib/load-ecp.js"
 
-/** `ecp describe`. @category CLI */
-export const describeOperation = defineOperation("describe")
+/** `ecp environments describe`. @category CLI */
+export const describeOperation = defineOperation("environments:describe")
   .withInput(
     z.object({
       env: z.string().optional(),
@@ -28,7 +28,7 @@ export const describeOperation = defineOperation("describe")
     description:
       "Return a structured catalog of extensions, capabilities, and policies. Pass --env to load an environment module; otherwise use installed plugins.",
     useCases: ["List installed capabilities", "Inspect one capability by exact id"],
-    examples: ["ecp describe"],
+    examples: ["ecp environments describe"],
     cli: { args: ["id"] },
   })
   .withHandler(async (input, ctx) => {
@@ -64,8 +64,8 @@ export const describeOperation = defineOperation("describe")
   })
   .build()
 
-/** `ecp search`. @category CLI */
-export const searchOperation = defineOperation("search")
+/** `ecp environments search`. @category CLI */
+export const searchOperation = defineOperation("environments:search")
   .withInput(
     z.object({
       query: z.string(),
@@ -76,7 +76,7 @@ export const searchOperation = defineOperation("search")
     summary: "Search environment capabilities",
     description: "Fuzzy-match capabilities by id or label. Quote multi-word queries.",
     useCases: ["Find a capability for an intent"],
-    examples: ['ecp search "echo"'],
+    examples: ['ecp environments search "echo"'],
     cli: { args: ["query"] },
   })
   .withHandler(async (input, ctx) => {
@@ -92,8 +92,8 @@ export const searchOperation = defineOperation("search")
   })
   .build()
 
-/** `ecp invoke`. @category CLI */
-export const invokeOperation = defineOperation("invoke")
+/** `ecp environments invoke`. @category CLI */
+export const invokeOperation = defineOperation("environments:invoke")
   .withInput(
     z.object({
       "capability-id": z.string(),
@@ -108,7 +108,7 @@ export const invokeOperation = defineOperation("invoke")
     useCases: ["Smoke-test a capability outside a workflow"],
     examples: [
       "ecp plugins link plugins/plugin-test",
-      "ecp invoke @executioncontrolprotocol/test.echo --input input.json",
+      "ecp environments invoke @executioncontrolprotocol/test.echo --input input.json",
     ],
     cli: { args: ["capability-id"] },
   })

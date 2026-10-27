@@ -1,0 +1,20 @@
+---
+description: Authored config is TypeScript; machine-managed state is JSON
+alwaysApply: true
+---
+
+# File formats
+
+**Authored config is TypeScript/JavaScript; machine-managed state is JSON.**
+
+Workflows (`*.ecp.ts`) and the environment file (`environment.ecp.ts`) are `.ts`/`.js` —
+code written with the fluent API and type-checked. The trust store (`trust.json`) and run
+journals (`run.json`, `steps/<id>.json`) are JSON — written and read by the CLI, never
+hand-edited.
+
+Don't turn state into a `.ts` file (it would imply it's authored, require evaluating code
+to read it, and let the install path write executable code into the user's home dir) and
+don't hand-author JSON config.
+
+`trust.json` is the plugin trust allowlist. Manage it with a future `ecp plugins trust`
+command, not by editing the file or changing its format.

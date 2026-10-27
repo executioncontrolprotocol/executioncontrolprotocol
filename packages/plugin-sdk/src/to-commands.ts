@@ -144,6 +144,7 @@ function operationCommand(operation: OperationDefinition): Command.Class {
 
   class OperationCommand extends EcpCommand {
     static id = operation.name
+    static aliases = operation.metadata.aliases ?? []
     static summary = operation.metadata.summary
     static description = descriptionFromMetadata(operation.metadata)
     static examples = operation.metadata.examples ?? []
