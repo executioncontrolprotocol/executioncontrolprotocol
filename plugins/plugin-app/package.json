@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/plugin-app",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "JIT CLI plugin for ecp app: loopback HostAdapter server and file watcher",
   "license": "Apache-2.0",
   "type": "module",

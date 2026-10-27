@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/app",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "ECP visual App: HostAdapter, graph encoder, and prebuilt web bundle",
   "license": "Apache-2.0",
   "type": "module",

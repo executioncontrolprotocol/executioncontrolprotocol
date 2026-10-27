@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "ECP command-line interface",
   "license": "Apache-2.0",
   "type": "module",
@@ -62,8 +62,8 @@
       "plugins:postinstall": "./dist/hooks/postinstall-add-to-env.js"
     },
     "jitPlugins": {
-      "@executioncontrolprotocol/mcp": "^0.50",
-      "@executioncontrolprotocol/plugin-app": "^0.50"
+      "@executioncontrolprotocol/mcp": "^0.51",
+      "@executioncontrolprotocol/plugin-app": "^0.51"
     }
   }
 }
