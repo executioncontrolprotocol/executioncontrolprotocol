@@ -106,6 +106,9 @@ workflows). See `RESET-PLAN.md` §2.3.
   - See `.cursor/rules/testing-coverage.mdc`.
 - **No backwards-compatibility shims** unless a phase doc asks for one (Phase 9 handles npm
   deprecations). See `.cursor/rules/no-backwards-compatibility.mdc`.
+- **Authored config is TypeScript/JavaScript; machine-managed state is JSON.** Workflows and
+  the environment file are `.ts`/`.js`. `trust.json` and run journals are JSON. See
+  `.cursor/rules/file-formats.mdc`.
 - **Vendor-neutral hosts:** core, environments, CLI, MCP and the App must not branch on specific
   extension ids or output shapes. Domain knowledge lives in the extension, surfaced through
   metadata (`summary`, `useCases`, `projections`).
@@ -151,16 +154,17 @@ ecp plugins link plugins/plugin-test
 ecp run examples/01-echo/workflow.ecp.ts
 ecp run brief.ecp.ts --to fetch
 ecp run brief.ecp.ts --events
-ecp validate examples/01-echo/workflow.ecp.ts
-ecp describe
+ecp workflows validate examples/01-echo/workflow.ecp.ts
+ecp environments describe
 ecp runs list
 ecp runs show <id>
 ecp runs resume <id>
 ecp runs rerun <id> --from web
-ecp install brief.ecp.ts
-ecp init brief
+ecp workflows install brief.ecp.ts
+ecp workflows init brief
 ecp plugins new jsonata
 ecp plugins link plugins/plugin-jsonata
+ecp plugins discover jsonata --json
 ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp mcp serve
 ecp mcp serve --tools meta
@@ -171,10 +175,10 @@ ecp app brief.ecp.ts --no-open
 
 - **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
   (`ecp run --to`, `ecp runs resume`, `ecp runs rerun` replace it).
-- **`--env` is optional** on `run` / `validate` / `install`. Omit it to use the process host
-  (built-in Node + installed plugins). `--env <file>` is an environment overlay
-  (`environment(id).with([...])`), not a required pair. `describe` / `search` / `invoke` take
-  it the same way.
+- **`--env` is optional** on `run` / `workflows validate` / `workflows install`. Omit it to
+  use the process host (built-in Node + installed plugins). `--env <file>` is an environment
+  overlay (`environment(id).with([...])`), not a required pair. `environments describe` /
+  `search` / `invoke` take it the same way.
 - **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
 - Journals live under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`).
 

@@ -3,8 +3,8 @@ import { defineOperation } from "@executioncontrolprotocol/plugin-sdk"
 import { prepareWorkflowRun } from "../lib/prepare-workflow.js"
 import { terminateIfNeeded } from "../lib/load-ecp.js"
 
-/** `ecp install`. @category CLI */
-export const installOperation = defineOperation("install")
+/** `ecp workflows install`. @category CLI */
+export const installOperation = defineOperation("workflows:install")
   .withInput(
     z.object({
       "workflow-path": z.string(),
@@ -16,7 +16,7 @@ export const installOperation = defineOperation("install")
     description:
       "Infer required plugins from the workflow file and install them without running the workflow.",
     useCases: ["Prepare a machine to run a workflow file"],
-    examples: ["ecp install brief.ecp.ts", "ecp install brief.ecp.ts --yes"],
+    examples: ["ecp workflows install brief.ecp.ts", "ecp workflows install brief.ecp.ts --yes"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {

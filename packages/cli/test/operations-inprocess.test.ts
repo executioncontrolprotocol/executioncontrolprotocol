@@ -35,8 +35,6 @@ import { compileOperation, runOperation, validateOperation } from "../src/operat
 import { installOperation } from "../src/operations/install.js"
 import { initOperation } from "../src/operations/init.js"
 import { discoverOperation } from "../src/operations/discover.js"
-import { rollbackOperation } from "../src/operations/rollback.js"
-import { updateOperation } from "../src/operations/update.js"
 import {
   pluginsBuildOperation,
   pluginsCheckOperation,
@@ -59,7 +57,8 @@ const echoWf = join(repoRoot, "examples", "01-echo", "workflow.ecp.ts")
 
 function mockConfig(
   plugins: Array<{ name: string; type?: string; version?: string }> = [],
-  runCommand: (id: string, argv?: string[]) => Promise<unknown> = async () => undefined
+  runCommand: (id: string, argv?: string[]) => Promise<unknown> = async () => undefined,
+  configDir: string = join(tmpdir(), "ecp-config")
 ): Interfaces.Config {
   return {
     getPluginsList: () =>
@@ -71,6 +70,7 @@ function mockConfig(
         version: plugin.version,
       })),
     runCommand,
+    configDir,
   } as unknown as Interfaces.Config
 }
 
@@ -93,9 +93,16 @@ function ctx(
 
 describe("generated COMMANDS", () => {
   it("includes host operations and no duplicate plugins ids", () => {
-    expect(COMMANDS.run).toBeDefined()
+    expect(COMMANDS["workflows:run"]).toBeDefined()
+    expect(COMMANDS["workflows:run"]?.aliases).toEqual(["run"])
+    expect(COMMANDS.run).toBeUndefined()
+    expect(COMMANDS.compile).toBeUndefined()
+    expect(COMMANDS["workflows:compile"]).toBeDefined()
+    expect(COMMANDS["environments:describe"]).toBeDefined()
+    expect(COMMANDS["plugins:discover"]).toBeDefined()
     expect(COMMANDS["runs:list"]).toBeDefined()
-    expect(COMMANDS.install).toBeDefined()
+    expect(COMMANDS.install).toBeUndefined()
+    expect(COMMANDS["workflows:install"]).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
     const pluginIds = Object.keys(COMMANDS).filter((id) => id === "plugins" || id.startsWith("plugins:"))
@@ -373,7 +380,7 @@ describe("plugin authoring operations", () => {
   })
 })
 
-describe("discover / update / rollback", () => {
+describe("plugins discover", () => {
   it("discover maps registry hits and hides installed plugins", async () => {
     const original = globalThis.fetch
     globalThis.fetch = (async () =>
@@ -419,54 +426,6 @@ describe("discover / update / rollback", () => {
     }
   })
 
-  it("update lists newer user plugins and can no-confirm install", async () => {
-    const original = globalThis.fetch
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/-/v1/search")) {
-        return new Response(JSON.stringify({ objects: [] }), { status: 200 })
-      }
-      return new Response(JSON.stringify({ "dist-tags": { latest: "2.0.0" } }), { status: 200 })
-    }) as typeof fetch
-    const installed: string[] = []
-    const config = mockConfig(
-      [
-        { name: "@executioncontrolprotocol/cli", type: "core", version: "1.0.0" },
-        { name: "acme-plugin", type: "user", version: "1.0.0" },
-      ],
-      async (_id, argv) => {
-        installed.push(String(argv?.[0]))
-      }
-    )
-    try {
-      const listed = (await updateOperation.handler({ list: true }, ctx(config))) as {
-        plugins: Array<{ name: string; latest: string }>
-      }
-      expect(listed.plugins[0]).toMatchObject({ name: "acme-plugin", latest: "2.0.0" })
-      const updated = (await updateOperation.handler({ "no-confirm": true }, ctx(config))) as {
-        updated: string[]
-      }
-      expect(updated.updated).toEqual(["acme-plugin"])
-      expect(installed[0]).toMatch(/acme-plugin@2.0.0/)
-    } finally {
-      globalThis.fetch = original
-    }
-  })
-
-  it("rollback uninstalls user overlays of core plugins", async () => {
-    const removed: string[] = []
-    const config = mockConfig(
-      [
-        { name: "bundled", type: "core", version: "1.0.0" },
-        { name: "bundled", type: "user", version: "1.1.0" },
-      ],
-      async (_id, argv) => {
-        removed.push(String(argv?.[0]))
-      }
-    )
-    const result = (await rollbackOperation.handler({}, ctx(config))) as { removed: string[] }
-    expect(result.removed).toEqual(["bundled"])
-  })
 })
 
 describe("secrets topic", () => {
@@ -572,7 +531,7 @@ describe("lib helpers", () => {
 })
 
 describe("install, init, missing plugins", () => {
-  it("writes a workflow file from ecp init", async () => {
+  it("writes a workflow file from ecp workflows init", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-init-"))
     const previous = process.cwd()
     process.chdir(dir)

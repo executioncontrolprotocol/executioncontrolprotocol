@@ -1,6 +1,6 @@
 import { workflow, step, extension } from "@executioncontrolprotocol/core"
 
-/** Companion workflow; `ecp invoke` does not need a workflow file. Requires plugin-test. */
+/** Companion workflow; `ecp environments invoke` does not need a workflow file. Requires plugin-test. */
 export default workflow("Invoke companion")
   .with([extension("@executioncontrolprotocol/test")])
   .run([

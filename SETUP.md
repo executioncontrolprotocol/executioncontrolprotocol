@@ -68,13 +68,13 @@ portable JSON workflow manifests.
 
 ```bash
 ecp run examples/01-echo/workflow.ecp.ts
-ecp validate examples/01-echo/workflow.ecp.ts
+ecp workflows validate examples/01-echo/workflow.ecp.ts
 ```
 
 Compile to JSON (optional):
 
 ```bash
-ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
+ecp workflows compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ------------------------------------------------------------------------

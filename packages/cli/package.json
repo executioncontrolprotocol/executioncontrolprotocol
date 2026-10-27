@@ -27,7 +27,6 @@
     "@executioncontrolprotocol/node": "workspace:^",
     "@executioncontrolprotocol/plugin-sdk": "workspace:^",
     "@oclif/core": "^5.1.8",
-    "@oclif/plugin-autocomplete": "^3.2.38",
     "@oclif/plugin-help": "^6.2.33",
     "@oclif/plugin-not-found": "^3.2.68",
     "@oclif/plugin-plugins": "^5.4.46",
@@ -53,14 +52,14 @@
       "@oclif/plugin-help",
       "@oclif/plugin-plugins",
       "@oclif/plugin-not-found",
-      "@oclif/plugin-autocomplete",
       "@oclif/plugin-warn-if-update-available"
     ],
     "hooks": {
       "init": "./dist/hooks/init-host.js",
       "command_not_found": "./dist/hooks/command-not-found.js",
       "jit_plugin_not_installed": "./dist/hooks/jit-install.js",
-      "plugins:preinstall": "./dist/hooks/trust.js"
+      "plugins:preinstall": "./dist/hooks/trust.js",
+      "plugins:postinstall": "./dist/hooks/postinstall-add-to-env.js"
     },
     "jitPlugins": {
       "@executioncontrolprotocol/mcp": "^0.50",

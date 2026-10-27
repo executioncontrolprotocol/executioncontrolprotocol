@@ -33,12 +33,12 @@ Use the same vocabulary everywhere:
 | `list` | Many items (`ecp runs list`, `ecp config secrets list`) |
 | `show` | One item in detail (`ecp runs show <id>`) |
 | `add` / `remove` | Create / delete an entry (`ecp config secrets add`) |
-| `update` | Change an existing entry, or update installed things (`ecp update`) |
-| Domain verbs | Actions that aren't CRUD: `run`, `resume`, `rerun`, `validate`, `compile`, `invoke`, `search`, `describe`, `discover`, `install`, `init`, `new`, `build`, `check` |
+| `update` | Change an existing entry, or update installed plugins (`ecp plugins update`) |
+| Domain verbs | Actions that aren't CRUD: `run`, `resume`, `rerun`, `validate`, `compile`, `invoke`, `search`, `describe`, `discover`, `install`, `init`, `new`, `build`, `check`, `export`, `edit` |
 
 The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own verbs (`install`,
 `uninstall`, `link`, `inspect`, `reset`, `update`). Our authoring commands in that topic are
-`new`, `build` and `check`.
+`new`, `build`, `check`, and `discover`.
 
 ## How commands are defined
 
@@ -51,15 +51,14 @@ The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own ver
   `{ ok: false, error: { code, message, path, suggestions } }`. Errors use `ECP_*` codes and
   the exit codes in `RESET-PLAN.md` §4.6. `EcpCommand` owns this, so oclif's own JSON error
   output never leaks.
-- **Reserved root names** that plugins can't use as topics: `init`, `search`, `describe`,
-  `validate`, `install`, `run`, `runs`, `invoke`, `compile`, `config`, `discover`, `update`,
-  `rollback`, `plugin`, `plugins`, `mcp`, `app`, `help`.
+- **Reserved root names** that plugins can't use as topics: `run`, `workflows`, `runs`,
+  `environments`, `plugins`, `plugin`, `config`, `mcp`, `app`, `help`.
 
 ## `--env`
 
-`--env <file>` is an optional environment overlay. `ecp run` / `validate` / `install` run a
-workflow file against the process host when the flag is omitted. The file is
-`environment(id).with([...])`, not a required workflow+environment pair.
+`--env <file>` is an optional environment overlay. `ecp run` / `workflows validate` /
+`workflows install` run a workflow file against the process host when the flag is omitted.
+The file is `environment(id).with([...])`, not a required workflow+environment pair.
 
 ## Run, events, and journals
 

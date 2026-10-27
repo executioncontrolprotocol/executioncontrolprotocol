@@ -50,7 +50,7 @@ ecp run examples/01-echo/workflow.ecp.ts
 **Validate a workflow against an environment:**
 
 ```bash
-ecp validate examples/01-echo/workflow.ecp.ts
+ecp workflows validate examples/01-echo/workflow.ecp.ts
 ```
 
 **Monorepo guide (commands + package boundaries):** [`AGENTS.md`](AGENTS.md)  
@@ -300,7 +300,7 @@ This repo is the **ECP Fluent API monorepo** (`@executioncontrolprotocol/*`). Fo
 | [`packages/core/`](packages/core/) | Runtime-agnostic core: fluent API, environment, encode/decode/patch, protocol types (`@executioncontrolprotocol/core`, `@executioncontrolprotocol/core/types`) |
 | [`packages/environments/node/`](packages/environments/node/) | Node runtime host: process env, secrets, compile (`@executioncontrolprotocol/node`) |
 | [`packages/environments/browser/`](packages/environments/browser/) | Browser runtime host: registry, local config (`@executioncontrolprotocol/browser`) |
-| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp compile`, `ecp validate`, `ecp runs`, …) |
+| [`packages/cli/`](packages/cli/) | CLI (`ecp run`, `ecp workflows`, `ecp environments`, `ecp runs`, …) |
 | [`plugins/`](plugins/) | First-party plugins (jsonata, models, formats, policies, fal, image-sharp, azure-blob-storage, adobe-firefly-services) |
 | [`packages/mcp/`](packages/mcp/) | MCP server adapter |
 | [`examples/`](examples/) | Single-file `*.ecp.ts` workflows (`01-echo`, `02-weekly-brief`, …) |

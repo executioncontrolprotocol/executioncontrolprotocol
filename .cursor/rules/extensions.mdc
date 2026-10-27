@@ -59,7 +59,7 @@ export default defineExtension("@vendor", "my-ext")
 
 ## Metadata (`.withMetadata`)
 
-Write agent-facing prose once; the CLI help, MCP tool descriptions and `ecp describe` all
+Write agent-facing prose once; the CLI help, MCP tool descriptions and `ecp environments describe` all
 read it.
 
 | Do | Don't |

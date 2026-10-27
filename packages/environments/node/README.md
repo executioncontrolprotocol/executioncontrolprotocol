@@ -44,6 +44,6 @@ extensions by default, along with the journal writer (`@executioncontrolprotocol
 ## Related
 
 - [`@executioncontrolprotocol/core`](../../core/README.md) — core API
-- [`@executioncontrolprotocol/cli`](../../cli/) — `ecp run`, `ecp compile` (uses this package)
+- [`@executioncontrolprotocol/cli`](../../cli/) — `ecp run`, `ecp workflows compile` (uses this package)
 
 See [AGENTS.md](../../../AGENTS.md) for CLI commands.

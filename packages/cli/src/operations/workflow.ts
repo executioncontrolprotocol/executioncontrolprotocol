@@ -15,8 +15,32 @@ import { prepareWorkflowRun, throwIfRunFailed } from "../lib/prepare-workflow.js
 import { terminateIfNeeded } from "../lib/load-ecp.js"
 import { hashWorkflowSource, pluginVersions } from "../lib/runs-io.js"
 
-/** `ecp run`. @category CLI */
-export const runOperation = defineOperation("run")
+/** `ecp workflows`. @category CLI */
+export const workflowsTopicOperation = defineOperation("workflows")
+  .withInput(z.object({}))
+  .withMetadata({
+    summary: "Author, validate, compile, and run workflow files",
+    description: "Subcommands: run, init, validate, compile, install. `ecp run` is an alias of `workflows run`.",
+    useCases: ["Run a workflow file"],
+  })
+  .withHandler(async () =>
+    [
+      "Usage: ecp workflows <subcommand>",
+      "",
+      "  run WORKFLOW         Compile, install missing plugins, run, and journal",
+      "  init [name]          Scaffold <name>.ecp.ts",
+      "  validate WORKFLOW    Validate without installing plugins",
+      "  compile WORKFLOW     Emit the portable workflow manifest",
+      "  install WORKFLOW     Install plugins the workflow file requires",
+      "",
+      "`ecp run` is an alias of `ecp workflows run`.",
+      "Run ecp workflows <cmd> --help for flags.",
+    ].join("\n")
+  )
+  .build()
+
+/** `ecp workflows run` (alias `ecp run`). @category CLI */
+export const runOperation = defineOperation("workflows:run")
   .withInput(
     z.object({
       "workflow-path": z.string(),
@@ -34,9 +58,10 @@ export const runOperation = defineOperation("run")
     useCases: ["Execute a single-file workflow"],
     examples: [
       "ecp run examples/01-echo/workflow.ecp.ts",
-      "ecp run brief.ecp.ts --to fetch",
+      "ecp workflows run brief.ecp.ts --to fetch",
       "ecp run brief.ecp.ts --events",
     ],
+    aliases: ["run"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
@@ -81,8 +106,8 @@ export const runOperation = defineOperation("run")
   })
   .build()
 
-/** `ecp validate`. @category CLI */
-export const validateOperation = defineOperation("validate")
+/** `ecp workflows validate`. @category CLI */
+export const validateOperation = defineOperation("workflows:validate")
   .withInput(
     z.object({
       "workflow-path": z.string(),
@@ -94,7 +119,7 @@ export const validateOperation = defineOperation("validate")
     description:
       "Compile (if needed) and validate a workflow against the process host, an optional --env file, and the workflow's bindings. Never installs plugins.",
     useCases: ["Check a workflow before running it"],
-    examples: ["ecp validate examples/01-echo/workflow.ecp.ts"],
+    examples: ["ecp workflows validate examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
@@ -122,8 +147,8 @@ export const validateOperation = defineOperation("validate")
   })
   .build()
 
-/** `ecp compile`. @category CLI */
-export const compileOperation = defineOperation("compile")
+/** `ecp workflows compile`. @category CLI */
+export const compileOperation = defineOperation("workflows:compile")
   .withInput(
     z.object({
       "workflow-path": z.string(),
@@ -136,7 +161,7 @@ export const compileOperation = defineOperation("compile")
     description:
       "Bundle and evaluate a workflow module (.ts or .js), or load .json, and emit the workflow manifest.",
     useCases: ["Produce a portable workflow manifest for review"],
-    examples: ["ecp compile examples/01-echo/workflow.ecp.ts"],
+    examples: ["ecp workflows compile examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {

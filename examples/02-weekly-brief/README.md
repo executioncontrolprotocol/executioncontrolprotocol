@@ -13,4 +13,4 @@ ecp run examples/02-weekly-brief/workflow.ecp.ts --input '{"signals":[]}'
 ecp run examples/02-weekly-brief/workflow.ecp.ts --input '{"signals":[]}' --dry-run
 ```
 
-The workflow binds `apiKey: secrets("openai/api-key", { optional: true })`. The OpenAI plugin must be installed (`ecp install examples/02-weekly-brief/workflow.ecp.ts`).
+The workflow binds `apiKey: secrets("openai/api-key", { optional: true })`. The OpenAI plugin must be installed (`ecp workflows install examples/02-weekly-brief/workflow.ecp.ts`).

@@ -143,7 +143,7 @@ describe("ecp discover", () => {
       ECP_NPM_REGISTRY: `http://127.0.0.1:${port}`,
     })
     try {
-      const res = await runCli(["discover", "--json"], { env: hermetic.env })
+      const res = await runCli(["plugins", "discover", "--json"], { env: hermetic.env })
       expect(res.code).toBe(0)
       const body = JSON.parse(res.stdout) as {
         ok?: boolean

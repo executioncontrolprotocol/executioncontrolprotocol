@@ -8,7 +8,7 @@ ecp plugins install state-control
 
 Policy id `@executioncontrolprotocol/state-control` is unchanged. Core's
 `MISSING_STATE_CONTROL_POLICY` check points here. This plugin has no commands. After
-install it appears in `ecp describe --policies`.
+install it appears in `ecp environments describe --policies`.
 
 ## Binding
 
