@@ -1,5 +1,3 @@
-import { access } from "node:fs/promises"
-import { join } from "node:path"
 import type { Interfaces } from "@oclif/core"
 import {
   PROCESS_ENV_RESOLVER_ID,
@@ -14,17 +12,9 @@ import { ECP_BINDING_INVALID, EcpError } from "@executioncontrolprotocol/core/ty
 import { journalExtension, loadEnvironmentModule } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import { setHost } from "@executioncontrolprotocol/plugin-sdk"
+import { existingEnvironmentFile } from "./environment-file.js"
 import { createProcessEnvironment } from "./plugin-bindings.js"
 import { ecpFromEnvFlag, terminateIfNeeded } from "./load-ecp.js"
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path)
-    return true
-  } catch {
-    return false
-  }
-}
 
 function assertWorkflowBindingsAllowed(
   bindings: WorkflowBinding[],
@@ -55,11 +45,7 @@ function assertWorkflowBindingsAllowed(
  * @category CLI
  */
 export async function userEnvironmentFile(configDir: string): Promise<string | undefined> {
-  for (const name of ["environment.ecp.ts", "environment.ecp.js", "environment.ts"]) {
-    const candidate = join(configDir, name)
-    if (await pathExists(candidate)) return candidate
-  }
-  return undefined
+  return existingEnvironmentFile(configDir)
 }
 
 function isDefinitionBinding(binding: WorkflowBinding): boolean {

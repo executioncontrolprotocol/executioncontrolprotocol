@@ -4,6 +4,6 @@ Call a capability outside a workflow run. `test.echo` requires `@executioncontro
 
 ```bash
 ecp plugins link plugins/plugin-test
-ecp invoke @executioncontrolprotocol/test.echo \
+ecp environments invoke @executioncontrolprotocol/test.echo \
   --input examples/06-invoke/input.json
 ```

@@ -97,8 +97,8 @@ every fix cheap to retry. Concretely, ECP must provide:
 
 | Need | ECP feature |
 | --- | --- |
-| Know what's possible | `ecp search`, `ecp describe`, `ecp discover`, `--help` written for models |
-| Know a workflow is sound before running it | `ecp validate --json` with codes, paths and suggestions |
+| Know what's possible | `ecp environments search`, `ecp environments describe`, `ecp plugins discover`, `--help` written for models |
+| Know a workflow is sound before running it | `ecp workflows validate --json` with codes, paths and suggestions |
 | Watch a run | `ecp run --events` (NDJSON per step) and `ecp runs show` |
 | Understand a failure | Stable error codes plus a journal of each step's input, output, timing, policy decisions and error |
 | Step through a run | `ecp run --to <step>` stops after a step; `ecp runs resume <id>` continues from where it stopped |
@@ -121,7 +121,7 @@ npx skills add executioncontrolprotocol/docs      # teaches any agent the ECP lo
 1. A user asks Claude Code: *"Whenever I hand you a product photo and a description, make a
    1200px WebP, upload it to our Azure container, get a share link, and write a short
    caption."*
-2. Claude runs `ecp search "resize image"` and `ecp discover azure`. It writes
+2. Claude runs `ecp environments search "resize image"` and `ecp plugins discover azure`. It writes
    `product.ecp.ts`, a single file.
 3. `ecp run product.ecp.ts --json` stops with `ECP_PLUGINS_MISSING`. Claude runs the listed
    `ecp plugins install …` commands and reruns.
@@ -303,7 +303,7 @@ The commands are host operations like any other CLI command (see below). The log
 scripts can call it without the CLI.
 
 - **`ecp plugins new <name>`** scaffolds a plugin with the two files above. It's the authoring
-  counterpart of `ecp init`.
+  counterpart of `ecp workflows init`.
 - **`ecp plugins build [dir]`:**
   - Writes the generated `package.json` fields from the definition:
     - `ecp.extension`
@@ -415,8 +415,8 @@ capabilities are `encode` and `decode`. That gives it two roles with no extra co
   `ecp format-mermaid encode --input workflow.json`, or `step("@executioncontrolprotocol/format-toon.encode")`.
 - **Formats for core commands.** Core's encoding layer already resolves formats by id
   (`encode().uses("@executioncontrolprotocol/format-toon")`), so installed format plugins also
-  work with `--format` on built-in commands: `ecp describe --format toon` gives a compact
-  catalogue for small-context clients, and `ecp compile product.ecp.ts --format mermaid` gives a
+  work with `--format` on built-in commands: `ecp environments describe --format toon` gives a compact
+  catalogue for small-context clients, and `ecp workflows compile product.ecp.ts --format mermaid` gives a
   diagram for docs and PR descriptions.
 
 JSON and Fluent stay built into core.
@@ -521,7 +521,7 @@ Rules:
    is needed next to a workflow file.
 2. **Dependencies by id:** steps and bindings reference plugins by string id. The builders
    also accept an `ExtensionDefinition` or `PolicyDefinition` object; that form stays for apps
-   that embed core, but a workflow file must use ids (`ecp validate` warns otherwise).
+   that embed core, but a workflow file must use ids (`ecp workflows validate` warns otherwise).
    - The required plugin set is every id used in `.with()` and in steps, mapped to packages by
      the naming convention (`@scope/<name>` → `@scope/plugin-<name>`), with the version range
      from `.requires()` or latest otherwise.
@@ -532,12 +532,12 @@ Rules:
    - `--yes`: installs without asking.
    - `--json` or non-interactive: `ECP_PLUGINS_MISSING` with the exact commands.
    - Plugin trust policy (allowed sources, third-party on or off) applies to every install.
-4. **Compile:** `ecp compile` splits the file in two. The `.run()` steps become the portable
-   workflow manifest, in the same format as today, with no bindings, secrets or policies. The
-   `.with()` bindings become a separate requirements block (each binding's kind, id, package,
-   version range and config shape, with secret references but never values). One file to
-   author, two parts after compiling. This replaces the `AGENTS.md` rule "never collapse
-   workflow and environment".
+4. **Compile and export:** `ecp workflows compile` emits the portable workflow manifest, with
+   no bindings, secrets or policies. `ecp environments export` projects the requirements
+   (each binding's kind, id, package, version range) plus the Node host into a foreign-runtime
+   manifest such as `package.json`. Secret values never appear. One file to author; the
+   manifest and the environment projection are separate artifacts. This replaces the
+   `AGENTS.md` rule "never collapse workflow and environment".
 5. **Secrets:** `secrets("key")` resolves at run time from the bound secrets provider (the OS
    keychain locally, a cloud vault when hosted). Values never appear in the file.
 6. **File name:** `*.ecp.ts`, so tools can find workflow files by glob.
@@ -608,7 +608,7 @@ defineExtension("@executioncontrolprotocol", "image-sharp")
 #### How workflow and environment bindings combine at run time
 
 1. **Compatibility.** Every extension the workflow uses must support the environment it's
-   running in. Otherwise `ecp validate` and `ecp run` fail with `ECP_ENVIRONMENT_UNSUPPORTED`,
+   running in. Otherwise `ecp workflows validate` and `ecp run` fail with `ECP_ENVIRONMENT_UNSUPPORTED`,
    naming the extension and the environments it does support. A workflow never names its
    environment, so the same file runs under `ecp run` (Node) and later on Temporal without
    changes.
@@ -626,8 +626,9 @@ defineExtension("@executioncontrolprotocol", "image-sharp")
 
 - `ecp run` uses the built-in `@executioncontrolprotocol/node` environment, which binds
   `secrets` and `process-env`. Most users never write an environment file.
-- If `environment.ecp.ts` exists in the ECP config directory (the oclif data directory), it's
-  used as the user's default. This is how a person or team sets host policies once.
+- If `environment.ecp.ts` exists in the global ECP home (`~/.ecp/config`, overridable with
+  `ECP_CONFIG_DIR` or `XDG_CONFIG_HOME`), it's used as the user's default. This is how a
+  person or team sets host policies once. Discover the path with `ecp environments edit`.
 - `--env <file>` runs against a specific environment file, for example one a team shares.
 
 ### 4.5 CLI
@@ -636,40 +637,48 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 
 | Command | Purpose |
 | --- | --- |
-| `ecp init [name]` | Scaffold `<name>.ecp.ts` |
-| `ecp plugins new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
-| `ecp plugins build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
-| `ecp plugins check [dir]` | Fail if a plugin's generated files are stale (CI) |
-| `ecp search <intent>` | Rank installed capabilities for an intent |
-| `ecp describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
-| `ecp validate <workflow>` | Validate the workflow file against installed plugins |
-| `ecp install <workflow>` | Install every plugin the workflow file needs |
-| `ecp run <workflow>` | Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>`, `--to <step>` (stop after that step) |
+| `ecp run <workflow>` | Alias of `workflows run`. Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>`, `--to <step>` (stop after that step) |
+| `ecp workflows run <workflow>` | Same handler as `ecp run` |
+| `ecp workflows init [name]` | Scaffold `<name>.ecp.ts` |
+| `ecp workflows validate <workflow>` | Validate the workflow file against installed plugins. Never installs |
+| `ecp workflows compile <workflow>` | Emit the portable workflow manifest. `--format <id>` renders through an installed format plugin (for example `mermaid`) |
+| `ecp workflows install <workflow>` | Install every plugin the workflow file needs |
 | `ecp runs list` | Recent runs, filterable by status and workflow |
 | `ecp runs show <id>` | Journal: resolved graph and per-step records |
 | `ecp runs resume <id> [--to <step>] [--approve]` | Continue a stopped or paused run from its cursor. `--approve` records approval for the step a policy paused on |
 | `ecp runs rerun <id> [--from <step>] [--to <step>]` | Re-execute from a step with the current file, restoring earlier steps' outputs and state. `--from X --to X` re-runs exactly one step |
-| `ecp invoke <capability-id>` | Generic single-capability call |
-| `ecp compile <workflow>` | Manifest + requirements. `--format <id>` renders through an installed format plugin (for example `mermaid`) |
-| `ecp config secrets add\|get\|list\|remove` | Local secrets |
-| `ecp discover [query]` | npm search for `ecosystem:ecp-plugin` packages, first-party flagged |
-| `ecp update` / `ecp rollback` | Update user plugins / remove user overrides of core plugins |
-| `ecp plugins …` | install, uninstall, link, inspect, reset (from `@oclif/plugin-plugins`), plus new, build, check for authoring (above) |
+| `ecp environments describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
+| `ecp environments search <intent>` | Rank installed capabilities for an intent |
+| `ecp environments invoke <capability-id>` | Generic single-capability call |
+| `ecp environments export` | Project the environment (Node host, optional `--env`, optional workflow requirements) to `package.json`. `--format package-json` |
+| `ecp environments init` | Scaffold `~/.ecp/config/environment.ecp.ts`. Refuses if it already exists |
+| `ecp environments edit` | Print the default environment-file path, scaffold if missing, then open `$VISUAL` / `$EDITOR` |
+| `ecp config` | Local CLI configuration for this machine. Variables and secrets belong here, not in workflow files |
+| `ecp config secrets add\|get\|list\|remove` | OS keychain values for `secrets()` refs |
+| `ecp plugins new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
+| `ecp plugins build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
+| `ecp plugins check [dir]` | Fail if a plugin's generated files are stale (CI) |
+| `ecp plugins discover [query]` | npm search for `ecosystem:ecp-plugin` packages, first-party flagged |
+| `ecp plugins …` | install, uninstall, link, inspect, reset, update (from `@oclif/plugin-plugins`) |
 | `ecp mcp serve` | JIT plugin (`@executioncontrolprotocol/mcp`) |
 | `ecp app [workflow]` | JIT plugin (`@executioncontrolprotocol/plugin-app`) |
 
 Plus generated `ecp <plugin> <capability>` commands for every installed plugin.
 
 **Bundled core plugins:** `@oclif/plugin-help`, `@oclif/plugin-plugins`,
-`@oclif/plugin-not-found`, `@oclif/plugin-autocomplete`,
-and `@oclif/plugin-warn-if-update-available`. The CLI also depends on the
-`@executioncontrolprotocol/node` environment, so secrets work with no plugin installed.
+`@oclif/plugin-not-found`, and `@oclif/plugin-warn-if-update-available`. The CLI also
+depends on the `@executioncontrolprotocol/node` environment, so secrets work with no
+plugin installed. Shell completion is documented, not a command.
+
+The global home is `~/.ecp/{config,data,cache}` when `ECP_*` and `XDG_*` are unset. Project
+run journals stay in `./.ecp/`.
 
 #### Hooks
 
 - `command_not_found` maps an unknown topic to a plugin and offers to install it.
 - `jit_plugin_not_installed` installs `mcp` or `app` at a pinned version.
 - A plugin-trust check runs before any install.
+- `plugins:postinstall` appends a commented environment-file stub when `plugins install --add-to-env` was passed.
 
 ### 4.6 Run journal, events and error codes
 
@@ -863,8 +872,8 @@ places in the monorepo that import the package.
 
 | Extension | Capabilities | Lines · tests | Runs in | State | Consumers | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `format-toon` | `encode`, `decode` | 500 · 2 | Any | Real | cli, mcp, core, harnesses, examples | **Keep** → `plugin-format-toon`, a converter (§4.2): `ecp format-toon encode`, and `ecp describe --format toon` |
-| `format-mermaid` | `encode` | 350 · 2 | Any | Real | demo | **Keep** → `plugin-format-mermaid`, a converter: `ecp compile --format mermaid` for docs and PR descriptions |
+| `format-toon` | `encode`, `decode` | 500 · 2 | Any | Real | cli, mcp, core, harnesses, examples | **Keep** → `plugin-format-toon`, a converter (§4.2): `ecp format-toon encode`, and `ecp environments describe --format toon` |
+| `format-mermaid` | `encode` | 350 · 2 | Any | Real | demo | **Keep** → `plugin-format-mermaid`, a converter: `ecp workflows compile --format mermaid` for docs and PR descriptions |
 | `format-reactflow` | `encode` + 12 run-progress hooks | 1,450 · 2 | Any | Real | demo | **Fold** into `app` |
 | `format-eql` | `encode`, `decode` | 3,230 · 14 | Any | Real, but only the nano harness uses it | harnesses, demo | **Remove** |
 
@@ -1023,8 +1032,8 @@ command loading.
 | --- | --- |
 | Thin root CLI; every feature is an `@adobe/aio-cli-plugin-*`, with a set of core plugins in `oclif.plugins` | `ecp` bundles only the oclif essentials plus the Node environment |
 | Logic in `aio-lib-*` libraries; plugins are thin CLI shells | Logic lives in the extension definition; `plugin-sdk` generates the whole shell (commands, manifest, `package.json` fields), so there's no hand-written shell at all |
-| `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
-| `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | `ecp update` and `ecp rollback`, same logic |
+| `aio discover` queries the npm registry and offers an interactive install (keyword-based search was planned but never finished) | `ecp plugins discover` on keyword `ecosystem:ecp-plugin`, with `--json` |
+| `aio update` splits core and user plugins and warns when a user install shadows a newer core one; `aio rollback` | Plugin upgrades are `ecp plugins update` from `@oclif/plugin-plugins`. There is no shadow-only rollback command; `plugins uninstall` removes one package and `plugins reset` removes every user plugin |
 | `oclif.scope` and the `plugin` prefix for short install names | `ecp plugins install jsonata` → `@executioncontrolprotocol/plugin-jsonata` |
 | `@oclif/plugin-not-found` plus a `command_not_found` hook | Unknown topic → offer the matching plugin |
 | Telemetry as its own plugin on `init`, `prerun`, `postrun` and `command_error` hooks | A future opt-in telemetry plugin (OpenTelemetry) on the same hooks. Today's no-op `telemetry` extension is removed |

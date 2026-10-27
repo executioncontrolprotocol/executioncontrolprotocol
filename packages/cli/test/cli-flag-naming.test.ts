@@ -26,18 +26,18 @@ describe("CLI flag and arg naming (kebab-case)", () => {
   })
 
   it("validate usage shows WORKFLOW-PATH and --env", { timeout: 60_000 }, () => {
-    const out = help("validate")
+    const out = help("workflows validate")
     expect(out).toMatch(/\bWORKFLOW-PATH\b/)
     expect(out).toMatch(/--env\b/)
   })
 
   it("describe and search expose --env", { timeout: 60_000 }, () => {
-    expect(help("describe")).toMatch(/--env\b/)
-    expect(help("search")).toMatch(/--env\b/)
+    expect(help("environments describe")).toMatch(/--env\b/)
+    expect(help("environments search")).toMatch(/--env\b/)
   })
 
   it("invoke exposes CAPABILITY-ID and --env, not --uses", { timeout: 60_000 }, () => {
-    const out = help("invoke")
+    const out = help("environments invoke")
     expect(out).toMatch(/\bCAPABILITY-ID\b/)
     expect(out).toMatch(/--env\b/)
     expect(out).not.toMatch(/--uses\b/)

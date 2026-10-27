@@ -78,7 +78,7 @@ describe("toCommands", () => {
   })
 
   it("maps defineOperation positional cli.args", () => {
-    const op = defineOperation("search")
+    const op = defineOperation("environments:search")
       .withInput(z.object({ query: z.string(), env: z.string().optional() }))
       .withMetadata({
         summary: "Search capabilities",
@@ -87,11 +87,27 @@ describe("toCommands", () => {
       .withHandler(async () => [])
       .build()
     const commands = toCommands([op])
-    expect(Object.keys(commands)).toEqual(["search"])
-    const cls = commands.search
+    expect(Object.keys(commands)).toEqual(["environments:search"])
+    const cls = commands["environments:search"]
     expect(cls?.args).toHaveProperty("query")
     expect(cls?.flags).toHaveProperty("env")
     expect(cls?.flags).not.toHaveProperty("query")
+    expect(cls?.aliases ?? []).toEqual([])
+  })
+
+  it("copies operation metadata aliases onto the generated command", () => {
+    const op = defineOperation("workflows:run")
+      .withInput(z.object({ "workflow-path": z.string() }))
+      .withMetadata({
+        summary: "Run a workflow file",
+        aliases: ["run"],
+        cli: { args: ["workflow-path"] },
+      })
+      .withHandler(async () => undefined)
+      .build()
+    const commands = toCommands([op])
+    expect(Object.keys(commands)).toEqual(["workflows:run"])
+    expect(commands["workflows:run"]?.aliases).toEqual(["run"])
   })
 
   it("prints ECP_* envelopes from toErrorJson, not oclif's error JSON", () => {

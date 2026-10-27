@@ -7,7 +7,7 @@ ecp plugins install format-mermaid
 ```
 
 Capability id `@executioncontrolprotocol/format-mermaid.encode` is unchanged. The plugin also
-registers the `mermaid` format for `ecp describe --format mermaid` and `ecp compile --format mermaid`.
+registers the `mermaid` format for `ecp environments describe --format mermaid` and `ecp workflows compile --format mermaid`.
 Encode-only; it does not parse Mermaid back into workflows.
 
 ## Binding

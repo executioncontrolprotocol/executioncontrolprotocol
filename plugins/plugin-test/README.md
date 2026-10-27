@@ -42,7 +42,7 @@ export default environment(NODE_ENVIRONMENT_ID, "test").with([
 
 ```sh
 ecp test echo --value hello --json
-ecp invoke @executioncontrolprotocol/test.echo --input payload.json --json
+ecp environments invoke @executioncontrolprotocol/test.echo --input payload.json --json
 ```
 
 ## Authoring

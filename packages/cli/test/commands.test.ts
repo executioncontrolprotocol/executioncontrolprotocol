@@ -59,7 +59,7 @@ describe("ecp CLI commands", () => {
 
   describe("compile", () => {
     it("compiles a .ts workflow to a JSON manifest on stdout", async () => {
-      const res = await runCli(["compile", ECHO_WORKFLOW_TS])
+      const res = await runCli(["workflows", "compile", ECHO_WORKFLOW_TS])
       expect(res.code).toBe(0)
       const manifest = JSON.parse(res.stdout) as { schema: string }
       expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
@@ -67,29 +67,43 @@ describe("ecp CLI commands", () => {
 
     it("writes the manifest to -o output file", async () => {
       const out = join(tmp, "compiled.json")
-      const res = await runCli(["compile", ECHO_WORKFLOW_TS, "-o", out])
+      const res = await runCli(["workflows", "compile", ECHO_WORKFLOW_TS, "-o", out])
       expect(res.code).toBe(0)
       const manifest = JSON.parse(await readFile(out, "utf8")) as { schema: string }
       expect(manifest.schema).toBe("@executioncontrolprotocol.workflow")
     }, 30_000)
 
     it("fails on a missing source file", async () => {
-      const res = await runCli(["compile", "does/not/exist.ts"])
+      const res = await runCli(["workflows", "compile", "does/not/exist.ts"])
       expect(res.code).not.toBe(0)
     }, 30_000)
   })
 
   describe("validate", () => {
     it("reports a valid workflow and exits 0", async () => {
-      const res = await runCli(["validate", ECHO_WORKFLOW_TS, "--env", TEST_ENV])
+      const res = await runCli(["workflows", "validate", ECHO_WORKFLOW_TS, "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { valid: boolean }
       expect(result.valid).toBe(true)
     }, 30_000)
 
     it("exits non-zero for an unknown capability", async () => {
-      const res = await runCli(["validate", brokenWorkflowPath])
+      const res = await runCli(["workflows", "validate", brokenWorkflowPath])
       expect(res.code).not.toBe(0)
+    }, 30_000)
+  })
+
+  describe("removed top-level commands", () => {
+    it("does not find ecp compile at the root", async () => {
+      const res = await runCli(["compile", ECHO_WORKFLOW_TS, "--json"])
+      expect(res.code).not.toBe(0)
+    }, 30_000)
+
+    it("rejects environments export --format dockerfile", async () => {
+      const res = await runCli(["environments", "export", "--format", "dockerfile", "--json"])
+      expect(res.code).not.toBe(0)
+      const raw = `${res.stdout}\n${res.stderr}`
+      expect(raw).toMatch(/ECP_INPUT_INVALID|dockerfile|Expected|enum/i)
     }, 30_000)
   })
 
@@ -103,7 +117,7 @@ describe("ecp CLI commands", () => {
   describe("describe", () => {
     it("does not list test.echo on a hermetic process host", async () => {
       const hermetic = await hermeticCliEnv()
-      const res = await runCli(["describe"], hermetic.env)
+      const res = await runCli(["environments", "describe"], hermetic.env)
       expect(res.code).toBe(0)
       const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
       expect(
@@ -112,14 +126,14 @@ describe("ecp CLI commands", () => {
     }, 30_000)
 
     it("returns a descriptor including the echo capability", async () => {
-      const res = await runCli(["describe", "--env", TEST_ENV])
+      const res = await runCli(["environments", "describe", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const descriptor = JSON.parse(res.stdout) as { capabilities: { id: string }[] }
       expect(descriptor.capabilities.some((c) => c.id.includes("echo"))).toBe(true)
     }, 30_000)
 
     it("prints the --json envelope", async () => {
-      const res = await runCli(["describe", "--json", "--env", TEST_ENV])
+      const res = await runCli(["environments", "describe", "--json", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const body = JSON.parse(res.stdout) as { ok: boolean; data: { capabilities: { id: string }[] } }
       expect(body.ok).toBe(true)
@@ -129,7 +143,7 @@ describe("ecp CLI commands", () => {
 
   describe("search", () => {
     it("returns search results for a query", async () => {
-      const res = await runCli(["search", "echo", "--env", TEST_ENV])
+      const res = await runCli(["environments", "search", "echo", "--env", TEST_ENV])
       expect(res.code).toBe(0)
       const result = JSON.parse(res.stdout) as { results: unknown[] }
       expect(Array.isArray(result.results)).toBe(true)
@@ -141,6 +155,7 @@ describe("ecp CLI commands", () => {
       const inputPath = join(tmp, "invoke-input.json")
       await writeFile(inputPath, JSON.stringify({ value: "cli-hi" }), "utf8")
       const res = await runCli([
+        "environments",
         "invoke",
         "@executioncontrolprotocol/test.echo",
         "--input",
@@ -161,6 +176,7 @@ describe("ecp CLI commands", () => {
 
     it("exits non-zero when the capability is missing", async () => {
       const res = await runCli([
+        "environments",
         "invoke",
         "@executioncontrolprotocol/test.does-not-exist",
       ])
