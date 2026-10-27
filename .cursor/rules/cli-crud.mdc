@@ -74,7 +74,10 @@ The file is `environment(id).with([...])`, not a required workflow+environment p
 - Don't add parallel command trees for the same thing (for example `extensions` and `plugins`).
 - Rename in place when terminology changes.
 
-## `ecp config secrets`
+## `ecp config`
+
+Local CLI configuration for this machine. Variables and secrets belong here, not in
+workflow files. The current subcommand is `secrets`.
 
 `ecp config secrets add KEY` (interactive) or `add KEY --value …`; `get KEY`, `remove KEY`,
 `list`.

@@ -40,6 +40,7 @@ import {
   pluginsCheckOperation,
   pluginsNewOperation,
 } from "../src/operations/plugins.js"
+import { configTopicOperation } from "../src/operations/config.js"
 import {
   configSecretsOperation,
   configSecretsAddOperation,
@@ -104,6 +105,7 @@ describe("generated COMMANDS", () => {
     expect(COMMANDS.install).toBeUndefined()
     expect(COMMANDS["workflows:install"]).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
+    expect(COMMANDS.config).toBeDefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
     const pluginIds = Object.keys(COMMANDS).filter((id) => id === "plugins" || id.startsWith("plugins:"))
     expect(new Set(pluginIds).size).toBe(pluginIds.length)
@@ -426,6 +428,15 @@ describe("plugins discover", () => {
     }
   })
 
+})
+
+describe("config topic", () => {
+  it("prints usage that mentions variables and secrets", async () => {
+    const help = await configTopicOperation.handler({}, ctx())
+    expect(String(help)).toMatch(/ecp config <subcommand>/)
+    expect(String(help)).toMatch(/variables and secrets/i)
+    expect(String(help)).toMatch(/\bsecrets\b/)
+  })
 })
 
 describe("secrets topic", () => {

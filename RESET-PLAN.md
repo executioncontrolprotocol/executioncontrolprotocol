@@ -653,7 +653,8 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp environments export` | Project the environment (Node host, optional `--env`, optional workflow requirements) to `package.json`. `--format package-json` |
 | `ecp environments init` | Scaffold `~/.ecp/config/environment.ecp.ts`. Refuses if it already exists |
 | `ecp environments edit` | Print the default environment-file path, scaffold if missing, then open `$VISUAL` / `$EDITOR` |
-| `ecp config secrets add\|get\|list\|remove` | Local secrets |
+| `ecp config` | Local CLI configuration for this machine. Variables and secrets belong here, not in workflow files |
+| `ecp config secrets add\|get\|list\|remove` | OS keychain values for `secrets()` refs |
 | `ecp plugins new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
 | `ecp plugins build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
 | `ecp plugins check [dir]` | Fail if a plugin's generated files are stale (CI) |

@@ -1,5 +1,6 @@
 import type { OperationDefinition } from "@executioncontrolprotocol/plugin-sdk"
 import { describeOperation, invokeOperation, searchOperation } from "./catalog.js"
+import { configTopicOperation } from "./config.js"
 import { discoverOperation } from "./discover.js"
 import {
   environmentsEditOperation,
@@ -55,6 +56,7 @@ export const operations: OperationDefinition[] = [
   runsShowOperation,
   runsResumeOperation,
   runsRerunOperation,
+  configTopicOperation,
   configSecretsOperation,
   configSecretsAddOperation,
   configSecretsGetOperation,
