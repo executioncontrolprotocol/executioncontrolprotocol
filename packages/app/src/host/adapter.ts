@@ -8,7 +8,7 @@ import type {
   WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
 import type { MediaHttpReadResponse } from "@executioncontrolprotocol/core"
-import type { AppRunResponse, AppSourceResponse } from "./protocol.js"
+import type { AppEnvironmentResponse, AppRunResponse, AppSourceResponse } from "./protocol.js"
 import type { RoundTripResult } from "./round-trip.js"
 
 /**
@@ -60,6 +60,16 @@ export interface HostAdapter {
   watch(onChange: (next: HostWatchPayload) => void): () => void
   /** Capability catalogue for the graph palette. */
   describe(): Promise<EnvironmentDescriptor>
+  /**
+   * Overlay file source, or synthesized process-host Fluent when no overlay
+   * is bound.
+   */
+  environment(): Promise<AppEnvironmentResponse>
+  /**
+   * Subscribe to overlay-file (or process-host) environment source changes.
+   * Returns an unsubscribe function.
+   */
+  watchEnvironment(onChange: (next: AppEnvironmentResponse) => void): () => void
   /**
    * Search capabilities. Returns hit rows (core's `SearchResult` is the envelope).
    */

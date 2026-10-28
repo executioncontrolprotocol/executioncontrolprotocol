@@ -42,7 +42,10 @@ describe("serveApp", () => {
     dir = undefined
   })
 
-  async function start(source = ECHO_SOURCE): Promise<{
+  async function start(
+    source = ECHO_SOURCE,
+    extra?: { overlayPath?: string }
+  ): Promise<{
     origin: string
     filePath: string
     headers: { Authorization: string }
@@ -54,6 +57,7 @@ describe("serveApp", () => {
     ecp = ctx.ecp
     handle = await serveApp({
       host: ctx.host,
+      overlayPath: extra?.overlayPath,
       filePath,
       httpPort: 0,
       token: TEST_TOKEN,
@@ -189,6 +193,101 @@ describe("serveApp", () => {
     expect(validate.status).toBe(200)
     const result = (await validate.json()) as { valid: boolean }
     expect(result.valid).toBe(true)
+  })
+
+  it("synthesizes process-host Fluent on GET /api/environment", async () => {
+    const { origin, headers } = await start()
+    const response = await fetch(`${origin}/api/environment`, { headers })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { kind: string; source: string; path?: string }
+    expect(body.kind).toBe("process-host")
+    expect(body.path).toBeUndefined()
+    expect(body.source).toContain("environment(")
+    expect(body.source).toContain(".with([")
+    expect(body.source).not.toContain("apiKey")
+  })
+
+  it("returns overlay file source and uses that host for describe", async () => {
+    dir = await fixtureDir()
+    const overlayPath = join(dir, "environment.ecp.ts")
+    const overlaySource = `import {
+  environment,
+  extension,
+  NODE_ENVIRONMENT_ID,
+  testExtension,
+} from "@executioncontrolprotocol/node"
+
+export default environment(NODE_ENVIRONMENT_ID, "overlay-app").with([
+  extension(testExtension),
+])
+`
+    await writeFile(overlayPath, overlaySource, "utf8")
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      overlayPath,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const headers = { Authorization: `${APP_BEARER_PREFIX}${TEST_TOKEN}` }
+
+    const environment = await fetch(`${origin}/api/environment`, { headers })
+    expect(environment.status).toBe(200)
+    const envBody = (await environment.json()) as { kind: string; path?: string; source: string }
+    expect(envBody.kind).toBe("overlay")
+    expect(envBody.path).toBe(overlayPath)
+    expect(envBody.source).toBe(overlaySource)
+
+    const describe = await fetch(`${origin}/api/describe`, { headers })
+    const descriptor = (await describe.json()) as { environment: { label?: string } }
+    expect(descriptor.environment.label).toBe("overlay-app")
+  })
+
+  it("emits an environment event when the overlay file changes", async () => {
+    dir = await fixtureDir()
+    const overlayPath = join(dir, "environment.ecp.ts")
+    const overlaySource = `import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+
+export default environment(NODE_ENVIRONMENT_ID, "overlay-watch").with([])
+`
+    await writeFile(overlayPath, overlaySource, "utf8")
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      overlayPath,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const socket = new WebSocket(
+      `${origin.replace("http", "ws")}/api/events?${APP_TOKEN_QUERY}=${TEST_TOKEN}`
+    )
+    const pending = waitForWsMessage(socket, 1000)
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener("open", () => resolve())
+      socket.addEventListener("error", () => reject(new Error("websocket failed")))
+    })
+    await writeFile(overlayPath, overlaySource.replace("overlay-watch", "overlay-updated"), "utf8")
+    const message = await pending
+    socket.close()
+    expect(message.type).toBe("environment")
+    if (message.type === "environment") {
+      expect(message.kind).toBe("overlay")
+      expect(message.source).toContain("overlay-updated")
+    }
   })
 
   it("rejects a websocket upgrade without a token", async () => {

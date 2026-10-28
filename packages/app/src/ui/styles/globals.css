@@ -47,6 +47,27 @@
 }
 
 @layer components {
+  .split-pane-handle {
+    position: relative;
+    z-index: 10;
+    width: 6px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    box-sizing: border-box;
+    border-left: 1px solid var(--color-outline-variant);
+    border-right: 1px solid var(--color-outline-variant);
+    background-color: var(--color-surface-container-high);
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .split-pane-handle:hover,
+  .split-pane-handle:active {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary);
+  }
+
   .node-canvas {
     background-color: var(--color-background);
     background-image: radial-gradient(circle, var(--color-surface-container-highest) 1px, transparent 1px);
@@ -237,12 +258,26 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
+    gap: 0.5rem;
     width: 100%;
     height: 28px;
     padding: 0 1rem;
     border-top: 1px solid var(--color-outline-variant);
     background-color: var(--color-surface-container-low);
     overflow: visible;
+  }
+
+  .status-footer-file {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--color-on-surface-variant);
+    cursor: default;
   }
 
   .footer-github-link {

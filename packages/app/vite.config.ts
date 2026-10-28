@@ -4,6 +4,11 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = path.dirname(fileURLToPath(import.meta.url))
+const appOrigin = process.env.ECP_APP_ORIGIN ?? "http://127.0.0.1:8787"
+const proxy = {
+  "/api": { target: appOrigin, ws: true, changeOrigin: true },
+  "/v1": { target: appOrigin, changeOrigin: true },
+}
 
 export default defineConfig({
   root,
@@ -11,6 +16,14 @@ export default defineConfig({
   build: {
     outDir: "dist/web",
     emptyOutDir: false,
+  },
+  server: {
+    port: 5173,
+    proxy,
+  },
+  preview: {
+    host: "127.0.0.1",
+    proxy,
   },
   resolve: {
     alias: {

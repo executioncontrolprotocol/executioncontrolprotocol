@@ -6,7 +6,7 @@ import {
   type WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
 import type { HostAdapter, HostLoadResult } from "../host/adapter.js"
-import type { AppSourceResponse } from "../host/protocol.js"
+import type { AppEnvironmentResponse, AppSourceResponse } from "../host/protocol.js"
 import {
   applyPublicRunEvent,
   reactFlowRunProgress,
@@ -21,10 +21,13 @@ import {
 } from "../graph/index.js"
 import { CodePanel } from "./components/CodePanel.js"
 import { IoConfigureDialog } from "./components/IoConfigureDialog.js"
+import { PaneTabBar } from "./components/PaneTabBar.js"
 import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
 import { RunPanel, type RunPanelPhase } from "./components/RunPanel.js"
 import { SplitPane } from "./components/SplitPane.js"
+import { StatusFooter } from "./components/StatusFooter.js"
 import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
+import { ValidationView } from "./components/ValidationView.js"
 import { useSplitPane } from "./hooks/useSplitPane.js"
 import { formatFluentManifest } from "./lib/fluent-beautify.js"
 import {
@@ -88,7 +91,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [source, setSource] = useState("")
   const [editorKey, setEditorKey] = useState(0)
   const [loadError, setLoadError] = useState<ValidationResult | undefined>()
-  const [status, setStatus] = useState("Loading")
+  const [status, setStatus] = useState("")
   const [diskChanged, setDiskChanged] = useState(false)
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("workflow")
   const [configureStepId, setConfigureStepId] = useState<string | undefined>()
@@ -98,6 +101,9 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [runPhase, setRunPhase] = useState<RunPanelPhase>("input")
   const [runBusy, setRunBusy] = useState(false)
   const [runResult, setRunResult] = useState<RunResult | undefined>()
+  const [environment, setEnvironment] = useState<AppEnvironmentResponse | undefined>()
+  const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const [validationOpen, setValidationOpen] = useState(false)
 
   const acknowledgedRef = useRef("")
   const sourceRef = useRef("")
@@ -155,12 +161,24 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
         acknowledgedRef.current = next.source
         remountEditor(next.source)
         setLoadError(undefined)
-        setStatus(next.path)
+        setStatus("")
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setStatus(error instanceof Error ? error.message : "Load failed")
       })
+    void adapter
+      .environment()
+      .then((next) => {
+        if (cancelled) return
+        setEnvironment(next)
+      })
+      .catch(() => {
+        /* Environment tab stays empty until the host answers. */
+      })
+    const stopEnvironment = adapter.watchEnvironment((next) => {
+      setEnvironment(next)
+    })
     const stop = adapter.watch((next) => {
       if (shouldApplyWatchedSource(sourceRef.current, acknowledgedRef.current)) {
         acknowledgedRef.current = next.source
@@ -189,9 +207,36 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
     return () => {
       cancelled = true
       stop()
+      stopEnvironment()
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [adapter, remountEditor])
+
+  useEffect(() => {
+    if (loadError) {
+      setValidation(loadError)
+      return
+    }
+    if (!source) {
+      setValidation(null)
+      return
+    }
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void adapter
+        .validate(source)
+        .then((result) => {
+          if (!cancelled) setValidation(result)
+        })
+        .catch(() => {
+          if (!cancelled) setValidation(null)
+        })
+    }, SOURCE_SAVE_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [adapter, source, loadError])
 
   const onFluentChange = useCallback(
     (value: string | undefined) => {
@@ -281,9 +326,8 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-on-background">
-      <header className="flex shrink-0 items-center gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2">
-        <strong className="font-display text-sm tracking-wide">ECP App</strong>
-        <span className="truncate font-mono text-label text-on-surface-variant">{status}</span>
+      <header className="flex h-12 shrink-0 items-center gap-4 border-b border-outline-variant bg-surface-container-low px-4">
+        <strong className="shrink-0 whitespace-nowrap font-display text-sm tracking-wide">ECP Editor</strong>
       </header>
       {readOnly && loaded ? (
         <div className="ecp-app-banner border-b border-outline-variant bg-surface-container px-4 py-2 text-label text-on-surface-variant" role="status">
@@ -300,6 +344,11 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
           {loadError.errors.map((issue) => issue.message).join("; ")}
         </div>
       ) : null}
+      {status ? (
+        <div className="border-b border-error-container bg-error-container/20 px-4 py-2 text-label text-error" role="alert">
+          {status}
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <SplitPane
           left={
@@ -309,6 +358,9 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
               compileError={compileError}
               onFluentChange={onFluentChange}
               beautifyEnabled={Boolean(loaded) && !readOnly}
+              environmentSource={environment?.source}
+              environmentKind={environment?.kind}
+              environmentPath={environment?.path}
               onBeautifyFluent={
                 loaded && !readOnly
                   ? () => void persist(formatFluentManifest(loaded.manifest), { remount: true })
@@ -318,28 +370,14 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
           }
           right={
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-              <nav className="flex shrink-0 border-b border-outline-variant bg-surface-container-low px-2">
-                {(
-                  [
-                    ["workflow", "Workflow"],
-                    ["run", "Run"],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    data-testid={`ecp-tab-${id}`}
-                    onClick={() => setWorkspaceTab(id)}
-                    className={`px-4 py-2 font-mono text-label uppercase tracking-widest transition-colors ${
-                      workspaceTab === id
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-on-surface-variant hover:text-primary"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </nav>
+              <PaneTabBar<WorkspaceTab>
+                tabs={[
+                  { id: "workflow", label: "Workflow" },
+                  { id: "run", label: "Run" },
+                ]}
+                active={workspaceTab}
+                onChange={setWorkspaceTab}
+              />
               <div
                 className={
                   workspaceTab === "workflow"
@@ -420,6 +458,14 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
           onDividerPointerDown={split.onPointerDown}
         />
       </div>
+      <StatusFooter
+        validation={validation}
+        path={loaded?.path}
+        onOpenInvalid={() => setValidationOpen(true)}
+      />
+      {validationOpen && validation && !validation.valid ? (
+        <ValidationView result={validation} onClose={() => setValidationOpen(false)} />
+      ) : null}
       {configureStepId && configureStep && configureStepData && !readOnly ? (
         <StepConfigureDialog
           stepId={configureStepId}

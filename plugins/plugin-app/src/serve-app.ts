@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { watch, existsSync } from "node:fs"
+import { watch, existsSync, type FSWatcher } from "node:fs"
 import { readFile, writeFile } from "node:fs/promises"
 import {
   createServer,
@@ -14,17 +14,21 @@ import {
   APP_TOKEN_QUERY,
   APP_WATCH_DEBOUNCE_MS,
   canRoundTrip,
+  environmentSourceFromDescriptor,
+  type AppEnvironmentResponse,
   type AppEventMessage,
   type AppRunRequest,
   type AppSourceResponse,
   type AppSourceWrite,
 } from "@executioncontrolprotocol/app"
-import type { LoadedWorkflow } from "@executioncontrolprotocol/core"
-import { MEDIA_HTTP_PATH, MediaStore } from "@executioncontrolprotocol/core"
+import type { Ecp, LoadedWorkflow } from "@executioncontrolprotocol/core"
+import { extension, MEDIA_HTTP_PATH, MediaStore } from "@executioncontrolprotocol/core"
 import {
   NODE_ENVIRONMENT_ID,
   compileAndValidateWorkflowSource,
   handleMediaHttp,
+  journalExtension,
+  loadEnvironmentModule,
   loadWorkflowFile,
 } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
@@ -56,6 +60,12 @@ const MIME_BY_EXT: Record<string, string> = {
 export interface ServeAppOptions {
   /** Process host from `getHost()` after `init-host`. */
   host: EcpHost
+  /**
+   * Optional environment overlay (`--env` or `~/.ecp/config/environment.ecp.ts`).
+   * When set, describe / validate / run use this file and the Environment tab
+   * shows its source.
+   */
+  overlayPath?: string
   /** Workflow file the App watches. */
   filePath: string
   /** Bind address. Defaults to `127.0.0.1`. */
@@ -148,6 +158,35 @@ function safeStaticPath(webRoot: string, urlPath: string): string | undefined {
   return full
 }
 
+async function loadEnvironmentSnapshot(
+  overlayPath: string | undefined,
+  ecp: Ecp
+): Promise<AppEnvironmentResponse> {
+  if (overlayPath) {
+    const source = await readFile(overlayPath, "utf8")
+    return { kind: "overlay", path: overlayPath, source }
+  }
+  return {
+    kind: "process-host",
+    source: environmentSourceFromDescriptor(await ecp.describe()),
+  }
+}
+
+async function initOverlayHost(overlayPath: string, base: EcpHost): Promise<{ host: EcpHost; ecp: Ecp }> {
+  const env = await loadEnvironmentModule(overlayPath)
+  env.with([extension(journalExtension)])
+  const ecp = await env.init()
+  return {
+    ecp,
+    host: {
+      ...base,
+      ecp,
+      registry: ecp.getRegistry(),
+      environmentId: ecp.id,
+    },
+  }
+}
+
 async function loadSnapshot(filePath: string): Promise<AppSourceResponse> {
   const source = await readFile(filePath, "utf8")
   const roundTrip = canRoundTrip(source)
@@ -179,10 +218,19 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   assertLoopbackBind(httpHost)
   const token = options.token ?? generateAppToken()
   const filePath = resolve(options.filePath)
+  const overlayPath = options.overlayPath ? resolve(options.overlayPath) : undefined
   const webRoot = options.webRoot ?? resolveAppWebRoot()
   const sockets = new Set<WebSocket>()
   let lastWriteHash: string | undefined
   let debounce: ReturnType<typeof setTimeout> | undefined
+  let overlayDebounce: ReturnType<typeof setTimeout> | undefined
+  let overlayEcp: Ecp | undefined
+  let runtimeHost = options.host
+  if (overlayPath) {
+    const overlay = await initOverlayHost(overlayPath, options.host)
+    overlayEcp = overlay.ecp
+    runtimeHost = overlay.host
+  }
 
   const broadcast = (message: AppEventMessage): void => {
     const payload = JSON.stringify(message)
@@ -240,13 +288,17 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       sendJson(res, 200, await loadSnapshot(filePath))
       return
     }
+    if (method === "GET" && url.pathname === "/api/environment") {
+      sendJson(res, 200, await loadEnvironmentSnapshot(overlayPath, runtimeHost.ecp))
+      return
+    }
     if (method === "GET" && url.pathname === "/api/describe") {
-      sendJson(res, 200, await options.host.ecp.describe())
+      sendJson(res, 200, await runtimeHost.ecp.describe())
       return
     }
     if (method === "GET" && url.pathname === "/api/search") {
       const query = url.searchParams.get("q") ?? ""
-      const envelope = await options.host.ecp.search(query)
+      const envelope = await runtimeHost.ecp.search(query)
       sendJson(res, 200, { results: envelope.results })
       return
     }
@@ -259,7 +311,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       const compiled = await compileAndValidateWorkflowSource({
         source: body.source,
         filename: filePath,
-        descriptor: await options.host.ecp.describe(),
+        descriptor: await runtimeHost.ecp.describe(),
       })
       if (!compiled.ok || !compiled.manifest) {
         const fallback: ValidationResult = compiled.validation ?? workflowLoadError(
@@ -268,7 +320,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         sendJson(res, 200, fallback)
         return
       }
-      sendJson(res, 200, await options.host.ecp.validate(compiled.manifest))
+      sendJson(res, 200, await runtimeHost.ecp.validate(compiled.manifest))
       return
     }
     if (method === "POST" && url.pathname === "/api/run") {
@@ -286,7 +338,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         sendJson(res, 400, workflowLoadError(err))
         return
       }
-      const result = await options.host.ecp.run(loaded.manifest, {
+      const result = await runtimeHost.ecp.run(loaded.manifest, {
         input: body.input && typeof body.input === "object" && !Array.isArray(body.input)
           ? (body.input as Record<string, unknown>)
           : undefined,
@@ -296,7 +348,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         journal: {
           workflowPath: filePath,
           workflowHash: lastWriteHash,
-          environmentId: options.host.environmentId ?? NODE_ENVIRONMENT_ID,
+          environmentId: runtimeHost.environmentId ?? NODE_ENVIRONMENT_ID,
         },
       })
       sendJson(res, 200, {
@@ -335,7 +387,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }
     void (async () => {
       try {
-        const mediaStore = options.host.ecp.getService(MediaStore)
+        const mediaStore = runtimeHost.ecp.getService(MediaStore)
         if (mediaStore && url.pathname === MEDIA_HTTP_PATH) {
           const method = req.method ?? "GET"
           const mediaBody = method === "POST" ? await readJsonBody(req) : undefined
@@ -385,6 +437,16 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     httpServer.listen(options.httpPort ?? DEFAULT_PLUGIN_APP_PORT, httpHost, () => resolveListen())
   })
 
+  const pushEnvironmentChange = async (): Promise<void> => {
+    const snapshot = await loadEnvironmentSnapshot(overlayPath, runtimeHost.ecp)
+    broadcast({
+      type: "environment",
+      kind: snapshot.kind,
+      path: snapshot.path,
+      source: snapshot.source,
+    })
+  }
+
   const watchedName = basename(filePath)
   const watcher = watch(dirname(filePath), (_event, filename) => {
     const name = filename === null || filename === undefined ? "" : String(filename)
@@ -396,13 +458,29 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }, APP_WATCH_DEBOUNCE_MS)
   })
 
+  let overlayWatcher: FSWatcher | undefined
+  if (overlayPath) {
+    const overlayName = basename(overlayPath)
+    overlayWatcher = watch(dirname(overlayPath), (_event, filename) => {
+      const name = filename === null || filename === undefined ? "" : String(filename)
+      if (name && name !== overlayName) return
+      if (overlayDebounce) clearTimeout(overlayDebounce)
+      overlayDebounce = setTimeout(() => {
+        overlayDebounce = undefined
+        void pushEnvironmentChange()
+      }, APP_WATCH_DEBOUNCE_MS)
+    })
+  }
+
   const address = httpServer.address() as AddressInfo
   const boundHost = address.address === "::1" ? "127.0.0.1" : address.address
   const url = `http://${boundHost}:${address.port}/?${APP_TOKEN_QUERY}=${token}`
 
   const close = async (): Promise<void> => {
     if (debounce) clearTimeout(debounce)
+    if (overlayDebounce) clearTimeout(overlayDebounce)
     watcher.close()
+    overlayWatcher?.close()
     for (const socket of sockets) socket.close()
     sockets.clear()
     await new Promise<void>((resolveClose) => {
@@ -411,6 +489,13 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     await new Promise<void>((resolveClose, reject) => {
       httpServer.close((err) => (err ? reject(err) : resolveClose()))
     })
+    if (overlayEcp) {
+      try {
+        await overlayEcp.terminate()
+      } catch {
+        /* already closed */
+      }
+    }
   }
 
   const handle: AppServeHandle = {

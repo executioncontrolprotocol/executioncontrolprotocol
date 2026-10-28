@@ -10,7 +10,7 @@
           "required": true
         }
       },
-      "description": "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. The App stores no secrets. Until 0.51.0 is on the registry, install with ecp plugins link plugins/plugin-app.",
+      "description": "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. --env is an optional environment overlay; omit it to use the process host or ~/.ecp/config/environment.ecp.ts. The App stores no secrets. Until 0.51.0 is on the registry, install with ecp plugins link plugins/plugin-app.",
       "flags": {
         "host": {
           "description": "HTTP bind address (loopback only)",
@@ -27,6 +27,11 @@
           "name": "no-open",
           "allowNo": false,
           "type": "boolean"
+        },
+        "env": {
+          "description": "Optional environment overlay file; omit to use the process host or ~/.ecp/config/environment.ecp.ts",
+          "name": "env",
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,

@@ -65,5 +65,6 @@ describe("oclif command map", () => {
     expect(AppCommand.id).toBe("app")
     expect(AppCommand.args.file.required).toBe(true)
     expect(AppCommand.flags["no-open"]).toBeDefined()
+    expect(AppCommand.flags.env).toBeDefined()
   })
 })

@@ -481,7 +481,6 @@ function ReactFlowCanvasInner({
       id="graph-drawer"
     >
       <PanelHeader icon="account_tree" label="Workflow Canvas" />
-
       <div
         ref={canvasRef}
         data-testid="ecp-react-flow"

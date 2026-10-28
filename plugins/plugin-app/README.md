@@ -8,12 +8,15 @@ JIT CLI plugin behind `ecp app`. Serves `@executioncontrolprotocol/app`'s prebui
 ecp plugins link plugins/plugin-app
 ecp app examples/01-echo/workflow.ecp.ts
 ecp app brief.ecp.ts --no-open --port 0
+ecp app brief.ecp.ts --env environment.ecp.ts
 ```
 
 The server binds `127.0.0.1` on a free port. A pairing token goes in the URL;
 every request requires it (query, `Authorization: Bearer`, or cookie). Runs use
-the same host and journal as `ecp run`. The App stores no secrets and makes no
-model calls.
+the same host and journal as `ecp run`. `--env` is an optional overlay (same as
+`ecp run`); omit it to use the process host or `~/.ecp/config/environment.ecp.ts`.
+The Environment tab shows that overlay file when present, otherwise a read-only
+process-host view. The App stores no secrets and makes no model calls.
 
 Until `0.51.0` is on the registry, install from the workspace with
 `ecp plugins link plugins/plugin-app`. CLI `oclif.jitPlugins` pins `"^0.51"`.

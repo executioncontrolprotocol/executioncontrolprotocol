@@ -42,6 +42,12 @@ function createMockTransport(overrides?: {
       if (path === "/api/describe") {
         return { schema: "@executioncontrolprotocol.environment.describe", version: "1.0" } as EnvironmentDescriptor
       }
+      if (path === "/api/environment") {
+        return {
+          kind: "process-host",
+          source: 'export default environment("node").with([])',
+        }
+      }
       if (path.startsWith("/api/search")) {
         return { results: [{ type: "capability", id: "jsonata.transform", score: 1 }] }
       }
@@ -127,6 +133,38 @@ describe("createLocalHostAdapter", () => {
     expect(hits[0]?.id).toBe("jsonata.transform")
     const validation = await adapter.validate("source")
     expect(validation.valid).toBe(true)
+    const environment = await adapter.environment()
+    expect(environment.kind).toBe("process-host")
+    expect(environment.source).toContain("environment(")
+  })
+
+  it("forwards environment watch payloads", async () => {
+    const listeners: Array<(message: AppEventMessage) => void> = []
+    const transport: LocalHostTransport = {
+      ...createMockTransport(),
+      subscribe(onMessage) {
+        listeners.push(onMessage)
+        return () => {
+          const index = listeners.indexOf(onMessage)
+          if (index >= 0) listeners.splice(index, 1)
+        }
+      },
+    }
+    const adapter = createLocalHostAdapter({
+      baseUrl: "http://127.0.0.1:9",
+      token: "secret",
+      transport,
+    })
+    const seen: string[] = []
+    const stop = adapter.watchEnvironment((next) => {
+      seen.push(`${next.kind}:${next.source}`)
+    })
+    for (const listener of listeners) {
+      listener({ type: "environment", kind: "overlay", path: "/tmp/environment.ecp.ts", source: "overlay" })
+      listener({ type: "file", source: "ignored" })
+    }
+    stop()
+    expect(seen).toEqual(["overlay:overlay"])
   })
 
   it("yields run events until run.end", async () => {
