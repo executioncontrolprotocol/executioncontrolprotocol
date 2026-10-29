@@ -21,18 +21,30 @@ import {
   type AppSourceResponse,
   type AppSourceWrite,
 } from "@executioncontrolprotocol/app"
-import type { Ecp, LoadedWorkflow } from "@executioncontrolprotocol/core"
-import { extension, MEDIA_HTTP_PATH, MediaStore } from "@executioncontrolprotocol/core"
+import type { Ecp, EnvironmentBinding, LoadedWorkflow } from "@executioncontrolprotocol/core"
+import {
+  extension,
+  isBuiltinRequirementId,
+  MEDIA_HTTP_PATH,
+  MediaStore,
+  policy,
+} from "@executioncontrolprotocol/core"
 import {
   NODE_ENVIRONMENT_ID,
   compileAndValidateWorkflowSource,
+  environment,
   handleMediaHttp,
   journalExtension,
-  loadEnvironmentModule,
+  loadConfigModule,
   loadWorkflowFile,
 } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
-import type { PublicRunEvent, ValidationResult } from "@executioncontrolprotocol/core/types"
+import {
+  ECP_PLUGINS_MISSING,
+  EcpError,
+  type PublicRunEvent,
+  type ValidationResult,
+} from "@executioncontrolprotocol/core/types"
 import { WebSocketServer, type WebSocket } from "ws"
 import { APP_TOKEN_COOKIE, DEFAULT_PLUGIN_APP_HOST, DEFAULT_PLUGIN_APP_PORT } from "./constants.js"
 import { assertLoopbackBind } from "./http-bind.js"
@@ -61,11 +73,10 @@ export interface ServeAppOptions {
   /** Process host from `getHost()` after `init-host`. */
   host: EcpHost
   /**
-   * Optional environment overlay (`--env` or `~/.ecp/config/environment.ecp.ts`).
-   * When set, describe / validate / run use this file and the Environment tab
-   * shows its source.
+   * Optional `--config` file. Merged onto a clone of the process host; never
+   * replaces installed plugins. The Environment tab always shows `describe()`.
    */
-  overlayPath?: string
+  configPath?: string
   /** Workflow file the App watches. */
   filePath: string
   /** Bind address. Defaults to `127.0.0.1`. */
@@ -158,22 +169,50 @@ function safeStaticPath(webRoot: string, urlPath: string): string | undefined {
   return full
 }
 
-async function loadEnvironmentSnapshot(
-  overlayPath: string | undefined,
-  ecp: Ecp
-): Promise<AppEnvironmentResponse> {
-  if (overlayPath) {
-    const source = await readFile(overlayPath, "utf8")
-    return { kind: "overlay", path: overlayPath, source }
-  }
+async function loadEnvironmentSnapshot(ecp: Ecp): Promise<AppEnvironmentResponse> {
   return {
     kind: "process-host",
     source: environmentSourceFromDescriptor(await ecp.describe()),
   }
 }
 
-async function initOverlayHost(overlayPath: string, base: EcpHost): Promise<{ host: EcpHost; ecp: Ecp }> {
-  const env = await loadEnvironmentModule(overlayPath)
+function bindingId(binding: EnvironmentBinding): string {
+  const ref = binding.getRef()
+  if (typeof ref === "string") return ref
+  if (typeof ref === "object" && ref !== null && "id" in ref) return String(ref.id)
+  return String(ref)
+}
+
+function assertConfigPluginsOnHost(host: EcpHost, bindings: EnvironmentBinding[]): void {
+  const missing: string[] = []
+  for (const binding of bindings) {
+    const id = bindingId(binding)
+    if (isBuiltinRequirementId(id)) continue
+    if (host.registry.getExtension(id) || host.registry.getPolicy(id)) continue
+    missing.push(id)
+  }
+  if (missing.length === 0) return
+  throw new EcpError(
+    ECP_PLUGINS_MISSING,
+    `Missing plugins: ${missing.join(", ")}`,
+    { suggestions: missing.map((id) => `ecp plugins install ${id}`) }
+  )
+}
+
+async function initConfiguredHost(
+  configPath: string,
+  base: EcpHost
+): Promise<{ host: EcpHost; ecp: Ecp }> {
+  const env = environment(NODE_ENVIRONMENT_ID, "cli")
+  for (const def of base.registry.listExtensions()) {
+    env.with([extension(def)])
+  }
+  for (const def of base.registry.listPolicies()) {
+    env.with([policy(def)])
+  }
+  const bindings = await loadConfigModule(configPath)
+  assertConfigPluginsOnHost(base, bindings)
+  env.with(bindings)
   env.with([extension(journalExtension)])
   const ecp = await env.init()
   return {
@@ -218,18 +257,18 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   assertLoopbackBind(httpHost)
   const token = options.token ?? generateAppToken()
   const filePath = resolve(options.filePath)
-  const overlayPath = options.overlayPath ? resolve(options.overlayPath) : undefined
+  const configPath = options.configPath ? resolve(options.configPath) : undefined
   const webRoot = options.webRoot ?? resolveAppWebRoot()
   const sockets = new Set<WebSocket>()
   let lastWriteHash: string | undefined
   let debounce: ReturnType<typeof setTimeout> | undefined
-  let overlayDebounce: ReturnType<typeof setTimeout> | undefined
-  let overlayEcp: Ecp | undefined
+  let configDebounce: ReturnType<typeof setTimeout> | undefined
+  let configuredEcp: Ecp | undefined
   let runtimeHost = options.host
-  if (overlayPath) {
-    const overlay = await initOverlayHost(overlayPath, options.host)
-    overlayEcp = overlay.ecp
-    runtimeHost = overlay.host
+  if (configPath) {
+    const configured = await initConfiguredHost(configPath, options.host)
+    configuredEcp = configured.ecp
+    runtimeHost = configured.host
   }
 
   const broadcast = (message: AppEventMessage): void => {
@@ -289,7 +328,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       return
     }
     if (method === "GET" && url.pathname === "/api/environment") {
-      sendJson(res, 200, await loadEnvironmentSnapshot(overlayPath, runtimeHost.ecp))
+      sendJson(res, 200, await loadEnvironmentSnapshot(runtimeHost.ecp))
       return
     }
     if (method === "GET" && url.pathname === "/api/describe") {
@@ -438,11 +477,22 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   })
 
   const pushEnvironmentChange = async (): Promise<void> => {
-    const snapshot = await loadEnvironmentSnapshot(overlayPath, runtimeHost.ecp)
+    if (configPath) {
+      const next = await initConfiguredHost(configPath, options.host)
+      if (configuredEcp) {
+        try {
+          await configuredEcp.terminate()
+        } catch {
+          /* already closed */
+        }
+      }
+      configuredEcp = next.ecp
+      runtimeHost = next.host
+    }
+    const snapshot = await loadEnvironmentSnapshot(runtimeHost.ecp)
     broadcast({
       type: "environment",
       kind: snapshot.kind,
-      path: snapshot.path,
       source: snapshot.source,
     })
   }
@@ -458,15 +508,15 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }, APP_WATCH_DEBOUNCE_MS)
   })
 
-  let overlayWatcher: FSWatcher | undefined
-  if (overlayPath) {
-    const overlayName = basename(overlayPath)
-    overlayWatcher = watch(dirname(overlayPath), (_event, filename) => {
+  let configWatcher: FSWatcher | undefined
+  if (configPath) {
+    const configName = basename(configPath)
+    configWatcher = watch(dirname(configPath), (_event, filename) => {
       const name = filename === null || filename === undefined ? "" : String(filename)
-      if (name && name !== overlayName) return
-      if (overlayDebounce) clearTimeout(overlayDebounce)
-      overlayDebounce = setTimeout(() => {
-        overlayDebounce = undefined
+      if (name && name !== configName) return
+      if (configDebounce) clearTimeout(configDebounce)
+      configDebounce = setTimeout(() => {
+        configDebounce = undefined
         void pushEnvironmentChange()
       }, APP_WATCH_DEBOUNCE_MS)
     })
@@ -478,9 +528,9 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
 
   const close = async (): Promise<void> => {
     if (debounce) clearTimeout(debounce)
-    if (overlayDebounce) clearTimeout(overlayDebounce)
+    if (configDebounce) clearTimeout(configDebounce)
     watcher.close()
-    overlayWatcher?.close()
+    configWatcher?.close()
     for (const socket of sockets) socket.close()
     sockets.clear()
     await new Promise<void>((resolveClose) => {
@@ -489,9 +539,9 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     await new Promise<void>((resolveClose, reject) => {
       httpServer.close((err) => (err ? reject(err) : resolveClose()))
     })
-    if (overlayEcp) {
+    if (configuredEcp) {
       try {
-        await overlayEcp.terminate()
+        await configuredEcp.terminate()
       } catch {
         /* already closed */
       }

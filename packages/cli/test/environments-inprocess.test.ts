@@ -16,21 +16,20 @@ import {
 import { applyDefaultEcpHome, defaultEcpHome } from "../src/lib/ecp-home.js"
 import { resolveEditor, tokenizeCommand } from "../src/lib/editor.js"
 import {
-  appendExtensionStubToEnvFile,
-  defaultEnvironmentPath,
-  environmentFileTemplate,
+  appendExtensionStubToConfigFile,
+  defaultConfigPath,
+  configFileTemplate,
   insertExtensionStub,
-} from "../src/lib/environment-file.js"
+} from "../src/lib/config-file.js"
 import {
   NODE_HOST_PACKAGE,
   packageJsonFromRequirements,
 } from "../src/lib/export-environment.js"
 import {
-  environmentsEditOperation,
   environmentsExportOperation,
-  environmentsInitOperation,
   environmentsTopicOperation,
 } from "../src/operations/environments.js"
+import { configEditOperation, configInitOperation, configTopicOperation } from "../src/operations/config.js"
 import { workflowsTopicOperation } from "../src/operations/workflow.js"
 import { repoRoot } from "./helpers.js"
 
@@ -51,27 +50,29 @@ function ctx(configDir: string): {
 }
 
 describe("topic help", () => {
-  it("workflows and environments topics list subcommands", async () => {
+  it("workflows, environments, and config topics list subcommands", async () => {
     const dummy = ctx(tmpdir())
     expect(String(await workflowsTopicOperation.handler({}, dummy))).toMatch(/ecp workflows/)
     expect(String(await environmentsTopicOperation.handler({}, dummy))).toMatch(/ecp environments/)
+    expect(String(await configTopicOperation.handler({}, dummy))).toMatch(/ecp config/)
+    expect(String(await environmentsTopicOperation.handler({}, dummy))).not.toMatch(/init/)
   })
 })
 
 describe("environments export", () => {
   it("includes node, workflow requirement packages, and env-file imports", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-export-"))
-    const envFile = join(dir, "environment.ecp.ts")
+    const configFile = join(dir, "config.ecp.ts")
     await writeFile(
-      envFile,
-      `import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+      configFile,
+      `import { config } from "@executioncontrolprotocol/core"
 import jsonata from "@executioncontrolprotocol/plugin-jsonata"
-export default environment(NODE_ENVIRONMENT_ID, "local").with([])
+export default config().with([])
 `,
       "utf8"
     )
     const document = (await environmentsExportOperation.handler(
-      { format: "package-json", "workflow-path": echoWf, env: envFile },
+      { format: "package-json", "workflow-path": echoWf, config: configFile },
       ctx(dir)
     )) as { dependencies: Record<string, string> }
     expect(document.dependencies[NODE_HOST_PACKAGE]).toBe("*")
@@ -123,30 +124,30 @@ export default environment(NODE_ENVIRONMENT_ID, "local").with([])
   })
 })
 
-describe("environments init and edit", () => {
+describe("config init and edit", () => {
   it("writes the template then refuses a second init", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "ecp-env-init-"))
-    const first = (await environmentsInitOperation.handler({}, ctx(dir))) as { path: string }
-    expect(first.path).toBe(defaultEnvironmentPath(dir))
+    const dir = await mkdtemp(join(tmpdir(), "ecp-config-init-"))
+    const first = (await configInitOperation.handler({}, ctx(dir))) as { path: string }
+    expect(first.path).toBe(defaultConfigPath(dir))
     const source = await readFile(first.path, "utf8")
-    expect(source).toMatch(/NODE_ENVIRONMENT_ID/)
+    expect(source).toMatch(/config\(\)/)
     expect(source).toMatch(/\.with\(\[/)
-    await expect(environmentsInitOperation.handler({}, ctx(dir))).rejects.toMatchObject({
+    await expect(configInitOperation.handler({}, ctx(dir))).rejects.toMatchObject({
       code: "ECP_INPUT_INVALID",
     })
   })
 
   it("edit prints the path, scaffolds when missing, and invokes the editor", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "ecp-env-edit-"))
+    const dir = await mkdtemp(join(tmpdir(), "ecp-config-edit-"))
     const previousVisual = process.env.VISUAL
     const previousEditor = process.env.EDITOR
     delete process.env.VISUAL
     process.env.EDITOR = `"${process.execPath}" -e process.exit(0)`
     try {
-      const result = (await environmentsEditOperation.handler({}, ctx(dir))) as { path: string }
-      expect(result.path).toBe(defaultEnvironmentPath(dir))
-      expect(await readFile(result.path, "utf8")).toMatch(/environment\(/)
-      const again = (await environmentsEditOperation.handler({}, ctx(dir))) as { path: string }
+      const result = (await configEditOperation.handler({}, ctx(dir))) as { path: string }
+      expect(result.path).toBe(defaultConfigPath(dir))
+      expect(await readFile(result.path, "utf8")).toMatch(/config\(\)/)
+      const again = (await configEditOperation.handler({}, ctx(dir))) as { path: string }
       expect(again.path).toBe(result.path)
     } finally {
       if (previousVisual === undefined) delete process.env.VISUAL
@@ -190,19 +191,19 @@ describe("ecp home defaults", () => {
   })
 })
 
-describe("add-to-env", () => {
+describe("add-to-config", () => {
   afterEach(() => {
     takePendingAddToEnv()
   })
 
-  it("strips --add-to-env from plugins install and remembers the target", () => {
+  it("strips --add-to-config from plugins install and remembers the target", () => {
     const bare = stripAddToEnvFromArgv([
       "node",
       "ecp.js",
       "plugins",
       "install",
       "jsonata",
-      "--add-to-env",
+      "--add-to-config",
     ])
     expect(bare.argv).toEqual(["node", "ecp.js", "plugins", "install", "jsonata"])
     expect(bare.addToEnv).toBe(true)
@@ -213,12 +214,12 @@ describe("add-to-env", () => {
       "plugins",
       "install",
       "jsonata",
-      "--add-to-env",
-      "./environment.ecp.ts",
+      "--add-to-config",
+      "./config.ecp.ts",
     ])
-    expect(withPath.addToEnv).toBe("./environment.ecp.ts")
-    expect(withPath.argv).not.toContain("--add-to-env")
-    expect(withPath.argv).not.toContain("./environment.ecp.ts")
+    expect(withPath.addToEnv).toBe("./config.ecp.ts")
+    expect(withPath.argv).not.toContain("--add-to-config")
+    expect(withPath.argv).not.toContain("./config.ecp.ts")
 
     const equals = stripAddToEnvFromArgv([
       "node",
@@ -226,20 +227,20 @@ describe("add-to-env", () => {
       "plugins",
       "install",
       "jsonata",
-      "--add-to-env=/tmp/env.ts",
+      "--add-to-config=/tmp/config.ts",
     ])
-    expect(equals.addToEnv).toBe("/tmp/env.ts")
+    expect(equals.addToEnv).toBe("/tmp/config.ts")
   })
 
   it("does not strip the flag on other commands", () => {
-    const other = stripAddToEnvFromArgv(["node", "ecp.js", "run", "wf.ts", "--add-to-env"])
+    const other = stripAddToEnvFromArgv(["node", "ecp.js", "run", "wf.ts", "--add-to-config"])
     expect(other.addToEnv).toBeUndefined()
-    expect(other.argv).toContain("--add-to-env")
+    expect(other.argv).toContain("--add-to-config")
   })
 
   it("prepareArgvForExecute stores the target for the postinstall hook", () => {
-    const argv = prepareArgvForExecute(["node", "ecp.js", "plugins", "install", "jsonata", "--add-to-env"])
-    expect(argv).not.toContain("--add-to-env")
+    const argv = prepareArgvForExecute(["node", "ecp.js", "plugins", "install", "jsonata", "--add-to-config"])
+    expect(argv).not.toContain("--add-to-config")
     expect(takePendingAddToEnv()).toBe(true)
     expect(takePendingAddToEnv()).toBeUndefined()
   })
@@ -254,21 +255,21 @@ describe("add-to-env", () => {
       "@executioncontrolprotocol/jsonata"
     )
     expect(looksLikeEnvPath("jsonata")).toBe(false)
-    expect(looksLikeEnvPath("environment.ecp.ts")).toBe(true)
+    expect(looksLikeEnvPath("config.ecp.ts")).toBe(true)
   })
 
   it("inserts a commented stub, is idempotent, and errors without .with([", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-stub-"))
-    const path = defaultEnvironmentPath(dir)
-    await writeFile(path, environmentFileTemplate(), "utf8")
-    const first = await appendExtensionStubToEnvFile(path, "@executioncontrolprotocol/openai")
+    const path = defaultConfigPath(dir)
+    await writeFile(path, configFileTemplate(), "utf8")
+    const first = await appendExtensionStubToConfigFile(path, "@executioncontrolprotocol/openai")
     expect(first.inserted).toBe(true)
     const source = await readFile(path, "utf8")
     expect(source).toMatch(/\/\/ extension\("@executioncontrolprotocol\/openai"\)/)
     expect(source).toMatch(/secrets\("openai\/api-key"\)/)
-    const second = await appendExtensionStubToEnvFile(path, "@executioncontrolprotocol/openai")
+    const second = await appendExtensionStubToConfigFile(path, "@executioncontrolprotocol/openai")
     expect(second.inserted).toBe(false)
-    expect(() => insertExtensionStub("export default environment()", "@x/y")).toThrow(EcpCliError)
+    expect(() => insertExtensionStub("export default config()", "@x/y")).toThrow(EcpCliError)
   })
 
   it("setPendingAddToEnv is a no-op for the hook when unset", () => {
@@ -302,10 +303,10 @@ describe("openInEditor spawn wiring", () => {
       queueMicrotask(() => child.emit("close", 0))
       return child
     }) as unknown as typeof import("node:child_process").spawn
-    await openInEditor("/tmp/environment.ecp.ts", {
+    await openInEditor("/tmp/config.ecp.ts", {
       env: { EDITOR: "vim" },
       spawnImpl: fake,
     })
-    expect(spawned[0]).toEqual({ command: "vim", args: ["/tmp/environment.ecp.ts"] })
+    expect(spawned[0]).toEqual({ command: "vim", args: ["/tmp/config.ecp.ts"] })
   })
 })

@@ -49,7 +49,7 @@ export function environmentSourceFromDescriptor(
   return [
     `import { ${imports.join(", ")} } from "@executioncontrolprotocol/core"`,
     "",
-    "// View only — the process host is not an authored file.",
+    "// View only — process host: installed plugins.",
     `export default environment(${idArg}${labelArg})${withBlock}`,
     "",
   ].join("\n")

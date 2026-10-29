@@ -156,7 +156,6 @@ export function createLocalHostAdapter(options: LocalHostAdapterOptions): HostAd
         if (message.type !== "environment") return
         onChange({
           kind: message.kind,
-          path: message.path,
           source: message.source,
         })
       })

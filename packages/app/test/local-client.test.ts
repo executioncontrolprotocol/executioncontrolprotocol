@@ -160,11 +160,11 @@ describe("createLocalHostAdapter", () => {
       seen.push(`${next.kind}:${next.source}`)
     })
     for (const listener of listeners) {
-      listener({ type: "environment", kind: "overlay", path: "/tmp/environment.ecp.ts", source: "overlay" })
+      listener({ type: "environment", kind: "process-host", source: "process-host" })
       listener({ type: "file", source: "ignored" })
     }
     stop()
-    expect(seen).toEqual(["overlay:overlay"])
+    expect(seen).toEqual(["process-host:process-host"])
   })
 
   it("yields run events until run.end", async () => {

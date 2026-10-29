@@ -8,13 +8,14 @@ import {
 } from "@executioncontrolprotocol/plugin-sdk"
 import { readJsonFile } from "../lib/command-helpers.js"
 import { applyFormat } from "../lib/format-output.js"
-import { ecpFromEnvFlag, terminateIfNeeded } from "../lib/load-ecp.js"
+import { CONFIG_FLAG_HELP } from "../lib/config-file.js"
+import { ecpFromConfigFlag, terminateIfNeeded } from "../lib/load-ecp.js"
 
 /** `ecp environments describe`. @category CLI */
 export const describeOperation = defineOperation("environments:describe")
   .withInput(
     z.object({
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
       query: z.string().optional(),
       capability: z.string().optional(),
       extension: z.string().optional(),
@@ -26,16 +27,17 @@ export const describeOperation = defineOperation("environments:describe")
   .withMetadata({
     summary: "Describe an environment",
     description:
-      "Return a structured catalog of extensions, capabilities, and policies. Pass --env to load an environment module; otherwise use installed plugins.",
+      "Return a structured catalog of extensions, capabilities, and policies. Pass --config for machine settings; otherwise use installed plugins.",
     useCases: ["List installed capabilities", "Inspect one capability by exact id"],
     examples: ["ecp environments describe"],
     cli: { args: ["id"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(
-      input.env ? String(input.env) : undefined,
-      ctx.host
-    )
+    const { ecp, terminate } = await ecpFromConfigFlag({
+      configFlag: input.config ? String(input.config) : undefined,
+      host: ctx.host,
+      config: ctx.config,
+    })
     try {
       let query = input.query
         ? await readJsonFile<DescribeQuery>(String(input.query), "--query")
@@ -69,7 +71,7 @@ export const searchOperation = defineOperation("environments:search")
   .withInput(
     z.object({
       query: z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
     })
   )
   .withMetadata({
@@ -80,10 +82,11 @@ export const searchOperation = defineOperation("environments:search")
     cli: { args: ["query"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(
-      input.env ? String(input.env) : undefined,
-      ctx.host
-    )
+    const { ecp, terminate } = await ecpFromConfigFlag({
+      configFlag: input.config ? String(input.config) : undefined,
+      host: ctx.host,
+      config: ctx.config,
+    })
     try {
       return await ecp.search(String(input.query))
     } finally {
@@ -97,7 +100,7 @@ export const invokeOperation = defineOperation("environments:invoke")
   .withInput(
     z.object({
       "capability-id": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
       input: z.string().optional(),
     })
   )
@@ -113,10 +116,11 @@ export const invokeOperation = defineOperation("environments:invoke")
     cli: { args: ["capability-id"] },
   })
   .withHandler(async (input, ctx) => {
-    const { ecp, terminate } = await ecpFromEnvFlag(
-      input.env ? String(input.env) : undefined,
-      ctx.host
-    )
+    const { ecp, terminate } = await ecpFromConfigFlag({
+      configFlag: input.config ? String(input.config) : undefined,
+      host: ctx.host,
+      config: ctx.config,
+    })
     try {
       const payload = input.input ? await readJsonFile(String(input.input), "--input") : {}
       const result = await ecp.invoke(String(input["capability-id"])).with(payload).process()

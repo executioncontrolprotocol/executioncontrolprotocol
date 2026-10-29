@@ -96,7 +96,7 @@ workflows). See `RESET-PLAN.md` §2.3.
   block, never into the manifest.
 - **Secrets:**
   - Never commit live keys; use `.env` (gitignored), the OS keychain, or CI secrets.
-  - Workflow and environment files reference secrets with `secrets("key")`, never values.
+  - Workflow and config files reference secrets with `secrets("key")`, never values.
   - Pre-commit runs Secretlint; CI also runs Gitleaks.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
@@ -107,7 +107,7 @@ workflows). See `RESET-PLAN.md` §2.3.
 - **No backwards-compatibility shims** unless a phase doc asks for one (Phase 9 handles npm
   deprecations). See `.cursor/rules/no-backwards-compatibility.mdc`.
 - **Authored config is TypeScript/JavaScript; machine-managed state is JSON.** Workflows and
-  the environment file are `.ts`/`.js`. `trust.json` and run journals are JSON. See
+  the config file are `.ts`/`.js`. `trust.json` and run journals are JSON. See
   `.cursor/rules/file-formats.mdc`.
 - **Vendor-neutral hosts:** core, environments, CLI, MCP and the App must not branch on specific
   extension ids or output shapes. Domain knowledge lives in the extension, surfaced through
@@ -157,6 +157,8 @@ ecp run brief.ecp.ts --to fetch
 ecp run brief.ecp.ts --events
 ecp workflows validate examples/01-echo/workflow.ecp.ts
 ecp environments describe
+ecp config init
+ecp config edit
 ecp runs list
 ecp runs show <id>
 ecp runs resume <id>
@@ -176,10 +178,10 @@ ecp app brief.ecp.ts --no-open
 
 - **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
   (`ecp run --to`, `ecp runs resume`, `ecp runs rerun` replace it).
-- **`--env` is optional** on `run` / `workflows validate` / `workflows install`. Omit it to
-  use the process host (built-in Node + installed plugins). `--env <file>` is an environment
-  overlay (`environment(id).with([...])`), not a required pair. `environments describe` /
-  `search` / `invoke` take it the same way.
+- **`--config` is optional** on `run` / `workflows validate` / `workflows install`. Omit it to
+  use the process host (built-in Node + installed plugins), merging `~/.ecp/config/config.ecp.ts`
+  when that file exists. `--config <file>` is machine settings (`config().with([...])`), not a
+  replacement catalog. `environments describe` / `search` / `invoke` take it the same way.
 - **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
 - Journals live under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`).
 

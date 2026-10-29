@@ -1,6 +1,6 @@
 # Core examples index
 
-Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). `--env` is optional.
+Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). Optional `config.ecp.ts` holds machine settings.
 
 | Folder | Teaches | Reset |
 | --- | --- | --- |

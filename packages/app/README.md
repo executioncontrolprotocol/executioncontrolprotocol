@@ -9,13 +9,13 @@ Open it with the JIT CLI plugin:
 ```sh
 ecp plugins link plugins/plugin-app
 ecp app product.ecp.ts
-ecp app product.ecp.ts --env environment.ecp.ts
+ecp app product.ecp.ts --config config.ecp.ts
 ```
 
 The left pane tabs **Workflow** (editable Fluent) and **Environment** (read-only).
-Environment shows `--env` / `~/.ecp/config/environment.ecp.ts` when that file exists,
-otherwise a synthesized process-host view. The footer pill reports whether the
-workflow is valid.
+Environment is always the live process host from `describe()` (installed plugins plus
+merged config). `--config` selects which config file the host loads; the tab does not
+show that file. The footer pill reports whether the workflow is valid.
 
 Until `0.51.0` is on the registry, do not expect first-use JIT from npm. There is no
 hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.51"`.

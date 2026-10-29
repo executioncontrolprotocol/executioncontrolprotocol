@@ -7,7 +7,7 @@ commands come from extension definitions; there are no hand-written command clas
 This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosystem:
 
 - Compile workflow files (`*.ecp.ts` / `.js`) to portable JSON manifests
-- Validate workflows against the process host or an optional `--env` overlay
+- Validate workflows against the process host (optional `--config` for machine settings)
 - Describe/search environment capabilities for agent/UI discovery
 - Run workflows and print structured run results (`ecp run --to`, `ecp run --events`)
 - Invoke a single capability outside a workflow (`ecp environments invoke`)
@@ -40,8 +40,9 @@ npm link
 
 ## Usage
 
-`--env <file>` is an optional overlay (`environment(id).with([...])`). Omit it to use the
-process host (built-in Node plus installed plugins).
+`--config <file>` is optional machine settings (`config().with([...])`). Omit it to use the
+process host (built-in Node plus installed plugins), merging `~/.ecp/config/config.ecp.ts`
+when that file exists.
 
 ### Run
 
@@ -126,7 +127,7 @@ ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp plugins discover jsonata --json
 ```
 
-`--env` is optional on `run`, `workflows validate`, and `workflows install`.
+`--config` is optional on `run`, `workflows validate`, and `workflows install`.
 `environments describe`, `search`, and `invoke` take it the same way.
 
 ### MCP

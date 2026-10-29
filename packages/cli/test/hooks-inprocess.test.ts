@@ -10,7 +10,7 @@ import trust from "../src/hooks/trust.js"
 import postinstallAddToEnv from "../src/hooks/postinstall-add-to-env.js"
 import initHost from "../src/hooks/init-host.js"
 import { setPendingAddToEnv, takePendingAddToEnv } from "../src/lib/add-to-env.js"
-import { defaultEnvironmentPath } from "../src/lib/environment-file.js"
+import { defaultConfigPath } from "../src/lib/config-file.js"
 import { clearHost, getHost } from "@executioncontrolprotocol/plugin-sdk"
 import { evaluateTrust, assertTrusted } from "../src/lib/evaluate-trust.js"
 import { rememberTrust } from "../src/lib/trust-store.js"
@@ -156,7 +156,7 @@ describe("jit_plugin_not_installed", () => {
   })
 })
 
-describe("plugins:postinstall --add-to-env", () => {
+describe("plugins:postinstall --add-to-config", () => {
   it("writes nothing when the flag was omitted", async () => {
     takePendingAddToEnv()
     const dir = await mkdtemp(join(tmpdir(), "ecp-post-none-"))
@@ -165,10 +165,10 @@ describe("plugins:postinstall --add-to-env", () => {
     await postinstallAddToEnv.call(self as never, {
       plugin: { name: "@executioncontrolprotocol/plugin-jsonata" },
     })
-    await expect(readFile(defaultEnvironmentPath(dir), "utf8")).rejects.toThrow()
+    await expect(readFile(defaultConfigPath(dir), "utf8")).rejects.toThrow()
   })
 
-  it("appends a commented stub to the default environment file", async () => {
+  it("appends a commented stub to the default config file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-post-stub-"))
     setPendingAddToEnv(true)
     const self = hookThis()
@@ -179,7 +179,7 @@ describe("plugins:postinstall --add-to-env", () => {
         pjson: { ecp: { id: "@executioncontrolprotocol/jsonata" } },
       },
     })
-    const source = await readFile(defaultEnvironmentPath(dir), "utf8")
+    const source = await readFile(defaultConfigPath(dir), "utf8")
     expect(source).toMatch(/extension\("@executioncontrolprotocol\/jsonata"\)/)
   })
 })

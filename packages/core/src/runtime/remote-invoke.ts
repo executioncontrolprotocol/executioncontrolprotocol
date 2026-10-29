@@ -86,7 +86,7 @@ export function invokeFailure(
 }
 
 const HOST_MISSING_CAP_MESSAGE = (id: string) =>
-  `Capability ${id} is not in the local host environment. Bind it in environment.ts and restart ecp up --env.`
+  `Capability ${id} is not in the local host environment. Install the plugin and restart the host.`
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/, "")
@@ -122,7 +122,7 @@ export async function hopRemoteInvoke(
     return invokeFailure(
       capabilityId,
       ECP_INVOKE_ERROR_CODES.INVOKE_FAILED,
-      `Local host unreachable (${message}). Is ecp up running?`
+      `Local host unreachable (${message}). Is the host running?`
     )
   }
 
@@ -130,7 +130,7 @@ export async function hopRemoteInvoke(
     return invokeFailure(
       capabilityId,
       ECP_INVOKE_ERROR_CODES.INVOKE_DENIED,
-      "Local host unauthorized — check the pairing token from `ecp up`."
+      "Local host unauthorized — check the pairing token."
     )
   }
 

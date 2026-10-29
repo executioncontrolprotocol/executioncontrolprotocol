@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, writeFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { resolveAppOverlayPath, USER_ENVIRONMENT_FILENAMES } from "../src/environment-file.js"
+import { resolveAppConfigPath, USER_CONFIG_FILENAMES } from "../src/environment-file.js"
 
-describe("resolveAppOverlayPath", () => {
+describe("resolveAppConfigPath", () => {
   let dir: string | undefined
 
   afterEach(async () => {
@@ -18,31 +18,38 @@ describe("resolveAppOverlayPath", () => {
     return dir
   }
 
-  it("returns the --env path resolved against cwd", async () => {
+  it("returns the --config path resolved against cwd", async () => {
     const config = await configDir()
-    await writeFile(join(config, "environment.ecp.ts"), "// unused\n", "utf8")
+    await writeFile(join(config, "config.ecp.ts"), "// unused\n", "utf8")
     const flagged = join(config, "custom.ecp.ts")
-    expect(resolveAppOverlayPath({ envFlag: flagged, configDir: config })).toBe(flagged)
+    expect(resolveAppConfigPath({ configFlag: flagged, configDir: config })).toBe(flagged)
   })
 
-  it("picks environment.ecp.ts in configDir when --env is omitted", async () => {
+  it("picks config.ecp.ts in configDir when --config is omitted", async () => {
     const config = await configDir()
-    const expected = join(config, "environment.ecp.ts")
+    const expected = join(config, "config.ecp.ts")
     await writeFile(expected, "export default {}\n", "utf8")
-    expect(resolveAppOverlayPath({ configDir: config })).toBe(expected)
+    expect(resolveAppConfigPath({ configDir: config })).toBe(expected)
   })
 
   it("falls through filenames until one exists", async () => {
     const config = await configDir()
-    const expected = join(config, "environment.ts")
+    const expected = join(config, "config.ts")
     await writeFile(expected, "export default {}\n", "utf8")
-    expect(USER_ENVIRONMENT_FILENAMES).toContain("environment.ts")
-    expect(resolveAppOverlayPath({ configDir: config })).toBe(expected)
+    expect(USER_CONFIG_FILENAMES).toContain("config.ts")
+    expect(resolveAppConfigPath({ configDir: config })).toBe(expected)
   })
 
-  it("returns undefined when no overlay exists", async () => {
+  it("falls back to a legacy environment.ecp.ts", async () => {
     const config = await configDir()
-    expect(resolveAppOverlayPath({ configDir: config })).toBeUndefined()
-    expect(resolveAppOverlayPath({})).toBeUndefined()
+    const expected = join(config, "environment.ecp.ts")
+    await writeFile(expected, "export default {}\n", "utf8")
+    expect(resolveAppConfigPath({ configDir: config })).toBe(expected)
+  })
+
+  it("returns undefined when no config file exists", async () => {
+    const config = await configDir()
+    expect(resolveAppConfigPath({ configDir: config })).toBeUndefined()
+    expect(resolveAppConfigPath({})).toBeUndefined()
   })
 })

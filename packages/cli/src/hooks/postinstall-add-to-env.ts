@@ -5,9 +5,9 @@ import {
   takePendingAddToEnv,
 } from "../lib/add-to-env.js"
 import {
-  appendExtensionStubToEnvFile,
-  defaultEnvironmentPath,
-} from "../lib/environment-file.js"
+  appendExtensionStubToConfigFile,
+  defaultConfigPath,
+} from "../lib/config-file.js"
 
 interface PostinstallOptions {
   plugin?: {
@@ -18,8 +18,8 @@ interface PostinstallOptions {
 }
 
 /**
- * After `plugins install --add-to-env`, append a commented extension stub to the
- * environment file. Does nothing when the flag was not passed.
+ * After `plugins install --add-to-config`, append a commented extension stub to the
+ * config file. Does nothing when the flag was not passed.
  * @category CLI
  */
 export default async function postinstallAddToEnv(
@@ -33,6 +33,6 @@ export default async function postinstallAddToEnv(
   if (!name) return
   const extensionId = extensionIdFromPluginPackage(name, plugin.pjson)
   const path =
-    target === true ? defaultEnvironmentPath(this.config.configDir) : resolve(target)
-  await appendExtensionStubToEnvFile(path, extensionId)
+    target === true ? defaultConfigPath(this.config.configDir) : resolve(target)
+  await appendExtensionStubToConfigFile(path, extensionId)
 }

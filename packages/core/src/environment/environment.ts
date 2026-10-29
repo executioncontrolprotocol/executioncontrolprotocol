@@ -218,6 +218,15 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return this
   }
 
+  /**
+   * Bindings from {@link Environment.with}, excluding host defaults applied at init.
+   *
+   * @category Environment
+   */
+  getBindings(): EnvironmentBinding[] {
+    return [...this.extensionBindings, ...this.policyBindings]
+  }
+
   /** @internal Remote invoke pairing. */
   getRemoteInvoke(): RemoteInvokeBinding | undefined {
     return this.remoteInvoke

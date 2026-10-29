@@ -624,12 +624,14 @@ defineExtension("@executioncontrolprotocol", "image-sharp")
 
 #### What the CLI does
 
-- `ecp run` uses the built-in `@executioncontrolprotocol/node` environment, which binds
-  `secrets` and `process-env`. Most users never write an environment file.
-- If `environment.ecp.ts` exists in the global ECP home (`~/.ecp/config`, overridable with
-  `ECP_CONFIG_DIR` or `XDG_CONFIG_HOME`), it's used as the user's default. This is how a
-  person or team sets host policies once. Discover the path with `ecp environments edit`.
-- `--env <file>` runs against a specific environment file, for example one a team shares.
+- `ecp run` uses the built-in `@executioncontrolprotocol/node` environment plus installed
+  plugins. Most users never write a config file.
+- If `config.ecp.ts` exists in the global ECP home (`~/.ecp/config`, overridable with
+  `ECP_CONFIG_DIR` or `XDG_CONFIG_HOME`), it is **merged onto** that process host. It never
+  replaces the catalog. This is how a person or team sets host policies and plugin settings
+  once. Discover the path with `ecp config edit`.
+- `--config <file>` uses a specific config file instead of the default. Internally this merge
+  layer is the overlay; that name is not used in help or public docs.
 
 ### 4.5 CLI
 
@@ -637,7 +639,7 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 
 | Command | Purpose |
 | --- | --- |
-| `ecp run <workflow>` | Alias of `workflows run`. Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--env <file>`, `--to <step>` (stop after that step) |
+| `ecp run <workflow>` | Alias of `workflows run`. Install missing plugins (with a prompt), run, and journal. Flags: `--input`, `--yes`, `--json`, `--events`, `--dry-run`, `--config <file>`, `--to <step>` (stop after that step) |
 | `ecp workflows run <workflow>` | Same handler as `ecp run` |
 | `ecp workflows init [name]` | Scaffold `<name>.ecp.ts` |
 | `ecp workflows validate <workflow>` | Validate the workflow file against installed plugins. Never installs |
@@ -650,10 +652,10 @@ Workflow commands (core names are reserved, and plugins can't claim them as topi
 | `ecp environments describe [id]` | Full schema and metadata for installed capabilities. `--format <id>` renders through an installed format plugin (for example `toon`) |
 | `ecp environments search <intent>` | Rank installed capabilities for an intent |
 | `ecp environments invoke <capability-id>` | Generic single-capability call |
-| `ecp environments export` | Project the environment (Node host, optional `--env`, optional workflow requirements) to `package.json`. `--format package-json` |
-| `ecp environments init` | Scaffold `~/.ecp/config/environment.ecp.ts`. Refuses if it already exists |
-| `ecp environments edit` | Print the default environment-file path, scaffold if missing, then open `$VISUAL` / `$EDITOR` |
+| `ecp environments export` | Project the environment (Node host, optional `--config`, optional workflow requirements) to `package.json`. `--format package-json` |
 | `ecp config` | Local CLI configuration for this machine. Variables and secrets belong here, not in workflow files |
+| `ecp config init` | Scaffold `~/.ecp/config/config.ecp.ts`. Refuses if it already exists |
+| `ecp config edit` | Print the default config-file path, scaffold if missing, then open `$VISUAL` / `$EDITOR` |
 | `ecp config secrets add\|get\|list\|remove` | OS keychain values for `secrets()` refs |
 | `ecp plugins new <name>` | Scaffold a plugin: a definition file and a minimal `package.json` |
 | `ecp plugins build [dir]` | Generate a plugin's oclif files and `package.json` fields from its definition |
@@ -678,7 +680,7 @@ run journals stay in `./.ecp/`.
 - `command_not_found` maps an unknown topic to a plugin and offers to install it.
 - `jit_plugin_not_installed` installs `mcp` or `app` at a pinned version.
 - A plugin-trust check runs before any install.
-- `plugins:postinstall` appends a commented environment-file stub when `plugins install --add-to-env` was passed.
+- `plugins:postinstall` appends a commented config-file stub when `plugins install --add-to-config` was passed.
 
 ### 4.6 Run journal, events and error codes
 
@@ -1124,7 +1126,8 @@ Detail: [`reset/phase-4-workflow-files-and-observability.md`](reset/phase-4-work
    each definition's `withConfig` schema.
 2. Environment layering (§4.4): merge environment and workflow bindings, additive policies,
    environment-only secrets providers, the `ECP_ENVIRONMENT_UNSUPPORTED` compatibility check,
-   the user default `environment.ecp.ts`, and `--env <file>`.
+   the user default `config.ecp.ts` (merged onto the process host, never replacing it), and
+   `--config <file>`.
 3. `ecp run`, `validate`, `install` and `compile` on workflow files; the missing-plugin flow.
 4. Run journal, `--events`, error code catalogue, exit codes, `ecp run --to`, and
    `ecp runs list|show|resume|rerun`, replacing `ecp test` and `test-session`.

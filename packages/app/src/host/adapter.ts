@@ -61,12 +61,11 @@ export interface HostAdapter {
   /** Capability catalogue for the graph palette. */
   describe(): Promise<EnvironmentDescriptor>
   /**
-   * Overlay file source, or synthesized process-host Fluent when no overlay
-   * is bound.
+   * Synthesized Fluent from `describe()` (installed plugins plus merged config).
    */
   environment(): Promise<AppEnvironmentResponse>
   /**
-   * Subscribe to overlay-file (or process-host) environment source changes.
+   * Subscribe to process-host environment source changes.
    * Returns an unsubscribe function.
    */
   watchEnvironment(onChange: (next: AppEnvironmentResponse) => void): () => void

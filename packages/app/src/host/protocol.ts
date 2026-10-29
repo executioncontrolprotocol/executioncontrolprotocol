@@ -71,17 +71,15 @@ export interface AppRunResponse {
  * How the Environment tab is populated.
  * @category App
  */
-export type AppEnvironmentKind = "overlay" | "process-host"
+export type AppEnvironmentKind = "process-host"
 
 /**
  * `GET /api/environment` body (and `environment` WebSocket events).
  * @category App
  */
 export interface AppEnvironmentResponse {
-  /** Overlay file vs synthesized process-host Fluent. */
+  /** Always the live process host (`describe()`). */
   kind: AppEnvironmentKind
-  /** Absolute overlay path when {@link kind} is `overlay`. */
-  path?: string
   /** Fluent environment source shown in the App. */
   source: string
 }
@@ -93,7 +91,7 @@ export interface AppEnvironmentResponse {
 export type AppEventMessage =
   | { type: "file"; source: string; manifest?: WorkflowManifest; loadError?: ValidationResult; roundTrip?: RoundTripResult }
   | { type: "run"; event: PublicRunEvent }
-  | { type: "environment"; kind: AppEnvironmentKind; path?: string; source: string }
+  | { type: "environment"; kind: AppEnvironmentKind; source: string }
 
 /**
  * `GET /api/search` body.

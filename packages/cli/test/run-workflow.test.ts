@@ -1,64 +1,36 @@
-import { describe, expect, it } from "vitest"
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
-import { fileURLToPath } from "node:url"
-import { dirname, join } from "node:path"
+import { describe, expect, it, beforeAll, afterAll } from "vitest"
+import { join } from "node:path"
 import { mkdtemp, writeFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-
-const execFileAsync = promisify(execFile)
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..")
-const cliBin = join(repoRoot, "packages/cli/bin/run.js")
+import { hermeticWithPluginTest, runCli } from "./helpers.js"
 
 const ACCEPTS_WORKFLOW = "examples/07-accepts-returns/workflow.ecp.ts"
 const ACCEPTS_INPUT = "examples/07-accepts-returns/input.json"
-const TEST_ENV = "packages/cli/test/fixtures/test-extension-env.ts"
-
-interface CliResult {
-  code: number
-  stdout: string
-  stderr: string
-}
-
-function runCli(args: string[]): Promise<CliResult> {
-  return new Promise((resolve) => {
-    execFile(
-      process.execPath,
-      [cliBin, ...args],
-      { cwd: repoRoot, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        const code =
-          err && typeof (err as { code?: unknown }).code === "number"
-            ? (err as { code: number }).code
-            : err
-              ? 1
-              : 0
-        resolve({ code, stdout, stderr })
-      }
-    )
-  })
-}
 
 describe("ecp run workflow source", () => {
+  let home: string
+  let env: NodeJS.ProcessEnv
+
+  beforeAll(async () => {
+    const hermetic = await hermeticWithPluginTest()
+    home = hermetic.dir
+    env = hermetic.env
+  }, 60_000)
+
+  afterAll(async () => {
+    await rm(home, { recursive: true, force: true })
+  })
+
   it("runs .ts workflow without pre-compiling to json", async () => {
-    const { stdout } = await execFileAsync(
-      process.execPath,
-      [
-        cliBin,
-        "run",
-        "examples/01-echo/workflow.ecp.ts",
-        "--env",
-        TEST_ENV,
-      ],
-      { cwd: repoRoot, encoding: "utf8" }
-    )
-    const result = JSON.parse(stdout) as { run: { status: string }; state?: { echo: unknown } }
+    const res = await runCli(["run", "examples/01-echo/workflow.ecp.ts"], { env })
+    expect(res.code).toBe(0)
+    const result = JSON.parse(res.stdout) as { run: { status: string }; state?: { echo: unknown } }
     expect(result.run.status).toBe("completed")
     expect(result.state?.echo).toEqual({ echo: "hello from fluent API" })
   }, 30_000)
 
   it("runs accepts/returns example with --input", async () => {
-    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--env", TEST_ENV])
+    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT], { env })
     expect(res.code).toBe(0)
     const result = JSON.parse(res.stdout) as {
       run: { status: string }
@@ -73,7 +45,7 @@ describe("ecp run workflow source", () => {
     const badInput = join(tmp, "bad.json")
     await writeFile(badInput, JSON.stringify({ value: 1 }), "utf8")
     try {
-      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", badInput, "--env", TEST_ENV])
+      const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", badInput], { env })
       expect(res.code).not.toBe(0)
       expect(`${res.stderr}\n${res.stdout}`).toMatch(/accepts validation failed/)
     } finally {
@@ -82,15 +54,10 @@ describe("ecp run workflow source", () => {
   }, 30_000)
 
   it("dry-run with valid input completes without executing steps", async () => {
-    const res = await runCli([
-      "run",
-      ACCEPTS_WORKFLOW,
-      "--input",
-      ACCEPTS_INPUT,
-      "--dry-run",
-      "--env",
-      TEST_ENV,
-    ])
+    const res = await runCli(
+      ["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--dry-run"],
+      { env }
+    )
     expect(res.code).toBe(0)
     const result = JSON.parse(res.stdout) as {
       run: { id: string; status: string }
@@ -108,15 +75,10 @@ describe("ecp run workflow source", () => {
     const emptyInput = join(tmp, "empty.json")
     await writeFile(emptyInput, JSON.stringify({}), "utf8")
     try {
-      const res = await runCli([
-        "run",
-        ACCEPTS_WORKFLOW,
-        "--input",
-        emptyInput,
-        "--dry-run",
-        "--env",
-        TEST_ENV,
-      ])
+      const res = await runCli(
+        ["run", ACCEPTS_WORKFLOW, "--input", emptyInput, "--dry-run"],
+        { env }
+      )
       expect(res.code).not.toBe(0)
       expect(`${res.stderr}\n${res.stdout}`).toMatch(/accepts validation failed/)
     } finally {

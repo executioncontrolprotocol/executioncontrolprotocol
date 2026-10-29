@@ -359,8 +359,6 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
               onFluentChange={onFluentChange}
               beautifyEnabled={Boolean(loaded) && !readOnly}
               environmentSource={environment?.source}
-              environmentKind={environment?.kind}
-              environmentPath={environment?.path}
               onBeautifyFluent={
                 loaded && !readOnly
                   ? () => void persist(formatFluentManifest(loaded.manifest), { remount: true })

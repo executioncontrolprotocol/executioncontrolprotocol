@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { ENVIRONMENT_EDITOR_PATH } from "../../host/environment-source.js"
-import type { AppEnvironmentKind } from "../../host/protocol.js"
 import { FluentWorkflowEditor } from "./FluentWorkflowEditor.js"
 import { MonacoCodeEditor } from "./MonacoCodeEditor.js"
 import { PaneTabBar } from "./PaneTabBar.js"
@@ -30,12 +29,8 @@ export interface CodePanelProps {
   beautifyBusy?: boolean
   /** Beautify is only valid when the file can round-trip. */
   beautifyEnabled?: boolean
-  /** Read-only environment Fluent (overlay file or synthesized process host). */
+  /** Read-only environment Fluent synthesized from `describe()`. */
   environmentSource?: string
-  /** How {@link environmentSource} was produced. */
-  environmentKind?: AppEnvironmentKind
-  /** Overlay file path when {@link environmentKind} is `overlay`. */
-  environmentPath?: string
 }
 
 /** Full-height Fluent editor pane with Workflow / Environment tabs. @category App */
@@ -48,14 +43,9 @@ export function CodePanel({
   beautifyBusy = false,
   beautifyEnabled = true,
   environmentSource = "",
-  environmentKind,
-  environmentPath,
 }: CodePanelProps) {
   const [editorTab, setEditorTab] = useState<CodeEditorTab>("workflow")
-  const environmentLabel =
-    environmentKind === "overlay"
-      ? environmentPath?.split(/[/\\]/).pop() ?? "Overlay"
-      : "Process host"
+  const environmentLabel = "Process host"
 
   return (
     <div

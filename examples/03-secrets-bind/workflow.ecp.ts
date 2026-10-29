@@ -1,9 +1,9 @@
 import { workflow, step, extension } from "@executioncontrolprotocol/core"
 
 /**
- * Secrets belong on the environment (process host, environment.ecp.ts, or --env),
- * not in this workflow file. Bind them with `ecp config secrets add` and an
- * environment overlay — never `extension("@executioncontrolprotocol/secrets")` here.
+ * Secrets belong on the environment (process host or config.ecp.ts),
+ * not in this workflow file. Bind them with `ecp config secrets add` and
+ * `ecp config edit` — never `extension("@executioncontrolprotocol/secrets")` here.
  * `test.echo` requires `@executioncontrolprotocol/plugin-test`.
  */
 export default workflow("Secrets bind echo")

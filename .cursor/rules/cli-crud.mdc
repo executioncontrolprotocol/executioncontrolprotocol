@@ -54,11 +54,12 @@ The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own ver
 - **Reserved root names** that plugins can't use as topics: `run`, `workflows`, `runs`,
   `environments`, `plugins`, `plugin`, `config`, `mcp`, `app`, `help`.
 
-## `--env`
+## `--config`
 
-`--env <file>` is an optional environment overlay. `ecp run` / `workflows validate` /
-`workflows install` run a workflow file against the process host when the flag is omitted.
-The file is `environment(id).with([...])`, not a required workflow+environment pair.
+`--config <file>` is optional machine settings (`config().with([...])`). `ecp run` /
+`workflows validate` / `workflows install` use the process host (Node plus installed plugins)
+when the flag is omitted, merging `~/.ecp/config/config.ecp.ts` when that file exists.
+Config does not register plugins.
 
 ## Run, events, and journals
 
