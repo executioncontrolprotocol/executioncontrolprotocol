@@ -15,8 +15,9 @@ The server binds `127.0.0.1` on a free port. A pairing token goes in the URL;
 every request requires it (query, `Authorization: Bearer`, or cookie). Runs use
 the same host and journal as `ecp run`. `--config` is optional machine settings
 (same as `ecp run`); omit it to use `~/.ecp/config/config.ecp.ts` when present,
-else installed plugins. The Environment tab always shows the live process host.
-The App stores no secrets and makes no model calls.
+else installed plugins. The Config tab shows `config.ecp.ts` (scaffolded when
+missing). Capability discovery uses installed plugins. The App stores no secrets
+and makes no model calls.
 
 Until `0.51.0` is on the registry, install from the workspace with
 `ecp plugins link plugins/plugin-app`. CLI `oclif.jitPlugins` pins `"^0.51"`.

@@ -9,7 +9,7 @@ import { serveApp } from "./serve-app.js";
 export class AppCommand extends Command {
     static id = "app";
     static summary = "Open a live graph of a workflow file";
-    static description = "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. --config is optional machine settings; omit it to use ~/.ecp/config/config.ecp.ts when present, else installed plugins. The Environment tab shows the live process host. The App stores no secrets. Until 0.51.0 is on the registry, install with ecp plugins link plugins/plugin-app.";
+    static description = "Serve the App on 127.0.0.1 with a pairing token in the URL. File edits update the graph; graph edits rewrite the file. Runs use the same host and journal as ecp run. --config is optional machine settings; omit it to use ~/.ecp/config/config.ecp.ts when present, else installed plugins. The Config tab shows config.ecp.ts. Capability discovery uses installed plugins. The App stores no secrets. Until 0.51.0 is on the registry, install with ecp plugins link plugins/plugin-app.";
     static args = {
         file: Args.string({
             required: true,
@@ -39,6 +39,7 @@ export class AppCommand extends Command {
         await serveApp({
             host,
             configPath: parsed.flags.config,
+            configDir: this.config.configDir,
             filePath: parsed.args.file,
             httpHost: parsed.flags.host,
             httpPort: parsed.flags.port,

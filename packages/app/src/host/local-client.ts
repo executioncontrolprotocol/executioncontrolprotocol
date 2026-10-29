@@ -9,7 +9,7 @@ import type {
 import type { HostAdapter, HostLoadResult, HostWatchPayload } from "./adapter.js"
 import { APP_BEARER_PREFIX, APP_TOKEN_QUERY } from "./constants.js"
 import type {
-  AppEnvironmentResponse,
+  AppConfigResponse,
   AppEventMessage,
   AppRunRequest,
   AppRunResponse,
@@ -148,14 +148,14 @@ export function createLocalHostAdapter(options: LocalHostAdapterOptions): HostAd
     describe(): Promise<EnvironmentDescriptor> {
       return transport.get<EnvironmentDescriptor>("/api/describe")
     },
-    environment(): Promise<AppEnvironmentResponse> {
-      return transport.get<AppEnvironmentResponse>("/api/environment")
+    config(): Promise<AppConfigResponse> {
+      return transport.get<AppConfigResponse>("/api/config")
     },
-    watchEnvironment(onChange: (next: AppEnvironmentResponse) => void): () => void {
+    watchConfig(onChange: (next: AppConfigResponse) => void): () => void {
       return transport.subscribe((message) => {
-        if (message.type !== "environment") return
+        if (message.type !== "config") return
         onChange({
-          kind: message.kind,
+          path: message.path,
           source: message.source,
         })
       })

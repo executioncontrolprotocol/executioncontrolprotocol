@@ -1,16 +1,16 @@
 import { useState } from "react"
-import { ENVIRONMENT_EDITOR_PATH } from "../../host/environment-source.js"
+import { CONFIG_EDITOR_PATH, configFilename } from "../../host/config-source.js"
 import { FluentWorkflowEditor } from "./FluentWorkflowEditor.js"
 import { MonacoCodeEditor } from "./MonacoCodeEditor.js"
 import { PaneTabBar } from "./PaneTabBar.js"
 import { PaneToolbar } from "./PaneToolbar.js"
 
-/** Code-pane tab: workflow Fluent vs environment Fluent. @category App */
-export type CodeEditorTab = "workflow" | "environment"
+/** Code-pane tab: workflow Fluent vs config file. @category App */
+export type CodeEditorTab = "workflow" | "config"
 
 const EDITOR_TABS: { id: CodeEditorTab; label: string; testId: string }[] = [
   { id: "workflow", label: "Workflow", testId: "ecp-editor-tab-workflow" },
-  { id: "environment", label: "Environment", testId: "ecp-editor-tab-environment" },
+  { id: "config", label: "Config", testId: "ecp-editor-tab-config" },
 ]
 
 /** Props for {@link CodePanel}. @category App */
@@ -29,11 +29,13 @@ export interface CodePanelProps {
   beautifyBusy?: boolean
   /** Beautify is only valid when the file can round-trip. */
   beautifyEnabled?: boolean
-  /** Read-only environment Fluent synthesized from `describe()`. */
-  environmentSource?: string
+  /** Read-only `config.ecp.ts` (or `--config`) source. */
+  configSource?: string
+  /** Absolute path of the config file; the toolbar shows the filename. */
+  configPath?: string
 }
 
-/** Full-height Fluent editor pane with Workflow / Environment tabs. @category App */
+/** Full-height Fluent editor pane with Workflow / Config tabs. @category App */
 export function CodePanel({
   fluent,
   fluentEditorKey,
@@ -42,10 +44,10 @@ export function CodePanel({
   onBeautifyFluent,
   beautifyBusy = false,
   beautifyEnabled = true,
-  environmentSource = "",
+  configSource = "",
+  configPath,
 }: CodePanelProps) {
   const [editorTab, setEditorTab] = useState<CodeEditorTab>("workflow")
-  const environmentLabel = "Process host"
 
   return (
     <div
@@ -75,8 +77,8 @@ export function CodePanel({
             <span className="px-2 font-mono text-[10px] uppercase tracking-wider text-outline">
               View only
             </span>
-            <span className="ml-auto truncate px-2 font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
-              {environmentLabel}
+            <span className="ml-auto truncate px-2 font-mono text-[10px] tracking-wider text-on-surface-variant">
+              {configFilename(configPath)}
             </span>
           </>
         )}
@@ -95,12 +97,12 @@ export function CodePanel({
             visible={editorTab === "workflow"}
           />
         </div>
-        <div className={editorTab === "environment" ? "h-full" : "hidden h-full"}>
+        <div className={editorTab === "config" ? "h-full" : "hidden h-full"}>
           <MonacoCodeEditor
-            path={ENVIRONMENT_EDITOR_PATH}
-            value={environmentSource}
+            path={CONFIG_EDITOR_PATH}
+            value={configSource}
             readOnly
-            visible={editorTab === "environment"}
+            visible={editorTab === "config"}
           />
         </div>
       </div>

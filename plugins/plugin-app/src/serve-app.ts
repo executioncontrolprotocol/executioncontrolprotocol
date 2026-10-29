@@ -14,8 +14,7 @@ import {
   APP_TOKEN_QUERY,
   APP_WATCH_DEBOUNCE_MS,
   canRoundTrip,
-  environmentSourceFromDescriptor,
-  type AppEnvironmentResponse,
+  type AppConfigResponse,
   type AppEventMessage,
   type AppRunRequest,
   type AppSourceResponse,
@@ -48,6 +47,7 @@ import {
 } from "@executioncontrolprotocol/core/types"
 import { WebSocketServer, type WebSocket } from "ws"
 import { APP_TOKEN_COOKIE, DEFAULT_PLUGIN_APP_HOST, DEFAULT_PLUGIN_APP_PORT } from "./constants.js"
+import { ensureAppConfigPath } from "./environment-file.js"
 import { assertLoopbackBind } from "./http-bind.js"
 import { workflowLoadError } from "./load-error.js"
 import { openBrowser } from "./open-browser.js"
@@ -84,9 +84,14 @@ export interface ServeAppOptions {
   host: EcpHost
   /**
    * Optional `--config` file. Merged onto a clone of the process host; never
-   * replaces installed plugins. The Environment tab always shows `describe()`.
+   * replaces installed plugins.
    */
   configPath?: string
+  /**
+   * oclif `config.configDir` (`~/.ecp/config`). Used to resolve or scaffold
+   * `config.ecp.ts` when `--config` is omitted.
+   */
+  configDir?: string
   /** Workflow file the App watches. */
   filePath: string
   /** Bind address. Defaults to `127.0.0.1`. */
@@ -179,13 +184,6 @@ function safeStaticPath(webRoot: string, urlPath: string): string | undefined {
   return full
 }
 
-async function loadEnvironmentSnapshot(ecp: Ecp): Promise<AppEnvironmentResponse> {
-  return {
-    kind: "process-host",
-    source: environmentSourceFromDescriptor(await ecp.describe()),
-  }
-}
-
 function bindingId(binding: EnvironmentBinding): string {
   const ref = binding.getRef()
   if (typeof ref === "string") return ref
@@ -267,7 +265,12 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   assertLoopbackBind(httpHost)
   const token = options.token ?? generateAppToken()
   const filePath = resolve(options.filePath)
-  const configPath = options.configPath ? resolve(options.configPath) : undefined
+  const ensured = await ensureAppConfigPath({
+    configFlag: options.configPath,
+    configDir: options.configDir,
+  })
+  const configPath = ensured?.path
+  const mergeAtStart = Boolean(options.configPath) || Boolean(ensured?.created)
   const webRoot = options.webRoot ?? resolveAppWebRoot()
   const sockets = new Set<WebSocket>()
   let lastWriteHash: string | undefined
@@ -275,10 +278,15 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   let configDebounce: ReturnType<typeof setTimeout> | undefined
   let configuredEcp: Ecp | undefined
   let runtimeHost = options.host
-  if (configPath) {
+  if (configPath && mergeAtStart) {
     const configured = await initConfiguredHost(configPath, options.host)
     configuredEcp = configured.ecp
     runtimeHost = configured.host
+  }
+
+  const loadConfigSnapshot = async (): Promise<AppConfigResponse> => {
+    if (!configPath) return { path: "", source: "" }
+    return { path: configPath, source: await readFile(configPath, "utf8") }
   }
 
   const broadcast = (message: AppEventMessage): void => {
@@ -337,8 +345,8 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       sendJson(res, 200, await loadSnapshot(filePath))
       return
     }
-    if (method === "GET" && url.pathname === "/api/environment") {
-      sendJson(res, 200, await loadEnvironmentSnapshot(runtimeHost.ecp))
+    if (method === "GET" && url.pathname === "/api/config") {
+      sendJson(res, 200, await loadConfigSnapshot())
       return
     }
     if (method === "GET" && url.pathname === "/api/describe") {
@@ -486,23 +494,22 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     httpServer.listen(options.httpPort ?? DEFAULT_PLUGIN_APP_PORT, httpHost, () => resolveListen())
   })
 
-  const pushEnvironmentChange = async (): Promise<void> => {
-    if (configPath) {
-      const next = await initConfiguredHost(configPath, options.host)
-      if (configuredEcp) {
-        try {
-          await configuredEcp.terminate()
-        } catch {
-          /* already closed */
-        }
+  const pushConfigChange = async (): Promise<void> => {
+    if (!configPath) return
+    const next = await initConfiguredHost(configPath, options.host)
+    if (configuredEcp) {
+      try {
+        await configuredEcp.terminate()
+      } catch {
+        /* already closed */
       }
-      configuredEcp = next.ecp
-      runtimeHost = next.host
     }
-    const snapshot = await loadEnvironmentSnapshot(runtimeHost.ecp)
+    configuredEcp = next.ecp
+    runtimeHost = next.host
+    const snapshot = await loadConfigSnapshot()
     broadcast({
-      type: "environment",
-      kind: snapshot.kind,
+      type: "config",
+      path: snapshot.path,
       source: snapshot.source,
     })
   }
@@ -527,7 +534,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       if (configDebounce) clearTimeout(configDebounce)
       configDebounce = setTimeout(() => {
         configDebounce = undefined
-        void pushEnvironmentChange()
+        void pushConfigChange()
       }, APP_WATCH_DEBOUNCE_MS)
     })
   }

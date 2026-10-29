@@ -68,19 +68,13 @@ export interface AppRunResponse {
 }
 
 /**
- * How the Environment tab is populated.
+ * `GET /api/config` body (and `config` WebSocket events).
  * @category App
  */
-export type AppEnvironmentKind = "process-host"
-
-/**
- * `GET /api/environment` body (and `environment` WebSocket events).
- * @category App
- */
-export interface AppEnvironmentResponse {
-  /** Always the live process host (`describe()`). */
-  kind: AppEnvironmentKind
-  /** Fluent environment source shown in the App. */
+export interface AppConfigResponse {
+  /** Absolute path of the config file shown in the Config tab. */
+  path: string
+  /** File text of `config.ecp.ts` (or `--config`). */
   source: string
 }
 
@@ -91,7 +85,7 @@ export interface AppEnvironmentResponse {
 export type AppEventMessage =
   | { type: "file"; source: string; manifest?: WorkflowManifest; loadError?: ValidationResult; roundTrip?: RoundTripResult }
   | { type: "run"; event: PublicRunEvent }
-  | { type: "environment"; kind: AppEnvironmentKind; source: string }
+  | { type: "config"; path: string; source: string }
 
 /**
  * `GET /api/search` body.

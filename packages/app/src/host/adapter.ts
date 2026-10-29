@@ -8,7 +8,7 @@ import type {
   WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
 import type { MediaHttpReadResponse } from "@executioncontrolprotocol/core"
-import type { AppEnvironmentResponse, AppRunResponse, AppSourceResponse } from "./protocol.js"
+import type { AppConfigResponse, AppRunResponse, AppSourceResponse } from "./protocol.js"
 import type { RoundTripResult } from "./round-trip.js"
 
 /**
@@ -61,14 +61,13 @@ export interface HostAdapter {
   /** Capability catalogue for the graph palette. */
   describe(): Promise<EnvironmentDescriptor>
   /**
-   * Synthesized Fluent from `describe()` (installed plugins plus merged config).
+   * Read-only `config.ecp.ts` (or `--config`) shown in the Config tab.
    */
-  environment(): Promise<AppEnvironmentResponse>
+  config(): Promise<AppConfigResponse>
   /**
-   * Subscribe to process-host environment source changes.
-   * Returns an unsubscribe function.
+   * Subscribe to config file changes. Returns an unsubscribe function.
    */
-  watchEnvironment(onChange: (next: AppEnvironmentResponse) => void): () => void
+  watchConfig(onChange: (next: AppConfigResponse) => void): () => void
   /**
    * Search capabilities. Returns hit rows (core's `SearchResult` is the envelope).
    */

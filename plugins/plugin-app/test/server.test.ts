@@ -44,7 +44,7 @@ describe("serveApp", () => {
 
   async function start(
     source = ECHO_SOURCE,
-    extra?: { configPath?: string }
+    extra?: { configPath?: string; configDir?: string }
   ): Promise<{
     origin: string
     filePath: string
@@ -58,6 +58,7 @@ describe("serveApp", () => {
     handle = await serveApp({
       host: ctx.host,
       configPath: extra?.configPath,
+      configDir: extra?.configDir ?? dir,
       filePath,
       httpPort: 0,
       token: TEST_TOKEN,
@@ -201,19 +202,45 @@ describe("serveApp", () => {
     expect(result.valid).toBe(true)
   })
 
-  it("synthesizes process-host Fluent on GET /api/environment", async () => {
+  it("returns the config file on GET /api/config", async () => {
     const { origin, headers } = await start()
-    const response = await fetch(`${origin}/api/environment`, { headers })
+    const response = await fetch(`${origin}/api/config`, { headers })
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { kind: string; source: string; path?: string }
-    expect(body.kind).toBe("process-host")
-    expect(body.path).toBeUndefined()
-    expect(body.source).toContain("environment(")
-    expect(body.source).toContain(".with([")
-    expect(body.source).not.toContain("apiKey")
+    const body = (await response.json()) as { path: string; source: string; kind?: string }
+    expect(body.kind).toBeUndefined()
+    expect(body.path.endsWith("config.ecp.ts")).toBe(true)
+    expect(body.source).toContain("config().with([")
+    expect(body.source).not.toContain("environment(")
+    const missing = await fetch(`${origin}/api/environment`, { headers })
+    expect(missing.status).toBe(404)
   })
 
-  it("keeps installed plugins on GET /api/environment when config is empty", async () => {
+  it("scaffolds config.ecp.ts when the file is missing", async () => {
+    dir = await fixtureDir()
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      configDir: dir,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const headers = { Authorization: `${APP_BEARER_PREFIX}${TEST_TOKEN}` }
+    const written = await readFile(join(dir, "config.ecp.ts"), "utf8")
+    expect(written).toContain("config().with([")
+    const response = await fetch(`${origin}/api/config`, { headers })
+    const body = (await response.json()) as { path: string; source: string }
+    expect(body.path).toBe(join(dir, "config.ecp.ts"))
+    expect(body.source).toBe(written)
+  })
+
+  it("keeps installed plugins on GET /api/describe when config is empty", async () => {
     dir = await fixtureDir()
     const configPath = join(dir, "config.ecp.ts")
     const configSource = `import { config } from "@executioncontrolprotocol/core"
@@ -237,21 +264,20 @@ export default config().with([])
     const origin = `http://127.0.0.1:${handle.port}`
     const headers = { Authorization: `${APP_BEARER_PREFIX}${TEST_TOKEN}` }
 
-    const environment = await fetch(`${origin}/api/environment`, { headers })
-    expect(environment.status).toBe(200)
-    const envBody = (await environment.json()) as { kind: string; path?: string; source: string }
-    expect(envBody.kind).toBe("process-host")
-    expect(envBody.path).toBeUndefined()
-    expect(envBody.source).not.toBe(configSource)
-    expect(envBody.source).toContain("environment(")
-    expect(envBody.source).toContain("@executioncontrolprotocol/test")
+    const config = await fetch(`${origin}/api/config`, { headers })
+    expect(config.status).toBe(200)
+    const configBody = (await config.json()) as { path: string; source: string }
+    expect(configBody.path).toBe(configPath)
+    expect(configBody.source).toBe(configSource)
+    expect(configBody.source).toContain("config().with([])")
+    expect(configBody.source).not.toContain("environment(")
 
     const describe = await fetch(`${origin}/api/describe`, { headers })
     const descriptor = (await describe.json()) as { capabilities: { id: string }[] }
     expect(descriptor.capabilities.some((row) => row.id.includes("echo"))).toBe(true)
   })
 
-  it("emits an environment event when the config file changes", async () => {
+  it("emits a config event when the config file changes", async () => {
     dir = await fixtureDir()
     const configPath = join(dir, "config.ecp.ts")
     const configSource = `import { config } from "@executioncontrolprotocol/core"
@@ -284,11 +310,12 @@ export default config().with([])
     await writeFile(configPath, `${configSource}\n// updated\n`, "utf8")
     const message = await pending
     socket.close()
-    expect(message.type).toBe("environment")
-    if (message.type === "environment") {
-      expect(message.kind).toBe("process-host")
-      expect(message.source).toContain("environment(")
-      expect(message.source).not.toContain("config()")
+    expect(message.type).toBe("config")
+    if (message.type === "config") {
+      expect(message.path).toBe(configPath)
+      expect(message.source).toContain("config().with([])")
+      expect(message.source).toContain("// updated")
+      expect(message.source).not.toContain("environment(")
     }
   })
 

@@ -7,7 +7,7 @@ import {
   type WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
 import type { HostAdapter, HostLoadResult } from "../host/adapter.js"
-import type { AppEnvironmentResponse, AppSourceResponse } from "../host/protocol.js"
+import type { AppConfigResponse, AppSourceResponse } from "../host/protocol.js"
 import {
   applyPublicRunEvent,
   reactFlowRunProgress,
@@ -106,7 +106,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [runPhase, setRunPhase] = useState<RunPanelPhase>("input")
   const [runBusy, setRunBusy] = useState(false)
   const [runResult, setRunResult] = useState<RunResult | undefined>()
-  const [environment, setEnvironment] = useState<AppEnvironmentResponse | undefined>()
+  const [config, setConfig] = useState<AppConfigResponse | undefined>()
   const [descriptor, setDescriptor] = useState<EnvironmentDescriptor | undefined>()
   const [discovery, setDiscovery] = useState<CapabilityDiscoveryOrigin | undefined>()
   const [validation, setValidation] = useState<ValidationResult | null>(null)
@@ -175,13 +175,13 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
         setStatus(error instanceof Error ? error.message : "Load failed")
       })
     void adapter
-      .environment()
+      .config()
       .then((next) => {
         if (cancelled) return
-        setEnvironment(next)
+        setConfig(next)
       })
       .catch(() => {
-        /* Environment tab stays empty until the host answers. */
+        /* Config tab stays empty until the host answers. */
       })
     const loadDescribe = () => {
       void adapter
@@ -194,8 +194,8 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
         })
     }
     loadDescribe()
-    const stopEnvironment = adapter.watchEnvironment((next) => {
-      setEnvironment(next)
+    const stopConfig = adapter.watchConfig((next) => {
+      setConfig(next)
       loadDescribe()
     })
     const stop = adapter.watch((next) => {
@@ -226,7 +226,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
     return () => {
       cancelled = true
       stop()
-      stopEnvironment()
+      stopConfig()
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [adapter, remountEditor])
@@ -380,7 +380,8 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
               compileError={compileError}
               onFluentChange={onFluentChange}
               beautifyEnabled={Boolean(loaded) && !readOnly}
-              environmentSource={environment?.source}
+              configSource={config?.source}
+              configPath={config?.path}
               onBeautifyFluent={
                 loaded && !readOnly
                   ? () => void persist(formatFluentManifest(loaded.manifest), { remount: true })

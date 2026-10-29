@@ -42,10 +42,10 @@ function createMockTransport(overrides?: {
       if (path === "/api/describe") {
         return { schema: "@executioncontrolprotocol.environment.describe", version: "1.0" } as EnvironmentDescriptor
       }
-      if (path === "/api/environment") {
+      if (path === "/api/config") {
         return {
-          kind: "process-host",
-          source: 'export default environment("node").with([])',
+          path: "/home/me/.ecp/config/config.ecp.ts",
+          source: "export default config().with([])",
         }
       }
       if (path.startsWith("/api/search")) {
@@ -133,12 +133,12 @@ describe("createLocalHostAdapter", () => {
     expect(hits[0]?.id).toBe("jsonata.transform")
     const validation = await adapter.validate("source")
     expect(validation.valid).toBe(true)
-    const environment = await adapter.environment()
-    expect(environment.kind).toBe("process-host")
-    expect(environment.source).toContain("environment(")
+    const config = await adapter.config()
+    expect(config.path).toContain("config.ecp.ts")
+    expect(config.source).toContain("config()")
   })
 
-  it("forwards environment watch payloads", async () => {
+  it("forwards config watch payloads", async () => {
     const listeners: Array<(message: AppEventMessage) => void> = []
     const transport: LocalHostTransport = {
       ...createMockTransport(),
@@ -156,15 +156,15 @@ describe("createLocalHostAdapter", () => {
       transport,
     })
     const seen: string[] = []
-    const stop = adapter.watchEnvironment((next) => {
-      seen.push(`${next.kind}:${next.source}`)
+    const stop = adapter.watchConfig((next) => {
+      seen.push(`${next.path}:${next.source}`)
     })
     for (const listener of listeners) {
-      listener({ type: "environment", kind: "process-host", source: "process-host" })
+      listener({ type: "config", path: "/tmp/config.ecp.ts", source: "updated" })
       listener({ type: "file", source: "ignored" })
     }
     stop()
-    expect(seen).toEqual(["process-host:process-host"])
+    expect(seen).toEqual(["/tmp/config.ecp.ts:updated"])
   })
 
   it("yields run events until run.end", async () => {

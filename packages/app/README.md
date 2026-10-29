@@ -12,10 +12,11 @@ ecp app product.ecp.ts
 ecp app product.ecp.ts --config config.ecp.ts
 ```
 
-The left pane tabs **Workflow** (editable Fluent) and **Environment** (read-only).
-Environment is always the live process host from `describe()` (installed plugins plus
-merged config). `--config` selects which config file the host loads; the tab does not
-show that file. The footer pill reports whether the workflow is valid.
+The left pane tabs **Workflow** (editable Fluent) and **Config** (read-only
+`config.ecp.ts`). Config is the machine settings file (`--config` or
+`~/.ecp/config/config.ecp.ts`, created if missing). Capability discovery still
+uses `describe()` (installed plugins). The footer pill reports whether the
+workflow is valid.
 
 Until `0.51.0` is on the registry, do not expect first-use JIT from npm. There is no
 hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.51"`.

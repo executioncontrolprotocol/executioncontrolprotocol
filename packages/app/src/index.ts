@@ -19,11 +19,7 @@ export type {
   AppEventMessage,
   AppSearchResponse,
   AppDescribeResponse,
-  AppEnvironmentKind,
-  AppEnvironmentResponse,
+  AppConfigResponse,
 } from "./host/protocol.js"
-export {
-  ENVIRONMENT_EDITOR_PATH,
-  environmentSourceFromDescriptor,
-} from "./host/environment-source.js"
+export { CONFIG_EDITOR_PATH, configFilename } from "./host/config-source.js"
 export * from "./graph/index.js"
