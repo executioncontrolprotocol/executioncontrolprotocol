@@ -55,7 +55,7 @@ function extensionForCapability(
 }
 
 function remoteRequiredMessage(capabilityId: string): string {
-  return `Capability ${capabilityId} requires a local host. Start \`ecp up --env …\`.`
+  return `Capability ${capabilityId} requires a local host. Bind it on the process host and retry.`
 }
 
 /**

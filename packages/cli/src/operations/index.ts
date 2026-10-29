@@ -1,11 +1,9 @@
 import type { OperationDefinition } from "@executioncontrolprotocol/plugin-sdk"
 import { describeOperation, invokeOperation, searchOperation } from "./catalog.js"
-import { configTopicOperation } from "./config.js"
+import { configEditOperation, configInitOperation, configTopicOperation } from "./config.js"
 import { discoverOperation } from "./discover.js"
 import {
-  environmentsEditOperation,
   environmentsExportOperation,
-  environmentsInitOperation,
   environmentsTopicOperation,
 } from "./environments.js"
 import { initOperation } from "./init.js"
@@ -49,14 +47,14 @@ export const operations: OperationDefinition[] = [
   searchOperation,
   invokeOperation,
   environmentsExportOperation,
-  environmentsInitOperation,
-  environmentsEditOperation,
   runsTopicOperation,
   runsListOperation,
   runsShowOperation,
   runsResumeOperation,
   runsRerunOperation,
   configTopicOperation,
+  configInitOperation,
+  configEditOperation,
   configSecretsOperation,
   configSecretsAddOperation,
   configSecretsGetOperation,

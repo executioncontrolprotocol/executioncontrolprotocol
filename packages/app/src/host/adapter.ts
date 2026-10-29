@@ -1,11 +1,14 @@
 import type {
   EnvironmentDescriptor,
+  FileRef,
   PublicRunEvent,
   RequirementsDocument,
   SearchResultItem,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
+import type { MediaHttpReadResponse } from "@executioncontrolprotocol/core"
+import type { AppConfigResponse, AppRunResponse, AppSourceResponse } from "./protocol.js"
 import type { RoundTripResult } from "./round-trip.js"
 
 /**
@@ -48,8 +51,8 @@ export interface HostWatchPayload {
 export interface HostAdapter {
   /** Read the current workflow file. */
   load(): Promise<HostLoadResult>
-  /** Write Fluent source back to the file. */
-  save(source: string): Promise<void>
+  /** Write Fluent source back to the file and return the compiled snapshot. */
+  save(source: string): Promise<AppSourceResponse>
   /**
    * Subscribe to file changes. Returns an unsubscribe function.
    * A failed load sends diagnostics instead of a graph.
@@ -58,11 +61,30 @@ export interface HostAdapter {
   /** Capability catalogue for the graph palette. */
   describe(): Promise<EnvironmentDescriptor>
   /**
+   * Read-only `config.ecp.ts` (or `--config`) shown in the Config tab.
+   */
+  config(): Promise<AppConfigResponse>
+  /**
+   * Subscribe to config file changes. Returns an unsubscribe function.
+   */
+  watchConfig(onChange: (next: AppConfigResponse) => void): () => void
+  /**
    * Search capabilities. Returns hit rows (core's `SearchResult` is the envelope).
    */
   search(query: string): Promise<SearchResultItem[]>
   /** Validate Fluent source. */
   validate(source: string): Promise<ValidationResult>
-  /** Start a run and yield the same events as `ecp run --events`. */
-  run(source: string, input: unknown): AsyncIterable<PublicRunEvent>
+  /**
+   * Start a run. `onEvent` receives the same records as `ecp run --events`.
+   * The returned body includes `status` and `output` after the run finishes.
+   */
+  run(
+    source: string,
+    input: unknown,
+    onEvent?: (event: PublicRunEvent) => void
+  ): Promise<AppRunResponse>
+  /** Upload a browser file through the host media store. */
+  uploadMedia(file: File): Promise<FileRef>
+  /** Read a host media URI for in-tab preview. */
+  readMedia(uri: string): Promise<MediaHttpReadResponse>
 }

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { watch, existsSync } from "node:fs"
+import { watch, existsSync, type FSWatcher } from "node:fs"
 import { readFile, writeFile } from "node:fs/promises"
 import {
   createServer,
@@ -14,28 +14,54 @@ import {
   APP_TOKEN_QUERY,
   APP_WATCH_DEBOUNCE_MS,
   canRoundTrip,
+  type AppConfigResponse,
   type AppEventMessage,
   type AppRunRequest,
   type AppSourceResponse,
   type AppSourceWrite,
 } from "@executioncontrolprotocol/app"
-import type { LoadedWorkflow } from "@executioncontrolprotocol/core"
-import { MEDIA_HTTP_PATH, MediaStore } from "@executioncontrolprotocol/core"
+import type { Ecp, EnvironmentBinding, LoadedWorkflow } from "@executioncontrolprotocol/core"
+import {
+  extension,
+  isBuiltinRequirementId,
+  MEDIA_HTTP_PATH,
+  MediaStore,
+  policy,
+} from "@executioncontrolprotocol/core"
 import {
   NODE_ENVIRONMENT_ID,
   compileAndValidateWorkflowSource,
+  environment,
   handleMediaHttp,
+  journalExtension,
+  loadConfigModule,
   loadWorkflowFile,
 } from "@executioncontrolprotocol/node"
 import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
-import type { PublicRunEvent, ValidationResult } from "@executioncontrolprotocol/core/types"
+import {
+  ECP_PLUGINS_MISSING,
+  EcpError,
+  type DescribeQuery,
+  type PublicRunEvent,
+  type ValidationResult,
+} from "@executioncontrolprotocol/core/types"
 import { WebSocketServer, type WebSocket } from "ws"
 import { APP_TOKEN_COOKIE, DEFAULT_PLUGIN_APP_HOST, DEFAULT_PLUGIN_APP_PORT } from "./constants.js"
+import { ensureAppConfigPath } from "./environment-file.js"
 import { assertLoopbackBind } from "./http-bind.js"
 import { workflowLoadError } from "./load-error.js"
 import { openBrowser } from "./open-browser.js"
 import { generateAppToken, tokenFromRequest, tokensEqual } from "./token.js"
 import { resolveAppWebRoot } from "./web-root.js"
+
+/**
+ * App palette query: inventory plus JSON Schema I/O and metadata essays so the
+ * canvas can search descriptions and type-match ports.
+ */
+const APP_DESCRIBE_CATALOG_QUERY: DescribeQuery = {
+  capabilities: { include: ["inputSchema", "outputSchema", "metadata"] },
+  extensions: { include: ["metadata"] },
+}
 
 const MIME_BY_EXT: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -56,6 +82,16 @@ const MIME_BY_EXT: Record<string, string> = {
 export interface ServeAppOptions {
   /** Process host from `getHost()` after `init-host`. */
   host: EcpHost
+  /**
+   * Optional `--config` file. Merged onto a clone of the process host; never
+   * replaces installed plugins.
+   */
+  configPath?: string
+  /**
+   * oclif `config.configDir` (`~/.ecp/config`). Used to resolve or scaffold
+   * `config.ecp.ts` when `--config` is omitted.
+   */
+  configDir?: string
   /** Workflow file the App watches. */
   filePath: string
   /** Bind address. Defaults to `127.0.0.1`. */
@@ -148,6 +184,56 @@ function safeStaticPath(webRoot: string, urlPath: string): string | undefined {
   return full
 }
 
+function bindingId(binding: EnvironmentBinding): string {
+  const ref = binding.getRef()
+  if (typeof ref === "string") return ref
+  if (typeof ref === "object" && ref !== null && "id" in ref) return String(ref.id)
+  return String(ref)
+}
+
+function assertConfigPluginsOnHost(host: EcpHost, bindings: EnvironmentBinding[]): void {
+  const missing: string[] = []
+  for (const binding of bindings) {
+    const id = bindingId(binding)
+    if (isBuiltinRequirementId(id)) continue
+    if (host.registry.getExtension(id) || host.registry.getPolicy(id)) continue
+    missing.push(id)
+  }
+  if (missing.length === 0) return
+  throw new EcpError(
+    ECP_PLUGINS_MISSING,
+    `Missing plugins: ${missing.join(", ")}`,
+    { suggestions: missing.map((id) => `ecp plugins install ${id}`) }
+  )
+}
+
+async function initConfiguredHost(
+  configPath: string,
+  base: EcpHost
+): Promise<{ host: EcpHost; ecp: Ecp }> {
+  const env = environment(NODE_ENVIRONMENT_ID, "cli")
+  for (const def of base.registry.listExtensions()) {
+    env.with([extension(def)])
+  }
+  for (const def of base.registry.listPolicies()) {
+    env.with([policy(def)])
+  }
+  const bindings = await loadConfigModule(configPath)
+  assertConfigPluginsOnHost(base, bindings)
+  env.with(bindings)
+  env.with([extension(journalExtension)])
+  const ecp = await env.init()
+  return {
+    ecp,
+    host: {
+      ...base,
+      ecp,
+      registry: ecp.getRegistry(),
+      environmentId: ecp.id,
+    },
+  }
+}
+
 async function loadSnapshot(filePath: string): Promise<AppSourceResponse> {
   const source = await readFile(filePath, "utf8")
   const roundTrip = canRoundTrip(source)
@@ -179,10 +265,29 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
   assertLoopbackBind(httpHost)
   const token = options.token ?? generateAppToken()
   const filePath = resolve(options.filePath)
+  const ensured = await ensureAppConfigPath({
+    configFlag: options.configPath,
+    configDir: options.configDir,
+  })
+  const configPath = ensured?.path
+  const mergeAtStart = Boolean(options.configPath) || Boolean(ensured?.created)
   const webRoot = options.webRoot ?? resolveAppWebRoot()
   const sockets = new Set<WebSocket>()
   let lastWriteHash: string | undefined
   let debounce: ReturnType<typeof setTimeout> | undefined
+  let configDebounce: ReturnType<typeof setTimeout> | undefined
+  let configuredEcp: Ecp | undefined
+  let runtimeHost = options.host
+  if (configPath && mergeAtStart) {
+    const configured = await initConfiguredHost(configPath, options.host)
+    configuredEcp = configured.ecp
+    runtimeHost = configured.host
+  }
+
+  const loadConfigSnapshot = async (): Promise<AppConfigResponse> => {
+    if (!configPath) return { path: "", source: "" }
+    return { path: configPath, source: await readFile(configPath, "utf8") }
+  }
 
   const broadcast = (message: AppEventMessage): void => {
     const payload = JSON.stringify(message)
@@ -240,13 +345,17 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       sendJson(res, 200, await loadSnapshot(filePath))
       return
     }
+    if (method === "GET" && url.pathname === "/api/config") {
+      sendJson(res, 200, await loadConfigSnapshot())
+      return
+    }
     if (method === "GET" && url.pathname === "/api/describe") {
-      sendJson(res, 200, await options.host.ecp.describe())
+      sendJson(res, 200, await runtimeHost.ecp.describe(APP_DESCRIBE_CATALOG_QUERY))
       return
     }
     if (method === "GET" && url.pathname === "/api/search") {
       const query = url.searchParams.get("q") ?? ""
-      const envelope = await options.host.ecp.search(query)
+      const envelope = await runtimeHost.ecp.search(query)
       sendJson(res, 200, { results: envelope.results })
       return
     }
@@ -259,7 +368,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       const compiled = await compileAndValidateWorkflowSource({
         source: body.source,
         filename: filePath,
-        descriptor: await options.host.ecp.describe(),
+        descriptor: await runtimeHost.ecp.describe(),
       })
       if (!compiled.ok || !compiled.manifest) {
         const fallback: ValidationResult = compiled.validation ?? workflowLoadError(
@@ -268,7 +377,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         sendJson(res, 200, fallback)
         return
       }
-      sendJson(res, 200, await options.host.ecp.validate(compiled.manifest))
+      sendJson(res, 200, await runtimeHost.ecp.validate(compiled.manifest))
       return
     }
     if (method === "POST" && url.pathname === "/api/run") {
@@ -286,7 +395,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         sendJson(res, 400, workflowLoadError(err))
         return
       }
-      const result = await options.host.ecp.run(loaded.manifest, {
+      const result = await runtimeHost.ecp.run(loaded.manifest, {
         input: body.input && typeof body.input === "object" && !Array.isArray(body.input)
           ? (body.input as Record<string, unknown>)
           : undefined,
@@ -296,10 +405,16 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
         journal: {
           workflowPath: filePath,
           workflowHash: lastWriteHash,
-          environmentId: options.host.environmentId ?? NODE_ENVIRONMENT_ID,
+          environmentId: runtimeHost.environmentId ?? NODE_ENVIRONMENT_ID,
         },
       })
-      sendJson(res, 200, { runId: result.run.id })
+      sendJson(res, 200, {
+        runId: result.run.id,
+        status: result.run.status,
+        output: result.output,
+        diagnostics: result.diagnostics,
+        history: result.history,
+      })
       return
     }
     sendText(res, 404, "Not found")
@@ -329,7 +444,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }
     void (async () => {
       try {
-        const mediaStore = options.host.ecp.getService(MediaStore)
+        const mediaStore = runtimeHost.ecp.getService(MediaStore)
         if (mediaStore && url.pathname === MEDIA_HTTP_PATH) {
           const method = req.method ?? "GET"
           const mediaBody = method === "POST" ? await readJsonBody(req) : undefined
@@ -379,6 +494,26 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     httpServer.listen(options.httpPort ?? DEFAULT_PLUGIN_APP_PORT, httpHost, () => resolveListen())
   })
 
+  const pushConfigChange = async (): Promise<void> => {
+    if (!configPath) return
+    const next = await initConfiguredHost(configPath, options.host)
+    if (configuredEcp) {
+      try {
+        await configuredEcp.terminate()
+      } catch {
+        /* already closed */
+      }
+    }
+    configuredEcp = next.ecp
+    runtimeHost = next.host
+    const snapshot = await loadConfigSnapshot()
+    broadcast({
+      type: "config",
+      path: snapshot.path,
+      source: snapshot.source,
+    })
+  }
+
   const watchedName = basename(filePath)
   const watcher = watch(dirname(filePath), (_event, filename) => {
     const name = filename === null || filename === undefined ? "" : String(filename)
@@ -390,13 +525,29 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     }, APP_WATCH_DEBOUNCE_MS)
   })
 
+  let configWatcher: FSWatcher | undefined
+  if (configPath) {
+    const configName = basename(configPath)
+    configWatcher = watch(dirname(configPath), (_event, filename) => {
+      const name = filename === null || filename === undefined ? "" : String(filename)
+      if (name && name !== configName) return
+      if (configDebounce) clearTimeout(configDebounce)
+      configDebounce = setTimeout(() => {
+        configDebounce = undefined
+        void pushConfigChange()
+      }, APP_WATCH_DEBOUNCE_MS)
+    })
+  }
+
   const address = httpServer.address() as AddressInfo
   const boundHost = address.address === "::1" ? "127.0.0.1" : address.address
   const url = `http://${boundHost}:${address.port}/?${APP_TOKEN_QUERY}=${token}`
 
   const close = async (): Promise<void> => {
     if (debounce) clearTimeout(debounce)
+    if (configDebounce) clearTimeout(configDebounce)
     watcher.close()
+    configWatcher?.close()
     for (const socket of sockets) socket.close()
     sockets.clear()
     await new Promise<void>((resolveClose) => {
@@ -405,6 +556,13 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
     await new Promise<void>((resolveClose, reject) => {
       httpServer.close((err) => (err ? reject(err) : resolveClose()))
     })
+    if (configuredEcp) {
+      try {
+        await configuredEcp.terminate()
+      } catch {
+        /* already closed */
+      }
+    }
   }
 
   const handle: AppServeHandle = {

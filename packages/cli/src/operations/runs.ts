@@ -8,6 +8,7 @@ import {
   EXIT_USAGE,
 } from "@executioncontrolprotocol/plugin-sdk"
 import { EcpError } from "@executioncontrolprotocol/core/types"
+import { CONFIG_FLAG_HELP } from "../lib/config-file.js"
 import { prepareWorkflowRun, throwIfRunFailed } from "../lib/prepare-workflow.js"
 import { terminateIfNeeded } from "../lib/load-ecp.js"
 import {
@@ -105,7 +106,7 @@ export const runsResumeOperation = defineOperation("runs:resume")
   .withInput(
     z.object({
       "run-id": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
       to: z.string().optional(),
       approve: z.boolean().optional(),
     })
@@ -127,7 +128,7 @@ export const runsResumeOperation = defineOperation("runs:resume")
     }
     const { loaded, ecp, terminate } = await prepareWorkflowRun({
       workflowPath: parent.workflowPath,
-      envFlag: input.env ? String(input.env) : undefined,
+      configFlag: input.config ? String(input.config) : undefined,
       config: ctx.config,
       argv: ctx.argv,
       json: ctx.json,
@@ -168,7 +169,7 @@ export const runsRerunOperation = defineOperation("runs:rerun")
   .withInput(
     z.object({
       "run-id": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
       from: z.string().optional(),
       to: z.string().optional(),
     })
@@ -190,7 +191,7 @@ export const runsRerunOperation = defineOperation("runs:rerun")
     }
     const { loaded, ecp, terminate } = await prepareWorkflowRun({
       workflowPath: parent.workflowPath,
-      envFlag: input.env ? String(input.env) : undefined,
+      configFlag: input.config ? String(input.config) : undefined,
       config: ctx.config,
       argv: ctx.argv,
       json: ctx.json,

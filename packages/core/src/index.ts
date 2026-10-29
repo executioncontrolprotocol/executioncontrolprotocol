@@ -71,6 +71,7 @@ export {
   type EnvironmentInitOptions,
   type EnvironmentBinding,
 } from "./environment/environment.js"
+export { config, ConfigBuilder, isConfigBuilder } from "./config/index.js"
 export {
   buildDescriptor,
   DESCRIBE_AUTHORING_CAPABILITIES_QUERY,

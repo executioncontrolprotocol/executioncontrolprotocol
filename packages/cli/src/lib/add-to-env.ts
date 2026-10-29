@@ -1,6 +1,6 @@
-const ADD_TO_ENV = "--add-to-env"
+const ADD_TO_CONFIG = "--add-to-config"
 
-/** Remembered `--add-to-env` target for the current process. @category CLI */
+/** Remembered `--add-to-config` target for the current process. @category CLI */
 export type AddToEnvTarget = string | true | undefined
 
 let pendingAddToEnv: AddToEnvTarget
@@ -19,8 +19,8 @@ function isPluginsInstall(argv: string[]): boolean {
 }
 
 /**
- * Strip `--add-to-env [file]` from `plugins install` argv so oclif does not reject the flag.
- * A bare flag becomes `true` (use the default environment file).
+ * Strip `--add-to-config [file]` from `plugins install` argv so oclif does not reject the flag.
+ * A bare flag becomes `true` (use the default config file).
  * @category CLI
  */
 export function stripAddToEnvFromArgv(argv: string[]): {
@@ -32,12 +32,12 @@ export function stripAddToEnvFromArgv(argv: string[]): {
   for (let i = 0; i < next.length; i += 1) {
     const arg = next[i]
     if (!arg) continue
-    if (arg.startsWith(`${ADD_TO_ENV}=`)) {
-      const value = arg.slice(ADD_TO_ENV.length + 1)
+    if (arg.startsWith(`${ADD_TO_CONFIG}=`)) {
+      const value = arg.slice(ADD_TO_CONFIG.length + 1)
       next.splice(i, 1)
       return { argv: next, addToEnv: value.length > 0 ? value : true }
     }
-    if (arg === ADD_TO_ENV) {
+    if (arg === ADD_TO_CONFIG) {
       const value = next[i + 1]
       next.splice(i, 1)
       if (value && !value.startsWith("-") && looksLikeEnvPath(value)) {
@@ -51,7 +51,7 @@ export function stripAddToEnvFromArgv(argv: string[]): {
 }
 
 /**
- * Remember the `--add-to-env` target for {@link takePendingAddToEnv}.
+ * Remember the `--add-to-config` target for {@link takePendingAddToEnv}.
  * @category CLI
  */
 export function setPendingAddToEnv(value: AddToEnvTarget): void {
@@ -59,7 +59,7 @@ export function setPendingAddToEnv(value: AddToEnvTarget): void {
 }
 
 /**
- * Consume the remembered `--add-to-env` target. Returns `undefined` when the flag was absent.
+ * Consume the remembered `--add-to-config` target. Returns `undefined` when the flag was absent.
  * @category CLI
  */
 export function takePendingAddToEnv(): AddToEnvTarget {

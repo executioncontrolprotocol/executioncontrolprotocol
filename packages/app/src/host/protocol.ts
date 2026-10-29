@@ -2,7 +2,10 @@ import type {
   EnvironmentDescriptor,
   PublicRunEvent,
   RequirementsDocument,
+  RunStatus,
   SearchResultItem,
+  StepRunRecord,
+  ValidationIssue,
   ValidationResult,
   WorkflowManifest,
 } from "@executioncontrolprotocol/core/types"
@@ -54,6 +57,25 @@ export interface AppRunRequest {
 export interface AppRunResponse {
   /** Journal run id (same as `ecp run`). */
   runId: string
+  /** Terminal run status. */
+  status: RunStatus
+  /** Public `returns` output when the workflow declares it. */
+  output?: Record<string, unknown>
+  /** Run-level diagnostics. */
+  diagnostics?: ValidationIssue[]
+  /** Per-step history. */
+  history?: Record<string, StepRunRecord>
+}
+
+/**
+ * `GET /api/config` body (and `config` WebSocket events).
+ * @category App
+ */
+export interface AppConfigResponse {
+  /** Absolute path of the config file shown in the Config tab. */
+  path: string
+  /** File text of `config.ecp.ts` (or `--config`). */
+  source: string
 }
 
 /**
@@ -63,6 +85,7 @@ export interface AppRunResponse {
 export type AppEventMessage =
   | { type: "file"; source: string; manifest?: WorkflowManifest; loadError?: ValidationResult; roundTrip?: RoundTripResult }
   | { type: "run"; event: PublicRunEvent }
+  | { type: "config"; path: string; source: string }
 
 /**
  * `GET /api/search` body.
@@ -74,7 +97,8 @@ export interface AppSearchResponse {
 }
 
 /**
- * `GET /api/describe` returns {@link EnvironmentDescriptor}.
+ * `GET /api/describe` returns {@link EnvironmentDescriptor} with authoring
+ * I/O schemas and metadata (canvas palette).
  * `POST /api/validate` returns {@link ValidationResult}.
  * @category App
  */

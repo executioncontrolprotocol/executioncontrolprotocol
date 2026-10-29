@@ -37,6 +37,21 @@ export async function hermeticCliEnv(
 }
 
 /**
+ * Hermetic CLI home with `plugin-test` linked.
+ * @category CLI
+ */
+export async function hermeticWithPluginTest(
+  extra: NodeJS.ProcessEnv = {}
+): Promise<{ env: NodeJS.ProcessEnv; dir: string }> {
+  const hermetic = await hermeticCliEnv(extra)
+  const linked = await runCli(["plugins", "link", "plugins/plugin-test"], { env: hermetic.env })
+  if (linked.code !== 0) {
+    throw new Error(`ecp plugins link plugins/plugin-test failed: ${linked.stdout}\n${linked.stderr}`)
+  }
+  return hermetic
+}
+
+/**
  * Spawn `ecp` with optional hermetic dirs.
  * @category CLI
  */

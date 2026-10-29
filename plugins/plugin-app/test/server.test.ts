@@ -42,7 +42,10 @@ describe("serveApp", () => {
     dir = undefined
   })
 
-  async function start(source = ECHO_SOURCE): Promise<{
+  async function start(
+    source = ECHO_SOURCE,
+    extra?: { configPath?: string; configDir?: string }
+  ): Promise<{
     origin: string
     filePath: string
     headers: { Authorization: string }
@@ -54,6 +57,8 @@ describe("serveApp", () => {
     ecp = ctx.ecp
     handle = await serveApp({
       host: ctx.host,
+      configPath: extra?.configPath,
+      configDir: extra?.configDir ?? dir,
       filePath,
       httpPort: 0,
       token: TEST_TOKEN,
@@ -138,8 +143,13 @@ describe("serveApp", () => {
       body: JSON.stringify({ source: ECHO_SOURCE }),
     })
     expect(run.status).toBe(200)
-    const body = (await run.json()) as { runId: string }
+    const body = (await run.json()) as {
+      runId: string
+      status?: string
+      output?: unknown
+    }
     expect(body.runId).toBeTruthy()
+    expect(body.status).toBe("completed")
     await expect.poll(() => events.some((item) => item.type === "run")).toBe(true)
     socket.close()
     const runEvents = events.filter((item) => item.type === "run")
@@ -168,8 +178,14 @@ describe("serveApp", () => {
     const { origin, headers } = await start()
     const describe = await fetch(`${origin}/api/describe`, { headers })
     expect(describe.status).toBe(200)
-    const descriptor = (await describe.json()) as { environment: { id: string } }
+    const descriptor = (await describe.json()) as {
+      environment: { id: string }
+      capabilities: Array<{ id: string; inputSchema?: unknown; metadata?: unknown }>
+    }
     expect(descriptor.environment.id).toBeTruthy()
+    const echo = descriptor.capabilities.find((row) => row.id.endsWith(".echo"))
+    expect(echo?.inputSchema).toMatchObject({ type: "object" })
+    expect(echo?.metadata).toBeDefined()
 
     const search = await fetch(`${origin}/api/search?q=echo`, { headers })
     expect(search.status).toBe(200)
@@ -184,6 +200,123 @@ describe("serveApp", () => {
     expect(validate.status).toBe(200)
     const result = (await validate.json()) as { valid: boolean }
     expect(result.valid).toBe(true)
+  })
+
+  it("returns the config file on GET /api/config", async () => {
+    const { origin, headers } = await start()
+    const response = await fetch(`${origin}/api/config`, { headers })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { path: string; source: string; kind?: string }
+    expect(body.kind).toBeUndefined()
+    expect(body.path.endsWith("config.ecp.ts")).toBe(true)
+    expect(body.source).toContain("config().with([")
+    expect(body.source).not.toContain("environment(")
+    const missing = await fetch(`${origin}/api/environment`, { headers })
+    expect(missing.status).toBe(404)
+  })
+
+  it("scaffolds config.ecp.ts when the file is missing", async () => {
+    dir = await fixtureDir()
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      configDir: dir,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const headers = { Authorization: `${APP_BEARER_PREFIX}${TEST_TOKEN}` }
+    const written = await readFile(join(dir, "config.ecp.ts"), "utf8")
+    expect(written).toContain("config().with([")
+    const response = await fetch(`${origin}/api/config`, { headers })
+    const body = (await response.json()) as { path: string; source: string }
+    expect(body.path).toBe(join(dir, "config.ecp.ts"))
+    expect(body.source).toBe(written)
+  })
+
+  it("keeps installed plugins on GET /api/describe when config is empty", async () => {
+    dir = await fixtureDir()
+    const configPath = join(dir, "config.ecp.ts")
+    const configSource = `import { config } from "@executioncontrolprotocol/core"
+
+export default config().with([])
+`
+    await writeFile(configPath, configSource, "utf8")
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      configPath,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const headers = { Authorization: `${APP_BEARER_PREFIX}${TEST_TOKEN}` }
+
+    const config = await fetch(`${origin}/api/config`, { headers })
+    expect(config.status).toBe(200)
+    const configBody = (await config.json()) as { path: string; source: string }
+    expect(configBody.path).toBe(configPath)
+    expect(configBody.source).toBe(configSource)
+    expect(configBody.source).toContain("config().with([])")
+    expect(configBody.source).not.toContain("environment(")
+
+    const describe = await fetch(`${origin}/api/describe`, { headers })
+    const descriptor = (await describe.json()) as { capabilities: { id: string }[] }
+    expect(descriptor.capabilities.some((row) => row.id.includes("echo"))).toBe(true)
+  })
+
+  it("emits a config event when the config file changes", async () => {
+    dir = await fixtureDir()
+    const configPath = join(dir, "config.ecp.ts")
+    const configSource = `import { config } from "@executioncontrolprotocol/core"
+
+export default config().with([])
+`
+    await writeFile(configPath, configSource, "utf8")
+    const filePath = join(dir, "workflow.ecp.ts")
+    await writeFile(filePath, ECHO_SOURCE, "utf8")
+    const ctx = await testHost()
+    ecp = ctx.ecp
+    handle = await serveApp({
+      host: ctx.host,
+      configPath,
+      filePath,
+      httpPort: 0,
+      token: TEST_TOKEN,
+      printListenUrl: false,
+      open: false,
+    })
+    const origin = `http://127.0.0.1:${handle.port}`
+    const socket = new WebSocket(
+      `${origin.replace("http", "ws")}/api/events?${APP_TOKEN_QUERY}=${TEST_TOKEN}`
+    )
+    const pending = waitForWsMessage(socket, 1000)
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener("open", () => resolve())
+      socket.addEventListener("error", () => reject(new Error("websocket failed")))
+    })
+    await writeFile(configPath, `${configSource}\n// updated\n`, "utf8")
+    const message = await pending
+    socket.close()
+    expect(message.type).toBe("config")
+    if (message.type === "config") {
+      expect(message.path).toBe(configPath)
+      expect(message.source).toContain("config().with([])")
+      expect(message.source).toContain("// updated")
+      expect(message.source).not.toContain("environment(")
+    }
   })
 
   it("rejects a websocket upgrade without a token", async () => {

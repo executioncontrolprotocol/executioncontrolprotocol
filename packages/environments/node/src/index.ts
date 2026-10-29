@@ -55,6 +55,7 @@ export {
   loadWorkflowJson,
   loadWorkflowFile,
   loadEnvironmentModule,
+  loadConfigModule,
   loadWorkflowModule,
 } from "./loaders/index.js"
 

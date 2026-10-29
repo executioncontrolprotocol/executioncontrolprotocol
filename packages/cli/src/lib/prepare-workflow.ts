@@ -37,7 +37,7 @@ function asCliError(err: unknown): never {
  */
 export async function prepareWorkflowRun(options: {
   workflowPath: string
-  envFlag?: string
+  configFlag?: string
   config: Interfaces.Config
   argv: string[]
   json: boolean
@@ -57,11 +57,10 @@ export async function prepareWorkflowRun(options: {
     json: options.json,
     install: options.install,
     host: options.host,
-    envFlag: options.envFlag,
   })
   try {
     const layered = await layerRunEnvironment({
-      envFlag: options.envFlag,
+      configFlag: options.configFlag,
       workflowBindings: loaded.builder?.getBindings(),
       config: options.config,
       host: host ?? options.host,

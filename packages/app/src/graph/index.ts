@@ -1,5 +1,6 @@
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
-export { renderPatchedStepInput } from "./patch-source.js"
+export { renderPatchedManifest, renderPatchedStepInput } from "./patch-source.js"
+export { shouldApplyWatchedSource } from "./dirty-buffer.js"
 export { extractDataEdges, parseStateRef } from "./extract-data-edges.js"
 export {
   acceptsReactFlowNode,
@@ -14,6 +15,7 @@ export {
   formatLiteralValue,
   truncateLiteralPreview,
   ensureOutputPort,
+  toJsonObjectSchema,
 } from "./ports-from-zod.js"
 export {
   valueSchemaFromZod,
@@ -32,6 +34,8 @@ export {
 } from "./progress.js"
 export { applyPublicRunEvent } from "./map-run-events.js"
 export type {
+  CapabilityIoSchemas,
+  CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,

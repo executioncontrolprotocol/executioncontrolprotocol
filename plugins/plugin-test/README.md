@@ -1,6 +1,6 @@
 # @executioncontrolprotocol/plugin-test
 
-Stub echo and placeholder capabilities for ECP (Execution Control Protocol) examples and tests. They are **not** built into the Node host. Install or link the plugin (or bind `testExtension` in an `--env` / `createTestEnvironment` host):
+Stub echo and placeholder capabilities for ECP (Execution Control Protocol) examples and tests. They are **not** built into the Node host. Install or link the plugin (or bind `testExtension` in a `createTestEnvironment` host):
 
 ```sh
 ecp plugins link plugins/plugin-test

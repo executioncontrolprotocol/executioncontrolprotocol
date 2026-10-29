@@ -218,4 +218,29 @@ describe("workflowToReactFlow", () => {
     expect(prompt?.valueTitle).toBe(longPrompt)
     expect(prompt!.valuePreview!.endsWith("…")).toBe(true)
   })
+
+  it("draws capability ports from describe JSON Schema without a registry", () => {
+    const manifest = workflow("Schema")
+      .run([step("@executioncontrolprotocol/test.echo", "Echo").as("echo")])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest, undefined, {
+      capabilitySchemas: {
+        "@executioncontrolprotocol/test.echo": {
+          inputSchema: {
+            type: "object",
+            properties: { value: { type: "string" } },
+            required: ["value"],
+          },
+          outputSchema: {
+            type: "object",
+            properties: { echo: { type: "string" } },
+            required: ["echo"],
+          },
+        },
+      },
+    })
+    const data = doc.nodes.find((n) => n.type === "ecp-step")!.data as ReactFlowStepData
+    expect(data.inputs.find((p) => p.name === "value")?.typeLabel).toBe("string!")
+    expect(data.outputs.find((p) => p.name === "echo")?.typeLabel).toBe("string!")
+  })
 })

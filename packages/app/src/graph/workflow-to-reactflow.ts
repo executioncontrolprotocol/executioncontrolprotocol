@@ -11,12 +11,18 @@ import {
 import { layoutReactFlowDocument } from "./layout.js"
 import { portsForStep, ensureOutputPort } from "./ports-from-zod.js"
 import type {
+  CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
   ReactFlowNode,
   ReactFlowStepData,
 } from "./types.js"
+
+interface EncodeContext {
+  registry: Registry | undefined
+  capabilitySchemas: CapabilitySchemaIndex | undefined
+}
 
 interface RenderSegment {
   nodes: ReactFlowNode[]
@@ -49,8 +55,8 @@ function connectControl(
   }
 }
 
-function renderStep(node: StepNode, registry: Registry | undefined): RenderSegment {
-  const ports = portsForStep(node, registry)
+function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
+  const ports = portsForStep(node, ctx.registry, ctx.capabilitySchemas?.[String(node.uses)])
   const data: ReactFlowStepData = {
     label: node.label ?? node.id,
     uses: String(node.uses),
@@ -69,7 +75,7 @@ function renderStep(node: StepNode, registry: Registry | undefined): RenderSegme
 
 function renderParallel(
   node: Extract<WorkflowNode, { type: "parallel" }>,
-  registry: Registry | undefined
+  ctx: EncodeContext
 ): RenderSegment {
   const nodes: ReactFlowNode[] = []
   const edges: ReactFlowEdge[] = []
@@ -77,7 +83,7 @@ function renderParallel(
   const exitIds: string[] = []
 
   node.branches.forEach((branch) => {
-    const seg = renderNodes(branch, registry)
+    const seg = renderNodes(branch, ctx)
     nodes.push(...seg.nodes)
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
@@ -89,7 +95,7 @@ function renderParallel(
 
 function renderBranch(
   node: Extract<WorkflowNode, { type: "branch" }>,
-  registry: Registry | undefined
+  ctx: EncodeContext
 ): RenderSegment {
   const nodes: ReactFlowNode[] = []
   const edges: ReactFlowEdge[] = []
@@ -97,7 +103,7 @@ function renderBranch(
   const exitIds: string[] = []
 
   for (const arm of node.branches) {
-    const seg = renderNodes(arm.steps, registry)
+    const seg = renderNodes(arm.steps, ctx)
     nodes.push(...seg.nodes)
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
@@ -109,26 +115,26 @@ function renderBranch(
 
 function renderLoop(
   node: Extract<WorkflowNode, { type: "loop" }>,
-  registry: Registry | undefined
+  ctx: EncodeContext
 ): RenderSegment {
-  return renderNodes(node.steps, registry)
+  return renderNodes(node.steps, ctx)
 }
 
-function renderNode(node: WorkflowNode, registry: Registry | undefined): RenderSegment {
-  if (isStepNode(node)) return renderStep(node, registry)
-  if (node.type === "parallel") return renderParallel(node, registry)
-  if (node.type === "branch") return renderBranch(node, registry)
-  return renderLoop(node, registry)
+function renderNode(node: WorkflowNode, ctx: EncodeContext): RenderSegment {
+  if (isStepNode(node)) return renderStep(node, ctx)
+  if (node.type === "parallel") return renderParallel(node, ctx)
+  if (node.type === "branch") return renderBranch(node, ctx)
+  return renderLoop(node, ctx)
 }
 
-function renderNodes(nodes: WorkflowNode[], registry: Registry | undefined): RenderSegment {
+function renderNodes(nodes: WorkflowNode[], ctx: EncodeContext): RenderSegment {
   const outNodes: ReactFlowNode[] = []
   const outEdges: ReactFlowEdge[] = []
   let entryIds: string[] = []
   let exitIds: string[] = []
 
   nodes.forEach((node, index) => {
-    const segment = renderNode(node, registry)
+    const segment = renderNode(node, ctx)
     outNodes.push(...segment.nodes)
     outEdges.push(...segment.edges)
     if (segment.entryIds.length === 0) return
@@ -222,10 +228,14 @@ export function workflowToReactFlow(
 ): ReactFlowDocument {
   const acceptsNode = acceptsReactFlowNode(manifest)
   const returnsNode = returnsReactFlowNode(manifest)
+  const ctx: EncodeContext = {
+    registry,
+    capabilitySchemas: options?.capabilitySchemas,
+  }
   const body =
     manifest.steps.length === 0
       ? { nodes: [] as ReactFlowNode[], edges: [] as ReactFlowEdge[], entryIds: [] as string[], exitIds: [] as string[] }
-      : renderNodes(manifest.steps, registry)
+      : renderNodes(manifest.steps, ctx)
 
   const nodes: ReactFlowNode[] = [acceptsNode, ...body.nodes]
   if (returnsNode) nodes.push(returnsNode)

@@ -3,5 +3,6 @@ export {
   loadWorkflowJson,
   loadWorkflowFile,
   loadEnvironmentModule,
+  loadConfigModule,
   loadWorkflowModule,
 } from "./files.js"

@@ -9,13 +9,15 @@ import {
   ECP_RERUN_INCOMPATIBLE,
   type EcpHost,
 } from "@executioncontrolprotocol/plugin-sdk"
+import { extension, policy, testExtension } from "@executioncontrolprotocol/core"
 import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { approvalPolicy } from "@executioncontrolprotocol/plugin-approval"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createEchoHost } from "./echo-host.js"
 import { COMMANDS } from "../src/commands.js"
 import { applyFormat, formatExtensionId, formatPluginPackage } from "../src/lib/format-output.js"
 import { commandErrorMessage, readJsonFile, runWithCommandError } from "../src/lib/command-helpers.js"
-import { ecpFromEnvFlag, terminateIfNeeded } from "../src/lib/load-ecp.js"
+import { ecpFromConfigFlag, terminateIfNeeded } from "../src/lib/load-ecp.js"
 import { listInstalledPlugins, installedPluginNames } from "../src/lib/installed-plugins.js"
 import { argvFlagValue, argvHasFlag } from "../src/lib/argv.js"
 import { wantsYes } from "../src/lib/confirm.js"
@@ -106,6 +108,10 @@ describe("generated COMMANDS", () => {
     expect(COMMANDS["workflows:install"]).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
     expect(COMMANDS.config).toBeDefined()
+    expect(COMMANDS["config:init"]).toBeDefined()
+    expect(COMMANDS["config:edit"]).toBeDefined()
+    expect(COMMANDS["environments:init"]).toBeUndefined()
+    expect(COMMANDS["environments:edit"]).toBeUndefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
     const pluginIds = Object.keys(COMMANDS).filter((id) => id === "plugins" || id.startsWith("plugins:"))
     expect(new Set(pluginIds).size).toBe(pluginIds.length)
@@ -248,29 +254,44 @@ describe("runs operations", () => {
     const previous = process.env.ECP_RUNS_DIR
     process.env.ECP_RUNS_DIR = dir
     const workflowPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "workflow.ecp.ts")
-    const envPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "environment.ts")
+    const ecp = await environment(NODE_ENVIRONMENT_ID, "approval")
+      .with([
+        extension(testExtension),
+        policy(approvalPolicy).with({
+          requireApprovalFor: ["@executioncontrolprotocol/test.echo"],
+        }),
+      ])
+      .init()
+    const host: EcpHost = {
+      ecp,
+      registry: ecp.getRegistry(),
+      environmentId: NODE_ENVIRONMENT_ID,
+      output: "pretty",
+    }
+    const approvalCtx = { ...ctx(), host }
     try {
       await expect(
-        runOperation.handler({ "workflow-path": workflowPath, env: envPath }, ctx())
+        runOperation.handler({ "workflow-path": workflowPath }, approvalCtx)
       ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
-      const listed = (await runsListOperation.handler({ status: "paused" }, ctx())) as Array<{
+      const listed = (await runsListOperation.handler({ status: "paused" }, approvalCtx)) as Array<{
         runId: string
       }>
       const pausedId = listed[0]?.runId
       expect(pausedId).toBeDefined()
       await expect(
-        runsResumeOperation.handler({ "run-id": pausedId!, env: envPath }, ctx())
+        runsResumeOperation.handler({ "run-id": pausedId! }, approvalCtx)
       ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
       const continued = (await runsResumeOperation.handler(
-        { "run-id": pausedId!, env: envPath, approve: true },
-        ctx()
+        { "run-id": pausedId!, approve: true },
+        approvalCtx
       )) as { run: { status: string; id: string } }
       expect(continued.run.status).toBe("completed")
-      const shown = (await runsShowOperation.handler({ "run-id": continued.run.id }, ctx())) as {
+      const shown = (await runsShowOperation.handler({ "run-id": continued.run.id }, approvalCtx)) as {
         approvals?: Array<{ stepId: string }>
       }
       expect(shown.approvals?.[0]?.stepId).toBe("echo")
     } finally {
+      await ecp.terminate()
       if (previous === undefined) delete process.env.ECP_RUNS_DIR
       else process.env.ECP_RUNS_DIR = previous
     }
@@ -459,7 +480,7 @@ describe("lib helpers", () => {
     )
     expect(formatPluginPackage("toon")).toBe("@executioncontrolprotocol/plugin-format-toon")
     expect(formatPluginPackage("mermaid")).toBe("@executioncontrolprotocol/plugin-format-mermaid")
-    const { ecp, terminate } = await ecpFromEnvFlag(undefined)
+    const { ecp, terminate } = await ecpFromConfigFlag({})
     try {
       expect(await applyFormat(ecp, { a: 1 }, undefined)).toEqual({ a: 1 })
       await expect(applyFormat(ecp, { a: 1 }, "mermaid")).rejects.toMatchObject({
@@ -500,9 +521,9 @@ describe("lib helpers", () => {
     expect(argvHasFlag(["--json=true"], "json")).toBe(true)
     expect(argvHasFlag(["-h"], "help", "h")).toBe(true)
     expect(argvHasFlag([], "json")).toBe(false)
-    expect(argvFlagValue(["--env", "x.ts"], "env")).toBe("x.ts")
-    expect(argvFlagValue(["--env=x.ts"], "env")).toBe("x.ts")
-    expect(argvFlagValue(["--other"], "env")).toBeUndefined()
+    expect(argvFlagValue(["--config", "x.ts"], "config")).toBe("x.ts")
+    expect(argvFlagValue(["--config=x.ts"], "config")).toBe("x.ts")
+    expect(argvFlagValue(["--other"], "config")).toBeUndefined()
     expect(isFirstPartyPackage("@executioncontrolprotocol/plugin-jsonata")).toBe(true)
     expect(npmRegistryOrigin()).toMatch(/registry/)
     expect(wantsYes(["--yes"])).toBe(true)

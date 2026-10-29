@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Authored config is TypeScript/JavaScript; machine-managed state is JSON.**
 
-Workflows (`*.ecp.ts`) and the environment file (`environment.ecp.ts`) are `.ts`/`.js` —
+Workflows (`*.ecp.ts`) and the config file (`config.ecp.ts`) are `.ts`/`.js` —
 code written with the fluent API and type-checked. The trust store (`trust.json`) and run
 journals (`run.json`, `steps/<id>.json`) are JSON — written and read by the CLI, never
 hand-edited.

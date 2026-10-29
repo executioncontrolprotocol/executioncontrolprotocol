@@ -9,7 +9,7 @@ export const NODE_HOST_PACKAGE = "@executioncontrolprotocol/node"
 export const EXPORTED_PACKAGE_NAME = "ecp-environment"
 
 /**
- * Project requirements plus environment-file imports to a Node `package.json`.
+ * Project requirements plus config-file imports to a Node `package.json`.
  * Unpinned rows use `"*"`. Binding config and secret values are omitted.
  * @category CLI
  */

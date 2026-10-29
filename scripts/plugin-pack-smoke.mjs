@@ -39,7 +39,7 @@ export const HOST_PACK_NAMES = [
 
 /**
  * One smoke per first-party plugin. Policy plugins have no commands; they
- * show up in `ecp describe --policies --json`.
+ * show up in `ecp environments describe --policies --json`.
  * @type {Array<{ package: string, dir: string, topic: string, args: string[], expectJson?: boolean, match?: RegExp }>}
  */
 export const PLUGIN_SMOKES = [
@@ -96,7 +96,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-budget",
     dir: "plugins/plugin-budget",
     topic: "budget",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /budget/i,
   },
@@ -104,7 +104,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-approval",
     dir: "plugins/plugin-approval",
     topic: "approval",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /approval/i,
   },
@@ -112,7 +112,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-state-control",
     dir: "plugins/plugin-state-control",
     topic: "state-control",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /state-control/i,
   },
@@ -329,13 +329,19 @@ if (isMain()) {
 
     installPlugin("@executioncontrolprotocol/plugin-test")
 
-    const compiled = runEcp(["compile", join(fixtureDir, "workflow.ecp.ts"), "-o", "workflow.json"])
+    const compiled = runEcp([
+      "workflows",
+      "compile",
+      join(fixtureDir, "workflow.ecp.ts"),
+      "-o",
+      "workflow.json",
+    ])
     if (compiled.code !== 0) {
-      throw new Error(`ecp compile failed\n${compiled.stdout}\n${compiled.stderr}`)
+      throw new Error(`ecp workflows compile failed\n${compiled.stdout}\n${compiled.stderr}`)
     }
-    const validated = runEcp(["validate", "workflow.json"])
+    const validated = runEcp(["workflows", "validate", "workflow.json"])
     if (validated.code !== 0) {
-      throw new Error(`ecp validate failed\n${validated.stdout}\n${validated.stderr}`)
+      throw new Error(`ecp workflows validate failed\n${validated.stdout}\n${validated.stderr}`)
     }
     const ran = runEcp(["run", join(fixtureDir, "workflow.ecp.ts")])
     if (ran.code !== 0) {
