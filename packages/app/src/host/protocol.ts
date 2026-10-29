@@ -103,7 +103,8 @@ export interface AppSearchResponse {
 }
 
 /**
- * `GET /api/describe` returns {@link EnvironmentDescriptor}.
+ * `GET /api/describe` returns {@link EnvironmentDescriptor} with authoring
+ * I/O schemas and metadata (canvas palette).
  * `POST /api/validate` returns {@link ValidationResult}.
  * @category App
  */

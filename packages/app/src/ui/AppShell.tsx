@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   LATEST_ECP_VERSION,
+  type EnvironmentDescriptor,
   type RunResult,
   type ValidationResult,
   type WorkflowManifest,
@@ -19,6 +20,7 @@ import {
   type ReactFlowIoKind,
   type ReactFlowStepData,
 } from "../graph/index.js"
+import { CapabilitySearchDialog } from "./components/CapabilitySearchDialog.js"
 import { CodePanel } from "./components/CodePanel.js"
 import { IoConfigureDialog } from "./components/IoConfigureDialog.js"
 import { PaneTabBar } from "./components/PaneTabBar.js"
@@ -30,6 +32,9 @@ import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
 import { ValidationView } from "./components/ValidationView.js"
 import { useSplitPane } from "./hooks/useSplitPane.js"
 import { formatFluentManifest } from "./lib/fluent-beautify.js"
+import { addCapabilityStep } from "./lib/add-capability-step.js"
+import { capabilitySchemasFromDescriptor } from "./lib/capability-catalog.js"
+import type { CapabilityDiscoveryOrigin } from "./lib/capability-discovery.js"
 import {
   applyIoConfigure,
   applyStepConfigure,
@@ -102,6 +107,8 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [runBusy, setRunBusy] = useState(false)
   const [runResult, setRunResult] = useState<RunResult | undefined>()
   const [environment, setEnvironment] = useState<AppEnvironmentResponse | undefined>()
+  const [descriptor, setDescriptor] = useState<EnvironmentDescriptor | undefined>()
+  const [discovery, setDiscovery] = useState<CapabilityDiscoveryOrigin | undefined>()
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [validationOpen, setValidationOpen] = useState(false)
 
@@ -176,8 +183,20 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
       .catch(() => {
         /* Environment tab stays empty until the host answers. */
       })
+    const loadDescribe = () => {
+      void adapter
+        .describe()
+        .then((next) => {
+          if (!cancelled) setDescriptor(next)
+        })
+        .catch(() => {
+          if (!cancelled) setDescriptor(undefined)
+        })
+    }
+    loadDescribe()
     const stopEnvironment = adapter.watchEnvironment((next) => {
       setEnvironment(next)
+      loadDescribe()
     })
     const stop = adapter.watch((next) => {
       if (shouldApplyWatchedSource(sourceRef.current, acknowledgedRef.current)) {
@@ -254,17 +273,20 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
     [persist]
   )
 
-  const graphJson = useMemo(() => {
-    if (!loaded?.manifest) return ""
-    return JSON.stringify(workflowToReactFlow(loaded.manifest))
-  }, [loaded])
+  const capabilitySchemas = useMemo(
+    () => capabilitySchemasFromDescriptor(descriptor),
+    [descriptor]
+  )
+
+  const graphDoc = useMemo(() => {
+    if (!loaded?.manifest) return undefined
+    return workflowToReactFlow(loaded.manifest, undefined, { capabilitySchemas })
+  }, [loaded, capabilitySchemas])
+
+  const graphJson = useMemo(() => (graphDoc ? JSON.stringify(graphDoc) : ""), [graphDoc])
 
   const readOnly = loaded ? !loaded.roundTrip.ok : true
   const io = loaded ? workflowContract(loaded.manifest) : {}
-  const graphDoc = useMemo(() => {
-    if (!loaded?.manifest) return undefined
-    return workflowToReactFlow(loaded.manifest)
-  }, [loaded])
 
   const configureStep = configureStepId
     ? findStepById(loaded?.manifest.steps ?? [], configureStepId)
@@ -399,6 +421,9 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
                       ? undefined
                       : (connection) => void saveGraphEdit(disconnectPorts(loaded.manifest, connection))
                   }
+                  onDiscoverCapability={
+                    readOnly || !loaded ? undefined : (origin) => setDiscovery(origin)
+                  }
                   readOnly={readOnly}
                 />
               </div>
@@ -482,6 +507,22 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
             void saveGraphEdit(applyStepConfigure(loaded.manifest, configureStepId, payload)).finally(
               () => setConfigureBusy(false)
             )
+          }}
+        />
+      ) : null}
+      {discovery && loaded && !readOnly ? (
+        <CapabilitySearchDialog
+          descriptor={descriptor}
+          busy={configureBusy}
+          onClose={() => setDiscovery(undefined)}
+          onSelect={(capability) => {
+            setConfigureBusy(true)
+            void saveGraphEdit(
+              addCapabilityStep(loaded.manifest, { capability, origin: discovery })
+            ).finally(() => {
+              setConfigureBusy(false)
+              setDiscovery(undefined)
+            })
           }}
         />
       ) : null}

@@ -42,6 +42,7 @@ import type { EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import {
   ECP_PLUGINS_MISSING,
   EcpError,
+  type DescribeQuery,
   type PublicRunEvent,
   type ValidationResult,
 } from "@executioncontrolprotocol/core/types"
@@ -52,6 +53,15 @@ import { workflowLoadError } from "./load-error.js"
 import { openBrowser } from "./open-browser.js"
 import { generateAppToken, tokenFromRequest, tokensEqual } from "./token.js"
 import { resolveAppWebRoot } from "./web-root.js"
+
+/**
+ * App palette query: inventory plus JSON Schema I/O and metadata essays so the
+ * canvas can search descriptions and type-match ports.
+ */
+const APP_DESCRIBE_CATALOG_QUERY: DescribeQuery = {
+  capabilities: { include: ["inputSchema", "outputSchema", "metadata"] },
+  extensions: { include: ["metadata"] },
+}
 
 const MIME_BY_EXT: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -332,7 +342,7 @@ export async function serveApp(options: ServeAppOptions): Promise<AppServeHandle
       return
     }
     if (method === "GET" && url.pathname === "/api/describe") {
-      sendJson(res, 200, await runtimeHost.ecp.describe())
+      sendJson(res, 200, await runtimeHost.ecp.describe(APP_DESCRIBE_CATALOG_QUERY))
       return
     }
     if (method === "GET" && url.pathname === "/api/search") {

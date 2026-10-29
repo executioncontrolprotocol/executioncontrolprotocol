@@ -107,6 +107,20 @@ export interface ReactFlowDocument {
   edges: ReactFlowEdge[]
 }
 
+/** JSON Schema I/O for one capability, from authoring `describe()`. @category App */
+export interface CapabilityIoSchemas {
+  /** Projected capability input JSON Schema. */
+  inputSchema?: unknown
+  /** Projected capability output JSON Schema. */
+  outputSchema?: unknown
+}
+
+/**
+ * Capability id → JSON Schema I/O used when the encoder has no {@link Registry}.
+ * @category App
+ */
+export type CapabilitySchemaIndex = Record<string, CapabilityIoSchemas>
+
 /** Encode options. @category App */
 export interface ReactFlowEncodeOptions {
   /** Rank direction for dagre. Default `LR`. */
@@ -115,6 +129,11 @@ export interface ReactFlowEncodeOptions {
   nodeWidth?: number
   /** Node height used for layout. */
   nodeHeight?: number
+  /**
+   * Capability I/O JSON Schemas from `describe()`. Used when `registry` is
+   * omitted so the live App can still draw typed ports.
+   */
+  capabilitySchemas?: CapabilitySchemaIndex
 }
 
 /** Step run status for progress events. @category App */

@@ -53,5 +53,12 @@ const graph = workflowToReactFlow(loaded.manifest)
 Graph edits that cannot round-trip (relative imports, computed `.with()` values) open
 read-only. Encoder-written Fluent files stay editable.
 
+## Build from the canvas
+
+Drag a port from a step, Inputs, or Outputs onto empty canvas. A search overlay lists
+installed capabilities grouped by plugin. Filter by name or description, then select a
+row. The App inserts a step and wires the original branch to the first matching port
+type. Dagre still lays the graph out after save.
+
 React is an optional peer, needed only when you import the UI components. `plugin-app`
 serves `dist/web` and does not need React at run time.

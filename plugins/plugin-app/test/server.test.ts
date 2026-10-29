@@ -177,8 +177,14 @@ describe("serveApp", () => {
     const { origin, headers } = await start()
     const describe = await fetch(`${origin}/api/describe`, { headers })
     expect(describe.status).toBe(200)
-    const descriptor = (await describe.json()) as { environment: { id: string } }
+    const descriptor = (await describe.json()) as {
+      environment: { id: string }
+      capabilities: Array<{ id: string; inputSchema?: unknown; metadata?: unknown }>
+    }
     expect(descriptor.environment.id).toBeTruthy()
+    const echo = descriptor.capabilities.find((row) => row.id.endsWith(".echo"))
+    expect(echo?.inputSchema).toMatchObject({ type: "object" })
+    expect(echo?.metadata).toBeDefined()
 
     const search = await fetch(`${origin}/api/search?q=echo`, { headers })
     expect(search.status).toBe(200)

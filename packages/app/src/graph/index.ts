@@ -15,6 +15,7 @@ export {
   formatLiteralValue,
   truncateLiteralPreview,
   ensureOutputPort,
+  toJsonObjectSchema,
 } from "./ports-from-zod.js"
 export {
   valueSchemaFromZod,
@@ -33,6 +34,8 @@ export {
 } from "./progress.js"
 export { applyPublicRunEvent } from "./map-run-events.js"
 export type {
+  CapabilityIoSchemas,
+  CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,

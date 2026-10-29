@@ -18,7 +18,9 @@ import type {
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowNode,
+  ReactFlowPort,
 } from "../../graph/index.js"
+import { WORKFLOW_ACCEPTS_NODE_ID } from "../../graph/index.js"
 import { EcpStepNode } from "./EcpStepNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
@@ -36,9 +38,13 @@ import { PanelHeader } from "./PanelHeader.js"
 import { useReactFlowRunProgress } from "../hooks/useReactFlowRunProgress.js"
 import { edgeStatusClass, stepNodeStatusClass } from "../lib/reactflow-run-status.js"
 import { edgeMenuPosition } from "../lib/edge-menu.js"
+import {
+  discoveryOriginFromConnection,
+  shouldOpenCapabilityDiscovery,
+  type CapabilityDiscoveryOrigin,
+} from "../lib/capability-discovery.js"
 import { portsAreCompatible } from "../lib/step-connect.js"
 import { ensureAcceptsPlaceholder, ensureReturnsNode } from "../lib/workflow-io.js"
-import { WORKFLOW_ACCEPTS_NODE_ID } from "../../graph/index.js"
 
 const EDGE_INTERACTION_WIDTH = 24
 /** Match React Flow elevated edges/nodes; ellipsis overlay uses a higher tier in CSS. */
@@ -174,6 +180,8 @@ export interface ReactFlowCanvasProps {
   }) => void | Promise<void>
   /** When true, connecting ports is disabled. */
   readOnly?: boolean
+  /** Drop a port on empty canvas: open capability search. */
+  onDiscoverCapability?: (origin: CapabilityDiscoveryOrigin) => void
 }
 
 function ReactFlowCanvasInner({
@@ -184,6 +192,7 @@ function ReactFlowCanvasInner({
   onConfigureStep,
   onConnectPorts,
   onDisconnectPorts,
+  onDiscoverCapability,
   readOnly = false,
 }: ReactFlowCanvasProps) {
   const doc = useMemo(() => parseDocument(reactflowJson), [reactflowJson])
@@ -291,6 +300,50 @@ function ReactFlowCanvasInner({
       })
     },
     [onConnectPorts, isValidConnection, nodes]
+  )
+
+  const handleConnectEnd = useCallback(
+    (
+      _event: MouseEvent | TouchEvent,
+      state: {
+        fromNode: Node | null
+        fromHandle: { id: string | null; type: string | null } | null
+        toNode: Node | null
+      }
+    ) => {
+      if (!onDiscoverCapability) return
+      const fromNode = state.fromNode
+      const fromHandle = state.fromHandle
+      const fromHandleId = fromHandle?.id
+      if (
+        !shouldOpenCapabilityDiscovery({
+          readOnly,
+          fromNodeId: fromNode?.id,
+          fromHandleId,
+          toNodeId: state.toNode?.id,
+        })
+      ) {
+        return
+      }
+      if (!fromNode || !fromHandleId) return
+      const data = fromNode.data as { inputs?: ReactFlowPort[]; outputs?: ReactFlowPort[] }
+      const handleType = fromHandle?.type === "target" ? "target" : "source"
+      const port =
+        (handleType === "source" ? data.outputs : data.inputs)?.find((item) => item.id === fromHandleId) ?? {
+          id: fromHandleId,
+          name: fromHandleId,
+          typeLabel: "unknown",
+        }
+      onDiscoverCapability(
+        discoveryOriginFromConnection({
+          fromNodeId: fromNode.id,
+          fromHandleId,
+          fromHandleType: handleType,
+          port,
+        })
+      )
+    },
+    [onDiscoverCapability, readOnly]
   )
 
   const handleEdgesDelete = useCallback(
@@ -497,6 +550,7 @@ function ReactFlowCanvasInner({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={handleConnect}
+              onConnectEnd={handleConnectEnd}
               onEdgesDelete={handleEdgesDelete}
               onBeforeDelete={handleBeforeDelete}
               onEdgeContextMenu={handleEdgeContextMenu}
