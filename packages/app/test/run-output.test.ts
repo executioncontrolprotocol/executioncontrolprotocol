@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { LATEST_ECP_VERSION, type RunResult } from "@executioncontrolprotocol/core/types"
-import { valueForReturnPort } from "../src/ui/lib/run-output-view.js"
+import {
+  formatScalarDisplay,
+  isStructuredReturnDisplay,
+  valueForReturnPort,
+} from "../src/ui/lib/run-output-view.js"
+import { draftForPort, editorKindForValueSchema } from "../src/ui/lib/step-configure.js"
 import { collectRunFailureMessages, isFailedRunResult } from "../src/ui/lib/run-progress-sync.js"
 import { runFormPortsFromAccepts } from "../src/ui/lib/workflow-io.js"
 
@@ -20,6 +25,22 @@ describe("run output mapping", () => {
     }
     expect(isFailedRunResult(result)).toBe(true)
     expect(collectRunFailureMessages(result)).toContain("echo exploded")
+  })
+
+  it("displays a string return without JSON quotes", () => {
+    expect(formatScalarDisplay("hello from fluent API", "json")).toBe("hello from fluent API")
+    expect(formatScalarDisplay("hello from fluent API", "string")).toBe("hello from fluent API")
+    expect(isStructuredReturnDisplay("hello from fluent API", "json")).toBe(false)
+  })
+
+  it("treats an empty valueSchema as the typeLabel, not a JSON blob", () => {
+    expect(editorKindForValueSchema({}, "string!")).toBe("string")
+    expect(
+      draftForPort(
+        { id: "echo.echo", name: "echo.echo", typeLabel: "string!", valueSchema: {} },
+        "hello from fluent API"
+      )
+    ).toBe("hello from fluent API")
   })
 
   it("builds an empty accepts form when the workflow has no accepts schema", () => {

@@ -23,6 +23,8 @@ export function valueForReturnPort(output: unknown, portName: string): unknown {
  * Prefer a lone `text` string field (common model-generate shape) when present.
  */
 function formatStructuredDisplay(value: unknown): string {
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
   if (isRecord(value) && typeof value.text === "string") {
     const keys = Object.keys(value)
     if (keys.length === 1 || (keys.length === 2 && "usage" in value)) {
@@ -77,7 +79,8 @@ export function formatScalarDisplay(value: unknown, kind: ConfigEditorKind): str
  */
 export function isStructuredReturnDisplay(value: unknown, kind: ConfigEditorKind): boolean {
   if (value === null || value === undefined) return false
-  if (kind === "json" || kind === "file") return true
+  if (kind === "file") return true
+  if (kind === "json") return typeof value === "object"
   if (kind === "multiselect" && Array.isArray(value)) {
     return !value.every((v) => typeof v === "string" || typeof v === "number" || typeof v === "boolean")
   }

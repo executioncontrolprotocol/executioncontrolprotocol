@@ -12,11 +12,11 @@ import { fileAcceptHint } from "../lib/file-accept.js"
 
 function BooleanToggle({
   value,
-  busy,
+  disabled,
   onChange,
 }: {
   value: string
-  busy: boolean
+  disabled: boolean
   onChange: (next: string) => void
 }) {
   const checked = value.trim().toLowerCase() === "true"
@@ -28,7 +28,7 @@ function BooleanToggle({
           className="peer sr-only"
           checked={checked}
           onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-          disabled={busy}
+          disabled={disabled}
         />
         <span className="absolute inset-0 rounded-full border border-outline-variant bg-surface-container-high transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 peer-disabled:opacity-50" />
         <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-on-surface shadow transition-transform peer-checked:translate-x-5 peer-checked:bg-on-primary" />
@@ -98,13 +98,14 @@ function fileDraftSummary(value: string): string | null {
   return `Value set (${trimmed.length} chars)`
 }
 
-/** Schema-driven editor used by step configure and the run-input form. */
+/** Schema-driven editor used by step configure and the run input/output forms. */
 export function ConfigFieldControl({
   kind,
   fieldId,
   name,
   value,
   busy,
+  readOnly = false,
   onChange,
   enumOptions,
   filePickerEnabled = true,
@@ -120,6 +121,7 @@ export function ConfigFieldControl({
   name: string
   value: string
   busy: boolean
+  readOnly?: boolean
   onChange: (next: string) => void
   enumOptions?: Array<string | number | boolean>
   filePickerEnabled?: boolean
@@ -130,13 +132,14 @@ export function ConfigFieldControl({
   maxLength?: number
   testId?: string
 }) {
+  const disabled = busy || readOnly
   if (kind === "file") {
     return (
       <FileFieldControl
         name={name}
         value={value}
         busy={busy}
-        disabled={!filePickerEnabled}
+        disabled={!filePickerEnabled || readOnly}
         accept={accept}
         hint={
           fileHint ??
@@ -167,7 +170,7 @@ export function ConfigFieldControl({
                   value={key}
                   checked={value === key}
                   onChange={() => onChange(key)}
-                  disabled={busy}
+                  disabled={disabled}
                 />
                 {key}
               </label>
@@ -182,7 +185,7 @@ export function ConfigFieldControl({
         className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 font-mono text-sm text-on-surface outline-none focus:border-outline"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        disabled={busy}
+        disabled={disabled}
       >
         {enumOptions.map((opt) => (
           <option key={String(opt)} value={String(opt)}>
@@ -209,7 +212,7 @@ export function ConfigFieldControl({
                 className="h-4 w-4 accent-primary"
                 checked={selected.has(key)}
                 onChange={(e) => onChange(toggleMultiselectDraft(value, opt, e.target.checked))}
-                disabled={busy}
+                disabled={disabled}
               />
               {key}
             </label>
@@ -220,7 +223,7 @@ export function ConfigFieldControl({
   }
 
   if (kind === "boolean") {
-    return <BooleanToggle value={value} busy={busy} onChange={onChange} />
+    return <BooleanToggle value={value} disabled={disabled} onChange={onChange} />
   }
 
   if (kind === "number") {
@@ -230,7 +233,7 @@ export function ConfigFieldControl({
         className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 font-mono text-sm text-on-surface outline-none focus:border-outline"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        disabled={busy}
+        disabled={disabled}
       />
     )
   }
@@ -243,7 +246,7 @@ export function ConfigFieldControl({
           language="json"
           value={value}
           onChange={(next) => onChange(next ?? "")}
-          readOnly={busy}
+          readOnly={disabled}
         />
       </div>
     )
@@ -256,7 +259,7 @@ export function ConfigFieldControl({
         className="min-h-[9rem] w-full resize-y rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 font-mono text-sm text-on-surface outline-none focus:border-outline"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        disabled={busy}
+        disabled={disabled}
         spellCheck
         minLength={minLength}
         maxLength={maxLength}
@@ -271,7 +274,7 @@ export function ConfigFieldControl({
       className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 font-mono text-sm text-on-surface outline-none focus:border-outline"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      disabled={busy}
+      disabled={disabled}
       minLength={minLength}
       maxLength={maxLength}
     />
@@ -284,6 +287,7 @@ export function ConfigPortControl({
   port,
   value,
   busy,
+  readOnly = false,
   onChange,
   filePickerEnabled = true,
   fileHint,
@@ -295,6 +299,7 @@ export function ConfigPortControl({
   port: ReactFlowPort
   value: string
   busy: boolean
+  readOnly?: boolean
   onChange: (next: string) => void
   filePickerEnabled?: boolean
   fileHint?: string
@@ -313,6 +318,7 @@ export function ConfigPortControl({
       name={port.name}
       value={value}
       busy={busy}
+      readOnly={readOnly}
       onChange={onChange}
       enumOptions={optionsForPort(port)}
       filePickerEnabled={filePickerEnabled}
@@ -323,5 +329,54 @@ export function ConfigPortControl({
       maxLength={maxLength}
       testId={testId}
     />
+  )
+}
+
+/**
+ * Labeled port row used by run input and run output.
+ * @category App
+ */
+export function SchemaPortField({
+  fieldId,
+  port,
+  value,
+  busy,
+  readOnly = false,
+  onChange,
+  error,
+  filePickerEnabled,
+  accept,
+  onFile,
+}: {
+  fieldId: string
+  port: ReactFlowPort
+  value: string
+  busy: boolean
+  readOnly?: boolean
+  onChange: (next: string) => void
+  error?: string
+  filePickerEnabled?: boolean
+  accept?: string
+  onFile?: (file: File) => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="font-mono text-label text-on-surface">
+        {port.name}
+        <span className="text-outline">:{port.typeLabel}</span>
+      </span>
+      <ConfigPortControl
+        fieldId={fieldId}
+        port={port}
+        value={value}
+        busy={busy}
+        readOnly={readOnly}
+        onChange={onChange}
+        filePickerEnabled={filePickerEnabled}
+        accept={accept}
+        onFile={onFile}
+      />
+      {error ? <span className="block text-label text-error">{error}</span> : null}
+    </div>
   )
 }

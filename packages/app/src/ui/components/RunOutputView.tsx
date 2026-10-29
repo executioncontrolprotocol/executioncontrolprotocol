@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ReactFlowPort } from "../../graph/index.js"
 import { runFormPortsFromReturns } from "../lib/workflow-io.js"
-import { editorKindForPort } from "../lib/step-configure.js"
+import { draftForPort } from "../lib/step-configure.js"
 import {
-  formatScalarDisplay,
   isMediaReturnValue,
-  isStructuredReturnDisplay,
   mediaRefsForReturnValue,
   valueForReturnPort,
 } from "../lib/run-output-view.js"
@@ -14,6 +12,7 @@ import {
   type ReadMediaFn,
   type ResolvedMediaPreview,
 } from "../lib/resolve-media-preview.js"
+import { SchemaPortField } from "./ConfigFieldControl.js"
 import { MediaPreview } from "./MediaPreview.js"
 
 /** Props for {@link RunOutputView}. @category App */
@@ -90,9 +89,14 @@ function ReturnMediaField({
   }
   if (refs.length === 0) {
     return (
-      <pre className="max-h-40 overflow-auto rounded border border-outline-variant/40 bg-surface-container-lowest p-2 font-mono text-label text-on-surface-variant whitespace-pre-wrap">
-        {formatScalarDisplay(value, "file")}
-      </pre>
+      <SchemaPortField
+        fieldId={`run-out-${port.name}`}
+        port={port}
+        value={draftForPort(port, value)}
+        busy={false}
+        readOnly
+        onChange={() => undefined}
+      />
     )
   }
   return (
@@ -126,47 +130,9 @@ function ReturnMediaField({
   )
 }
 
-function ReturnFieldValue({
-  port,
-  value,
-  present,
-  onReadMedia,
-}: {
-  port: ReactFlowPort
-  value: unknown
-  present: boolean
-  onReadMedia?: ReadMediaFn
-}) {
-  if (!present) {
-    return <p className="text-label text-on-surface-variant">Missing</p>
-  }
-  const kind = editorKindForPort(port)
-  if (isMediaReturnValue(port, value)) {
-    return <ReturnMediaField port={port} value={value} onReadMedia={onReadMedia} />
-  }
-  if (isStructuredReturnDisplay(value, kind)) {
-    return (
-      <pre className="max-h-48 overflow-auto rounded border border-outline-variant/40 bg-surface-container-lowest p-2 font-mono text-label text-on-surface-variant whitespace-pre-wrap">
-        {formatScalarDisplay(value, kind)}
-      </pre>
-    )
-  }
-  if (kind === "longtext") {
-    return (
-      <p className="whitespace-pre-wrap text-body text-on-surface">
-        {formatScalarDisplay(value, kind)}
-      </p>
-    )
-  }
-  return (
-    <p className="whitespace-pre-wrap font-mono text-label text-on-surface">
-      {formatScalarDisplay(value, kind)}
-    </p>
-  )
-}
-
 /**
- * Schema-mapped read-only view of `result.output` (twin of {@link RunInputForm}).
+ * Schema-mapped read-only view of `result.output`.
+ * Uses the same {@link SchemaPortField} widgets as run input.
  * @category App
  */
 export function RunOutputView({
@@ -198,21 +164,28 @@ export function RunOutputView({
         </p>
       ) : null}
       {ports.map((port) => {
-        const present = hasOutputObject && port.name in output
         const value = valueForReturnPort(output, port.name)
+        if (isMediaReturnValue(port, value)) {
+          return (
+            <div key={port.id} className="space-y-1.5">
+              <span className="font-mono text-label text-on-surface">
+                {port.name}
+                <span className="text-outline">:{port.typeLabel}</span>
+              </span>
+              <ReturnMediaField port={port} value={value} onReadMedia={onReadMedia} />
+            </div>
+          )
+        }
         return (
-          <div key={port.id} className="space-y-1">
-            <span className="font-mono text-label text-on-surface">
-              {port.name}
-              <span className="text-outline">:{port.typeLabel}</span>
-            </span>
-            <ReturnFieldValue
-              port={port}
-              value={value}
-              present={present}
-              onReadMedia={onReadMedia}
-            />
-          </div>
+          <SchemaPortField
+            key={port.id}
+            fieldId={`run-out-${port.name}`}
+            port={port}
+            value={draftForPort(port, value)}
+            busy={false}
+            readOnly
+            onChange={() => undefined}
+          />
         )
       })}
     </div>

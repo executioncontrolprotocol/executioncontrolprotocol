@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { FileRef } from "@executioncontrolprotocol/core/types"
 import type { ReactFlowPort } from "../../graph/index.js"
-import { ConfigPortControl } from "./ConfigFieldControl.js"
+import { SchemaPortField } from "./ConfigFieldControl.js"
 import { draftForPort, editorKindForPort, parseEditedLiteral } from "../lib/step-configure.js"
 import { runFormPortsFromAccepts } from "../lib/workflow-io.js"
 import { fileRefToDraft } from "../lib/run-form-files.js"
@@ -97,25 +97,18 @@ export function RunInputForm({
           {ports.map((port: ReactFlowPort) => {
             const kind = editorKindForPort(port)
             return (
-              <div key={port.id} className="space-y-1.5">
-                <span className="font-mono text-label text-on-surface">
-                  {port.name}
-                  <span className="text-outline">:{port.typeLabel}</span>
-                </span>
-                <ConfigPortControl
-                  fieldId={`run-${port.name}`}
-                  port={port}
-                  value={drafts[port.name] ?? ""}
-                  busy={runBusy}
-                  onChange={(next) => setDrafts((prev) => ({ ...prev, [port.name]: next }))}
-                  filePickerEnabled={Boolean(onUploadFile)}
-                  accept={fileAcceptFromValueSchema(port.valueSchema)}
-                  onFile={kind === "file" ? (file) => void applyFile(port, file) : undefined}
-                />
-                {fieldErrors[port.name] ? (
-                  <span className="block text-label text-error">{fieldErrors[port.name]}</span>
-                ) : null}
-              </div>
+              <SchemaPortField
+                key={port.id}
+                fieldId={`run-${port.name}`}
+                port={port}
+                value={drafts[port.name] ?? ""}
+                busy={runBusy}
+                onChange={(next) => setDrafts((prev) => ({ ...prev, [port.name]: next }))}
+                error={fieldErrors[port.name]}
+                filePickerEnabled={Boolean(onUploadFile)}
+                accept={fileAcceptFromValueSchema(port.valueSchema)}
+                onFile={kind === "file" ? (file) => void applyFile(port, file) : undefined}
+              />
             )
           })}
         </div>

@@ -159,7 +159,6 @@ export function editorKindForValueSchema(
       if (fieldName && isLongTextParam(fieldName, valueTitle)) return "longtext"
       return "string"
     }
-    if (Object.keys(valueSchema).length === 0) return "json"
   }
 
   const fromLabel = editorKindForTypeLabel(typeLabelFallback ?? "string")

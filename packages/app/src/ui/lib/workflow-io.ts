@@ -320,6 +320,25 @@ function returnsPropertyName(sourceAs: string, sourceHandle?: string): string {
   return `${sourceAs}.${handle}`
 }
 
+/** True when the connection is the whole step payload, not a named output field. */
+function isWholeStepOutputHandle(sourceHandle?: string): boolean {
+  const handle = sourceHandle?.trim()
+  return !handle || handle === OUTPUT_HANDLE_ID
+}
+
+/**
+ * Schema copied onto a new `returns` property.
+ * Unknown field ports stay untyped so run validation does not assume object.
+ * A whole-step output (`output` handle) still defaults to object.
+ */
+function returnsSchemaHint(
+  valueSchema: Record<string, unknown> | undefined,
+  sourceHandle?: string
+): Record<string, unknown> {
+  if (valueSchema && Object.keys(valueSchema).length > 0) return valueSchema
+  return isWholeStepOutputHandle(sourceHandle) ? { type: "object" } : {}
+}
+
 /**
  * Add or update a `returns` property from a step connection.
  * Dot-path property names encode sub-field wiring (e.g. `inspected.metadata`).
@@ -337,7 +356,7 @@ export function applyReturnsConnection(
     return schemaFromIoFields(fields) ?? { type: "object", properties: {} }
   }
   const propertyName = returnsPropertyName(sourceAs, sourceHandle)
-  const schemaHint = valueSchema && Object.keys(valueSchema).length > 0 ? valueSchema : { type: "object" }
+  const schemaHint = returnsSchemaHint(valueSchema, sourceHandle)
   const placeholder =
     targetHandle === RETURNS_PLACEHOLDER_HANDLE || targetHandle.trim() === ""
 
