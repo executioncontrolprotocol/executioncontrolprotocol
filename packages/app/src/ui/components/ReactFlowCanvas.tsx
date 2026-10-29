@@ -6,6 +6,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
+  useNodesInitialized,
   useNodesState,
   useReactFlow,
   useUpdateNodeInternals,
@@ -45,13 +46,16 @@ import {
 } from "../lib/capability-discovery.js"
 import { portsAreCompatible } from "../lib/step-connect.js"
 import { ensureAcceptsPlaceholder, ensureReturnsNode } from "../lib/workflow-io.js"
+import {
+  CANVAS_FIT_VIEW_OPTIONS,
+  CANVAS_MIN_ZOOM,
+  canFitCanvasViewport,
+  focusCanvasPane,
+} from "../lib/fit-canvas.js"
 
 const EDGE_INTERACTION_WIDTH = 24
 /** Match React Flow elevated edges/nodes; ellipsis overlay uses a higher tier in CSS. */
 const SELECTED_EDGE_Z_INDEX = 1000
-/** Allow the graph to shrink into a narrow split pane. */
-const MIN_ZOOM = 0.15
-const FIT_VIEW_MIN_EDGE_PX = 32
 
 const nodeTypes = {
   "ecp-step": EcpStepNode,
@@ -62,28 +66,39 @@ const edgeTypes = {
   "ecp-data": EcpDataEdge,
 }
 
-/** Frame the graph once the pane has a real size (flex layout can be 0 on first paint). */
+/** Frame and focus the graph after load, reload, or pane resize once nodes are measured. */
 function FitViewWhenSized({
   width,
   height,
   nodeKey,
   nodeCount,
+  reloadKey,
+  rootRef,
 }: {
   width: number
   height: number
   nodeKey: string
   nodeCount: number
+  reloadKey: number
+  rootRef: { current: HTMLElement | null }
 }) {
   const { fitView } = useReactFlow()
+  const nodesInitialized = useNodesInitialized()
 
   useEffect(() => {
-    if (nodeCount === 0) return
-    if (width < FIT_VIEW_MIN_EDGE_PX || height < FIT_VIEW_MIN_EDGE_PX) return
+    if (!nodesInitialized) return
+    if (!canFitCanvasViewport(width, height, nodeCount)) return
+    let cancelled = false
     const frame = requestAnimationFrame(() => {
-      void fitView({ padding: 0.16, duration: 0, minZoom: MIN_ZOOM })
+      void fitView({ ...CANVAS_FIT_VIEW_OPTIONS }).then(() => {
+        if (!cancelled) focusCanvasPane(rootRef.current)
+      })
     })
-    return () => cancelAnimationFrame(frame)
-  }, [fitView, height, nodeCount, nodeKey, width])
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [fitView, height, nodeCount, nodeKey, nodesInitialized, reloadKey, rootRef, width])
 
   return null
 }
@@ -182,6 +197,11 @@ export interface ReactFlowCanvasProps {
   readOnly?: boolean
   /** Drop a port on empty canvas: open capability search. */
   onDiscoverCapability?: (origin: CapabilityDiscoveryOrigin) => void
+  /**
+   * Bumped on host load and file reload so the canvas refits and refocuses even
+   * when step ids are unchanged.
+   */
+  reloadKey?: number
 }
 
 function ReactFlowCanvasInner({
@@ -194,6 +214,7 @@ function ReactFlowCanvasInner({
   onDisconnectPorts,
   onDiscoverCapability,
   readOnly = false,
+  reloadKey = 0,
 }: ReactFlowCanvasProps) {
   const doc = useMemo(() => parseDocument(reactflowJson), [reactflowJson])
   const stepIds = useMemo(
@@ -573,8 +594,8 @@ function ReactFlowCanvasInner({
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView
-              fitViewOptions={{ padding: 0.16, minZoom: MIN_ZOOM }}
-              minZoom={MIN_ZOOM}
+              fitViewOptions={{ ...CANVAS_FIT_VIEW_OPTIONS }}
+              minZoom={CANVAS_MIN_ZOOM}
               nodesDraggable={false}
               nodesConnectable={!readOnly}
               elementsSelectable
@@ -589,6 +610,8 @@ function ReactFlowCanvasInner({
                 height={paneSize.height}
                 nodeKey={stepIds.join("\0")}
                 nodeCount={nodes.length}
+                reloadKey={reloadKey}
+                rootRef={canvasRef}
               />
               <Background gap={24} color="var(--color-surface-container-highest)" />
               <Controls className="ecp-rf-controls" showInteractive={false}>

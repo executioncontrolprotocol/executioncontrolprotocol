@@ -408,6 +408,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
               >
                 <ReactFlowCanvas
                   reactflowJson={graphJson}
+                  reloadKey={editorKey}
                   runBusy={runBusy}
                   onOpenRunTab={() => setWorkspaceTab("run")}
                   hasWorkflow={Boolean(loaded?.manifest)}
