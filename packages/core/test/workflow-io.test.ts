@@ -189,6 +189,59 @@ describe("jsonSchema helpers", () => {
     ])
   })
 
+  it("projects lazy object schemas so App ports see inner fields", () => {
+    const jobOutput: z.ZodTypeAny = z.lazy(() =>
+      z.object({
+        seed: z.number().int(),
+        image: z.object({ url: z.string() }),
+      }),
+    )
+    const jobResult: z.ZodTypeAny = z.lazy(() =>
+      z.object({
+        outputs: z.array(jobOutput),
+      }),
+    )
+    const schema = jsonSchemaFromZod(jobResult)
+    expect(jsonSchemaObjectProperties(schema).map((f) => f.name)).toEqual(["outputs"])
+    expect(schema).toMatchObject({
+      type: "object",
+      required: ["outputs"],
+      properties: {
+        outputs: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              seed: { type: "integer" },
+              image: { type: "object", properties: { url: { type: "string" } } },
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it("does not hang on recursive lazy objects", () => {
+    interface Node {
+      child?: Node
+    }
+    const node: z.ZodType<Node> = z.lazy(() =>
+      z.object({
+        child: node.optional(),
+      }),
+    )
+    expect(jsonSchemaFromZod(node).type).toBe("object")
+  })
+
+  it("still projects unions as empty so they do not fake ports", () => {
+    const union = z.union([
+      z.object({ status: z.literal("succeeded"), result: z.object({ outputs: z.array(z.string()) }) }),
+      z.object({ status: z.literal("running") }),
+    ])
+    expect(jsonSchemaFromZod(union)).toEqual({})
+    expect(jsonSchemaObjectProperties(jsonSchemaFromZod(union))).toEqual([])
+  })
+
   it("validates integer and object values", () => {
     expect(validateAgainstJsonSchema({ type: "object", properties: { n: { type: "integer" } }, required: ["n"] }, { n: 1 }).ok).toBe(true)
     expect(validateAgainstJsonSchema({ type: "object", properties: { n: { type: "integer" } }, required: ["n"] }, { n: 1.5 }).ok).toBe(false)

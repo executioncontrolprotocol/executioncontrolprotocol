@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { Config } from "@oclif/core"
@@ -39,6 +39,15 @@ export async function buildPlugin(dir: string): Promise<BuildReport> {
   const commands = toCommands(definition)
   const commandIds = Object.keys(commands)
   const wanted = new Set(commandIds)
+  for (const cls of Object.values(commands)) {
+    for (const alias of cls.aliases ?? []) wanted.add(alias)
+  }
+  const manifestPath = join(dir, "oclif.manifest.json")
+  try {
+    await unlink(manifestPath)
+  } catch {
+    // First build, or the previous manifest was already removed.
+  }
   const config = await Config.load({ root: dir })
   const cached: Record<string, unknown> = {}
   for (const cmd of config.commands) {
@@ -49,7 +58,7 @@ export async function buildPlugin(dir: string): Promise<BuildReport> {
     version: typeof pkg.version === "string" ? pkg.version : "0.0.0",
     commands: cached,
   }
-  await writeFile(join(dir, "oclif.manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
 
   return {
     dir,

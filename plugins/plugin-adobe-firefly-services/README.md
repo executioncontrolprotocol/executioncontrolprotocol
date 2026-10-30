@@ -1,6 +1,6 @@
 # @executioncontrolprotocol/plugin-adobe-firefly-services
 
-Adobe Firefly Services for ECP (Execution Control Protocol). One plugin, 84 generated capabilities. Install with:
+Adobe Firefly Services for ECP (Execution Control Protocol). One plugin, 68 generated capabilities (OpenAPI operations minus internal status/cancel). Install with:
 
 ```sh
 ecp plugins install adobe-firefly-services
@@ -79,9 +79,11 @@ Adobe Firefly Services APIs are often **202 async**. This package hides that fro
 workflows:
 
 - **Async submit** ops always poll internally via `pollAdobeJob` and return the
-  **completed** job / product payload (not `jobId` / `statusUrl` accept links).
-- Optional `pollIntervalMs` / `pollTimeoutMs` tune the wait; there is no `poll` flag.
-- **Status / cancel** caps remain for diagnostics; happy-path workflows should not need them.
+  inner **result** document (for example Firefly `{ outputs }`), not the job
+  envelope (`status`, `jobId`, `statusUrl`).
+- Optional `pollIntervalMs` / `pollTimeoutMs` on extension config tune the wait.
+  They are not step ports. There is no `poll` flag and no status/cancel
+  capabilities.
 - **Sync** caps (list/get metadata) are unchanged.
 
 `photoshop-generate-manifest` materializes the **PSD manifest JSON** (layer tree)
@@ -93,13 +95,10 @@ Generated handlers merge OpenAPI path/query/header/body into:
 
 ```ts
 {
-  path?: { ... },
-  query?: { ... },
-  headers?: { ... },
-  body?: { ... },
-  // async-submit only:
-  pollIntervalMs?: number,
-  pollTimeoutMs?: number,
+  // path, query, header, and JSON-body fields as top-level keys
+  prompt?: string,
+  "x-model-version"?: string,
+  body?: { ... }, // optional full JSON merge
 }
 ```
 

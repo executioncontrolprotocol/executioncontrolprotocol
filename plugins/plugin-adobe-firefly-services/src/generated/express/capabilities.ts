@@ -1,7 +1,6 @@
 /* eslint-disable */
 /** Generated Adobe express capabilities — do not edit. */
 import * as shells from "./shells.js"
-import { z } from "zod"
 import * as schemas from "./schemas.js"
 import { invokeAdobeOperation } from "../../runtime/invoke.js"
 
@@ -60,19 +59,5 @@ export const express_export_rendition = shells.express_export_rendition(async (i
     ctx,
     outputSchema: schemas.Schema_ExportRenditionResponse,
     asyncMode: "submit",
-  })
-})
-
-/** Job status */
-export const express_get_job_status = shells.express_get_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/status/{jobId}",
-    baseUrl: "https://express-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_JobStatusResponse, schemas.Schema_ExportRenditionResponse, schemas.Schema_GenerateVariationResponse]),
-    asyncMode: "none",
   })
 })

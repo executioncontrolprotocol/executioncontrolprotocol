@@ -87,16 +87,20 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     vi.restoreAllMocks()
   })
 
-  it("registers extension with generated capability count matching OpenAPI", () => {
+  it("registers extension with generated capability count matching OpenAPI minus status-cancel", () => {
     const openApiOps = countOpenApiOperations()
     expect(openApiOps).toBe(84)
-    expect(ADOBE_GENERATED_OPERATION_COUNT).toBe(openApiOps)
-    expect(adobeGeneratedCapabilities).toHaveLength(openApiOps)
-    expect(meta.operationCount).toBe(openApiOps)
-    expect(adobeFireflyServicesExtension.capabilities).toHaveLength(openApiOps)
+    expect(meta.skippedStatusCancel).toBe(16)
+    const generated = openApiOps - meta.skippedStatusCancel
+    expect(generated).toBe(68)
+    expect(ADOBE_GENERATED_OPERATION_COUNT).toBe(generated)
+    expect(adobeGeneratedCapabilities).toHaveLength(generated)
+    expect(meta.operationCount).toBe(generated)
+    expect(adobeFireflyServicesExtension.capabilities).toHaveLength(generated)
 
     const ids = adobeFireflyServicesExtension.capabilities.map((c) => c.id).sort()
     expect(ids).toEqual([...meta.operations].sort())
+    expect(ids.some((id) => /job-status|job-result|cancel/.test(id))).toBe(false)
     expect(adobeFireflyServicesExtension.id).toBe("@executioncontrolprotocol/adobe-firefly-services")
     expect(adobeFireflyServicesExtension.metadata?.topicAlias).toBe("firefly")
     expect(adobeFireflyServicesExtension.supportedEnvironments).toEqual([
@@ -156,12 +160,8 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
         input: { body: { prompt: "sunset" } },
       },
       {
-        id: "@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status",
-        input: { jobId: "job-1" },
-      },
-      {
-        id: "@executioncontrolprotocol/adobe-firefly-services.express-get-job-status",
-        input: { jobId: "job-2" },
+        id: "@executioncontrolprotocol/adobe-firefly-services.express-tagged-documents",
+        input: {},
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
@@ -170,10 +170,6 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v1",
         input: {},
-      },
-      {
-        id: "@executioncontrolprotocol/adobe-firefly-services.illustrator-facade-job-status",
-        input: { jobId: "job-3" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
@@ -210,25 +206,24 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     }
   })
 
-  it("classifies operations into async-submit, status-cancel, and sync", () => {
+  it("classifies generated operations into async-submit and sync", () => {
     expect(meta.operationClasses).toEqual({
       "async-submit": 48,
-      "status-cancel": 16,
       sync: 20,
     })
     expect(meta.operationClassById["@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest"]).toBe(
       "async-submit",
     )
-    expect(meta.operationClassById["@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status"]).toBe(
-      "status-cancel",
-    )
+    expect(
+      meta.operationClassById["@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status"],
+    ).toBeUndefined()
     expect(meta.operationClassById["@executioncontrolprotocol/adobe-firefly-services.audio-video-voices"]).toBe("sync")
     expect(
       meta.operationClassById["@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async"],
     ).toBe("async-submit")
   })
 
-  it("async-submit inputs keep wait knobs and do not require poll", () => {
+  it("async-submit inputs omit poll knobs", () => {
     const cap = adobeFireflyServicesExtension.capabilities.find(
       (c) => c.id === "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
     )
@@ -243,10 +238,36 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
           },
         ],
       },
-      pollIntervalMs: 1000,
     })
     expect(ok.success, JSON.stringify(ok.error?.format())).toBe(true)
     expect(ok.data).not.toHaveProperty("poll")
+    expect(ok.data).not.toHaveProperty("pollIntervalMs")
+    expect(ok.data).not.toHaveProperty("pollTimeoutMs")
+    const withPollKnobs = cap!.inputSchema!.safeParse({
+      image: { source: { url: "https://x.example/a.psd" } },
+      pollIntervalMs: 1000,
+    })
+    expect(withPollKnobs.success).toBe(true)
+    expect(withPollKnobs.data).not.toHaveProperty("pollIntervalMs")
+  })
+
+  it("points firefly generate-images output at JobResult fields", () => {
+    const cap = adobeFireflyServicesExtension.capabilities.find(
+      (c) => c.id === "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
+    )
+    expect(cap).toBeDefined()
+    const parsed = cap!.outputSchema!.safeParse({
+      outputs: [{ seed: 1, image: { url: "https://cdn.example/out.png" } }],
+    })
+    expect(parsed.success, JSON.stringify(parsed.error?.format())).toBe(true)
+    expect(cap!.metadata?.projections?.some((p) => /job identifier/i.test(p.summary))).toBe(false)
+  })
+
+  it("accepts poll timing on extension config", () => {
+    const schema = adobeFireflyServicesExtension.configSchema
+    expect(schema!.safeParse({ pollIntervalMs: 500, pollTimeoutMs: 10_000 }).success).toBe(true)
+    expect(schema!.safeParse({ pollIntervalMs: 0 }).success).toBe(false)
+    expect(schema!.safeParse({ pollTimeoutMs: -1 }).success).toBe(false)
   })
 
   it("invokes one mocked call per family", async () => {
@@ -269,11 +290,8 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
           result: { outputs: [{ seed: 1, image: { url: "https://cdn.example/out.png" } }] },
         })
       }
-      if (url.includes("photoshop-api.adobe.io") && url.includes("/v2/status/")) {
-        return jsonResponse({ jobId: "ps-1", status: "succeeded" })
-      }
-      if (url.includes("express-api.adobe.io") && url.includes("/status/")) {
-        return jsonResponse({ jobId: "ex-1", status: "succeeded" })
+      if (url.includes("express-api.adobe.io") && url.includes("tagged-documents")) {
+        return jsonResponse({ documents: [] })
       }
       if (url.includes("indesign.adobe.io") && url.includes("app-versions")) {
         return jsonResponse([{ product: "InDesign", status: "active" }])
@@ -284,14 +302,6 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
           url: "https://space.example/1",
           expiry: "2099-01-01T00:00:00Z",
           files: null,
-        })
-      }
-      if (url.includes("illustrator-api.adobe.io") && url.includes("/v1/status/")) {
-        return jsonResponse({
-          jobId: "ai-1",
-          status: "failed",
-          error_code: "x",
-          message: "boom",
         })
       }
       if (url.includes("run-workflow.adobe.io") && url.includes("/batches")) {
@@ -314,12 +324,8 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
         input: { prompt: "dunes" },
       },
       {
-        id: "@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status",
-        input: { jobId: "ps-1" },
-      },
-      {
-        id: "@executioncontrolprotocol/adobe-firefly-services.express-get-job-status",
-        input: { jobId: "ex-1" },
+        id: "@executioncontrolprotocol/adobe-firefly-services.express-tagged-documents",
+        input: {},
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
@@ -328,10 +334,6 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v1",
         input: {},
-      },
-      {
-        id: "@executioncontrolprotocol/adobe-firefly-services.illustrator-facade-job-status",
-        input: { jobId: "ai-1" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
@@ -382,12 +384,109 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
             destination: { storageType: "azure", url: "https://blob.example/manifest.json" },
           },
         ],
-        pollIntervalMs: 1,
-        pollTimeoutMs: 5_000,
       },
-      ctx,
+      { ...ctx, extensionConfig: { ...ctx.extensionConfig, pollIntervalMs: 1, pollTimeoutMs: 5_000 } },
     )
 
     expect(out).toEqual({ layers: [{ id: 7, name: "Headline" }], name: "Poster" })
+  })
+
+  it("generate-images returns unwrapped outputs, not the job envelope", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("adobelogin.com") || url.includes("/ims/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 3600 })
+      }
+      if (url.includes("firefly-api.adobe.io") && url.includes("generate-async")) {
+        return jsonResponse({
+          jobId: "ff-1",
+          statusUrl: "https://firefly-api.adobe.io/v3/status/ff-1",
+        })
+      }
+      if (url.includes("/v3/status/ff-1")) {
+        return jsonResponse({
+          status: "succeeded",
+          jobId: "ff-1",
+          result: { outputs: [{ seed: 1, image: { url: "https://cdn.example/out.png" } }] },
+        })
+      }
+      return jsonResponse({ unexpected: url }, 500)
+    })
+    vi.stubGlobal("fetch", fetchImpl)
+
+    const out = await capability(
+      "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
+    )({ prompt: "dunes" }, ctx)
+
+    expect(out).toEqual({
+      outputs: [{ seed: 1, image: { url: "https://cdn.example/out.png" } }],
+    })
+    expect(out).not.toHaveProperty("status")
+    expect(out).not.toHaveProperty("jobId")
+    expect(out).not.toHaveProperty("result")
+  })
+
+  it("failed poll throws before unwrap", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("adobelogin.com") || url.includes("/ims/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 3600 })
+      }
+      if (url.includes("generate-async")) {
+        return jsonResponse({
+          jobId: "ff-fail",
+          statusUrl: "https://firefly-api.adobe.io/v3/status/ff-fail",
+        })
+      }
+      if (url.includes("/v3/status/ff-fail")) {
+        return jsonResponse({
+          status: "failed",
+          jobId: "ff-fail",
+          result: { outputs: [{ seed: 1, image: { url: "https://cdn.example/out.png" } }] },
+        })
+      }
+      return jsonResponse({ unexpected: url }, 500)
+    })
+    vi.stubGlobal("fetch", fetchImpl)
+
+    await expect(
+      capability("@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async")(
+        { prompt: "dunes" },
+        ctx,
+      ),
+    ).rejects.toThrow(/Adobe async job failed/)
+  })
+
+  it("extension config pollTimeoutMs reaches pollAdobeJob", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("adobelogin.com") || url.includes("/ims/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 3600 })
+      }
+      if (url.includes("generate-async")) {
+        return jsonResponse({
+          jobId: "ff-slow",
+          statusUrl: "https://firefly-api.adobe.io/v3/status/ff-slow",
+        })
+      }
+      if (url.includes("/v3/status/ff-slow")) {
+        return jsonResponse({ status: "running", jobId: "ff-slow" })
+      }
+      return jsonResponse({ unexpected: url }, 500)
+    })
+    vi.stubGlobal("fetch", fetchImpl)
+
+    await expect(
+      capability("@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async")(
+        { prompt: "dunes" },
+        {
+          extensionConfig: {
+            ...ctx.extensionConfig,
+            pollIntervalMs: 1,
+            pollTimeoutMs: 5,
+          },
+        },
+      ),
+    ).rejects.toThrow(/timed out/)
   })
 })

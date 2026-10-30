@@ -58,12 +58,10 @@ export function indesign_data_merge(handler: CapabilityHandler) {
   "outputFolderPath": z.string().optional()
 }).optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
-  body: schemas.Schema_MergeDataRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_MergeDataRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
-    .withMetadata({"summary":"Perform a data merge","description":"Creates InDesign documents or PDFs by merging CSV data with InDesign templates. Supports multiple output formats: JPEG (`image/jpeg`), PNG (`image/png`), PDF (`application/pdf`), and InDesign (`application/x-indesign`).","useCases":["Indesign Data Merge tasks that need this operation","When the workflow goal is to perform a data merge"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Perform a data merge","description":"Creates InDesign documents or PDFs by merging CSV data with InDesign templates. Supports multiple output formats: JPEG (`image/jpeg`), PNG (`image/png`), PDF (`application/pdf`), and InDesign (`application/x-indesign`).","useCases":["Indesign Data Merge tasks that need this operation","When the workflow goal is to perform a data merge"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -78,9 +76,7 @@ export function indesign_data_merge_tags(handler: CapabilityHandler) {
   "filter": z.array(z.enum(["all", "text", "image", "qr"])).optional(),
   "includePageItemIdentifiers": z.boolean().optional()
 }).optional(),
-  body: schemas.Schema_MergeDataTagsRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_MergeDataTagsRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
     .withMetadata({"summary":"Get data merge tags","description":"Retrieves the data merge tags from a document.","useCases":["Indesign Data Merge tasks that need this operation","When the workflow goal is to get data merge tags"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
@@ -101,12 +97,10 @@ export function indesign_remap_links(handler: CapabilityHandler) {
 }))
 }).optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
-  body: schemas.Schema_RemapLinksRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_RemapLinksRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
-    .withMetadata({"summary":"Remap links","description":"Replaces file-based links in InDesign documents with AEM URLs. Particularly useful for customers working with Adobe Experience Manager (AEM) using Adobe Asset Link, enabling designers to work with output files that have direct links to AEM URLs.","useCases":["Indesign Remap Links tasks that need this operation","When the workflow goal is to remap links"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Remap links","description":"Replaces file-based links in InDesign documents with AEM URLs. Particularly useful for customers working with Adobe Experience Manager (AEM) using Adobe Asset Link, enabling designers to work with output files that have direct links to AEM URLs.","useCases":["Indesign Remap Links tasks that need this operation","When the workflow goal is to remap links"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -146,9 +140,7 @@ export function indesign_rendition_job(handler: CapabilityHandler) {
   "outputFolderPath": z.string().optional()
 }).optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
-  body: schemas.Schema_CreateRenditionRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_CreateRenditionRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
     .withMetadata({"summary":"Create JPEG, PNG, or PDF renditions","description":"Creates JPEG, PNG, or PDF renditions of InDesign documents. Supports multiple output formats: JPEG (`image/jpeg`), PNG (`image/png`), and PDF (`application/pdf`).","useCases":["Indesign Rendition tasks that need this operation","When the workflow goal is to create JPEG, PNG, or PDF renditions"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
@@ -169,12 +161,9 @@ export function indesign_list_custom_scripts(handler: CapabilityHandler) {
 /** Submit a Custom Script */
 export function indesign_submit_custom_script(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "indesign-submit-custom-script")
-    .withInput(z.object({
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
-}))
+    .withInput(z.object({}))
     .withOutput(schemas.Schema_succeededEvent)
-    .withMetadata({"summary":"Submit a Custom Script","description":"Submits custom script bundles for registration. Returns a URL for posting execution requests for the registered script.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to submit a Custom Script"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Submit a Custom Script","description":"Submits custom script bundles for registration. Returns a URL for posting execution requests for the registered script.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to submit a Custom Script"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -206,12 +195,10 @@ export function indesign_execute_custom_script(handler: CapabilityHandler) {
 }).optional()
 }).optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
-  body: schemas.Schema_BaseJobRequestWithOutput.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_BaseJobRequestWithOutput.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
-    .withMetadata({"summary":"Submit a custom script execution request","description":"Submits execution requests for custom scripts. Defines input assets and parameters that the custom script will use during execution.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to submit a custom script execution request"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Submit a custom script execution request","description":"Submits execution requests for custom scripts. Defines input assets and parameters that the custom script will use during execution.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to submit a custom script execution request"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -233,7 +220,7 @@ export function indesign_delete_custom_script(handler: CapabilityHandler) {
   script_name: z.string()
 }))
     .withOutput(z.object({}))
-    .withMetadata({"summary":"Delete a Custom Script","description":"Deletes a single registered custom script. All versions of the script will be permanently removed.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to delete a Custom Script"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Delete a Custom Script","description":"Deletes a single registered custom script. All versions of the script will be permanently removed.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to delete a Custom Script"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -250,7 +237,7 @@ export function indesign_update_script_app_version(handler: CapabilityHandler) {
     .withOutput(z.object({
   "message": z.string().optional()
 }))
-    .withMetadata({"summary":"Update Custom Script App Version","description":"Updates the InDesign app version configuration for a registered custom script. Allows customers to specify version strategies: use latest version, fix to a major version, or fix to a specific major and minor version.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to update Custom Script App Version"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Update Custom Script App Version","description":"Updates the InDesign app version configuration for a registered custom script. Allows customers to specify version strategies: use latest version, fix to a major version, or fix to a specific major and minor version.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to update Custom Script App Version"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -286,23 +273,10 @@ export function indesign_get_document_info(handler: CapabilityHandler) {
   "enabled": z.boolean().optional()
 }).optional()
 }).optional(),
-  body: schemas.Schema_DocumentInfoRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_DocumentInfoRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
     .withMetadata({"summary":"Get document information","description":"Retrieve comprehensive information about INDD/IDML documents. Returns data based on the enabled information types specified in the request.","useCases":["Indesign Document Info tasks that need this operation","When the workflow goal is to get document information"],"projections":[{"summary":"Inspect the structured result","description":"Read the returned document or asset facts you need for authoring, such as names, sizes, and ids."}]})
-    .withHandler(handler)
-}
-
-/** Get status - Document Info API */
-export function indesign_get_document_info_job_status(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "indesign-get-document-info-job-status")
-    .withInput(z.object({
-  "document-info_job_id": z.string()
-}))
-    .withOutput(z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]))
-    .withMetadata({"summary":"Get status - Document Info API","description":"Returns the latest status of a Document Info job. Poll this endpoint to retrieve the extracted document information including pages, links, fonts, page items, and text stories.","useCases":["Indesign Document Info tasks that need this operation","When the workflow goal is to get status - Document Info API"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
     .withHandler(handler)
 }
 
@@ -318,35 +292,9 @@ export function indesign_convert_pdfto_in_design(handler: CapabilityHandler) {
   "outputFilebaseString": z.string().optional()
 }).optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
-  body: schemas.Schema_ConvertToInDesignRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_ConvertToInDesignRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
-    .withMetadata({"summary":"Convert PDF to InDesign document","description":"Converts PDF documents to editable InDesign (INDD or IDML) format. The output is a ZIP file (default name 'output.zip') containing subfolders (named after each input PDF) with the converted document and associated assets. If `embedLinks` is false, assets are provided in a separate folder within the ZIP. If `embedLinks` is true, all links are embedded in the InDesign file. Returns warnings for missing fonts and links.","useCases":["Indesign Convert PDF to InDesign tasks that need this operation","When the workflow goal is to convert PDF to InDesign document"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
-    .withHandler(handler)
-}
-
-/** Get status - Convert PDF to InDesign API */
-export function indesign_get_convert_pdfto_in_design_job_status(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "indesign-get-convert-pdfto-in-design-job-status")
-    .withInput(z.object({
-  "convert-pdf-to-indesign_job_id": z.string()
-}))
-    .withOutput(z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]))
-    .withMetadata({"summary":"Get status - Convert PDF to InDesign API","description":"Returns the latest status of a job, in this case a PDF to InDesign conversion job. Poll this endpoint to retrieve the job results, warnings, and download URL of the output, in this case an output ZIP file.","useCases":["Indesign Convert PDF to InDesign tasks that need this operation","When the workflow goal is to get status - Convert PDF to InDesign API"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
-    .withHandler(handler)
-}
-
-/** Get the status of a job */
-export function indesign_get_job_status(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "indesign-get-job-status")
-    .withInput(z.object({
-  id: z.string(),
-  size: z.number().int().min(1).optional(),
-  page: z.number().int().min(0).optional()
-}))
-    .withOutput(z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]))
-    .withMetadata({"summary":"Get the status of a job","description":"Returns the latest status of an executed custom script job.","useCases":["Indesign Job Status tasks that need this operation","When the workflow goal is to get the status of a job"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
+    .withMetadata({"summary":"Convert PDF to InDesign document","description":"Converts PDF documents to editable InDesign (INDD or IDML) format. The output is a ZIP file (default name 'output.zip') containing subfolders (named after each input PDF) with the converted document and associated assets. If `embedLinks` is false, assets are provided in a separate folder within the ZIP. If `embedLinks` is true, all links are embedded in the InDesign file. Returns warnings for missing fonts and links.","useCases":["Indesign Convert PDF to InDesign tasks that need this operation","When the workflow goal is to convert PDF to InDesign document"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }

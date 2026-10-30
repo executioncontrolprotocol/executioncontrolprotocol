@@ -15,7 +15,7 @@ export const photoshop_auto_crop = shells.photoshop_auto_crop(async (input, ctx)
     parameters: {"body":["aspectRatio","focus","image","mode","outputType","zoom"]},
     bodySchema: schemas.Schema_AutoCropRequest,
     ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
+    outputSchema: schemas.Schema_Result,
     asyncMode: "submit",
   })
 })
@@ -30,7 +30,7 @@ export const photoshop_create_artboard = shells.photoshop_create_artboard(async 
     parameters: {"body":["artboardSpacing","images","outputs"]},
     bodySchema: schemas.Schema_CreateArtboardRequest,
     ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
+    outputSchema: schemas.Schema_Result,
     asyncMode: "submit",
   })
 })
@@ -45,7 +45,7 @@ export const photoshop_create_composite = shells.photoshop_create_composite(asyn
     parameters: {"body":["edits","fontOptions","image","outputs"]},
     bodySchema: schemas.Schema_CreateCompositeRequest,
     ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
+    outputSchema: schemas.Schema_Result,
     asyncMode: "submit",
   })
 })
@@ -60,7 +60,7 @@ export const photoshop_edit = shells.photoshop_edit(async (input, ctx) => {
     parameters: {"body":["edits","image","outputs"]},
     bodySchema: schemas.Schema_EditRequest,
     ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
+    outputSchema: schemas.Schema_Result,
     asyncMode: "submit",
   })
 })
@@ -75,7 +75,7 @@ export const photoshop_execute_actions = shells.photoshop_execute_actions(async 
     parameters: {"body":["image","options","outputs"]},
     bodySchema: schemas.Schema_ActionsRequest,
     ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
+    outputSchema: schemas.Schema_Result,
     asyncMode: "submit",
   })
 })
@@ -93,19 +93,5 @@ export const photoshop_generate_manifest = shells.photoshop_generate_manifest(as
     outputSchema: photoshopManifestDocumentSchema,
     asyncMode: "submit",
     materialize: "photoshop-manifest",
-  })
-})
-
-/** Get Job Status */
-export const photoshop_get_job_status = shells.photoshop_get_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v2/status/{jobId}",
-    baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: schemas.Schema_JobStatusResponse,
-    asyncMode: "none",
   })
 })

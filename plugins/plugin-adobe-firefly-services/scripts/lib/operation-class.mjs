@@ -36,25 +36,25 @@ const ACCEPT_SCHEMA_NAMES = new Set([
  * @type {Record<string, string>}
  */
 export const ASYNC_FINAL_OUTPUT_BY_OP = {
-  // photoshop
-  "photoshop-auto-crop": "JobStatusResponse",
-  "photoshop-create-artboard": "JobStatusResponse",
-  "photoshop-create-composite": "JobStatusResponse",
-  "photoshop-edit": "JobStatusResponse",
-  "photoshop-execute-actions": "JobStatusResponse",
+  // photoshop — unwrap JobStatusResponse.result
+  "photoshop-auto-crop": "Result",
+  "photoshop-create-artboard": "Result",
+  "photoshop-create-composite": "Result",
+  "photoshop-edit": "Result",
+  "photoshop-execute-actions": "Result",
   "photoshop-generate-manifest": "__photoshopManifestDocumentSchema",
 
-  // firefly
-  "firefly-generate-images-v3-async": "JobResponse",
-  "firefly-generate-images-v5-async": "JobResponse",
-  "firefly-generate-similar-images-v3-async": "JobResponse",
-  "firefly-expand-images-v3-async": "JobResponse",
-  "firefly-fill-images-v3-async": "JobResponse",
-  "firefly-generate-object-composite-v3-async": "JobResponse",
-  "firefly-precise-composite": "JobResponse",
-  "firefly-adaptive-composite": "JobResponse",
-  "firefly-precise-upsampler-v3-async": "JobResponse",
-  "firefly-generate-video-v3": "JobResponse",
+  // firefly — unwrap JobResponse.result
+  "firefly-generate-images-v3-async": "JobResult",
+  "firefly-generate-images-v5-async": "JobResult",
+  "firefly-generate-similar-images-v3-async": "JobResult",
+  "firefly-expand-images-v3-async": "JobResult",
+  "firefly-fill-images-v3-async": "JobResult",
+  "firefly-generate-object-composite-v3-async": "JobResult",
+  "firefly-precise-composite": "JobResult",
+  "firefly-adaptive-composite": "JobResult",
+  "firefly-precise-upsampler-v3-async": "PreciseUpsamplerResponse",
+  "firefly-generate-video-v3": "JobResult",
 
   // express — status endpoint returns this union shape when complete
   "express-generate-variation": "GenerateVariationResponse",
@@ -92,13 +92,13 @@ export const ASYNC_FINAL_OUTPUT_BY_OP = {
   // creative-production
   "creative-production-batch-execute": "BatchStatusResponse",
 
-  // substance3d — 202 body already uses job-shaped schemas; poll fills result
-  "substance3d-v1-composites-compose": "restv1beta.ComposeSceneResponse",
-  "substance3d-v1-scenes-assemble": "restv1beta.CreateSceneResponse",
-  "substance3d-v1-scenes-convert": "restv1beta.ModelConvertResponse",
-  "substance3d-v1-scenes-describe": "restv1beta.SceneDescResponse",
-  "substance3d-v1-scenes-render": "restv1beta.RenderSceneResponse",
-  "substance3d-v1-scenes-render-basic": "restv1beta.RenderModelResponse",
+  // substance3d — unwrap the inner job result after poll
+  "substance3d-v1-composites-compose": "restv1beta.ComposeSceneJobResult",
+  "substance3d-v1-scenes-assemble": "restv1beta.CreateSceneJobResult",
+  "substance3d-v1-scenes-convert": "restv1beta.ModelConvertJobResult",
+  "substance3d-v1-scenes-describe": "restv1beta.SceneDescJobResult",
+  "substance3d-v1-scenes-render": "restv1beta.RenderSceneJobResult",
+  "substance3d-v1-scenes-render-basic": "restv1beta.RenderSceneJobResult",
 }
 
 /**

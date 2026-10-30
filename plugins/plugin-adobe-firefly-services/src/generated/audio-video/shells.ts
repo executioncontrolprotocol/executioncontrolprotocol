@@ -24,23 +24,10 @@ export function audio_video_generate_speech(handler: CapabilityHandler) {
   output: z.object({
   "mediaType": schemas.Schema_SupportedAudioOutputAudioFormat
 }).optional(),
-  body: schemas.Schema_TTSRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_TTSRequest.optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
-    .withMetadata({"summary":"Generate speech from text","description":"This endpoint generates speech from a transcript. You can provide the transcript either as plain text or a pre-signed URL. The response will include a job ID and a status URL for tracking the job.","useCases":["Audio Video Text-to-speech tasks that need this operation","When the workflow goal is to generate speech from text"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
-    .withHandler(handler)
-}
-
-/** Get job status */
-export function audio_video_status(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "audio-video-status")
-    .withInput(z.object({
-  jobId: z.string()
-}))
-    .withOutput(schemas.Schema_StatusAPIResponse)
-    .withMetadata({"summary":"Get job status","description":"Provides the status and result of an asynchronous job. For Dynamic Graphics Render (DGR), returns the status of a Describe template or Render job.","useCases":["Audio Video Manage jobs tasks that need this operation","When the workflow goal is to get job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
+    .withMetadata({"summary":"Generate speech from text","description":"This endpoint generates speech from a transcript. You can provide the transcript either as plain text or a pre-signed URL. The response will include a job ID and a status URL for tracking the job.","useCases":["Audio Video Text-to-speech tasks that need this operation","When the workflow goal is to generate speech from text"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -53,9 +40,7 @@ export function audio_video_template_describe(handler: CapabilityHandler) {
   "url": z.string()
 }).optional(),
   compName: z.string().optional(),
-  body: schemas.Schema_TemplateDescribeRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_TemplateDescribeRequest.optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
     .withMetadata({"summary":"Describe template","description":"Analyzes a MOGRT (video template) file and returns a manifest of editable controls; fonts, images, audio, video and other supported values.","useCases":["Audio Video Dynamic Graphics Render tasks that need this operation","When the workflow goal is to describe template"],"projections":[{"summary":"Inspect the structured result","description":"Read the returned document or asset facts you need for authoring, such as names, sizes, and ids."}]})
@@ -138,24 +123,10 @@ export function audio_video_template_render(handler: CapabilityHandler) {
   "fileName": z.string().optional(),
   "destination": z.string().optional()
 })).optional(),
-  body: schemas.Schema_TemplateRenderRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_TemplateRenderRequest.optional()
 }))
     .withOutput(schemas.Schema_JobStatus)
-    .withMetadata({"summary":"Render template","description":"Renders one or more video variations by applying overrides and export presets. Submit up to 10 overrides per call for a subset of editable layers and get a pre-signed URL link to download the video file. For layers that are not editable, the system defaults are automatically applied at export.","useCases":["Audio Video Dynamic Graphics Render tasks that need this operation","When the workflow goal is to render template"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
-    .withHandler(handler)
-}
-
-/** Cancel a render job */
-export function audio_video_cancel_render_job(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "audio-video-cancel-render-job")
-    .withInput(z.object({
-  jobId: z.string(),
-  "x-request-id": z.string().optional()
-}))
-    .withOutput(schemas.Schema_CancelAcceptedResponse)
-    .withMetadata({"summary":"Cancel a render job","description":"Aborts an in-flight render job. Returns `202 Accepted` as soon as the cancellation has been accepted; subsequent calls to `GET /v1/status/{jobId}` will report `\"status\": \"canceled\"` once the worker has fully stopped the underlying render. **Applicable only to render jobs submitted via `POST /v1/templates/render`.** This endpoint does not apply to Describe, Reframe, TLS, TTS, or Avatar jobs. **Notes:** - Cancellation is idempotent. - Once propagated to the worker, in-progress outputs are not uploaded to the destinations specified in the original render request. - For a short window after the PUT, the status endpoint may still report `running`; poll until it transitions to `canceled`.","useCases":["Audio Video Dynamic Graphics Render tasks that need this operation","Audio Video Manage jobs tasks that need this operation","When the workflow goal is to cancel a render job"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
+    .withMetadata({"summary":"Render template","description":"Renders one or more video variations by applying overrides and export presets. Submit up to 10 overrides per call for a subset of editable layers and get a pre-signed URL link to download the video file. For layers that are not editable, the system defaults are automatically applied at export.","useCases":["Audio Video Dynamic Graphics Render tasks that need this operation","When the workflow goal is to render template"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -200,12 +171,10 @@ export function audio_video_generate_reframed_video(handler: CapabilityHandler) 
   "outputConfig": z.object({
   "aspectRatios": z.array(z.string())
 })
-}).optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+}).optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
-    .withMetadata({"summary":"Reframe video","description":"This endpoint enables you to reframe video using AI. Provide video input with a pre-signed URL to generate reframed video output. This API has more limited capabilities than the v2 endpoint, and may be deprecated soon. **It's recommended to use the v2 endpoint instead.**","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Reframe video","description":"This endpoint enables you to reframe video using AI. Provide video input with a pre-signed URL to generate reframed video output. This API has more limited capabilities than the v2 endpoint, and may be deprecated soon. **It's recommended to use the v2 endpoint instead.**","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -213,12 +182,10 @@ export function audio_video_generate_reframed_video(handler: CapabilityHandler) 
 export function audio_video_transcribe(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "audio-video-transcribe")
     .withInput(z.object({
-  body: schemas.Schema_TranscribeRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_TranscribeRequest
 }))
     .withOutput(schemas.Schema_FireflyJobResponse)
-    .withMetadata({"summary":"Transcribe media","description":"Generates transcripts and captions for the input audio or video in the source language or in a target language.","useCases":["Audio Video Translate and lip sync tasks that need this operation","When the workflow goal is to transcribe media"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Transcribe media","description":"Generates transcripts and captions for the input audio or video in the source language or in a target language.","useCases":["Audio Video Translate and lip sync tasks that need this operation","When the workflow goal is to transcribe media"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -226,12 +193,10 @@ export function audio_video_transcribe(handler: CapabilityHandler) {
 export function audio_video_dub(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "audio-video-dub")
     .withInput(z.object({
-  body: schemas.Schema_DubRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_DubRequest
 }))
     .withOutput(schemas.Schema_FireflyJobResponse)
-    .withMetadata({"summary":"Dub audio or video","description":"Generate dubbed video or audio. A composited lip sync can also be added for video dubbing.","useCases":["Audio Video Translate and lip sync tasks that need this operation","When the workflow goal is to dub audio or video"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Dub audio or video","description":"Generate dubbed video or audio. A composited lip sync can also be added for video dubbing.","useCases":["Audio Video Translate and lip sync tasks that need this operation","When the workflow goal is to dub audio or video"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -285,63 +250,10 @@ export function audio_video_generate_reframed_video_v2(handler: CapabilityHandle
   "sidecarDestination": schemas.Schema_Destination.optional()
 })]))
 })
-}).optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+}).optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
-    .withMetadata({"summary":"Reframe video v2","description":"This endpoint enables you to reframe the input media. You can provide a video input via a pre-signed URL to generate reframed output video.","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video v2"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
-    .withHandler(handler)
-}
-
-/** Get job result */
-export function audio_video_job_result_v2(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "audio-video-job-result-v2")
-    .withInput(z.object({
-  jobId: z.string()
-}))
-    .withOutput(z.union([z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string()
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.array(z.union([z.object({
-  "destination": z.object({
-  "url": z.string()
-})
-}), z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-})]))
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.array(z.union([z.object({
-  "destination": z.object({
-  "url": z.string()
-})
-}), z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-})]))
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.object({
-  "renditions": z.array(z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-}))
-})
-})]))
-    .withMetadata({"summary":"Get job result","description":"This endpoint retrieves the result of an asynchronous reframed job initiated using the job ID.","useCases":["Audio Video Reframe tasks that need this operation","Audio Video Manage jobs tasks that need this operation","When the workflow goal is to get job result"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
+    .withMetadata({"summary":"Reframe video v2","description":"This endpoint enables you to reframe the input media. You can provide a video input via a pre-signed URL to generate reframed output video.","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video v2"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -349,12 +261,10 @@ export function audio_video_job_result_v2(handler: CapabilityHandler) {
 export function audio_video_generate_avatar(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "audio-video-generate-avatar")
     .withInput(z.object({
-  body: schemas.Schema_AvatarRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_AvatarRequest
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
-    .withMetadata({"summary":"Generate avatar video from text","description":"Generates an avatar video from a provided transcript or audio file. You can provide the transcript either as plain text or a pre-signed URL. The API is asynchronous, so the response will include a job ID and a status URL for tracking the running job.","useCases":["Audio Video Text-to-Avatar tasks that need this operation","When the workflow goal is to generate avatar video from text"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Generate avatar video from text","description":"Generates an avatar video from a provided transcript or audio file. You can provide the transcript either as plain text or a pre-signed URL. The API is asynchronous, so the response will include a job ID and a status URL for tracking the running job.","useCases":["Audio Video Text-to-Avatar tasks that need this operation","When the workflow goal is to generate avatar video from text"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -362,12 +272,10 @@ export function audio_video_generate_avatar(handler: CapabilityHandler) {
 export function audio_video_transcribe__v1_transcribe(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "audio-video-transcribe-transcribe")
     .withInput(z.object({
-  body: schemas.Schema_TranscribeRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_TranscribeRequest
 }))
     .withOutput(schemas.Schema_FireflyJobResponse)
-    .withMetadata({"summary":"Transcribe media","description":"Generates transcripts for the input audio or video.","useCases":["When the workflow goal is to transcribe media"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Transcribe media","description":"Generates transcripts for the input audio or video.","useCases":["When the workflow goal is to transcribe media"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -375,22 +283,9 @@ export function audio_video_transcribe__v1_transcribe(handler: CapabilityHandler
 export function audio_video_dub__v1_dub(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "audio-video-dub-dub")
     .withInput(z.object({
-  body: schemas.Schema_DubRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_DubRequest
 }))
     .withOutput(schemas.Schema_FireflyJobResponse)
-    .withMetadata({"summary":"Dub audio or video","description":"Generate dubbed video or audio. A composited lip sync can be added for video dubbing.","useCases":["When the workflow goal is to dub audio or video"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
-    .withHandler(handler)
-}
-
-/** Get the result for a job */
-export function audio_video_job_result(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "audio-video-job-result")
-    .withInput(z.object({
-  jobId: z.string()
-}))
-    .withOutput(schemas.Schema_FireflyJobResponse)
-    .withMetadata({"summary":"Get the result for a job","description":"Provides the result for an async dub job.","useCases":["When the workflow goal is to get the result for a job"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
+    .withMetadata({"summary":"Dub audio or video","description":"Generate dubbed video or audio. A composited lip sync can be added for video dubbing.","useCases":["When the workflow goal is to dub audio or video"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }

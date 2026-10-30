@@ -5,11 +5,19 @@ import {
   isFileRefSchema,
 } from "../types/index.js"
 
-function unwrapZodType(type: z.ZodType): z.ZodType {
-  if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType)
-  if (type instanceof z.ZodDefault) return unwrapZodType(type.removeDefault() as z.ZodType)
-  if (type instanceof z.ZodNullable) return unwrapZodType(type.unwrap() as z.ZodType)
-  if (type instanceof z.ZodEffects) return unwrapZodType(type._def.schema as z.ZodType)
+/** Stop walking recursive `z.lazy()` graphs (Zod 3 re-runs the getter every access). */
+const MAX_JSON_SCHEMA_FROM_ZOD_DEPTH = 16
+
+function unwrapZodType(type: z.ZodType, seen: Set<z.ZodType> = new Set()): z.ZodType {
+  if (seen.has(type)) return type
+  seen.add(type)
+  if (type instanceof z.ZodOptional) return unwrapZodType(type.unwrap() as z.ZodType, seen)
+  if (type instanceof z.ZodDefault) return unwrapZodType(type.removeDefault() as z.ZodType, seen)
+  if (type instanceof z.ZodNullable) return unwrapZodType(type.unwrap() as z.ZodType, seen)
+  if (type instanceof z.ZodEffects) return unwrapZodType(type._def.schema as z.ZodType, seen)
+  if (type instanceof z.ZodLazy) {
+    return unwrapZodType((type as z.ZodLazy<z.ZodType>).schema, seen)
+  }
   return type
 }
 
@@ -53,6 +61,11 @@ function applyZodNumberChecks(
  * @category Schema
  */
 export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
+  return jsonSchemaFromZodAt(type, 0)
+}
+
+function jsonSchemaFromZodAt(type: z.ZodType, depth: number): Record<string, unknown> {
+  if (depth > MAX_JSON_SCHEMA_FROM_ZOD_DEPTH) return {}
   const description = zodDescription(type)
   const inner = unwrapZodType(type)
 
@@ -74,13 +87,13 @@ export function jsonSchemaFromZod(type: z.ZodType): Record<string, unknown> {
     else if (typeof value === "boolean") schema = { type: "boolean", enum: [value] }
     else schema = {}
   } else if (inner instanceof z.ZodArray) {
-    schema = { type: "array", items: jsonSchemaFromZod(inner.element as z.ZodType) }
+    schema = { type: "array", items: jsonSchemaFromZodAt(inner.element as z.ZodType, depth + 1) }
   } else if (inner instanceof z.ZodObject) {
     const properties: Record<string, Record<string, unknown>> = {}
     const required: string[] = []
     for (const [name, field] of Object.entries(inner.shape)) {
       const fieldType = field as z.ZodType
-      properties[name] = jsonSchemaFromZod(fieldType)
+      properties[name] = jsonSchemaFromZodAt(fieldType, depth + 1)
       if (!isOptionalField(fieldType)) required.push(name)
     }
     schema = { type: "object", properties }

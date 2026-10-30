@@ -12,12 +12,10 @@ export function creative_production_batch_execute(handler: CapabilityHandler) {
     .withInput(z.object({
   "api-version": z.enum(["1.0"]).optional(),
   workflow: schemas.Schema_BatchExecuteWorkflow.optional(),
-  body: schemas.Schema_BatchExecuteRequest.optional(),
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  body: schemas.Schema_BatchExecuteRequest.optional()
 }))
     .withOutput(schemas.Schema_BatchStatusResponse)
-    .withMetadata({"summary":"Execute a batch of assets through a workflow","description":"Start a new batch job to process multiple assets through a published workflow. The request body supplies the workflow identifier and `inputs`: a list of runs, where each run is an array of node input mappings (`node_id` plus `content` and/or `template`). Each run is processed separately through the workflow in parallel. Returns a `batchId` and `links` that can be used to track progress and retrieve results.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to execute a batch of assets through a workflow"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withMetadata({"summary":"Execute a batch of assets through a workflow","description":"Start a new batch job to process multiple assets through a published workflow. The request body supplies the workflow identifier and `inputs`: a list of runs, where each run is an array of node input mappings (`node_id` plus `content` and/or `template`). Each run is processed separately through the workflow in parallel. Returns a `batchId` and `links` that can be used to track progress and retrieve results.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to execute a batch of assets through a workflow"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -35,36 +33,6 @@ export function creative_production_list_batches(handler: CapabilityHandler) {
 }))
     .withOutput(schemas.Schema_ListBatchesResponse)
     .withMetadata({"summary":"List batches","description":"List all batches created by the authenticated user within their organization. Results are automatically filtered by the authenticated user's ID. Users can only view their own batches, not batches created by other users in the organization. Results are sorted by creation date (most recent first) and include pagination metadata.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to list batches"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
-    .withHandler(handler)
-}
-
-/** Get batch status */
-export function creative_production_get_batch_status(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "creative-production-get-batch-status")
-    .withInput(z.object({
-  "api-version": z.enum(["1.0"]).optional(),
-  batchId: z.string()
-}))
-    .withOutput(schemas.Schema_BatchStatusResponse)
-    .withMetadata({"summary":"Get batch status","description":"Get the current status and progress of a batch job. Returns the batch identifier, workflow identifier, status, asset and execution counters (including execution IDs), timestamps, and hypermedia links to cancel or list executions.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to get batch status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
-    .withHandler(handler)
-}
-
-/** Cancel a batch */
-export function creative_production_cancel_batch(handler: CapabilityHandler) {
-  return capabilityFor(EXT_ID, "creative-production-cancel-batch")
-    .withInput(z.object({
-  "api-version": z.enum(["1.0"]).optional(),
-  batchId: z.string()
-}))
-    .withOutput(z.object({
-  "batchId": z.string().optional(),
-  "status": z.enum(["cancelled"]).optional(),
-  "message": z.string().optional(),
-  "previousStatus": z.string().optional(),
-  "assets": schemas.Schema_BatchAssetCounts.optional()
-}))
-    .withMetadata({"summary":"Cancel a batch","description":"Cancel a batch job that is currently pending or running. Once cancelled, no new assets will be processed. Assets currently being processed may complete. The batch status will be updated to 'cancelled'. Cannot cancel batches that are already completed, failed, or cancelled.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to cancel a batch"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
     .withHandler(handler)
 }
 

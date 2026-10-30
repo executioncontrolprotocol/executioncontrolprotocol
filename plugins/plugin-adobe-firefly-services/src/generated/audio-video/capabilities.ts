@@ -33,20 +33,6 @@ export const audio_video_generate_speech = shells.audio_video_generate_speech(as
   })
 })
 
-/** Get job status */
-export const audio_video_status = shells.audio_video_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v1/status/{jobId}",
-    baseUrl: "https://audio-video-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: schemas.Schema_StatusAPIResponse,
-    asyncMode: "none",
-  })
-})
-
 /** Describe template */
 export const audio_video_template_describe = shells.audio_video_template_describe(async (input, ctx) => {
   return invokeAdobeOperation({
@@ -87,20 +73,6 @@ export const audio_video_template_render = shells.audio_video_template_render(as
     ctx,
     outputSchema: schemas.Schema_JobStatus,
     asyncMode: "submit",
-  })
-})
-
-/** Cancel a render job */
-export const audio_video_cancel_render_job = shells.audio_video_cancel_render_job(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "PUT",
-    pathTemplate: "/v1/cancel/{jobId}",
-    baseUrl: "https://audio-video-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"],"headers":["x-request-id"]},
-    ctx,
-    outputSchema: schemas.Schema_CancelAcceptedResponse,
-    asyncMode: "none",
   })
 })
 
@@ -218,60 +190,6 @@ export const audio_video_generate_reframed_video_v2 = shells.audio_video_generat
   })
 })
 
-/** Get job result */
-export const audio_video_job_result_v2 = shells.audio_video_job_result_v2(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v2/status/{jobId}",
-    baseUrl: "https://audio-video-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: z.union([z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string()
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.array(z.union([z.object({
-  "destination": z.object({
-  "url": z.string()
-})
-}), z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-})]))
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.array(z.union([z.object({
-  "destination": z.object({
-  "url": z.string()
-})
-}), z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-})]))
-}), z.object({
-  "status": z.enum(["not_started", "running", "failed", "succeeded", "partially_succeeded"]),
-  "jobId": z.string(),
-  "outputs": z.object({
-  "renditions": z.array(z.object({
-  "error": z.object({
-  "error_code": z.string(),
-  "message": z.string()
-})
-}))
-})
-})]),
-    asyncMode: "none",
-  })
-})
-
 /** Generate avatar video from text */
 export const audio_video_generate_avatar = shells.audio_video_generate_avatar(async (input, ctx) => {
   return invokeAdobeOperation({
@@ -308,19 +226,5 @@ export const audio_video_dub__v1_dub = shells.audio_video_dub__v1_dub(async (inp
     ctx,
     outputSchema: schemas.Schema_FireflyJobResponse,
     asyncMode: "submit",
-  })
-})
-
-/** Get the result for a job */
-export const audio_video_job_result = shells.audio_video_job_result(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v1/status/{jobId}",
-    baseUrl: "https://audio-video-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: schemas.Schema_FireflyJobResponse,
-    asyncMode: "none",
   })
 })

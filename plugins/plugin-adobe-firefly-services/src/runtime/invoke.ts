@@ -17,6 +17,10 @@ export interface AdobeInvokeContext {
     clientSecret?: string
     scopes?: string
     imsEndpoint?: string
+    /** Override async poll interval (ms). Defaults to 2000. */
+    pollIntervalMs?: number
+    /** Override async poll timeout (ms). Defaults to 120000. */
+    pollTimeoutMs?: number
   }
 }
 
@@ -55,10 +59,6 @@ export interface AssembledAdobeRequest {
   headers: Record<string, string>
   /** JSON body after parameter merge. */
   body?: unknown
-  /** Poll interval (async-submit only). */
-  pollIntervalMs?: number
-  /** Poll timeout (async-submit only). */
-  pollTimeoutMs?: number
 }
 
 /**
@@ -136,6 +136,21 @@ function optionalPositiveInt(value: unknown): number | undefined {
 }
 
 /**
+ * Drop Adobe job envelopes so capability output is the inner result document.
+ * A JSON body with a `result` object becomes that object. Otherwise the body
+ * is returned as-is (sync lists, succeeded payloads that are already the product).
+ * @category Runtime
+ */
+export function unwrapAdobeResult(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value
+  const inner = (value as Record<string, unknown>).result
+  if (inner !== null && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner
+  }
+  return value
+}
+
+/**
  * Build path, query, headers, and JSON body from a flat capability input.
  * When `bodySchema` is set, a provided `body` or any body parameter is merged
  * then parsed against that schema.
@@ -169,8 +184,6 @@ export function assembleAdobeOperationInput(
     query,
     headers,
     body,
-    pollIntervalMs: optionalPositiveInt(input.pollIntervalMs),
-    pollTimeoutMs: optionalPositiveInt(input.pollTimeoutMs),
   }
 }
 
@@ -244,8 +257,8 @@ export async function invokeAdobeOperation(options: {
     result = await pollAdobeJob({
       statusUrl,
       client,
-      intervalMs: assembled.pollIntervalMs,
-      timeoutMs: assembled.pollTimeoutMs,
+      intervalMs: optionalPositiveInt(rawCfg.pollIntervalMs),
+      timeoutMs: optionalPositiveInt(rawCfg.pollTimeoutMs),
     })
 
     if (options.materialize === "photoshop-manifest") {
@@ -253,6 +266,8 @@ export async function invokeAdobeOperation(options: {
         jobStatus: result,
         requestBody: assembled.body,
       })
+    } else {
+      result = unwrapAdobeResult(result)
     }
   }
 

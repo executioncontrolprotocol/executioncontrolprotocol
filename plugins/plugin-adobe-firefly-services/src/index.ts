@@ -48,6 +48,7 @@ export {
 } from "./runtime/photoshop-manifest.js"
 export {
   assembleAdobeOperationInput,
+  unwrapAdobeResult,
 } from "./runtime/invoke.js"
 export type {
   AdobeAsyncMode,

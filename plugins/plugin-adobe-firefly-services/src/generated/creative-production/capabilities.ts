@@ -34,40 +34,6 @@ export const creative_production_list_batches = shells.creative_production_list_
   })
 })
 
-/** Get batch status */
-export const creative_production_get_batch_status = shells.creative_production_get_batch_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/batch/{batchId}/status",
-    baseUrl: "https://run-workflow.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["batchId"],"headers":["api-version"]},
-    ctx,
-    outputSchema: schemas.Schema_BatchStatusResponse,
-    asyncMode: "none",
-  })
-})
-
-/** Cancel a batch */
-export const creative_production_cancel_batch = shells.creative_production_cancel_batch(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "POST",
-    pathTemplate: "/batch/{batchId}/cancel",
-    baseUrl: "https://run-workflow.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["batchId"],"headers":["api-version"]},
-    ctx,
-    outputSchema: z.object({
-  "batchId": z.string().optional(),
-  "status": z.enum(["cancelled"]).optional(),
-  "message": z.string().optional(),
-  "previousStatus": z.string().optional(),
-  "assets": schemas.Schema_BatchAssetCounts.optional()
-}),
-    asyncMode: "none",
-  })
-})
-
 /** List individual execution results */
 export const creative_production_list_batch_executions = shells.creative_production_list_batch_executions(async (input, ctx) => {
   return invokeAdobeOperation({

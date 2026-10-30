@@ -97,12 +97,18 @@ describe("assembleAdobeOperationInput", () => {
   })
 
   it("leaves body undefined when neither body nor parameters are set", () => {
+    const assembled = assembleAdobeOperationInput({}, bodyKeys, generateBodySchema)
+    expect(assembled.body).toBeUndefined()
+  })
+
+  it("does not treat poll knobs as request fields", () => {
     const assembled = assembleAdobeOperationInput(
-      { pollIntervalMs: 1000 },
+      { prompt: "sunset", pollIntervalMs: 1000, pollTimeoutMs: 5_000 },
       bodyKeys,
       generateBodySchema,
     )
-    expect(assembled.body).toBeUndefined()
-    expect(assembled.pollIntervalMs).toBe(1000)
+    expect(assembled.body).toEqual({ prompt: "sunset" })
+    expect(assembled).not.toHaveProperty("pollIntervalMs")
+    expect(assembled).not.toHaveProperty("pollTimeoutMs")
   })
 })

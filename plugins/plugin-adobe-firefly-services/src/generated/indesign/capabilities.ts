@@ -180,20 +180,6 @@ export const indesign_get_document_info = shells.indesign_get_document_info(asyn
   })
 })
 
-/** Get status - Document Info API */
-export const indesign_get_document_info_job_status = shells.indesign_get_document_info_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v3/status/{document-info_job_id}",
-    baseUrl: "https://indesign.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["document-info_job_id"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
-    asyncMode: "none",
-  })
-})
-
 /** Convert PDF to InDesign document */
 export const indesign_convert_pdfto_in_design = shells.indesign_convert_pdfto_in_design(async (input, ctx) => {
   return invokeAdobeOperation({
@@ -206,33 +192,5 @@ export const indesign_convert_pdfto_in_design = shells.indesign_convert_pdfto_in
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
-  })
-})
-
-/** Get status - Convert PDF to InDesign API */
-export const indesign_get_convert_pdfto_in_design_job_status = shells.indesign_get_convert_pdfto_in_design_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v3/status/{convert-pdf-to-indesign_job_id}",
-    baseUrl: "https://indesign.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["convert-pdf-to-indesign_job_id"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
-    asyncMode: "none",
-  })
-})
-
-/** Get the status of a job */
-export const indesign_get_job_status = shells.indesign_get_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v3/status/{id}",
-    baseUrl: "https://indesign.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["id"],"query":["size","page"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
-    asyncMode: "none",
   })
 })

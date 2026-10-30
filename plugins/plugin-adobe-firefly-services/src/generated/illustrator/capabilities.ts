@@ -1,7 +1,6 @@
 /* eslint-disable */
 /** Generated Adobe illustrator capabilities — do not edit. */
 import * as shells from "./shells.js"
-import { z } from "zod"
 import * as schemas from "./schemas.js"
 import { invokeAdobeOperation } from "../../runtime/invoke.js"
 
@@ -30,20 +29,6 @@ export const illustrator_execute_custom_script_capability = shells.illustrator_e
     ctx,
     outputSchema: schemas.Schema_CustomScriptJobSucceededResponse,
     asyncMode: "submit",
-  })
-})
-
-/** Retrieve job status */
-export const illustrator_custom_scripts_job_status = shells.illustrator_custom_scripts_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v3/status/{jobId}",
-    baseUrl: "https://illustrator.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_CustomScriptJobSucceededResponse, schemas.Schema_CustomScriptJobRunningResponse, schemas.Schema_CustomScriptJobFailedResponse]),
-    asyncMode: "none",
   })
 })
 
@@ -89,33 +74,5 @@ export const illustrator_trace_image = shells.illustrator_trace_image(async (inp
     ctx,
     outputSchema: schemas.Schema_ImageTraceJobApiResponse,
     asyncMode: "submit",
-  })
-})
-
-/** Retrieve job status */
-export const illustrator_image_trace_job_status = shells.illustrator_image_trace_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v1/status/{jobId}/image-trace",
-    baseUrl: "https://illustrator-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_ImageTraceJobApiResponse, schemas.Schema_JobStatusPollPayload, schemas.Schema_ImageTraceJobFailedResponse]),
-    asyncMode: "none",
-  })
-})
-
-/** Retrieve job status */
-export const illustrator_facade_job_status = shells.illustrator_facade_job_status(async (input, ctx) => {
-  return invokeAdobeOperation({
-    method: "GET",
-    pathTemplate: "/v1/status/{jobId}",
-    baseUrl: "https://illustrator-api.adobe.io/",
-    input: input as Record<string, unknown>,
-    parameters: {"path":["jobId"]},
-    ctx,
-    outputSchema: z.union([schemas.Schema_DataMergeJobApiResponse, schemas.Schema_CreateRenditionJobApiResponse, schemas.Schema_JobStatusPollPayload, schemas.Schema_DataMergeJobFailedResponse, schemas.Schema_DataMergeJobPartiallySucceededResponse]),
-    asyncMode: "none",
   })
 })

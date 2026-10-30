@@ -98,6 +98,24 @@ Every new HTTP capability and every OpenAPI import follows this shape. Non-HTTP
 capabilities (transforms, format plugins, Sharp, policies) do not grow a `body`
 field. Model generate stays on `modelGenerateInputSchema`; do not wrap it in `body`.
 
+## API capability outputs
+
+HTTP capabilities return the result document’s fields as **top-level outputs**.
+The App, CLI, and MCP only bind top-level keys, so a job envelope is not an
+output.
+
+- After a successful async poll, if the JSON has a `result` object, that object
+  **is** the capability output. Drop `status`, `statusUrl`, `cancelUrl`, `jobId`,
+  and poll timestamps from generate outputs.
+- Do not expose `statusUrl`, poll knobs (`pollIntervalMs` / `pollTimeoutMs`), or
+  job identifiers for the caller to poll. Poll internally. Optional poll timing
+  belongs on extension config, not step ports.
+- Do not generate status/cancel operations when the plugin polls internally.
+- Do not invent a fake `url` parameter from `outputs[0]`. Wire `outputs` (or
+  `outputs.0.image.url`) from the result document.
+- FAL already returns `{ data, requestId }`; leave it. Do not wrap it in a job
+  envelope.
+
 ## Handlers and I/O
 
 - Handlers receive typed input and a context from core. Don't reach into `Environment`

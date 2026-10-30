@@ -14,7 +14,7 @@ export const substance3d_v1_composites_compose = shells.substance3d_v1_composite
     parameters: {"query":["wait"],"headers":["X-User-Token"],"body":["$schema","cameraName","contentClass","customModelId","enableGroundPlane","environment","environmentExposure","heroAsset","lightingSeeds","modelVersion","numVariations","prompt","scene","sceneFile","seeds","size","sources","styleImage"]},
     bodySchema: schemas.Schema_restv1_ComposeSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_ComposeSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_ComposeSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -29,7 +29,7 @@ export const substance3d_v1_scenes_assemble = shells.substance3d_v1_scenes_assem
     parameters: {"query":["wait"],"body":["$schema","encoding","fileBaseName","scene","sources"]},
     bodySchema: schemas.Schema_restv1beta_CreateSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_CreateSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_CreateSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -44,7 +44,7 @@ export const substance3d_v1_scenes_convert = shells.substance3d_v1_scenes_conver
     parameters: {"query":["wait"],"body":["$schema","format","modelEntrypoint","sources"]},
     bodySchema: schemas.Schema_restv1beta_ModelConvertRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_ModelConvertResponse,
+    outputSchema: schemas.Schema_restv1beta_ModelConvertJobResult,
     asyncMode: "submit",
   })
 })
@@ -59,7 +59,7 @@ export const substance3d_v1_scenes_describe = shells.substance3d_v1_scenes_descr
     parameters: {"query":["wait"],"body":["$schema","sceneFile","sources"]},
     bodySchema: schemas.Schema_restv1beta_SceneDescRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_SceneDescResponse,
+    outputSchema: schemas.Schema_restv1beta_SceneDescJobResult,
     asyncMode: "submit",
   })
 })
@@ -74,7 +74,7 @@ export const substance3d_v1_scenes_render = shells.substance3d_v1_scenes_render(
     parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
     bodySchema: schemas.Schema_restv1beta_RenderSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_RenderSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_RenderSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -89,7 +89,7 @@ export const substance3d_v1_scenes_render_basic = shells.substance3d_v1_scenes_r
     parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
     bodySchema: schemas.Schema_restv1beta_RenderModelRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_RenderModelResponse,
+    outputSchema: schemas.Schema_restv1beta_RenderSceneJobResult,
     asyncMode: "submit",
   })
 })

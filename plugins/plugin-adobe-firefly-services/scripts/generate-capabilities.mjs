@@ -78,7 +78,7 @@ function loadOverlays() {
   }
 }
 
-const RESERVED_INPUT_FIELDS = new Set(["body", "pollIntervalMs", "pollTimeoutMs"])
+const RESERVED_INPUT_FIELDS = new Set(["body"])
 
 /**
  * Resolve $ref relative to document components.
@@ -211,9 +211,8 @@ function parametersLiteral(parameters) {
  * @param {object} doc
  * @param {ZodEmitter} emitter
  * @param {string} context
- * @param {'async-submit' | 'status-cancel' | 'sync'} opClass
  */
-function buildInputZod(operation, doc, emitter, context, opClass) {
+function buildInputZod(operation, doc, emitter, context) {
   /** @type {{ path: string[], query: string[], headers: string[], body: string[] }} */
   const parameters = { path: [], query: [], headers: [], body: [] }
   const claimed = new Set()
@@ -266,11 +265,6 @@ function buildInputZod(operation, doc, emitter, context, opClass) {
       const requiredBody = operation.requestBody?.required !== false
       groups.push(emitField("body", bodyExpr, !requiredBody))
     }
-  }
-
-  if (opClass === "async-submit") {
-    groups.push(`  pollIntervalMs: z.number().int().positive().optional()`)
-    groups.push(`  pollTimeoutMs: z.number().int().positive().optional()`)
   }
 
   return {
@@ -418,18 +412,13 @@ function deriveProjections(opName) {
         description:
           "Keep asset URLs or output references from the result for download or the next edit step.",
       },
-      {
-        summary: "Keep job identifiers",
-        description:
-          "When a job id is returned, keep it so you can poll status until outputs are ready.",
-      },
     ]
   }
   return [
     {
       summary: "Use the operation result",
       description:
-        "Take the fields from the response that the next workflow step needs (ids, status, or asset URLs).",
+        "Take the fields from the response that the next workflow step needs (ids or asset URLs).",
     },
   ]
 }
@@ -488,6 +477,7 @@ function main() {
   const registry = []
   /** @type {Map<string, object[]>} */
   const byFamily = new Map()
+  let skippedStatusCancel = 0
 
   const overlays = loadOverlays()
   const files = walkFiles(openapiDir).filter((f) => !f.includes("overlays"))
@@ -546,7 +536,12 @@ function main() {
             opName,
           })
 
-          const inputBuilt = buildInputZod(operation, doc, emitter, `${context}.input`, opClass)
+          if (opClass === "status-cancel") {
+            skippedStatusCancel += 1
+            continue
+          }
+
+          const inputBuilt = buildInputZod(operation, doc, emitter, `${context}.input`)
           const outputResolved = resolveOutputForOperation(
             opName,
             opClass,
@@ -769,7 +764,7 @@ function main() {
     }
   }
 
-  const classCounts = { "async-submit": 0, "status-cancel": 0, sync: 0 }
+  const classCounts = { "async-submit": 0, sync: 0 }
   for (const ops of byFamily.values()) {
     for (const op of ops) {
       classCounts[op.opClass] = (classCounts[op.opClass] ?? 0) + 1
@@ -781,6 +776,7 @@ function main() {
     operationCount: registry.length,
     families: [...byFamily.keys()].sort(),
     operationClasses: classCounts,
+    skippedStatusCancel,
     operations: registry.map((r) => `${EXT_ID}.${r.opName}`),
     operationClassById: Object.fromEntries(
       registry.map((r) => [`${EXT_ID}.${r.opName}`, r.opClass]),
@@ -811,7 +807,7 @@ function main() {
   } else {
     console.log(
       `Generated ${registry.length} capabilities across ${byFamily.size} families ` +
-        `(async-submit=${classCounts["async-submit"]}, status-cancel=${classCounts["status-cancel"]}, sync=${classCounts.sync})`,
+        `(async-submit=${classCounts["async-submit"]}, skipped-status-cancel=${skippedStatusCancel}, sync=${classCounts.sync})`,
     )
   }
 }
