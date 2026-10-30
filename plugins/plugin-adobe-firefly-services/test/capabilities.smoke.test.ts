@@ -107,6 +107,28 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     ).toBe("host")
   })
 
+  it("allows binding without Adobe credentials", () => {
+    const schema = adobeFireflyServicesExtension.configSchema
+    expect(schema).toBeDefined()
+    expect(schema!.safeParse({}).success).toBe(true)
+    expect(schema!.safeParse({ clientId: "id", clientSecret: "secret" }).success).toBe(true)
+  })
+
+  it("rejects non-string Adobe credentials", () => {
+    const schema = adobeFireflyServicesExtension.configSchema
+    expect(schema!.safeParse({ clientId: 1 }).success).toBe(false)
+    expect(schema!.safeParse({ clientSecret: true }).success).toBe(false)
+  })
+
+  it("invoke still requires credentials at runtime", async () => {
+    await expect(
+      capability("@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async")(
+        { prompt: "dusk" },
+        { extensionConfig: {} },
+      ),
+    ).rejects.toThrow(/clientId and clientSecret are required/)
+  })
+
   it("emits capability ids that pass capabilityIdSchema", () => {
     for (const id of meta.operations) {
       const parsed = capabilityIdSchema.safeParse(id)
