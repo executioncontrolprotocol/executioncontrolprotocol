@@ -11,7 +11,9 @@ import {
 } from "@executioncontrolprotocol/core"
 import {
   extractDataEdges,
+  longestMatchingPortId,
   parseStateRef,
+  portsForStep,
   workflowToReactFlow,
   WORKFLOW_ACCEPTS_NODE_ID,
   WORKFLOW_RETURNS_NODE_ID,
@@ -242,5 +244,135 @@ describe("workflowToReactFlow", () => {
     const data = doc.nodes.find((n) => n.type === "ecp-step")!.data as ReactFlowStepData
     expect(data.inputs.find((p) => p.name === "value")?.typeLabel).toBe("string!")
     expect(data.outputs.find((p) => p.name === "echo")?.typeLabel).toBe("string!")
+  })
+
+  it("exposes nested object primitives and leaves arrays as one output port", async () => {
+    const extension = defineExtension("@executioncontrolprotocol", "nested-out-fixture")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/nested-out-fixture", "inspect")
+          .withInput(z.object({}))
+          .withOutput(
+            z.object({
+              image: z.object({ locator: z.string() }),
+              metadata: z.object({ aspectRatio: z.number() }),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({
+            image: { locator: "ecp://browser/x" },
+            metadata: { aspectRatio: 1 },
+          })),
+        capabilityFor("@executioncontrolprotocol/nested-out-fixture", "generate")
+          .withInput(z.object({ prompt: z.string() }))
+          .withOutput(
+            z.object({
+              outputs: z.array(z.object({ seed: z.number(), image: z.object({ url: z.string() }) })),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({ outputs: [{ seed: 1, image: { url: "https://example.test/a.png" } }] })),
+      ])
+      .build()
+    const registry = new Registry()
+    await registry.registerExtension(extension)
+
+    const inspectPorts = portsForStep(
+      {
+        id: "inspect",
+        uses: "@executioncontrolprotocol/nested-out-fixture.inspect",
+        as: "inspected",
+      },
+      registry
+    )
+    expect(inspectPorts.outputs.map((p) => p.id)).toEqual([
+      "output",
+      "image",
+      "image.locator",
+      "metadata",
+      "metadata.aspectRatio",
+    ])
+    expect(inspectPorts.outputs.find((p) => p.id === "image.locator")?.typeLabel).toBe("string!")
+
+    const generatePorts = portsForStep(
+      {
+        id: "generate",
+        uses: "@executioncontrolprotocol/nested-out-fixture.generate",
+        as: "generate",
+      },
+      registry
+    )
+    expect(generatePorts.outputs.map((p) => p.id)).toEqual(["output", "outputs"])
+    expect(generatePorts.outputs.find((p) => p.id === "outputs")?.typeLabel).toBe("array!")
+    expect(generatePorts.outputs.some((p) => p.id === "url" || p.id.startsWith("outputs.0"))).toBe(
+      false
+    )
+
+    const inspectManifest = workflow("Inspect ref")
+      .run([
+        step("@executioncontrolprotocol/nested-out-fixture.inspect", "Inspect")
+          .id("inspect")
+          .with({})
+          .as("inspected"),
+        step("@executioncontrolprotocol/test.echo", "Use")
+          .id("use")
+          .with({ value: ref("inspected.image.locator") })
+          .as("used"),
+      ])
+      .toManifest()
+    const inspectDoc = workflowToReactFlow(inspectManifest, registry)
+    const locatorEdge = inspectDoc.edges.find((item) => item.target === "use")
+    expect(locatorEdge?.sourceHandle).toBe("image.locator")
+  })
+
+  it("wires a deep array ref to the array port, not a fake item handle", async () => {
+    const extension = defineExtension("@executioncontrolprotocol", "array-ref-fixture")
+      .withConfig({})
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/array-ref-fixture", "generate")
+          .withInput(z.object({ prompt: z.string() }))
+          .withOutput(
+            z.object({
+              outputs: z.array(z.object({ image: z.object({ url: z.string() }) })),
+            })
+          )
+          .withExecution("local")
+          .withHandler(async () => ({ outputs: [{ image: { url: "https://example.test/a.png" } }] })),
+        capabilityFor("@executioncontrolprotocol/array-ref-fixture", "use-url")
+          .withInput(z.object({ url: z.string() }))
+          .withOutput(z.object({ ok: z.boolean() }))
+          .withExecution("local")
+          .withHandler(async () => ({ ok: true })),
+      ])
+      .build()
+    const registry = new Registry()
+    await registry.registerExtension(extension)
+    const manifest = workflow("Deep ref")
+      .run([
+        step("@executioncontrolprotocol/array-ref-fixture.generate", "Generate")
+          .id("generate")
+          .with({ prompt: "x" })
+          .as("generate"),
+        step("@executioncontrolprotocol/array-ref-fixture.use-url", "Use")
+          .id("use")
+          .with({ url: ref("generate.outputs.0.image.url") })
+          .as("used"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest, registry)
+    const edge = doc.edges.find((item) => item.target === "use")
+    expect(edge?.sourceHandle).toBe("outputs")
+    expect(edge?.targetHandle).toBe("url")
+  })
+})
+
+describe("longestMatchingPortId", () => {
+  it("prefers the longest dotted prefix", () => {
+    expect(longestMatchingPortId("image.locator", ["output", "image", "image.locator"])).toBe(
+      "image.locator"
+    )
+    expect(longestMatchingPortId("outputs.0.image.url", ["output", "outputs"])).toBe("outputs")
+    expect(longestMatchingPortId("echo", undefined)).toBe("echo")
+    expect(longestMatchingPortId("")).toBe("output")
   })
 })

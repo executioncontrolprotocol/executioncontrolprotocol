@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
+  flattenJsonSchemaProperties,
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
   pickWorkflowReturns,
@@ -189,6 +190,87 @@ describe("jsonSchema helpers", () => {
     ])
   })
 
+  it("flattens nested object primitives and leaves arrays as one path", () => {
+    const jobOutput: z.ZodTypeAny = z.lazy(() =>
+      z.object({
+        seed: z.number().int(),
+        image: z.object({ url: z.string() }),
+      }),
+    )
+    const jobResult: z.ZodTypeAny = z.lazy(() =>
+      z.object({
+        outputs: z.array(jobOutput),
+      }),
+    )
+    expect(flattenJsonSchemaProperties(jsonSchemaFromZod(jobResult)).map((f) => f.name)).toEqual([
+      "outputs",
+    ])
+
+    const upscale = jsonSchemaFromZod(
+      z.object({
+        outputs: z.array(z.object({ presignedUrl: z.string().optional() })),
+        version: z.string(),
+      }),
+    )
+    expect(flattenJsonSchemaProperties(upscale).map((f) => f.name)).toEqual(["outputs", "version"])
+
+    const inspect = jsonSchemaFromZod(
+      z.object({
+        image: z.object({ locator: z.string() }),
+        metadata: z.object({ aspectRatio: z.number() }),
+      }),
+    )
+    expect(flattenJsonSchemaProperties(inspect).map((f) => f.name)).toEqual([
+      "image",
+      "image.locator",
+      "metadata",
+      "metadata.aspectRatio",
+    ])
+    expect(flattenJsonSchemaProperties(inspect).find((f) => f.name === "image.locator")).toMatchObject({
+      schema: { type: "string" },
+      required: true,
+    })
+
+    expect(
+      flattenJsonSchemaProperties({
+        type: "object",
+        properties: {
+          image: {
+            "x-ecp-file": true,
+            type: "object",
+            properties: { kind: { type: "string" }, url: { type: "string" } },
+          },
+        },
+      }).map((f) => f.name)
+    ).toEqual(["image"])
+
+    const optionalImage = flattenJsonSchemaProperties(
+      jsonSchemaFromZod(z.object({ image: z.object({ locator: z.string() }).optional() }))
+    )
+    expect(optionalImage.find((f) => f.name === "image")?.required).toBe(false)
+    expect(optionalImage.find((f) => f.name === "image.locator")?.required).toBe(false)
+  })
+
+  it("does not flatten unions or hang on recursive lazy objects", () => {
+    const union = z.union([
+      z.object({ status: z.literal("succeeded"), result: z.object({ outputs: z.array(z.string()) }) }),
+      z.object({ status: z.literal("running") }),
+    ])
+    expect(flattenJsonSchemaProperties(jsonSchemaFromZod(union))).toEqual([])
+
+    interface Node {
+      child?: Node
+    }
+    const node: z.ZodType<Node> = z.lazy(() =>
+      z.object({
+        child: node.optional(),
+      }),
+    )
+    const names = flattenJsonSchemaProperties(jsonSchemaFromZod(node)).map((f) => f.name)
+    expect(names[0]).toBe("child")
+    expect(names.every((name) => name === "child" || name.startsWith("child."))).toBe(true)
+  })
+
   it("projects lazy object schemas so App ports see inner fields", () => {
     const jobOutput: z.ZodTypeAny = z.lazy(() =>
       z.object({
@@ -305,6 +387,36 @@ describe("jsonSchema helpers", () => {
     expect(resolveStatePath({ a: { b: 1 } }, "a.missing")).toBeUndefined()
     expect(resolveStatePath({ a: null }, "a.b")).toBeUndefined()
     expect(resolveStatePath({}, "")).toBeUndefined()
+  })
+
+  it("resolveStatePath indexes arrays with dotted numeric segments", () => {
+    const state = {
+      generate: {
+        outputs: [{ seed: 7, image: { url: "https://example.test/a.png" } }],
+      },
+    }
+    expect(resolveStatePath(state, "generate.outputs.0.image.url")).toBe(
+      "https://example.test/a.png"
+    )
+    expect(resolveStatePath(state, "generate.outputs.1.image.url")).toBeUndefined()
+    expect(resolveStatePath(state, "generate.outputs[0].image.url")).toBeUndefined()
+  })
+
+  it("picks dotted returns through array indexes", () => {
+    const state = {
+      generate: {
+        outputs: [{ seed: 7, image: { url: "https://example.test/a.png" } }],
+      },
+    }
+    expect(
+      pickWorkflowReturns(
+        {
+          type: "object",
+          properties: { "generate.outputs.0.image.url": { type: "string" } },
+        },
+        state
+      )
+    ).toEqual({ "generate.outputs.0.image.url": "https://example.test/a.png" })
   })
 
   it("applyWorkflowReturns picks nested dot-path output for completed runs", () => {

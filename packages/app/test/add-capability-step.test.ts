@@ -51,6 +51,44 @@ describe("firstMatchingPort", () => {
   })
 })
 
+describe("portsFromCapabilitySchema", () => {
+  it("flattens nested output primitives and leaves arrays as one port", () => {
+    const inspect = portsFromCapabilitySchema(
+      {
+        type: "object",
+        properties: {
+          image: {
+            type: "object",
+            properties: { locator: { type: "string" } },
+            required: ["locator"],
+          },
+        },
+        required: ["image"],
+      },
+      "output"
+    )
+    expect(inspect.map((p) => p.id)).toEqual(["output", "image", "image.locator"])
+
+    const generate = portsFromCapabilitySchema(
+      {
+        type: "object",
+        properties: {
+          outputs: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { image: { type: "object", properties: { url: { type: "string" } } } },
+            },
+          },
+        },
+        required: ["outputs"],
+      },
+      "output"
+    )
+    expect(generate.map((p) => p.id)).toEqual(["output", "outputs"])
+  })
+})
+
 describe("addCapabilityStep", () => {
   it("wires a source handle to the first matching input", () => {
     const manifest = workflow("Chain")

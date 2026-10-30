@@ -49,19 +49,26 @@ capabilities do not grow a `body` field. Model generate stays on
 
 ## API capability outputs
 
-HTTP capabilities return the result document’s fields as top-level outputs. The
-App, CLI, and MCP only bind top-level keys.
+HTTP capabilities return the nested result document. Binding surfaces keep the
+whole object accessible and also list known object primitives as dotted ports.
+Arrays stay one port.
 
 - After a successful async poll, if the JSON has a `result` object, that object
   is the capability output. Drop `status`, `statusUrl`, `cancelUrl`, `jobId`,
   and poll timestamps from generate outputs.
+- The whole document stays accessible (`ref("generate")` / the `output` port,
+  plus parent objects such as `image`).
+- Known primitives under objects are bindable dotted ports (`image.locator`,
+  `version`). Recurse objects; stop at arrays and file refs.
+- Arrays stay one port (`outputs`). Do not invent a sibling `url` or
+  `outputs.0.*` handles on the producer. Pick items with
+  `ref("generate.outputs.0.image.url")` or a transform step (jsonata).
 - Do not expose `statusUrl`, poll knobs, or job identifiers for the caller to
   poll. Poll internally. Optional poll timing belongs on extension config, not
   step ports.
 - Do not generate status/cancel operations when the plugin polls internally.
-- Do not invent a fake `url` parameter from `outputs[0]`. Wire `outputs` from
-  the result document.
-- FAL already returns `{ data, requestId }`; leave it.
+- FAL already returns `{ data, requestId }`; leave it. Flatten `data` when it is
+  a known object; if `data` is an array it stays one port.
 
 ## Test
 

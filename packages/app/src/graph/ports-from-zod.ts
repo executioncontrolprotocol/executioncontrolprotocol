@@ -1,5 +1,6 @@
 import type { Registry } from "@executioncontrolprotocol/core"
 import {
+  flattenJsonSchemaProperties,
   isZodType,
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
@@ -15,6 +16,9 @@ import {
 } from "./value-schema-hint.js"
 
 const LITERAL_PREVIEW_MAX = 56
+
+/** Whole-document output handle (`ref("as")` with no field path). */
+const OUTPUT_HANDLE_ID = "output"
 
 function typeLabelFromHint(
   schema: Record<string, unknown> | undefined,
@@ -169,9 +173,8 @@ export function portsForStep(
   const inputJson = toJsonObjectSchema(inputSource)
   const outputJson = toJsonObjectSchema(outputSource)
   const inputFields = jsonSchemaObjectProperties(inputJson)
-  const outputFields = jsonSchemaObjectProperties(outputJson)
+  const outputFields = flattenJsonSchemaProperties(outputJson)
   const inputSchemas = valueSchemasFromCapabilitySchema(inputSource)
-  const outputSchemas = valueSchemasFromCapabilitySchema(outputSource)
 
   const inputs: ReactFlowPort[] = []
   const seenInputs = new Set<string>()
@@ -206,23 +209,28 @@ export function portsForStep(
   applyInputBindings(inputs, step)
 
   const outputs: ReactFlowPort[] = []
+  const seenOutputs = new Set<string>()
+  if (!outputFields.some((field) => field.name === OUTPUT_HANDLE_ID)) {
+    const whole: ReactFlowPort = {
+      id: OUTPUT_HANDLE_ID,
+      name: OUTPUT_HANDLE_ID,
+      typeLabel: "object",
+      valueSchema: { type: "object" },
+    }
+    outputs.push(whole)
+    seenOutputs.add(OUTPUT_HANDLE_ID)
+  }
   for (const field of outputFields) {
+    if (seenOutputs.has(field.name)) continue
+    seenOutputs.add(field.name)
     const typeLabel = typeLabelFromHint(field.schema, field.required)
     const port: ReactFlowPort = {
       id: field.name,
       name: field.name,
       typeLabel,
+      valueSchema: field.schema,
     }
-    attachValueSchema(port, outputSchemas, typeLabel)
     outputs.push(port)
-  }
-
-  if (outputs.length === 0 && step.as) {
-    outputs.push({
-      id: "output",
-      name: "output",
-      typeLabel: "unknown",
-    })
   }
 
   return { inputs, outputs }

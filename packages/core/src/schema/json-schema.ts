@@ -116,13 +116,28 @@ function isJsonSchemaObject(schema: unknown): schema is Record<string, unknown> 
   return schema !== null && typeof schema === "object" && !Array.isArray(schema)
 }
 
+const PRIMITIVE_JSON_SCHEMA_TYPES = new Set(["string", "number", "integer", "boolean", "null"])
+
+/**
+ * One property from an object JSON Schema, possibly a dotted path after flattening.
+ * @category Schema
+ */
+export interface JsonSchemaProperty {
+  /** Property name (`image.locator` after flattening nested objects). */
+  name: string
+  /** JSON Schema fragment for this property. */
+  schema: Record<string, unknown>
+  /** Whether the property is required (nested paths require every ancestor). */
+  required: boolean
+}
+
 /**
  * List object-schema properties for workflow `accepts` / `returns`.
  * @category Schema
  */
 export function jsonSchemaObjectProperties(
   schema: Record<string, unknown> | undefined
-): Array<{ name: string; schema: Record<string, unknown>; required: boolean }> {
+): JsonSchemaProperty[] {
   if (!schema) return []
   const props = schema.properties
   if (!isJsonSchemaObject(props)) return []
@@ -131,7 +146,7 @@ export function jsonSchemaObjectProperties(
       ? schema.required.filter((k): k is string => typeof k === "string")
       : []
   )
-  const out: Array<{ name: string; schema: Record<string, unknown>; required: boolean }> = []
+  const out: JsonSchemaProperty[] = []
   for (const [name, prop] of Object.entries(props)) {
     out.push({
       name,
@@ -140,6 +155,53 @@ export function jsonSchemaObjectProperties(
     })
   }
   return out
+}
+
+function isPrimitiveJsonSchema(schema: Record<string, unknown>): boolean {
+  if (Array.isArray(schema.enum)) return true
+  const t = schema.type
+  return typeof t === "string" && PRIMITIVE_JSON_SCHEMA_TYPES.has(t)
+}
+
+function shouldRecurseJsonSchemaProperty(schema: Record<string, unknown>): boolean {
+  if (schema.type === "array") return false
+  if (schema["x-ecp-file"] === true) return false
+  if (isPrimitiveJsonSchema(schema)) return false
+  return isJsonSchemaObject(schema.properties)
+}
+
+/**
+ * List bindable output paths: parent objects, nested primitives, and arrays as leaves.
+ * Does not expand array item fields (`outputs.0` is not a path).
+ * @category Schema
+ */
+export function flattenJsonSchemaProperties(
+  schema: Record<string, unknown> | undefined
+): JsonSchemaProperty[] {
+  const out: JsonSchemaProperty[] = []
+  flattenJsonSchemaPropertiesInto(schema, "", true, 0, new Set(), out)
+  return out
+}
+
+function flattenJsonSchemaPropertiesInto(
+  schema: Record<string, unknown> | undefined,
+  prefix: string,
+  parentRequired: boolean,
+  depth: number,
+  seen: Set<Record<string, unknown>>,
+  out: JsonSchemaProperty[]
+): void {
+  if (!schema || depth > MAX_JSON_SCHEMA_FROM_ZOD_DEPTH) return
+  if (seen.has(schema)) return
+  seen.add(schema)
+  for (const field of jsonSchemaObjectProperties(schema)) {
+    const name = prefix ? `${prefix}.${field.name}` : field.name
+    const required = parentRequired && field.required
+    out.push({ name, schema: field.schema, required })
+    if (shouldRecurseJsonSchemaProperty(field.schema)) {
+      flattenJsonSchemaPropertiesInto(field.schema, name, required, depth + 1, seen, out)
+    }
+  }
 }
 
 function jsonSchemaTypeLabel(schema: Record<string, unknown>): string {
@@ -201,7 +263,9 @@ export function validateAgainstJsonSchema(
 }
 
 /**
- * Walk a dot-separated path against run state (e.g. `inspected.metadata`).
+ * Walk a dotted path against run state (e.g. `inspected.metadata`, `generate.outputs.0.image.url`).
+ * Numeric segments index arrays the same way `ref()` resolution does.
+ * Bracket paths (`outputs[0]`) are not supported.
  * @category Schema
  */
 export function resolveStatePath(
@@ -212,7 +276,7 @@ export function resolveStatePath(
   if (segments.length === 0) return undefined
   let current: unknown = state
   for (const segment of segments) {
-    if (current === null || typeof current !== "object" || Array.isArray(current)) {
+    if (current === null || current === undefined || typeof current !== "object") {
       return undefined
     }
     if (!(segment in current)) return undefined

@@ -59,11 +59,13 @@ export { parallel, branch, loop } from "./workflow/flow.js"
 export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
+  flattenJsonSchemaProperties,
   validateAgainstJsonSchema,
   resolveStatePath,
   pickWorkflowReturns,
   isZodType,
 } from "./schema/json-schema.js"
+export type { JsonSchemaProperty } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
 export {
