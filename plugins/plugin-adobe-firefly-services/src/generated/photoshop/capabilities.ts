@@ -11,14 +11,9 @@ export const photoshop_auto_crop = shells.photoshop_auto_crop(async (input, ctx)
     method: "POST",
     pathTemplate: "/v1/auto-crop",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["aspectRatio","focus","image","mode","outputType","zoom"]},
+    bodySchema: schemas.Schema_AutoCropRequest,
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "submit",
@@ -31,14 +26,9 @@ export const photoshop_create_artboard = shells.photoshop_create_artboard(async 
     method: "POST",
     pathTemplate: "/v2/create-artboard",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["artboardSpacing","images","outputs"]},
+    bodySchema: schemas.Schema_CreateArtboardRequest,
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "submit",
@@ -51,14 +41,9 @@ export const photoshop_create_composite = shells.photoshop_create_composite(asyn
     method: "POST",
     pathTemplate: "/v2/create-composite",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["edits","fontOptions","image","outputs"]},
+    bodySchema: schemas.Schema_CreateCompositeRequest,
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "submit",
@@ -71,14 +56,9 @@ export const photoshop_edit = shells.photoshop_edit(async (input, ctx) => {
     method: "POST",
     pathTemplate: "/v2/edit",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["edits","image","outputs"]},
+    bodySchema: schemas.Schema_EditRequest,
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "submit",
@@ -91,14 +71,9 @@ export const photoshop_execute_actions = shells.photoshop_execute_actions(async 
     method: "POST",
     pathTemplate: "/v2/execute-actions",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["image","options","outputs"]},
+    bodySchema: schemas.Schema_ActionsRequest,
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "submit",
@@ -111,14 +86,9 @@ export const photoshop_generate_manifest = shells.photoshop_generate_manifest(as
     method: "POST",
     pathTemplate: "/v2/generate-manifest",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["exportOptions","extractSmartObjectData","image","includeLayerThumbnails","includeXmp","maximumThumbnailDepth","outputs","trimToTransparency"]},
+    bodySchema: schemas.Schema_GenerateManifestRequest,
     ctx,
     outputSchema: photoshopManifestDocumentSchema,
     asyncMode: "submit",
@@ -132,12 +102,8 @@ export const photoshop_get_job_status = shells.photoshop_get_job_status(async (i
     method: "GET",
     pathTemplate: "/v2/status/{jobId}",
     baseUrl: "https://photoshop-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["jobId"]},
     ctx,
     outputSchema: schemas.Schema_JobStatusResponse,
     asyncMode: "none",

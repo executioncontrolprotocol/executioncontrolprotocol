@@ -11,12 +11,8 @@ export const express_tagged_documents = shells.express_tagged_documents(async (i
     method: "GET",
     pathTemplate: "/beta/tagged-documents",
     baseUrl: "https://express-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["start","limit","sortBy"]},
     ctx,
     outputSchema: schemas.Schema_TaggedDocumentsResponse,
     asyncMode: "none",
@@ -29,12 +25,8 @@ export const express_tagged_document_details = shells.express_tagged_document_de
     method: "GET",
     pathTemplate: "/beta/tagged-documents/{documentId}",
     baseUrl: "https://express-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["documentId"],"query":["start"]},
     ctx,
     outputSchema: schemas.Schema_TaggedDocumentDetailsResponse,
     asyncMode: "none",
@@ -47,14 +39,9 @@ export const express_generate_variation = shells.express_generate_variation(asyn
     method: "POST",
     pathTemplate: "/beta/generate-variation",
     baseUrl: "https://express-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["id","variationDetails"]},
+    bodySchema: schemas.Schema_GenerateVariationRequest,
     ctx,
     outputSchema: schemas.Schema_GenerateVariationResponse,
     asyncMode: "submit",
@@ -67,14 +54,9 @@ export const express_export_rendition = shells.express_export_rendition(async (i
     method: "POST",
     pathTemplate: "/beta/export-rendition",
     baseUrl: "https://express-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["id","pages","options"]},
+    bodySchema: schemas.Schema_ExportRenditionRequest,
     ctx,
     outputSchema: schemas.Schema_ExportRenditionResponse,
     asyncMode: "submit",
@@ -87,12 +69,8 @@ export const express_get_job_status = shells.express_get_job_status(async (input
     method: "GET",
     pathTemplate: "/status/{jobId}",
     baseUrl: "https://express-api.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["jobId"]},
     ctx,
     outputSchema: z.union([schemas.Schema_JobStatusResponse, schemas.Schema_ExportRenditionResponse, schemas.Schema_GenerateVariationResponse]),
     asyncMode: "none",

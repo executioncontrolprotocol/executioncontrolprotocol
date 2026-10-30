@@ -37,20 +37,18 @@ export default workflow("Azure Blob + Firefly Image5 recolor")
       "Image5 recolor",
     )
       .with({
-        headers: { "x-model-version": "image5" },
-        body: {
-          prompt:
-            "Change the color palette to cool teal and deep navy; keep composition and subject",
-          resolutionLevel: "2.4MP",
-          modelId: "firefly_image",
-          numVariations: 1,
-          referenceBlobs: [
-            {
-              source: { url: ref("upload.sasUrl") },
-              usage: "general",
-            },
-          ],
-        },
+        "x-model-version": "image5",
+        prompt:
+          "Change the color palette to cool teal and deep navy; keep composition and subject",
+        resolutionLevel: "2.4MP",
+        modelId: "firefly_image",
+        numVariations: 1,
+        referenceBlobs: [
+          {
+            source: { url: ref("upload.sasUrl") },
+            usage: "general",
+          },
+        ],
       })
       .as("recolor"),
   ])

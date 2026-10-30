@@ -10,10 +10,20 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function firefly_generate_images_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-generate-images-v3-async")
     .withInput(z.object({
-  headers: z.object({
-  "x-model-version": z.enum(["image3", "image3_custom", "image4_standard", "image4_ultra", "image4_custom"]).optional()
-}).optional(),
-  body: schemas.Schema_GenerateImagesRequestV3,
+  "x-model-version": z.enum(["image3", "image3_custom", "image4_standard", "image4_ultra", "image4_custom"]).optional(),
+  contentClass: schemas.Schema_ContentClassV3.optional(),
+  customModelId: z.string().optional(),
+  negativePrompt: z.string().max(1024).optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  prompt: z.string().min(1).max(1024).optional(),
+  promptBiasingLocaleCode: z.string().optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_Size.optional(),
+  structure: schemas.Schema_StructureReferenceV3.optional(),
+  style: schemas.Schema_StylesV3.optional(),
+  upsamplerType: z.enum(["default", "low_creativity"]).optional(),
+  visualIntensity: z.number().int().min(2).max(10).optional(),
+  body: schemas.Schema_GenerateImagesRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -26,10 +36,16 @@ export function firefly_generate_images_v3_async(handler: CapabilityHandler) {
 export function firefly_generate_images_v5_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-generate-images-v5-async")
     .withInput(z.object({
-  headers: z.object({
-  "x-model-version": z.enum(["image5"])
-}).optional(),
-  body: schemas.Schema_ImageGenerateRequestV3,
+  "x-model-version": z.enum(["image5"]),
+  prompt: z.string().min(1).max(1500).optional(),
+  aspectRatio: schemas.Schema_AspectRatio.optional(),
+  resolutionLevel: z.enum(["1MP", "2.4MP", "4MP"]).optional(),
+  modelId: schemas.Schema_FireflyModelId.optional(),
+  modelSpecificPayload: schemas.Schema_ModelSpecificPayloadV3.optional(),
+  numVariations: z.number().int().max(1).optional(),
+  referenceBlobs: z.array(schemas.Schema_ReferenceBlobV3).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  body: schemas.Schema_ImageGenerateRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -42,10 +58,12 @@ export function firefly_generate_images_v5_async(handler: CapabilityHandler) {
 export function firefly_generate_similar_images_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-generate-similar-images-v3-async")
     .withInput(z.object({
-  headers: z.object({
-  "x-model-version": z.enum(["image3", "image4_standard", "image4_ultra"]).optional()
-}).optional(),
-  body: schemas.Schema_GenerateSimilarImagesRequestV3,
+  "x-model-version": z.enum(["image3", "image4_standard", "image4_ultra"]).optional(),
+  image: schemas.Schema_BaseInputImageV3.optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_Size.optional(),
+  body: schemas.Schema_GenerateSimilarImagesRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -58,7 +76,14 @@ export function firefly_generate_similar_images_v3_async(handler: CapabilityHand
 export function firefly_expand_images_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-expand-images-v3-async")
     .withInput(z.object({
-  body: schemas.Schema_ExpandImageRequestV3,
+  image: schemas.Schema_InputImageV3.optional(),
+  mask: schemas.Schema_InputMaskV3.optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  placement: schemas.Schema_Placement.optional(),
+  prompt: z.string().min(1).max(1024).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_Size.optional(),
+  body: schemas.Schema_ExpandImageRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -71,7 +96,15 @@ export function firefly_expand_images_v3_async(handler: CapabilityHandler) {
 export function firefly_fill_images_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-fill-images-v3-async")
     .withInput(z.object({
-  body: schemas.Schema_FillImageRequestV3,
+  image: schemas.Schema_InputImageV3.optional(),
+  mask: schemas.Schema_InputMaskV3.optional(),
+  negativePrompt: z.string().max(1024).optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  prompt: z.string().min(1).max(1024).optional(),
+  promptBiasingLocaleCode: z.string().optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_Size.optional(),
+  body: schemas.Schema_FillImageRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -84,7 +117,16 @@ export function firefly_fill_images_v3_async(handler: CapabilityHandler) {
 export function firefly_generate_object_composite_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-generate-object-composite-v3-async")
     .withInput(z.object({
-  body: schemas.Schema_GenerateObjectCompositeRequestV3,
+  contentClass: schemas.Schema_ContentClassV3.optional(),
+  image: schemas.Schema_InputImageV3.optional(),
+  mask: schemas.Schema_BaseInputMaskV3.optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  placement: schemas.Schema_Placement.optional(),
+  prompt: z.string().min(1).max(1024).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_Size.optional(),
+  style: schemas.Schema_StylesV3.optional(),
+  body: schemas.Schema_GenerateObjectCompositeRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -97,10 +139,13 @@ export function firefly_generate_object_composite_v3_async(handler: CapabilityHa
 export function firefly_precise_composite(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-precise-composite")
     .withInput(z.object({
-  headers: z.object({
-  "content-type": z.enum(["application/json"])
-}).optional(),
-  body: schemas.Schema_PreciseCompositeRequest,
+  background: schemas.Schema_BackgroundInput.optional(),
+  object: schemas.Schema_ObjectInput.optional(),
+  numVariations: z.number().int().min(1).max(3).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  blend: z.number().min(0).max(1).optional(),
+  output: schemas.Schema_OutputSpec.optional(),
+  body: schemas.Schema_PreciseCompositeRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -113,10 +158,15 @@ export function firefly_precise_composite(handler: CapabilityHandler) {
 export function firefly_adaptive_composite(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-adaptive-composite")
     .withInput(z.object({
-  headers: z.object({
-  "content-type": z.enum(["application/json"])
-}).optional(),
-  body: schemas.Schema_AdaptiveCompositeRequest,
+  background: schemas.Schema_BackgroundInput.optional(),
+  object: schemas.Schema_AdaptiveObjectInput.optional(),
+  numVariations: z.number().int().min(1).max(3).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  harmonization: z.number().min(0).max(1).optional(),
+  shadowIntensity: z.number().min(0).max(1).optional(),
+  preserveBackground: z.boolean().optional(),
+  output: schemas.Schema_OutputSpec.optional(),
+  body: schemas.Schema_AdaptiveCompositeRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -129,10 +179,11 @@ export function firefly_adaptive_composite(handler: CapabilityHandler) {
 export function firefly_precise_upsampler_v3_async(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-precise-upsampler-v3-async")
     .withInput(z.object({
-  headers: z.object({
-  "x-model-version": z.enum(["precise_upsampler_v1"]).optional()
-}).optional(),
-  body: schemas.Schema_PreciseUpsamplerRequestV3,
+  "x-model-version": z.enum(["precise_upsampler_v1"]).optional(),
+  image: schemas.Schema_BaseInputImageV3.optional(),
+  seeds: z.array(z.number().int()).optional(),
+  upscaleFactor: schemas.Schema_UpsampleFactor.optional(),
+  body: schemas.Schema_PreciseUpsamplerRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -145,10 +196,14 @@ export function firefly_precise_upsampler_v3_async(handler: CapabilityHandler) {
 export function firefly_generate_video_v3(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-generate-video-v3")
     .withInput(z.object({
-  headers: z.object({
-  "x-model-version": z.enum(["video1_standard"])
-}).optional(),
-  body: schemas.Schema_GenerateVideoRequestV3,
+  "x-model-version": z.enum(["video1_standard"]),
+  bitRateFactor: z.number().int().min(0).max(63).optional(),
+  image: schemas.Schema_InputImageVideoV3.optional(),
+  prompt: z.string().optional(),
+  seeds: z.array(z.number().int()).optional(),
+  sizes: z.array(schemas.Schema_ClinetoSize).optional(),
+  videoSettings: schemas.Schema_VideoSettingsV3.optional(),
+  body: schemas.Schema_GenerateVideoRequestV3.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -161,16 +216,12 @@ export function firefly_generate_video_v3(handler: CapabilityHandler) {
 export function firefly_get_custom_models(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-get-custom-models")
     .withInput(z.object({
-  query: z.object({
-  "sortBy": z.enum(["assetName", "createdDate", "modifiedDate"]).optional(),
-  "start": z.string().optional(),
-  "limit": z.string().optional(),
-  "publishedState": z.enum(["all", "ready", "published", "unpublished", "queued", "training", "failed", "cancelled"]).optional()
-}).optional(),
-  headers: z.object({
   "x-user-token": z.string().optional(),
-  "x-request-id": z.string()
-}).optional()
+  "x-request-id": z.string(),
+  sortBy: z.enum(["assetName", "createdDate", "modifiedDate"]).optional(),
+  start: z.string().optional(),
+  limit: z.string().optional(),
+  publishedState: z.enum(["all", "ready", "published", "unpublished", "queued", "training", "failed", "cancelled"]).optional()
 }))
     .withOutput(schemas.Schema_CustomModelsFF3pInfo)
     .withMetadata({"summary":"Retrieve custom models","description":"Retrieve the custom models for a user.","useCases":["Firefly Common Operations tasks that need this operation","When the workflow goal is to retrieve custom models"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
@@ -190,9 +241,7 @@ export function firefly_storage_image_v2(handler: CapabilityHandler) {
 export function firefly_job_result_v3(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-job-result-v3")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(schemas.Schema_JobResponse)
     .withMetadata({"summary":"Get job status","description":"Get the status of an asynchronous job (including upscale jobs). When the job has completed successfully, the result reflects the operation type (for example generation, composite, or upscale).","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to get job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
@@ -203,9 +252,7 @@ export function firefly_job_result_v3(handler: CapabilityHandler) {
 export function firefly_cancel_job_v4(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "firefly-cancel-job-v4")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(z.object({}))
     .withMetadata({"summary":"Cancel job","description":"Cancel an asynchronous job.","useCases":["Firefly Manage jobs tasks that need this operation","When the workflow goal is to cancel job"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})

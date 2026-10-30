@@ -11,7 +11,13 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function photoshop_auto_crop(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-auto-crop")
     .withInput(z.object({
-  body: schemas.Schema_AutoCropRequest,
+  aspectRatio: z.union([schemas.Schema_AutoCropAspectRatio, z.array(schemas.Schema_AutoCropAspectRatio)]).optional(),
+  focus: z.array(z.string()).optional(),
+  image: schemas.Schema_AutoCropInputImage.optional(),
+  mode: schemas.Schema_AutoCropMode.optional(),
+  outputType: schemas.Schema_AutoCropOutputType.optional(),
+  zoom: z.union([z.number(), z.array(z.number())]).optional(),
+  body: schemas.Schema_AutoCropRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -24,7 +30,10 @@ export function photoshop_auto_crop(handler: CapabilityHandler) {
 export function photoshop_create_artboard(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-create-artboard")
     .withInput(z.object({
-  body: schemas.Schema_CreateArtboardRequest,
+  artboardSpacing: z.number().int().optional(),
+  images: z.array(schemas.Schema_ArtboardImageInput).optional(),
+  outputs: z.array(z.union([schemas.Schema_JpegOutput, schemas.Schema_JsonOutput, schemas.Schema_PngOutput, schemas.Schema_PsdOutput, schemas.Schema_PsdcOutput, schemas.Schema_TiffOutput])).optional(),
+  body: schemas.Schema_CreateArtboardRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -37,7 +46,11 @@ export function photoshop_create_artboard(handler: CapabilityHandler) {
 export function photoshop_create_composite(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-create-composite")
     .withInput(z.object({
-  body: schemas.Schema_CreateCompositeRequest,
+  edits: schemas.Schema_Edits.optional(),
+  fontOptions: schemas.Schema_FontOptions.optional(),
+  image: z.union([schemas.Schema_ImageParameters, schemas.Schema_ImageSource]).optional(),
+  outputs: z.array(z.union([schemas.Schema_JpegOutput, schemas.Schema_JsonOutput, schemas.Schema_PngOutput, schemas.Schema_PsdOutput, schemas.Schema_PsdcOutput, schemas.Schema_TiffOutput])).optional(),
+  body: schemas.Schema_CreateCompositeRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -50,7 +63,10 @@ export function photoshop_create_composite(handler: CapabilityHandler) {
 export function photoshop_edit(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-edit")
     .withInput(z.object({
-  body: schemas.Schema_EditRequest,
+  edits: schemas.Schema_LightroomEdits.optional(),
+  image: schemas.Schema_EditImageInput.optional(),
+  outputs: z.array(z.union([schemas.Schema_LrDngOutput, schemas.Schema_LrJpegOutput, schemas.Schema_LrPngOutput, schemas.Schema_XmpOutput])).optional(),
+  body: schemas.Schema_EditRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -63,7 +79,10 @@ export function photoshop_edit(handler: CapabilityHandler) {
 export function photoshop_execute_actions(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-execute-actions")
     .withInput(z.object({
-  body: schemas.Schema_ActionsRequest,
+  image: schemas.Schema_ImageSource.optional(),
+  options: schemas.Schema_ActionsOptions.optional(),
+  outputs: z.array(z.union([schemas.Schema_JpegOutput, schemas.Schema_JsonOutput, schemas.Schema_PngOutput, schemas.Schema_PsdOutput, schemas.Schema_PsdcOutput, schemas.Schema_TiffOutput])).optional(),
+  body: schemas.Schema_ActionsRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -76,7 +95,15 @@ export function photoshop_execute_actions(handler: CapabilityHandler) {
 export function photoshop_generate_manifest(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-generate-manifest")
     .withInput(z.object({
-  body: schemas.Schema_GenerateManifestRequest,
+  exportOptions: z.union([schemas.Schema_JpegExportOptions, schemas.Schema_PngExportOptions]).optional(),
+  extractSmartObjectData: z.boolean().optional(),
+  image: schemas.Schema_Image.optional(),
+  includeLayerThumbnails: z.boolean().optional(),
+  includeXmp: z.boolean().optional(),
+  maximumThumbnailDepth: z.number().int().min(0).optional(),
+  outputs: z.array(schemas.Schema_ManifestJsonOutput).optional(),
+  trimToTransparency: z.boolean().optional(),
+  body: schemas.Schema_GenerateManifestRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -89,9 +116,7 @@ export function photoshop_generate_manifest(handler: CapabilityHandler) {
 export function photoshop_get_job_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "photoshop-get-job-status")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(schemas.Schema_JobStatusResponse)
     .withMetadata({"summary":"Get Job Status","description":"Retrieves the current status and details of a specific job including metadata, outputs, and processing information. Use this endpoint to poll jobs submitted to Photoshop v2 operations and POST /v1/auto-crop.","useCases":["Photoshop Job Status tasks that need this operation","When the workflow goal is to get Job Status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})

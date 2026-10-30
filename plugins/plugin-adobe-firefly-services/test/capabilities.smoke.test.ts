@@ -127,15 +127,19 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     const fixtures: { id: string; input: unknown }[] = [
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
+        input: { prompt: "sunset" },
+      },
+      {
+        id: "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
         input: { body: { prompt: "sunset" } },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status",
-        input: { path: { jobId: "job-1" } },
+        input: { jobId: "job-1" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.express-get-job-status",
-        input: { path: { jobId: "job-2" } },
+        input: { jobId: "job-2" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
@@ -147,7 +151,7 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.illustrator-facade-job-status",
-        input: { path: { jobId: "job-3" } },
+        input: { jobId: "job-3" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
@@ -285,15 +289,15 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     const cases: { id: string; input: unknown }[] = [
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
-        input: { body: { prompt: "dunes" } },
+        input: { prompt: "dunes" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.photoshop-get-job-status",
-        input: { path: { jobId: "ps-1" } },
+        input: { jobId: "ps-1" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.express-get-job-status",
-        input: { path: { jobId: "ex-1" } },
+        input: { jobId: "ex-1" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
@@ -305,7 +309,7 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.illustrator-facade-job-status",
-        input: { path: { jobId: "ai-1" } },
+        input: { jobId: "ai-1" },
       },
       {
         id: "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
@@ -349,15 +353,13 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
       "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
     )(
       {
-        body: {
-          image: { source: { url: "https://blob.example/a.psd" } },
-          outputs: [
-            {
-              mediaType: "application/json",
-              destination: { storageType: "azure", url: "https://blob.example/manifest.json" },
-            },
-          ],
-        },
+        image: { source: { url: "https://blob.example/a.psd" } },
+        outputs: [
+          {
+            mediaType: "application/json",
+            destination: { storageType: "azure", url: "https://blob.example/manifest.json" },
+          },
+        ],
         pollIntervalMs: 1,
         pollTimeoutMs: 5_000,
       },

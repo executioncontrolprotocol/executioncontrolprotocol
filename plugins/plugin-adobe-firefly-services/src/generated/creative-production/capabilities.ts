@@ -11,14 +11,9 @@ export const creative_production_batch_execute = shells.creative_production_batc
     method: "POST",
     pathTemplate: "/batch/execute",
     baseUrl: "https://run-workflow.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"headers":["api-version"],"body":["workflow"]},
+    bodySchema: schemas.Schema_BatchExecuteRequest,
     ctx,
     outputSchema: schemas.Schema_BatchStatusResponse,
     asyncMode: "submit",
@@ -31,12 +26,8 @@ export const creative_production_list_batches = shells.creative_production_list_
     method: "GET",
     pathTemplate: "/batches",
     baseUrl: "https://run-workflow.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["status","workflowId","createdAfter","createdBefore","limit","offset"],"headers":["api-version"]},
     ctx,
     outputSchema: schemas.Schema_ListBatchesResponse,
     asyncMode: "none",
@@ -49,12 +40,8 @@ export const creative_production_get_batch_status = shells.creative_production_g
     method: "GET",
     pathTemplate: "/batch/{batchId}/status",
     baseUrl: "https://run-workflow.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["batchId"],"headers":["api-version"]},
     ctx,
     outputSchema: schemas.Schema_BatchStatusResponse,
     asyncMode: "none",
@@ -67,12 +54,8 @@ export const creative_production_cancel_batch = shells.creative_production_cance
     method: "POST",
     pathTemplate: "/batch/{batchId}/cancel",
     baseUrl: "https://run-workflow.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["batchId"],"headers":["api-version"]},
     ctx,
     outputSchema: z.object({
   "batchId": z.string().optional(),
@@ -91,12 +74,8 @@ export const creative_production_list_batch_executions = shells.creative_product
     method: "GET",
     pathTemplate: "/batch/{batchId}/executions",
     baseUrl: "https://run-workflow.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["batchId"],"query":["status","limit","offset"],"headers":["api-version"]},
     ctx,
     outputSchema: z.object({
   "batchId": z.string().optional(),

@@ -22,11 +22,21 @@ export function illustrator_register_custom_script_capability(handler: Capabilit
 export function illustrator_execute_custom_script_capability(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-execute-custom-script-capability")
     .withInput(z.object({
-  path: z.object({
-  "orgId": z.string(),
-  "capabilityName": z.string()
+  orgId: z.string(),
+  capabilityName: z.string(),
+  assets: z.array(z.object({
+  "source": z.object({
+  "url": z.string()
 }),
-  body: schemas.Schema_CustomScriptExecuteRequest,
+  "destination": z.string()
+})).optional(),
+  params: z.object({
+  "targetDocument": z.string(),
+  "outputFolderPath": z.string(),
+  "zip": z.string().optional(),
+  "fontFolderPath": z.string().optional()
+}).optional(),
+  body: schemas.Schema_CustomScriptExecuteRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -39,9 +49,7 @@ export function illustrator_execute_custom_script_capability(handler: Capability
 export function illustrator_custom_scripts_job_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-custom-scripts-job-status")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(z.union([schemas.Schema_CustomScriptJobSucceededResponse, schemas.Schema_CustomScriptJobRunningResponse, schemas.Schema_CustomScriptJobFailedResponse]))
     .withMetadata({"summary":"Retrieve job status","description":"Poll execution status for a Custom Scripts job. Use this after calling custom script execute. When the job succeeds, each entry in `outputs` includes a presigned URL to download an output file.","useCases":["Illustrator Custom Scripts tasks that need this operation","When the workflow goal is to retrieve job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
@@ -52,7 +60,12 @@ export function illustrator_custom_scripts_job_status(handler: CapabilityHandler
 export function illustrator_data_merge(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-data-merge")
     .withInput(z.object({
-  body: schemas.Schema_DataMergeRequest,
+  data: schemas.Schema_DataMergeData.optional(),
+  template: schemas.Schema_DataMergeTemplate.optional(),
+  fontFiles: z.array(schemas.Schema_DataMergeFontFile).optional(),
+  settings: schemas.Schema_DataMergeSettings.optional(),
+  output: schemas.Schema_DataMergeOutputSpec.optional(),
+  body: schemas.Schema_DataMergeRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -65,7 +78,10 @@ export function illustrator_data_merge(handler: CapabilityHandler) {
 export function illustrator_create_rendition(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-create-rendition")
     .withInput(z.object({
-  body: schemas.Schema_CreateRenditionRequest,
+  input: schemas.Schema_CreateRenditionInput.optional(),
+  output: schemas.Schema_CreateRenditionOutputSpec.optional(),
+  settings: schemas.Schema_CreateRenditionSettings.optional(),
+  body: schemas.Schema_CreateRenditionRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -78,7 +94,9 @@ export function illustrator_create_rendition(handler: CapabilityHandler) {
 export function illustrator_trace_image(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-trace-image")
     .withInput(z.object({
-  body: schemas.Schema_VectorizeRequest,
+  input: schemas.Schema_VectorizeInput.optional(),
+  settings: schemas.Schema_VectorizeSettings.optional(),
+  body: schemas.Schema_VectorizeRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -91,9 +109,7 @@ export function illustrator_trace_image(handler: CapabilityHandler) {
 export function illustrator_image_trace_job_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-image-trace-job-status")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(z.union([schemas.Schema_ImageTraceJobApiResponse, schemas.Schema_JobStatusPollPayload, schemas.Schema_ImageTraceJobFailedResponse]))
     .withMetadata({"summary":"Retrieve job status","description":"Poll execution status for an Image Trace job. Use this after calling Image Trace. Poll `GET /v1/status/{jobId}` with the job ID from the trace-image response. When the job succeeds, each output item includes a presigned URL and SVG media type (`image/svg+xml`). Image Trace jobs return only `running`, `succeeded`, or `failed`.","useCases":["Illustrator Image Trace tasks that need this operation","When the workflow goal is to retrieve job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
@@ -104,9 +120,7 @@ export function illustrator_image_trace_job_status(handler: CapabilityHandler) {
 export function illustrator_facade_job_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "illustrator-facade-job-status")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(z.union([schemas.Schema_DataMergeJobApiResponse, schemas.Schema_CreateRenditionJobApiResponse, schemas.Schema_JobStatusPollPayload, schemas.Schema_DataMergeJobFailedResponse, schemas.Schema_DataMergeJobPartiallySucceededResponse]))
     .withMetadata({"summary":"Retrieve job status","description":"Retrieve the status of a job by providing the job ID. The job ID can be obtained from the response of other APIs. For all asynchronous jobs, polling this endpoint can return `running`, `succeeded`, or `failed`. The `partially_succeeded` status is returned only for Data Merge jobs when some CSV rows produce outputs while other rows fail or must be rerun after errors (for example, missing fonts). No other job types return the `partially_succeeded` status.When `status` is `succeeded`, for Data Merge jobs each item in `outputs` includes a `row` field; for Create Rendition jobs, output items contain `destination` and `mediaType` only.","useCases":["Illustrator Data Merge & Create Rendition tasks that need this operation","When the workflow goal is to retrieve job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})

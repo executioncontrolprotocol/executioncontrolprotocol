@@ -17,7 +17,7 @@ export default workflow("Adobe Firefly smoke")
       "Generate images",
     )
       .with({
-        body: { prompt: "a quiet desert at dusk" },
+        prompt: "a quiet desert at dusk",
       })
       .as("generate"),
   ])

@@ -10,11 +10,9 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function express_tagged_documents(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "express-tagged-documents")
     .withInput(z.object({
-  query: z.object({
-  "start": z.number().int().optional(),
-  "limit": z.number().int().optional(),
-  "sortBy": schemas.Schema_TaggedDocumentsSortBy.optional()
-}).optional()
+  start: z.number().int().optional(),
+  limit: z.number().int().optional(),
+  sortBy: schemas.Schema_TaggedDocumentsSortBy.optional()
 }))
     .withOutput(schemas.Schema_TaggedDocumentsResponse)
     .withMetadata({"summary":"Tagged documents","description":"This API retrieves a list of tagged documents that users can access, including those they own or those shared with them, along with relevant metadata. It supports pagination and sorting, allowing users to specify the starting point, define the number of documents to return, and choose the order in which to list them. The response includes the requested documents and their metadata.","useCases":["When the workflow goal is to tagged documents"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
@@ -25,12 +23,8 @@ export function express_tagged_documents(handler: CapabilityHandler) {
 export function express_tagged_document_details(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "express-tagged-document-details")
     .withInput(z.object({
-  path: z.object({
-  "documentId": z.string()
-}),
-  query: z.object({
-  "start": z.number().int().optional()
-}).optional()
+  documentId: z.string(),
+  start: z.number().int().optional()
 }))
     .withOutput(schemas.Schema_TaggedDocumentDetailsResponse)
     .withMetadata({"summary":"Tagged document details","description":"This API retrieves details of the pages and tagged elements within a specified document. It returns a paginated list of the document's pages and metadata about each page. If the document has tagged elements, the API includes their respective details, such as size and position. If the document does not have tagged elements, it returns an empty array. The response includes pagination information to help users navigate the document’s pages. A maximum of 10 pages can be returned in 1 API call.","useCases":["When the workflow goal is to tagged document details"],"projections":[{"summary":"Inspect the structured result","description":"Read the returned document or asset facts you need for authoring, such as names, sizes, and ids."}]})
@@ -41,7 +35,9 @@ export function express_tagged_document_details(handler: CapabilityHandler) {
 export function express_generate_variation(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "express-generate-variation")
     .withInput(z.object({
-  body: schemas.Schema_GenerateVariationRequest,
+  id: z.string().optional(),
+  variationDetails: schemas.Schema_VariationDetails.optional(),
+  body: schemas.Schema_GenerateVariationRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -54,7 +50,10 @@ export function express_generate_variation(handler: CapabilityHandler) {
 export function express_export_rendition(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "express-export-rendition")
     .withInput(z.object({
-  body: schemas.Schema_ExportRenditionRequest,
+  id: z.string().optional(),
+  pages: z.string().optional(),
+  options: z.union([schemas.Schema_ImageRenditionOptions, schemas.Schema_VideoRenditionOptions, schemas.Schema_PdfRenditionOptions]).optional(),
+  body: schemas.Schema_ExportRenditionRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -67,9 +66,7 @@ export function express_export_rendition(handler: CapabilityHandler) {
 export function express_get_job_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "express-get-job-status")
     .withInput(z.object({
-  path: z.object({
-  "jobId": z.string()
-})
+  jobId: z.string()
 }))
     .withOutput(z.union([schemas.Schema_JobStatusResponse, schemas.Schema_ExportRenditionResponse, schemas.Schema_GenerateVariationResponse]))
     .withMetadata({"summary":"Job status","description":"Retrieve a job's status by its `jobId`. Depending on the job type, the response may include job-specific details.","useCases":["When the workflow goal is to job status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})

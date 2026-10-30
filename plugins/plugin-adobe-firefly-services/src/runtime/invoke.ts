@@ -1,3 +1,4 @@
+import { mergeParameterBody } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import { createImsTokenProvider } from "../auth/ims.js"
 import { buildUrl, createAdobeHttpClient } from "../http/client.js"
@@ -20,17 +21,39 @@ export interface AdobeInvokeContext {
 }
 
 /**
- * Structured capability input produced by codegen.
+ * Flat capability input produced by codegen. Path, query, header, and body
+ * fields are top-level keys. Optional `body` is the JSON document to merge.
  * @category Runtime
  */
-export interface AdobeOperationInput {
+export type AdobeOperationInput = Record<string, unknown>
+
+/**
+ * Which top-level input keys map to path, query, header, and JSON body fields.
+ * @category Runtime
+ */
+export interface AdobeParameterMap {
   /** Path template params. */
-  path?: Record<string, string | number | boolean>
+  path?: string[]
   /** Query string params. */
-  query?: Record<string, string | number | boolean | undefined>
+  query?: string[]
   /** Extra headers (non-auth). */
-  headers?: Record<string, string>
-  /** JSON body. */
+  headers?: string[]
+  /** JSON body fields hoisted from the request schema. */
+  body?: string[]
+}
+
+/**
+ * HTTP pieces assembled from a flat capability input.
+ * @category Runtime
+ */
+export interface AssembledAdobeRequest {
+  /** Path template params. */
+  path: Record<string, string | number | boolean>
+  /** Query string params. */
+  query: Record<string, string | number | boolean | undefined>
+  /** Extra headers (non-auth). */
+  headers: Record<string, string>
+  /** JSON body after parameter merge. */
   body?: unknown
   /** Poll interval (async-submit only). */
   pollIntervalMs?: number
@@ -61,6 +84,96 @@ export function readExtensionConfig(ctx: unknown): Record<string, unknown> {
   return cfg as Record<string, unknown>
 }
 
+function pickDefined(input: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const key of keys) {
+    const value = input[key]
+    if (value !== undefined) out[key] = value
+  }
+  return out
+}
+
+function asPathQueryValue(
+  value: unknown,
+): string | number | boolean | undefined {
+  if (value === undefined) return undefined
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value
+  }
+  return String(value)
+}
+
+function asPathRecord(values: Record<string, unknown>): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {}
+  for (const [key, value] of Object.entries(values)) {
+    const next = asPathQueryValue(value)
+    if (next !== undefined) out[key] = next
+  }
+  return out
+}
+
+function asQueryRecord(
+  values: Record<string, unknown>,
+): Record<string, string | number | boolean | undefined> {
+  const out: Record<string, string | number | boolean | undefined> = {}
+  for (const [key, value] of Object.entries(values)) {
+    out[key] = asPathQueryValue(value)
+  }
+  return out
+}
+
+function asHeaderRecord(values: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined) continue
+    out[key] = String(value)
+  }
+  return out
+}
+
+function optionalPositiveInt(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+/**
+ * Build path, query, headers, and JSON body from a flat capability input.
+ * When `bodySchema` is set, a provided `body` or any body parameter is merged
+ * then parsed against that schema.
+ * @category Runtime
+ */
+export function assembleAdobeOperationInput(
+  input: AdobeOperationInput,
+  parameters: AdobeParameterMap = {},
+  bodySchema?: z.ZodType,
+): AssembledAdobeRequest {
+  const path = asPathRecord(pickDefined(input, parameters.path ?? []))
+  const query = asQueryRecord(pickDefined(input, parameters.query ?? []))
+  const headers = asHeaderRecord(pickDefined(input, parameters.headers ?? []))
+  const bodyParams = pickDefined(input, parameters.body ?? [])
+  const hasBodyParam = Object.keys(bodyParams).length > 0
+  const hasBody = input.body !== undefined
+
+  let body: unknown
+  if (bodySchema && (hasBody || hasBodyParam)) {
+    body = mergeParameterBody(input.body, bodyParams)
+    const parsed = bodySchema.safeParse(body)
+    if (!parsed.success) {
+      throw new Error(`Adobe request body failed schema: ${parsed.error.message}`)
+    }
+  } else if (!bodySchema && hasBody) {
+    body = input.body
+  }
+
+  return {
+    path,
+    query,
+    headers,
+    body,
+    pollIntervalMs: optionalPositiveInt(input.pollIntervalMs),
+    pollTimeoutMs: optionalPositiveInt(input.pollTimeoutMs),
+  }
+}
+
 /**
  * Invoke a generated Adobe OpenAPI operation.
  * Async-submit capabilities always poll and return the final result (not job-accepted).
@@ -71,6 +184,10 @@ export async function invokeAdobeOperation(options: {
   pathTemplate: string
   baseUrl: string
   input: AdobeOperationInput
+  /** Path/query/header/body keys on {@link AdobeOperationInput}. */
+  parameters?: AdobeParameterMap
+  /** Original JSON request schema when body fields were hoisted. */
+  bodySchema?: z.ZodType
   /** Capability handler context (`CapabilityContext` + optional `extensionConfig`). */
   ctx: unknown
   outputSchema: z.ZodType
@@ -86,6 +203,12 @@ export async function invokeAdobeOperation(options: {
     throw new Error("Adobe clientId and clientSecret are required in extension config")
   }
 
+  const assembled = assembleAdobeOperationInput(
+    options.input,
+    options.parameters,
+    options.bodySchema,
+  )
+
   const getAccessToken = createImsTokenProvider({
     clientId,
     clientSecret,
@@ -97,15 +220,15 @@ export async function invokeAdobeOperation(options: {
   const url = buildUrl(
     options.baseUrl,
     options.pathTemplate,
-    options.input.path ?? {},
-    options.input.query,
+    assembled.path,
+    assembled.query,
   )
 
   const raw = await client.request({
     method: options.method,
     url,
-    body: options.input.body,
-    headers: options.input.headers,
+    body: assembled.body,
+    headers: assembled.headers,
   })
 
   let result: unknown = raw
@@ -121,14 +244,14 @@ export async function invokeAdobeOperation(options: {
     result = await pollAdobeJob({
       statusUrl,
       client,
-      intervalMs: options.input.pollIntervalMs,
-      timeoutMs: options.input.pollTimeoutMs,
+      intervalMs: assembled.pollIntervalMs,
+      timeoutMs: assembled.pollTimeoutMs,
     })
 
     if (options.materialize === "photoshop-manifest") {
       result = await materializePhotoshopManifest({
         jobStatus: result,
-        requestBody: options.input.body,
+        requestBody: assembled.body,
       })
     }
   }

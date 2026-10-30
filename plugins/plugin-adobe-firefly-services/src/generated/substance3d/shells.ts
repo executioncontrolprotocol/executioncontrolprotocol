@@ -10,13 +10,27 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function substance3d_v1_composites_compose(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-composites-compose")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  headers: z.object({
-  "X-User-Token": z.string().optional()
-}).optional(),
-  body: schemas.Schema_restv1_ComposeSceneRequest,
+  "X-User-Token": z.string().optional(),
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  cameraName: z.string().optional(),
+  contentClass: z.enum(["art", "photo"]).optional(),
+  customModelId: z.string().optional(),
+  enableGroundPlane: z.boolean().optional(),
+  environment: schemas.Schema_types_ComposeEnvironment.optional(),
+  environmentExposure: z.number().min(-10).max(10).optional(),
+  heroAsset: z.string().min(1).optional(),
+  lightingSeeds: z.array(z.number().int()).optional(),
+  modelVersion: z.enum(["image3_fast", "image4_standard", "image4_ultra"]).optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  prompt: z.string().min(1).optional(),
+  scene: schemas.Schema_types_ComposeSceneSceneDetails.optional(),
+  sceneFile: z.string().optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_types_OutputSize.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  styleImage: z.string().optional(),
+  body: schemas.Schema_restv1_ComposeSceneRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -29,10 +43,13 @@ export function substance3d_v1_composites_compose(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_assemble(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-assemble")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_CreateSceneRequest,
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  encoding: z.enum(["glb", "gltf", "fbx", "usdz", "usda", "usdc", "obj"]).optional(),
+  fileBaseName: z.string().min(1).optional(),
+  scene: schemas.Schema_types_SceneDescription.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_CreateSceneRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -45,10 +62,12 @@ export function substance3d_v1_scenes_assemble(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_convert(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-convert")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_ModelConvertRequest,
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  format: z.enum(["glb", "gltf", "fbx", "usdz", "usda", "usdc", "obj"]).optional(),
+  modelEntrypoint: z.string().optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_ModelConvertRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -61,10 +80,11 @@ export function substance3d_v1_scenes_convert(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_describe(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-describe")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_SceneDescRequest,
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  sceneFile: z.string().optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_SceneDescRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -77,10 +97,17 @@ export function substance3d_v1_scenes_describe(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_render(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-render")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_RenderSceneRequest,
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  autoFraming: schemas.Schema_types_AutoFramingOptions.optional(),
+  background: schemas.Schema_types_BackgroundOptions.optional(),
+  cameraName: z.string().optional(),
+  extraOutputs: schemas.Schema_types_RenderExtraOutputs.optional(),
+  groundPlane: schemas.Schema_types_GroundPlaneOptions.optional(),
+  scene: schemas.Schema_types_SceneDescription.optional(),
+  size: schemas.Schema_types_SizeOptions.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_RenderSceneRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -93,10 +120,17 @@ export function substance3d_v1_scenes_render(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_render_basic(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-render-basic")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_RenderModelRequest,
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  autoFraming: schemas.Schema_types_AutoFramingOptions.optional(),
+  background: schemas.Schema_types_BackgroundOptions.optional(),
+  cameraName: z.string().optional(),
+  extraOutputs: schemas.Schema_types_RenderExtraOutputs.optional(),
+  groundPlane: schemas.Schema_types_GroundPlaneOptions.optional(),
+  scene: schemas.Schema_types_SimpleSceneDescription.optional(),
+  size: schemas.Schema_types_SizeOptions.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_RenderModelRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -127,7 +161,10 @@ export function substance3d_create_space_v2(handler: CapabilityHandler) {
 export function substance3d_create_space_from_frame_io_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-from-frame-io-v2")
     .withInput(z.object({
-  body: schemas.Schema_rest_base_FileFrameIO
+  "$schema": z.string().optional(),
+  accessToken: z.string().optional(),
+  folderId: z.string().optional(),
+  body: schemas.Schema_rest_base_FileFrameIO.optional()
 }))
     .withOutput(schemas.Schema_rest_base_Space)
     .withMetadata({"summary":"Create Space From Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **frame.io** to create a space. To upload a folder from frame.io, you must pass the following parameters: - **access Token** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
@@ -138,7 +175,11 @@ export function substance3d_create_space_from_frame_io_v2(handler: CapabilityHan
 export function substance3d_create_space_from_next_frame_io_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-from-next-frame-io-v2")
     .withInput(z.object({
-  body: schemas.Schema_rest_base_FileNextFrameIO
+  "$schema": z.string().optional(),
+  accessToken: z.string().optional(),
+  accountId: z.string().optional(),
+  folderId: z.string().optional(),
+  body: schemas.Schema_rest_base_FileNextFrameIO.optional()
 }))
     .withOutput(schemas.Schema_rest_base_Space)
     .withMetadata({"summary":"Create Space From Next Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **next.frame.io** to create a space. To upload a folder from next.frame.io, you must pass the following parameters: - **access Token** - **account ID** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Next Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})

@@ -10,10 +10,9 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function creative_production_batch_execute(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "creative-production-batch-execute")
     .withInput(z.object({
-  headers: z.object({
-  "api-version": z.enum(["1.0"]).optional()
-}).optional(),
-  body: schemas.Schema_BatchExecuteRequest,
+  "api-version": z.enum(["1.0"]).optional(),
+  workflow: schemas.Schema_BatchExecuteWorkflow.optional(),
+  body: schemas.Schema_BatchExecuteRequest.optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional()
 }))
@@ -26,17 +25,13 @@ export function creative_production_batch_execute(handler: CapabilityHandler) {
 export function creative_production_list_batches(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "creative-production-list-batches")
     .withInput(z.object({
-  query: z.object({
-  "status": z.enum(["pending", "running", "completed", "failed", "cancelled"]).optional(),
-  "workflowId": z.string().optional(),
-  "createdAfter": z.string().optional(),
-  "createdBefore": z.string().optional(),
-  "limit": z.number().int().min(1).max(100).optional(),
-  "offset": z.number().int().min(0).optional()
-}).optional(),
-  headers: z.object({
-  "api-version": z.enum(["1.0"]).optional()
-}).optional()
+  "api-version": z.enum(["1.0"]).optional(),
+  status: z.enum(["pending", "running", "completed", "failed", "cancelled"]).optional(),
+  workflowId: z.string().optional(),
+  createdAfter: z.string().optional(),
+  createdBefore: z.string().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  offset: z.number().int().min(0).optional()
 }))
     .withOutput(schemas.Schema_ListBatchesResponse)
     .withMetadata({"summary":"List batches","description":"List all batches created by the authenticated user within their organization. Results are automatically filtered by the authenticated user's ID. Users can only view their own batches, not batches created by other users in the organization. Results are sorted by creation date (most recent first) and include pagination metadata.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to list batches"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
@@ -47,12 +42,8 @@ export function creative_production_list_batches(handler: CapabilityHandler) {
 export function creative_production_get_batch_status(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "creative-production-get-batch-status")
     .withInput(z.object({
-  path: z.object({
-  "batchId": z.string()
-}),
-  headers: z.object({
-  "api-version": z.enum(["1.0"]).optional()
-}).optional()
+  "api-version": z.enum(["1.0"]).optional(),
+  batchId: z.string()
 }))
     .withOutput(schemas.Schema_BatchStatusResponse)
     .withMetadata({"summary":"Get batch status","description":"Get the current status and progress of a batch job. Returns the batch identifier, workflow identifier, status, asset and execution counters (including execution IDs), timestamps, and hypermedia links to cancel or list executions.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to get batch status"],"projections":[{"summary":"Read job status","description":"Take the job status and identifiers so you know whether to wait, retry, or continue."},{"summary":"Take completed outputs","description":"When the job succeeded, take output or result URLs and asset references for the next step."}]})
@@ -63,12 +54,8 @@ export function creative_production_get_batch_status(handler: CapabilityHandler)
 export function creative_production_cancel_batch(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "creative-production-cancel-batch")
     .withInput(z.object({
-  path: z.object({
-  "batchId": z.string()
-}),
-  headers: z.object({
-  "api-version": z.enum(["1.0"]).optional()
-}).optional()
+  "api-version": z.enum(["1.0"]).optional(),
+  batchId: z.string()
 }))
     .withOutput(z.object({
   "batchId": z.string().optional(),
@@ -85,17 +72,11 @@ export function creative_production_cancel_batch(handler: CapabilityHandler) {
 export function creative_production_list_batch_executions(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "creative-production-list-batch-executions")
     .withInput(z.object({
-  path: z.object({
-  "batchId": z.string()
-}),
-  query: z.object({
-  "status": z.enum(["pending", "running", "success", "failed"]).optional(),
-  "limit": z.number().int().min(1).max(500).optional(),
-  "offset": z.number().int().min(0).optional()
-}).optional(),
-  headers: z.object({
-  "api-version": z.enum(["1.0"]).optional()
-}).optional()
+  "api-version": z.enum(["1.0"]).optional(),
+  batchId: z.string(),
+  status: z.enum(["pending", "running", "success", "failed"]).optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+  offset: z.number().int().min(0).optional()
 }))
     .withOutput(z.object({
   "batchId": z.string().optional(),

@@ -11,14 +11,9 @@ export const indesign_data_merge = shells.indesign_data_merge(async (input, ctx)
     method: "POST",
     pathTemplate: "/v3/merge-data",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["assets","params","outputs"]},
+    bodySchema: schemas.Schema_MergeDataRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -31,14 +26,9 @@ export const indesign_data_merge_tags = shells.indesign_data_merge_tags(async (i
     method: "POST",
     pathTemplate: "/v3/merge-data-tags",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["assets","params"]},
+    bodySchema: schemas.Schema_MergeDataTagsRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -51,14 +41,9 @@ export const indesign_remap_links = shells.indesign_remap_links(async (input, ct
     method: "POST",
     pathTemplate: "/v3/remap-links",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"headers":["x-aem-token"],"body":["assets","params","outputs"]},
+    bodySchema: schemas.Schema_RemapLinksRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -71,14 +56,9 @@ export const indesign_rendition_job = shells.indesign_rendition_job(async (input
     method: "POST",
     pathTemplate: "/v3/create-rendition",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["assets","params","outputs"]},
+    bodySchema: schemas.Schema_CreateRenditionRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -91,12 +71,8 @@ export const indesign_list_custom_scripts = shells.indesign_list_custom_scripts(
     method: "GET",
     pathTemplate: "/v3/scripts",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["page"]},
     ctx,
     outputSchema: schemas.Schema_CustomScriptsListResponse,
     asyncMode: "none",
@@ -109,14 +85,7 @@ export const indesign_submit_custom_script = shells.indesign_submit_custom_scrip
     method: "POST",
     pathTemplate: "/v3/scripts",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -129,14 +98,9 @@ export const indesign_execute_custom_script = shells.indesign_execute_custom_scr
     method: "POST",
     pathTemplate: "/v3/{script_id}/{script_name}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["script_id","script_name"],"body":["assets","params","outputs"]},
+    bodySchema: schemas.Schema_BaseJobRequestWithOutput,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -149,12 +113,8 @@ export const indesign_get_custom_script_details = shells.indesign_get_custom_scr
     method: "GET",
     pathTemplate: "/v3/scripts/{script_name}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["script_name"]},
     ctx,
     outputSchema: schemas.Schema_CustomScriptDetails,
     asyncMode: "none",
@@ -167,12 +127,8 @@ export const indesign_delete_custom_script = shells.indesign_delete_custom_scrip
     method: "DELETE",
     pathTemplate: "/v3/scripts/{script_name}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["script_name"]},
     ctx,
     outputSchema: z.object({}),
     asyncMode: "none",
@@ -185,12 +141,9 @@ export const indesign_update_script_app_version = shells.indesign_update_script_
     method: "PUT",
     pathTemplate: "/v3/scripts/{script_name}/app-version",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["script_name"],"body":["appVersionStrategy","majorAppVersion","minorAppVersion"]},
+    bodySchema: schemas.Schema_AppVersionUpdateRequest,
     ctx,
     outputSchema: z.object({
   "message": z.string().optional()
@@ -205,12 +158,7 @@ export const indesign_list_app_versions = shells.indesign_list_app_versions(asyn
     method: "GET",
     pathTemplate: "/v3/app-versions",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
     ctx,
     outputSchema: z.array(schemas.Schema_AppVersionInfo),
     asyncMode: "none",
@@ -223,14 +171,9 @@ export const indesign_get_document_info = shells.indesign_get_document_info(asyn
     method: "POST",
     pathTemplate: "/v3/document-info",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["assets","params"]},
+    bodySchema: schemas.Schema_DocumentInfoRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -243,12 +186,8 @@ export const indesign_get_document_info_job_status = shells.indesign_get_documen
     method: "GET",
     pathTemplate: "/v3/status/{document-info_job_id}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["document-info_job_id"]},
     ctx,
     outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
     asyncMode: "none",
@@ -261,14 +200,9 @@ export const indesign_convert_pdfto_in_design = shells.indesign_convert_pdfto_in
     method: "POST",
     pathTemplate: "/v3/convert-pdf-to-indesign",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["assets","params","outputs"]},
+    bodySchema: schemas.Schema_ConvertToInDesignRequest,
     ctx,
     outputSchema: schemas.Schema_succeededEvent,
     asyncMode: "submit",
@@ -281,12 +215,8 @@ export const indesign_get_convert_pdfto_in_design_job_status = shells.indesign_g
     method: "GET",
     pathTemplate: "/v3/status/{convert-pdf-to-indesign_job_id}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["convert-pdf-to-indesign_job_id"]},
     ctx,
     outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
     asyncMode: "none",
@@ -299,12 +229,8 @@ export const indesign_get_job_status = shells.indesign_get_job_status(async (inp
     method: "GET",
     pathTemplate: "/v3/status/{id}",
     baseUrl: "https://indesign.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"path":["id"],"query":["size","page"]},
     ctx,
     outputSchema: z.union([schemas.Schema_notstartedEvent, schemas.Schema_runningEvent, schemas.Schema_succeededEvent, schemas.Schema_failedEvent, schemas.Schema_partialSuccessEvent]),
     asyncMode: "none",

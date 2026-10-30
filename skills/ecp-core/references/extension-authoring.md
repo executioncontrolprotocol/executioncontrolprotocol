@@ -24,6 +24,29 @@ Every extension follows third-party rules. Full contract: `.cursor/rules/extensi
 | --- | --- |
 | `core` (including `core/types`), `zod`, focused libraries, `plugin-sdk` (from Phase 3) | `node`, `browser`, `cli`, `mcp` |
 
+## API capability inputs
+
+HTTP capabilities expose every known path, query, header, and JSON-body field as a
+top-level parameter. The App, CLI, and MCP only bind top-level keys.
+
+- Optional `body` is the rest of the JSON document. Merge with
+  `{ ...body, ...setParameters }` via `mergeParameterBody` from
+  `@executioncontrolprotocol/core`. A set parameter replaces that key. Keys only in
+  `body` stay. Unset parameters are omitted so they do not wipe `body`. Nested
+  objects and arrays replace as a whole.
+- After the merge, parse the original request schema. Hoisted body fields stay
+  optional on the capability schema because `body` may carry them.
+- Path, query, and header parameters keep their API requiredness. They are not part
+  of the JSON merge.
+- Auth headers and a `content-type` fixed to `application/json` are not parameters.
+- If the JSON body is not an object, `body` is that value and nothing is hoisted.
+- If the request schema is not known ahead of time, do not invent fields. Known
+  controls stay parameters and the document is `body`.
+
+Every new HTTP capability and every OpenAPI import follows this shape. Non-HTTP
+capabilities do not grow a `body` field. Model generate stays on
+`modelGenerateInputSchema`.
+
 ## Test
 
 - Use fixtures and `environment()` from core, not host packages, inside extension tests.
