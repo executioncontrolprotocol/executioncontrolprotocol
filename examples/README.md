@@ -14,6 +14,6 @@ Install the CLI: `npm install -g @executioncontrolprotocol/cli` (or build/link f
 
 Plugin examples live next to each plugin under `plugins/plugin-*/examples/` (`*.ecp.ts`).
 
-Echo examples need `@executioncontrolprotocol/plugin-test` (`ecp plugins link plugins/plugin-test` until 0.50.0 is on npm). `02-weekly-brief` needs the OpenAI plugin and an API key; use `--dry-run` without a key. Offline CI runs bind `testExtension` on the test host.
+Echo examples need `@executioncontrolprotocol/plugin-test`. From a source checkout, `ecp plugins link plugins/plugin-test`. After the CLI is on `latest`, `ecp workflows install examples/01-echo/workflow.ecp.ts` installs the npm package. `02-weekly-brief` needs the OpenAI plugin and an API key; use `--dry-run` without a key. Offline CI runs bind `testExtension` on the test host.
 
 Step a run with `ecp run <file> --to <step>`, then `ecp runs resume` / `ecp runs rerun`. Journals live under `.ecp/runs/`.

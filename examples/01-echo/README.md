@@ -11,4 +11,4 @@ ecp environments describe
 ecp environments search "echo"
 ```
 
-Until 0.50.0 is on npm, link the workspace plugin. After publish, `ecp workflows install examples/01-echo/workflow.ecp.ts` installs `@executioncontrolprotocol/plugin-test`.
+From a source checkout, link the workspace plugin. After the CLI is on `latest`, `ecp workflows install examples/01-echo/workflow.ecp.ts` installs `@executioncontrolprotocol/plugin-test`.
