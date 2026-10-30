@@ -4,7 +4,7 @@ Isolated **non-workspace** sources used by `scripts/plugin-pack-smoke.mjs`.
 
 The smoke packs `core`, `node`, `plugin-sdk`, `cli`, and every `plugins/plugin-*` tarball, installs the CLI into a temp prefix with hermetic `ECP_DATA_DIR` / `ECP_CONFIG_DIR`, then `ecp plugins install <file-url>` for each plugin (`ECP_ALLOW_SOURCE=path`, `ECP_TRUST_THIRD_PARTY=1`).
 
-First-party npm is still unpublished, so this proves install from packed tarballs rather than `npm i -g @executioncontrolprotocol/cli@next`.
+First-party npm is still unpublished, so this proves install from packed tarballs rather than `npm i -g @executioncontrolprotocol/cli`.
 
 ## Run
 

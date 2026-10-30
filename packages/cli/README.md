@@ -21,21 +21,22 @@ For the architecture and monorepo package boundaries, start with
 
 ## Install
 
-From npm (when a dist-tag exists):
+From npm (`latest`):
 
 ```sh
-npm install -g @executioncontrolprotocol/cli@next
+npm install -g @executioncontrolprotocol/cli
 ```
 
-Until `@next` is on the registry, pack-install from this repo (`pnpm run test:plugin-pack`).
+The field-test is **0.51.0** (not 1.0). Until that version is on the registry,
+pack-install from this repo (`pnpm run test:plugin-pack`).
 
 From this monorepo (recommended for development):
 
 ```sh
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd packages/cli
-npm link
+pnpm link --global
 ```
 
 ## Usage
@@ -132,8 +133,8 @@ ecp plugins discover jsonata --json
 
 ### MCP
 
-`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). Until `@next` is published,
-link the workspace package:
+`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). The CLI pin is
+`^0.51`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link packages/mcp
@@ -143,8 +144,8 @@ ecp mcp serve --http
 
 ### App
 
-`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). Until `@next` is published,
-link the workspace package:
+`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). The CLI pin is
+`^0.51`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link plugins/plugin-app
