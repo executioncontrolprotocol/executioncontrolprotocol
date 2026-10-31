@@ -22,22 +22,27 @@ describe("ecp run workflow source", () => {
   })
 
   it("runs .ts workflow without pre-compiling to json", async () => {
-    const res = await runCli(["run", "examples/01-echo/workflow.ecp.ts"], { env })
+    const res = await runCli(["run", "examples/01-echo/workflow.ecp.ts", "--json"], { env })
     expect(res.code).toBe(0)
-    const result = JSON.parse(res.stdout) as { run: { status: string }; state?: { echo: unknown } }
-    expect(result.run.status).toBe("completed")
-    expect(result.state?.echo).toEqual({ echo: "hello from fluent API" })
+    const body = JSON.parse(res.stdout) as {
+      ok: boolean
+      data: { run: { status: string }; state?: { echo: unknown } }
+    }
+    expect(body.ok).toBe(true)
+    expect(body.data.run.status).toBe("completed")
+    expect(body.data.state?.echo).toEqual({ echo: "hello from fluent API" })
   }, 30_000)
 
   it("runs accepts/returns example with --input", async () => {
-    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT], { env })
+    const res = await runCli(["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--json"], { env })
     expect(res.code).toBe(0)
-    const result = JSON.parse(res.stdout) as {
-      run: { status: string }
-      output?: { echo?: unknown }
+    const body = JSON.parse(res.stdout) as {
+      ok: boolean
+      data: { run: { status: string }; output?: { echo?: unknown } }
     }
-    expect(result.run.status).toBe("completed")
-    expect(result.output?.echo).toEqual({ echo: "hello from input" })
+    expect(body.ok).toBe(true)
+    expect(body.data.run.status).toBe("completed")
+    expect(body.data.output?.echo).toEqual({ echo: "hello from input" })
   }, 30_000)
 
   it("exits non-zero when --input fails accepts validation", async () => {
@@ -55,19 +60,23 @@ describe("ecp run workflow source", () => {
 
   it("dry-run with valid input completes without executing steps", async () => {
     const res = await runCli(
-      ["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--dry-run"],
+      ["run", ACCEPTS_WORKFLOW, "--input", ACCEPTS_INPUT, "--dry-run", "--json"],
       { env }
     )
     expect(res.code).toBe(0)
-    const result = JSON.parse(res.stdout) as {
-      run: { id: string; status: string }
-      state?: Record<string, unknown>
-      history?: unknown
+    const body = JSON.parse(res.stdout) as {
+      ok: boolean
+      data: {
+        run: { id: string; status: string }
+        state?: Record<string, unknown>
+        history?: unknown
+      }
     }
-    expect(result.run.status).toBe("completed")
-    expect(result.run.id).toBe("dry-run")
-    expect(result.state).toEqual({ value: "hello from input" })
-    expect(result.history).toBeUndefined()
+    expect(body.ok).toBe(true)
+    expect(body.data.run.status).toBe("completed")
+    expect(body.data.run.id).toBe("dry-run")
+    expect(body.data.state).toEqual({ value: "hello from input" })
+    expect(body.data.history).toBeUndefined()
   }, 30_000)
 
   it("dry-run with missing required input exits non-zero", async () => {

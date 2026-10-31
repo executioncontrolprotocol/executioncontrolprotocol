@@ -94,12 +94,22 @@ function capabilityCommand(
       const input = parseMerged(schema, merged)
       const host = getHost(this.config)
       const result = await host.ecp.invoke(capability.id).with(input).process()
-      await host.recordInvoke?.({
+      const runId =
+        (await host.recordInvoke?.({
+          capabilityId: capability.id,
+          input,
+          result: result.result,
+          success: result.success,
+          diagnostics: result.diagnostics,
+        })) ?? ""
+      const record = {
+        runId,
+        stepId: "invoke",
         capabilityId: capability.id,
-        input,
-        result: result.result,
-        success: result.success,
-      })
+        status: result.success ? "completed" : "failed",
+        output: result.result,
+        diagnostics: result.diagnostics,
+      }
       if (!result.success) {
         const diagnostic = result.diagnostics[0]
         const paused =
@@ -112,10 +122,11 @@ function capabilityCommand(
             path: diagnostic?.path,
             suggestions: diagnostic?.suggestions,
             exitCode: paused ? EXIT_PAUSED : EXIT_FAILED,
+            data: record,
           }
         )
       }
-      this.writeSuccess(result.result)
+      this.writeSuccess(this.jsonEnabled() ? result.result : record)
       return result.result
     }
   }

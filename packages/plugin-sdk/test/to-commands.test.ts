@@ -184,4 +184,79 @@ describe("toCommands", () => {
       await ecp.terminate()
     }
   })
+
+  it("generated capability failure attaches the invoke record to EcpCliError.data", async () => {
+    class HttpErr extends Error {
+      status = 400
+      bodyText = '{"error":"bad"}'
+      url = "https://example.test/v1/jobs"
+      output = { partial: true }
+
+      constructor() {
+        super("HTTP 400 for https://example.test/v1/jobs")
+        this.name = "HttpErr"
+      }
+    }
+    const ext = defineExtension("@executioncontrolprotocol", "ping")
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/ping", "fail")
+          .withInput(z.object({ payload: z.unknown().optional() }))
+          .withOutput(z.object({ partial: z.boolean() }))
+          .withHandler(async () => {
+            throw new HttpErr()
+          }),
+      ])
+      .build()
+    const env = environment(NODE_ENVIRONMENT_ID, "cmd-fail").with([extension(ext)])
+    const ecp = await env.init()
+    setHost({
+      ecp,
+      registry: ecp.getRegistry(),
+      environmentId: "node",
+      output: "json",
+      recordInvoke: async () => "inv-1",
+    })
+    try {
+      const Cmd = toCommands(ext)["ping:fail"]
+      expect(Cmd).toBeDefined()
+      const fail = Object.create(Cmd!.prototype) as InstanceType<typeof Cmd> & {
+        parse: () => Promise<{ flags: Record<string, unknown> }>
+        argv: string[]
+        config: unknown
+        jsonEnabled: () => boolean
+        writeSuccess: (data: unknown) => void
+      }
+      fail.parse = async () => ({ flags: {} })
+      fail.argv = []
+      fail.config = {}
+      fail.jsonEnabled = () => true
+      fail.writeSuccess = () => undefined
+      await expect(fail.run()).rejects.toMatchObject({
+        name: "EcpCliError",
+        code: "ECP_STEP_FAILED",
+        message: "HTTP 400 for https://example.test/v1/jobs",
+        data: {
+          runId: "inv-1",
+          stepId: "invoke",
+          capabilityId: "@executioncontrolprotocol/ping.fail",
+          status: "failed",
+          output: { partial: true },
+          diagnostics: [
+            expect.objectContaining({
+              code: "ECP_STEP_FAILED",
+              details: expect.objectContaining({
+                name: "HttpErr",
+                status: 400,
+                bodyText: '{"error":"bad"}',
+                url: "https://example.test/v1/jobs",
+              }),
+            }),
+          ],
+        },
+      })
+    } finally {
+      clearHost()
+      await ecp.terminate()
+    }
+  })
 })

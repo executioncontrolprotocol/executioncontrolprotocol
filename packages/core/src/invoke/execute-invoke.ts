@@ -177,7 +177,8 @@ export async function executeInvoke(
         capabilityId,
         ECP_INVOKE_ERROR_CODES.INVOKE_OUTPUT_INVALID,
         "Invoke output validation failed",
-        outValidation
+        outValidation,
+        { result: output }
       )
     }
     output = parsed.data

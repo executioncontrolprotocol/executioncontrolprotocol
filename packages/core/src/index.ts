@@ -142,7 +142,9 @@ export {
   buildInvokeFailureDiagnostics,
   formatValidationIssueLine,
   type RemoteInvokeBinding,
+  type InvokeFailureExtras,
 } from "./runtime/remote-invoke.js"
+export { detailsFromThrown, type ThrownErrorFields } from "./runtime/error-details.js"
 export {
   dispatchCapability,
   dispatchCapabilityResult,
@@ -209,7 +211,14 @@ export {
   type MixedBlobUploadInput,
   type MixedBlobUploadOutput,
 } from "./runtime/mixed-blob-upload.js"
-export { registerTestExtension, testExtension } from "./testing/test-extension.js"
+export {
+  registerTestExtension,
+  testExtension,
+  TEST_FAIL_BODY,
+  TEST_FAIL_URL,
+  TEST_FAIL_MESSAGE,
+  TEST_FAIL_OUTPUT,
+} from "./testing/test-extension.js"
 export {
   createMemoryMediaStore,
   type MemoryMediaStore,
