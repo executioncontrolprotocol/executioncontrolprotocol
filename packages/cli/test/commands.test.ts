@@ -2,6 +2,12 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest"
 import { join } from "node:path"
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
+import {
+  TEST_FAIL_BODY,
+  TEST_FAIL_MESSAGE,
+  TEST_FAIL_OUTPUT,
+  TEST_FAIL_URL,
+} from "@executioncontrolprotocol/core"
 import { hermeticCliEnv, hermeticWithPluginTest, runCli } from "./helpers.js"
 
 const ECHO_WORKFLOW_TS = "examples/01-echo/workflow.ecp.ts"
@@ -272,4 +278,153 @@ describe("ecp CLI commands with plugin-test linked", () => {
     expect(body.data.stepId).toBe("invoke")
     expect(body.data.diagnostics[0]?.code).toBe("ECP_CAPABILITY_UNKNOWN")
   }, 30_000)
+
+  it("HTTP-shaped handler throw prints details on run and invoke", async () => {
+    const failPath = "packages/cli/test/fixtures/fail-http/workflow.ts"
+    const text = await runCli(["run", failPath], { env })
+    expect(text.code).toBe(1)
+    expect(text.stdout).toContain("status: failed")
+    expect(text.stdout).toContain("Step call")
+    expect(text.stdout).toContain(`Failure: ${TEST_FAIL_MESSAGE}`)
+    expect(text.stdout).toContain(`Full Message: ${TEST_FAIL_BODY}`)
+    expect(text.stdout).toContain("Error Code: ECP_STEP_FAILED")
+    expect(text.stdout).toContain(TEST_FAIL_URL)
+    expect(text.stdout).toContain('"partial": true')
+    expect(text.stdout).not.toMatch(/STEP FAILED/)
+
+    const json = await runCli(["run", failPath, "--json"], { env })
+    expect(json.code).toBe(1)
+    const runBody = JSON.parse(json.stdout) as {
+      ok: false
+      error: { code: string; message: string }
+      data: {
+        run: { id: string; status: string }
+        history: Record<string, { output?: unknown; diagnostics?: { code: string; details?: Record<string, unknown> }[] }>
+      }
+    }
+    expect(runBody.ok).toBe(false)
+    expect(runBody.error.code).toBe("ECP_STEP_FAILED")
+    expect(runBody.error.message).toBe(TEST_FAIL_MESSAGE)
+    expect(runBody.data.run.status).toBe("failed")
+    expect(runBody.data.history.call?.output).toEqual(TEST_FAIL_OUTPUT)
+    expect(runBody.data.history.call?.diagnostics?.[0]?.details).toMatchObject({
+      name: "TestHttpError",
+      status: 400,
+      bodyText: TEST_FAIL_BODY,
+      url: TEST_FAIL_URL,
+    })
+
+    const invokeText = await runCli(
+      ["environments", "invoke", "@executioncontrolprotocol/test.fail"],
+      { env }
+    )
+    expect(invokeText.code).toBe(1)
+    expect(invokeText.stdout).toContain("Step invoke")
+    expect(invokeText.stdout).toContain("Error Code: ECP_STEP_FAILED")
+    expect(invokeText.stdout).toContain(`Full Message: ${TEST_FAIL_BODY}`)
+    expect(invokeText.stdout).toContain(TEST_FAIL_URL)
+
+    const invokeJson = await runCli(
+      ["environments", "invoke", "@executioncontrolprotocol/test.fail", "--json"],
+      { env }
+    )
+    expect(invokeJson.code).toBe(1)
+    const invokeBody = JSON.parse(invokeJson.stdout) as {
+      ok: false
+      error: { code: string }
+      data: {
+        runId: string
+        stepId: string
+        capabilityId: string
+        output?: unknown
+        diagnostics: { code: string; details?: Record<string, unknown> }[]
+      }
+    }
+    expect(invokeBody.ok).toBe(false)
+    expect(invokeBody.error.code).toBe("ECP_STEP_FAILED")
+    expect(invokeBody.data.stepId).toBe("invoke")
+    expect(invokeBody.data.capabilityId).toBe("@executioncontrolprotocol/test.fail")
+    expect(invokeBody.data.output).toEqual(TEST_FAIL_OUTPUT)
+    expect(invokeBody.data.diagnostics[0]?.details).toMatchObject({
+      status: 400,
+      bodyText: TEST_FAIL_BODY,
+      url: TEST_FAIL_URL,
+    })
+  }, 60_000)
+
+  it("run --events streams NDJSON then the failure report", async () => {
+    const failPath = "packages/cli/test/fixtures/fail-http/workflow.ts"
+    const res = await runCli(["run", failPath, "--events"], { env })
+    expect(res.code).toBe(1)
+    const lines = res.stdout.split(/\r?\n/)
+    const events: { type: string; error?: { code?: string } }[] = []
+    let reportAt = lines.length
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      if (!line) continue
+      try {
+        const parsed = JSON.parse(line) as { type?: string; error?: { code?: string } }
+        if (typeof parsed.type !== "string") {
+          reportAt = i
+          break
+        }
+        events.push(parsed as { type: string; error?: { code?: string } })
+      } catch {
+        reportAt = i
+        break
+      }
+    }
+    expect(events[0]?.type).toBe("run.start")
+    expect(events.some((event) => event.type === "step.error")).toBe(true)
+    expect(events.at(-1)?.type).toBe("run.end")
+    const report = lines.slice(reportAt).join("\n")
+    expect(report).toContain("Error Code: ECP_STEP_FAILED")
+    expect(report).toContain(`Full Message: ${TEST_FAIL_BODY}`)
+    expect(report).toContain("status: failed")
+  }, 30_000)
+
+  it("resume and rerun print the HTTP-shaped failure record", async () => {
+    const failPath = "packages/cli/test/fixtures/echo-then-fail/workflow.ts"
+    const runsDir = join(tmp, "fail-runs")
+    const runEnv = { ...env, ECP_RUNS_DIR: runsDir }
+
+    const stopped = await runCli(["run", failPath, "--to", "first", "--json"], { env: runEnv })
+    expect(stopped.code).toBe(0)
+    const stoppedBody = JSON.parse(stopped.stdout) as {
+      data: { run: { id: string; status: string } }
+    }
+    expect(stoppedBody.data.run.status).toBe("stopped")
+
+    const resumed = await runCli(["runs", "resume", stoppedBody.data.run.id], { env: runEnv })
+    expect(resumed.code).toBe(1)
+    expect(resumed.stdout).toContain("status: failed")
+    expect(resumed.stdout).toContain("Step first")
+    expect(resumed.stdout).toContain("Step call")
+    expect(resumed.stdout).toContain("Error Code: ECP_STEP_FAILED")
+    expect(resumed.stdout).toContain(`Full Message: ${TEST_FAIL_BODY}`)
+
+    const failed = await runCli(["run", failPath, "--json"], { env: runEnv })
+    expect(failed.code).toBe(1)
+    const failedBody = JSON.parse(failed.stdout) as { data: { run: { id: string } } }
+
+    const rerun = await runCli(
+      ["runs", "rerun", failedBody.data.run.id, "--from", "call", "--json"],
+      { env: runEnv }
+    )
+    expect(rerun.code).toBe(1)
+    const rerunBody = JSON.parse(rerun.stdout) as {
+      ok: false
+      error: { code: string }
+      data: {
+        run: { status: string }
+        history: Record<string, { status?: string; output?: unknown; diagnostics?: { code: string }[] }>
+      }
+    }
+    expect(rerunBody.ok).toBe(false)
+    expect(rerunBody.error.code).toBe("ECP_STEP_FAILED")
+    expect(rerunBody.data.run.status).toBe("failed")
+    expect(rerunBody.data.history.first?.status).toBe("completed")
+    expect(rerunBody.data.history.call?.output).toEqual(TEST_FAIL_OUTPUT)
+    expect(rerunBody.data.history.call?.diagnostics?.[0]?.code).toBe("ECP_STEP_FAILED")
+  }, 60_000)
 })

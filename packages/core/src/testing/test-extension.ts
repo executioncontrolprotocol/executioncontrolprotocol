@@ -10,6 +10,30 @@ function testStubHandler(input: { payload?: unknown }) {
   return { ok: true, result: input.payload ?? "test-stub" }
 }
 
+/** HTTP error body returned by {@link testExtension} `fail`. @category Testing */
+export const TEST_FAIL_BODY = '{"error":"bad"}'
+
+/** Request URL on {@link testExtension} `fail`. @category Testing */
+export const TEST_FAIL_URL = "https://example.test/v1/jobs"
+
+/** Error message thrown by {@link testExtension} `fail`. @category Testing */
+export const TEST_FAIL_MESSAGE = `HTTP 400 for ${TEST_FAIL_URL}`
+
+/** Partial handler output attached to {@link testExtension} `fail`. @category Testing */
+export const TEST_FAIL_OUTPUT = { partial: true }
+
+class TestHttpError extends Error {
+  status = 400
+  bodyText = TEST_FAIL_BODY
+  url = TEST_FAIL_URL
+  output = TEST_FAIL_OUTPUT
+
+  constructor() {
+    super(TEST_FAIL_MESSAGE)
+    this.name = "TestHttpError"
+  }
+}
+
 /**
  * In-repo stub extension for examples and tests.
  * Production CLI loads the same definition from `@executioncontrolprotocol/plugin-test`;
@@ -125,7 +149,30 @@ export const testExtension = defineExtension("@executioncontrolprotocol", "test"
           }
         ]
       })
-      .withHandler(async (input) => testStubHandler(input as { payload?: unknown }))
+      .withHandler(async (input) => testStubHandler(input as { payload?: unknown })),
+    capabilityFor("@executioncontrolprotocol/test", "fail")
+      .withInput(z.object({}))
+      .withOutput(z.object({ partial: z.boolean() }))
+      .withExecution("local")
+      .withMetadata({
+        summary: "Always fail with an HTTP-shaped error for CLI and journal tests.",
+        description:
+          "Throws a deterministic error that carries status, bodyText, url, and a partial output object. Used to assert failure records, not as a product capability.",
+        useCases: [
+          "CLI spawn asserts failed run and invoke print Error Code and details.",
+          "Journal test asserts diagnostics.details and redacted output.",
+        ],
+        projections: [
+          {
+            summary: "Expect a step failure",
+            description:
+              "This capability always throws; read diagnostics.details and the attached partial output.",
+          },
+        ],
+      })
+      .withHandler(async () => {
+        throw new TestHttpError()
+      }),
   ])
   .build()
 
