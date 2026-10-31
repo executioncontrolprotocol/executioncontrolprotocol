@@ -63,6 +63,14 @@ export function isInvokeResult(value: unknown): value is InvokeResult {
   )
 }
 
+/** Extra fields for {@link invokeFailure}. @category Runtime */
+export interface InvokeFailureExtras {
+  /** JSON-safe fields copied onto the lead diagnostic. */
+  details?: Record<string, unknown>
+  /** Handler output when the failure still produced one. */
+  result?: unknown
+}
+
 /**
  * Build a failed invoke result.
  * When `validation.errors` is present, diagnostics include the full issue list
@@ -73,15 +81,21 @@ export function invokeFailure(
   capabilityId: string,
   code: string,
   message: string,
-  validation?: ValidationResult
+  validation?: ValidationResult,
+  extras?: InvokeFailureExtras
 ): InvokeResult {
+  const diagnostics = buildInvokeFailureDiagnostics(code, message, validation)
+  if (extras?.details && diagnostics[0]) {
+    diagnostics[0] = { ...diagnostics[0], details: extras.details }
+  }
   return {
     schema: "@executioncontrolprotocol.invoke.result",
     version: LATEST_ECP_VERSION,
     success: false,
     capabilityId: capabilityId as CapabilityId,
     validation,
-    diagnostics: buildInvokeFailureDiagnostics(code, message, validation),
+    diagnostics,
+    ...(extras?.result !== undefined ? { result: extras.result } : {}),
   }
 }
 

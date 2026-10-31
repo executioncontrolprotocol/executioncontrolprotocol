@@ -18,6 +18,7 @@ export {
   EXIT_USAGE,
 } from "./codes.js"
 export { failureEnvelope, successEnvelope, type EcpEnvelope, type EcpErrorBody } from "./envelope.js"
+export { formatExecutionReport, type InvokeExecutionRecord } from "./format-execution.js"
 export { EcpCliError } from "./errors.js"
 export { EcpCommand } from "./ecp-command.js"
 export { defineOperation, type OperationContext, type OperationDefinition } from "./define-operation.js"

@@ -142,7 +142,9 @@ export {
   buildInvokeFailureDiagnostics,
   formatValidationIssueLine,
   type RemoteInvokeBinding,
+  type InvokeFailureExtras,
 } from "./runtime/remote-invoke.js"
+export { detailsFromThrown, type ThrownErrorFields } from "./runtime/error-details.js"
 export {
   dispatchCapability,
   dispatchCapabilityResult,

@@ -1,6 +1,19 @@
 import type { RunStatus } from "./schema.js"
 import type { PolicyDecision } from "./lifecycle.js"
 import type { PendingMutation } from "./store.js"
+import type { ValidationIssue } from "./validation.js"
+
+/** Terminal error recorded on `run.json` or a step file. @category Journal */
+export interface JournalError {
+  /** Stable `ECP_*` code. */
+  code?: string
+  /** Diagnostic message. */
+  message: string
+  /** JSON-safe fields from the thrown error. */
+  details?: Record<string, unknown>
+  /** Failed or paused step id (on `run.json` only). */
+  stepId?: string
+}
 
 /** Journal format version. Breaking changes bump this. @category Journal */
 export const JOURNAL_VERSION = 1
@@ -70,7 +83,7 @@ export interface JournalRunDocument {
   /** ISO end time. */
   endedAt?: string
   /** Redacted error. */
-  error?: { code?: string; message: string }
+  error?: JournalError
   /** Parent run id. */
   parentRunId?: string
   /** Source run id for a resume. */
@@ -108,5 +121,7 @@ export interface JournalStepDocument {
   /** Step status. */
   status: RunStatus
   /** Redacted error. */
-  error?: { code?: string; message: string }
+  error?: JournalError
+  /** Full diagnostic list, including `details`. */
+  diagnostics?: ValidationIssue[]
 }
