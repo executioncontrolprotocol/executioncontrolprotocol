@@ -72,6 +72,56 @@ read it.
 Hosts stay vendor-neutral. They read projections as plain text and never branch on capability
 ids or output shapes.
 
+## API capability inputs
+
+HTTP capabilities expose every known path, query, header, and JSON-body field as a
+**top-level parameter**. The App, CLI, and MCP only bind top-level keys, so a nested
+`path` / `query` / `headers` / `body` envelope is not a parameter.
+
+- Optional `body` is the rest of the JSON document. Merge with
+  `{ ...body, ...setParameters }` via `mergeParameterBody` from
+  `@executioncontrolprotocol/core`. A set parameter replaces that key. Keys only in
+  `body` stay. Unset parameters are omitted so they do not wipe `body`. Nested
+  objects and arrays replace as a whole.
+- After the merge, parse the original request schema. Hoisted body fields are optional
+  on the capability schema because `body` may carry them. The merged object still
+  fails when a required field is missing entirely.
+- Path, query, and header parameters keep their API requiredness. They are not part of
+  the JSON merge.
+- Auth headers and a `content-type` fixed to `application/json` are not parameters.
+  The client sends them.
+- If the JSON body is not an object, `body` is that value and nothing is hoisted.
+- If the request schema is not known ahead of time, do not invent fields. Known
+  controls stay parameters and the document is `body`.
+
+Every new HTTP capability and every OpenAPI import follows this shape. Non-HTTP
+capabilities (transforms, format plugins, Sharp, policies) do not grow a `body`
+field. Model generate stays on `modelGenerateInputSchema`; do not wrap it in `body`.
+
+## API capability outputs
+
+HTTP capabilities return the nested result document. Binding surfaces keep the
+whole object accessible and also list known **object primitives** as dotted
+ports. **Arrays stay one port.**
+
+- After a successful async poll, if the JSON has a `result` object, that object
+  **is** the capability output. Drop `status`, `statusUrl`, `cancelUrl`, `jobId`,
+  and poll timestamps from generate outputs.
+- The whole document stays accessible (`ref("generate")` / the `output` port,
+  plus parent objects such as `image`).
+- Known primitives under objects are bindable dotted ports (`image.locator`,
+  `version`). Recurse objects; stop at arrays and file refs.
+- Arrays stay one port (`outputs`). Do not invent a sibling `url` or
+  `outputs.0.*` handles on the producer. Pick items with
+  `ref("generate.outputs.0.image.url")` or a transform step (jsonata).
+- Do not expose `statusUrl`, poll knobs (`pollIntervalMs` / `pollTimeoutMs`), or
+  job identifiers for the caller to poll. Poll internally. Optional poll timing
+  belongs on extension config, not step ports.
+- Do not generate status/cancel operations when the plugin polls internally.
+- FAL already returns `{ data, requestId }`; leave it. Do not wrap it in a job
+  envelope. Flatten `data` when it is a known object; if `data` is an array it
+  stays one port.
+
 ## Handlers and I/O
 
 - Handlers receive typed input and a context from core. Don't reach into `Environment`

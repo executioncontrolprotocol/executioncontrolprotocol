@@ -13,11 +13,5 @@ export const creative_production_batch_execute = shells.creative_production_batc
 /** List batches */
 export const creative_production_list_batches = shells.creative_production_list_batches(hostHop)
 
-/** Get batch status */
-export const creative_production_get_batch_status = shells.creative_production_get_batch_status(hostHop)
-
-/** Cancel a batch */
-export const creative_production_cancel_batch = shells.creative_production_cancel_batch(hostHop)
-
 /** List individual execution results */
 export const creative_production_list_batch_executions = shells.creative_production_list_batch_executions(hostHop)

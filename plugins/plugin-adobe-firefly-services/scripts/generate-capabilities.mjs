@@ -78,6 +78,8 @@ function loadOverlays() {
   }
 }
 
+const RESERVED_INPUT_FIELDS = new Set(["body"])
+
 /**
  * Resolve $ref relative to document components.
  * @param {object} doc
@@ -94,37 +96,146 @@ function resolveRef(doc, ref) {
 }
 
 /**
+ * @param {string} name
+ */
+function zodObjectKey(name) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : JSON.stringify(name)
+}
+
+/**
+ * @param {string} name
+ * @param {string} expr
+ * @param {boolean} optional
+ */
+function emitField(name, expr, optional) {
+  return `  ${zodObjectKey(name)}: ${optional ? `${expr}.optional()` : expr}`
+}
+
+/**
+ * Follow $ref / allOf until object properties are visible.
+ * @param {object} doc
+ * @param {object} schema
+ * @param {Set<string>} [seen]
+ * @returns {{ properties: Record<string, object>, required: string[] } | undefined}
+ */
+function resolveObjectProperties(doc, schema, seen = new Set()) {
+  if (!schema || typeof schema !== "object") return undefined
+
+  if (schema.$ref) {
+    if (seen.has(schema.$ref)) return undefined
+    seen.add(schema.$ref)
+    return resolveObjectProperties(doc, resolveRef(doc, schema.$ref), seen)
+  }
+
+  if (schema.allOf) {
+    const parts = Array.isArray(schema.allOf) ? schema.allOf : [schema.allOf]
+    /** @type {Record<string, object>} */
+    const properties = {}
+    /** @type {string[]} */
+    const required = []
+    let found = false
+    for (const part of parts) {
+      const resolved = resolveObjectProperties(doc, part, seen)
+      if (!resolved) continue
+      found = true
+      Object.assign(properties, resolved.properties)
+      required.push(...resolved.required)
+    }
+    if (!found) return undefined
+    return { properties, required: [...new Set(required)] }
+  }
+
+  if (schema.oneOf || schema.anyOf) return undefined
+
+  if (schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties)) {
+    return {
+      properties: schema.properties,
+      required: Array.isArray(schema.required)
+        ? schema.required.filter((k) => typeof k === "string")
+        : [],
+    }
+  }
+
+  if (schema.type === "object") {
+    return { properties: {}, required: [] }
+  }
+
+  return undefined
+}
+
+/**
+ * @param {object} doc
+ * @param {object} schema
+ */
+function isJsonContentTypeHeader(doc, schema) {
+  let current = schema
+  const seen = new Set()
+  while (current?.$ref) {
+    if (seen.has(current.$ref)) return false
+    seen.add(current.$ref)
+    current = resolveRef(doc, current.$ref)
+  }
+  const values = current?.enum
+  if (!Array.isArray(values) || values.length !== 1) return false
+  return String(values[0]).toLowerCase() === "application/json"
+}
+
+/**
+ * @param {Set<string>} claimed
+ * @param {string} name
+ * @param {string} context
+ */
+function claimInputName(claimed, name, context) {
+  if (RESERVED_INPUT_FIELDS.has(name) || claimed.has(name)) {
+    throw new Error(`Capability input field collision: ${JSON.stringify(name)} at ${context}`)
+  }
+  claimed.add(name)
+}
+
+/**
+ * @param {{ path: string[], query: string[], headers: string[], body: string[] }} parameters
+ */
+function parametersLiteral(parameters) {
+  /** @type {Record<string, string[]>} */
+  const obj = {}
+  if (parameters.path.length) obj.path = parameters.path
+  if (parameters.query.length) obj.query = parameters.query
+  if (parameters.headers.length) obj.headers = parameters.headers
+  if (parameters.body.length) obj.body = parameters.body
+  if (!Object.keys(obj).length) return undefined
+  return JSON.stringify(obj)
+}
+
+/**
  * @param {object} operation
  * @param {object} doc
  * @param {ZodEmitter} emitter
  * @param {string} context
- * @param {'async-submit' | 'status-cancel' | 'sync'} opClass
  */
-function buildInputZod(operation, doc, emitter, context, opClass) {
-  const pathProps = {}
-  const queryProps = {}
-  const headerProps = {}
-  const pathReq = []
-  const queryReq = []
-  const headerReq = []
+function buildInputZod(operation, doc, emitter, context) {
+  /** @type {{ path: string[], query: string[], headers: string[], body: string[] }} */
+  const parameters = { path: [], query: [], headers: [], body: [] }
+  const claimed = new Set()
+  const groups = []
 
   for (const param of operation.parameters ?? []) {
     const p = param.$ref ? resolveRef(doc, param.$ref) : param
     if (!p?.name || !p.in) continue
     const schema = p.schema ?? { type: "string" }
-    if (p.in === "path") {
-      pathProps[p.name] = schema
-      pathReq.push(p.name)
-    } else if (p.in === "query") {
-      queryProps[p.name] = schema
-      if (p.required) queryReq.push(p.name)
-    } else if (p.in === "header") {
-      // skip auth headers — client injects them
-      const lower = p.name.toLowerCase()
+    if (p.in === "header") {
+      const lower = String(p.name).toLowerCase()
       if (lower === "authorization" || lower === "x-api-key") continue
-      headerProps[p.name] = schema
-      if (p.required) headerReq.push(p.name)
+      if (lower === "content-type" && isJsonContentTypeHeader(doc, schema)) continue
     }
+    if (p.in !== "path" && p.in !== "query" && p.in !== "header") continue
+
+    claimInputName(claimed, p.name, `${context}.${p.in}.${p.name}`)
+    const required = p.in === "path" ? true : Boolean(p.required)
+    const expr = emitter.schemaToZod(schema, `${context}.${p.in}.${p.name}`)
+    groups.push(emitField(p.name, expr, !required))
+    if (p.in === "path") parameters.path.push(p.name)
+    else if (p.in === "query") parameters.query.push(p.name)
+    else parameters.headers.push(p.name)
   }
 
   let bodySchema
@@ -137,36 +248,30 @@ function buildInputZod(operation, doc, emitter, context, opClass) {
     if (json?.schema) bodySchema = json.schema
   }
 
-  const groups = []
-  if (Object.keys(pathProps).length) {
-    groups.push(
-      `  path: ${emitter.schemaToZod({ type: "object", properties: pathProps, required: pathReq, additionalProperties: false }, `${context}.path`)}`,
-    )
-  }
-  if (Object.keys(queryProps).length) {
-    groups.push(
-      `  query: ${emitter.schemaToZod({ type: "object", properties: queryProps, required: queryReq, additionalProperties: false }, `${context}.query`)}.optional()`,
-    )
-  }
-  if (Object.keys(headerProps).length) {
-    groups.push(
-      `  headers: ${emitter.schemaToZod({ type: "object", properties: headerProps, required: headerReq, additionalProperties: false }, `${context}.headers`)}.optional()`,
-    )
-  }
+  let bodySchemaExpr
   if (bodySchema) {
-    const requiredBody = operation.requestBody?.required !== false
+    const objectProps = resolveObjectProperties(doc, bodySchema)
     const bodyExpr = emitter.schemaToZod(bodySchema, `${context}.body`)
-    groups.push(`  body: ${requiredBody ? bodyExpr : `${bodyExpr}.optional()`}`)
+    if (objectProps) {
+      bodySchemaExpr = bodyExpr
+      for (const [name, propSchema] of Object.entries(objectProps.properties)) {
+        claimInputName(claimed, name, `${context}.body.${name}`)
+        const expr = emitter.schemaToZod(propSchema, `${context}.body.${name}`)
+        groups.push(emitField(name, expr, true))
+        parameters.body.push(name)
+      }
+      groups.push(emitField("body", bodyExpr, true))
+    } else {
+      const requiredBody = operation.requestBody?.required !== false
+      groups.push(emitField("body", bodyExpr, !requiredBody))
+    }
   }
 
-  // Async submits always poll internally; only interval/timeout remain tunable.
-  if (opClass === "async-submit") {
-    groups.push(`  pollIntervalMs: z.number().int().positive().optional()`)
-    groups.push(`  pollTimeoutMs: z.number().int().positive().optional()`)
+  return {
+    zod: groups.length ? `z.object({\n${groups.join(",\n")}\n})` : "z.object({})",
+    parameters,
+    bodySchemaExpr,
   }
-
-  if (!groups.length) return "z.object({})"
-  return `z.object({\n${groups.join(",\n")}\n})`
 }
 
 /**
@@ -307,18 +412,13 @@ function deriveProjections(opName) {
         description:
           "Keep asset URLs or output references from the result for download or the next edit step.",
       },
-      {
-        summary: "Keep job identifiers",
-        description:
-          "When a job id is returned, keep it so you can poll status until outputs are ready.",
-      },
     ]
   }
   return [
     {
       summary: "Use the operation result",
       description:
-        "Take the fields from the response that the next workflow step needs (ids, status, or asset URLs).",
+        "Take the fields from the response that the next workflow step needs (ids or asset URLs).",
     },
   ]
 }
@@ -377,6 +477,7 @@ function main() {
   const registry = []
   /** @type {Map<string, object[]>} */
   const byFamily = new Map()
+  let skippedStatusCancel = 0
 
   const overlays = loadOverlays()
   const files = walkFiles(openapiDir).filter((f) => !f.includes("overlays"))
@@ -435,7 +536,12 @@ function main() {
             opName,
           })
 
-          const inputZod = buildInputZod(operation, doc, emitter, `${context}.input`, opClass)
+          if (opClass === "status-cancel") {
+            skippedStatusCancel += 1
+            continue
+          }
+
+          const inputBuilt = buildInputZod(operation, doc, emitter, `${context}.input`)
           const outputResolved = resolveOutputForOperation(
             opName,
             opClass,
@@ -451,7 +557,9 @@ function main() {
             method: method.toUpperCase(),
             path,
             baseUrl: base,
-            inputZod,
+            inputZod: inputBuilt.zod,
+            parameters: inputBuilt.parameters,
+            bodySchemaExpr: inputBuilt.bodySchemaExpr,
             outputZod: outputResolved.outputZod,
             opClass,
             materialize: outputResolved.materialize,
@@ -540,7 +648,9 @@ function main() {
     capLines.push(`/* eslint-disable */`)
     capLines.push(`/** Generated Adobe ${family} capabilities — do not edit. */`)
     capLines.push(`import * as shells from "./shells.js"`)
-    const needsZodInCaps = ops.some((o) => /\bz\./.test(String(o.outputZod)))
+    const needsZodInCaps = ops.some(
+      (o) => /\bz\./.test(String(o.outputZod)) || /\bz\./.test(String(o.bodySchemaExpr ?? "")),
+    )
     if (needsZodInCaps) {
       capLines.push(`import { z } from "zod"`)
     }
@@ -563,16 +673,8 @@ function main() {
           : qualify(op.outputZod)
 
       const asyncMode = op.opClass === "async-submit" ? "submit" : "none"
-      const inputTypeLines = [
-        `        path?: Record<string, string | number | boolean>`,
-        `        query?: Record<string, string | number | boolean | undefined>`,
-        `        headers?: Record<string, string>`,
-        `        body?: unknown`,
-      ]
-      if (op.opClass === "async-submit") {
-        inputTypeLines.push(`        pollIntervalMs?: number`)
-        inputTypeLines.push(`        pollTimeoutMs?: number`)
-      }
+      const paramLit = parametersLiteral(op.parameters ?? { path: [], query: [], headers: [], body: [] })
+      const bodySchema = op.bodySchemaExpr ? qualify(op.bodySchemaExpr) : undefined
 
       capLines.push(`/** ${op.summary || op.opName} */`)
       capLines.push(
@@ -582,9 +684,13 @@ function main() {
       capLines.push(`    method: ${JSON.stringify(op.method)},`)
       capLines.push(`    pathTemplate: ${JSON.stringify(op.path)},`)
       capLines.push(`    baseUrl: ${JSON.stringify(op.baseUrl)},`)
-      capLines.push(`    input: input as {`)
-      for (const line of inputTypeLines) capLines.push(line)
-      capLines.push(`    },`)
+      capLines.push(`    input: input as Record<string, unknown>,`)
+      if (paramLit) {
+        capLines.push(`    parameters: ${paramLit},`)
+      }
+      if (bodySchema) {
+        capLines.push(`    bodySchema: ${bodySchema},`)
+      }
       capLines.push(`    ctx,`)
       capLines.push(`    outputSchema: ${outputZod},`)
       capLines.push(`    asyncMode: ${JSON.stringify(asyncMode)},`)
@@ -658,7 +764,7 @@ function main() {
     }
   }
 
-  const classCounts = { "async-submit": 0, "status-cancel": 0, sync: 0 }
+  const classCounts = { "async-submit": 0, sync: 0 }
   for (const ops of byFamily.values()) {
     for (const op of ops) {
       classCounts[op.opClass] = (classCounts[op.opClass] ?? 0) + 1
@@ -670,6 +776,7 @@ function main() {
     operationCount: registry.length,
     families: [...byFamily.keys()].sort(),
     operationClasses: classCounts,
+    skippedStatusCancel,
     operations: registry.map((r) => `${EXT_ID}.${r.opName}`),
     operationClassById: Object.fromEntries(
       registry.map((r) => [`${EXT_ID}.${r.opName}`, r.opClass]),
@@ -700,7 +807,7 @@ function main() {
   } else {
     console.log(
       `Generated ${registry.length} capabilities across ${byFamily.size} families ` +
-        `(async-submit=${classCounts["async-submit"]}, status-cancel=${classCounts["status-cancel"]}, sync=${classCounts.sync})`,
+        `(async-submit=${classCounts["async-submit"]}, skipped-status-cancel=${skippedStatusCancel}, sync=${classCounts.sync})`,
     )
   }
 }

@@ -1,10 +1,10 @@
-import { flattenStepOrder } from "@executioncontrolprotocol/core"
-import type { CapabilityDescription, StepNode, WorkflowManifest } from "@executioncontrolprotocol/core/types"
 import {
+  flattenJsonSchemaProperties,
+  flattenStepOrder,
   jsonSchemaObjectProperties,
-  toJsonObjectSchema,
-  type ReactFlowPort,
-} from "../../graph/index.js"
+} from "@executioncontrolprotocol/core"
+import type { CapabilityDescription, StepNode, WorkflowManifest } from "@executioncontrolprotocol/core/types"
+import { toJsonObjectSchema, type ReactFlowPort } from "../../graph/index.js"
 import type { GraphEditResult } from "./graph-edit.js"
 import { connectPorts } from "./graph-edit.js"
 import type { CapabilityDiscoveryOrigin } from "./capability-discovery.js"
@@ -67,21 +67,25 @@ function portFromSchemaField(field: {
 }
 
 /**
- * Ports from a capability JSON Schema. Outputs fall back to a synthetic
- * `output` handle when the schema has no properties.
+ * Ports from a capability JSON Schema.
+ * Inputs stay top-level. Outputs flatten nested object primitives, keep arrays
+ * as one port, and always include the whole-document `output` handle.
  * @category App
  */
 export function portsFromCapabilitySchema(
   schema: unknown,
   role: "input" | "output"
 ): ReactFlowPort[] {
-  const fields = jsonSchemaObjectProperties(toJsonObjectSchema(schema))
+  const json = toJsonObjectSchema(schema)
+  const fields =
+    role === "output" ? flattenJsonSchemaProperties(json) : jsonSchemaObjectProperties(json)
   const ports = fields.map(portFromSchemaField)
-  if (role === "output" && ports.length === 0) {
-    ports.push({
+  if (role === "output" && !ports.some((port) => port.id === OUTPUT_HANDLE_ID)) {
+    ports.unshift({
       id: OUTPUT_HANDLE_ID,
       name: OUTPUT_HANDLE_ID,
-      typeLabel: "unknown",
+      typeLabel: "object",
+      valueSchema: { type: "object" },
     })
   }
   return ports

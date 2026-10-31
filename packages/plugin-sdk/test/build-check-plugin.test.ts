@@ -107,6 +107,19 @@ describe("checkPlugin / buildPlugin", () => {
     const report = await checkPlugin(fireflyDir)
     expect(report.ok, JSON.stringify(report.issues)).toBe(true)
     expect(report.issues).toEqual([])
+    const manifest = JSON.parse(
+      await readFile(join(fireflyDir, "oclif.manifest.json"), "utf8"),
+    ) as { commands?: Record<string, unknown> }
+    const ids = Object.keys(manifest.commands ?? {})
+    expect(ids).toContain("adobe-firefly-services:firefly-generate-images-v3-async")
+    expect(ids).toContain("firefly:firefly-generate-images-v3-async")
+    expect(ids.some((id) => /job-status|job-result|cancel/.test(id))).toBe(false)
+    const generate = manifest.commands?.[
+      "adobe-firefly-services:firefly-generate-images-v3-async"
+    ] as { flags?: Record<string, unknown>; description?: string }
+    expect(generate?.flags).toHaveProperty("prompt")
+    expect(generate?.flags).not.toHaveProperty("poll-interval-ms")
+    expect(generate?.description).not.toMatch(/Keep job identifiers/)
   })
 
   it("fails when dist/index.js has no default export", async () => {

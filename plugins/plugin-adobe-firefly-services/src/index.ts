@@ -46,6 +46,16 @@ export {
   photoshopManifestDocumentSchema,
   photoshopManifestLayerSchema,
 } from "./runtime/photoshop-manifest.js"
-export type { AdobeAsyncMode, AdobeMaterializeMode, AdobeOperationInput } from "./runtime/invoke.js"
+export {
+  assembleAdobeOperationInput,
+  unwrapAdobeResult,
+} from "./runtime/invoke.js"
+export type {
+  AdobeAsyncMode,
+  AdobeMaterializeMode,
+  AdobeOperationInput,
+  AdobeParameterMap,
+  AssembledAdobeRequest,
+} from "./runtime/invoke.js"
 
 export default adobeFireflyServicesExtension

@@ -21,6 +21,7 @@ export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
 export { secrets } from "./helpers/secrets.js"
 export { expr } from "./helpers/expr.js"
+export { mergeParameterBody } from "./helpers/merge-parameter-body.js"
 export {
   toProviderChatTurns,
   flattenProviderChatTurns,
@@ -58,11 +59,13 @@ export { parallel, branch, loop } from "./workflow/flow.js"
 export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
+  flattenJsonSchemaProperties,
   validateAgainstJsonSchema,
   resolveStatePath,
   pickWorkflowReturns,
   isZodType,
 } from "./schema/json-schema.js"
+export type { JsonSchemaProperty } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
 export {

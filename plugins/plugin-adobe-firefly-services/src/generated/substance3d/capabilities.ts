@@ -10,16 +10,11 @@ export const substance3d_v1_composites_compose = shells.substance3d_v1_composite
     method: "POST",
     pathTemplate: "/v1/composites/compose",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"headers":["X-User-Token"],"body":["$schema","cameraName","contentClass","customModelId","enableGroundPlane","environment","environmentExposure","heroAsset","lightingSeeds","modelVersion","numVariations","prompt","scene","sceneFile","seeds","size","sources","styleImage"]},
+    bodySchema: schemas.Schema_restv1_ComposeSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_ComposeSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_ComposeSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -30,16 +25,11 @@ export const substance3d_v1_scenes_assemble = shells.substance3d_v1_scenes_assem
     method: "POST",
     pathTemplate: "/v1/scenes/assemble",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"body":["$schema","encoding","fileBaseName","scene","sources"]},
+    bodySchema: schemas.Schema_restv1beta_CreateSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_CreateSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_CreateSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -50,16 +40,11 @@ export const substance3d_v1_scenes_convert = shells.substance3d_v1_scenes_conver
     method: "POST",
     pathTemplate: "/v1/scenes/convert",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"body":["$schema","format","modelEntrypoint","sources"]},
+    bodySchema: schemas.Schema_restv1beta_ModelConvertRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_ModelConvertResponse,
+    outputSchema: schemas.Schema_restv1beta_ModelConvertJobResult,
     asyncMode: "submit",
   })
 })
@@ -70,16 +55,11 @@ export const substance3d_v1_scenes_describe = shells.substance3d_v1_scenes_descr
     method: "POST",
     pathTemplate: "/v1/scenes/describe",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"body":["$schema","sceneFile","sources"]},
+    bodySchema: schemas.Schema_restv1beta_SceneDescRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_SceneDescResponse,
+    outputSchema: schemas.Schema_restv1beta_SceneDescJobResult,
     asyncMode: "submit",
   })
 })
@@ -90,16 +70,11 @@ export const substance3d_v1_scenes_render = shells.substance3d_v1_scenes_render(
     method: "POST",
     pathTemplate: "/v1/scenes/render",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
+    bodySchema: schemas.Schema_restv1beta_RenderSceneRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_RenderSceneResponse,
+    outputSchema: schemas.Schema_restv1beta_RenderSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -110,16 +85,11 @@ export const substance3d_v1_scenes_render_basic = shells.substance3d_v1_scenes_r
     method: "POST",
     pathTemplate: "/v1/scenes/render-basic",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-        pollIntervalMs?: number
-        pollTimeoutMs?: number
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
+    bodySchema: schemas.Schema_restv1beta_RenderModelRequest,
     ctx,
-    outputSchema: schemas.Schema_restv1beta_RenderModelResponse,
+    outputSchema: schemas.Schema_restv1beta_RenderSceneJobResult,
     asyncMode: "submit",
   })
 })
@@ -130,12 +100,7 @@ export const substance3d_create_space_v1 = shells.substance3d_create_space_v1(as
     method: "POST",
     pathTemplate: "/v1/spaces",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
     ctx,
     outputSchema: schemas.Schema_rest_base_Space,
     asyncMode: "none",
@@ -148,12 +113,7 @@ export const substance3d_create_space_v2 = shells.substance3d_create_space_v2(as
     method: "POST",
     pathTemplate: "/v2/spaces",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
     ctx,
     outputSchema: schemas.Schema_rest_base_Space,
     asyncMode: "none",
@@ -166,12 +126,9 @@ export const substance3d_create_space_from_frame_io_v2 = shells.substance3d_crea
     method: "POST",
     pathTemplate: "/v2/spacesFrameIO",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["$schema","accessToken","folderId"]},
+    bodySchema: schemas.Schema_rest_base_FileFrameIO,
     ctx,
     outputSchema: schemas.Schema_rest_base_Space,
     asyncMode: "none",
@@ -184,12 +141,9 @@ export const substance3d_create_space_from_next_frame_io_v2 = shells.substance3d
     method: "POST",
     pathTemplate: "/v2/spacesNextFrameIO",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
+    parameters: {"body":["$schema","accessToken","accountId","folderId"]},
+    bodySchema: schemas.Schema_rest_base_FileNextFrameIO,
     ctx,
     outputSchema: schemas.Schema_rest_base_Space,
     asyncMode: "none",
@@ -202,12 +156,7 @@ export const substance3d_create_space_url_v2 = shells.substance3d_create_space_u
     method: "POST",
     pathTemplate: "/v2/spacesURL",
     baseUrl: "https://s3d.adobe.io/",
-    input: input as {
-        path?: Record<string, string | number | boolean>
-        query?: Record<string, string | number | boolean | undefined>
-        headers?: Record<string, string>
-        body?: unknown
-    },
+    input: input as Record<string, unknown>,
     ctx,
     outputSchema: schemas.Schema_rest_base_Space,
     asyncMode: "none",

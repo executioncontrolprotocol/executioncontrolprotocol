@@ -26,4 +26,23 @@ describe("resolveStepInput", () => {
     )
     expect(input.value).toBe("fb")
   })
+
+  it("resolves dotted array indexes in committed output", () => {
+    const state = {
+      generate: {
+        outputs: [{ seed: 3, image: { url: "https://example.test/a.png" } }],
+      },
+    }
+    const input = resolveStepInput({ url: ref("generate.outputs.0.image.url") }, state)
+    expect(input.url).toBe("https://example.test/a.png")
+  })
+
+  it("does not treat bracket indexes as path segments", () => {
+    const state = {
+      generate: { outputs: [{ image: { url: "https://example.test/a.png" } }] },
+    }
+    expect(() =>
+      resolveStepInput({ url: ref("generate.outputs[0].image.url") }, state)
+    ).toThrow(EcpError)
+  })
 })

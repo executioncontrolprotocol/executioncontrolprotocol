@@ -1,6 +1,6 @@
 import type { Registry } from "@executioncontrolprotocol/core"
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/core/types"
-import { extractDataEdges } from "./extract-data-edges.js"
+import { extractDataEdges, longestMatchingPortId } from "./extract-data-edges.js"
 import {
   acceptsReactFlowNode,
   jsonSchemaObjectProperties,
@@ -164,11 +164,11 @@ function returnsAsKey(fieldName: string): string {
 }
 
 function sourceHandleForReturnsField(fieldName: string, data: ReactFlowStepData): string {
+  const portIds = data.outputs.map((port) => port.id)
   const dotIndex = fieldName.indexOf(".")
   if (dotIndex >= 0) {
     const fieldPath = fieldName.slice(dotIndex + 1)
-    if (!fieldPath) return "output"
-    return fieldPath.split(".")[0]!
+    return longestMatchingPortId(fieldPath, portIds)
   }
   if (data.outputs.some((port) => port.id === "output")) return "output"
   return sourceHandleForStep(data)
@@ -240,7 +240,20 @@ export function workflowToReactFlow(
   const nodes: ReactFlowNode[] = [acceptsNode, ...body.nodes]
   if (returnsNode) nodes.push(returnsNode)
 
-  const dataEdges = extractDataEdges(manifest.steps, acceptsPropertyKeys(manifest))
+  const outputPortIdsByStepId = new Map<string, string[]>()
+  for (const node of body.nodes) {
+    if (node.type !== "ecp-step") continue
+    const data = node.data as ReactFlowStepData
+    outputPortIdsByStepId.set(
+      node.id,
+      data.outputs.map((port) => port.id)
+    )
+  }
+  const dataEdges = extractDataEdges(
+    manifest.steps,
+    acceptsPropertyKeys(manifest),
+    outputPortIdsByStepId
+  )
   const returnsEdges = extractReturnsEdges(manifest, nodes)
   const allDataEdges = [...dataEdges, ...returnsEdges]
 
