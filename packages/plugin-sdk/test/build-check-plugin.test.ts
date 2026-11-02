@@ -200,4 +200,16 @@ describe("checkPlugin / buildPlugin", () => {
     const recheck = await checkPlugin(jsonataDir)
     expect(recheck.ok).toBe(true)
   }, 30_000)
+
+  it("buildPlugin writes every capability id even when Config.load omits new commands", async () => {
+    const pluginTestDir = join(repoRoot, "plugins", "plugin-test")
+    const report = await buildPlugin(pluginTestDir)
+    expect(report.commandIds).toContain("test:fail")
+    const manifest = JSON.parse(
+      await readFile(join(pluginTestDir, "oclif.manifest.json"), "utf8")
+    ) as { commands?: Record<string, unknown> }
+    expect(Object.keys(manifest.commands ?? {}).sort()).toEqual([...report.commandIds].sort())
+    const recheck = await checkPlugin(pluginTestDir)
+    expect(recheck.ok).toBe(true)
+  }, 30_000)
 })

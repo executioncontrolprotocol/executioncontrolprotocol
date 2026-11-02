@@ -34,6 +34,39 @@
       "summary": "Return the input value unchanged.",
       "enableJsonFlag": true
     },
+    "test:fail": {
+      "aliases": [],
+      "args": {},
+      "description": "Throws a deterministic error that carries status, bodyText, url, and a partial output object. Used to assert failure records, not as a product capability.\nUse cases:\n- CLI spawn asserts failed run and invoke print Error Code and details.\n- Journal test asserts diagnostics.details and redacted output.\nProjections:\n- Expect a step failure: This capability always throws; read diagnostics.details and the attached partial output.",
+      "examples": [
+        "ecp test fail --input payload.json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Format output as json.",
+          "helpGroup": "GLOBAL",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "input": {
+          "description": "JSON object for the full input, from a file or stdin (`-`)",
+          "name": "input",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "test:fail",
+      "pluginAlias": "@executioncontrolprotocol/plugin-test",
+      "pluginName": "@executioncontrolprotocol/plugin-test",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Always fail with an HTTP-shaped error for CLI and journal tests.",
+      "enableJsonFlag": true
+    },
     "test:notify": {
       "aliases": [],
       "args": {},
