@@ -35,4 +35,15 @@ describe("JSON envelope", () => {
       error: { code: "ECP_STEP_FAILED", message: "capability failed" },
     })
   })
+
+  it("execution failure envelopes include data", () => {
+    const data = { runId: "r1", stepId: "invoke", capabilityId: "cap", diagnostics: [] }
+    const err = new EcpCliError("ECP_STEP_FAILED", "capability failed", { exitCode: 1, data })
+    const body = EcpCommand.prototype.toErrorJson.call({ jsonEnabled: () => true } as never, err)
+    expect(body).toEqual({
+      ok: false,
+      error: { code: "ECP_STEP_FAILED", message: "capability failed" },
+      data,
+    })
+  })
 })

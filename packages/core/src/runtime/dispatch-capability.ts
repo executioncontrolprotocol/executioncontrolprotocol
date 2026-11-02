@@ -12,6 +12,7 @@ import {
   invokeFailure,
   type RemoteInvokeBinding,
 } from "./remote-invoke.js"
+import { detailsFromThrown } from "./error-details.js"
 import type { CapabilityDefinition, ExtensionDefinition } from "../definitions/types.js"
 import {
   collectBrowserLocators,
@@ -112,8 +113,12 @@ export async function dispatchCapability(options: DispatchCapabilityOptions): Pr
   } catch (err) {
     if (err instanceof CapabilityDispatchError) throw err
     const message = err instanceof Error ? err.message : String(err)
+    const fields = detailsFromThrown(err)
     throw new CapabilityDispatchError(
-      invokeFailure(capabilityId, ECP_INVOKE_ERROR_CODES.INVOKE_FAILED, message)
+      invokeFailure(capabilityId, ECP_INVOKE_ERROR_CODES.INVOKE_FAILED, message, undefined, {
+        details: fields.details,
+        result: fields.output,
+      })
     )
   }
 }

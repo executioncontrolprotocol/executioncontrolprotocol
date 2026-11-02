@@ -89,6 +89,7 @@ export function throwIfRunFailed(result: RunResult): RunResult {
       path: diagnostic.path,
       suggestions: diagnostic.suggestions ?? [`ecp runs resume ${result.run.id}`],
       exitCode: EXIT_PAUSED,
+      data: result,
     })
   }
   const diagnostic = Object.values(result.history ?? {}).flatMap(
@@ -97,6 +98,11 @@ export function throwIfRunFailed(result: RunResult): RunResult {
   throw new EcpCliError(
     diagnostic?.code ?? ECP_STEP_FAILED,
     diagnostic?.message ?? `Workflow run did not complete (status: ${status})`,
-    { path: diagnostic?.path, suggestions: diagnostic?.suggestions, exitCode: EXIT_FAILED }
+    {
+      path: diagnostic?.path,
+      suggestions: diagnostic?.suggestions,
+      exitCode: EXIT_FAILED,
+      data: result,
+    }
   )
 }

@@ -123,15 +123,32 @@ export const invokeOperation = defineOperation("environments:invoke")
     })
     try {
       const payload = input.input ? await readJsonFile(String(input.input), "--input") : {}
-      const result = await ecp.invoke(String(input["capability-id"])).with(payload).process()
+      const capabilityId = String(input["capability-id"])
+      const result = await ecp.invoke(capabilityId).with(payload).process()
+      const runId =
+        (await ctx.host?.recordInvoke?.({
+          capabilityId,
+          input: payload,
+          result: result.result,
+          success: result.success,
+          diagnostics: result.diagnostics,
+        })) ?? ""
+      const record = {
+        runId,
+        stepId: "invoke",
+        capabilityId,
+        status: result.success ? "completed" : "failed",
+        output: result.result,
+        diagnostics: result.diagnostics,
+      }
       if (!result.success) {
         throw new EcpCliError(
           result.diagnostics[0]?.code ?? ECP_STEP_FAILED,
           result.diagnostics[0]?.message ?? "Capability invoke did not succeed",
-          { exitCode: EXIT_FAILED }
+          { exitCode: EXIT_FAILED, data: record }
         )
       }
-      return result
+      return ctx.json ? result : record
     } finally {
       await terminateIfNeeded(ecp, terminate)
     }

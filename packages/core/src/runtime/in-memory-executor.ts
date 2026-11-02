@@ -35,7 +35,8 @@ import {
   type MutationBuffer,
 } from "./store.js"
 import { commitTransaction } from "./commit.js"
-import { isLastStep } from "./step-order.js"
+import { findStep, isLastStep } from "./step-order.js"
+import { detailsFromThrown } from "./error-details.js"
 import { applyWorkflowReturns } from "../schema/workflow-io.js"
 import {
   CapabilityDispatchError,
@@ -51,6 +52,19 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new DOMException("Run aborted", "AbortError")
   }
+}
+
+function firstUnresolvedStep(
+  manifest: WorkflowManifest,
+  history: Record<string, StepRunRecord>
+): { id: string; capabilityId: string; record: StepRunRecord } | undefined {
+  const match = Object.entries(history).find(
+    ([, record]) => record.status === "failed" || record.status === "paused"
+  )
+  if (!match) return undefined
+  const [id, record] = match
+  const node = findStep(manifest, id)
+  return { id, capabilityId: node?.uses ?? "", record }
 }
 
 function evalExpr(
@@ -173,6 +187,15 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
       else if (stepStatuses.includes("cancelled")) status = "cancelled"
       else if (stepStatuses.includes("paused")) status = "paused"
 
+      const unresolved = firstUnresolvedStep(manifest, history)
+      const unresolvedCtx = unresolved
+        ? {
+            step: { id: unresolved.id, capabilityId: unresolved.capabilityId },
+            diagnostics: unresolved.record.diagnostics,
+            output: unresolved.record.output,
+          }
+        : {}
+
       if (status === "completed") {
         await emitLifecycle("run:completed", extensionHooks, {
           event: "run:completed",
@@ -186,6 +209,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
           ...runBase,
           state,
           status,
+          ...unresolvedCtx,
         })
       }
 
@@ -220,11 +244,19 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         }
       }
       status = "failed"
+      const unresolved = firstUnresolvedStep(manifest, history)
       await emitLifecycle("run:failed", extensionHooks, {
         event: "run:failed",
         ...runBase,
         state,
         status,
+        ...(unresolved
+          ? {
+              step: { id: unresolved.id, capabilityId: unresolved.capabilityId },
+              diagnostics: unresolved.record.diagnostics,
+              output: unresolved.record.output,
+            }
+          : {}),
       })
       return {
         schema: "@executioncontrolprotocol.run.result",
@@ -235,11 +267,19 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         usage: { ...usage },
       }
     } finally {
+      const unresolved = firstUnresolvedStep(manifest, history)
       await emitLifecycle("run:finally", extensionHooks, {
         event: "run:finally",
         ...runBase,
         state,
         status,
+        ...(unresolved
+          ? {
+              step: { id: unresolved.id, capabilityId: unresolved.capabilityId },
+              diagnostics: unresolved.record.diagnostics,
+              output: unresolved.record.output,
+            }
+          : {}),
       })
       await context.onEvent?.(publicRunEvent("run.end", runId, { status }))
     }
@@ -553,14 +593,25 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
         stepRecord.status = "failed"
         if (err instanceof CapabilityDispatchError) {
           stepRecord.diagnostics = err.result.diagnostics
+          if (err.result.result !== undefined) stepRecord.output = err.result.result
         } else {
           const message = err instanceof Error ? err.message : String(err)
-          stepRecord.diagnostics = [{ severity: "error", code: ECP_STEP_FAILED, message }]
+          const fields = detailsFromThrown(err)
+          stepRecord.diagnostics = [
+            {
+              severity: "error",
+              code: ECP_STEP_FAILED,
+              message,
+              ...(fields.details ? { details: fields.details } : {}),
+            },
+          ]
+          if (fields.output !== undefined) stepRecord.output = fields.output
         }
         await emitLifecycle("step:failed", ctx.extensionHooks, {
           event: "step:failed",
           ...lifecycleBase,
           diagnostics: stepRecord.diagnostics,
+          output: stepRecord.output,
         })
         emitStepError(stepRecord.diagnostics)
         return
@@ -602,6 +653,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
             event: "step:failed",
             ...lifecycleBase,
             diagnostics: stepRecord.diagnostics,
+            output: stepRecord.output,
           })
           emitStepError(stepRecord.diagnostics)
         } else {
@@ -616,6 +668,7 @@ export class InMemoryRuntimeExecutor implements RuntimeExecutor {
             event: "step:paused",
             ...lifecycleBase,
             diagnostics: stepRecord.diagnostics,
+            output: stepRecord.output,
           })
         }
         return

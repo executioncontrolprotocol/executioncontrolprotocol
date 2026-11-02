@@ -54,6 +54,30 @@ export async function buildPlugin(dir: string): Promise<BuildReport> {
     if (!wanted.has(cmd.id)) continue
     cached[cmd.id] = cmd
   }
+  // Config.load uses the user oclif data dir, so a newly added capability can
+  // be missing until the plugin is reinstalled. Fill from toCommands.
+  for (const id of wanted) {
+    if (cached[id]) continue
+    const cls =
+      commands[id] ??
+      Object.values(commands).find((command) => command.aliases?.includes(id))
+    cached[id] = {
+      aliases: cls?.aliases ?? [],
+      args: cls?.args ?? {},
+      description: cls?.description,
+      examples: cls?.examples,
+      flags: cls?.flags ?? {},
+      hasDynamicHelp: false,
+      hiddenAliases: [],
+      id,
+      pluginAlias: pkg.name,
+      pluginName: pkg.name,
+      pluginType: "core",
+      strict: true,
+      summary: cls?.summary,
+      enableJsonFlag: true,
+    }
+  }
   const manifest = {
     version: typeof pkg.version === "string" ? pkg.version : "0.0.0",
     commands: cached,

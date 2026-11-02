@@ -1,5 +1,6 @@
 import type { Interfaces } from "@oclif/core"
 import type { Ecp, Registry } from "@executioncontrolprotocol/core"
+import type { ValidationIssue } from "@executioncontrolprotocol/core/types"
 
 /** How the CLI should print command results. @category CLI */
 export type OutputMode = "json" | "pretty"
@@ -24,7 +25,8 @@ export interface EcpHost {
     input: unknown
     result: unknown
     success: boolean
-  }) => Promise<void>
+    diagnostics?: ValidationIssue[]
+  }) => Promise<string | void>
   /**
    * Re-init the environment from currently installed plugins.
    * The CLI `init` hook sets this so MCP can rebuild after `plugins install`

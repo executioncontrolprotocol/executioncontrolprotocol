@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest"
-import { Registry, environment, extension, testExtension } from "@executioncontrolprotocol/core"
+import {
+  Registry,
+  environment,
+  extension,
+  testExtension,
+  TEST_FAIL_BODY,
+  TEST_FAIL_MESSAGE,
+  TEST_FAIL_OUTPUT,
+  TEST_FAIL_URL,
+} from "@executioncontrolprotocol/core"
 import { NODE_ENVIRONMENT_ID, registerNodeEnvironment } from "@executioncontrolprotocol/node"
 import pluginTest from "../src/index.js"
 
@@ -33,6 +42,7 @@ describe("@executioncontrolprotocol/plugin-test", () => {
     expect(ids).toContain("@executioncontrolprotocol/test.translate")
     expect(ids).toContain("@executioncontrolprotocol/test.notify")
     expect(ids).toContain("@executioncontrolprotocol/test.validate")
+    expect(ids).toContain("@executioncontrolprotocol/test.fail")
     expect(ids).not.toContain("@executioncontrolprotocol/test.generate")
   })
 
@@ -49,6 +59,17 @@ describe("@executioncontrolprotocol/plugin-test", () => {
       echo: unknown
     }
     expect(out).toEqual({ echo: "hi" })
+  })
+
+  it("fail throws an HTTP-shaped error", async () => {
+    await expect(capability("@executioncontrolprotocol/test.fail")({}, ctx)).rejects.toMatchObject({
+      name: "TestHttpError",
+      message: TEST_FAIL_MESSAGE,
+      status: 400,
+      bodyText: TEST_FAIL_BODY,
+      url: TEST_FAIL_URL,
+      output: TEST_FAIL_OUTPUT,
+    })
   })
 
   it("rejects an unknown capability id on the extension", () => {

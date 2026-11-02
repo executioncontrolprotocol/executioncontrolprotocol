@@ -81,6 +81,55 @@ describe("ecp plugins link jsonata", () => {
     }
   }, 60_000)
 
+  it("ecp jsonata transform failure prints ECP_STEP_FAILED and the invoke record", async () => {
+    const hermetic = await hermeticCliEnv()
+    try {
+      const linked = await runCli(["plugins", "link", "plugins/plugin-jsonata"], {
+        env: hermetic.env,
+      })
+      expect(linked.code).toBe(0)
+      const fixture = join(hermetic.dir, "payload.json")
+      await writeFile(fixture, JSON.stringify({ payload: { a: 1 } }), "utf8")
+
+      const text = await runCli(
+        ["jsonata", "transform", "--expression", "[", "--input", fixture],
+        { env: hermetic.env }
+      )
+      expect(text.code).toBe(1)
+      expect(text.stdout).toContain("Step invoke")
+      expect(text.stdout).toContain("Error Code: ECP_STEP_FAILED")
+      expect(text.stdout).toContain("Invalid JSONata expression")
+      expect(text.stdout).toContain("status: failed")
+      expect(() => JSON.parse(text.stdout)).toThrow()
+
+      const json = await runCli(
+        ["jsonata", "transform", "--expression", "[", "--input", fixture, "--json"],
+        { env: hermetic.env }
+      )
+      expect(json.code).toBe(1)
+      const body = JSON.parse(json.stdout) as {
+        ok: false
+        error: { code: string; message: string }
+        data: {
+          runId: string
+          stepId: string
+          capabilityId: string
+          status: string
+          diagnostics: { code: string; message: string }[]
+        }
+      }
+      expect(body.ok).toBe(false)
+      expect(body.error.code).toBe("ECP_STEP_FAILED")
+      expect(body.error.message).toMatch(/Invalid JSONata expression/)
+      expect(body.data.stepId).toBe("invoke")
+      expect(body.data.capabilityId).toBe("@executioncontrolprotocol/jsonata.transform")
+      expect(body.data.status).toBe("failed")
+      expect(body.data.diagnostics[0]?.code).toBe("ECP_STEP_FAILED")
+    } finally {
+      await rm(hermetic.dir, { recursive: true, force: true })
+    }
+  }, 60_000)
+
   it("ecp jsonata without the plugin returns ECP_PLUGINS_MISSING and exit 3", async () => {
     const server = createServer((req, res) => {
       if (req.url?.includes("plugin-jsonata")) {

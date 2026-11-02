@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach } from "vitest"
 import { z } from "zod"
 import {
+  capabilityFor,
+  defineExtension,
   extension,
   workflow,
   step,
@@ -126,5 +128,47 @@ describe("step lifecycle ordering", () => {
     expect(lifecycleSpyLastStepFailedDiagnostics?.[0]?.message).toBe("capability failed")
     expect(result.state?.seed).toBe(1)
     expect(result.state?.out).toBeUndefined()
+    expect(result.history?.throw?.status).toBe("failed")
+    expect(result.history?.throw?.diagnostics?.[0]?.code).toBe("ECP_STEP_FAILED")
+  })
+
+  it("failed step history keeps handler output and error details", async () => {
+    class HttpErr extends Error {
+      status = 502
+      bodyText = '{"error":"upstream"}'
+      output = { echoed: "x" }
+
+      constructor() {
+        super("HTTP 502")
+        this.name = "HttpErr"
+      }
+    }
+
+    const boom = defineExtension("@executioncontrolprotocol", "run-http-err")
+      .withCapabilities([
+        capabilityFor("@executioncontrolprotocol/run-http-err", "call")
+          .withInput(z.object({}))
+          .withOutput(z.object({ echoed: z.string() }))
+          .withHandler(async () => {
+            throw new HttpErr()
+          }),
+      ])
+      .build()
+
+    const env = createTestEnvironment("run-http-err").with([extension(boom)])
+    const manifest = workflow("Fail")
+      .run([step("@executioncontrolprotocol/run-http-err.call", "Call").id("call").as("out")])
+      .toManifest()
+    const ecp = await env.init()
+    const result = await ecp.run(manifest)
+    expect(result.run.status).toBe("failed")
+    expect(result.history?.call?.status).toBe("failed")
+    expect(result.history?.call?.output).toEqual({ echoed: "x" })
+    expect(result.history?.call?.diagnostics?.[0]?.details).toMatchObject({
+      name: "HttpErr",
+      status: 502,
+      bodyText: '{"error":"upstream"}',
+    })
+    await ecp.terminate()
   })
 })

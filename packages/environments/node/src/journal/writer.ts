@@ -3,10 +3,12 @@ import { join } from "node:path"
 import { findStep, type LifecycleContext } from "@executioncontrolprotocol/core"
 import {
   JOURNAL_VERSION,
+  type JournalError,
   type JournalRunDocument,
   type JournalStepDocument,
   type PolicyJournalDecision,
   type RunStatus,
+  type ValidationIssue,
 } from "@executioncontrolprotocol/core/types"
 import { hashStepDefinition } from "./hash.js"
 import { redactSecrets } from "./redact.js"
@@ -19,6 +21,20 @@ interface OpenRun {
 }
 
 const openRuns = new Map<string, OpenRun>()
+
+function journalErrorFrom(
+  diagnostic: ValidationIssue | undefined,
+  stepId?: string
+): JournalError | undefined {
+  if (!diagnostic) return undefined
+  const redacted = redactSecrets(diagnostic)
+  return {
+    ...(redacted.code !== undefined ? { code: redacted.code } : {}),
+    message: redacted.message,
+    ...(redacted.details ? { details: redacted.details } : {}),
+    ...(stepId ? { stepId } : {}),
+  }
+}
 
 /**
  * Start a journal for `run:before` / `run:started`.
@@ -55,9 +71,7 @@ export async function journalStep(ctx: LifecycleContext, status: RunStatus): Pro
   if (!open || !ctx.step) return
   const stepNode = findStep(ctx.workflow, ctx.step.id)
   const startedAt = new Date().toISOString()
-  const error = ctx.diagnostics?.[0]
-    ? { code: ctx.diagnostics[0].code, message: ctx.diagnostics[0].message }
-    : undefined
+  const diagnostics = ctx.diagnostics ? redactSecrets(ctx.diagnostics) : undefined
   const document: JournalStepDocument = {
     stepId: ctx.step.id,
     capabilityId: ctx.step.capabilityId,
@@ -71,7 +85,8 @@ export async function journalStep(ctx: LifecycleContext, status: RunStatus): Pro
     startedAt,
     endedAt: new Date().toISOString(),
     status,
-    error,
+    error: journalErrorFrom(diagnostics?.[0]),
+    diagnostics,
   }
   await writeFile(
     join(open.dir, "steps", `${ctx.step.id}.json`),
@@ -90,11 +105,9 @@ export async function journalRunEnd(ctx: LifecycleContext): Promise<void> {
   if (!open) return
   open.document.status = ctx.status ?? open.document.status
   open.document.endedAt = new Date().toISOString()
+  const stepId = ctx.step?.id ?? open.document.cursor
   if (ctx.diagnostics?.[0]) {
-    open.document.error = {
-      code: ctx.diagnostics[0].code,
-      message: ctx.diagnostics[0].message,
-    }
+    open.document.error = journalErrorFrom(ctx.diagnostics[0], stepId)
   }
   await writeFile(
     join(open.dir, "run.json"),
@@ -113,12 +126,15 @@ export async function writeInvokeJournal(entry: {
   input: unknown
   result: unknown
   success: boolean
+  diagnostics?: ValidationIssue[]
 }): Promise<string> {
   const runId = globalThis.crypto.randomUUID()
   const dir = runDir(runId)
   await mkdir(join(dir, "steps"), { recursive: true })
   const startedAt = new Date().toISOString()
   const status: RunStatus = entry.success ? "completed" : "failed"
+  const diagnostics = entry.diagnostics ? redactSecrets(entry.diagnostics) : undefined
+  const error = journalErrorFrom(diagnostics?.[0], "invoke")
   const runDoc: JournalRunDocument = {
     journalVersion: JOURNAL_VERSION,
     runId,
@@ -132,6 +148,7 @@ export async function writeInvokeJournal(entry: {
     startedAt,
     endedAt: new Date().toISOString(),
     cursor: "invoke",
+    ...(error ? { error } : {}),
   }
   const stepDoc: JournalStepDocument = {
     stepId: "invoke",
@@ -142,11 +159,13 @@ export async function writeInvokeJournal(entry: {
         ? (entry.input as Record<string, unknown>)
         : { value: entry.input }
     ),
-    output: redactSecrets(entry.result),
+    output: entry.result !== undefined ? redactSecrets(entry.result) : undefined,
     attempts: 1,
     startedAt,
     endedAt: new Date().toISOString(),
     status,
+    ...(error ? { error } : {}),
+    diagnostics,
   }
   await writeFile(join(dir, "run.json"), `${JSON.stringify(runDoc, null, 2)}\n`, "utf8")
   await writeFile(join(dir, "steps", "invoke.json"), `${JSON.stringify(stepDoc, null, 2)}\n`, "utf8")
