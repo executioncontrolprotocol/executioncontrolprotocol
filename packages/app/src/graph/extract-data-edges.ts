@@ -48,6 +48,9 @@ function refPathFromInputValue(value: InputValue): string | undefined {
   return undefined
 }
 
+/** Whole-document output handle when the `$ref` has no field path. */
+const OUTPUT_HANDLE_ID = "output"
+
 /**
  * Parse `state.<asKey>[.<rest>]` into as-key and optional nested path for handles.
  * @category App
@@ -65,13 +68,39 @@ export function parseStateRef(
 }
 
 /**
+ * Longest output port id that is `fieldPath` or a dotted prefix of it.
+ * Falls back to the first segment (or `output` when the path is empty).
+ * @category App
+ */
+export function longestMatchingPortId(
+  fieldPath: string,
+  portIds?: readonly string[]
+): string {
+  if (!fieldPath) return OUTPUT_HANDLE_ID
+  let best: string | undefined
+  if (portIds) {
+    for (const id of portIds) {
+      if (!id) continue
+      if (fieldPath === id || fieldPath.startsWith(`${id}.`)) {
+        if (!best || id.length > best.length) best = id
+      }
+    }
+  }
+  if (best) return best
+  const first = fieldPath.split(".")[0]
+  return first && first.length > 0 ? first : OUTPUT_HANDLE_ID
+}
+
+/**
  * Extract data edges from step `.with()` `$ref` values.
  * `acceptsKeys` maps `state.<key>` refs to the projected Inputs node.
+ * `outputPortIdsByStepId` selects the longest matching nested output handle.
  * @category App
  */
 export function extractDataEdges(
   nodes: WorkflowNode[],
-  acceptsKeys?: ReadonlySet<string>
+  acceptsKeys?: ReadonlySet<string>,
+  outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>
 ): ReactFlowEdge[] {
   const steps: StepNode[] = []
   collectSteps(nodes, steps)
@@ -107,9 +136,10 @@ export function extractDataEdges(
       const sourceHandle =
         sourceStepId === WORKFLOW_ACCEPTS_NODE_ID
           ? parsed.asKey
-          : parsed.fieldPath
-            ? parsed.fieldPath.split(".")[0]
-            : "output"
+          : longestMatchingPortId(
+              parsed.fieldPath,
+              outputPortIdsByStepId?.get(sourceStepId)
+            )
       edges.push({
         id: `data-${edgeIndex++}-${sourceStepId}-${step.id}-${paramName}`,
         source: sourceStepId,

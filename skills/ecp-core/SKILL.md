@@ -13,15 +13,14 @@ description: >-
 Install: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`
 
 This skill is for **working inside this repository**. Consumer workflow authoring uses
-`npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on `feat/cli-reset-docs`).
+`npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on docs `main`).
 
 ## Start here
 
-1. `RESET-PLAN.md`: decisions and target architecture. It takes precedence during the
-   milestone.
-2. `reset/README.md` and `reset/phase-<n>-*.md`: how phases run, and the task list for each.
-3. `AGENTS.md` and `.cursor/rules/`: the code as it is now, plus conventions. Phase 1
+1. `AGENTS.md` and `.cursor/rules/`: the code as it is now, plus conventions. Phase 1
    removals (harnesses, evals, EQL, demo) are gone; don't reintroduce them.
+2. 1.0 leftovers live in `reset/later.md`. Cut work from `development`.
+3. `RESET-PLAN.md` and `reset/phase-<n>-*.md` are the completed reset record.
 
 ## Progressive disclosure
 
@@ -44,4 +43,4 @@ pnpm run test:plugin-pack
 from `packages/cli/` after `pnpm run build`.
 
 All workspace packages use `workspace:*` / `workspace:^` dependencies. Never add `file:` links.
-Never push to `main` or `development` during the milestone.
+Open PRs into `development`. Pushes to `main` publish to npm.

@@ -21,6 +21,7 @@ export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
 export { secrets } from "./helpers/secrets.js"
 export { expr } from "./helpers/expr.js"
+export { mergeParameterBody } from "./helpers/merge-parameter-body.js"
 export {
   toProviderChatTurns,
   flattenProviderChatTurns,
@@ -58,11 +59,13 @@ export { parallel, branch, loop } from "./workflow/flow.js"
 export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
+  flattenJsonSchemaProperties,
   validateAgainstJsonSchema,
   resolveStatePath,
   pickWorkflowReturns,
   isZodType,
 } from "./schema/json-schema.js"
+export type { JsonSchemaProperty } from "./schema/json-schema.js"
 export { validateWorkflowAcceptsInput, applyWorkflowReturns } from "./schema/workflow-io.js"
 
 export {
@@ -71,6 +74,7 @@ export {
   type EnvironmentInitOptions,
   type EnvironmentBinding,
 } from "./environment/environment.js"
+export { config, ConfigBuilder, isConfigBuilder } from "./config/index.js"
 export {
   buildDescriptor,
   DESCRIBE_AUTHORING_CAPABILITIES_QUERY,
@@ -138,7 +142,9 @@ export {
   buildInvokeFailureDiagnostics,
   formatValidationIssueLine,
   type RemoteInvokeBinding,
+  type InvokeFailureExtras,
 } from "./runtime/remote-invoke.js"
+export { detailsFromThrown, type ThrownErrorFields } from "./runtime/error-details.js"
 export {
   dispatchCapability,
   dispatchCapabilityResult,
@@ -165,8 +171,12 @@ export {
 } from "./runtime/artifacts.js"
 export {
   resolveFile,
-  registerHostFileReader,
+  requireMediaStore,
+  mediaStoreContextFrom,
   writeMediaArtifact,
+  readBrowserLocator,
+  bytesToBase64,
+  base64ToBytes,
   defaultArtifactFilename,
   extensionForMediaType,
   resolveArtifactFilename,
@@ -174,21 +184,46 @@ export {
   isArtifactFetchPathname,
   parseArtifactFetchPathname,
   ARTIFACT_HTTP_PATH_PREFIX,
-  STORAGE_ARTIFACT_URI_PREFIX,
+  DEFAULT_MEDIA_PREFIX,
   type ResolvedFile,
   type ResolveFileOptions,
   type WriteMediaArtifactOptions,
-  type MediaArtifactStore,
   type FileCapabilityContext,
-  type HostFileReader,
   type ArtifactFetchPathnameOptions,
 } from "./media/index.js"
+export {
+  ServiceMap,
+  snapshotServiceId,
+  isService,
+  MEDIA_STORE_ID,
+  FILE_ARTIFACT_URI_PREFIX,
+  MEDIA_HTTP_PATH,
+  MediaStore,
+  type ServiceProvider,
+  type ServiceToken,
+  type MediaStoreContext,
+  type MediaWriteOptions,
+  type MediaHttpWriteRequest,
+  type MediaHttpReadResponse,
+} from "./services/index.js"
 export {
   handleMixedBrowserBlobUpload,
   type MixedBlobUploadInput,
   type MixedBlobUploadOutput,
 } from "./runtime/mixed-blob-upload.js"
-export { registerTestExtension, testExtension } from "./testing/test-extension.js"
+export {
+  registerTestExtension,
+  testExtension,
+  TEST_FAIL_BODY,
+  TEST_FAIL_URL,
+  TEST_FAIL_MESSAGE,
+  TEST_FAIL_OUTPUT,
+} from "./testing/test-extension.js"
+export {
+  createMemoryMediaStore,
+  type MemoryMediaStore,
+  type MemoryMediaRecord,
+} from "./testing/memory-media-store.js"
 export {
   lifecycleSpyExtension,
   registerLifecycleSpyExtension,

@@ -48,12 +48,13 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `packages/cli/` | `ecp` CLI (oclif 5, generated operations + hooks) | Rebuilt in Phase 3 |
 | `packages/plugin-sdk/` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library | Added in Phase 3 |
 | `plugins/plugin-jsonata/` | Reference plugin (`@executioncontrolprotocol/plugin-jsonata`) | Migrated in Phase 3 |
+| `plugins/plugin-test/` | Stub echo/placeholder plugin (`@executioncontrolprotocol/plugin-test`) | Not a Node default; `ecp plugins link plugins/plugin-test` |
 | `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
-| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.50"`. First-use JIT from npm waits on the 0.50.0 publish |
+| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.51"`. First-use JIT from npm waits on the 0.51.0 publish |
 | `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 Done: `HostAdapter`, graph encoder, prebuilt `dist/web`. React is an optional peer |
-| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.50"`. First-use JIT from npm waits on the 0.50.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
+| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.51"`. First-use JIT from npm waits on the 0.51.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |
@@ -95,7 +96,7 @@ workflows). See `RESET-PLAN.md` §2.3.
   block, never into the manifest.
 - **Secrets:**
   - Never commit live keys; use `.env` (gitignored), the OS keychain, or CI secrets.
-  - Workflow and environment files reference secrets with `secrets("key")`, never values.
+  - Workflow and config files reference secrets with `secrets("key")`, never values.
   - Pre-commit runs Secretlint; CI also runs Gitleaks.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
@@ -105,6 +106,9 @@ workflows). See `RESET-PLAN.md` §2.3.
   - See `.cursor/rules/testing-coverage.mdc`.
 - **No backwards-compatibility shims** unless a phase doc asks for one (Phase 9 handles npm
   deprecations). See `.cursor/rules/no-backwards-compatibility.mdc`.
+- **Authored config is TypeScript/JavaScript; machine-managed state is JSON.** Workflows and
+  the config file are `.ts`/`.js`. `trust.json` and run journals are JSON. See
+  `.cursor/rules/file-formats.mdc`.
 - **Vendor-neutral hosts:** core, environments, CLI, MCP and the App must not branch on specific
   extension ids or output shapes. Domain knowledge lives in the extension, surfaced through
   metadata (`summary`, `useCases`, `projections`).
@@ -132,7 +136,8 @@ Removed in Phase 1:
 - The eval scripts (`test:eval:*`, `eval:*`).
 
 Replaced by Changesets in Phase 5 (`pnpm exec changeset`, `pnpm run test:plugin-pack`).
-The old `version:bump` / `publish:workspaces` / `version:check-vs-npm` scripts are gone.
+`pnpm run version:check-vs-npm` still gates `development`: each publishable package.json
+must be greater than npm latest. The old `version:bump` / `publish:workspaces` scripts are gone.
 
 Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change, then lint-staged,
 lint and the coverage gate. CI (`.github/workflows/ci.yml`) runs on `main`, `development`,
@@ -146,19 +151,23 @@ The CLI uses oclif v5 (`@oclif/core`). Commands are generated: the CLI's own com
 definitions. The only hand-written oclif code is the hooks.
 
 ```sh
+ecp plugins link plugins/plugin-test
 ecp run examples/01-echo/workflow.ecp.ts
 ecp run brief.ecp.ts --to fetch
 ecp run brief.ecp.ts --events
-ecp validate examples/01-echo/workflow.ecp.ts
-ecp describe
+ecp workflows validate examples/01-echo/workflow.ecp.ts
+ecp environments describe
+ecp config init
+ecp config edit
 ecp runs list
 ecp runs show <id>
 ecp runs resume <id>
 ecp runs rerun <id> --from web
-ecp install brief.ecp.ts
-ecp init brief
+ecp workflows install brief.ecp.ts
+ecp workflows init brief
 ecp plugins new jsonata
 ecp plugins link plugins/plugin-jsonata
+ecp plugins discover jsonata --json
 ecp jsonata transform --expression '$.a' --input payload.json --json
 ecp mcp serve
 ecp mcp serve --tools meta
@@ -169,10 +178,10 @@ ecp app brief.ecp.ts --no-open
 
 - **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
   (`ecp run --to`, `ecp runs resume`, `ecp runs rerun` replace it).
-- **`--env` is optional** on `run` / `validate` / `install`. Omit it to use the process host
-  (built-in Node + installed plugins). `--env <file>` is an environment overlay
-  (`environment(id).with([...])`), not a required pair. `describe` / `search` / `invoke` take
-  it the same way.
+- **`--config` is optional** on `run` / `workflows validate` / `workflows install`. Omit it to
+  use the process host (built-in Node + installed plugins), merging `~/.ecp/config/config.ecp.ts`
+  when that file exists. `--config <file>` is machine settings (`config().with([...])`), not a
+  replacement catalog. `environments describe` / `search` / `invoke` take it the same way.
 - **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
 - Journals live under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`).
 
@@ -198,4 +207,4 @@ See `.cursor/rules/extensions.mdc` for the full contract. In short:
 
 Contributor skill for this repo: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`.
 The consumer `ecp` skill: `npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on
-`feat/cli-reset-docs`; not on docs `main` yet).
+docs `main`).

@@ -7,12 +7,12 @@ commands come from extension definitions; there are no hand-written command clas
 This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosystem:
 
 - Compile workflow files (`*.ecp.ts` / `.js`) to portable JSON manifests
-- Validate workflows against the process host or an optional `--env` overlay
+- Validate workflows against the process host (optional `--config` for machine settings)
 - Describe/search environment capabilities for agent/UI discovery
 - Run workflows and print structured run results (`ecp run --to`, `ecp run --events`)
-- Invoke a single capability outside a workflow (`ecp invoke`)
+- Invoke a single capability outside a workflow (`ecp environments invoke`)
 - Inspect and continue run journals (`ecp runs list|show|resume|rerun`)
-- Install inferred plugins for a workflow file (`ecp install`)
+- Install inferred plugins for a workflow file (`ecp workflows install`)
 - Author and check plugins (`ecp plugins new|build|check`) next to oclif's `plugins install|link`
 - Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
@@ -21,31 +21,34 @@ For the architecture and monorepo package boundaries, start with
 
 ## Install
 
-From npm (when a dist-tag exists):
+From npm (`latest`):
 
 ```sh
-npm install -g @executioncontrolprotocol/cli@next
+npm install -g @executioncontrolprotocol/cli
 ```
 
-Until `@next` is on the registry, pack-install from this repo (`pnpm run test:plugin-pack`).
+The field-test is **0.51.0** (not 1.0). Until that version is on the registry,
+pack-install from this repo (`pnpm run test:plugin-pack`).
 
 From this monorepo (recommended for development):
 
 ```sh
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd packages/cli
-npm link
+pnpm link --global
 ```
 
 ## Usage
 
-`--env <file>` is an optional overlay (`environment(id).with([...])`). Omit it to use the
-process host (built-in Node plus installed plugins).
+`--config <file>` is optional machine settings (`config().with([...])`). Omit it to use the
+process host (built-in Node plus installed plugins), merging `~/.ecp/config/config.ecp.ts`
+when that file exists.
 
 ### Run
 
 ```sh
+ecp plugins link plugins/plugin-test
 ecp run examples/01-echo/workflow.ecp.ts
 ```
 
@@ -64,20 +67,20 @@ ecp run workflow.ecp.ts --dry-run
 ### Validate
 
 ```sh
-ecp validate examples/01-echo/workflow.ecp.ts
+ecp workflows validate examples/01-echo/workflow.ecp.ts
 ```
 
 ### Compile (portable JSON)
 
 ```sh
-ecp compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
+ecp workflows compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
 ```
 
 ### Describe / search environment capabilities
 
 ```sh
-ecp describe
-ecp search "echo"
+ecp environments describe
+ecp environments search "echo"
 ```
 
 ### Run journals (`ecp runs`)
@@ -106,7 +109,7 @@ ecp runs rerun <id> --from step-a --to step-a
 Call a single bound capability without a workflow:
 
 ```sh
-ecp invoke @executioncontrolprotocol/test.echo --input input.json
+ecp environments invoke @executioncontrolprotocol/test.echo --input input.json
 ```
 
 Prints an `InvokeResult` JSON document; exits non-zero when `success` is false.
@@ -120,17 +123,18 @@ ecp plugins new my-transform
 ecp plugins build
 ecp plugins check
 ecp plugins link plugins/plugin-jsonata
+ecp plugins link plugins/plugin-test
 ecp jsonata transform --expression '$.a' --input payload.json --json
-ecp discover jsonata --json
+ecp plugins discover jsonata --json
 ```
 
-`--env` is optional on `run`, `validate`, and `install`. `describe`, `search`, and `invoke`
-take it the same way.
+`--config` is optional on `run`, `workflows validate`, and `workflows install`.
+`environments describe`, `search`, and `invoke` take it the same way.
 
 ### MCP
 
-`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). Until `@next` is published,
-link the workspace package:
+`ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). The CLI pin is
+`^0.51`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link packages/mcp
@@ -140,8 +144,8 @@ ecp mcp serve --http
 
 ### App
 
-`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). Until `@next` is published,
-link the workspace package:
+`ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). The CLI pin is
+`^0.51`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link plugins/plugin-app
@@ -157,3 +161,4 @@ ecp app brief.ecp.ts --no-open
 - [`@executioncontrolprotocol/core/types`](../core/README.md): protocol types + generated JSON Schemas
 - [`@executioncontrolprotocol/mcp`](../mcp/): MCP server adapter exposing an environment to agents
 - [`@executioncontrolprotocol/plugin-jsonata`](../../plugins/plugin-jsonata/README.md): reference plugin
+- [`@executioncontrolprotocol/plugin-test`](../../plugins/plugin-test/README.md): stub echo capabilities (not a Node default)

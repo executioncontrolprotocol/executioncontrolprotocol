@@ -62,4 +62,16 @@ describe("invokeFailure diagnostics", () => {
     expect(formatValidationIssueLine({ code: "X", message: "msg", path: "a.b" })).toBe("a.b: msg")
     expect(formatValidationIssueLine({ code: "X", message: "msg" })).toBe("msg")
   })
+
+  it("attaches extras.details to the lead diagnostic and extras.result", () => {
+    const result = invokeFailure(
+      "@executioncontrolprotocol/test.echo",
+      ECP_INVOKE_ERROR_CODES.INVOKE_FAILED,
+      "HTTP 400",
+      undefined,
+      { details: { status: 400, bodyText: '{"error":"bad"}' }, result: { raw: true } }
+    )
+    expect(result.diagnostics[0]?.details).toEqual({ status: 400, bodyText: '{"error":"bad"}' })
+    expect(result.result).toEqual({ raw: true })
+  })
 })

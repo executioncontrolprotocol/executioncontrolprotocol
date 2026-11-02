@@ -1,8 +1,13 @@
 import type { Registry } from "@executioncontrolprotocol/core"
-import { jsonSchemaFromZod, jsonSchemaObjectProperties } from "@executioncontrolprotocol/core"
+import {
+  flattenJsonSchemaProperties,
+  isZodType,
+  jsonSchemaFromZod,
+  jsonSchemaObjectProperties,
+} from "@executioncontrolprotocol/core"
 import type { InputValue, StepNode } from "@executioncontrolprotocol/core/types"
 import { parseStateRef } from "./extract-data-edges.js"
-import type { ReactFlowPort } from "./types.js"
+import type { CapabilityIoSchemas, ReactFlowPort } from "./types.js"
 import {
   isFileValueSchemaHint,
   valueSchemaFromEqlLabel,
@@ -11,6 +16,9 @@ import {
 } from "./value-schema-hint.js"
 
 const LITERAL_PREVIEW_MAX = 56
+
+/** Whole-document output handle (`ref("as")` with no field path). */
+const OUTPUT_HANDLE_ID = "output"
 
 function typeLabelFromHint(
   schema: Record<string, unknown> | undefined,
@@ -135,21 +143,38 @@ export function ensureOutputPort(outputs: ReactFlowPort[], handleId: string): vo
 }
 
 /**
+ * Project a Zod type or JSON Schema object to a JSON Schema record.
+ * @category App
+ */
+export function toJsonObjectSchema(schema: unknown): Record<string, unknown> | undefined {
+  if (schema === undefined || schema === null) return undefined
+  if (isZodType(schema)) return jsonSchemaFromZod(schema)
+  if (typeof schema === "object" && !Array.isArray(schema)) {
+    return schema as Record<string, unknown>
+  }
+  return undefined
+}
+
+/**
  * Build input/output ports from capability Zod schemas, with input-key fallback
  * and literal / `$ref` binding metadata from `step.input`.
+ * When `registry` has no capability, {@link CapabilityIoSchemas} from `describe()`
+ * supplies the same JSON Schema ports.
  * @category App
  */
 export function portsForStep(
   step: StepNode,
-  registry: Registry | undefined
+  registry: Registry | undefined,
+  schemas?: CapabilityIoSchemas
 ): { inputs: ReactFlowPort[]; outputs: ReactFlowPort[] } {
   const cap = registry?.getCapability(String(step.uses))
-  const inputJson = cap?.inputSchema ? jsonSchemaFromZod(cap.inputSchema) : undefined
-  const outputJson = cap?.outputSchema ? jsonSchemaFromZod(cap.outputSchema) : undefined
+  const inputSource = cap?.inputSchema ?? schemas?.inputSchema
+  const outputSource = cap?.outputSchema ?? schemas?.outputSchema
+  const inputJson = toJsonObjectSchema(inputSource)
+  const outputJson = toJsonObjectSchema(outputSource)
   const inputFields = jsonSchemaObjectProperties(inputJson)
-  const outputFields = jsonSchemaObjectProperties(outputJson)
-  const inputSchemas = valueSchemasFromCapabilitySchema(cap?.inputSchema)
-  const outputSchemas = valueSchemasFromCapabilitySchema(cap?.outputSchema)
+  const outputFields = flattenJsonSchemaProperties(outputJson)
+  const inputSchemas = valueSchemasFromCapabilitySchema(inputSource)
 
   const inputs: ReactFlowPort[] = []
   const seenInputs = new Set<string>()
@@ -184,23 +209,28 @@ export function portsForStep(
   applyInputBindings(inputs, step)
 
   const outputs: ReactFlowPort[] = []
+  const seenOutputs = new Set<string>()
+  if (!outputFields.some((field) => field.name === OUTPUT_HANDLE_ID)) {
+    const whole: ReactFlowPort = {
+      id: OUTPUT_HANDLE_ID,
+      name: OUTPUT_HANDLE_ID,
+      typeLabel: "object",
+      valueSchema: { type: "object" },
+    }
+    outputs.push(whole)
+    seenOutputs.add(OUTPUT_HANDLE_ID)
+  }
   for (const field of outputFields) {
+    if (seenOutputs.has(field.name)) continue
+    seenOutputs.add(field.name)
     const typeLabel = typeLabelFromHint(field.schema, field.required)
     const port: ReactFlowPort = {
       id: field.name,
       name: field.name,
       typeLabel,
+      valueSchema: field.schema,
     }
-    attachValueSchema(port, outputSchemas, typeLabel)
     outputs.push(port)
-  }
-
-  if (outputs.length === 0 && step.as) {
-    outputs.push({
-      id: "output",
-      name: "output",
-      typeLabel: "unknown",
-    })
   }
 
   return { inputs, outputs }

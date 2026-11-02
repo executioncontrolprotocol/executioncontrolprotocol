@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { Config } from "@oclif/core"
@@ -38,16 +38,51 @@ export async function buildPlugin(dir: string): Promise<BuildReport> {
 
   const commands = toCommands(definition)
   const commandIds = Object.keys(commands)
+  const wanted = new Set(commandIds)
+  for (const cls of Object.values(commands)) {
+    for (const alias of cls.aliases ?? []) wanted.add(alias)
+  }
+  const manifestPath = join(dir, "oclif.manifest.json")
+  try {
+    await unlink(manifestPath)
+  } catch {
+    // First build, or the previous manifest was already removed.
+  }
   const config = await Config.load({ root: dir })
   const cached: Record<string, unknown> = {}
   for (const cmd of config.commands) {
+    if (!wanted.has(cmd.id)) continue
     cached[cmd.id] = cmd
+  }
+  // Config.load uses the user oclif data dir, so a newly added capability can
+  // be missing until the plugin is reinstalled. Fill from toCommands.
+  for (const id of wanted) {
+    if (cached[id]) continue
+    const cls =
+      commands[id] ??
+      Object.values(commands).find((command) => command.aliases?.includes(id))
+    cached[id] = {
+      aliases: cls?.aliases ?? [],
+      args: cls?.args ?? {},
+      description: cls?.description,
+      examples: cls?.examples,
+      flags: cls?.flags ?? {},
+      hasDynamicHelp: false,
+      hiddenAliases: [],
+      id,
+      pluginAlias: pkg.name,
+      pluginName: pkg.name,
+      pluginType: "core",
+      strict: true,
+      summary: cls?.summary,
+      enableJsonFlag: true,
+    }
   }
   const manifest = {
     version: typeof pkg.version === "string" ? pkg.version : "0.0.0",
     commands: cached,
   }
-  await writeFile(join(dir, "oclif.manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
 
   return {
     dir,

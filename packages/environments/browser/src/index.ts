@@ -21,6 +21,7 @@ export {
   environment,
   createBrowserEnvironment,
 } from "./environment.js"
+export { createBrowserMediaStore } from "./media/browser-media-store.js"
 export {
   compileWorkflowSource,
   compileAndValidateWorkflowSource,

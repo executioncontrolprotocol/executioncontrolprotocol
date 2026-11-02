@@ -8,7 +8,7 @@ ecp plugins install format-toon
 
 Capability ids `@executioncontrolprotocol/format-toon.encode` and
 `@executioncontrolprotocol/format-toon.decode` are unchanged. The plugin also registers the
-`toon` format for `ecp describe --format toon` and `ecp compile --format toon`.
+`toon` format for `ecp environments describe --format toon` and `ecp workflows compile --format toon`.
 
 ## Binding
 

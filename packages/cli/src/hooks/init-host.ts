@@ -1,7 +1,7 @@
 import type { Hook, Interfaces } from "@oclif/core"
 import { NODE_ENVIRONMENT_ID, writeInvokeJournal } from "@executioncontrolprotocol/node"
 import { setHost, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
-import { createProcessEnvironment } from "../lib/plugin-bindings.js"
+import { createConfiguredProcessEnvironment } from "../lib/layer-environment.js"
 
 async function reloadUserPlugins(config: Interfaces.Config): Promise<void> {
   const loader = config as Interfaces.Config & {
@@ -11,7 +11,7 @@ async function reloadUserPlugins(config: Interfaces.Config): Promise<void> {
 }
 
 async function createHost(config: Interfaces.Config): Promise<EcpHost> {
-  const env = await createProcessEnvironment(config)
+  const env = await createConfiguredProcessEnvironment({ config })
   const ecp = await env.init()
   const host: EcpHost = {
     ecp,

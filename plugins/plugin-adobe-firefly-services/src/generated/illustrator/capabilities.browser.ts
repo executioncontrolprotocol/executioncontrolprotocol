@@ -13,9 +13,6 @@ export const illustrator_register_custom_script_capability = shells.illustrator_
 /** Submit a custom script execution request */
 export const illustrator_execute_custom_script_capability = shells.illustrator_execute_custom_script_capability(hostHop)
 
-/** Retrieve job status */
-export const illustrator_custom_scripts_job_status = shells.illustrator_custom_scripts_job_status(hostHop)
-
 /** Data merge */
 export const illustrator_data_merge = shells.illustrator_data_merge(hostHop)
 
@@ -24,9 +21,3 @@ export const illustrator_create_rendition = shells.illustrator_create_rendition(
 
 /** Submit a job */
 export const illustrator_trace_image = shells.illustrator_trace_image(hostHop)
-
-/** Retrieve job status */
-export const illustrator_image_trace_job_status = shells.illustrator_image_trace_job_status(hostHop)
-
-/** Retrieve job status */
-export const illustrator_facade_job_status = shells.illustrator_facade_job_status(hostHop)

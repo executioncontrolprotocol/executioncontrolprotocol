@@ -1,8 +1,10 @@
-# Changesets status on PRs into development and the reset milestone.
+# Changesets status on PRs, plus the development version-vs-npm gate.
 
 name: changesets
 
 on:
+  push:
+    branches: [development]
   pull_request:
     branches: [development, "milestone/**"]
 
@@ -12,6 +14,7 @@ permissions:
 jobs:
   status:
     name: changeset-status
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,3 +33,20 @@ jobs:
         run: git fetch origin development:development
       - name: Changesets status
         run: pnpm exec changeset status
+
+  version:
+    name: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check workspace versions vs registry
+        run: pnpm run version:check-vs-npm

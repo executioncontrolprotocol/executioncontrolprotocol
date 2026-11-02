@@ -37,7 +37,7 @@ function asCliError(err: unknown): never {
  */
 export async function prepareWorkflowRun(options: {
   workflowPath: string
-  envFlag?: string
+  configFlag?: string
   config: Interfaces.Config
   argv: string[]
   json: boolean
@@ -60,7 +60,7 @@ export async function prepareWorkflowRun(options: {
   })
   try {
     const layered = await layerRunEnvironment({
-      envFlag: options.envFlag,
+      configFlag: options.configFlag,
       workflowBindings: loaded.builder?.getBindings(),
       config: options.config,
       host: host ?? options.host,
@@ -89,6 +89,7 @@ export function throwIfRunFailed(result: RunResult): RunResult {
       path: diagnostic.path,
       suggestions: diagnostic.suggestions ?? [`ecp runs resume ${result.run.id}`],
       exitCode: EXIT_PAUSED,
+      data: result,
     })
   }
   const diagnostic = Object.values(result.history ?? {}).flatMap(
@@ -97,6 +98,11 @@ export function throwIfRunFailed(result: RunResult): RunResult {
   throw new EcpCliError(
     diagnostic?.code ?? ECP_STEP_FAILED,
     diagnostic?.message ?? `Workflow run did not complete (status: ${status})`,
-    { path: diagnostic?.path, suggestions: diagnostic?.suggestions, exitCode: EXIT_FAILED }
+    {
+      path: diagnostic?.path,
+      suggestions: diagnostic?.suggestions,
+      exitCode: EXIT_FAILED,
+      data: result,
+    }
   )
 }

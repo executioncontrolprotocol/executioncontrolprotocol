@@ -24,6 +24,3 @@ export const photoshop_execute_actions = shells.photoshop_execute_actions(hostHo
 
 /** Generate a manifest for given input image */
 export const photoshop_generate_manifest = shells.photoshop_generate_manifest(hostHop)
-
-/** Get Job Status */
-export const photoshop_get_job_status = shells.photoshop_get_job_status(hostHop)

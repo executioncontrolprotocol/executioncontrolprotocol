@@ -45,7 +45,7 @@ export interface InvokeResult<T = unknown> {
   success: boolean
   /** Invoked capability id. */
   capabilityId: CapabilityId
-  /** Handler output when successful. */
+  /** Handler output. Present on success, and on failure when the handler returned or attached one. */
   result?: T
   /** Input/output validation details. */
   validation?: ValidationResult

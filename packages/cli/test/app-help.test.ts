@@ -24,6 +24,8 @@ describe("ecp app after plugins link", () => {
     const text = `${help.stdout}\n${help.stderr}`
     expect(text).toMatch(/live graph/i)
     expect(text).toMatch(/--no-open/)
+    expect(text).toMatch(/--config/)
+    expect(text).not.toMatch(/--env/)
     expect(text).toMatch(/127\.0\.0\.1/)
   }, 30_000)
 })

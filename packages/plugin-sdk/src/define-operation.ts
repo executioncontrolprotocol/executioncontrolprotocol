@@ -24,6 +24,8 @@ export interface OperationMetadata {
   useCases?: string[]
   /** Example invocations. */
   examples?: string[]
+  /** oclif command aliases (for example `run` for `workflows:run`). */
+  aliases?: string[]
   /** Positional argument mapping. */
   cli?: OperationCliHint
 }
@@ -48,7 +50,7 @@ export interface OperationContext {
  * @category CLI
  */
 export interface OperationDefinition {
-  /** Command id (`run`, `plugins:new`, `config:secrets:add`). */
+  /** Command id (`workflows:run`, `plugins:new`, `config:secrets:add`). */
   name: string
   /** Zod schema for merged flags and args. */
   inputSchema: z.ZodType

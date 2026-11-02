@@ -39,10 +39,17 @@ export const HOST_PACK_NAMES = [
 
 /**
  * One smoke per first-party plugin. Policy plugins have no commands; they
- * show up in `ecp describe --policies --json`.
+ * show up in `ecp environments describe --policies --json`.
  * @type {Array<{ package: string, dir: string, topic: string, args: string[], expectJson?: boolean, match?: RegExp }>}
  */
 export const PLUGIN_SMOKES = [
+  {
+    package: "@executioncontrolprotocol/plugin-test",
+    dir: "plugins/plugin-test",
+    topic: "test",
+    args: ["test", "echo", "--help", "--json"],
+    match: /echo/i,
+  },
   {
     package: "@executioncontrolprotocol/plugin-jsonata",
     dir: "plugins/plugin-jsonata",
@@ -89,7 +96,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-budget",
     dir: "plugins/plugin-budget",
     topic: "budget",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /budget/i,
   },
@@ -97,7 +104,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-approval",
     dir: "plugins/plugin-approval",
     topic: "approval",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /approval/i,
   },
@@ -105,7 +112,7 @@ export const PLUGIN_SMOKES = [
     package: "@executioncontrolprotocol/plugin-state-control",
     dir: "plugins/plugin-state-control",
     topic: "state-control",
-    args: ["describe", "--policies", "--json"],
+    args: ["environments", "describe", "--policies", "--json"],
     expectJson: true,
     match: /state-control/i,
   },
@@ -304,13 +311,37 @@ if (isMain()) {
       }
     }
 
-    const compiled = runEcp(["compile", join(fixtureDir, "workflow.ecp.ts"), "-o", "workflow.json"])
-    if (compiled.code !== 0) {
-      throw new Error(`ecp compile failed\n${compiled.stdout}\n${compiled.stderr}`)
+    /** @type {Set<string>} */
+    const installedPlugins = new Set()
+    /**
+     * @param {string} packageName
+     */
+    function installPlugin(packageName) {
+      if (installedPlugins.has(packageName)) return
+      const tarball = tarballs.get(packageName)
+      const spec = pathToFileURL(tarball).href
+      const installed = runEcp(["plugins", "install", spec])
+      if (installed.code !== 0) {
+        throw new Error(`${packageName} plugins install failed\n${installed.stdout}\n${installed.stderr}`)
+      }
+      installedPlugins.add(packageName)
     }
-    const validated = runEcp(["validate", "workflow.json"])
+
+    installPlugin("@executioncontrolprotocol/plugin-test")
+
+    const compiled = runEcp([
+      "workflows",
+      "compile",
+      join(fixtureDir, "workflow.ecp.ts"),
+      "-o",
+      "workflow.json",
+    ])
+    if (compiled.code !== 0) {
+      throw new Error(`ecp workflows compile failed\n${compiled.stdout}\n${compiled.stderr}`)
+    }
+    const validated = runEcp(["workflows", "validate", "workflow.json"])
     if (validated.code !== 0) {
-      throw new Error(`ecp validate failed\n${validated.stdout}\n${validated.stderr}`)
+      throw new Error(`ecp workflows validate failed\n${validated.stdout}\n${validated.stderr}`)
     }
     const ran = runEcp(["run", join(fixtureDir, "workflow.ecp.ts")])
     if (ran.code !== 0) {
@@ -318,14 +349,7 @@ if (isMain()) {
     }
 
     for (const smoke of PLUGIN_SMOKES) {
-      const tarball = tarballs.get(smoke.package)
-      const spec = pathToFileURL(tarball).href
-      const installed = runEcp(["plugins", "install", spec])
-      if (installed.code !== 0) {
-        throw new Error(
-          `${smoke.package} plugins install failed\n${installed.stdout}\n${installed.stderr}`,
-        )
-      }
+      installPlugin(smoke.package)
       const help = runEcp([smoke.topic, "--help"])
       if (help.code !== 0 && !smoke.package.includes("plugin-budget") && !smoke.package.includes("plugin-approval") && !smoke.package.includes("plugin-state-control")) {
         throw new Error(`${smoke.topic} --help failed\n${help.stdout}\n${help.stderr}`)

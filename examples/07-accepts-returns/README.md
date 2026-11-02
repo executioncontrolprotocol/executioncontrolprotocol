@@ -2,9 +2,10 @@
 
 Workflow contract: `.accepts()` for run input, `.returns()` for public `result.output`. Same verbs on JSON `workflow.accepts` / `workflow.returns`.
 
-Input is checked on `ecp run` (and `--dry-run`) **before** steps execute. `ecp validate` still checks the graph and environment only.
+Input is checked on `ecp run` (and `--dry-run`) **before** steps execute. `ecp workflows validate` still checks the graph and environment only.
 
 ```bash
+ecp plugins link plugins/plugin-test
 ecp run examples/07-accepts-returns/workflow.ecp.ts \
   --input examples/07-accepts-returns/input.json
 

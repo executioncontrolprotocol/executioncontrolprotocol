@@ -32,5 +32,5 @@ export function collectPackagesFromEnvironmentSource(source: string): string[] {
   return [...names].sort()
 }
 
-/** Dev-only packages added by `ecp init`. @category CLI */
+/** Dev-only packages added by `ecp workflows init`. @category CLI */
 export const INIT_DEV_DEPENDENCIES = ["@executioncontrolprotocol/cli"] as const

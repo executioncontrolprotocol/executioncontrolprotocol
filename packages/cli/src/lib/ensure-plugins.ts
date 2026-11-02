@@ -10,6 +10,16 @@ import { confirmDefaultYes, wantsYes } from "./confirm.js"
 import { rebuildProcessHost } from "./layer-environment.js"
 import { findMissingPlugins, type MissingPlugin } from "./missing-plugins.js"
 
+/**
+ * Drop requirements already bound on the process host.
+ * String-id workflow `.with()` does not count; those still need a plugin.
+ * Config files do not register plugins.
+ * @category CLI
+ */
+function skipSatisfiedPlugins(missing: MissingPlugin[], host?: EcpHost): MissingPlugin[] {
+  return missing.filter((row) => !host?.registry.getExtension(row.id))
+}
+
 function throwMissing(missing: MissingPlugin[]): never {
   throw new EcpCliError(
     ECP_PLUGINS_MISSING,
@@ -35,7 +45,10 @@ export async function ensurePluginsInstalled(options: {
   install: boolean
   host?: EcpHost
 }): Promise<EcpHost | undefined> {
-  let missing = findMissingPlugins(options.requirements, options.config)
+  let missing = skipSatisfiedPlugins(
+    findMissingPlugins(options.requirements, options.config),
+    options.host
+  )
   if (missing.length === 0) return options.host
   if (!options.install || options.json || (!wantsYes(options.argv) && (!process.stdin.isTTY || !process.stdout.isTTY))) {
     throwMissing(missing)
@@ -48,7 +61,10 @@ export async function ensurePluginsInstalled(options: {
     await options.config.runCommand("plugins:install", [spec])
   }
   host = await rebuildProcessHost(options.config, host)
-  missing = findMissingPlugins(options.requirements, options.config)
+  missing = skipSatisfiedPlugins(
+    findMissingPlugins(options.requirements, options.config),
+    host
+  )
   if (missing.length > 0) throwMissing(missing)
   return host
 }

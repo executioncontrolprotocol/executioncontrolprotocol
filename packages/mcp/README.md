@@ -33,9 +33,9 @@ prints a bearer token once to stderr; `--allow-remote` is required to bind beyon
 loopback. Plugin installs update the tool list (`notifications/tools/list_changed`).
 `ecp_run` with `events: true` maps the run event stream to MCP progress notifications.
 
-Until `0.50.0` is on the registry, install from the workspace with
+Until `0.51.0` is on the registry, install from the workspace with
 `ecp plugins link packages/mcp` (or a packed tarball plus `ECP_ALLOW_SOURCE=path`).
-CLI `oclif.jitPlugins` pins `"^0.50"`. First-use JIT from npm waits on the 0.50.0 publish.
+CLI `oclif.jitPlugins` pins `"^0.51"`. First-use JIT from npm waits on the 0.51.0 publish.
 
 ## Meta tools
 

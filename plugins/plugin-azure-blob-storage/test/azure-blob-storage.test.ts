@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Registry } from "@executioncontrolprotocol/core"
-import "@executioncontrolprotocol/node"
+import { createMemoryMediaStore, Registry, ServiceMap } from "@executioncontrolprotocol/core"
+import { createDiskMediaStore } from "@executioncontrolprotocol/node"
 
 const uploadData = vi.fn()
 const download = vi.fn()
@@ -72,14 +72,21 @@ function capability(id: string): Handler {
   return cap.handler as Handler
 }
 
-const ctx = {
-  extensionConfig: {
-    accountName: "testaccount",
-    accountKey: "dGVzdGtleQ==",
-    defaultContainer: "artifacts",
-  },
-  artifacts: new Map(),
+function makeAzureCtx() {
+  const services = new ServiceMap()
+  services.use(createMemoryMediaStore())
+  return {
+    extensionConfig: {
+      accountName: "testaccount",
+      accountKey: "dGVzdGtleQ==",
+      defaultContainer: "artifacts",
+    },
+    artifacts: new Map(),
+    services,
+  }
 }
+
+const ctx = makeAzureCtx()
 
 describe("@executioncontrolprotocol/azure-blob-storage", () => {
   beforeEach(async () => {
@@ -91,7 +98,9 @@ describe("@executioncontrolprotocol/azure-blob-storage", () => {
     generateBlobSASQueryParameters.mockReturnValue({
       toString: () => "sv=2024&sig=fake",
     })
-    ctx.artifacts = new Map()
+    const next = makeAzureCtx()
+    ctx.artifacts = next.artifacts
+    ctx.services = next.services
   })
 
   afterEach(() => {
@@ -226,13 +235,15 @@ describe("@executioncontrolprotocol/azure-blob-storage", () => {
     const filePath = join(dir, "local.txt")
     await writeFile(filePath, "from-disk")
 
+    const services = new ServiceMap()
+    services.use(createDiskMediaStore({ root: dir }))
     const out = (await capability("@executioncontrolprotocol/azure-blob-storage.upload")(
       {
         filePath,
         contentType: "text/plain",
         blobName: "local.txt",
       },
-      ctx,
+      { ...ctx, services },
     )) as { blobName: string; contentType: string }
 
     expect(out.blobName).toBe("local.txt")

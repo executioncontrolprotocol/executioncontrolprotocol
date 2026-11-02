@@ -9,7 +9,7 @@ ecp plugins install approval
 Policy id `@executioncontrolprotocol/approval` is unchanged. Pausing a step returns
 `ECP_RUN_PAUSED`. Resume after recording an approval with `ecp runs resume --approve`.
 
-This plugin has no commands. After install it appears in `ecp describe --policies`.
+This plugin has no commands. After install it appears in `ecp environments describe --policies`.
 
 ## Binding
 

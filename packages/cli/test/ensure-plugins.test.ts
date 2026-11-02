@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { Interfaces } from "@oclif/core"
 import { LATEST_ECP_VERSION } from "@executioncontrolprotocol/core/types"
-import { ECP_PLUGINS_MISSING } from "@executioncontrolprotocol/plugin-sdk"
+import { ECP_PLUGINS_MISSING, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 
 const question = vi.fn(async () => "")
 vi.mock("node:readline/promises", () => ({
@@ -43,6 +43,19 @@ const jsonataRequirements = {
   ],
 }
 
+const testRequirements = {
+  schema: "@executioncontrolprotocol.requirements" as const,
+  version: LATEST_ECP_VERSION,
+  requirements: [
+    {
+      kind: "extension" as const,
+      id: "@executioncontrolprotocol/test",
+      package: "@executioncontrolprotocol/plugin-test",
+      source: "inferred" as const,
+    },
+  ],
+}
+
 describe("ensurePluginsInstalled TTY prompt", () => {
   const stdinDesc = Object.getOwnPropertyDescriptor(process.stdin, "isTTY")
   const stdoutDesc = Object.getOwnPropertyDescriptor(process.stdout, "isTTY")
@@ -77,5 +90,38 @@ describe("ensurePluginsInstalled TTY prompt", () => {
     expect(installed.some((row) => row.includes("plugins:install") && row.includes("plugin-jsonata"))).toBe(
       true
     )
+  })
+})
+
+describe("ensurePluginsInstalled already-bound skip", () => {
+  it("skips a requirement whose id is already on the host registry", async () => {
+    const host = {
+      registry: {
+        getExtension: (id: string) =>
+          id === "@executioncontrolprotocol/jsonata" ? { id } : undefined,
+      },
+    } as unknown as EcpHost
+    await expect(
+      ensurePluginsInstalled({
+        requirements: jsonataRequirements,
+        config: mockConfig([]),
+        argv: [],
+        json: true,
+        install: false,
+        host,
+      })
+    ).resolves.toBe(host)
+  })
+
+  it("does not treat a config file as satisfying a missing plugin", async () => {
+    await expect(
+      ensurePluginsInstalled({
+        requirements: testRequirements,
+        config: mockConfig([]),
+        argv: [],
+        json: true,
+        install: false,
+      })
+    ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
   })
 })

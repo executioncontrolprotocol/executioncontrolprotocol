@@ -41,7 +41,7 @@ describe("ecp format and policy plugins", () => {
   }, 30_000)
 
   it("ecp describe --policies --json lists linked policy plugins", async () => {
-    const res = await runCli(["describe", "--policies", "--json"], { env })
+    const res = await runCli(["environments", "describe", "--policies", "--json"], { env })
     expect(res.code, `${res.stdout}\n${res.stderr}`).toBe(0)
     const body = JSON.parse(res.stdout) as {
       ok: boolean
@@ -63,7 +63,7 @@ describe("ecp --format toon without the plugin", () => {
   it("returns ECP_PLUGINS_MISSING naming plugin-format-toon and exit 3", async () => {
     const hermetic = await hermeticCliEnv()
     try {
-      const res = await runCli(["describe", "--json", "--format", "toon"], { env: hermetic.env })
+      const res = await runCli(["environments", "describe", "--json", "--format", "toon"], { env: hermetic.env })
       expect(res.code, `${res.stdout}\n${res.stderr}`).toBe(3)
       const raw = res.stdout.trim() || res.stderr.trim()
       const body = JSON.parse(raw) as {

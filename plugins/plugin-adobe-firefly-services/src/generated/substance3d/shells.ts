@@ -10,18 +10,30 @@ const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 export function substance3d_v1_composites_compose(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-composites-compose")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  headers: z.object({
-  "X-User-Token": z.string().optional()
-}).optional(),
-  body: schemas.Schema_restv1_ComposeSceneRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  "X-User-Token": z.string().optional(),
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  cameraName: z.string().optional(),
+  contentClass: z.enum(["art", "photo"]).optional(),
+  customModelId: z.string().optional(),
+  enableGroundPlane: z.boolean().optional(),
+  environment: schemas.Schema_types_ComposeEnvironment.optional(),
+  environmentExposure: z.number().min(-10).max(10).optional(),
+  heroAsset: z.string().min(1).optional(),
+  lightingSeeds: z.array(z.number().int()).optional(),
+  modelVersion: z.enum(["image3_fast", "image4_standard", "image4_ultra"]).optional(),
+  numVariations: z.number().int().min(1).max(4).optional(),
+  prompt: z.string().min(1).optional(),
+  scene: schemas.Schema_types_ComposeSceneSceneDetails.optional(),
+  sceneFile: z.string().optional(),
+  seeds: z.array(z.number().int()).optional(),
+  size: schemas.Schema_types_OutputSize.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  styleImage: z.string().optional(),
+  body: schemas.Schema_restv1_ComposeSceneRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_ComposeSceneResponse)
-    .withMetadata({"summary":"Generate 3D object composite","description":"Generate a 3D Object Composite with the Substance 3D API.","useCases":["Substance3d Composites tasks that need this operation","When the workflow goal is to generate 3D object composite"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withOutput(schemas.Schema_restv1beta_ComposeSceneJobResult)
+    .withMetadata({"summary":"Generate 3D object composite","description":"Generate a 3D Object Composite with the Substance 3D API.","useCases":["Substance3d Composites tasks that need this operation","When the workflow goal is to generate 3D object composite"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -29,15 +41,16 @@ export function substance3d_v1_composites_compose(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_assemble(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-assemble")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_CreateSceneRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  encoding: z.enum(["glb", "gltf", "fbx", "usdz", "usda", "usdc", "obj"]).optional(),
+  fileBaseName: z.string().min(1).optional(),
+  scene: schemas.Schema_types_SceneDescription.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_CreateSceneRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_CreateSceneResponse)
-    .withMetadata({"summary":"Create 3D scene","description":"Assemble a 3D scene with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to create 3D scene"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withOutput(schemas.Schema_restv1beta_CreateSceneJobResult)
+    .withMetadata({"summary":"Create 3D scene","description":"Assemble a 3D scene with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to create 3D scene"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -45,15 +58,15 @@ export function substance3d_v1_scenes_assemble(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_convert(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-convert")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_ModelConvertRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  format: z.enum(["glb", "gltf", "fbx", "usdz", "usda", "usdc", "obj"]).optional(),
+  modelEntrypoint: z.string().optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_ModelConvertRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_ModelConvertResponse)
-    .withMetadata({"summary":"Convert 3D files","description":"Convert a 3D file into another 3D format with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to convert 3D files"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids, status, or asset URLs)."}]})
+    .withOutput(schemas.Schema_restv1beta_ModelConvertJobResult)
+    .withMetadata({"summary":"Convert 3D files","description":"Convert a 3D file into another 3D format with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to convert 3D files"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
 
@@ -61,14 +74,13 @@ export function substance3d_v1_scenes_convert(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_describe(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-describe")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_SceneDescRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  sceneFile: z.string().optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_SceneDescRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_SceneDescResponse)
+    .withOutput(schemas.Schema_restv1beta_SceneDescJobResult)
     .withMetadata({"summary":"Describe 3D scene","description":"Describe a 3D scene.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to describe 3D scene"],"projections":[{"summary":"Inspect the structured result","description":"Read the returned document or asset facts you need for authoring, such as names, sizes, and ids."}]})
     .withHandler(handler)
 }
@@ -77,15 +89,20 @@ export function substance3d_v1_scenes_describe(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_render(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-render")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_RenderSceneRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  autoFraming: schemas.Schema_types_AutoFramingOptions.optional(),
+  background: schemas.Schema_types_BackgroundOptions.optional(),
+  cameraName: z.string().optional(),
+  extraOutputs: schemas.Schema_types_RenderExtraOutputs.optional(),
+  groundPlane: schemas.Schema_types_GroundPlaneOptions.optional(),
+  scene: schemas.Schema_types_SceneDescription.optional(),
+  size: schemas.Schema_types_SizeOptions.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_RenderSceneRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_RenderSceneResponse)
-    .withMetadata({"summary":"Render 3D object","description":"Render a 3D object with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to render 3D object"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withOutput(schemas.Schema_restv1beta_RenderSceneJobResult)
+    .withMetadata({"summary":"Render 3D object","description":"Render a 3D object with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to render 3D object"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -93,15 +110,20 @@ export function substance3d_v1_scenes_render(handler: CapabilityHandler) {
 export function substance3d_v1_scenes_render_basic(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-v1-scenes-render-basic")
     .withInput(z.object({
-  query: z.object({
-  "wait": z.boolean().optional()
-}).optional(),
-  body: schemas.Schema_restv1beta_RenderModelRequest,
-  pollIntervalMs: z.number().int().positive().optional(),
-  pollTimeoutMs: z.number().int().positive().optional()
+  wait: z.boolean().optional(),
+  "$schema": z.string().optional(),
+  autoFraming: schemas.Schema_types_AutoFramingOptions.optional(),
+  background: schemas.Schema_types_BackgroundOptions.optional(),
+  cameraName: z.string().optional(),
+  extraOutputs: schemas.Schema_types_RenderExtraOutputs.optional(),
+  groundPlane: schemas.Schema_types_GroundPlaneOptions.optional(),
+  scene: schemas.Schema_types_SimpleSceneDescription.optional(),
+  size: schemas.Schema_types_SizeOptions.optional(),
+  sources: z.array(schemas.Schema_rest_base_MountedSource).optional(),
+  body: schemas.Schema_restv1beta_RenderModelRequest.optional()
 }))
-    .withOutput(schemas.Schema_restv1beta_RenderModelResponse)
-    .withMetadata({"summary":"Render 3D object (basic version)","description":"Render a 3D object (basic version) with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to render 3D object (basic version)"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withOutput(schemas.Schema_restv1beta_RenderSceneJobResult)
+    .withMetadata({"summary":"Render 3D object (basic version)","description":"Render a 3D object (basic version) with the Substance 3D API.","useCases":["Substance3d Scenes tasks that need this operation","When the workflow goal is to render 3D object (basic version)"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -110,7 +132,7 @@ export function substance3d_create_space_v1(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-v1")
     .withInput(z.object({}))
     .withOutput(schemas.Schema_rest_base_Space)
-    .withMetadata({"summary":"Create Space","description":"Create a Space from 3D files.","useCases":["Substance3d Spaces tasks that need this operation","When the workflow goal is to create Space"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Create Space","description":"Create a Space from 3D files.","useCases":["Substance3d Spaces tasks that need this operation","When the workflow goal is to create Space"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -119,7 +141,7 @@ export function substance3d_create_space_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-v2")
     .withInput(z.object({}))
     .withOutput(schemas.Schema_rest_base_Space)
-    .withMetadata({"summary":"Create Space API","description":"## Overview The **Substance 3D API** provides a way to upload and temporarily store files. Uploading files requires a **multipart/form-data** request to send data. The request requires a **files** field containing a list of files. Each file's **filename** field can contain a filepath to specify where the file will be stored in the space. Example for this files tree: ``` ├── textures │ ├── diffuse.png │ └── normal.png └── lighthouse.fbx ``` HTTP data relative to the previous files tree: ```HTTP POST /spaces HTTP/1.1 Host: localhost:8080 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"lighthouse.fbx\" Content-Type: model/vnd.autodesk.fbx (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"textures/diffuse.png\" Content-Type: image/png (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"textures/normal.png\" Content-Type: image/png (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW-- ``` Curl command to create this file tree: ``` curl -X POST https://s3d.adobe.io/v2/spaces \\ -F \"files=@Local/Path/To/The/Local/File/lighthouse.fbx;filename=lighthouse.fbx\" \\ -F \"files=@Local/Path/To/The/Local/File/diffuse.png;filename=textures/diffuse.png\" \\ -F \"files=@Local/Path/To/The/Local/File/normal.png;filename=textures/normal.png\" ``` The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Create Space API","description":"## Overview The **Substance 3D API** provides a way to upload and temporarily store files. Uploading files requires a **multipart/form-data** request to send data. The request requires a **files** field containing a list of files. Each file's **filename** field can contain a filepath to specify where the file will be stored in the space. Example for this files tree: ``` ├── textures │ ├── diffuse.png │ └── normal.png └── lighthouse.fbx ``` HTTP data relative to the previous files tree: ```HTTP POST /spaces HTTP/1.1 Host: localhost:8080 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"lighthouse.fbx\" Content-Type: model/vnd.autodesk.fbx (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"textures/diffuse.png\" Content-Type: image/png (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW Content-Disposition: form-data; name=\"files\"; filename=\"textures/normal.png\" Content-Type: image/png (data) ------WebKitFormBoundary7MA4YWxkTrZu0gW-- ``` Curl command to create this file tree: ``` curl -X POST https://s3d.adobe.io/v2/spaces \\ -F \"files=@Local/Path/To/The/Local/File/lighthouse.fbx;filename=lighthouse.fbx\" \\ -F \"files=@Local/Path/To/The/Local/File/diffuse.png;filename=textures/diffuse.png\" \\ -F \"files=@Local/Path/To/The/Local/File/normal.png;filename=textures/normal.png\" ``` The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -127,10 +149,13 @@ export function substance3d_create_space_v2(handler: CapabilityHandler) {
 export function substance3d_create_space_from_frame_io_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-from-frame-io-v2")
     .withInput(z.object({
-  body: schemas.Schema_rest_base_FileFrameIO
+  "$schema": z.string().optional(),
+  accessToken: z.string().optional(),
+  folderId: z.string().optional(),
+  body: schemas.Schema_rest_base_FileFrameIO.optional()
 }))
     .withOutput(schemas.Schema_rest_base_Space)
-    .withMetadata({"summary":"Create Space From Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **frame.io** to create a space. To upload a folder from frame.io, you must pass the following parameters: - **access Token** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Create Space From Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **frame.io** to create a space. To upload a folder from frame.io, you must pass the following parameters: - **access Token** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -138,10 +163,14 @@ export function substance3d_create_space_from_frame_io_v2(handler: CapabilityHan
 export function substance3d_create_space_from_next_frame_io_v2(handler: CapabilityHandler) {
   return capabilityFor(EXT_ID, "substance3d-create-space-from-next-frame-io-v2")
     .withInput(z.object({
-  body: schemas.Schema_rest_base_FileNextFrameIO
+  "$schema": z.string().optional(),
+  accessToken: z.string().optional(),
+  accountId: z.string().optional(),
+  folderId: z.string().optional(),
+  body: schemas.Schema_rest_base_FileNextFrameIO.optional()
 }))
     .withOutput(schemas.Schema_rest_base_Space)
-    .withMetadata({"summary":"Create Space From Next Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **next.frame.io** to create a space. To upload a folder from next.frame.io, you must pass the following parameters: - **access Token** - **account ID** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Next Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Create Space From Next Frame IO API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **next.frame.io** to create a space. To upload a folder from next.frame.io, you must pass the following parameters: - **access Token** - **account ID** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space From Next Frame IO API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }
 
@@ -152,6 +181,6 @@ export function substance3d_create_space_url_v2(handler: CapabilityHandler) {
   body: z.array(schemas.Schema_rest_base_FileURL).nullable()
 }))
     .withOutput(schemas.Schema_rest_base_Space)
-    .withMetadata({"summary":"Create Space from URL API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload one or more files from one or more URLs. For each URL, there is an optional **filepath** parameter that allows you to specify the file name and its path. By combining multiple URLs with different **filepath** paths, you can compose a complete file tree structure. Example for this files tree: ``` ├── textures │ ├── diffuse.png │ └── normal.png └── lighthouse.fbx ``` Curl request: ``` curl --request POST \\ --url https://s3d.adobe.io/v2/spacesURL \\ --header 'Accept: application/json' \\ --header 'Authorization: Bearer 123' \\ --header 'Content-Type: application/json' \\ --data '[ { \"filepath\": \"lighthouse.fbx\", \"url\": \"https://url/to/lighthouse.fbx\" }, { \"filepath\": \"textures/diffuse.png\", \"url\": \"https://url/to/diffuse.png\" }, { \"filepath\": \"textures/normal.png\", \"url\": \"https://url/to/normal.png\" } ]' ``` The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space from URL API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."},{"summary":"Keep job identifiers","description":"When a job id is returned, keep it so you can poll status until outputs are ready."}]})
+    .withMetadata({"summary":"Create Space from URL API","description":"## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload one or more files from one or more URLs. For each URL, there is an optional **filepath** parameter that allows you to specify the file name and its path. By combining multiple URLs with different **filepath** paths, you can compose a complete file tree structure. Example for this files tree: ``` ├── textures │ ├── diffuse.png │ └── normal.png └── lighthouse.fbx ``` Curl request: ``` curl --request POST \\ --url https://s3d.adobe.io/v2/spacesURL \\ --header 'Accept: application/json' \\ --header 'Authorization: Bearer 123' \\ --header 'Content-Type: application/json' \\ --data '[ { \"filepath\": \"lighthouse.fbx\", \"url\": \"https://url/to/lighthouse.fbx\" }, { \"filepath\": \"textures/diffuse.png\", \"url\": \"https://url/to/diffuse.png\" }, { \"filepath\": \"textures/normal.png\", \"url\": \"https://url/to/normal.png\" } ]' ``` The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \"\" } } ```","useCases":["When the workflow goal is to create Space from URL API"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
     .withHandler(handler)
 }

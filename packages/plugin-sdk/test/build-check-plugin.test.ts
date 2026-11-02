@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -107,6 +107,19 @@ describe("checkPlugin / buildPlugin", () => {
     const report = await checkPlugin(fireflyDir)
     expect(report.ok, JSON.stringify(report.issues)).toBe(true)
     expect(report.issues).toEqual([])
+    const manifest = JSON.parse(
+      await readFile(join(fireflyDir, "oclif.manifest.json"), "utf8"),
+    ) as { commands?: Record<string, unknown> }
+    const ids = Object.keys(manifest.commands ?? {})
+    expect(ids).toContain("adobe-firefly-services:firefly-generate-images-v3-async")
+    expect(ids).toContain("firefly:firefly-generate-images-v3-async")
+    expect(ids.some((id) => /job-status|job-result|cancel/.test(id))).toBe(false)
+    const generate = manifest.commands?.[
+      "adobe-firefly-services:firefly-generate-images-v3-async"
+    ] as { flags?: Record<string, unknown>; description?: string }
+    expect(generate?.flags).toHaveProperty("prompt")
+    expect(generate?.flags).not.toHaveProperty("poll-interval-ms")
+    expect(generate?.description).not.toMatch(/Keep job identifiers/)
   })
 
   it("fails when dist/index.js has no default export", async () => {
@@ -180,7 +193,23 @@ describe("checkPlugin / buildPlugin", () => {
     expect(report.definitionId).toBe("@executioncontrolprotocol/jsonata")
     expect(report.commandIds).toEqual(["jsonata:transform"])
     expect(report.written).toEqual(["package.json", "dist/oclif.js", "oclif.manifest.json"])
+    const manifest = JSON.parse(
+      await readFile(join(jsonataDir, "oclif.manifest.json"), "utf8")
+    ) as { commands?: Record<string, unknown> }
+    expect(Object.keys(manifest.commands ?? {})).toEqual(["jsonata:transform"])
     const recheck = await checkPlugin(jsonataDir)
+    expect(recheck.ok).toBe(true)
+  }, 30_000)
+
+  it("buildPlugin writes every capability id even when Config.load omits new commands", async () => {
+    const pluginTestDir = join(repoRoot, "plugins", "plugin-test")
+    const report = await buildPlugin(pluginTestDir)
+    expect(report.commandIds).toContain("test:fail")
+    const manifest = JSON.parse(
+      await readFile(join(pluginTestDir, "oclif.manifest.json"), "utf8")
+    ) as { commands?: Record<string, unknown> }
+    expect(Object.keys(manifest.commands ?? {}).sort()).toEqual([...report.commandIds].sort())
+    const recheck = await checkPlugin(pluginTestDir)
     expect(recheck.ok).toBe(true)
   }, 30_000)
 })

@@ -13,8 +13,8 @@ export type FalInferenceMode = (typeof FAL_INFERENCE_MODES)[keyof typeof FAL_INF
 export const falGenerateInputSchema = z.object({
   /** FAL model endpoint id (e.g. `fal-ai/flux/schnell`). */
   endpoint: z.string().optional(),
-  /** Model-specific request payload per FAL API docs. */
-  input: z.record(z.string(), z.unknown()),
+  /** Model-specific JSON document per FAL API docs. */
+  body: z.record(z.string(), z.unknown()),
   /** Inference mode override. */
   mode: z.enum([FAL_INFERENCE_MODES.RUN, FAL_INFERENCE_MODES.SUBSCRIBE]).optional(),
   /** Include queue logs when using subscribe mode. */

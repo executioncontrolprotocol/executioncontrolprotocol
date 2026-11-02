@@ -26,11 +26,15 @@ export interface EcpSuccessEnvelope {
 
 /**
  * Failure envelope printed with `--json` or when stdout is not a TTY.
+ * Execution failures (`ecp run`, invoke) include `data` with the same record
+ * a successful run would print.
  * @category CLI
  */
 export interface EcpFailureEnvelope {
   ok: false
   error: EcpErrorBody
+  /** Execution record (`RunResult` or invoke document) when the command ran. */
+  data?: unknown
 }
 
 /**
@@ -51,6 +55,6 @@ export function successEnvelope(data: unknown): EcpSuccessEnvelope {
  * Build a failure envelope.
  * @category CLI
  */
-export function failureEnvelope(error: EcpErrorBody): EcpFailureEnvelope {
-  return { ok: false, error }
+export function failureEnvelope(error: EcpErrorBody, data?: unknown): EcpFailureEnvelope {
+  return data !== undefined ? { ok: false, error, data } : { ok: false, error }
 }

@@ -65,7 +65,7 @@ describe("@executioncontrolprotocol/fal", () => {
     const out = (await capability("@executioncontrolprotocol/fal.generate")(
       {
         endpoint: "fal-ai/flux/schnell",
-        input: { prompt: "sunset" },
+        body: { prompt: "sunset" },
       },
       ctx
     )) as { data: unknown; requestId?: string }
@@ -87,7 +87,7 @@ describe("@executioncontrolprotocol/fal", () => {
     const out = (await capability("@executioncontrolprotocol/fal.generate")(
       {
         endpoint: "fal-ai/flux/schnell",
-        input: { prompt: "city" },
+        body: { prompt: "city" },
         mode: "run",
       },
       ctx
@@ -102,7 +102,7 @@ describe("@executioncontrolprotocol/fal", () => {
   it("generate uses defaultEndpoint from config", async () => {
     mockSubscribe.mockResolvedValue({ data: {}, requestId: "req-2" })
     await capability("@executioncontrolprotocol/fal.generate")(
-      { input: { prompt: "test" } },
+      { body: { prompt: "test" } },
       { ...ctx, extensionConfig: { apiKey: "test-key", defaultEndpoint: "fal-ai/default" } }
     )
     expect(mockSubscribe).toHaveBeenCalledWith(
@@ -114,7 +114,7 @@ describe("@executioncontrolprotocol/fal", () => {
   it("generate throws when api key is missing", async () => {
     await expect(
       capability("@executioncontrolprotocol/fal.generate")(
-        { endpoint: "fal-ai/flux/schnell", input: { prompt: "x" } },
+        { endpoint: "fal-ai/flux/schnell", body: { prompt: "x" } },
         { ...ctx, extensionConfig: {} }
       )
     ).rejects.toThrow(/FAL API key required/)
@@ -123,7 +123,7 @@ describe("@executioncontrolprotocol/fal", () => {
   it("generate throws when endpoint is missing", async () => {
     await expect(
       capability("@executioncontrolprotocol/fal.generate")(
-        { input: { prompt: "x" } },
+        { body: { prompt: "x" } },
         { ...ctx, extensionConfig: { apiKey: "k" } }
       )
     ).rejects.toThrow(/FAL endpoint required/)
@@ -133,7 +133,7 @@ describe("@executioncontrolprotocol/fal", () => {
     mockSubscribe.mockRejectedValue(new Error("401 Unauthorized"))
     await expect(
       capability("@executioncontrolprotocol/fal.generate")(
-        { endpoint: "fal-ai/flux/schnell", input: { prompt: "x" } },
+        { endpoint: "fal-ai/flux/schnell", body: { prompt: "x" } },
         ctx
       )
     ).rejects.toThrow(/FAL API error.*401 Unauthorized/)

@@ -63,6 +63,14 @@ export function isInvokeResult(value: unknown): value is InvokeResult {
   )
 }
 
+/** Extra fields for {@link invokeFailure}. @category Runtime */
+export interface InvokeFailureExtras {
+  /** JSON-safe fields copied onto the lead diagnostic. */
+  details?: Record<string, unknown>
+  /** Handler output when the failure still produced one. */
+  result?: unknown
+}
+
 /**
  * Build a failed invoke result.
  * When `validation.errors` is present, diagnostics include the full issue list
@@ -73,20 +81,26 @@ export function invokeFailure(
   capabilityId: string,
   code: string,
   message: string,
-  validation?: ValidationResult
+  validation?: ValidationResult,
+  extras?: InvokeFailureExtras
 ): InvokeResult {
+  const diagnostics = buildInvokeFailureDiagnostics(code, message, validation)
+  if (extras?.details && diagnostics[0]) {
+    diagnostics[0] = { ...diagnostics[0], details: extras.details }
+  }
   return {
     schema: "@executioncontrolprotocol.invoke.result",
     version: LATEST_ECP_VERSION,
     success: false,
     capabilityId: capabilityId as CapabilityId,
     validation,
-    diagnostics: buildInvokeFailureDiagnostics(code, message, validation),
+    diagnostics,
+    ...(extras?.result !== undefined ? { result: extras.result } : {}),
   }
 }
 
 const HOST_MISSING_CAP_MESSAGE = (id: string) =>
-  `Capability ${id} is not in the local host environment. Bind it in environment.ts and restart ecp up --env.`
+  `Capability ${id} is not in the local host environment. Install the plugin and restart the host.`
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/, "")
@@ -122,7 +136,7 @@ export async function hopRemoteInvoke(
     return invokeFailure(
       capabilityId,
       ECP_INVOKE_ERROR_CODES.INVOKE_FAILED,
-      `Local host unreachable (${message}). Is ecp up running?`
+      `Local host unreachable (${message}). Is the host running?`
     )
   }
 
@@ -130,7 +144,7 @@ export async function hopRemoteInvoke(
     return invokeFailure(
       capabilityId,
       ECP_INVOKE_ERROR_CODES.INVOKE_DENIED,
-      "Local host unauthorized — check the pairing token from `ecp up`."
+      "Local host unauthorized — check the pairing token."
     )
   }
 

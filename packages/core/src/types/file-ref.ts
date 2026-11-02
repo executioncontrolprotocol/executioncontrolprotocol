@@ -16,7 +16,7 @@ export interface ArtifactFileRef {
   /** Reference kind. */
   kind: typeof FILE_REF_KINDS.ARTIFACT
   /**
-   * Artifact URI (`ecp://…` in `ctx.artifacts`, `ecp://storage/…`, or
+   * Artifact URI (`ecp://file/…` on disk, `ecp://…` in `ctx.artifacts`, or
    * `ecp://browser/…` when bytes live in `ctx.blobs`).
    */
   uri: string

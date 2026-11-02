@@ -7,3 +7,4 @@ ignores:
   - ".changeset/**"
   - ".git/**"
   - "packages/app/DESIGN.md"
+  - "CLI-TOPIC-RESTRUCTURE.md"

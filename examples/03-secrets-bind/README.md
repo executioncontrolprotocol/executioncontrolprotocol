@@ -1,6 +1,6 @@
 # 03 — Secrets bind
 
-Store an API key in the OS keychain, then bind it from an environment overlay — never from the workflow file.
+Store an API key in the OS keychain, then bind it from `config.ecp.ts` — never from the workflow file.
 
 ## Setup
 
@@ -11,14 +11,15 @@ ecp config secrets add openai/api-key
 
 ## Files
 
-- `workflow.ecp.ts` — echo step (always runnable). Do not bind `secrets` here.
+- `workflow.ecp.ts` — echo step (`plugin-test`). Do not bind `secrets` here.
 
-Put `extension("@executioncontrolprotocol/openai").with({ apiKey: secrets("openai/api-key") })` on `<configDir>/environment.ecp.ts` or `--env`, not on the workflow.
+Put `extension("@executioncontrolprotocol/openai").with({ apiKey: secrets("openai/api-key") })` on `config.ecp.ts` (`ecp config edit`), not on the workflow.
 
 ## Run
 
 ```bash
-ecp validate examples/03-secrets-bind/workflow.ecp.ts
+ecp plugins link plugins/plugin-test
+ecp workflows validate examples/03-secrets-bind/workflow.ecp.ts
 ecp run examples/03-secrets-bind/workflow.ecp.ts
 ```
 

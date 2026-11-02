@@ -34,13 +34,17 @@ export function buildAdobeFireflyServicesExtension(
     })
     .withConfig({
       /** Adobe Developer Console client id (x-api-key). */
-      clientId: z.string().min(1),
+      clientId: z.string().optional(),
       /** Adobe Developer Console client secret. */
-      clientSecret: z.string().min(1),
+      clientSecret: z.string().optional(),
       /** IMS scopes (comma- or space-separated). */
       scopes: z.string().optional(),
       /** Override IMS token URL. */
-      imsEndpoint: z.string().optional()
+      imsEndpoint: z.string().optional(),
+      /** Override async poll interval in milliseconds. Default 2000. */
+      pollIntervalMs: z.number().int().positive().optional(),
+      /** Override async poll timeout in milliseconds. Default 120000. */
+      pollTimeoutMs: z.number().int().positive().optional(),
     })
     .withCapabilities(capabilities)
     .build()

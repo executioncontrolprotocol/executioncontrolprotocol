@@ -43,14 +43,5 @@ export const indesign_list_app_versions = shells.indesign_list_app_versions(host
 /** Get document information */
 export const indesign_get_document_info = shells.indesign_get_document_info(hostHop)
 
-/** Get status - Document Info API */
-export const indesign_get_document_info_job_status = shells.indesign_get_document_info_job_status(hostHop)
-
 /** Convert PDF to InDesign document */
 export const indesign_convert_pdfto_in_design = shells.indesign_convert_pdfto_in_design(hostHop)
-
-/** Get status - Convert PDF to InDesign API */
-export const indesign_get_convert_pdfto_in_design_job_status = shells.indesign_get_convert_pdfto_in_design_job_status(hostHop)
-
-/** Get the status of a job */
-export const indesign_get_job_status = shells.indesign_get_job_status(hostHop)

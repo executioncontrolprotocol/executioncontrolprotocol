@@ -1,13 +1,17 @@
 import type { OperationDefinition } from "@executioncontrolprotocol/plugin-sdk"
 import { describeOperation, invokeOperation, searchOperation } from "./catalog.js"
+import { configEditOperation, configInitOperation, configTopicOperation } from "./config.js"
 import { discoverOperation } from "./discover.js"
+import {
+  environmentsExportOperation,
+  environmentsTopicOperation,
+} from "./environments.js"
 import { initOperation } from "./init.js"
 import {
   pluginsBuildOperation,
   pluginsCheckOperation,
   pluginsNewOperation,
 } from "./plugins.js"
-import { rollbackOperation } from "./rollback.js"
 import {
   configSecretsAddOperation,
   configSecretsGetOperation,
@@ -22,25 +26,35 @@ import {
   runsShowOperation,
   runsTopicOperation,
 } from "./runs.js"
-import { updateOperation } from "./update.js"
 import { installOperation } from "./install.js"
-import { compileOperation, runOperation, validateOperation } from "./workflow.js"
+import {
+  compileOperation,
+  runOperation,
+  validateOperation,
+  workflowsTopicOperation,
+} from "./workflow.js"
 
 /** Host operations compiled into the CLI `COMMANDS` map. @category CLI */
 export const operations: OperationDefinition[] = [
+  workflowsTopicOperation,
   runOperation,
+  initOperation,
   validateOperation,
   compileOperation,
   installOperation,
+  environmentsTopicOperation,
   describeOperation,
   searchOperation,
   invokeOperation,
+  environmentsExportOperation,
   runsTopicOperation,
   runsListOperation,
   runsShowOperation,
   runsResumeOperation,
   runsRerunOperation,
-  initOperation,
+  configTopicOperation,
+  configInitOperation,
+  configEditOperation,
   configSecretsOperation,
   configSecretsAddOperation,
   configSecretsGetOperation,
@@ -50,6 +64,4 @@ export const operations: OperationDefinition[] = [
   pluginsBuildOperation,
   pluginsCheckOperation,
   discoverOperation,
-  updateOperation,
-  rollbackOperation,
 ]

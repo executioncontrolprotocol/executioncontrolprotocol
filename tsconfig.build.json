@@ -20,6 +20,9 @@
       "path": "plugins/plugin-jsonata"
     },
     {
+      "path": "plugins/plugin-test"
+    },
+    {
       "path": "plugins/plugin-anthropic"
     },
     {

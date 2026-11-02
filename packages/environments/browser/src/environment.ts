@@ -9,6 +9,7 @@ import type { Environment } from "@executioncontrolprotocol/core"
 import { browserEnvironmentDefinition } from "./runtime/builtin-browser.js"
 import { browserRegistryExtension } from "./extensions/browser-registry.js"
 import { browserLocalConfigExtension } from "./extensions/browser-local-config.js"
+import { createBrowserMediaStore } from "./media/browser-media-store.js"
 
 const BROWSER_REGISTRY_CONTROL = {
   allowedExtensionNamespaces: [
@@ -27,7 +28,7 @@ const BROWSER_REGISTRY_CONTROL = {
  */
 export function createBrowserEnvironment(id: string, label?: string): Environment {
   registerEnvironmentDefinition(browserEnvironmentDefinition)
-  return coreEnvironment(id, label).with([
+  return coreEnvironment(id, label).use(createBrowserMediaStore()).with([
     extension(browserRegistryExtension).with({
       freezeOn: "environment:beforeRun",
       autoBindRegisteredExtensions: true,

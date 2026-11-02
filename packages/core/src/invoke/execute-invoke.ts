@@ -137,6 +137,8 @@ export async function executeInvoke(
     extensionConfig,
     blobs: env.getBlobStore(),
     artifacts: env.ensureArtifactStore(),
+    services: env.getServices(),
+    remoteInvoke: env.getRemoteInvoke(),
     capabilities: {
       call: async (id) => {
         throw new Error(`nested call not bound: ${id}`)
@@ -175,7 +177,8 @@ export async function executeInvoke(
         capabilityId,
         ECP_INVOKE_ERROR_CODES.INVOKE_OUTPUT_INVALID,
         "Invoke output validation failed",
-        outValidation
+        outValidation,
+        { result: output }
       )
     }
     output = parsed.data

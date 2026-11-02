@@ -2,6 +2,7 @@ import { Command } from "@oclif/core"
 import { ECP_INPUT_INVALID, EXIT_FAILED, EXIT_USAGE } from "./codes.js"
 import { EcpCliError } from "./errors.js"
 import { failureEnvelope, type EcpErrorBody } from "./envelope.js"
+import { formatExecutionReport } from "./format-execution.js"
 
 /**
  * Base class for generated capability and operation commands.
@@ -32,7 +33,8 @@ export abstract class EcpCommand extends Command {
       this.log(data)
       return
     }
-    this.log(JSON.stringify(data, null, 2))
+    const report = formatExecutionReport(data)
+    this.log(report ?? JSON.stringify(data, null, 2))
   }
 
   /**
@@ -50,7 +52,8 @@ export abstract class EcpCommand extends Command {
    * @category CLI
    */
   toErrorJson(error: unknown): unknown {
-    return failureEnvelope(errorBody(error))
+    const data = error instanceof EcpCliError ? error.data : undefined
+    return failureEnvelope(errorBody(error), data)
   }
 
   /**
@@ -61,9 +64,15 @@ export abstract class EcpCommand extends Command {
     const body = errorBody(error)
     const exitCode = exitCodeOf(error)
     const json = this.jsonEnabled() || (this.argv ?? []).includes("--json")
+    const data = error instanceof EcpCliError ? error.data : undefined
     if (json) {
       // `this.log` is a no-op when jsonEnabled() is true; `logJson` always writes.
       this.logJson(this.toErrorJson(error))
+      this.exit(exitCode)
+    }
+    if (data !== undefined) {
+      const report = formatExecutionReport(data) ?? JSON.stringify(data, null, 2)
+      this.log(report)
       this.exit(exitCode)
     }
     this.error(body.message, { exit: exitCode })

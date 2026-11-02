@@ -9,6 +9,7 @@ import type {
 import type { RemoteInvokeBinding } from "./remote-invoke.js"
 import type { CapabilityArtifactStore } from "./artifacts.js"
 import type { CapabilityBlobStore } from "./blobs.js"
+import type { ServiceMap } from "../services/map.js"
 
 /** Runtime execution mode. @category Runtime */
 export type RuntimeExecutionMode = "run" | "test"
@@ -37,14 +38,16 @@ export interface RuntimeExecutionContext {
   approvals?: RunApproval[]
   /** Host journal metadata (path, hash, parent run). */
   journal?: RunJournalMeta
-  /** Public NDJSON stream (`ecp run --events`). */
-  onEvent?: (event: PublicRunEvent) => void
+  /** Public NDJSON stream (`ecp run --events`). May return a promise so hosts can flush. */
+  onEvent?: (event: PublicRunEvent) => void | Promise<void>
   /** Local invoke host for host/mixed hops. */
   remoteInvoke?: RemoteInvokeBinding
   /** Run-scoped browser file map. */
   blobs?: CapabilityBlobStore
   /** Environment-scoped host artifact map. */
   artifacts?: CapabilityArtifactStore
+  /** Host services bound with {@link Environment.use}. */
+  services?: ServiceMap
 }
 
 /** Runtime executor interface. @category Runtime */

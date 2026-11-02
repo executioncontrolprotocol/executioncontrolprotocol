@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/app",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "ECP visual App: HostAdapter, graph encoder, and prebuilt web bundle",
   "license": "Apache-2.0",
   "type": "module",
@@ -18,7 +18,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -b && vite build"
+    "build": "tsc -b && vite build",
+    "dev": "vite",
+    "preview": "vite preview --host 127.0.0.1"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/core": "workspace:^",

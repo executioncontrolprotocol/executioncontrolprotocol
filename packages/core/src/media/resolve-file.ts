@@ -2,23 +2,17 @@ import {
   FILE_REF_KINDS,
   type FileRef,
 } from "../types/index.js"
-import { isBrowserFileLocator } from "../runtime/blobs.js"
 import type { CapabilityContext } from "../runtime/context.js"
+import {
+  DEFAULT_MEDIA_PREFIX,
+  MediaStore,
+  type MediaStore as MediaStoreService,
+  type MediaStoreContext,
+} from "../services/media-store.js"
+import { base64ToBytes } from "./base64.js"
+import type { ResolvedFile } from "./resolved-file.js"
 
-/** URI prefix for durable storage-backed artifacts. @category File */
-export const STORAGE_ARTIFACT_URI_PREFIX = "ecp://storage/"
-
-/** Resolved file bytes from {@link resolveFile}. @category File */
-export interface ResolvedFile {
-  /** Raw bytes. */
-  bytes: Uint8Array
-  /** MIME type when known. */
-  mediaType?: string
-  /** Byte length. */
-  sizeBytes: number
-  /** Optional display name. */
-  name?: string
-}
+export type { ResolvedFile } from "./resolved-file.js"
 
 /** Options for {@link resolveFile}. @category File */
 export interface ResolveFileOptions {
@@ -33,67 +27,34 @@ export type FileCapabilityContext = CapabilityContext & {
 }
 
 /**
- * Host file reader registered by the Node environment.
+ * Build a {@link MediaStoreContext} from a capability context.
  * @category File
  */
-export type HostFileReader = (path: string) => Promise<Uint8Array>
-
-let hostFileReader: HostFileReader | undefined
-
-/**
- * Register the Node (or other host) reader used for `kind: "file"` path refs.
- * @category File
- */
-export function registerHostFileReader(reader: HostFileReader): void {
-  hostFileReader = reader
+export function mediaStoreContextFrom(ctx: FileCapabilityContext): MediaStoreContext {
+  return {
+    blobs: ctx.blobs,
+    artifacts: ctx.artifacts,
+    remoteInvoke: ctx.remoteInvoke,
+    extensionConfig: ctx.extensionConfig,
+  }
 }
 
-async function readFileFromPath(path: string): Promise<Uint8Array> {
-  if (!hostFileReader) {
+/**
+ * Require a bound {@link MediaStore} on {@link FileCapabilityContext.services}.
+ * @category File
+ */
+export function requireMediaStore(ctx: FileCapabilityContext): MediaStoreService {
+  const store = ctx.services?.get(MediaStore)
+  if (!store) {
     throw new Error(
-      "File media refs require Node.js (node:fs/promises is not available in this runtime)"
+      "No MediaStore is bound. Hosts call environment().use(createDiskMediaStore()) (or the browser equivalent) before run or invoke."
     )
   }
-  return hostFileReader(path)
-}
-
-async function readBrowserLocator(
-  locator: string,
-  ctx: FileCapabilityContext,
-  mediaType?: string
-): Promise<ResolvedFile> {
-  const blob = ctx.blobs?.get(locator)
-  if (!blob) {
-    throw new Error(`No file stashed for locator ${locator}`)
-  }
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  return {
-    bytes,
-    mediaType: mediaType || blob.type || undefined,
-    sizeBytes: bytes.byteLength,
-    name: blob.name || undefined,
-  }
-}
-
-function readStoredArtifact(
-  uri: string,
-  ctx: FileCapabilityContext,
-  mediaType?: string
-): ResolvedFile {
-  const fromCtx = ctx.artifacts?.get(uri)
-  if (!fromCtx) {
-    throw new Error(`Artifact not found: ${uri}`)
-  }
-  return {
-    bytes: fromCtx.bytes instanceof Uint8Array ? fromCtx.bytes : new Uint8Array(fromCtx.bytes),
-    mediaType: mediaType ?? fromCtx.mediaType,
-    sizeBytes: fromCtx.size,
-    name: fromCtx.name,
-  }
+  return store
 }
 
 /**
- * Resolve a portable {@link FileRef} to bytes using blobs, artifacts, fetch, or Node fs.
+ * Resolve a portable {@link FileRef} to bytes using buffers, fetch, or the bound {@link MediaStore}.
  * Extensions should call this instead of reimplementing I/O.
  * @category File
  */
@@ -108,17 +69,7 @@ export async function resolveFile(
 
   switch (ref.kind) {
     case FILE_REF_KINDS.BUFFER: {
-      const bytes =
-        typeof Buffer !== "undefined"
-          ? new Uint8Array(Buffer.from(ref.data, "base64"))
-          : Uint8Array.from(atob(ref.data), (c) => c.charCodeAt(0))
-      return { bytes, mediaType: ref.mediaType, sizeBytes: bytes.byteLength }
-    }
-    case FILE_REF_KINDS.FILE: {
-      if (isBrowserFileLocator(ref.path)) {
-        return readBrowserLocator(ref.path, ctx, ref.mediaType)
-      }
-      const bytes = await readFileFromPath(ref.path)
+      const bytes = base64ToBytes(ref.data)
       return { bytes, mediaType: ref.mediaType, sizeBytes: bytes.byteLength }
     }
     case FILE_REF_KINDS.URL: {
@@ -132,49 +83,13 @@ export async function resolveFile(
       const mediaType = ref.mediaType ?? res.headers.get("content-type") ?? undefined
       return { bytes, mediaType, sizeBytes: bytes.byteLength }
     }
-    case FILE_REF_KINDS.ARTIFACT: {
-      if (isBrowserFileLocator(ref.uri)) {
-        return readBrowserLocator(ref.uri, ctx, ref.mediaType)
-      }
-      if (ref.uri.startsWith(STORAGE_ARTIFACT_URI_PREFIX)) {
-        const key = ref.uri.slice(STORAGE_ARTIFACT_URI_PREFIX.length)
-        const result = (await ctx.capabilities.call("@executioncontrolprotocol/storage.read", {
-          key,
-        })) as { value?: unknown; mediaType?: string; name?: string }
-        if (result.value instanceof Uint8Array) {
-          return {
-            bytes: result.value,
-            mediaType: ref.mediaType ?? result.mediaType,
-            sizeBytes: result.value.byteLength,
-            name: ref.name ?? result.name,
-          }
-        }
-        if (typeof Buffer !== "undefined" && Buffer.isBuffer(result.value)) {
-          const bytes = new Uint8Array(result.value)
-          return {
-            bytes,
-            mediaType: ref.mediaType ?? result.mediaType,
-            sizeBytes: bytes.byteLength,
-            name: ref.name ?? result.name,
-          }
-        }
-        if (typeof result.value === "string") {
-          const bytes =
-            typeof Buffer !== "undefined"
-              ? new Uint8Array(Buffer.from(result.value, "base64"))
-              : Uint8Array.from(atob(result.value), (c) => c.charCodeAt(0))
-          return {
-            bytes,
-            mediaType: ref.mediaType ?? result.mediaType,
-            sizeBytes: bytes.byteLength,
-            name: ref.name ?? result.name,
-          }
-        }
-        throw new Error(`Artifact not found: ${ref.uri}`)
-      }
-      return readStoredArtifact(ref.uri, ctx, ref.mediaType)
-    }
+    case FILE_REF_KINDS.FILE:
+    case FILE_REF_KINDS.ARTIFACT:
+      return requireMediaStore(ctx).read(ref, mediaStoreContextFrom(ctx))
     default:
       throw new Error("Unsupported file reference kind")
   }
 }
+
+/** Prefix used when a write omits `prefix` and extension config has none. @category File */
+export { DEFAULT_MEDIA_PREFIX }

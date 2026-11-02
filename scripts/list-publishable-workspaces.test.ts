@@ -17,6 +17,7 @@ describe("listPublishableWorkspaces", () => {
     expect(names.has("@executioncontrolprotocol/cli")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-sdk")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-jsonata")).toBe(true)
+    expect(names.has("@executioncontrolprotocol/plugin-test")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-fal")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-image-sharp")).toBe(true)
     expect(names.has("@executioncontrolprotocol/plugin-azure-blob-storage")).toBe(true)
@@ -30,10 +31,10 @@ describe("listPublishableWorkspaces", () => {
     expect(names.has("@executioncontrolprotocol/browser-secrets")).toBe(false)
 
     const byName = new Map(packages.map((p) => [p.name, p.version]))
-    expect(byName.get("@executioncontrolprotocol/core")).toBe("0.50.0")
-    expect(byName.get("@executioncontrolprotocol/cli")).toBe("0.50.0")
-    expect(byName.get("@executioncontrolprotocol/plugin-jsonata")).toBe("0.50.0")
-    expect(byName.get("@executioncontrolprotocol/mcp")).toBe("0.50.0")
+    expect(byName.get("@executioncontrolprotocol/core")).toBe("0.51.0")
+    expect(byName.get("@executioncontrolprotocol/cli")).toBe("0.51.0")
+    expect(byName.get("@executioncontrolprotocol/plugin-jsonata")).toBe("0.51.0")
+    expect(byName.get("@executioncontrolprotocol/mcp")).toBe("0.51.0")
   })
 
   it("topo-sorts so dependents follow their workspace deps", () => {

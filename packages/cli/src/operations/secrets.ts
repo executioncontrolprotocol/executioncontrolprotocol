@@ -24,11 +24,11 @@ async function requireStore() {
 export const configSecretsOperation = defineOperation("config:secrets")
   .withInput(z.object({}))
   .withMetadata({
-    summary: "Manage OS keychain secrets",
-    description: `Store and inspect secret values in the OS keychain (outside config files).
+    summary: "Store values in the OS keychain",
+    description: `Add, get, remove, and list keychain entries used by secrets() refs.
 
-Subcommands: add, get, remove, list. Ref ids use ${ECP_SECRET_REF_PROTOCOL_PREFIX}<key>.`,
-    useCases: ["Keep API keys out of workflow files"],
+Ref ids use ${ECP_SECRET_REF_PROTOCOL_PREFIX}<key>.`,
+    useCases: ["Keep secret values out of workflow files"],
     examples: [
       "ecp config secrets add server/fetch.token",
       "ecp config secrets get server/fetch.token",

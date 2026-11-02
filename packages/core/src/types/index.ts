@@ -99,6 +99,7 @@ export {
   JOURNAL_VERSION,
 } from "./journal.js"
 export type {
+  JournalError,
   JournalRunDocument,
   JournalStepDocument,
   PolicyJournalDecision,

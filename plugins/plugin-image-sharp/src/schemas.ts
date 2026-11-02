@@ -280,13 +280,12 @@ export const outputOptionsSchema = z.object({
   nearLossless: z.boolean().optional(),
   stripMetadata: z.boolean().optional(),
   preserveMetadata: z.boolean().optional(),
-  artifact: z
-    .object({
-      store: z.enum(["temp", "durable", "storage", "memory"]).optional(),
-      name: z.string().optional(),
-      prefix: z.string().optional(),
-    })
-    .optional(),
+    artifact: z
+      .object({
+        name: z.string().optional(),
+        prefix: z.string().optional(),
+      })
+      .optional(),
 })
 
 export type OutputOptions = z.infer<typeof outputOptionsSchema>

@@ -46,18 +46,16 @@ export default workflow("Azure Blob + Photoshop generate-manifest")
       "Generate PSD manifest",
     )
       .with({
-        body: {
-          image: { source: { url: ref("upload.sasUrl") } },
-          outputs: [
-            {
-              mediaType: "application/json",
-              destination: {
-                storageType: "azure",
-                url: ref("dest.sasUrl"),
-              },
+        image: { source: { url: ref("upload.sasUrl") } },
+        outputs: [
+          {
+            mediaType: "application/json",
+            destination: {
+              storageType: "azure",
+              url: ref("dest.sasUrl"),
             },
-          ],
-        },
+          },
+        ],
       })
       .as("manifest"),
   ])

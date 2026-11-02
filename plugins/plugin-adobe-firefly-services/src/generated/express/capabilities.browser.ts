@@ -18,6 +18,3 @@ export const express_generate_variation = shells.express_generate_variation(host
 
 /** Export rendition */
 export const express_export_rendition = shells.express_export_rendition(hostHop)
-
-/** Job status */
-export const express_get_job_status = shells.express_get_job_status(hostHop)

@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/mcp",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "MCP server and JIT CLI plugin for ECP (ecp mcp serve)",
   "license": "Apache-2.0",
   "type": "module",

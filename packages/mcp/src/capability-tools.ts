@@ -32,6 +32,7 @@ export function registerCapabilityTools(
             input,
             result: result.result,
             success: result.success,
+            diagnostics: result.diagnostics,
           })
           if (!result.success) {
             const diagnostic = result.diagnostics[0]

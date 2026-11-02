@@ -18,8 +18,8 @@ function sortHits(
   })
 }
 
-/** `ecp discover`. @category CLI */
-export const discoverOperation = defineOperation("discover")
+/** `ecp plugins discover`. @category CLI */
+export const discoverOperation = defineOperation("plugins:discover")
   .withInput(
     z.object({
       query: z.string().optional(),
@@ -34,7 +34,7 @@ export const discoverOperation = defineOperation("discover")
     description:
       "Search the npm registry for packages tagged ecosystem:ecp-plugin. First-party packages are marked; installed plugins are hidden unless --all.",
     useCases: ["Find a plugin to install", "List first-party plugins"],
-    examples: ["ecp discover jsonata --json", "ecp discover --sort-field name"],
+    examples: ["ecp plugins discover jsonata --json", "ecp plugins discover --sort-field name"],
     cli: { args: ["query"] },
   })
   .withHandler(async (input, ctx) => {

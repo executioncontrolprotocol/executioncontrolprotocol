@@ -39,13 +39,13 @@ const { bytes, mediaType } = await resolveFile(input.image, ctx)
 return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "artifacts/images" }, ctx) }
 ```
 
-`file.path` may be a Node path (the Node environment registers a host file reader) or an `ecp://browser/<id>` locator (`ctx.blobs`).
+`file.path` may be a Node path (the Node environment binds a disk `MediaStore` with `.use()`) or an `ecp://browser/<id>` locator (`ctx.blobs`). The browser store keeps refs and uploads to a paired Node host.
 
 ## Environment vs Ecp
 
 | `Environment` (builder) | `Ecp` (after `init()`) |
 | ----------------------- | ---------------------- |
-| `.with([...])`, `init({ blobStore, artifactStore, remoteInvoke })` | `run`, `encode`, `decode`, `patch`, `validate`, `invoke` |
+| `.with([...])`, `.use(provider)`, `init({ blobStore, artifactStore, remoteInvoke })` | `run`, `encode`, `decode`, `patch`, `validate`, `invoke` |
 | | `describe`, `search`, `terminate` |
 
 ## Related packages

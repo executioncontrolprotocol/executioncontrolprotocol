@@ -68,7 +68,7 @@ export const falExtension = defineExtension("@executioncontrolprotocol", "fal")
         return runFalInference({
           apiKey,
           endpoint,
-          input: parsed.input,
+          input: parsed.body,
           mode,
           logs: parsed.logs
         })

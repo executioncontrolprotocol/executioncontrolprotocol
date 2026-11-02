@@ -11,16 +11,41 @@ import {
 } from "@executioncontrolprotocol/plugin-sdk"
 import { readJsonFile } from "../lib/command-helpers.js"
 import { applyFormat } from "../lib/format-output.js"
+import { CONFIG_FLAG_HELP } from "../lib/config-file.js"
 import { prepareWorkflowRun, throwIfRunFailed } from "../lib/prepare-workflow.js"
 import { terminateIfNeeded } from "../lib/load-ecp.js"
 import { hashWorkflowSource, pluginVersions } from "../lib/runs-io.js"
 
-/** `ecp run`. @category CLI */
-export const runOperation = defineOperation("run")
+/** `ecp workflows`. @category CLI */
+export const workflowsTopicOperation = defineOperation("workflows")
+  .withInput(z.object({}))
+  .withMetadata({
+    summary: "Author, validate, compile, and run workflow files",
+    description: "Subcommands: run, init, validate, compile, install. `ecp run` is an alias of `workflows run`.",
+    useCases: ["Run a workflow file"],
+  })
+  .withHandler(async () =>
+    [
+      "Usage: ecp workflows <subcommand>",
+      "",
+      "  run WORKFLOW         Compile, install missing plugins, run, and journal",
+      "  init [name]          Scaffold <name>.ecp.ts",
+      "  validate WORKFLOW    Validate without installing plugins",
+      "  compile WORKFLOW     Emit the portable workflow manifest",
+      "  install WORKFLOW     Install plugins the workflow file requires",
+      "",
+      "`ecp run` is an alias of `ecp workflows run`.",
+      "Run ecp workflows <cmd> --help for flags.",
+    ].join("\n")
+  )
+  .build()
+
+/** `ecp workflows run` (alias `ecp run`). @category CLI */
+export const runOperation = defineOperation("workflows:run")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
       input: z.string().optional(),
       "dry-run": z.boolean().optional(),
       to: z.string().optional(),
@@ -30,19 +55,20 @@ export const runOperation = defineOperation("run")
   .withMetadata({
     summary: "Run a workflow file",
     description:
-      "Compile (if needed) and execute a workflow. --env is an optional environment file overlay; omit it to use the process host.",
+      "Compile (if needed) and execute a workflow. --config is optional machine settings; omit it to use ~/.ecp/config/config.ecp.ts when present, else installed plugins.",
     useCases: ["Execute a single-file workflow"],
     examples: [
       "ecp run examples/01-echo/workflow.ecp.ts",
-      "ecp run brief.ecp.ts --to fetch",
+      "ecp workflows run brief.ecp.ts --to fetch",
       "ecp run brief.ecp.ts --events",
     ],
+    aliases: ["run"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
     const { loaded, ecp, terminate } = await prepareWorkflowRun({
       workflowPath: String(input["workflow-path"]),
-      envFlag: input.env ? String(input.env) : undefined,
+      configFlag: input.config ? String(input.config) : undefined,
       config: ctx.config,
       argv: ctx.argv,
       json: ctx.json,
@@ -81,26 +107,26 @@ export const runOperation = defineOperation("run")
   })
   .build()
 
-/** `ecp validate`. @category CLI */
-export const validateOperation = defineOperation("validate")
+/** `ecp workflows validate`. @category CLI */
+export const validateOperation = defineOperation("workflows:validate")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
     })
   )
   .withMetadata({
     summary: "Validate a workflow file",
     description:
-      "Compile (if needed) and validate a workflow against the process host, an optional --env file, and the workflow's bindings. Never installs plugins.",
+      "Compile (if needed) and validate a workflow against the process host, optional --config, and the workflow's bindings. Never installs plugins.",
     useCases: ["Check a workflow before running it"],
-    examples: ["ecp validate examples/01-echo/workflow.ecp.ts"],
+    examples: ["ecp workflows validate examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
     const { loaded, ecp, terminate } = await prepareWorkflowRun({
       workflowPath: String(input["workflow-path"]),
-      envFlag: input.env ? String(input.env) : undefined,
+      configFlag: input.config ? String(input.config) : undefined,
       config: ctx.config,
       argv: ctx.argv,
       json: ctx.json,
@@ -122,8 +148,8 @@ export const validateOperation = defineOperation("validate")
   })
   .build()
 
-/** `ecp compile`. @category CLI */
-export const compileOperation = defineOperation("compile")
+/** `ecp workflows compile`. @category CLI */
+export const compileOperation = defineOperation("workflows:compile")
   .withInput(
     z.object({
       "workflow-path": z.string(),
@@ -136,7 +162,7 @@ export const compileOperation = defineOperation("compile")
     description:
       "Bundle and evaluate a workflow module (.ts or .js), or load .json, and emit the workflow manifest.",
     useCases: ["Produce a portable workflow manifest for review"],
-    examples: ["ecp compile examples/01-echo/workflow.ecp.ts"],
+    examples: ["ecp workflows compile examples/01-echo/workflow.ecp.ts"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {

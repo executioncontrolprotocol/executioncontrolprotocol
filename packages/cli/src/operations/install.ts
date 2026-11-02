@@ -1,14 +1,15 @@
 import { z } from "zod"
 import { defineOperation } from "@executioncontrolprotocol/plugin-sdk"
+import { CONFIG_FLAG_HELP } from "../lib/config-file.js"
 import { prepareWorkflowRun } from "../lib/prepare-workflow.js"
 import { terminateIfNeeded } from "../lib/load-ecp.js"
 
-/** `ecp install`. @category CLI */
-export const installOperation = defineOperation("install")
+/** `ecp workflows install`. @category CLI */
+export const installOperation = defineOperation("workflows:install")
   .withInput(
     z.object({
       "workflow-path": z.string(),
-      env: z.string().optional(),
+      config: z.string().optional().describe(CONFIG_FLAG_HELP),
     })
   )
   .withMetadata({
@@ -16,13 +17,13 @@ export const installOperation = defineOperation("install")
     description:
       "Infer required plugins from the workflow file and install them without running the workflow.",
     useCases: ["Prepare a machine to run a workflow file"],
-    examples: ["ecp install brief.ecp.ts", "ecp install brief.ecp.ts --yes"],
+    examples: ["ecp workflows install brief.ecp.ts", "ecp workflows install brief.ecp.ts --yes"],
     cli: { args: ["workflow-path"] },
   })
   .withHandler(async (input, ctx) => {
     const { loaded, ecp, terminate } = await prepareWorkflowRun({
       workflowPath: String(input["workflow-path"]),
-      envFlag: input.env ? String(input.env) : undefined,
+      configFlag: input.config ? String(input.config) : undefined,
       config: ctx.config,
       argv: ctx.argv,
       json: ctx.json,

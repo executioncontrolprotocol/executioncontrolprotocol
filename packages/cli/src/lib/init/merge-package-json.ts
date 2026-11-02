@@ -1,6 +1,6 @@
 import { INIT_DEV_DEPENDENCIES } from "./collect-env-packages.js"
 
-/** package.json shape used by `ecp init`. @category CLI */
+/** package.json shape used when scaffolding Node dependencies. @category CLI */
 export interface InitPackageJson {
   /** Package name. */
   name?: string

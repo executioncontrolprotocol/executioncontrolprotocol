@@ -42,9 +42,3 @@ export const firefly_get_custom_models = shells.firefly_get_custom_models(hostHo
 
 /** Upload image */
 export const firefly_storage_image_v2 = shells.firefly_storage_image_v2(hostHop)
-
-/** Get job status */
-export const firefly_job_result_v3 = shells.firefly_job_result_v3(hostHop)
-
-/** Cancel job */
-export const firefly_cancel_job_v4 = shells.firefly_cancel_job_v4(hostHop)

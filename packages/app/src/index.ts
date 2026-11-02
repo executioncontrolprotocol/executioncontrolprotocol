@@ -19,5 +19,7 @@ export type {
   AppEventMessage,
   AppSearchResponse,
   AppDescribeResponse,
+  AppConfigResponse,
 } from "./host/protocol.js"
+export { CONFIG_EDITOR_PATH, configFilename } from "./host/config-source.js"
 export * from "./graph/index.js"

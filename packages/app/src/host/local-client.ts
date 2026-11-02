@@ -1,5 +1,7 @@
+import { bytesToBase64, MEDIA_HTTP_PATH, type MediaHttpReadResponse } from "@executioncontrolprotocol/core"
 import type {
   EnvironmentDescriptor,
+  FileRef,
   PublicRunEvent,
   SearchResultItem,
   ValidationResult,
@@ -7,6 +9,7 @@ import type {
 import type { HostAdapter, HostLoadResult, HostWatchPayload } from "./adapter.js"
 import { APP_BEARER_PREFIX, APP_TOKEN_QUERY } from "./constants.js"
 import type {
+  AppConfigResponse,
   AppEventMessage,
   AppRunRequest,
   AppRunResponse,
@@ -23,7 +26,7 @@ export interface LocalHostTransport {
   /** JSON GET. */
   get<T>(path: string): Promise<T>
   /** JSON PUT. */
-  put(path: string, body: unknown): Promise<void>
+  put<T>(path: string, body: unknown): Promise<T>
   /** JSON POST. */
   post<T>(path: string, body: unknown): Promise<T>
   /** Subscribe to `/api/events`. */
@@ -82,9 +85,7 @@ function createFetchTransport(
 
   return {
     get: (path) => request("GET", path),
-    put: async (path, body) => {
-      await request("PUT", path, body)
-    },
+    put: (path, body) => request("PUT", path, body),
     post: (path, body) => request("POST", path, body),
     subscribe(onMessage) {
       const wsUrl = joinUrl(baseUrl, "/api/events", token).replace(/^http/i, "ws")
@@ -129,9 +130,9 @@ export function createLocalHostAdapter(options: LocalHostAdapterOptions): HostAd
         roundTrip: data.roundTrip,
       }
     },
-    async save(source: string): Promise<void> {
+    async save(source: string): Promise<AppSourceResponse> {
       const body: AppSourceWrite = { source }
-      await transport.put("/api/source", body)
+      return transport.put<AppSourceResponse>("/api/source", body)
     },
     watch(onChange: (next: HostWatchPayload) => void): () => void {
       return transport.subscribe((message) => {
@@ -147,6 +148,18 @@ export function createLocalHostAdapter(options: LocalHostAdapterOptions): HostAd
     describe(): Promise<EnvironmentDescriptor> {
       return transport.get<EnvironmentDescriptor>("/api/describe")
     },
+    config(): Promise<AppConfigResponse> {
+      return transport.get<AppConfigResponse>("/api/config")
+    },
+    watchConfig(onChange: (next: AppConfigResponse) => void): () => void {
+      return transport.subscribe((message) => {
+        if (message.type !== "config") return
+        onChange({
+          path: message.path,
+          source: message.source,
+        })
+      })
+    },
     async search(query: string): Promise<SearchResultItem[]> {
       const path = `/api/search?q=${encodeURIComponent(query)}`
       const data = await transport.get<AppSearchResponse>(path)
@@ -155,32 +168,33 @@ export function createLocalHostAdapter(options: LocalHostAdapterOptions): HostAd
     validate(source: string): Promise<ValidationResult> {
       return transport.post<ValidationResult>("/api/validate", { source })
     },
-    async *run(source: string, input: unknown): AsyncIterable<PublicRunEvent> {
-      const buffer: PublicRunEvent[] = []
-      let done = false
-      let notify: (() => void) | undefined
+    async run(
+      source: string,
+      input: unknown,
+      onEvent?: (event: PublicRunEvent) => void
+    ): Promise<AppRunResponse> {
       const unsubscribe = transport.subscribe((message) => {
         if (message.type !== "run") return
-        buffer.push(message.event)
-        if (message.event.type === "run.end") done = true
-        notify?.()
+        onEvent?.(message.event)
       })
-      const body: AppRunRequest = { source, input }
-      await transport.post<AppRunResponse>("/api/run", body)
       try {
-        while (!done || buffer.length > 0) {
-          if (buffer.length === 0) {
-            await new Promise<void>((resolve) => {
-              notify = resolve
-            })
-            notify = undefined
-          }
-          const next = buffer.shift()
-          if (next) yield next
-        }
+        const body: AppRunRequest = { source, input }
+        return await transport.post<AppRunResponse>("/api/run", body)
       } finally {
         unsubscribe()
       }
+    },
+    async uploadMedia(file: File): Promise<FileRef> {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      return transport.post<FileRef>(MEDIA_HTTP_PATH, {
+        bytes: bytesToBase64(bytes),
+        mediaType: file.type || "application/octet-stream",
+        name: file.name,
+      })
+    },
+    async readMedia(uri: string): Promise<MediaHttpReadResponse> {
+      const path = `${MEDIA_HTTP_PATH}?uri=${encodeURIComponent(uri)}`
+      return transport.get<MediaHttpReadResponse>(path)
     },
   }
 }

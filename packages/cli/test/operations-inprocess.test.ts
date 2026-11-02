@@ -7,12 +7,17 @@ import {
   ECP_PLUGINS_MISSING,
   ECP_RUN_PAUSED,
   ECP_RERUN_INCOMPATIBLE,
+  type EcpHost,
 } from "@executioncontrolprotocol/plugin-sdk"
-import { describe, expect, it } from "vitest"
+import { extension, policy, testExtension } from "@executioncontrolprotocol/core"
+import { environment, NODE_ENVIRONMENT_ID } from "@executioncontrolprotocol/node"
+import { approvalPolicy } from "@executioncontrolprotocol/plugin-approval"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { createEchoHost } from "./echo-host.js"
 import { COMMANDS } from "../src/commands.js"
 import { applyFormat, formatExtensionId, formatPluginPackage } from "../src/lib/format-output.js"
 import { commandErrorMessage, readJsonFile, runWithCommandError } from "../src/lib/command-helpers.js"
-import { ecpFromEnvFlag, terminateIfNeeded } from "../src/lib/load-ecp.js"
+import { ecpFromConfigFlag, terminateIfNeeded } from "../src/lib/load-ecp.js"
 import { listInstalledPlugins, installedPluginNames } from "../src/lib/installed-plugins.js"
 import { argvFlagValue, argvHasFlag } from "../src/lib/argv.js"
 import { wantsYes } from "../src/lib/confirm.js"
@@ -32,13 +37,12 @@ import { compileOperation, runOperation, validateOperation } from "../src/operat
 import { installOperation } from "../src/operations/install.js"
 import { initOperation } from "../src/operations/init.js"
 import { discoverOperation } from "../src/operations/discover.js"
-import { rollbackOperation } from "../src/operations/rollback.js"
-import { updateOperation } from "../src/operations/update.js"
 import {
   pluginsBuildOperation,
   pluginsCheckOperation,
   pluginsNewOperation,
 } from "../src/operations/plugins.js"
+import { configTopicOperation } from "../src/operations/config.js"
 import {
   configSecretsOperation,
   configSecretsAddOperation,
@@ -56,7 +60,8 @@ const echoWf = join(repoRoot, "examples", "01-echo", "workflow.ecp.ts")
 
 function mockConfig(
   plugins: Array<{ name: string; type?: string; version?: string }> = [],
-  runCommand: (id: string, argv?: string[]) => Promise<unknown> = async () => undefined
+  runCommand: (id: string, argv?: string[]) => Promise<unknown> = async () => undefined,
+  configDir: string = join(tmpdir(), "ecp-config")
 ): Interfaces.Config {
   return {
     getPluginsList: () =>
@@ -68,22 +73,45 @@ function mockConfig(
         version: plugin.version,
       })),
     runCommand,
+    configDir,
   } as unknown as Interfaces.Config
 }
+
+let echoHost: EcpHost | undefined
+
+beforeAll(async () => {
+  echoHost = await createEchoHost()
+})
+
+afterAll(async () => {
+  await echoHost?.ecp.terminate()
+})
 
 function ctx(
   config: Interfaces.Config = mockConfig(),
   argv: string[] = []
-): { host: undefined; config: Interfaces.Config; argv: string[]; json: boolean } {
-  return { host: undefined, config, argv, json: true }
+): { host: EcpHost | undefined; config: Interfaces.Config; argv: string[]; json: boolean } {
+  return { host: echoHost, config, argv, json: true }
 }
 
 describe("generated COMMANDS", () => {
   it("includes host operations and no duplicate plugins ids", () => {
-    expect(COMMANDS.run).toBeDefined()
+    expect(COMMANDS["workflows:run"]).toBeDefined()
+    expect(COMMANDS["workflows:run"]?.aliases).toEqual(["run"])
+    expect(COMMANDS.run).toBeUndefined()
+    expect(COMMANDS.compile).toBeUndefined()
+    expect(COMMANDS["workflows:compile"]).toBeDefined()
+    expect(COMMANDS["environments:describe"]).toBeDefined()
+    expect(COMMANDS["plugins:discover"]).toBeDefined()
     expect(COMMANDS["runs:list"]).toBeDefined()
-    expect(COMMANDS.install).toBeDefined()
+    expect(COMMANDS.install).toBeUndefined()
+    expect(COMMANDS["workflows:install"]).toBeDefined()
     expect(COMMANDS["plugins:new"]).toBeDefined()
+    expect(COMMANDS.config).toBeDefined()
+    expect(COMMANDS["config:init"]).toBeDefined()
+    expect(COMMANDS["config:edit"]).toBeDefined()
+    expect(COMMANDS["environments:init"]).toBeUndefined()
+    expect(COMMANDS["environments:edit"]).toBeUndefined()
     expect(COMMANDS["config:secrets:add"]).toBeDefined()
     const pluginIds = Object.keys(COMMANDS).filter((id) => id === "plugins" || id.startsWith("plugins:"))
     expect(new Set(pluginIds).size).toBe(pluginIds.length)
@@ -226,29 +254,44 @@ describe("runs operations", () => {
     const previous = process.env.ECP_RUNS_DIR
     process.env.ECP_RUNS_DIR = dir
     const workflowPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "workflow.ecp.ts")
-    const envPath = join(repoRoot, "packages", "cli", "test", "fixtures", "approval", "environment.ts")
+    const ecp = await environment(NODE_ENVIRONMENT_ID, "approval")
+      .with([
+        extension(testExtension),
+        policy(approvalPolicy).with({
+          requireApprovalFor: ["@executioncontrolprotocol/test.echo"],
+        }),
+      ])
+      .init()
+    const host: EcpHost = {
+      ecp,
+      registry: ecp.getRegistry(),
+      environmentId: NODE_ENVIRONMENT_ID,
+      output: "pretty",
+    }
+    const approvalCtx = { ...ctx(), host }
     try {
       await expect(
-        runOperation.handler({ "workflow-path": workflowPath, env: envPath }, ctx())
+        runOperation.handler({ "workflow-path": workflowPath }, approvalCtx)
       ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
-      const listed = (await runsListOperation.handler({ status: "paused" }, ctx())) as Array<{
+      const listed = (await runsListOperation.handler({ status: "paused" }, approvalCtx)) as Array<{
         runId: string
       }>
       const pausedId = listed[0]?.runId
       expect(pausedId).toBeDefined()
       await expect(
-        runsResumeOperation.handler({ "run-id": pausedId!, env: envPath }, ctx())
+        runsResumeOperation.handler({ "run-id": pausedId! }, approvalCtx)
       ).rejects.toMatchObject({ code: ECP_RUN_PAUSED })
       const continued = (await runsResumeOperation.handler(
-        { "run-id": pausedId!, env: envPath, approve: true },
-        ctx()
+        { "run-id": pausedId!, approve: true },
+        approvalCtx
       )) as { run: { status: string; id: string } }
       expect(continued.run.status).toBe("completed")
-      const shown = (await runsShowOperation.handler({ "run-id": continued.run.id }, ctx())) as {
+      const shown = (await runsShowOperation.handler({ "run-id": continued.run.id }, approvalCtx)) as {
         approvals?: Array<{ stepId: string }>
       }
       expect(shown.approvals?.[0]?.stepId).toBe("echo")
     } finally {
+      await ecp.terminate()
       if (previous === undefined) delete process.env.ECP_RUNS_DIR
       else process.env.ECP_RUNS_DIR = previous
     }
@@ -360,7 +403,7 @@ describe("plugin authoring operations", () => {
   })
 })
 
-describe("discover / update / rollback", () => {
+describe("plugins discover", () => {
   it("discover maps registry hits and hides installed plugins", async () => {
     const original = globalThis.fetch
     globalThis.fetch = (async () =>
@@ -406,53 +449,14 @@ describe("discover / update / rollback", () => {
     }
   })
 
-  it("update lists newer user plugins and can no-confirm install", async () => {
-    const original = globalThis.fetch
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/-/v1/search")) {
-        return new Response(JSON.stringify({ objects: [] }), { status: 200 })
-      }
-      return new Response(JSON.stringify({ "dist-tags": { latest: "2.0.0" } }), { status: 200 })
-    }) as typeof fetch
-    const installed: string[] = []
-    const config = mockConfig(
-      [
-        { name: "@executioncontrolprotocol/cli", type: "core", version: "1.0.0" },
-        { name: "acme-plugin", type: "user", version: "1.0.0" },
-      ],
-      async (_id, argv) => {
-        installed.push(String(argv?.[0]))
-      }
-    )
-    try {
-      const listed = (await updateOperation.handler({ list: true }, ctx(config))) as {
-        plugins: Array<{ name: string; latest: string }>
-      }
-      expect(listed.plugins[0]).toMatchObject({ name: "acme-plugin", latest: "2.0.0" })
-      const updated = (await updateOperation.handler({ "no-confirm": true }, ctx(config))) as {
-        updated: string[]
-      }
-      expect(updated.updated).toEqual(["acme-plugin"])
-      expect(installed[0]).toMatch(/acme-plugin@2.0.0/)
-    } finally {
-      globalThis.fetch = original
-    }
-  })
+})
 
-  it("rollback uninstalls user overlays of core plugins", async () => {
-    const removed: string[] = []
-    const config = mockConfig(
-      [
-        { name: "bundled", type: "core", version: "1.0.0" },
-        { name: "bundled", type: "user", version: "1.1.0" },
-      ],
-      async (_id, argv) => {
-        removed.push(String(argv?.[0]))
-      }
-    )
-    const result = (await rollbackOperation.handler({}, ctx(config))) as { removed: string[] }
-    expect(result.removed).toEqual(["bundled"])
+describe("config topic", () => {
+  it("prints usage that mentions variables and secrets", async () => {
+    const help = await configTopicOperation.handler({}, ctx())
+    expect(String(help)).toMatch(/ecp config <subcommand>/)
+    expect(String(help)).toMatch(/variables and secrets/i)
+    expect(String(help)).toMatch(/\bsecrets\b/)
   })
 })
 
@@ -476,7 +480,7 @@ describe("lib helpers", () => {
     )
     expect(formatPluginPackage("toon")).toBe("@executioncontrolprotocol/plugin-format-toon")
     expect(formatPluginPackage("mermaid")).toBe("@executioncontrolprotocol/plugin-format-mermaid")
-    const { ecp, terminate } = await ecpFromEnvFlag(undefined)
+    const { ecp, terminate } = await ecpFromConfigFlag({})
     try {
       expect(await applyFormat(ecp, { a: 1 }, undefined)).toEqual({ a: 1 })
       await expect(applyFormat(ecp, { a: 1 }, "mermaid")).rejects.toMatchObject({
@@ -517,9 +521,9 @@ describe("lib helpers", () => {
     expect(argvHasFlag(["--json=true"], "json")).toBe(true)
     expect(argvHasFlag(["-h"], "help", "h")).toBe(true)
     expect(argvHasFlag([], "json")).toBe(false)
-    expect(argvFlagValue(["--env", "x.ts"], "env")).toBe("x.ts")
-    expect(argvFlagValue(["--env=x.ts"], "env")).toBe("x.ts")
-    expect(argvFlagValue(["--other"], "env")).toBeUndefined()
+    expect(argvFlagValue(["--config", "x.ts"], "config")).toBe("x.ts")
+    expect(argvFlagValue(["--config=x.ts"], "config")).toBe("x.ts")
+    expect(argvFlagValue(["--other"], "config")).toBeUndefined()
     expect(isFirstPartyPackage("@executioncontrolprotocol/plugin-jsonata")).toBe(true)
     expect(npmRegistryOrigin()).toMatch(/registry/)
     expect(wantsYes(["--yes"])).toBe(true)
@@ -559,7 +563,7 @@ describe("lib helpers", () => {
 })
 
 describe("install, init, missing plugins", () => {
-  it("writes a workflow file from ecp init", async () => {
+  it("writes a workflow file from ecp workflows init", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-init-"))
     const previous = process.cwd()
     process.chdir(dir)
@@ -585,6 +589,23 @@ export default workflow("Needs jsonata").run([
   step("@executioncontrolprotocol/jsonata.transform", "T").with({ expression: "$" }).as("out"),
 ])
 `
+
+  it("validate of 01-echo without plugin-test reports ECP_PLUGINS_MISSING", async () => {
+    const ecp = await environment(NODE_ENVIRONMENT_ID, "bare-cli-echo").init()
+    try {
+      const host: EcpHost = {
+        ecp,
+        registry: ecp.getRegistry(),
+        environmentId: NODE_ENVIRONMENT_ID,
+        output: "pretty",
+      }
+      await expect(
+        validateOperation.handler({ "workflow-path": echoWf }, { host, config: mockConfig(), argv: [], json: true })
+      ).rejects.toMatchObject({ code: ECP_PLUGINS_MISSING })
+    } finally {
+      await ecp.terminate()
+    }
+  }, 30_000)
 
   it("validate of a jsonata workflow reports ECP_PLUGINS_MISSING without installing", async () => {
     await withRepoTemp("tmp-ecp-missing-", async (dir) => {
