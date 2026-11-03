@@ -1,6 +1,7 @@
 node_modules/
 **/dist/**
-!**/dist/oclif.js
+# Plugin packages commit generated oclif command entrypoints; keep those visible.
+!plugins/**/dist/oclif.js
 *.tsbuildinfo
 
 # Vitest / V8 coverage (never commit)
