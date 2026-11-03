@@ -1,9 +1,15 @@
 import { useState } from "react"
-import type { ReactFlowRouteEdgeData } from "../../graph/index.js"
+import type { ReactFlowRouteEdgeData, ReactFlowRouteKind } from "../../graph/index.js"
+import type { RouteConfigureFields } from "../lib/route-configure.js"
+
+/** Edit an existing published route, or wrap a data-edge target step. @category App */
+export type RouteConfigureTarget =
+  | { mode: "edit"; route: ReactFlowRouteEdgeData }
+  | { mode: "wrap"; targetStepId: string }
 
 interface RouteConfigureDialogProps {
-  /** Route edge metadata. */
-  route: ReactFlowRouteEdgeData
+  /** Edit vs wrap target. */
+  target: RouteConfigureTarget
   /** Save in flight. */
   busy?: boolean
   /** Validation / save error. */
@@ -11,35 +17,52 @@ interface RouteConfigureDialogProps {
   /** Close without saving. */
   onClose: () => void
   /** Persist configure fields. */
-  onSave: (fields: {
-    whenText?: string
-    untilText?: string
-    maxRounds?: number | undefined
-  }) => void
+  onSave: (fields: RouteConfigureFields) => void
 }
 
 /**
- * Configure a published route edge (branch `when` or loop `until` / `maxRounds`).
+ * Configure a published route edge, or wrap a step into branch / parallel / loop.
+ * @category App
  */
 export function RouteConfigureDialog({
-  route,
+  target,
   busy = false,
   error,
   onClose,
   onSave,
 }: RouteConfigureDialogProps) {
-  const [whenText, setWhenText] = useState(route.whenBadge ?? 'eq("flag", true)')
-  const [untilText, setUntilText] = useState(route.untilBadge ?? "")
+  const initialKind: ReactFlowRouteKind =
+    target.mode === "edit" ? target.route.route : "loop"
+  const [routeKind, setRouteKind] = useState<ReactFlowRouteKind>(initialKind)
+  const [whenText, setWhenText] = useState(
+    target.mode === "edit" ? (target.route.whenBadge ?? 'eq("flag", true)') : 'eq("flag", true)'
+  )
+  const [untilText, setUntilText] = useState(
+    target.mode === "edit" ? (target.route.untilBadge ?? "") : ""
+  )
   const [maxRoundsText, setMaxRoundsText] = useState(
-    route.maxRounds === undefined ? "" : String(route.maxRounds)
+    target.mode === "edit" && target.route.maxRounds !== undefined
+      ? String(target.route.maxRounds)
+      : ""
   )
 
+  const activeKind = target.mode === "edit" ? target.route.route : routeKind
   const title =
-    route.route === "branch"
-      ? "Configure branch arm"
-      : route.route === "loop"
-        ? "Configure loop"
-        : "Configure route"
+    target.mode === "wrap"
+      ? "Wrap step in route"
+      : activeKind === "branch"
+        ? "Configure branch arm"
+        : activeKind === "loop"
+          ? "Configure loop"
+          : "Configure route"
+
+  const showWhen = activeKind === "branch"
+  const showLoopFields = activeKind === "loop"
+  const showParallelNote = activeKind === "parallel"
+  const canSave =
+    target.mode === "wrap"
+      ? activeKind === "branch" || activeKind === "loop" || activeKind === "parallel"
+      : activeKind !== "parallel"
 
   return (
     <div
@@ -54,7 +77,24 @@ export function RouteConfigureDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="mb-3 font-display text-sm font-semibold text-on-surface">{title}</h2>
-        {route.route === "branch" ? (
+        {target.mode === "wrap" ? (
+          <label className="mb-3 block">
+            <span className="mb-1 block font-mono text-[11px] text-on-surface-variant">
+              Route kind
+            </span>
+            <select
+              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1.5 font-mono text-sm text-on-surface"
+              value={routeKind}
+              onChange={(event) => setRouteKind(event.target.value as ReactFlowRouteKind)}
+              disabled={busy}
+            >
+              <option value="loop">loop</option>
+              <option value="branch">branch</option>
+              <option value="parallel">parallel</option>
+            </select>
+          </label>
+        ) : null}
+        {showWhen ? (
           <label className="mb-3 block">
             <span className="mb-1 block font-mono text-[11px] text-on-surface-variant">
               when (eq/neq)
@@ -68,7 +108,7 @@ export function RouteConfigureDialog({
             />
           </label>
         ) : null}
-        {route.route === "loop" ? (
+        {showLoopFields ? (
           <>
             <label className="mb-3 block">
               <span className="mb-1 block font-mono text-[11px] text-on-surface-variant">
@@ -96,9 +136,11 @@ export function RouteConfigureDialog({
             </label>
           </>
         ) : null}
-        {route.route === "parallel" ? (
+        {showParallelNote ? (
           <p className="mb-3 font-mono text-[11px] text-on-surface-variant">
-            Parallel lanes have no condition to edit.
+            {target.mode === "wrap"
+              ? "Wraps the target step in a single parallel lane."
+              : "Parallel lanes have no condition to edit."}
           </p>
         ) : null}
         {error ? (
@@ -115,25 +157,34 @@ export function RouteConfigureDialog({
           >
             Cancel
           </button>
-          {route.route !== "parallel" ? (
+          {canSave ? (
             <button
               type="button"
               className="rounded bg-primary px-3 py-1.5 font-mono text-[11px] text-on-primary disabled:opacity-50"
               disabled={busy}
               onClick={() => {
-                if (route.route === "branch") {
-                  onSave({ whenText })
+                if (activeKind === "branch") {
+                  onSave({
+                    ...(target.mode === "wrap" ? { routeKind: "branch" } : {}),
+                    whenText,
+                  })
+                  return
+                }
+                if (activeKind === "parallel") {
+                  onSave({ routeKind: "parallel" })
                   return
                 }
                 const trimmed = maxRoundsText.trim()
                 const maxRounds =
-                  trimmed === ""
-                    ? undefined
-                    : Number.parseInt(trimmed, 10)
+                  trimmed === "" ? undefined : Number.parseInt(trimmed, 10)
                 if (trimmed !== "" && (!Number.isFinite(maxRounds) || (maxRounds ?? 0) < 1)) {
                   return
                 }
-                onSave({ untilText, maxRounds })
+                onSave({
+                  ...(target.mode === "wrap" ? { routeKind: "loop" } : {}),
+                  untilText,
+                  maxRounds,
+                })
               }}
             >
               Save

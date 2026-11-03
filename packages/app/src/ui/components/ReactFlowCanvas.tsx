@@ -235,6 +235,10 @@ export interface ReactFlowCanvasProps {
   reloadKey?: number
   /** Open the route configure dialog for a published route edge. */
   onConfigureRoute?: (route: ReactFlowRouteEdgeData) => void
+  /** Open wrap dialog for a data edge (wrap the target step). */
+  onConfigureDataEdge?: (targetStepId: string) => void
+  /** Unwrap a branch / parallel / loop structure by id. */
+  onUnwrapRoute?: (structureId: string) => void
 }
 
 function ReactFlowCanvasInner({
@@ -249,6 +253,8 @@ function ReactFlowCanvasInner({
   readOnly = false,
   reloadKey = 0,
   onConfigureRoute,
+  onConfigureDataEdge,
+  onUnwrapRoute,
 }: ReactFlowCanvasProps) {
   const doc = useMemo(() => parseDocument(reactflowJson), [reactflowJson])
   const stepIds = useMemo(
@@ -495,7 +501,17 @@ function ReactFlowCanvasInner({
   )
 
   const handleDeleteMenuConnection = useCallback(() => {
-    if (!edgeMenu || edgeMenu.kind !== "data" || !onDisconnectPorts) {
+    if (!edgeMenu) {
+      setEdgeMenu(null)
+      return
+    }
+    if (edgeMenu.kind === "route") {
+      const structureId = edgeMenu.route?.structureId
+      if (structureId && onUnwrapRoute) onUnwrapRoute(structureId)
+      setEdgeMenu(null)
+      return
+    }
+    if (!onDisconnectPorts) {
       setEdgeMenu(null)
       return
     }
@@ -504,16 +520,21 @@ function ReactFlowCanvasInner({
       targetHandle: edgeMenu.targetHandle,
     })
     setEdgeMenu(null)
-  }, [edgeMenu, onDisconnectPorts])
+  }, [edgeMenu, onDisconnectPorts, onUnwrapRoute])
 
-  const handleConfigureMenuRoute = useCallback(() => {
-    if (!edgeMenu?.route || !onConfigureRoute) {
+  const handleConfigureMenuEdge = useCallback(() => {
+    if (!edgeMenu) {
       setEdgeMenu(null)
       return
     }
-    onConfigureRoute(edgeMenu.route)
+    if (edgeMenu.kind === "route") {
+      if (edgeMenu.route && onConfigureRoute) onConfigureRoute(edgeMenu.route)
+      setEdgeMenu(null)
+      return
+    }
+    if (onConfigureDataEdge) onConfigureDataEdge(edgeMenu.targetStepId)
     setEdgeMenu(null)
-  }, [edgeMenu, onConfigureRoute])
+  }, [edgeMenu, onConfigureDataEdge, onConfigureRoute])
 
   useEffect(() => {
     if (!edgeMenu) return
@@ -739,25 +760,22 @@ function ReactFlowCanvasInner({
                 role="menu"
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                {edgeMenu.kind === "route" ? (
-                  <button
-                    type="button"
-                    className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
-                    role="menuitem"
-                    onClick={handleConfigureMenuRoute}
-                  >
-                    Configure route
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
-                    role="menuitem"
-                    onClick={handleDeleteMenuConnection}
-                  >
-                    Disconnect
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
+                  role="menuitem"
+                  onClick={handleConfigureMenuEdge}
+                >
+                  Configure
+                </button>
+                <button
+                  type="button"
+                  className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
+                  role="menuitem"
+                  onClick={handleDeleteMenuConnection}
+                >
+                  Delete
+                </button>
               </div>
             ) : null}
             </ReactFlowEdgeMenuContext.Provider>
