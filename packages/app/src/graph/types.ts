@@ -42,29 +42,8 @@ export interface ReactFlowStepData {
   outputs: ReactFlowPort[]
 }
 
-/** Branch arm chip on a visual group frame. @category App */
-export interface ReactFlowGroupArm {
-  /** Arm label when present. */
-  label?: string
-  /** Short `when` expression for the arm. */
-  whenBadge: string
-}
-
-/**
- * Visual-only group frame for parallel / branch / loop structure.
- * Published edges remain data-only; groups do not author structure from the canvas.
- * @category App
- */
-export interface ReactFlowGroupData {
-  /** Display label. */
-  label: string
-  /** Structural kind. */
-  kind: "parallel" | "branch" | "loop" | "workflow"
-  /** Branch arms (label + when) when `kind` is `branch`. */
-  arms?: ReactFlowGroupArm[]
-  /** Loop `until` badge when `kind` is `loop`. */
-  untilBadge?: string
-}
+/** Runtime highlight for branch / loop arm step sets. @category App */
+export type ReactFlowArmRunState = "idle" | "taken" | "skipped"
 
 /** Workflow I/O projection (`accepts` / `returns`) — not a capability step. @category App */
 export type ReactFlowIoKind = "accepts" | "returns"
@@ -86,21 +65,53 @@ export interface ReactFlowNode {
   /** Node id (typically a workflow step id). */
   id: string
   /** Node type for the viewer. */
-  type: "ecp-step" | "ecp-group" | "ecp-io"
+  type: "ecp-step" | "ecp-io"
   /** Layout position (absolute; canvas is the workflow surface). */
   position: { x: number; y: number }
   /** Node payload. */
-  data: ReactFlowStepData | ReactFlowGroupData | ReactFlowIoData
+  data: ReactFlowStepData | ReactFlowIoData
   /** Soft size hint for layout. */
   style?: { width?: number; height?: number }
-  /** Parent group id when nested inside an `ecp-group` frame. */
-  parentId?: string
-  /** Constrain dragging to the parent group when nested. */
-  extent?: "parent"
 }
 
 /** Edge kind. @category App */
-export type ReactFlowEdgeKind = "data" | "control"
+export type ReactFlowEdgeKind = "data" | "control" | "route"
+
+/** Structural route subtype for published non-data edges. @category App */
+export type ReactFlowRouteKind = "branch" | "parallel" | "loop"
+
+/**
+ * Metadata on a published route edge (branch / parallel / loop structure).
+ * @category App
+ */
+export interface ReactFlowRouteEdgeData {
+  /** Discriminator. */
+  kind: "route"
+  /** Structural subtype. */
+  route: ReactFlowRouteKind
+  /** Branch / parallel / loop node id in the workflow manifest. */
+  structureId: string
+  /** Branch arm index when `route` is `branch`. */
+  armIndex?: number
+  /** Arm / lane label when present. */
+  label?: string
+  /** Short `when` badge for a branch arm. */
+  whenBadge?: string
+  /** Short `until` badge for a loop. */
+  untilBadge?: string
+  /** Loop `maxRounds` when set. */
+  maxRounds?: number
+  /** True for the visual loop-back edge (excluded from dagre ranks). */
+  loopBack?: boolean
+  /** Leaf step ids under this arm / loop body (for skipped styling). */
+  stepIds?: string[]
+}
+
+/** Data or layout-control edge payload. @category App */
+export interface ReactFlowPlainEdgeData {
+  /** Discriminator. */
+  kind: "data" | "control"
+}
 
 /** React Flow edge. @category App */
 export interface ReactFlowEdge {
@@ -115,7 +126,7 @@ export interface ReactFlowEdge {
   /** Target handle id. */
   targetHandle?: string
   /** Edge metadata. */
-  data: { kind: ReactFlowEdgeKind }
+  data: ReactFlowPlainEdgeData | ReactFlowRouteEdgeData
 }
 
 /** Encoded React Flow document. @category App */
@@ -156,7 +167,13 @@ export interface ReactFlowEncodeOptions {
 }
 
 /** Step run status for progress events. @category App */
-export type ReactFlowStepStatus = "idle" | "pending" | "running" | "completed" | "failed"
+export type ReactFlowStepStatus =
+  | "idle"
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped"
 
 /** Detail for `step:status` progress events. @category App */
 export interface ReactFlowStepStatusDetail {

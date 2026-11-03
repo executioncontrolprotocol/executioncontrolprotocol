@@ -62,15 +62,26 @@ function runOutcomeFromStatus(status: RunStatus): ReactFlowRunLifecycleDetail["o
 /**
  * Reconcile canvas run progress from a terminal {@link RunResult}.
  * Fallback when lifecycle hooks lag or were skipped (e.g. policy deny).
+ * When `stepIds` is provided, steps absent from history are emitted as `skipped`
+ * before `run:done` (so the hook can also settle any remaining pending entries).
  * @category Demo
  */
-export function syncRunProgressFromResult(result: RunResult): void {
+export function syncRunProgressFromResult(
+  result: RunResult,
+  stepIds?: readonly string[]
+): void {
   const history = result.history ?? {}
   for (const [stepId, record] of Object.entries(history)) {
     const canvasStatus = historyStatusToCanvas(record.status)
     if (!canvasStatus) continue
     const message = record.status === "failed" ? stepErrorMessage(record) : undefined
     reactFlowRunProgress.emitStepStatus(stepId, canvasStatus, message)
+  }
+  if (stepIds) {
+    for (const stepId of stepIds) {
+      if (stepId in history) continue
+      reactFlowRunProgress.emitStepStatus(stepId, "skipped")
+    }
   }
   reactFlowRunProgress.emitDone({
     runId: result.run.id,

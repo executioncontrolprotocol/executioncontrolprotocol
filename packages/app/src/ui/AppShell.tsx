@@ -28,6 +28,7 @@ import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
 import { RunPanel, type RunPanelPhase } from "./components/RunPanel.js"
 import { SplitPane } from "./components/SplitPane.js"
 import { StatusFooter } from "./components/StatusFooter.js"
+import { RouteConfigureDialog } from "./components/RouteConfigureDialog.js"
 import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
 import { ValidationView } from "./components/ValidationView.js"
 import { useSplitPane } from "./hooks/useSplitPane.js"
@@ -42,8 +43,10 @@ import {
   disconnectPorts,
   patchOpsForManifest,
 } from "./lib/graph-edit.js"
+import { renderConfiguredRouteSource } from "./lib/route-configure.js"
 import { findStepById } from "./lib/step-configure.js"
 import { ioFieldsFromSchema, workflowContract } from "./lib/workflow-io.js"
+import type { ReactFlowRouteEdgeData } from "../graph/index.js"
 
 const SOURCE_SAVE_DEBOUNCE_MS = 400
 
@@ -101,6 +104,7 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("workflow")
   const [configureStepId, setConfigureStepId] = useState<string | undefined>()
   const [configureIoKind, setConfigureIoKind] = useState<ReactFlowIoKind | undefined>()
+  const [configureRoute, setConfigureRoute] = useState<ReactFlowRouteEdgeData | undefined>()
   const [configureBusy, setConfigureBusy] = useState(false)
   const [configureError, setConfigureError] = useState<string | null>(null)
   const [runPhase, setRunPhase] = useState<RunPanelPhase>("input")
@@ -426,6 +430,14 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
                   onDiscoverCapability={
                     readOnly || !loaded ? undefined : (origin) => setDiscovery(origin)
                   }
+                  onConfigureRoute={
+                    readOnly || !loaded
+                      ? undefined
+                      : (route) => {
+                          setConfigureError(null)
+                          setConfigureRoute(route)
+                        }
+                  }
                   readOnly={readOnly}
                 />
               </div>
@@ -546,6 +558,39 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
             void saveGraphEdit(applyIoConfigure(loaded.manifest, payload)).finally(() =>
               setConfigureBusy(false)
             )
+          }}
+        />
+      ) : null}
+      {configureRoute && loaded && !readOnly ? (
+        <RouteConfigureDialog
+          route={configureRoute}
+          busy={configureBusy}
+          error={configureError}
+          onClose={() => {
+            setConfigureRoute(undefined)
+            setConfigureError(null)
+          }}
+          onSave={(fields) => {
+            setConfigureBusy(true)
+            setConfigureError(null)
+            try {
+              const nextSource = renderConfiguredRouteSource(
+                loaded.manifest,
+                configureRoute,
+                fields
+              )
+              void persist(nextSource, { remount: true })
+                .then(() => {
+                  setConfigureRoute(undefined)
+                })
+                .catch((error: unknown) => {
+                  setConfigureError(error instanceof Error ? error.message : "Save failed")
+                })
+                .finally(() => setConfigureBusy(false))
+            } catch (error: unknown) {
+              setConfigureBusy(false)
+              setConfigureError(error instanceof Error ? error.message : "Invalid expression")
+            }
           }}
         />
       ) : null}

@@ -5,6 +5,7 @@ import {
   capabilityFor,
   defineExtension,
   expr,
+  loop,
   parallel,
   ref,
   Registry,
@@ -19,8 +20,8 @@ import {
   workflowToReactFlow,
   WORKFLOW_ACCEPTS_NODE_ID,
   WORKFLOW_RETURNS_NODE_ID,
-  type ReactFlowGroupData,
   type ReactFlowIoData,
+  type ReactFlowRouteEdgeData,
   type ReactFlowStepData,
 } from "../src/graph/index.js"
 
@@ -103,7 +104,7 @@ describe("workflowToReactFlow", () => {
     expect(steps[0]!.position.x).not.toBe(steps[1]!.position.x)
   })
 
-  it("emits an ecp-group around parallel child steps", () => {
+  it("emits parallel route edges without group nodes", () => {
     const manifest = workflow("Flow")
       .run([
         parallel([
@@ -115,11 +116,13 @@ describe("workflowToReactFlow", () => {
     const doc = workflowToReactFlow(manifest)
     const steps = doc.nodes.filter((n) => n.type === "ecp-step")
     expect(steps).toHaveLength(2)
-    const group = doc.nodes.find((n) => n.type === "ecp-group")
-    expect(group).toBeDefined()
-    expect((group!.data as ReactFlowGroupData).kind).toBe("parallel")
-    expect(steps.every((n) => n.parentId === group!.id)).toBe(true)
-    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const routes = doc.edges.filter((e) => e.data.kind === "route") as Array<{
+      data: ReactFlowRouteEdgeData
+    }>
+    expect(routes.length).toBeGreaterThanOrEqual(2)
+    expect(routes.every((e) => e.data.route === "parallel")).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
   })
 
   it("extracts nested $ref edges with dotted target handles", () => {
@@ -163,7 +166,7 @@ describe("workflowToReactFlow", () => {
     expect(whenEdge?.sourceHandle).toBe("expand")
   })
 
-  it("shows branch arm when text on the group", () => {
+  it("emits branch route edges with whenBadge and armIndex", () => {
     const manifest = workflow("Arms")
       .run([
         branch([
@@ -179,12 +182,40 @@ describe("workflowToReactFlow", () => {
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
-    const group = doc.nodes.find((n) => n.type === "ecp-group")
-    expect(group).toBeDefined()
-    const data = group!.data as ReactFlowGroupData
-    expect(data.kind).toBe("branch")
-    expect(data.arms?.some((arm) => arm.whenBadge.includes("flag"))).toBe(true)
-    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const routes = doc.edges.filter(
+      (e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "branch"
+    )
+    expect(routes.length).toBeGreaterThanOrEqual(2)
+    const badges = routes.map((e) => (e.data as ReactFlowRouteEdgeData).whenBadge ?? "")
+    expect(badges.some((badge) => badge.includes("flag"))).toBe(true)
+    expect(
+      routes.every((e) => typeof (e.data as ReactFlowRouteEdgeData).armIndex === "number")
+    ).toBe(true)
+    expect(
+      routes.every((e) => ((e.data as ReactFlowRouteEdgeData).stepIds?.length ?? 0) > 0)
+    ).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
+  })
+
+  it("emits a loop-back route with untilBadge", () => {
+    const manifest = workflow("Loop")
+      .run([
+        loop({ until: expr.eq("done", true), label: "retry" }, [
+          step("@executioncontrolprotocol/test.echo", "Tick").with({ value: "1" }).as("tick"),
+        ]),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const loopRoutes = doc.edges.filter(
+      (e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "loop"
+    )
+    expect(loopRoutes.length).toBeGreaterThanOrEqual(1)
+    const loopBack = loopRoutes.find((e) => (e.data as ReactFlowRouteEdgeData).loopBack)
+    expect(loopBack).toBeDefined()
+    expect((loopBack!.data as ReactFlowRouteEdgeData).untilBadge).toContain("done")
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
   })
 
   it("projects accepts ports and $ref edges from the Inputs node", () => {
