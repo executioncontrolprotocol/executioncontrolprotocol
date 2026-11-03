@@ -23,7 +23,7 @@ ecp plugins install jsonata
 ecp run brief.ecp.ts
 ```
 
-The field-test is **0.51.0** on `latest` (not 1.0). `ecp workflows init` scaffolds
+The field-test is **0.52.0** on `latest` (not 1.0). `ecp workflows init` scaffolds
 a `jsonata.transform` step, so install that plugin before you run.
 
 ## Work in this repo

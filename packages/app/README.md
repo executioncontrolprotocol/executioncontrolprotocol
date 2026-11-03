@@ -18,8 +18,8 @@ The left pane tabs **Workflow** (editable Fluent) and **Config** (read-only
 uses `describe()` (installed plugins). The footer pill reports whether the
 workflow is valid.
 
-Until `0.51.0` is on the registry, do not expect first-use JIT from npm. There is no
-hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.51"`.
+Until `0.52.0` is on the registry, do not expect first-use JIT from npm. There is no
+hosted browser demo and no `ecp up`. CLI `oclif.jitPlugins` pins `"^0.52"`.
 
 ## Development
 

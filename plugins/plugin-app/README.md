@@ -19,9 +19,9 @@ else installed plugins. The Config tab shows `config.ecp.ts` (scaffolded when
 missing). Capability discovery uses installed plugins. The App stores no secrets
 and makes no model calls.
 
-Until `0.51.0` is on the registry, install from the workspace with
-`ecp plugins link plugins/plugin-app`. CLI `oclif.jitPlugins` pins `"^0.51"`.
-First-use JIT from npm waits on the 0.51.0 publish. There is no hosted demo and no `ecp up`.
+Until `0.52.0` is on the registry, install from the workspace with
+`ecp plugins link plugins/plugin-app`. CLI `oclif.jitPlugins` pins `"^0.52"`.
+First-use JIT from npm waits on the 0.52.0 publish. There is no hosted demo and no `ecp up`.
 
 This package depends on `plugin-sdk`, `node`, and `app` (`dist/web` only). It
 does not depend on `cli` (JIT cycle) or `mcp`.

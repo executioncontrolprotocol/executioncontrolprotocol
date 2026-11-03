@@ -52,9 +52,9 @@ on top. See `RESET-PLAN.md` §0–§1.
 | `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
 | `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
-| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.51"`. First-use JIT from npm waits on the 0.51.0 publish |
+| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.52"`. First-use JIT from npm waits on the 0.52.0 publish |
 | `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 Done: `HostAdapter`, graph encoder, prebuilt `dist/web`. React is an optional peer |
-| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.51"`. First-use JIT from npm waits on the 0.51.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
+| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.52"`. First-use JIT from npm waits on the 0.52.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
 | `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
 | `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
 | `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |

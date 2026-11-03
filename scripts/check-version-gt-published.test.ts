@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { checkWorkspaceVersionsVsNpm } from "./check-version-gt-published.mjs"
 
-const core = { name: "@executioncontrolprotocol/core", version: "0.51.0" }
-const cli = { name: "@executioncontrolprotocol/cli", version: "0.51.0" }
+const core = { name: "@executioncontrolprotocol/core", version: "0.52.0" }
+const cli = { name: "@executioncontrolprotocol/cli", version: "0.52.0" }
 
 describe("checkWorkspaceVersionsVsNpm", () => {
   it("passes when nothing is published yet", () => {
@@ -18,7 +18,7 @@ describe("checkWorkspaceVersionsVsNpm", () => {
   })
 
   it("fails when a local version equals npm latest", () => {
-    const result = checkWorkspaceVersionsVsNpm([core], () => "0.51.0")
+    const result = checkWorkspaceVersionsVsNpm([core], () => "0.52.0")
     expect(result.ok).toBe(false)
     expect(result.lines[0]).toMatch(/must be greater than npm latest/)
   })

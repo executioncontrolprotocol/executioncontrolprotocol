@@ -27,7 +27,7 @@ From npm (`latest`):
 npm install -g @executioncontrolprotocol/cli
 ```
 
-The field-test is **0.51.0** (not 1.0). Until that version is on the registry,
+The field-test is **0.52.0** (not 1.0). Until that version is on the registry,
 pack-install from this repo (`pnpm run test:plugin-pack`).
 
 From this monorepo (recommended for development):
@@ -134,7 +134,7 @@ ecp plugins discover jsonata --json
 ### MCP
 
 `ecp mcp serve` is a JIT plugin (`@executioncontrolprotocol/mcp`). The CLI pin is
-`^0.51`. Until that version is on the registry, link the workspace package:
+`^0.52`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link packages/mcp
@@ -145,7 +145,7 @@ ecp mcp serve --http
 ### App
 
 `ecp app` is a JIT plugin (`@executioncontrolprotocol/plugin-app`). The CLI pin is
-`^0.51`. Until that version is on the registry, link the workspace package:
+`^0.52`. Until that version is on the registry, link the workspace package:
 
 ```sh
 ecp plugins link plugins/plugin-app
