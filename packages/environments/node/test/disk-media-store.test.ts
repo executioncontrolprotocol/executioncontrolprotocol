@@ -5,8 +5,12 @@ import { afterEach, describe, expect, it } from "vitest"
 import {
   FILE_ARTIFACT_URI_PREFIX,
   MediaStore,
+  ServiceMap,
+  createCapabilityArtifactStore,
   createCapabilityBlobStore,
+  createUsageLedger,
   stashCapabilityBlob,
+  writeMediaArtifact,
 } from "@executioncontrolprotocol/core"
 import { FILE_REF_KINDS } from "@executioncontrolprotocol/core/types"
 import {
@@ -81,6 +85,33 @@ describe("createDiskMediaStore", () => {
     expect(() => assertRelativeArtifactKey("a/../../b")).toThrow(/relative path/)
     expect(() => assertRelativeArtifactKey("")).toThrow(/empty/)
     expect(() => assertRelativeArtifactKey("a\0b")).toThrow(/NUL/)
+  })
+
+  it("rejects writeMediaArtifact prefixes that escape the root", async () => {
+    const services = new ServiceMap()
+    services.use(createDiskMediaStore({ root: await tmpRoot() }))
+    await expect(
+      writeMediaArtifact(
+        new Uint8Array([1]),
+        { mediaType: "image/png", name: "x.png", prefix: "../secret" },
+        {
+          store: {
+            merge: async () => undefined,
+            set: async () => undefined,
+            replace: async () => undefined,
+            append: async () => undefined,
+          },
+          state: {},
+          run: { id: "r1", input: {} },
+          step: { id: "s1", capabilityId: "test.media" },
+          logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+          usage: createUsageLedger(),
+          capabilities: { call: async () => ({}) },
+          artifacts: createCapabilityArtifactStore(),
+          services,
+        }
+      )
+    ).rejects.toThrow(/relative path/)
   })
 
   it("uses ECP_ARTIFACTS_DIR when root is omitted", async () => {

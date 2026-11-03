@@ -36,7 +36,7 @@ Portable `ImageRef` values (`buffer` | `file` | `url` | `artifact`) are resolved
 import { resolveFile, writeMediaArtifact } from "@executioncontrolprotocol/core"
 
 const { bytes, mediaType } = await resolveFile(input.image, ctx)
-return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "artifacts/images" }, ctx) }
+return { image: await writeMediaArtifact(outBytes, { mediaType, prefix: "images" }, ctx) }
 ```
 
 `file.path` may be a Node path (the Node environment binds a disk `MediaStore` with `.use()`) or an `ecp://browser/<id>` locator (`ctx.blobs`). The browser store keeps refs and uploads to a paired Node host.

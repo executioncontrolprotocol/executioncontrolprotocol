@@ -22,7 +22,7 @@ export function buildImageSharpExtension(
     .withConfig({
       artifacts: z
         .object({
-          outputPrefix: z.string().default("artifacts/images")
+          outputPrefix: z.string().default("images")
         })
         .optional(),
       limits: z

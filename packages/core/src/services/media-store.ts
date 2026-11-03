@@ -11,8 +11,8 @@ export const MEDIA_STORE_ID = "@executioncontrolprotocol/MediaStore" as const
 /** URI prefix for disk-backed artifacts (`ecp://file/<relative>`). @category Media */
 export const FILE_ARTIFACT_URI_PREFIX = "ecp://file/"
 
-/** Default URI path prefix when a write omits `prefix`. @category Media */
-export const DEFAULT_MEDIA_PREFIX = "artifacts/media"
+/** Default URI path prefix when a write omits `prefix` (under the artifacts root). @category Media */
+export const DEFAULT_MEDIA_PREFIX = "media"
 
 /** HTTP path for paired-host media upload and download. @category Media */
 export const MEDIA_HTTP_PATH = "/v1/media"

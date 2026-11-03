@@ -13,7 +13,13 @@ export {
   type ResolveFileOptions,
   type FileCapabilityContext,
 } from "./resolve-file.js"
-export { writeMediaArtifact, type WriteMediaArtifactOptions } from "./write-media.js"
+export {
+  writeMediaArtifact,
+  normalizeArtifactPrefix,
+  sanitizeArtifactPathSegment,
+  scopeArtifactPrefix,
+  type WriteMediaArtifactOptions,
+} from "./write-media.js"
 export { readBrowserLocator } from "./browser-locator.js"
 export { bytesToBase64, base64ToBytes } from "./base64.js"
 export {

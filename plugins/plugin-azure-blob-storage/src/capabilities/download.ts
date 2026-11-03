@@ -38,7 +38,7 @@ export async function handleDownload(
   const file = await writeMediaArtifact(new Uint8Array(buffer), {
     mediaType: contentType,
     name: parsed.blobName,
-    prefix: "artifacts/azure-blob",
+    prefix: "azure-blob",
   }, fileCtx)
   return downloadOutputSchema.parse({
     file,
