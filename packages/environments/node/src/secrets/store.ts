@@ -1,6 +1,9 @@
 /** OS secrets backend for lookup and CLI CRUD. @category Secrets */
 export interface SecretsStore {
-  /** Load a secret value or undefined when missing. */
+  /**
+   * Load a secret value.
+   * Returns `undefined` when missing, `""` when set but empty.
+   */
   get(key: string): Promise<string | undefined>
   /** Store or replace a secret value. */
   set(key: string, value: string): Promise<void>

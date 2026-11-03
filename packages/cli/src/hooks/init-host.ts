@@ -1,6 +1,6 @@
 import type { Hook, Interfaces } from "@oclif/core"
 import { NODE_ENVIRONMENT_ID, writeInvokeJournal } from "@executioncontrolprotocol/node"
-import { setHost, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
+import { setHost, setHostInitError, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
 import { createConfiguredProcessEnvironment } from "../lib/layer-environment.js"
 
 async function reloadUserPlugins(config: Interfaces.Config): Promise<void> {
@@ -12,7 +12,9 @@ async function reloadUserPlugins(config: Interfaces.Config): Promise<void> {
 
 async function createHost(config: Interfaces.Config): Promise<EcpHost> {
   const env = await createConfiguredProcessEnvironment({ config })
-  const ecp = await env.init()
+  // Discovery only: register plugins and machine config without resolving secrets,
+  // so describe / search / validate see the real catalog when secrets are unset.
+  const ecp = await env.init({ prepare: "discovery" })
   const host: EcpHost = {
     ecp,
     registry: ecp.getRegistry(),
@@ -47,7 +49,11 @@ const hook: Hook<"init"> = async function (options) {
   ) {
     return
   }
-  setHost(await createHost(options.config))
+  try {
+    setHost(await createHost(options.config))
+  } catch (err) {
+    setHostInitError(err)
+  }
 }
 
 export default hook

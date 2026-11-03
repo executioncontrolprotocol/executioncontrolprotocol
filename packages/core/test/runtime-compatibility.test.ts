@@ -1,9 +1,12 @@
 import { describe, expect, it, beforeEach } from "vitest"
 import { defineExtension, capabilityFor, Registry } from "@executioncontrolprotocol/core"
 import { z } from "zod"
-import { validateEnvironmentWithWorkflow, ECP_ENVIRONMENT_UNSUPPORTED } from "../src/validate/environment.js"
+import {
+  validateEnvironmentWithWorkflow,
+  ECP_ENVIRONMENT_UNSUPPORTED,
+  type ValidateEnvironmentContext,
+} from "../src/validate/environment.js"
 import type { EnvironmentDescriptor, WorkflowManifest } from "@executioncontrolprotocol/core/types"
-import type { ResolvedBindings } from "../src/environment/bindings.js"
 
 const nodeOnlyHostExtension = defineExtension("@executioncontrolprotocol", "test-node-only")
   .supports("@executioncontrolprotocol/node")
@@ -30,11 +33,11 @@ const hostWorkflow: WorkflowManifest = {
   schema: "@executioncontrolprotocol.workflow",
   version: "1.0",
   workflow: { id: "t", label: "t" },
-  run: [
+  steps: [
     {
       type: "step",
       id: "s1",
-      capability: "@executioncontrolprotocol/test-node-only.echo",
+      uses: "@executioncontrolprotocol/test-node-only.echo",
       as: "out",
     },
   ],
@@ -44,11 +47,11 @@ const localWorkflow: WorkflowManifest = {
   schema: "@executioncontrolprotocol.workflow",
   version: "1.0",
   workflow: { id: "t", label: "t" },
-  run: [
+  steps: [
     {
       type: "step",
       id: "s1",
-      capability: "@executioncontrolprotocol/test-node-local.echo",
+      uses: "@executioncontrolprotocol/test-node-local.echo",
       as: "out",
     },
   ],
@@ -83,13 +86,10 @@ function descriptor(
   }
 }
 
-function bindings(environmentId: string, extId: string): ResolvedBindings {
+function bindings(environmentId: string, extId: string): ValidateEnvironmentContext {
   return {
-    runtime: { id: environmentId as never, config: {} },
-    extensions: [{ id: extId as never, config: {}, order: 0 }],
-    policies: [],
-    extensionHooks: [],
-    policyHooks: [],
+    environmentId,
+    extensionIds: [extId],
   }
 }
 

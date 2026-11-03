@@ -110,7 +110,7 @@ function isEnvironmentExport(value: unknown): value is Environment {
  * Load a `config.ecp.ts` module and return its bindings.
  * Accepts `config()` or, undocumented, a legacy `environment()` default export
  * (bindings only; the host id is ignored). Protocol imports resolve from
- * `process.cwd()` so a file in `~/.ecp/config` still sees project packages.
+ * `process.cwd()` first, then fall back to the Node host / CLI copy of core.
  *
  * @category Config
  */

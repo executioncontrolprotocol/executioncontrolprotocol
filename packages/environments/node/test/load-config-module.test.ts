@@ -61,4 +61,29 @@ export default environment(NODE_ENVIRONMENT_ID, "legacy").with([
       await rm(dir, { recursive: true, force: true })
     }
   }, 30_000)
+
+  it("loads config.ecp.ts when cwd has no node_modules (CLI core fallback)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ecp-load-empty-cwd-"))
+    const path = join(dir, "config.ecp.ts")
+    await writeFile(
+      path,
+      `import { config, extension } from "@executioncontrolprotocol/core"
+
+export default config().with([
+  extension("@executioncontrolprotocol/test"),
+])
+`,
+      "utf8"
+    )
+    const prevCwd = process.cwd()
+    try {
+      process.chdir(dir)
+      const bindings = await loadConfigModule(path)
+      expect(bindings).toHaveLength(1)
+      expect(bindings[0]?.getRef()).toBe("@executioncontrolprotocol/test")
+    } finally {
+      process.chdir(prevCwd)
+      await rm(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
 })

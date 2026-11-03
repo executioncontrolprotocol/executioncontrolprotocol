@@ -138,6 +138,12 @@ export interface EnvironmentInitOptions {
    * @category Environment
    */
   registry?: Registry
+  /**
+   * `discovery` registers bindings and catalogs capabilities without resolving
+   * `secrets()` / `env()`. `run` (default) fully resolves config for execution.
+   * @category Environment
+   */
+  prepare?: "discovery" | "run"
 }
 
 /** Binding accepted by {@link Environment.with}. @category Environment */
@@ -553,6 +559,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
   /**
    * Initialize environment for operational use and return an {@link Ecp} instance.
+   * Pass `prepare: "discovery"` to catalog capabilities without resolving secrets.
    * @category Environment
    */
   async init(options?: EnvironmentInitOptions): Promise<Ecp> {
@@ -568,7 +575,11 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
         token: options.remoteInvoke.token,
       }
     }
-    await this.prepareForRun()
+    if (options?.prepare === "discovery") {
+      await this.prepareForDiscovery()
+    } else {
+      await this.prepareForRun()
+    }
     return new EcpImpl(this)
   }
 
@@ -591,19 +602,26 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     return searchCapabilities(query, descriptor, options)
   }
 
+  /** Bound extension ids for validation without resolving secrets. */
+  private boundExtensionIds(): string[] {
+    return this.extensionBindings.map((b) => String(resolveId(b.getRef())))
+  }
+
   /** @internal {@link EcpImpl} — validate. */
   async ecpValidate(workflow?: WorkflowManifest): Promise<ValidationResult> {
+    await this.prepareForDiscovery()
     if (workflow) {
-      await this.prepareForRun()
       return validateEnvironmentWithWorkflow(
         workflow,
         await this.ecpDescribe(),
-        this.resolveBindings(),
+        {
+          environmentId: this.environmentDef.id,
+          extensionIds: this.boundExtensionIds(),
+        },
         this.registry,
         this.environmentDef.version
       )
     }
-    await this.prepareForDiscovery()
     return {
       schema: "@executioncontrolprotocol.validation.result",
       version: LATEST_ECP_VERSION,
@@ -630,7 +648,10 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
     const validation = await validateEnvironmentWithWorkflow(
       workflow,
       await this.ecpDescribe(),
-      this.resolveBindings(),
+      {
+        environmentId: this.environmentDef.id,
+        extensionIds: this.boundExtensionIds(),
+      },
       this.registry,
       this.environmentDef.version
     )

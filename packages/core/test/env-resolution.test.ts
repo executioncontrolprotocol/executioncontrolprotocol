@@ -78,6 +78,32 @@ describe("env resolution chain", () => {
     ).rejects.toBeInstanceOf(EcpError)
   })
 
+  it("reports set-but-empty when the secrets resolver returns an empty string", async () => {
+    await expect(
+      resolveEnvConfigAsync(
+        { clientId: secrets("adobe-firefly-services/client-id") },
+        [{ id: SECRETS_RESOLVER_ID, resolve: () => "" }],
+        "@executioncontrolprotocol/adobe-firefly-services"
+      )
+    ).rejects.toMatchObject({
+      code: ECP_SECRET_MISSING,
+      message: "Secret adobe-firefly-services/client-id is set but empty",
+      path: "@executioncontrolprotocol/adobe-firefly-services.clientId",
+    })
+  })
+
+  it("includes the binding path on ECP_SECRET_MISSING", async () => {
+    await expect(
+      resolveEnvConfigAsync(
+        { clientId: secrets("adobe-firefly-services/client-id") },
+        [{ id: SECRETS_RESOLVER_ID, resolve: () => undefined }],
+        "@executioncontrolprotocol/adobe-firefly-services"
+      )
+    ).rejects.toMatchObject({
+      path: "@executioncontrolprotocol/adobe-firefly-services.clientId",
+    })
+  })
+
   it("uses optional fallback when secrets resolver is missing", async () => {
     const config = await resolveEnvConfigAsync(
       { x: secrets("missing/key", { optional: true, fallback: "fb" }) },

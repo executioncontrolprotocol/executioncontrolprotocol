@@ -1,7 +1,7 @@
 import { ECP_ENVIRONMENT_UNSUPPORTED, LATEST_ECP_VERSION } from "../types/index.js"
 import type { EnvironmentDescriptor, ValidationResult, WorkflowManifest } from "../types/index.js"
 import { validateWorkflow } from "./workflow.js"
-import type { ResolvedBindings } from "../environment/bindings.js"
+import { validateWorkflowStepInputs } from "./step-inputs.js"
 import {
   isBrowserEnvironmentId,
   resolveCapabilityExecution,
@@ -11,6 +11,17 @@ import type { ExtensionDefinition, SupportedEnvironment } from "../definitions/t
 import { satisfies } from "semver"
 
 export { ECP_ENVIRONMENT_UNSUPPORTED }
+
+/**
+ * Environment identity used when validating a workflow without resolved secrets.
+ * @category Validation
+ */
+export interface ValidateEnvironmentContext {
+  /** Environment definition id. */
+  environmentId: string
+  /** Bound extension ids (placeholders allowed). */
+  extensionIds: string[]
+}
 
 function formatSupported(supported: SupportedEnvironment[]): string {
   return supported
@@ -58,15 +69,15 @@ function extensionCompatibleWithEnvironment(
 export function validateEnvironmentWithWorkflow(
   workflow: WorkflowManifest,
   descriptor: EnvironmentDescriptor,
-  bindings: ResolvedBindings,
+  context: ValidateEnvironmentContext,
   registry: Registry,
   environmentVersion?: string
 ): ValidationResult {
   const result = validateWorkflow(workflow, descriptor)
-  const envId = String(bindings.runtime.id)
+  validateWorkflowStepInputs(workflow, registry, result)
+  const envId = context.environmentId
 
-  for (const ext of bindings.extensions) {
-    const id = String(ext.id)
+  for (const id of context.extensionIds) {
     const def = registry.getExtension(id)
     if (!extensionCompatibleWithEnvironment(def, envId, environmentVersion)) {
       const supported = def?.supportedEnvironments ?? []

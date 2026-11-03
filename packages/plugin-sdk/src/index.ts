@@ -28,6 +28,8 @@ export {
   clearHost,
   getHost,
   setHost,
+  setHostInitError,
+  throwIfHostInitFailed,
   type EcpHost,
   type OutputMode,
 } from "./host.js"

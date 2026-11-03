@@ -3,8 +3,14 @@ import { existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { afterEach, describe, expect, it } from "vitest"
-import { compileWorkflowSource, resolveBundleDir } from "@executioncontrolprotocol/node"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import {
+  compileWorkflowSource,
+  resolveBundleDir,
+  resolveCoreFromHost,
+  resetCoreMajorMismatchWarning,
+  warnIfCoreMajorMismatch,
+} from "@executioncontrolprotocol/node"
 import { Registry } from "@executioncontrolprotocol/core"
 import { registerTestExtension } from "../../src/testing/test-extension.js"
 
@@ -64,6 +70,7 @@ describe("compileWorkflowSource consumer resolution", () => {
 
   afterEach(async () => {
     await Promise.all(temps.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+    resetCoreMajorMismatchWarning()
   })
 
   it(
@@ -86,20 +93,31 @@ describe("compileWorkflowSource consumer resolution", () => {
     15_000
   )
 
-  it("fails when the package is missing from the consumer project (not monorepo dist paths)", async () => {
-    const project = await mkdtemp(join(tmpdir(), "ecp-consumer-miss-"))
-    temps.push(project)
-    const nested = join(project, "src")
-    await mkdir(nested, { recursive: true })
-    const filename = join(nested, "workflow.ts")
-    await writeFile(filename, SAMPLE_TS, "utf8")
+  it(
+    "falls back to the host / CLI core when the project has no node_modules copy",
+    async () => {
+      await registerTestExtension(new Registry())
+      expect(resolveCoreFromHost("@executioncontrolprotocol/core")).toBeTruthy()
 
-    const result = await compileWorkflowSource({ source: SAMPLE_TS, filename })
-    expect(result.ok).toBe(false)
-    const message = result.compileErrors?.[0]?.message ?? ""
-    expect(message).toMatch(/Could not resolve|Cannot find module|failed to resolve/i)
-    expect(message).not.toMatch(/packages[/\\]core[/\\]dist/)
-  })
+      const project = await mkdtemp(join(tmpdir(), "ecp-consumer-host-"))
+      temps.push(project)
+      const nested = join(project, "src")
+      await mkdir(nested, { recursive: true })
+      const filename = join(nested, "workflow.ts")
+      await writeFile(filename, SAMPLE_TS, "utf8")
+
+      const prevCwd = process.cwd()
+      try {
+        process.chdir(project)
+        const result = await compileWorkflowSource({ source: SAMPLE_TS, filename })
+        expect(result.ok).toBe(true)
+        expect(result.manifest?.schema).toBe("@executioncontrolprotocol.workflow")
+      } finally {
+        process.chdir(prevCwd)
+      }
+    },
+    15_000
+  )
 
   it("resolves from a nested absolute path even when cwd is elsewhere", async () => {
     await registerTestExtension(new Registry())
@@ -121,5 +139,50 @@ describe("compileWorkflowSource consumer resolution", () => {
     } finally {
       process.chdir(prevCwd)
     }
+  })
+
+  it("warns once when local and host core majors differ", async () => {
+    const localRoot = await mkdtemp(join(tmpdir(), "ecp-core-local-"))
+    const hostRoot = await mkdtemp(join(tmpdir(), "ecp-core-host-"))
+    temps.push(localRoot, hostRoot)
+    await writeFile(
+      join(localRoot, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/core", version: "1.0.0" }),
+      "utf8"
+    )
+    await writeFile(
+      join(hostRoot, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/core", version: "0.52.0" }),
+      "utf8"
+    )
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    resetCoreMajorMismatchWarning()
+    warnIfCoreMajorMismatch(join(localRoot, "dist", "index.js"), join(hostRoot, "dist", "index.js"))
+    expect(write).toHaveBeenCalledOnce()
+    expect(String(write.mock.calls[0]?.[0])).toMatch(/major 1 differs.*major 0/)
+    warnIfCoreMajorMismatch(join(localRoot, "dist", "index.js"), join(hostRoot, "dist", "index.js"))
+    expect(write).toHaveBeenCalledOnce()
+    write.mockRestore()
+  })
+
+  it("does not warn when majors match", async () => {
+    const localRoot = await mkdtemp(join(tmpdir(), "ecp-core-same-a-"))
+    const hostRoot = await mkdtemp(join(tmpdir(), "ecp-core-same-b-"))
+    temps.push(localRoot, hostRoot)
+    await writeFile(
+      join(localRoot, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/core", version: "0.52.0" }),
+      "utf8"
+    )
+    await writeFile(
+      join(hostRoot, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/core", version: "0.52.1" }),
+      "utf8"
+    )
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    resetCoreMajorMismatchWarning()
+    warnIfCoreMajorMismatch(join(localRoot, "index.js"), join(hostRoot, "index.js"))
+    expect(write).not.toHaveBeenCalled()
+    write.mockRestore()
   })
 })

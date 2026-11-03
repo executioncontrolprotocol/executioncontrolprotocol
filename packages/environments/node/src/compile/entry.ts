@@ -12,5 +12,8 @@ export {
   bundleWorkflowSource,
   bundleEnvironmentSource,
   resolveBundleDir,
+  resolveCoreFromHost,
+  warnIfCoreMajorMismatch,
+  resetCoreMajorMismatchWarning,
   isTypeScriptFile,
 } from "./transpile.js"

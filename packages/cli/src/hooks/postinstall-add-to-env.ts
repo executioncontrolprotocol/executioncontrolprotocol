@@ -1,5 +1,6 @@
 import type { Interfaces } from "@oclif/core"
 import { resolve } from "node:path"
+import { getHost } from "@executioncontrolprotocol/plugin-sdk"
 import {
   extensionIdFromPluginPackage,
   takePendingAddToEnv,
@@ -8,6 +9,7 @@ import {
   appendExtensionStubToConfigFile,
   defaultConfigPath,
 } from "../lib/config-file.js"
+import { writeGlobalCapabilityTypes } from "../lib/capability-types.js"
 
 interface PostinstallOptions {
   plugin?: {
@@ -18,14 +20,25 @@ interface PostinstallOptions {
 }
 
 /**
- * After `plugins install --add-to-config`, append a commented extension stub to the
- * config file. Does nothing when the flag was not passed.
+ * After `plugins install`, rebuild the host when possible and refresh global
+ * editor types. When `--add-to-config` was passed, also append a commented
+ * extension stub to the config file.
  * @category CLI
  */
 export default async function postinstallAddToEnv(
   this: { config: Interfaces.Config },
   options: PostinstallOptions
 ): Promise<void> {
+  try {
+    let host = getHost()
+    if (host.rebuild) {
+      host = await host.rebuild()
+    }
+    writeGlobalCapabilityTypes({ registry: host.registry })
+  } catch {
+    // Host may not be ready in every hook context; `ecp workflows types` rebuilds.
+  }
+
   const target = takePendingAddToEnv()
   if (target === undefined) return
   const plugin = options.plugin
