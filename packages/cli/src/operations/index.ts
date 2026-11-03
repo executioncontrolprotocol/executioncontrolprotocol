@@ -7,6 +7,7 @@ import {
   environmentsTopicOperation,
 } from "./environments.js"
 import { initOperation } from "./init.js"
+import { typesOperation } from "./types.js"
 import {
   pluginsBuildOperation,
   pluginsCheckOperation,
@@ -39,6 +40,7 @@ export const operations: OperationDefinition[] = [
   workflowsTopicOperation,
   runOperation,
   initOperation,
+  typesOperation,
   validateOperation,
   compileOperation,
   installOperation,

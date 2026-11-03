@@ -38,16 +38,34 @@ export interface EcpHost {
 /** `globalThis` key for the CLI host. @category CLI */
 export const ECP_HOST_SYMBOL = Symbol.for("ecp.host")
 
+/** `globalThis` key for a failed CLI host init (rethrown by commands). @category CLI */
+export const ECP_HOST_INIT_ERROR_SYMBOL = Symbol.for("ecp.hostInitError")
+
 interface GlobalWithHost {
   [ECP_HOST_SYMBOL]?: EcpHost
+  [ECP_HOST_INIT_ERROR_SYMBOL]?: unknown
 }
 
 /**
  * Store the process-wide CLI host. Called from the CLI `init` hook.
+ * Clears any prior host-init error.
  * @category CLI
  */
 export function setHost(host: EcpHost): void {
-  ;(globalThis as GlobalWithHost)[ECP_HOST_SYMBOL] = host
+  const g = globalThis as GlobalWithHost
+  g[ECP_HOST_SYMBOL] = host
+  delete g[ECP_HOST_INIT_ERROR_SYMBOL]
+}
+
+/**
+ * Record that the CLI init hook failed to build the host.
+ * Commands rethrow this instead of silently using a bare Node environment.
+ * @category CLI
+ */
+export function setHostInitError(error: unknown): void {
+  const g = globalThis as GlobalWithHost
+  g[ECP_HOST_INIT_ERROR_SYMBOL] = error
+  delete g[ECP_HOST_SYMBOL]
 }
 
 /**
@@ -55,7 +73,18 @@ export function setHost(host: EcpHost): void {
  * @category CLI
  */
 export function clearHost(): void {
-  delete (globalThis as GlobalWithHost)[ECP_HOST_SYMBOL]
+  const g = globalThis as GlobalWithHost
+  delete g[ECP_HOST_SYMBOL]
+  delete g[ECP_HOST_INIT_ERROR_SYMBOL]
+}
+
+/**
+ * Rethrow a stored host-init error when the hook ran but failed.
+ * @category CLI
+ */
+export function throwIfHostInitFailed(): void {
+  const error = (globalThis as GlobalWithHost)[ECP_HOST_INIT_ERROR_SYMBOL]
+  if (error !== undefined) throw error
 }
 
 /**
@@ -64,6 +93,7 @@ export function clearHost(): void {
  * @category CLI
  */
 export function getHost(_config?: Interfaces.Config): EcpHost {
+  throwIfHostInitFailed()
   const host = (globalThis as GlobalWithHost)[ECP_HOST_SYMBOL]
   if (!host) {
     throw new Error("ECP host is not initialized. The CLI init hook must run first.")

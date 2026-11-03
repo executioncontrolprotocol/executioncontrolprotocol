@@ -60,14 +60,44 @@ export class OsKeychainSecretsStore implements SecretsStore {
     entry.setPassword(value)
   }
 
+  /**
+   * On Windows, when `CredRead` by target fails, fall back to enumerating
+   * `ecp://*` credentials and matching the logical key (including keys with `/`).
+   */
+  private async getViaWin32Enumeration(logicalKey: string): Promise<string | undefined> {
+    try {
+      const { findCredentials } = await import("@napi-rs/keyring")
+      const want = canonicalSecretKey(logicalKey)
+      const creds = findCredentials(ECP_KEYRING_SERVICE, ECP_SECRET_REF_WIN32_ENUM_FILTER)
+      for (const cred of creds) {
+        if (this.listAccountToKey(cred.account) !== want) continue
+        const password = cred.password
+        if (password == null) return undefined
+        return password
+      }
+      return undefined
+    } catch {
+      return undefined
+    }
+  }
+
   async get(key: string): Promise<string | undefined> {
     try {
       const { Entry } = await import("@napi-rs/keyring")
       const entry = this.entryForLogicalKey(key, Entry)
       const password = entry.getPassword()
-      if (password == null || password === "") return undefined
+      if (password == null) {
+        if (process.platform === "win32") {
+          return this.getViaWin32Enumeration(key)
+        }
+        return undefined
+      }
+      // Empty string means set-but-empty (distinct from missing).
       return password
     } catch {
+      if (process.platform === "win32") {
+        return this.getViaWin32Enumeration(key)
+      }
       return undefined
     }
   }

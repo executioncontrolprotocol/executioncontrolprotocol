@@ -31,6 +31,8 @@ export interface EnvironmentConfigResolver {
 export interface ResolveEnvNameOptions {
   optional?: boolean
   fallback?: unknown
+  /** Config path for errors (`bindingId.configKey`). */
+  path?: string
 }
 
 function findResolver(
@@ -56,23 +58,26 @@ export async function resolveConfigName(
       if (options?.optional) return options.fallback
       const message = missingResolverMessage(resolverId, name)
       if (resolverId === SECRETS_RESOLVER_ID) {
-        throw new EcpError(ECP_SECRET_MISSING, message)
+        throw new EcpError(ECP_SECRET_MISSING, message, { path: options?.path })
       }
       throw new Error(message)
     }
     const value = await resolver.resolve(name)
-    if (value !== undefined) return value
+    if (value !== undefined && value !== "") return value
     if (options?.optional) return options.fallback
-    const unset = `${resolverErrorLabel(resolverId)} ${name} is not set`
     if (resolverId === SECRETS_RESOLVER_ID) {
-      throw new EcpError(ECP_SECRET_MISSING, unset)
+      const unset =
+        value === ""
+          ? `Secret ${name} is set but empty`
+          : `Secret ${name} is not set`
+      throw new EcpError(ECP_SECRET_MISSING, unset, { path: options?.path })
     }
-    throw new Error(unset)
+    throw new Error(`${resolverErrorLabel(resolverId)} ${name} is not set`)
   }
 
   for (const resolver of resolvers) {
     const value = await resolver.resolve(name)
-    if (value !== undefined) return value
+    if (value !== undefined && value !== "") return value
   }
   if (options?.optional) return options.fallback
   throw new Error(`Environment variable ${name} is not set`)
@@ -80,22 +85,26 @@ export async function resolveConfigName(
 
 /**
  * Resolve `$env` and `$secret` placeholders in a config object using extension resolvers.
+ * @param pathPrefix Binding id used in `ECP_SECRET_MISSING` paths (`id.configKey`).
  * @category Environment
  */
 export async function resolveEnvConfigAsync(
   config: Record<string, unknown>,
-  resolvers: EnvironmentConfigResolver[]
+  resolvers: EnvironmentConfigResolver[],
+  pathPrefix?: string
 ): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(config)) {
-    out[k] = await resolveEnvValueAsync(v, resolvers)
+    const path = pathPrefix ? `${pathPrefix}.${k}` : k
+    out[k] = await resolveEnvValueAsync(v, resolvers, path)
   }
   return out
 }
 
 async function resolveEnvValueAsync(
   v: unknown,
-  resolvers: EnvironmentConfigResolver[]
+  resolvers: EnvironmentConfigResolver[],
+  path?: string
 ): Promise<unknown> {
   if (v !== null && typeof v === "object" && "$env" in v) {
     const e = v as EnvValue
@@ -103,6 +112,7 @@ async function resolveEnvValueAsync(
     return resolveConfigName(e.$env, envResolvers, {
       optional: e.optional,
       fallback: e.fallback,
+      path,
     })
   }
   if (v !== null && typeof v === "object" && "$secret" in v) {
@@ -111,15 +121,16 @@ async function resolveEnvValueAsync(
       optional: s.optional,
       fallback: s.fallback,
       resolverId: SECRETS_RESOLVER_ID,
+      path,
     })
   }
   if (Array.isArray(v)) {
-    return Promise.all(v.map((item) => resolveEnvValueAsync(item, resolvers)))
+    return Promise.all(v.map((item, i) => resolveEnvValueAsync(item, resolvers, path ? `${path}.${i}` : undefined)))
   }
   if (v !== null && typeof v === "object") {
     const o: Record<string, unknown> = {}
     for (const [k, c] of Object.entries(v)) {
-      o[k] = await resolveEnvValueAsync(c, resolvers)
+      o[k] = await resolveEnvValueAsync(c, resolvers, path ? `${path}.${k}` : k)
     }
     return o
   }

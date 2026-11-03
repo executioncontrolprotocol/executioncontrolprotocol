@@ -21,7 +21,8 @@ export const workflowsTopicOperation = defineOperation("workflows")
   .withInput(z.object({}))
   .withMetadata({
     summary: "Author, validate, compile, and run workflow files",
-    description: "Subcommands: run, init, validate, compile, install. `ecp run` is an alias of `workflows run`.",
+    description:
+      "Subcommands: run, init, validate, compile, install, types. `ecp run` is an alias of `workflows run`.",
     useCases: ["Run a workflow file"],
   })
   .withHandler(async () =>
@@ -29,10 +30,11 @@ export const workflowsTopicOperation = defineOperation("workflows")
       "Usage: ecp workflows <subcommand>",
       "",
       "  run WORKFLOW         Compile, install missing plugins, run, and journal",
-      "  init [name]          Scaffold <name>.ecp.ts",
+      "  init [name]          Scaffold <name>.ecp.ts (optional --tsconfig for editors)",
       "  validate WORKFLOW    Validate without installing plugins",
       "  compile WORKFLOW     Emit the portable workflow manifest",
       "  install WORKFLOW     Install plugins the workflow file requires",
+      "  types                Refresh ~/.ecp/cache/types for the editor",
       "",
       "`ecp run` is an alias of `ecp workflows run`.",
       "Run ecp workflows <cmd> --help for flags.",

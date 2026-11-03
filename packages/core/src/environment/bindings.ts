@@ -79,14 +79,18 @@ export async function resolveBindingsForRun(
     runtime: {
       id: runtimeBinding.id,
       label: runtimeBinding.label,
-      config: await resolveEnvConfigAsync(runtimeBinding.rawConfig, resolvers),
+      config: await resolveEnvConfigAsync(
+        runtimeBinding.rawConfig,
+        resolvers,
+        String(runtimeBinding.id)
+      ),
     },
     extensions: await Promise.all(
       extensionBindings.map(async (b) => ({
         id: b.id,
         label: b.label,
         order: b.order,
-        config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
+        config: await resolveEnvConfigAsync(b.rawConfig, resolvers, String(b.id)),
       }))
     ),
     policies: await Promise.all(
@@ -94,14 +98,18 @@ export async function resolveBindingsForRun(
         id: b.id,
         label: b.label,
         order: b.order,
-        config: await resolveEnvConfigAsync(b.rawConfig, resolvers),
+        config: await resolveEnvConfigAsync(b.rawConfig, resolvers, String(b.id)),
       }))
     ),
     extensionHooks,
     policyHooks: await Promise.all(
       policyHooks.map(async (p) => ({
         hook: p.hook,
-        config: await resolveEnvConfigAsync(p.config, resolvers),
+        config: await resolveEnvConfigAsync(
+          p.config,
+          resolvers,
+          p.policyId ? String(p.policyId) : undefined
+        ),
         policyId: p.policyId,
       }))
     ),

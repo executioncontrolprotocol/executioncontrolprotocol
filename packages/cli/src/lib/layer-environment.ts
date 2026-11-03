@@ -24,7 +24,12 @@ import {
   loadConfigModule,
   NODE_ENVIRONMENT_ID,
 } from "@executioncontrolprotocol/node"
-import { getHost, setHost, type EcpHost } from "@executioncontrolprotocol/plugin-sdk"
+import {
+  getHost,
+  setHost,
+  throwIfHostInitFailed,
+  type EcpHost,
+} from "@executioncontrolprotocol/plugin-sdk"
 import { existingConfigFile } from "./config-file.js"
 import { createProcessEnvironment } from "./plugin-bindings.js"
 
@@ -160,11 +165,12 @@ export async function layerRunEnvironment(options: {
 
   if (!options.configFlag && definitionBindings.length === 0) {
     if (options.host) return { ecp: options.host.ecp, terminate: false }
+    throwIfHostInitFailed()
     try {
       return { ecp: getHost().ecp, terminate: false }
     } catch {
       const fallback = environment(NODE_ENVIRONMENT_ID, "cli")
-      return { ecp: await fallback.init(), terminate: true }
+      return { ecp: await fallback.init({ prepare: "discovery" }), terminate: true }
     }
   }
 
@@ -176,7 +182,7 @@ export async function layerRunEnvironment(options: {
   if (definitionBindings.length > 0) {
     env.with(definitionBindings)
   }
-  const ecp = await env.init()
+  const ecp = await env.init({ prepare: "discovery" })
   return { ecp, terminate: true }
 }
 
@@ -196,7 +202,7 @@ export async function rebuildProcessHost(
     }
   }
   const env = await createConfiguredProcessEnvironment({ config })
-  const ecp = await env.init()
+  const ecp = await env.init({ prepare: "discovery" })
   const host: EcpHost = {
     ecp,
     registry: ecp.getRegistry(),

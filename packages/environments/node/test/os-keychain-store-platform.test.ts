@@ -180,7 +180,32 @@ describe("OsKeychainSecretsStore platform entry construction", () => {
       mocks.getPassword.mockImplementation(() => {
         throw new Error("NoEntry")
       })
+      mocks.findCredentials.mockReturnValue([])
       await expect(store.get("missing")).resolves.toBeUndefined()
+    })
+
+    it("get falls back to win32 enumeration when CredRead fails for a listed key", async () => {
+      stubPlatform("win32")
+      mocks.getPassword.mockImplementation(() => {
+        throw new Error("NoEntry")
+      })
+      mocks.findCredentials.mockReturnValue([
+        {
+          account: `${ECP_SECRET_REF_PROTOCOL_PREFIX}adobe-firefly-services/client-id`,
+          password: "from-enum",
+        },
+      ])
+      await expect(store.get("adobe-firefly-services/client-id")).resolves.toBe("from-enum")
+      expect(mocks.findCredentials).toHaveBeenCalledWith(
+        ECP_KEYRING_SERVICE,
+        ECP_SECRET_REF_WIN32_ENUM_FILTER
+      )
+    })
+
+    it("get returns empty string when password is empty (set but empty)", async () => {
+      stubPlatform("win32")
+      mocks.getPassword.mockReturnValue("")
+      await expect(store.get("adobe-firefly-services/client-id")).resolves.toBe("")
     })
 
     it("get returns undefined when credential is missing (darwin)", async () => {

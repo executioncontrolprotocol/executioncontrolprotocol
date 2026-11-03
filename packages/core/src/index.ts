@@ -40,7 +40,14 @@ export type {
   HookDefinition,
   SupportedEnvironment,
 } from "./definitions/types.js"
-export { step } from "./bindings/step.js"
+export {
+  step,
+  StepBuilder,
+  type AsOptions,
+  type CapabilityInputs,
+  type CapabilityRef,
+  type StepInputFor,
+} from "./bindings/step.js"
 export { extension } from "./bindings/extension.js"
 export { policy } from "./bindings/policy.js"
 export { registerCoreFormats } from "./formats/register-core-formats.js"
@@ -249,6 +256,14 @@ export {
   type CompileDiagnostic,
 } from "./compile/index.js"
 export { validateWorkflow } from "./validate/workflow.js"
+export {
+  validateEnvironmentWithWorkflow,
+  type ValidateEnvironmentContext,
+} from "./validate/environment.js"
+export {
+  validateStepInputAgainstSchema,
+  validateWorkflowStepInputs,
+} from "./validate/step-inputs.js"
 export {
   capabilityIdSchema,
   commitModeSchema,
