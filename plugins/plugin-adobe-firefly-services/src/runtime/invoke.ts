@@ -151,6 +151,34 @@ export function unwrapAdobeResult(value: unknown): unknown {
 }
 
 /**
+ * Top-level body keys that mean the request carries an image input (CAIR Claim).
+ * @category Runtime
+ */
+const CAI_IMAGE_INPUT_KEYS = [
+  "image",
+  "mask",
+  "structure",
+  "style",
+  "referenceBlobs",
+  "background",
+  "object",
+] as const
+
+/**
+ * Default `caiClaimVersion` to 2 when the body has an image input and the
+ * author omitted the field (Firefly generate → edit chains need Claim 2.x).
+ * @category Runtime
+ */
+export function ensureDefaultCaiClaimVersion(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body
+  const record = body as Record<string, unknown>
+  if (record.caiClaimVersion !== undefined) return body
+  const hasImageInput = CAI_IMAGE_INPUT_KEYS.some((key) => record[key] !== undefined)
+  if (!hasImageInput) return body
+  return { ...record, caiClaimVersion: 2 }
+}
+
+/**
  * Build path, query, headers, and JSON body from a flat capability input.
  * When `bodySchema` is set, a provided `body` or any body parameter is merged
  * then parsed against that schema.
@@ -170,13 +198,15 @@ export function assembleAdobeOperationInput(
 
   let body: unknown
   if (bodySchema && (hasBody || hasBodyParam)) {
-    body = mergeParameterBody(input.body, bodyParams)
+    // Keep the merged body (not Zod's stripped `.data`) so product fields
+    // outside the projected schema remain available for post-processing.
+    body = ensureDefaultCaiClaimVersion(mergeParameterBody(input.body, bodyParams))
     const parsed = bodySchema.safeParse(body)
     if (!parsed.success) {
       throw new Error(`Adobe request body failed schema: ${parsed.error.message}`)
     }
   } else if (!bodySchema && hasBody) {
-    body = input.body
+    body = ensureDefaultCaiClaimVersion(input.body)
   }
 
   return {

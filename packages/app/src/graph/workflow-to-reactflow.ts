@@ -1,6 +1,12 @@
 import type { Registry } from "@executioncontrolprotocol/core"
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/core/types"
-import { extractDataEdges, longestMatchingPortId } from "./extract-data-edges.js"
+import {
+  extractDataEdges,
+  extractWhenEdges,
+  formatWhenBadge,
+  longestMatchingPortId,
+  WHEN_HANDLE_ID,
+} from "./extract-data-edges.js"
 import {
   acceptsReactFlowNode,
   jsonSchemaObjectProperties,
@@ -9,12 +15,13 @@ import {
   WORKFLOW_RETURNS_NODE_ID,
 } from "./io-from-schema.js"
 import { layoutReactFlowDocument } from "./layout.js"
-import { portsForStep, ensureOutputPort } from "./ports-from-zod.js"
+import { portsForStep, ensureOutputPort, ensureInputPort } from "./ports-from-zod.js"
 import type {
   CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
+  ReactFlowGroupData,
   ReactFlowNode,
   ReactFlowStepData,
 } from "./types.js"
@@ -55,12 +62,25 @@ function connectControl(
   }
 }
 
+function nestUnderParent(nodes: ReactFlowNode[], parentId: string): ReactFlowNode[] {
+  return nodes.map((node) =>
+    node.parentId
+      ? node
+      : {
+          ...node,
+          parentId,
+          extent: "parent" as const,
+        }
+  )
+}
+
 function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
   const ports = portsForStep(node, ctx.registry, ctx.capabilitySchemas?.[String(node.uses)])
   const data: ReactFlowStepData = {
     label: node.label ?? node.id,
     uses: String(node.uses),
     ...(node.as !== undefined ? { as: node.as } : {}),
+    ...(node.when !== undefined ? { whenBadge: formatWhenBadge(node.when) } : {}),
     inputs: ports.inputs,
     outputs: ports.outputs,
   }
@@ -84,13 +104,24 @@ function renderParallel(
 
   node.branches.forEach((branch) => {
     const seg = renderNodes(branch, ctx)
-    nodes.push(...seg.nodes)
+    nodes.push(...nestUnderParent(seg.nodes, node.id))
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
     exitIds.push(...seg.exitIds)
   })
 
-  return { nodes, edges, entryIds, exitIds }
+  const groupData: ReactFlowGroupData = {
+    label: node.label ?? "parallel",
+    kind: "parallel",
+  }
+  const group: ReactFlowNode = {
+    id: node.id,
+    type: "ecp-group",
+    position: { x: 0, y: 0 },
+    data: groupData,
+  }
+
+  return { nodes: [group, ...nodes], edges, entryIds, exitIds }
 }
 
 function renderBranch(
@@ -104,20 +135,52 @@ function renderBranch(
 
   for (const arm of node.branches) {
     const seg = renderNodes(arm.steps, ctx)
-    nodes.push(...seg.nodes)
+    nodes.push(...nestUnderParent(seg.nodes, node.id))
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
     exitIds.push(...seg.exitIds)
   }
 
-  return { nodes, edges, entryIds, exitIds }
+  const groupData: ReactFlowGroupData = {
+    label: node.label ?? "branch",
+    kind: "branch",
+    arms: node.branches.map((arm) => ({
+      ...(arm.label ? { label: arm.label } : {}),
+      whenBadge: formatWhenBadge(arm.when),
+    })),
+  }
+  const group: ReactFlowNode = {
+    id: node.id,
+    type: "ecp-group",
+    position: { x: 0, y: 0 },
+    data: groupData,
+  }
+
+  return { nodes: [group, ...nodes], edges, entryIds, exitIds }
 }
 
 function renderLoop(
   node: Extract<WorkflowNode, { type: "loop" }>,
   ctx: EncodeContext
 ): RenderSegment {
-  return renderNodes(node.steps, ctx)
+  const seg = renderNodes(node.steps, ctx)
+  const groupData: ReactFlowGroupData = {
+    label: node.label ?? "loop",
+    kind: "loop",
+    ...(node.until !== undefined ? { untilBadge: formatWhenBadge(node.until) } : {}),
+  }
+  const group: ReactFlowNode = {
+    id: node.id,
+    type: "ecp-group",
+    position: { x: 0, y: 0 },
+    data: groupData,
+  }
+  return {
+    nodes: [group, ...nestUnderParent(seg.nodes, node.id)],
+    edges: seg.edges,
+    entryIds: seg.entryIds,
+    exitIds: seg.exitIds,
+  }
 }
 
 function renderNode(node: WorkflowNode, ctx: EncodeContext): RenderSegment {
@@ -217,7 +280,8 @@ function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[])
 
 /**
  * Convert a workflow manifest into a positioned React Flow document.
- * Emits step nodes, projected Inputs / Outputs (`ecp-io`), and data edges.
+ * Emits step nodes, visual-only `ecp-group` frames, projected Inputs / Outputs,
+ * and data edges (including nested `$ref` and `.when()` gates).
  * Sequential control edges are used internally for layout, then discarded.
  * @category App
  */
@@ -241,6 +305,7 @@ export function workflowToReactFlow(
   if (returnsNode) nodes.push(returnsNode)
 
   const outputPortIdsByStepId = new Map<string, string[]>()
+  const inputPortIdsByStepId = new Map<string, string[]>()
   for (const node of body.nodes) {
     if (node.type !== "ecp-step") continue
     const data = node.data as ReactFlowStepData
@@ -248,21 +313,40 @@ export function workflowToReactFlow(
       node.id,
       data.outputs.map((port) => port.id)
     )
+    inputPortIdsByStepId.set(
+      node.id,
+      data.inputs.map((port) => port.id)
+    )
   }
+  const acceptsKeys = acceptsPropertyKeys(manifest)
   const dataEdges = extractDataEdges(
     manifest.steps,
-    acceptsPropertyKeys(manifest),
-    outputPortIdsByStepId
+    acceptsKeys,
+    outputPortIdsByStepId,
+    inputPortIdsByStepId
   )
+  const whenEdges = extractWhenEdges(manifest.steps, acceptsKeys)
   const returnsEdges = extractReturnsEdges(manifest, nodes)
-  const allDataEdges = [...dataEdges, ...returnsEdges]
+  const allDataEdges = [...dataEdges, ...whenEdges, ...returnsEdges]
 
   for (const edge of allDataEdges) {
-    if (!edge.sourceHandle) continue
-    const source = nodes.find((n) => n.id === edge.source)
-    if (!source || source.type !== "ecp-step") continue
-    const data = source.data as ReactFlowStepData
-    ensureOutputPort(data.outputs, edge.sourceHandle)
+    if (edge.sourceHandle) {
+      const source = nodes.find((n) => n.id === edge.source)
+      if (source && source.type === "ecp-step") {
+        const data = source.data as ReactFlowStepData
+        ensureOutputPort(data.outputs, edge.sourceHandle)
+      }
+    }
+    if (edge.targetHandle) {
+      const target = nodes.find((n) => n.id === edge.target)
+      if (target && target.type === "ecp-step") {
+        const data = target.data as ReactFlowStepData
+        ensureInputPort(data.inputs, edge.targetHandle)
+        if (edge.targetHandle === WHEN_HANDLE_ID && !data.whenBadge) {
+          data.whenBadge = "when"
+        }
+      }
+    }
   }
 
   const layoutEdges: ReactFlowEdge[] = [...body.edges, ...allDataEdges]

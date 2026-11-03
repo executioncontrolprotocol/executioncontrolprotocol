@@ -11,9 +11,11 @@ restores the encoder and this document into `packages/app/src/graph/` from the `
 
 Non-negotiables:
 
-- Flat step nodes only (no published workflow or group wrappers).
-- Published edges are **data** (`$ref`) with handles, never visible control source-to-target
-  lines.
-- Port bindings are literals and refs; make sure output handles exist for every edged ref.
+- Published edges are **data** (`$ref` / `$state`, including nested paths and `.when()` gates)
+  with handles, never visible control source-to-target lines.
+- Visual-only `ecp-group` frames are allowed for parallel / branch / loop structure. They are
+  not authored from the canvas in this pass; children use `parentId`.
+- Port bindings are literals and refs; make sure output and nested input handles exist for every
+  edged ref.
 - Fan-out through multiple `$ref`s is supported. Don't invent multi-source fan-in on one input
   key.

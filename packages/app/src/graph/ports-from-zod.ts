@@ -6,7 +6,7 @@ import {
   jsonSchemaObjectProperties,
 } from "@executioncontrolprotocol/core"
 import type { InputValue, StepNode } from "@executioncontrolprotocol/core/types"
-import { parseStateRef } from "./extract-data-edges.js"
+import { parseStateRef, walkInputRefs, WHEN_HANDLE_ID } from "./extract-data-edges.js"
 import type { CapabilityIoSchemas, ReactFlowPort } from "./types.js"
 import {
   isFileValueSchemaHint,
@@ -121,11 +121,52 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
       continue
     }
 
+    // Nested refs under an object literal — keep the top-level preview and add dotted ports.
+    let nestedRefCount = 0
+    walkInputRefs(value, name, (inputPath, rawRef) => {
+      nestedRefCount += 1
+      let nested = byName.get(inputPath)
+      if (!nested) {
+        nested = { id: inputPath, name: inputPath, typeLabel: "unknown", required: false }
+        inputs.push(nested)
+        byName.set(inputPath, nested)
+      }
+      const parsed = parseStateRef(rawRef)
+      nested.binding = "ref"
+      nested.refPath = parsed
+        ? parsed.fieldPath
+          ? `${parsed.asKey}.${parsed.fieldPath}`
+          : parsed.asKey
+        : rawRef.replace(/^state\./, "")
+      delete nested.valuePreview
+      delete nested.valueTitle
+    })
+    if (nestedRefCount > 0) {
+      // Top-level object still shows as a partial literal when mixed with nested refs.
+      const full = formatLiteralValue(value)
+      port.binding = "literal"
+      port.valueTitle = full
+      port.valuePreview = truncateLiteralPreview(full)
+      delete port.refPath
+      continue
+    }
+
     const full = formatLiteralValue(value)
     port.binding = "literal"
     port.valueTitle = full
     port.valuePreview = truncateLiteralPreview(full)
     delete port.refPath
+  }
+
+  if (step.when && !byName.has(WHEN_HANDLE_ID)) {
+    inputs.push({
+      id: WHEN_HANDLE_ID,
+      name: WHEN_HANDLE_ID,
+      typeLabel: "when",
+      required: false,
+      binding: "ref",
+      refPath: "when",
+    })
   }
 }
 
@@ -139,6 +180,23 @@ export function ensureOutputPort(outputs: ReactFlowPort[], handleId: string): vo
     id: handleId,
     name: handleId,
     typeLabel: "unknown",
+  })
+}
+
+/**
+ * Ensure an input port exists for a data-edge target handle (including nested paths).
+ * @category App
+ */
+export function ensureInputPort(inputs: ReactFlowPort[], handleId: string): void {
+  if (inputs.some((p) => p.id === handleId)) return
+  inputs.push({
+    id: handleId,
+    name: handleId,
+    typeLabel: handleId === WHEN_HANDLE_ID ? "when" : "unknown",
+    required: false,
+    ...(handleId === WHEN_HANDLE_ID
+      ? { binding: "ref" as const, refPath: "when" }
+      : {}),
   })
 }
 

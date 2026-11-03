@@ -34,14 +34,25 @@ export interface ReactFlowStepData {
   uses?: string
   /** Commit key (`as`). */
   as?: string
+  /** Short `.when()` expression badge when the step is gated. */
+  whenBadge?: string
   /** Input handles. */
   inputs: ReactFlowPort[]
   /** Output handles. */
   outputs: ReactFlowPort[]
 }
 
+/** Branch arm chip on a visual group frame. @category App */
+export interface ReactFlowGroupArm {
+  /** Arm label when present. */
+  label?: string
+  /** Short `when` expression for the arm. */
+  whenBadge: string
+}
+
 /**
- * Group node payload (optional viewer type; encoder emits step nodes only).
+ * Visual-only group frame for parallel / branch / loop structure.
+ * Published edges remain data-only; groups do not author structure from the canvas.
  * @category App
  */
 export interface ReactFlowGroupData {
@@ -49,6 +60,10 @@ export interface ReactFlowGroupData {
   label: string
   /** Structural kind. */
   kind: "parallel" | "branch" | "loop" | "workflow"
+  /** Branch arms (label + when) when `kind` is `branch`. */
+  arms?: ReactFlowGroupArm[]
+  /** Loop `until` badge when `kind` is `loop`. */
+  untilBadge?: string
 }
 
 /** Workflow I/O projection (`accepts` / `returns`) — not a capability step. @category App */
@@ -78,6 +93,10 @@ export interface ReactFlowNode {
   data: ReactFlowStepData | ReactFlowGroupData | ReactFlowIoData
   /** Soft size hint for layout. */
   style?: { width?: number; height?: number }
+  /** Parent group id when nested inside an `ecp-group` frame. */
+  parentId?: string
+  /** Constrain dragging to the parent group when nested. */
+  extent?: "parent"
 }
 
 /** Edge kind. @category App */

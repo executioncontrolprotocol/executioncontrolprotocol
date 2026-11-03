@@ -96,6 +96,14 @@ export function EcpStepNode({ id, data }: NodeProps) {
           {step.as ? (
             <div className="mt-1 font-mono text-[10px] text-primary-fixed">as {step.as}</div>
           ) : null}
+          {step.whenBadge ? (
+            <div
+              className="mt-1 inline-flex max-w-full rounded border border-outline-variant bg-surface-container-high px-1.5 py-0.5 font-mono text-[9px] text-tertiary-fixed-dim"
+              title={step.whenBadge}
+            >
+              when {step.whenBadge}
+            </div>
+          ) : null}
           {step.hostBadge ? (
             <div className="mt-1 font-mono text-[10px] text-on-surface-variant">{step.hostBadge}</div>
           ) : null}

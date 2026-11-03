@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { ECP_INPUT_INVALID, EcpError } from "@executioncontrolprotocol/core/types"
-import { assembleAdobeOperationInput } from "../src/runtime/invoke.js"
+import {
+  assembleAdobeOperationInput,
+  ensureDefaultCaiClaimVersion,
+} from "../src/runtime/invoke.js"
 
 const generateBodySchema = z.object({
   prompt: z.string().min(1),
@@ -110,5 +113,71 @@ describe("assembleAdobeOperationInput", () => {
     expect(assembled.body).toEqual({ prompt: "sunset" })
     expect(assembled).not.toHaveProperty("pollIntervalMs")
     expect(assembled).not.toHaveProperty("pollTimeoutMs")
+  })
+})
+
+const expandBodySchema = z.object({
+  image: z.object({ source: z.object({ url: z.string().optional() }).passthrough() }),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
+  prompt: z.string().optional(),
+})
+
+const expandBodyKeys = { body: ["image", "caiClaimVersion", "prompt"] }
+
+describe("ensureDefaultCaiClaimVersion", () => {
+  it("defaults to 2 when an image input is present and the field is omitted", () => {
+    expect(
+      ensureDefaultCaiClaimVersion({
+        image: { source: { url: "https://example.com/a.png" } },
+      }),
+    ).toEqual({
+      image: { source: { url: "https://example.com/a.png" } },
+      caiClaimVersion: 2,
+    })
+  })
+
+  it("leaves an explicit caiClaimVersion alone", () => {
+    expect(
+      ensureDefaultCaiClaimVersion({
+        image: { source: { url: "https://example.com/a.png" } },
+        caiClaimVersion: 1,
+      }),
+    ).toEqual({
+      image: { source: { url: "https://example.com/a.png" } },
+      caiClaimVersion: 1,
+    })
+  })
+
+  it("does not add caiClaimVersion when there is no image input", () => {
+    expect(ensureDefaultCaiClaimVersion({ prompt: "sunset" })).toEqual({ prompt: "sunset" })
+  })
+})
+
+describe("assembleAdobeOperationInput caiClaimVersion", () => {
+  it("defaults caiClaimVersion to 2 for expand-style image requests", () => {
+    const assembled = assembleAdobeOperationInput(
+      { image: { source: { url: "https://example.com/a.png" } } },
+      expandBodyKeys,
+      expandBodySchema,
+    )
+    expect(assembled.body).toEqual({
+      image: { source: { url: "https://example.com/a.png" } },
+      caiClaimVersion: 2,
+    })
+  })
+
+  it("keeps an author-provided caiClaimVersion", () => {
+    const assembled = assembleAdobeOperationInput(
+      {
+        image: { source: { url: "https://example.com/a.png" } },
+        caiClaimVersion: 1,
+      },
+      expandBodyKeys,
+      expandBodySchema,
+    )
+    expect(assembled.body).toEqual({
+      image: { source: { url: "https://example.com/a.png" } },
+      caiClaimVersion: 1,
+    })
   })
 })

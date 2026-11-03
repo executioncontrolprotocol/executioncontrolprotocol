@@ -1,7 +1,18 @@
 export { workflowToReactFlow } from "./workflow-to-reactflow.js"
 export { renderPatchedManifest, renderPatchedStepInput } from "./patch-source.js"
 export { shouldApplyWatchedSource } from "./dirty-buffer.js"
-export { extractDataEdges, parseStateRef, longestMatchingPortId } from "./extract-data-edges.js"
+export {
+  collectSteps,
+  extractDataEdges,
+  extractWhenEdges,
+  formatWhenBadge,
+  longestMatchingPortId,
+  parseStateRef,
+  resolveInputHandle,
+  stateKeyFromWhenExpr,
+  walkInputRefs,
+  WHEN_HANDLE_ID,
+} from "./extract-data-edges.js"
 export {
   acceptsReactFlowNode,
   returnsReactFlowNode,
@@ -15,6 +26,7 @@ export {
   formatLiteralValue,
   truncateLiteralPreview,
   ensureOutputPort,
+  ensureInputPort,
   toJsonObjectSchema,
 } from "./ports-from-zod.js"
 export {
@@ -40,6 +52,7 @@ export type {
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
+  ReactFlowGroupArm,
   ReactFlowGroupData,
   ReactFlowIoData,
   ReactFlowIoKind,

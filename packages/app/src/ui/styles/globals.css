@@ -672,6 +672,10 @@
     transform: translateY(0);
   }
 
+  .ecp-rf-group {
+    pointer-events: none;
+  }
+
   .ecp-rf-node--io {
     border-style: dashed;
   }

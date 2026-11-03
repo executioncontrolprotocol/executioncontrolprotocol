@@ -249,7 +249,8 @@ export const Schema_PreciseUpscaleTaskLink: z.ZodTypeAny = z.lazy(() => (z.objec
 export const Schema_PreciseUpsamplerRequestV3: z.ZodTypeAny = z.lazy(() => (z.object({
   "image": Schema_BaseInputImageV3,
   "seeds": z.array(z.number().int()),
-  "upscaleFactor": Schema_UpsampleFactor.optional()
+  "upscaleFactor": Schema_UpsampleFactor.optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_UpsampleFactor: z.ZodTypeAny = z.lazy(() => (z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(6)])))
@@ -270,7 +271,8 @@ export const Schema_ExpandImageRequestV3: z.ZodTypeAny = z.lazy(() => (z.object(
   "placement": Schema_Placement.optional(),
   "prompt": z.string().min(1).max(1024).optional(),
   "seeds": z.array(z.number().int()).optional(),
-  "size": Schema_Size.optional()
+  "size": Schema_Size.optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_InputImageV3: z.ZodTypeAny = z.lazy(() => (z.object({
@@ -313,7 +315,8 @@ export const Schema_FillImageRequestV3: z.ZodTypeAny = z.lazy(() => (z.object({
   "prompt": z.string().min(1).max(1024).optional(),
   "promptBiasingLocaleCode": z.string().optional(),
   "seeds": z.array(z.number().int()).optional(),
-  "size": Schema_Size.optional()
+  "size": Schema_Size.optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_Body_generateImagesV3Async: z.ZodTypeAny = z.lazy(() => (z.object({
@@ -333,7 +336,8 @@ export const Schema_GenerateImagesRequestV3: z.ZodTypeAny = z.lazy(() => (z.obje
   "structure": Schema_StructureReferenceV3.optional(),
   "style": Schema_StylesV3.optional(),
   "upsamplerType": z.enum(["default", "low_creativity"]).optional(),
-  "visualIntensity": z.number().int().min(2).max(10).optional()
+  "visualIntensity": z.number().int().min(2).max(10).optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_StructureReferenceV3: z.ZodTypeAny = z.lazy(() => (z.object({
@@ -369,7 +373,8 @@ export const Schema_GenerateObjectCompositeRequestV3: z.ZodTypeAny = z.lazy(() =
   "prompt": z.string().min(1).max(1024),
   "seeds": z.array(z.number().int()).optional(),
   "size": Schema_Size.optional(),
-  "style": Schema_StylesV3.optional()
+  "style": Schema_StylesV3.optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_Body_generateSimilarImagesV3Async: z.ZodTypeAny = z.lazy(() => (z.object({
@@ -381,7 +386,8 @@ export const Schema_GenerateSimilarImagesRequestV3: z.ZodTypeAny = z.lazy(() => 
   "image": Schema_BaseInputImageV3,
   "numVariations": z.number().int().min(1).max(4).optional(),
   "seeds": z.array(z.number().int()).optional(),
-  "size": Schema_Size.optional()
+  "size": Schema_Size.optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_FireflyModelId: z.ZodTypeAny = z.lazy(() => (z.enum(["firefly_image"])))
@@ -394,7 +400,8 @@ export const Schema_ImageGenerateRequestV3: z.ZodTypeAny = z.lazy(() => (z.objec
   "modelSpecificPayload": Schema_ModelSpecificPayloadV3.optional(),
   "numVariations": z.number().int().max(1).optional(),
   "referenceBlobs": z.array(Schema_ReferenceBlobV3).optional(),
-  "seeds": z.array(z.number().int()).optional()
+  "seeds": z.array(z.number().int()).optional(),
+  "caiClaimVersion": z.union([z.literal(1), z.literal(2)]).optional()
 })))
 
 export const Schema_ModelSpecificPayloadV3: z.ZodTypeAny = z.lazy(() => (z.object({

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import {
+  branch,
   capabilityFor,
   defineExtension,
+  expr,
   parallel,
   ref,
   Registry,
@@ -17,6 +19,7 @@ import {
   workflowToReactFlow,
   WORKFLOW_ACCEPTS_NODE_ID,
   WORKFLOW_RETURNS_NODE_ID,
+  type ReactFlowGroupData,
   type ReactFlowIoData,
   type ReactFlowStepData,
 } from "../src/graph/index.js"
@@ -100,7 +103,7 @@ describe("workflowToReactFlow", () => {
     expect(steps[0]!.position.x).not.toBe(steps[1]!.position.x)
   })
 
-  it("flattens parallel branches to step nodes", () => {
+  it("emits an ecp-group around parallel child steps", () => {
     const manifest = workflow("Flow")
       .run([
         parallel([
@@ -110,8 +113,78 @@ describe("workflowToReactFlow", () => {
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
-    expect(doc.nodes.filter((n) => n.type === "ecp-step")).toHaveLength(2)
-    expect(doc.nodes.some((n) => n.type === "ecp-group")).toBe(false)
+    const steps = doc.nodes.filter((n) => n.type === "ecp-step")
+    expect(steps).toHaveLength(2)
+    const group = doc.nodes.find((n) => n.type === "ecp-group")
+    expect(group).toBeDefined()
+    expect((group!.data as ReactFlowGroupData).kind).toBe("parallel")
+    expect(steps.every((n) => n.parentId === group!.id)).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+  })
+
+  it("extracts nested $ref edges with dotted target handles", () => {
+    const manifest = workflow("Nested")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "Gen").with({ value: "a" }).as("gen"),
+        step("@vendor/missing.expand", "Expand")
+          .id("expand")
+          .with({ image: { url: ref("gen.echo") } })
+          .as("out"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.targetHandle).toBe("image.url")
+    expect(edges[0]!.sourceHandle).toBe("echo")
+  })
+
+  it("shows when badges and a when data edge from Inputs", () => {
+    const manifest = workflow("Gated")
+      .accepts({
+        type: "object",
+        properties: { expand: { type: "boolean" } },
+        required: ["expand"],
+      })
+      .run([
+        step("@executioncontrolprotocol/test.echo", "Maybe")
+          .id("maybe")
+          .with({ value: "x" })
+          .when(expr.eq("expand", true))
+          .as("maybe"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const stepNode = doc.nodes.find((n) => n.id === "maybe")
+    expect((stepNode!.data as ReactFlowStepData).whenBadge).toContain("expand")
+    const whenEdge = doc.edges.find(
+      (e) => e.target === "maybe" && e.targetHandle === "when"
+    )
+    expect(whenEdge?.source).toBe(WORKFLOW_ACCEPTS_NODE_ID)
+    expect(whenEdge?.sourceHandle).toBe("expand")
+  })
+
+  it("shows branch arm when text on the group", () => {
+    const manifest = workflow("Arms")
+      .run([
+        branch([
+          step("@executioncontrolprotocol/test.echo", "Yes")
+            .with({ value: "y" })
+            .when(expr.eq("flag", true))
+            .as("yes"),
+          step("@executioncontrolprotocol/test.echo", "No")
+            .with({ value: "n" })
+            .when(expr.eq("flag", false))
+            .as("no"),
+        ]),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const group = doc.nodes.find((n) => n.type === "ecp-group")
+    expect(group).toBeDefined()
+    const data = group!.data as ReactFlowGroupData
+    expect(data.kind).toBe("branch")
+    expect(data.arms?.some((arm) => arm.whenBadge.includes("flag"))).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
   })
 
   it("projects accepts ports and $ref edges from the Inputs node", () => {

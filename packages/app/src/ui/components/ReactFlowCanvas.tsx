@@ -23,6 +23,7 @@ import type {
 } from "../../graph/index.js"
 import { WORKFLOW_ACCEPTS_NODE_ID } from "../../graph/index.js"
 import { EcpStepNode } from "./EcpStepNode.js"
+import { EcpGroupNode } from "./EcpGroupNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EdgeMenuControlOverlay } from "./EdgeMenuControlOverlay.js"
@@ -59,6 +60,7 @@ const SELECTED_EDGE_Z_INDEX = 1000
 
 const nodeTypes = {
   "ecp-step": EcpStepNode,
+  "ecp-group": EcpGroupNode,
   "ecp-io": EcpIoNode,
 }
 
@@ -120,14 +122,27 @@ function ReactFlowInternalsSync({ nodeIds }: { nodeIds: string[] }) {
 
 function toRfNodes(nodes: ReactFlowNode[]): Node[] {
   return nodes
-    .filter((n) => n.type === "ecp-step" || n.type === "ecp-io")
+    .filter((n) => n.type === "ecp-step" || n.type === "ecp-io" || n.type === "ecp-group")
     .map((n) => ({
       id: n.id,
       type: n.type,
       position: n.position,
       data: { ...n.data } as Record<string, unknown>,
       deletable: false,
-      style: n.style?.width !== undefined ? { width: n.style.width } : undefined,
+      ...(n.parentId ? { parentId: n.parentId } : {}),
+      ...(n.extent ? { extent: n.extent } : {}),
+      style:
+        n.type === "ecp-group"
+          ? {
+              width: n.style?.width,
+              height: n.style?.height,
+            }
+          : n.style?.width !== undefined
+            ? { width: n.style.width }
+            : undefined,
+      ...(n.type === "ecp-group"
+        ? { zIndex: -1, selectable: false, draggable: false, connectable: false }
+        : {}),
     }))
 }
 
