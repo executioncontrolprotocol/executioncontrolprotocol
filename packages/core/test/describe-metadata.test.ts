@@ -199,6 +199,74 @@ describe("jsonSchemaFromZod constraints", () => {
       }
     })
   })
+
+  it("projects a literal-only union as a typed enum", () => {
+    const schema = z.object({
+      caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional()
+    })
+    const json = jsonSchemaFromZod(schema)
+    expect(json).toMatchObject({
+      type: "object",
+      properties: {
+        caiClaimVersion: { type: "integer", enum: [1, 2] }
+      }
+    })
+    expect(json).not.toHaveProperty("required")
+  })
+
+  it("projects a mixed object union as anyOf", () => {
+    const schema = z.union([
+      z.object({ kind: z.literal("a"), value: z.string() }),
+      z.object({ kind: z.literal("b"), count: z.number() })
+    ])
+    const json = jsonSchemaFromZod(schema)
+    expect(json).toMatchObject({
+      anyOf: [
+        {
+          type: "object",
+          required: ["kind", "value"],
+          properties: {
+            kind: { type: "string", enum: ["a"] },
+            value: { type: "string" }
+          }
+        },
+        {
+          type: "object",
+          required: ["kind", "count"],
+          properties: {
+            kind: { type: "string", enum: ["b"] },
+            count: { type: "number" }
+          }
+        }
+      ]
+    })
+  })
+
+  it("still projects nested objects next to unions", () => {
+    const schema = z.object({
+      size: z.object({
+        width: z.number().int().min(1),
+        height: z.number().int().min(1)
+      }),
+      factor: z.union([z.literal(2), z.literal(4)])
+    })
+    const json = jsonSchemaFromZod(schema)
+    expect(json).toMatchObject({
+      type: "object",
+      required: ["size", "factor"],
+      properties: {
+        size: {
+          type: "object",
+          required: ["width", "height"],
+          properties: {
+            width: { type: "integer", minimum: 1 },
+            height: { type: "integer", minimum: 1 }
+          }
+        },
+        factor: { type: "integer", enum: [2, 4] }
+      }
+    })
+  })
 })
 
 describe("environment.search metadata haystack", () => {

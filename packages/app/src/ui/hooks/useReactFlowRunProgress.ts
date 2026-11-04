@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react"
 import {
   reactFlowRunProgress,
+  WORKFLOW_ACCEPTS_NODE_ID,
+  WORKFLOW_RETURNS_NODE_ID,
   type ReactFlowRunLifecycleDetail,
   type ReactFlowStepStatusDetail,
 } from "../../graph/index.js"
 import {
   applyStepStatus,
+  markPendingAsSkipped,
   resetStepStatuses,
   type StepStatusMap,
 } from "../lib/reactflow-run-status.js"
@@ -49,6 +52,12 @@ export function useReactFlowRunProgress(stepIds: string[], runBusy = false) {
     }
     const onDone = (_ev: Event) => {
       void (_ev as CustomEvent<ReactFlowRunLifecycleDetail>).detail
+      // Steps that never started (untaken branch arms / false `.when()`) become skipped.
+      // Leave Inputs / Outputs projection nodes pending so edge styling stays neutral.
+      const skippable = ids.filter(
+        (id) => id !== WORKFLOW_ACCEPTS_NODE_ID && id !== WORKFLOW_RETURNS_NODE_ID
+      )
+      setStatuses((current) => markPendingAsSkipped(current, skippable))
       setRunActive(false)
     }
 

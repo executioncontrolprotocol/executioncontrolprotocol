@@ -28,6 +28,10 @@ import { ReactFlowCanvas } from "./components/ReactFlowCanvas.js"
 import { RunPanel, type RunPanelPhase } from "./components/RunPanel.js"
 import { SplitPane } from "./components/SplitPane.js"
 import { StatusFooter } from "./components/StatusFooter.js"
+import {
+  RouteConfigureDialog,
+  type RouteConfigureTarget,
+} from "./components/RouteConfigureDialog.js"
 import { StepConfigureDialog } from "./components/StepConfigureDialog.js"
 import { ValidationView } from "./components/ValidationView.js"
 import { useSplitPane } from "./hooks/useSplitPane.js"
@@ -42,6 +46,11 @@ import {
   disconnectPorts,
   patchOpsForManifest,
 } from "./lib/graph-edit.js"
+import {
+  renderConfiguredRouteSource,
+  renderUnwrappedRouteSource,
+  renderWrappedStepSource,
+} from "./lib/route-configure.js"
 import { findStepById } from "./lib/step-configure.js"
 import { ioFieldsFromSchema, workflowContract } from "./lib/workflow-io.js"
 
@@ -101,6 +110,9 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("workflow")
   const [configureStepId, setConfigureStepId] = useState<string | undefined>()
   const [configureIoKind, setConfigureIoKind] = useState<ReactFlowIoKind | undefined>()
+  const [configureRouteTarget, setConfigureRouteTarget] = useState<
+    RouteConfigureTarget | undefined
+  >()
   const [configureBusy, setConfigureBusy] = useState(false)
   const [configureError, setConfigureError] = useState<string | null>(null)
   const [runPhase, setRunPhase] = useState<RunPanelPhase>("input")
@@ -426,6 +438,39 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
                   onDiscoverCapability={
                     readOnly || !loaded ? undefined : (origin) => setDiscovery(origin)
                   }
+                  onConfigureRoute={
+                    readOnly || !loaded
+                      ? undefined
+                      : (route) => {
+                          setConfigureError(null)
+                          setConfigureRouteTarget({ mode: "edit", route })
+                        }
+                  }
+                  onConfigureDataEdge={
+                    readOnly || !loaded
+                      ? undefined
+                      : (targetStepId) => {
+                          setConfigureError(null)
+                          setConfigureRouteTarget({ mode: "wrap", targetStepId })
+                        }
+                  }
+                  onUnwrapRoute={
+                    readOnly || !loaded
+                      ? undefined
+                      : (structureId) => {
+                          try {
+                            const nextSource = renderUnwrappedRouteSource(
+                              loaded.manifest,
+                              structureId
+                            )
+                            void persist(nextSource, { remount: true })
+                          } catch (error: unknown) {
+                            setStatus(
+                              error instanceof Error ? error.message : "Unwrap failed"
+                            )
+                          }
+                        }
+                  }
                   readOnly={readOnly}
                 />
               </div>
@@ -546,6 +591,46 @@ export function AppShell({ adapter }: { adapter: HostAdapter }) {
             void saveGraphEdit(applyIoConfigure(loaded.manifest, payload)).finally(() =>
               setConfigureBusy(false)
             )
+          }}
+        />
+      ) : null}
+      {configureRouteTarget && loaded && !readOnly ? (
+        <RouteConfigureDialog
+          target={configureRouteTarget}
+          busy={configureBusy}
+          error={configureError}
+          onClose={() => {
+            setConfigureRouteTarget(undefined)
+            setConfigureError(null)
+          }}
+          onSave={(fields) => {
+            setConfigureBusy(true)
+            setConfigureError(null)
+            try {
+              const nextSource =
+                configureRouteTarget.mode === "wrap"
+                  ? renderWrappedStepSource(
+                      loaded.manifest,
+                      configureRouteTarget.targetStepId,
+                      fields
+                    )
+                  : renderConfiguredRouteSource(
+                      loaded.manifest,
+                      configureRouteTarget.route,
+                      fields
+                    )
+              void persist(nextSource, { remount: true })
+                .then(() => {
+                  setConfigureRouteTarget(undefined)
+                })
+                .catch((error: unknown) => {
+                  setConfigureError(error instanceof Error ? error.message : "Save failed")
+                })
+                .finally(() => setConfigureBusy(false))
+            } catch (error: unknown) {
+              setConfigureBusy(false)
+              setConfigureError(error instanceof Error ? error.message : "Invalid expression")
+            }
           }}
         />
       ) : null}

@@ -1,6 +1,13 @@
 import type { Registry } from "@executioncontrolprotocol/core"
 import type { StepNode, WorkflowManifest, WorkflowNode } from "@executioncontrolprotocol/core/types"
-import { extractDataEdges, longestMatchingPortId } from "./extract-data-edges.js"
+import {
+  collectSteps,
+  extractDataEdges,
+  extractWhenEdges,
+  formatWhenBadge,
+  longestMatchingPortId,
+  WHEN_HANDLE_ID,
+} from "./extract-data-edges.js"
 import {
   acceptsReactFlowNode,
   jsonSchemaObjectProperties,
@@ -9,13 +16,14 @@ import {
   WORKFLOW_RETURNS_NODE_ID,
 } from "./io-from-schema.js"
 import { layoutReactFlowDocument } from "./layout.js"
-import { portsForStep, ensureOutputPort } from "./ports-from-zod.js"
+import { portsForStep, ensureOutputPort, ensureInputPort } from "./ports-from-zod.js"
 import type {
   CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
   ReactFlowNode,
+  ReactFlowRouteEdgeData,
   ReactFlowStepData,
 } from "./types.js"
 
@@ -24,11 +32,19 @@ interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
 }
 
+/** Route entry metadata so parents can emit labeled enter edges. */
+interface RouteEntry {
+  entryId: string
+  data: Omit<ReactFlowRouteEdgeData, "kind"> & { kind?: "route" }
+}
+
 interface RenderSegment {
   nodes: ReactFlowNode[]
   edges: ReactFlowEdge[]
   entryIds: string[]
   exitIds: string[]
+  /** When set, predecessors emit route edges into these entries instead of control glue. */
+  routeEntries?: RouteEntry[]
 }
 
 function isStepNode(node: WorkflowNode): node is StepNode {
@@ -55,12 +71,33 @@ function connectControl(
   }
 }
 
+function connectRoutes(
+  edges: ReactFlowEdge[],
+  fromIds: string[],
+  routeEntries: RouteEntry[],
+  prefix: string
+): void {
+  if (fromIds.length === 0 || routeEntries.length === 0) return
+  let i = 0
+  for (const from of fromIds) {
+    for (const entry of routeEntries) {
+      edges.push({
+        id: `route-${prefix}-${i++}-${from}-${entry.entryId}`,
+        source: from,
+        target: entry.entryId,
+        data: { kind: "route", ...entry.data },
+      })
+    }
+  }
+}
+
 function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
   const ports = portsForStep(node, ctx.registry, ctx.capabilitySchemas?.[String(node.uses)])
   const data: ReactFlowStepData = {
     label: node.label ?? node.id,
     uses: String(node.uses),
     ...(node.as !== undefined ? { as: node.as } : {}),
+    ...(node.when !== undefined ? { whenBadge: formatWhenBadge(node.when) } : {}),
     inputs: ports.inputs,
     outputs: ports.outputs,
   }
@@ -81,16 +118,31 @@ function renderParallel(
   const edges: ReactFlowEdge[] = []
   const entryIds: string[] = []
   const exitIds: string[] = []
+  const routeEntries: RouteEntry[] = []
 
-  node.branches.forEach((branch) => {
+  node.branches.forEach((branch, laneIndex) => {
     const seg = renderNodes(branch, ctx)
     nodes.push(...seg.nodes)
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
     exitIds.push(...seg.exitIds)
+    const laneSteps: StepNode[] = []
+    collectSteps(branch, laneSteps)
+    for (const entryId of seg.entryIds) {
+      routeEntries.push({
+        entryId,
+        data: {
+          route: "parallel",
+          structureId: node.id,
+          armIndex: laneIndex,
+          ...(node.label ? { label: node.label } : {}),
+          stepIds: laneSteps.map((s) => s.id),
+        },
+      })
+    }
   })
 
-  return { nodes, edges, entryIds, exitIds }
+  return { nodes, edges, entryIds, exitIds, routeEntries }
 }
 
 function renderBranch(
@@ -101,23 +153,77 @@ function renderBranch(
   const edges: ReactFlowEdge[] = []
   const entryIds: string[] = []
   const exitIds: string[] = []
+  const routeEntries: RouteEntry[] = []
 
-  for (const arm of node.branches) {
+  node.branches.forEach((arm, armIndex) => {
     const seg = renderNodes(arm.steps, ctx)
     nodes.push(...seg.nodes)
     edges.push(...seg.edges)
     entryIds.push(...seg.entryIds)
     exitIds.push(...seg.exitIds)
-  }
+    const armSteps: StepNode[] = []
+    collectSteps(arm.steps, armSteps)
+    for (const entryId of seg.entryIds) {
+      routeEntries.push({
+        entryId,
+        data: {
+          route: "branch",
+          structureId: node.id,
+          armIndex,
+          ...(arm.label ? { label: arm.label } : {}),
+          whenBadge: formatWhenBadge(arm.when),
+          stepIds: armSteps.map((s) => s.id),
+        },
+      })
+    }
+  })
 
-  return { nodes, edges, entryIds, exitIds }
+  return { nodes, edges, entryIds, exitIds, routeEntries }
 }
 
 function renderLoop(
   node: Extract<WorkflowNode, { type: "loop" }>,
   ctx: EncodeContext
 ): RenderSegment {
-  return renderNodes(node.steps, ctx)
+  const seg = renderNodes(node.steps, ctx)
+  const bodySteps: StepNode[] = []
+  collectSteps(node.steps, bodySteps)
+  const stepIds = bodySteps.map((s) => s.id)
+  const untilBadge = node.until !== undefined ? formatWhenBadge(node.until) : undefined
+  const routeBase = {
+    route: "loop" as const,
+    structureId: node.id,
+    ...(node.label ? { label: node.label } : {}),
+    ...(untilBadge ? { untilBadge } : {}),
+    ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
+    stepIds,
+  }
+
+  const edges: ReactFlowEdge[] = [...seg.edges]
+  let i = 0
+  for (const from of seg.exitIds) {
+    for (const to of seg.entryIds) {
+      edges.push({
+        id: `route-loop-back-${i++}-${from}-${to}`,
+        source: from,
+        target: to,
+        data: { kind: "route", ...routeBase, loopBack: true },
+      })
+    }
+  }
+
+  const routeEntries: RouteEntry[] = seg.entryIds.map((entryId) => ({
+    entryId,
+    data: routeBase,
+  }))
+
+  return {
+    nodes: seg.nodes,
+    edges,
+    entryIds: seg.entryIds,
+    exitIds: seg.exitIds,
+    routeEntries,
+  }
 }
 
 function renderNode(node: WorkflowNode, ctx: EncodeContext): RenderSegment {
@@ -132,6 +238,7 @@ function renderNodes(nodes: WorkflowNode[], ctx: EncodeContext): RenderSegment {
   const outEdges: ReactFlowEdge[] = []
   let entryIds: string[] = []
   let exitIds: string[] = []
+  let firstRouteEntries: RouteEntry[] | undefined
 
   nodes.forEach((node, index) => {
     const segment = renderNode(node, ctx)
@@ -141,13 +248,22 @@ function renderNodes(nodes: WorkflowNode[], ctx: EncodeContext): RenderSegment {
 
     if (entryIds.length === 0) {
       entryIds = segment.entryIds
+      firstRouteEntries = segment.routeEntries
+    } else if (segment.routeEntries && segment.routeEntries.length > 0) {
+      connectRoutes(outEdges, exitIds, segment.routeEntries, `seq-route-${index}`)
     } else {
       connectControl(outEdges, exitIds, segment.entryIds, `seq-root-${index}`)
     }
     exitIds = segment.exitIds
   })
 
-  return { nodes: outNodes, edges: outEdges, entryIds, exitIds }
+  return {
+    nodes: outNodes,
+    edges: outEdges,
+    entryIds,
+    exitIds,
+    ...(firstRouteEntries ? { routeEntries: firstRouteEntries } : {}),
+  }
 }
 
 function acceptsPropertyKeys(manifest: WorkflowManifest): Set<string> {
@@ -217,8 +333,9 @@ function extractReturnsEdges(manifest: WorkflowManifest, nodes: ReactFlowNode[])
 
 /**
  * Convert a workflow manifest into a positioned React Flow document.
- * Emits step nodes, projected Inputs / Outputs (`ecp-io`), and data edges.
- * Sequential control edges are used internally for layout, then discarded.
+ * Emits step nodes, projected Inputs / Outputs, data edges (`$ref` / `.when()`),
+ * and published route edges for parallel / branch / loop structure.
+ * Unlabeled sequential control edges are used for layout, then discarded.
  * @category App
  */
 export function workflowToReactFlow(
@@ -234,13 +351,19 @@ export function workflowToReactFlow(
   }
   const body =
     manifest.steps.length === 0
-      ? { nodes: [] as ReactFlowNode[], edges: [] as ReactFlowEdge[], entryIds: [] as string[], exitIds: [] as string[] }
+      ? {
+          nodes: [] as ReactFlowNode[],
+          edges: [] as ReactFlowEdge[],
+          entryIds: [] as string[],
+          exitIds: [] as string[],
+        }
       : renderNodes(manifest.steps, ctx)
 
   const nodes: ReactFlowNode[] = [acceptsNode, ...body.nodes]
   if (returnsNode) nodes.push(returnsNode)
 
   const outputPortIdsByStepId = new Map<string, string[]>()
+  const inputPortIdsByStepId = new Map<string, string[]>()
   for (const node of body.nodes) {
     if (node.type !== "ecp-step") continue
     const data = node.data as ReactFlowStepData
@@ -248,26 +371,49 @@ export function workflowToReactFlow(
       node.id,
       data.outputs.map((port) => port.id)
     )
+    inputPortIdsByStepId.set(
+      node.id,
+      data.inputs.map((port) => port.id)
+    )
   }
+  const acceptsKeys = acceptsPropertyKeys(manifest)
   const dataEdges = extractDataEdges(
     manifest.steps,
-    acceptsPropertyKeys(manifest),
-    outputPortIdsByStepId
+    acceptsKeys,
+    outputPortIdsByStepId,
+    inputPortIdsByStepId
   )
+  const whenEdges = extractWhenEdges(manifest.steps, acceptsKeys)
   const returnsEdges = extractReturnsEdges(manifest, nodes)
-  const allDataEdges = [...dataEdges, ...returnsEdges]
+  const allDataEdges = [...dataEdges, ...whenEdges, ...returnsEdges]
 
   for (const edge of allDataEdges) {
-    if (!edge.sourceHandle) continue
-    const source = nodes.find((n) => n.id === edge.source)
-    if (!source || source.type !== "ecp-step") continue
-    const data = source.data as ReactFlowStepData
-    ensureOutputPort(data.outputs, edge.sourceHandle)
+    if (edge.sourceHandle) {
+      const source = nodes.find((n) => n.id === edge.source)
+      if (source && source.type === "ecp-step") {
+        const data = source.data as ReactFlowStepData
+        ensureOutputPort(data.outputs, edge.sourceHandle)
+      }
+    }
+    if (edge.targetHandle) {
+      const target = nodes.find((n) => n.id === edge.target)
+      if (target && target.type === "ecp-step") {
+        const data = target.data as ReactFlowStepData
+        ensureInputPort(data.inputs, edge.targetHandle)
+        if (edge.targetHandle === WHEN_HANDLE_ID && !data.whenBadge) {
+          data.whenBadge = "when"
+        }
+      }
+    }
   }
 
   const layoutEdges: ReactFlowEdge[] = [...body.edges, ...allDataEdges]
   if (body.entryIds.length > 0) {
-    connectControl(layoutEdges, [acceptsNode.id], body.entryIds, "io-accepts")
+    if (body.routeEntries && body.routeEntries.length > 0) {
+      connectRoutes(layoutEdges, [acceptsNode.id], body.routeEntries, "io-accepts-route")
+    } else {
+      connectControl(layoutEdges, [acceptsNode.id], body.entryIds, "io-accepts")
+    }
   } else if (returnsNode) {
     connectControl(layoutEdges, [acceptsNode.id], [returnsNode.id], "io-empty")
   }
@@ -282,6 +428,8 @@ export function workflowToReactFlow(
   const laid = layoutReactFlowDocument(doc, options)
   return {
     nodes: laid.nodes,
-    edges: laid.edges.filter((edge) => edge.data.kind === "data"),
+    edges: laid.edges.filter(
+      (edge) => edge.data.kind === "data" || edge.data.kind === "route"
+    ),
   }
 }

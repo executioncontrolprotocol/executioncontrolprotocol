@@ -8,6 +8,7 @@ import {
   createMemoryMediaStore,
   createUsageLedger,
   hydrateCapabilityBlobs,
+  normalizeArtifactPrefix,
   resolveFile,
   serializeCapabilityBlobs,
   writeMediaArtifact,
@@ -47,6 +48,19 @@ function makeCtx(overrides: {
     extensionConfig: overrides.extensionConfig,
   }
 }
+
+describe("normalizeArtifactPrefix", () => {
+  it("strips a leading artifacts/ segment", () => {
+    expect(normalizeArtifactPrefix("artifacts/images")).toBe("images")
+    expect(normalizeArtifactPrefix("artifacts/media")).toBe("media")
+    expect(normalizeArtifactPrefix("images")).toBe("images")
+  })
+
+  it("falls back to media when the prefix is only artifacts", () => {
+    expect(normalizeArtifactPrefix("artifacts")).toBe("media")
+    expect(normalizeArtifactPrefix("artifacts/")).toBe("media")
+  })
+})
 
 describe("resolveFile / writeMediaArtifact", () => {
   afterEach(() => {
@@ -175,7 +189,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind !== "artifact") throw new Error("expected artifact")
-    expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}artifacts/images/out.png`)
+    expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}r1/s1/images/out.png`)
     expect(artifacts.get(ref.uri)?.size).toBe(2)
   })
 
@@ -191,7 +205,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     expect([...resolved.bytes]).toEqual([21, 22, 23])
   })
 
-  it("uses default artifacts/media prefix when none is provided", async () => {
+  it("uses default media prefix scoped by run and step when none is provided", async () => {
     const artifacts = createCapabilityArtifactStore()
     const ref = await writeMediaArtifact(
       new Uint8Array([1]),
@@ -200,8 +214,30 @@ describe("resolveFile / writeMediaArtifact", () => {
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}artifacts/media/default.png`)
+      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}r1/s1/media/default.png`)
     }
+  })
+
+  it("suffixes the basename when the same step writes the same name twice", async () => {
+    const artifacts = createCapabilityArtifactStore()
+    const ctx = makeCtx({ artifacts })
+    const first = await writeMediaArtifact(
+      new Uint8Array([1]),
+      { mediaType: "image/webp", name: "output.webp", prefix: "images" },
+      ctx
+    )
+    const second = await writeMediaArtifact(
+      new Uint8Array([2]),
+      { mediaType: "image/webp", name: "output.webp", prefix: "images" },
+      ctx
+    )
+    expect(first.kind).toBe("artifact")
+    expect(second.kind).toBe("artifact")
+    if (first.kind !== "artifact" || second.kind !== "artifact") throw new Error("expected artifact")
+    expect(first.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}r1/s1/images/output.webp`)
+    expect(second.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}r1/s1/images/output-2.webp`)
+    expect(first.name).toBe("output.webp")
+    expect(second.name).toBe("output.webp")
   })
 
   it("derives default artifact filename extension from mediaType", async () => {
@@ -231,7 +267,7 @@ describe("resolveFile / writeMediaArtifact", () => {
     )
     expect(ref.kind).toBe("artifact")
     if (ref.kind === "artifact") {
-      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}uploads/cfg.png`)
+      expect(ref.uri).toBe(`${FILE_ARTIFACT_URI_PREFIX}r1/s1/uploads/cfg.png`)
     }
   })
 

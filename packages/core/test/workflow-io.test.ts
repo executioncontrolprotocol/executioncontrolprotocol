@@ -315,13 +315,34 @@ describe("jsonSchema helpers", () => {
     expect(jsonSchemaFromZod(node).type).toBe("object")
   })
 
-  it("still projects unions as empty so they do not fake ports", () => {
+  it("projects object unions as anyOf without inventing top-level ports", () => {
     const union = z.union([
       z.object({ status: z.literal("succeeded"), result: z.object({ outputs: z.array(z.string()) }) }),
       z.object({ status: z.literal("running") }),
     ])
-    expect(jsonSchemaFromZod(union)).toEqual({})
-    expect(jsonSchemaObjectProperties(jsonSchemaFromZod(union))).toEqual([])
+    const json = jsonSchemaFromZod(union)
+    expect(json).toMatchObject({
+      anyOf: [
+        {
+          type: "object",
+          required: ["status", "result"],
+          properties: {
+            status: { type: "string", enum: ["succeeded"] },
+            result: {
+              type: "object",
+              required: ["outputs"],
+              properties: { outputs: { type: "array", items: { type: "string" } } },
+            },
+          },
+        },
+        {
+          type: "object",
+          required: ["status"],
+          properties: { status: { type: "string", enum: ["running"] } },
+        },
+      ],
+    })
+    expect(jsonSchemaObjectProperties(json)).toEqual([])
   })
 
   it("validates integer and object values", () => {

@@ -4,6 +4,7 @@ import type {
   ReactFlowEncodeOptions,
   ReactFlowIoData,
   ReactFlowNode,
+  ReactFlowRouteEdgeData,
   ReactFlowStepData,
 } from "./types.js"
 
@@ -28,6 +29,7 @@ function estimateNodeHeight(node: ReactFlowNode, fallback: number): number {
 
 /**
  * Assign dagre layout positions to nodes (mutates a copy).
+ * Loop-back route edges are drawn but excluded from rank constraints.
  * @category App
  */
 export function layoutReactFlowDocument(
@@ -58,22 +60,24 @@ export function layoutReactFlowDocument(
   }
 
   for (const edge of doc.edges) {
-    if (byId.has(edge.source) && byId.has(edge.target)) {
-      g.setEdge(edge.source, edge.target)
+    if (!byId.has(edge.source) || !byId.has(edge.target)) continue
+    if (edge.data.kind === "route" && (edge.data as ReactFlowRouteEdgeData).loopBack) {
+      continue
     }
+    g.setEdge(edge.source, edge.target)
   }
 
   dagre.layout(g)
 
-  const nodes: ReactFlowNode[] = doc.nodes.map((node) => {
-    const laid = g.node(node.id)
+  const laid: ReactFlowNode[] = doc.nodes.map((node) => {
+    const laidNode = g.node(node.id)
     const height = heights.get(node.id) ?? nodeHeight
-    if (!laid) return { ...node, position: { ...node.position } }
+    if (!laidNode) return { ...node, position: { ...node.position } }
     return {
       ...node,
       position: {
-        x: laid.x - nodeWidth / 2,
-        y: laid.y - height / 2,
+        x: laidNode.x - nodeWidth / 2,
+        y: laidNode.y - height / 2,
       },
       style: {
         ...node.style,
@@ -82,5 +86,5 @@ export function layoutReactFlowDocument(
     }
   })
 
-  return { nodes, edges: doc.edges.map((e) => ({ ...e })) }
+  return { nodes: laid, edges: doc.edges.map((e) => ({ ...e })) }
 }

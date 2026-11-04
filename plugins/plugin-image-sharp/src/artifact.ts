@@ -49,7 +49,7 @@ export async function writeArtifact(
   options: WriteArtifactOptions,
   ctx: Ctx
 ): Promise<FileRef> {
-  const prefix = options.prefix ?? "artifacts/images"
+  const prefix = options.prefix ?? "images"
   return writeMediaArtifact(new Uint8Array(data), { ...options, prefix }, ctx)
 }
 

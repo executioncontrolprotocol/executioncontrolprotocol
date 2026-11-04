@@ -63,6 +63,21 @@ describe("config merge onto process host", () => {
     await rm(dir, { recursive: true, force: true })
   }, 30_000)
 
+  it("overlays string-id workflow binding config onto an installed extension", () => {
+    const env = environment(NODE_ENVIRONMENT_ID, "wf-overlay").with([extension(testExtension)])
+    env.with([
+      extension("@executioncontrolprotocol/test").with({
+        defaultModel: "from-workflow",
+        limits: { allowRemoteUrls: true },
+      }),
+    ])
+    const testBinding = env.getBindings().find((row) => bindingId(row) === "@executioncontrolprotocol/test")
+    expect(testBinding?.getConfig()).toEqual({
+      defaultModel: "from-workflow",
+      limits: { allowRemoteUrls: true },
+    })
+  })
+
   it("fails on a missing plugin id and leaves the catalog intact", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ecp-missing-config-"))
     const path = join(dir, "config.ecp.ts")

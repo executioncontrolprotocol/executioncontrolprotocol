@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import {
+  branch,
   capabilityFor,
   defineExtension,
+  expr,
+  loop,
   parallel,
   ref,
   Registry,
@@ -18,6 +21,7 @@ import {
   WORKFLOW_ACCEPTS_NODE_ID,
   WORKFLOW_RETURNS_NODE_ID,
   type ReactFlowIoData,
+  type ReactFlowRouteEdgeData,
   type ReactFlowStepData,
 } from "../src/graph/index.js"
 
@@ -100,7 +104,7 @@ describe("workflowToReactFlow", () => {
     expect(steps[0]!.position.x).not.toBe(steps[1]!.position.x)
   })
 
-  it("flattens parallel branches to step nodes", () => {
+  it("emits parallel route edges without group nodes", () => {
     const manifest = workflow("Flow")
       .run([
         parallel([
@@ -110,8 +114,108 @@ describe("workflowToReactFlow", () => {
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
-    expect(doc.nodes.filter((n) => n.type === "ecp-step")).toHaveLength(2)
-    expect(doc.nodes.some((n) => n.type === "ecp-group")).toBe(false)
+    const steps = doc.nodes.filter((n) => n.type === "ecp-step")
+    expect(steps).toHaveLength(2)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const routes = doc.edges.filter((e) => e.data.kind === "route") as Array<{
+      data: ReactFlowRouteEdgeData
+    }>
+    expect(routes.length).toBeGreaterThanOrEqual(2)
+    expect(routes.every((e) => e.data.route === "parallel")).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
+  })
+
+  it("extracts nested $ref edges with dotted target handles", () => {
+    const manifest = workflow("Nested")
+      .run([
+        step("@executioncontrolprotocol/test.echo", "Gen").with({ value: "a" }).as("gen"),
+        step("@vendor/missing.expand", "Expand")
+          .id("expand")
+          .with({ image: { url: ref("gen.echo") } })
+          .as("out"),
+      ])
+      .toManifest()
+    const edges = extractDataEdges(manifest.steps)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]!.targetHandle).toBe("image.url")
+    expect(edges[0]!.sourceHandle).toBe("echo")
+  })
+
+  it("shows when badges and a when data edge from Inputs", () => {
+    const manifest = workflow("Gated")
+      .accepts({
+        type: "object",
+        properties: { expand: { type: "boolean" } },
+        required: ["expand"],
+      })
+      .run([
+        step("@executioncontrolprotocol/test.echo", "Maybe")
+          .id("maybe")
+          .with({ value: "x" })
+          .when(expr.eq("expand", true))
+          .as("maybe"),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    const stepNode = doc.nodes.find((n) => n.id === "maybe")
+    expect((stepNode!.data as ReactFlowStepData).whenBadge).toContain("expand")
+    const whenEdge = doc.edges.find(
+      (e) => e.target === "maybe" && e.targetHandle === "when"
+    )
+    expect(whenEdge?.source).toBe(WORKFLOW_ACCEPTS_NODE_ID)
+    expect(whenEdge?.sourceHandle).toBe("expand")
+  })
+
+  it("emits branch route edges with whenBadge and armIndex", () => {
+    const manifest = workflow("Arms")
+      .run([
+        branch([
+          step("@executioncontrolprotocol/test.echo", "Yes")
+            .with({ value: "y" })
+            .when(expr.eq("flag", true))
+            .as("yes"),
+          step("@executioncontrolprotocol/test.echo", "No")
+            .with({ value: "n" })
+            .when(expr.eq("flag", false))
+            .as("no"),
+        ]),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const routes = doc.edges.filter(
+      (e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "branch"
+    )
+    expect(routes.length).toBeGreaterThanOrEqual(2)
+    const badges = routes.map((e) => (e.data as ReactFlowRouteEdgeData).whenBadge ?? "")
+    expect(badges.some((badge) => badge.includes("flag"))).toBe(true)
+    expect(
+      routes.every((e) => typeof (e.data as ReactFlowRouteEdgeData).armIndex === "number")
+    ).toBe(true)
+    expect(
+      routes.every((e) => ((e.data as ReactFlowRouteEdgeData).stepIds?.length ?? 0) > 0)
+    ).toBe(true)
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
+  })
+
+  it("emits a loop-back route with untilBadge", () => {
+    const manifest = workflow("Loop")
+      .run([
+        loop({ until: expr.eq("done", true), label: "retry" }, [
+          step("@executioncontrolprotocol/test.echo", "Tick").with({ value: "1" }).as("tick"),
+        ]),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const loopRoutes = doc.edges.filter(
+      (e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "loop"
+    )
+    expect(loopRoutes.length).toBeGreaterThanOrEqual(1)
+    const loopBack = loopRoutes.find((e) => (e.data as ReactFlowRouteEdgeData).loopBack)
+    expect(loopBack).toBeDefined()
+    expect((loopBack!.data as ReactFlowRouteEdgeData).untilBadge).toContain("done")
+    expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
   })
 
   it("projects accepts ports and $ref edges from the Inputs node", () => {

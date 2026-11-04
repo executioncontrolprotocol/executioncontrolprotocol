@@ -20,12 +20,19 @@ import type {
   ReactFlowEdge,
   ReactFlowNode,
   ReactFlowPort,
+  ReactFlowRouteEdgeData,
 } from "../../graph/index.js"
 import { WORKFLOW_ACCEPTS_NODE_ID } from "../../graph/index.js"
 import { EcpStepNode } from "./EcpStepNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
+import { EcpRouteEdge } from "./EcpRouteEdge.js"
 import { EdgeMenuControlOverlay } from "./EdgeMenuControlOverlay.js"
+import { RouteHoverPillOverlay } from "./RouteHoverPillOverlay.js"
+import {
+  ReactFlowRouteHoverRegistryContext,
+  type RouteHoverState,
+} from "./reactflow-route-hover-registry.js"
 import { ReactFlowConfigureContext } from "./reactflow-configure-context.js"
 import {
   ReactFlowEdgeControlRegistryContext,
@@ -37,6 +44,7 @@ import {
 } from "./reactflow-edge-menu-context.js"
 import { PanelHeader } from "./PanelHeader.js"
 import { useReactFlowRunProgress } from "../hooks/useReactFlowRunProgress.js"
+import { edgeMenuActions } from "../lib/route-configure.js"
 import { edgeStatusClass, stepNodeStatusClass } from "../lib/reactflow-run-status.js"
 import { edgeMenuPosition } from "../lib/edge-menu.js"
 import {
@@ -64,6 +72,7 @@ const nodeTypes = {
 
 const edgeTypes = {
   "ecp-data": EcpDataEdge,
+  "ecp-route": EcpRouteEdge,
 }
 
 /** Frame and focus the graph after load, reload, or pane resize once nodes are measured. */
@@ -133,27 +142,49 @@ function toRfNodes(nodes: ReactFlowNode[]): Node[] {
 
 function toRfEdges(edges: ReactFlowEdge[]): Edge[] {
   return edges
-    .filter(
-      (e) =>
+    .filter((e) => {
+      if (e.data.kind === "route") return true
+      return (
         e.data.kind === "data" &&
         typeof e.sourceHandle === "string" &&
         e.sourceHandle.length > 0 &&
         typeof e.targetHandle === "string" &&
         e.targetHandle.length > 0
-    )
-    .map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      sourceHandle: e.sourceHandle,
-      targetHandle: e.targetHandle,
-      type: "ecp-data",
-      data: e.data,
-      animated: false,
-      interactionWidth: EDGE_INTERACTION_WIDTH,
-      className: "ecp-rf-edge--idle",
-      style: { stroke: "var(--color-tertiary-fixed-dim)", strokeWidth: 2, opacity: 0.9 },
-    }))
+      )
+    })
+    .map((e) => {
+      if (e.data.kind === "route") {
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: "ecp-route",
+          data: e.data,
+          animated: false,
+          interactionWidth: EDGE_INTERACTION_WIDTH,
+          className: "ecp-rf-edge--route",
+          style: {
+            stroke: "var(--color-outline)",
+            strokeWidth: 1.5,
+            strokeDasharray: "6 4",
+            opacity: 0.85,
+          },
+        }
+      }
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        type: "ecp-data",
+        data: e.data,
+        animated: false,
+        interactionWidth: EDGE_INTERACTION_WIDTH,
+        className: "ecp-rf-edge--idle",
+        style: { stroke: "var(--color-tertiary-fixed-dim)", strokeWidth: 2, opacity: 0.9 },
+      }
+    })
 }
 
 function parseDocument(source: string): ReactFlowDocument | null {
@@ -202,6 +233,12 @@ export interface ReactFlowCanvasProps {
    * when step ids are unchanged.
    */
   reloadKey?: number
+  /** Open the route configure dialog for a published route edge. */
+  onConfigureRoute?: (route: ReactFlowRouteEdgeData) => void
+  /** Open wrap dialog for a data edge (wrap the target step). */
+  onConfigureDataEdge?: (targetStepId: string) => void
+  /** Unwrap a branch / parallel / loop structure by id. */
+  onUnwrapRoute?: (structureId: string) => void
 }
 
 function ReactFlowCanvasInner({
@@ -215,6 +252,9 @@ function ReactFlowCanvasInner({
   onDiscoverCapability,
   readOnly = false,
   reloadKey = 0,
+  onConfigureRoute,
+  onConfigureDataEdge,
+  onUnwrapRoute,
 }: ReactFlowCanvasProps) {
   const doc = useMemo(() => parseDocument(reactflowJson), [reactflowJson])
   const stepIds = useMemo(
@@ -231,8 +271,11 @@ function ReactFlowCanvasInner({
     targetStepId: string
     targetHandle: string
     edgeId: string
+    kind: "data" | "route"
+    route?: ReactFlowRouteEdgeData
   } | null>(null)
   const [edgeControl, setEdgeControl] = useState<EdgeMenuControlState | null>(null)
+  const [routeHover, setRouteHover] = useState<RouteHoverState | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const edgeMenuRef = useRef<HTMLDivElement>(null)
   const [paneSize, setPaneSize] = useState({ width: 0, height: 0 })
@@ -384,8 +427,11 @@ function ReactFlowCanvasInner({
 
   const handleBeforeDelete = useCallback(
     async ({ edges: deleteEdges }: { nodes: Node[]; edges: Edge[] }) => {
-      if (deleteEdges.length === 0) return false
-      return { nodes: [] as Node[], edges: deleteEdges }
+      const dataEdges = deleteEdges.filter(
+        (edge) => !(edge.data && (edge.data as { kind?: string }).kind === "route")
+      )
+      if (dataEdges.length === 0) return false
+      return { nodes: [] as Node[], edges: dataEdges }
     },
     []
   )
@@ -413,6 +459,13 @@ function ReactFlowCanvasInner({
         canvas,
         control,
       })
+      const live = edges.find((item) => item.id === edge.id)
+      const kind =
+        live?.data && (live.data as { kind?: string }).kind === "route" ? "route" : "data"
+      const route =
+        kind === "route" ? (live?.data as ReactFlowRouteEdgeData | undefined) : undefined
+      if (kind === "route" && (!route || edgeMenuActions("route").length === 0)) return
+      if (kind === "data" && edgeMenuActions("data").length === 0) return
       setEdges((current) => current.map((item) => ({ ...item, selected: item.id === edge.id })))
       setEdgeMenu({
         x,
@@ -420,22 +473,45 @@ function ReactFlowCanvasInner({
         targetStepId: edge.target,
         targetHandle: edge.targetHandle,
         edgeId: edge.id,
+        kind,
+        route,
       })
     },
-    [edgeMenu, setEdges]
+    [edgeMenu, edges, setEdges]
   )
 
   const handleEdgeContextMenu = useCallback(
     (event: ReactMouseEvent, edge: Edge) => {
+      if (!edge.target) return
+      const dataKind =
+        edge.data && (edge.data as { kind?: string }).kind === "route" ? "route" : "data"
+      if (dataKind === "route") {
+        handleOpenEdgeMenu(event, {
+          id: edge.id,
+          target: edge.target,
+          targetHandle: edge.targetHandle ?? "route",
+        })
+        return
+      }
       const targetHandle = edge.targetHandle
-      if (!edge.target || !targetHandle) return
+      if (!targetHandle) return
       handleOpenEdgeMenu(event, { id: edge.id, target: edge.target, targetHandle })
     },
     [handleOpenEdgeMenu]
   )
 
   const handleDeleteMenuConnection = useCallback(() => {
-    if (!edgeMenu || !onDisconnectPorts) {
+    if (!edgeMenu) {
+      setEdgeMenu(null)
+      return
+    }
+    if (edgeMenu.kind === "route") {
+      const structureId = edgeMenu.route?.structureId
+      if (structureId && onUnwrapRoute) onUnwrapRoute(structureId)
+      setEdgeMenu(null)
+      return
+    }
+    if (!onDisconnectPorts) {
       setEdgeMenu(null)
       return
     }
@@ -444,7 +520,21 @@ function ReactFlowCanvasInner({
       targetHandle: edgeMenu.targetHandle,
     })
     setEdgeMenu(null)
-  }, [edgeMenu, onDisconnectPorts])
+  }, [edgeMenu, onDisconnectPorts, onUnwrapRoute])
+
+  const handleConfigureMenuEdge = useCallback(() => {
+    if (!edgeMenu) {
+      setEdgeMenu(null)
+      return
+    }
+    if (edgeMenu.kind === "route") {
+      if (edgeMenu.route && onConfigureRoute) onConfigureRoute(edgeMenu.route)
+      setEdgeMenu(null)
+      return
+    }
+    if (onConfigureDataEdge) onConfigureDataEdge(edgeMenu.targetStepId)
+    setEdgeMenu(null)
+  }, [edgeMenu, onConfigureDataEdge, onConfigureRoute])
 
   useEffect(() => {
     if (!edgeMenu) return
@@ -520,7 +610,16 @@ function ReactFlowCanvasInner({
   const decoratedEdges = useMemo(
     () =>
       edges.map((edge) => {
-        const cls = edgeStatusClass(statuses[edge.source], statuses[edge.target], runActive)
+        const isRoute = edge.data && (edge.data as { kind?: string }).kind === "route"
+        const sourceStatus = statuses[edge.source]
+        const targetStatus = statuses[edge.target]
+        const skippedRoute =
+          isRoute && (sourceStatus === "skipped" || targetStatus === "skipped")
+        const cls = isRoute
+          ? skippedRoute
+            ? "ecp-rf-edge--route ecp-rf-edge--route-muted"
+            : "ecp-rf-edge--route"
+          : edgeStatusClass(sourceStatus, targetStatus, runActive)
         const incomplete = cls === "ecp-rf-edge--incomplete"
         const completed = cls === "ecp-rf-edge--completed"
         const failed = cls === "ecp-rf-edge--failed"
@@ -533,17 +632,24 @@ function ReactFlowCanvasInner({
           // CSS class drives ants — RF `animated` uses a different dash period and flickers.
           animated: false,
           interactionWidth: EDGE_INTERACTION_WIDTH,
-          style: {
-            strokeWidth: 2,
-            opacity: 0.9,
-            ...(failed
-              ? { stroke: "var(--color-error)" }
-              : incomplete
-                ? { stroke: "var(--color-tertiary-fixed-dim)" }
-                : completed
-                  ? { stroke: "var(--color-status-valid)" }
-                  : { stroke: "var(--color-tertiary-fixed-dim)" }),
-          },
+          style: isRoute
+            ? {
+                strokeWidth: 1.5,
+                strokeDasharray: "6 4",
+                opacity: skippedRoute ? 0.35 : 0.85,
+                stroke: "var(--color-outline)",
+              }
+            : {
+                strokeWidth: 2,
+                opacity: 0.9,
+                ...(failed
+                  ? { stroke: "var(--color-error)" }
+                  : incomplete
+                    ? { stroke: "var(--color-tertiary-fixed-dim)" }
+                    : completed
+                      ? { stroke: "var(--color-status-valid)" }
+                      : { stroke: "var(--color-tertiary-fixed-dim)" }),
+              },
         }
       }),
     [edgeMenu?.edgeId, edges, statuses, runActive]
@@ -562,6 +668,7 @@ function ReactFlowCanvasInner({
       >
         {hasWorkflow && doc ? (
           <ReactFlowConfigureContext.Provider value={onConfigureStep}>
+            <ReactFlowRouteHoverRegistryContext.Provider value={setRouteHover}>
             <ReactFlowEdgeControlRegistryContext.Provider value={setEdgeControl}>
             <ReactFlowEdgeMenuContext.Provider value={handleOpenEdgeMenu}>
             <div className="absolute inset-0">
@@ -639,6 +746,7 @@ function ReactFlowCanvasInner({
               />
             </ReactFlow>
             </div>
+            <RouteHoverPillOverlay canvasRef={canvasRef} hover={routeHover} />
             <EdgeMenuControlOverlay
               canvasRef={canvasRef}
               control={edgeControl}
@@ -656,14 +764,23 @@ function ReactFlowCanvasInner({
                   type="button"
                   className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
                   role="menuitem"
+                  onClick={handleConfigureMenuEdge}
+                >
+                  Configure
+                </button>
+                <button
+                  type="button"
+                  className="w-full cursor-pointer px-3 py-1.5 text-left font-mono text-[11px] text-on-surface hover:bg-surface-container-highest"
+                  role="menuitem"
                   onClick={handleDeleteMenuConnection}
                 >
-                  Delete connection
+                  Delete
                 </button>
               </div>
             ) : null}
             </ReactFlowEdgeMenuContext.Provider>
             </ReactFlowEdgeControlRegistryContext.Provider>
+            </ReactFlowRouteHoverRegistryContext.Provider>
           </ReactFlowConfigureContext.Provider>
         ) : (
           <div className="flex h-full items-center justify-center p-canvas-padding">

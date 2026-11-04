@@ -56,3 +56,32 @@ describe("applyPublicRunEvent", () => {
     expect(onStatus).not.toHaveBeenCalled()
   })
 })
+
+describe("syncRunProgressFromResult skipped", () => {
+  it("emits skipped for step ids absent from history", async () => {
+    const { reactFlowRunProgress } = await import("../src/graph/progress.js")
+    const { syncRunProgressFromResult } = await import("../src/ui/lib/run-progress-sync.js")
+    const seen: string[] = []
+    const onStatus = (raw: Event) => {
+      const detail = (raw as CustomEvent<{ stepId: string; status: string }>).detail
+      seen.push(`${detail.stepId}:${detail.status}`)
+    }
+    reactFlowRunProgress.addEventListener("step:status", onStatus)
+    try {
+      syncRunProgressFromResult(
+        {
+          run: { id: "r1", status: "completed" },
+          history: {
+            yes: { status: "completed" },
+          },
+          diagnostics: [],
+        } as never,
+        ["yes", "no"]
+      )
+      expect(seen).toContain("yes:completed")
+      expect(seen).toContain("no:skipped")
+    } finally {
+      reactFlowRunProgress.removeEventListener("step:status", onStatus)
+    }
+  })
+})

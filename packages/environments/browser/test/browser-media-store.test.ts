@@ -53,7 +53,7 @@ describe("createBrowserMediaStore", () => {
       ok: true,
       json: async () => ({
         kind: FILE_REF_KINDS.ARTIFACT,
-        uri: `${FILE_ARTIFACT_URI_PREFIX}artifacts/media/out.png`,
+        uri: `${FILE_ARTIFACT_URI_PREFIX}media/out.png`,
         mediaType: "image/png",
         name: "out.png",
         sizeBytes: 2,

@@ -23,6 +23,7 @@ export function firefly_generate_images_v3_async(handler: CapabilityHandler) {
   style: schemas.Schema_StylesV3.optional(),
   upsamplerType: z.enum(["default", "low_creativity"]).optional(),
   visualIntensity: z.number().int().min(2).max(10).optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_GenerateImagesRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -43,6 +44,7 @@ export function firefly_generate_images_v5_async(handler: CapabilityHandler) {
   numVariations: z.number().int().max(1).optional(),
   referenceBlobs: z.array(schemas.Schema_ReferenceBlobV3).optional(),
   seeds: z.array(z.number().int()).optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_ImageGenerateRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -59,6 +61,7 @@ export function firefly_generate_similar_images_v3_async(handler: CapabilityHand
   numVariations: z.number().int().min(1).max(4).optional(),
   seeds: z.array(z.number().int()).optional(),
   size: schemas.Schema_Size.optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_GenerateSimilarImagesRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -77,6 +80,7 @@ export function firefly_expand_images_v3_async(handler: CapabilityHandler) {
   prompt: z.string().min(1).max(1024).optional(),
   seeds: z.array(z.number().int()).optional(),
   size: schemas.Schema_Size.optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_ExpandImageRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -96,6 +100,7 @@ export function firefly_fill_images_v3_async(handler: CapabilityHandler) {
   promptBiasingLocaleCode: z.string().optional(),
   seeds: z.array(z.number().int()).optional(),
   size: schemas.Schema_Size.optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_FillImageRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -116,6 +121,7 @@ export function firefly_generate_object_composite_v3_async(handler: CapabilityHa
   seeds: z.array(z.number().int()).optional(),
   size: schemas.Schema_Size.optional(),
   style: schemas.Schema_StylesV3.optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_GenerateObjectCompositeRequestV3.optional()
 }))
     .withOutput(schemas.Schema_JobResult)
@@ -167,6 +173,7 @@ export function firefly_precise_upsampler_v3_async(handler: CapabilityHandler) {
   image: schemas.Schema_BaseInputImageV3.optional(),
   seeds: z.array(z.number().int()).optional(),
   upscaleFactor: schemas.Schema_UpsampleFactor.optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   body: schemas.Schema_PreciseUpsamplerRequestV3.optional()
 }))
     .withOutput(schemas.Schema_PreciseUpsamplerResponse)

@@ -67,6 +67,75 @@ describe("validateStepInputAgainstSchema", () => {
       )
     ).toEqual([])
   })
+
+  it("rejects integers above maximum", () => {
+    const ranged = {
+      type: "object",
+      properties: {
+        numVariations: { type: "integer", minimum: 1, maximum: 4 },
+      },
+    }
+    const issues = validateStepInputAgainstSchema({ numVariations: 9 }, ranged, "gen")
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      code: ECP_INPUT_INVALID,
+      path: "steps.gen.input.numVariations",
+    })
+    expect(issues[0]?.message).toMatch(/<= 4/)
+  })
+
+  it("rejects values outside an enum", () => {
+    const withEnum = {
+      type: "object",
+      properties: {
+        "x-model-version": {
+          type: "string",
+          enum: ["image3", "image4"],
+        },
+      },
+    }
+    const issues = validateStepInputAgainstSchema(
+      { "x-model-version": "image9" },
+      withEnum,
+      "gen"
+    )
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.path).toBe("steps.gen.input.x-model-version")
+  })
+
+  it("validates nested literals while skipping nested refs", () => {
+    const nested = {
+      type: "object",
+      properties: {
+        image: {
+          type: "object",
+          properties: {
+            kind: { type: "string", enum: ["url", "file"] },
+            url: { type: "string" },
+          },
+          required: ["kind"],
+        },
+      },
+    }
+    expect(
+      validateStepInputAgainstSchema(
+        {
+          image: {
+            kind: "url",
+            url: { $ref: "state.image.outputs.0.image.url" },
+          },
+        },
+        nested,
+        "crop"
+      )
+    ).toEqual([])
+    const bad = validateStepInputAgainstSchema(
+      { image: { kind: "blob", url: "https://example.com/a.png" } },
+      nested,
+      "crop"
+    )
+    expect(bad.some((i) => i.path === "steps.crop.input.image.kind")).toBe(true)
+  })
 })
 
 describe("validateWorkflowStepInputs", () => {

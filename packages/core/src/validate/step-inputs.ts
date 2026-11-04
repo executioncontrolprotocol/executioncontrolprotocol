@@ -19,6 +19,10 @@ function isPlaceholderInput(value: unknown): boolean {
   )
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
 function jsonSchemaTypeOf(value: unknown): string {
   if (value === null) return "null"
   if (Array.isArray(value)) return "array"
@@ -36,15 +40,12 @@ function matchesJsonSchemaType(value: unknown, schemaType: unknown): boolean {
   if (schemaType === "null") return value === null
   if (schemaType === "array") return Array.isArray(value)
   if (schemaType === "object") {
-    return value !== null && typeof value === "object" && !Array.isArray(value)
+    return isPlainObject(value)
   }
   return true
 }
 
-function issue(
-  message: string,
-  path: string
-): ValidationIssue {
+function issue(message: string, path: string): ValidationIssue {
   return {
     code: ECP_INPUT_INVALID,
     message,
@@ -53,10 +54,90 @@ function issue(
   }
 }
 
+function validateLiteralAgainstFieldSchema(
+  value: unknown,
+  field: Record<string, unknown>,
+  path: string,
+  errors: ValidationIssue[]
+): void {
+  if (isPlaceholderInput(value)) return
+
+  if (!matchesJsonSchemaType(value, field.type)) {
+    errors.push(
+      issue(
+        `Input expected ${String(field.type)}, got ${jsonSchemaTypeOf(value)}`,
+        path
+      )
+    )
+    return
+  }
+
+  if (Array.isArray(field.enum) && field.enum.length > 0) {
+    if (!field.enum.includes(value as never)) {
+      errors.push(
+        issue(
+          `Input must be one of ${JSON.stringify(field.enum)}, got ${JSON.stringify(value)}`,
+          path
+        )
+      )
+    }
+  }
+
+  if (typeof value === "number") {
+    if (typeof field.minimum === "number" && value < field.minimum) {
+      errors.push(issue(`Input must be >= ${field.minimum}, got ${value}`, path))
+    }
+    if (typeof field.maximum === "number" && value > field.maximum) {
+      errors.push(issue(`Input must be <= ${field.maximum}, got ${value}`, path))
+    }
+  }
+
+  if (typeof value === "string") {
+    if (typeof field.minLength === "number" && value.length < field.minLength) {
+      errors.push(
+        issue(`Input length must be >= ${field.minLength}, got ${value.length}`, path)
+      )
+    }
+    if (typeof field.maxLength === "number" && value.length > field.maxLength) {
+      errors.push(
+        issue(`Input length must be <= ${field.maxLength}, got ${value.length}`, path)
+      )
+    }
+  }
+
+  if (isPlainObject(value) && isPlainObject(field.properties)) {
+    const props = field.properties as Record<string, unknown>
+    const allowed = new Set(Object.keys(props))
+    const required = new Set(
+      Array.isArray(field.required)
+        ? field.required.filter((k): k is string => typeof k === "string")
+        : []
+    )
+
+    for (const key of Object.keys(value)) {
+      const childPath = `${path}.${key}`
+      if (!allowed.has(key)) {
+        errors.push(issue(`Unknown input key "${key}"`, childPath))
+        continue
+      }
+      const childSchema = props[key]
+      if (!isPlainObject(childSchema)) continue
+      validateLiteralAgainstFieldSchema(value[key], childSchema, childPath, errors)
+    }
+
+    for (const key of required) {
+      if (!(key in value)) {
+        errors.push(issue(`Missing required input "${key}"`, `${path}.${key}`))
+      }
+    }
+  }
+}
+
 /**
  * Validate a step's literal input against a projected JSON Schema.
  * Skips `$ref` / `$state` / `$env` / `$secret` values. Unknown object keys
  * and missing required keys are errors (Zod would strip unknown keys).
+ * Enforces enum, min/max, and nested object constraints on literals.
  * @category Validation
  */
 export function validateStepInputAgainstSchema(
@@ -78,37 +159,21 @@ export function validateStepInputAgainstSchema(
   const errors: ValidationIssue[] = []
 
   for (const key of Object.keys(values)) {
+    const path = `steps.${stepId}.input.${key}`
     if (!allowed.has(key)) {
-      errors.push(
-        issue(
-          `Unknown input key "${key}"`,
-          `steps.${stepId}.input.${key}`
-        )
-      )
+      errors.push(issue(`Unknown input key "${key}"`, path))
       continue
     }
     const value = values[key]
     if (isPlaceholderInput(value)) continue
     const fieldSchema = (props as Record<string, unknown>)[key]
-    if (fieldSchema === null || typeof fieldSchema !== "object" || Array.isArray(fieldSchema)) {
-      continue
-    }
-    const field = fieldSchema as Record<string, unknown>
-    if (!matchesJsonSchemaType(value, field.type)) {
-      errors.push(
-        issue(
-          `Input "${key}" expected ${String(field.type)}, got ${jsonSchemaTypeOf(value)}`,
-          `steps.${stepId}.input.${key}`
-        )
-      )
-    }
+    if (!isPlainObject(fieldSchema)) continue
+    validateLiteralAgainstFieldSchema(value, fieldSchema, path, errors)
   }
 
   for (const key of required) {
     if (!(key in values)) {
-      errors.push(
-        issue(`Missing required input "${key}"`, `steps.${stepId}.input.${key}`)
-      )
+      errors.push(issue(`Missing required input "${key}"`, `steps.${stepId}.input.${key}`))
     }
   }
 

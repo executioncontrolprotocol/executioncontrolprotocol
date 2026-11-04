@@ -617,6 +617,24 @@
     box-shadow: 0 0 8px color-mix(in srgb, var(--color-error) 30%, transparent);
   }
 
+  .ecp-rf-node--skipped {
+    opacity: 0.45;
+    border-color: var(--color-outline-variant) !important;
+    box-shadow: none !important;
+    filter: grayscale(0.35);
+  }
+
+  .ecp-rf-arm-chip--taken {
+    border-color: color-mix(in srgb, var(--color-status-valid) 55%, var(--color-outline-variant));
+    color: var(--color-on-surface);
+    background: color-mix(in srgb, var(--color-status-valid) 12%, var(--color-surface-container-high));
+  }
+
+  .ecp-rf-arm-chip--skipped {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+
   .ecp-rf-node-error-wrap {
     position: relative;
     display: inline-flex;
@@ -670,6 +688,10 @@
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+  }
+
+  .ecp-rf-group {
+    pointer-events: none;
   }
 
   .ecp-rf-node--io {
@@ -735,6 +757,18 @@
     stroke: var(--color-tertiary-fixed-dim) !important;
     stroke-dasharray: none !important;
     animation: none !important;
+  }
+
+  .react-flow__edge.ecp-rf-edge--route path.react-flow__edge-path {
+    stroke: var(--color-outline) !important;
+    stroke-width: 1.5 !important;
+    stroke-dasharray: 6 4 !important;
+    animation: none !important;
+    opacity: 0.85;
+  }
+
+  .react-flow__edge.ecp-rf-edge--route-muted path.react-flow__edge-path {
+    opacity: 0.35 !important;
   }
 
   .react-flow__edge.ecp-rf-edge--incomplete path.react-flow__edge-path {

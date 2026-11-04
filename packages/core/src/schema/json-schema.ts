@@ -104,12 +104,57 @@ function jsonSchemaFromZodAt(type: z.ZodType, depth: number): Record<string, unk
     schema = {}
   } else if (isFileRefSchema(inner)) {
     schema = fileRefValueSchemaHint(fileRefSchemaOptions(inner))
+  } else if (inner instanceof z.ZodUnion || inner instanceof z.ZodDiscriminatedUnion) {
+    schema = projectZodUnion(inner, depth)
   } else {
     schema = {}
   }
 
   if (description) schema.description = description
   return schema
+}
+
+function zodUnionOptions(type: z.ZodUnion<z.ZodUnionOptions> | z.ZodDiscriminatedUnion<string, z.ZodDiscriminatedUnionOption<string>[]>): z.ZodType[] {
+  const options = type._def.options as z.ZodType[] | Map<string, z.ZodType>
+  if (Array.isArray(options)) return options
+  return [...options.values()]
+}
+
+function isSingleValueEnumSchema(
+  schema: Record<string, unknown>
+): schema is Record<string, unknown> & { type: string; enum: unknown[] } {
+  return (
+    typeof schema.type === "string" &&
+    Array.isArray(schema.enum) &&
+    schema.enum.length === 1 &&
+    Object.keys(schema).every((key) => key === "type" || key === "enum" || key === "description")
+  )
+}
+
+/**
+ * Project a Zod union to JSON Schema: literal-only unions become `{ type, enum }`,
+ * otherwise `{ anyOf: [...] }`.
+ */
+function projectZodUnion(
+  type: z.ZodUnion<z.ZodUnionOptions> | z.ZodDiscriminatedUnion<string, z.ZodDiscriminatedUnionOption<string>[]>,
+  depth: number
+): Record<string, unknown> {
+  const projected = zodUnionOptions(type).map((option) =>
+    jsonSchemaFromZodAt(option as z.ZodType, depth + 1)
+  )
+  if (projected.length === 0) return {}
+  if (projected.every(isSingleValueEnumSchema)) {
+    const types = new Set(projected.map((part) => part.type))
+    if (types.size === 1) {
+      const values = projected.map((part) => part.enum[0])
+      const typeName = projected[0]!.type
+      if (typeName === "number" && values.every((v) => typeof v === "number" && Number.isInteger(v))) {
+        return { type: "integer", enum: values }
+      }
+      return { type: typeName, enum: values }
+    }
+  }
+  return { anyOf: projected }
 }
 
 function isJsonSchemaObject(schema: unknown): schema is Record<string, unknown> {

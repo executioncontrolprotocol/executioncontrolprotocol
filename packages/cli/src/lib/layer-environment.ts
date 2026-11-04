@@ -77,6 +77,11 @@ function isDefinitionBinding(binding: WorkflowBinding): boolean {
   return typeof ref === "object" && ref !== null
 }
 
+/** True when a workflow binding carries config that must overlay the process host. */
+function bindingHasConfig(binding: WorkflowBinding): boolean {
+  return Object.keys(binding.getConfig()).length > 0
+}
+
 /**
  * Config bindings may only configure plugins already on the process host.
  * @category CLI
@@ -146,8 +151,9 @@ export async function createConfiguredProcessEnvironment(options: {
 
 /**
  * Layer built-in Node + installed plugins, optional `--config` / user config, then
- * workflow `.with()` **definition objects**. String-id bindings record requirements only;
- * the process host must already provide those extensions.
+ * workflow `.with()` bindings. Definition objects and any binding with non-empty
+ * config overlay the process host (workflow config wins on overlapping keys).
+ * String-id bindings with empty config still only record requirements.
  * @category CLI
  */
 export async function layerRunEnvironment(options: {
@@ -158,12 +164,17 @@ export async function layerRunEnvironment(options: {
 }): Promise<{ ecp: Ecp; terminate: boolean }> {
   const bindings = options.workflowBindings ?? []
   const definitionBindings = bindings.filter(isDefinitionBinding)
+  const configBindings = bindings.filter(bindingHasConfig)
+  const needsRebuild =
+    Boolean(options.configFlag) ||
+    definitionBindings.length > 0 ||
+    configBindings.length > 0
 
   if (bindings.length > 0) {
     assertWorkflowBindingsAllowed(bindings, options.host?.registry)
   }
 
-  if (!options.configFlag && definitionBindings.length === 0) {
+  if (!needsRebuild) {
     if (options.host) return { ecp: options.host.ecp, terminate: false }
     throwIfHostInitFailed()
     try {
@@ -179,8 +190,14 @@ export async function layerRunEnvironment(options: {
     configFlag: options.configFlag,
   })
   env.with([extension(journalExtension)])
-  if (definitionBindings.length > 0) {
-    env.with(definitionBindings)
+  // Overlay all workflow bindings that carry config (string ids or definitions)
+  // and any definition bindings so Environment.with merges onto installed plugins.
+  const overlay = [
+    ...definitionBindings,
+    ...configBindings.filter((b) => !isDefinitionBinding(b)),
+  ]
+  if (overlay.length > 0) {
+    env.with(overlay)
   }
   const ecp = await env.init({ prepare: "discovery" })
   return { ecp, terminate: true }

@@ -27,7 +27,7 @@ export const describeOperation = defineOperation("environments:describe")
   .withMetadata({
     summary: "Describe an environment",
     description:
-      "Return a structured catalog of extensions, capabilities, and policies. Pass --config for machine settings; otherwise use installed plugins.",
+      "Return a structured catalog of extensions, capabilities, and policies. An exact capability id includes inputSchema and outputSchema as JSON Schema. Pass --config for machine settings; otherwise use installed plugins.",
     useCases: ["List installed capabilities", "Inspect one capability by exact id"],
     examples: ["ecp environments describe"],
     cli: { args: ["id"] },

@@ -1,4 +1,7 @@
-import type { ReactFlowStepStatus } from "../../graph/index.js"
+import type {
+  ReactFlowArmRunState,
+  ReactFlowStepStatus,
+} from "../../graph/index.js"
 
 /** Map of step id → run status. */
 export type StepStatusMap = Record<string, ReactFlowStepStatus>
@@ -28,8 +31,30 @@ export function applyStepStatus(
 }
 
 /**
+ * Mark every still-pending step as skipped (after `run.end`).
+ * Optionally restrict to `onlyIds` so I/O projection nodes stay untouched.
+ * @category Demo
+ */
+export function markPendingAsSkipped(
+  current: StepStatusMap,
+  onlyIds?: readonly string[]
+): StepStatusMap {
+  const allow = onlyIds ? new Set(onlyIds) : undefined
+  let changed = false
+  const next: StepStatusMap = { ...current }
+  for (const [id, status] of Object.entries(current)) {
+    if (status !== "pending") continue
+    if (allow && !allow.has(id)) continue
+    next[id] = "skipped"
+    changed = true
+  }
+  return changed ? next : current
+}
+
+/**
  * Derive edge visual status from endpoint step statuses.
  * Idle = solid blue; incomplete = in-flight ants; completed = source step done.
+ * Skipped endpoints stay muted (no ants).
  * @category Demo
  */
 export function edgeRunStatus(
@@ -38,6 +63,7 @@ export function edgeRunStatus(
   runActive: boolean
 ): "idle" | "incomplete" | "completed" | "failed" {
   if (sourceStatus === "failed" || targetStatus === "failed") return "failed"
+  if (sourceStatus === "skipped" || targetStatus === "skipped") return "idle"
   if (sourceStatus === "completed") return "completed"
   if (runActive && (sourceStatus === "pending" || sourceStatus === "running")) {
     return "incomplete"
@@ -56,6 +82,7 @@ export function stepNodeStatusClass(
   if (status === "completed") return "ecp-rf-node--completed"
   if (status === "failed") return "ecp-rf-node--failed"
   if (status === "running") return "ecp-rf-node--running"
+  if (status === "skipped") return "ecp-rf-node--skipped"
   if (runActive && status === "pending") return "ecp-rf-node--pending"
   return ""
 }
@@ -74,4 +101,21 @@ export function edgeStatusClass(
   if (kind === "completed") return "ecp-rf-edge--completed"
   if (kind === "incomplete") return "ecp-rf-edge--incomplete"
   return "ecp-rf-edge--idle"
+}
+
+/**
+ * Taken / skipped / idle for a branch arm from its child step statuses.
+ * @category Demo
+ */
+export function armRunState(
+  stepIds: readonly string[] | undefined,
+  statuses: StepStatusMap
+): ReactFlowArmRunState {
+  if (!stepIds || stepIds.length === 0) return "idle"
+  const child = stepIds.map((id) => statuses[id])
+  if (child.some((s) => s === "completed" || s === "running" || s === "failed")) {
+    return "taken"
+  }
+  if (child.every((s) => s === "skipped")) return "skipped"
+  return "idle"
 }
