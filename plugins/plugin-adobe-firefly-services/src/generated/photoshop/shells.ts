@@ -3,7 +3,7 @@
 import { capabilityFor, type CapabilityHandler } from "@executioncontrolprotocol/core"
 import { z } from "zod"
 import * as schemas from "./schemas.js"
-import { photoshopManifestDocumentSchema } from "../../runtime/photoshop-manifest.js"
+import { adobeAsyncResultPassthroughSchema } from "../../runtime/photoshop-manifest.js"
 
 const EXT_ID = "@executioncontrolprotocol/adobe-firefly-services"
 
@@ -95,7 +95,7 @@ export function photoshop_generate_manifest(handler: CapabilityHandler) {
   trimToTransparency: z.boolean().optional(),
   body: schemas.Schema_GenerateManifestRequest.optional()
 }))
-    .withOutput(photoshopManifestDocumentSchema)
+    .withOutput(adobeAsyncResultPassthroughSchema)
     .withMetadata({"summary":"Generate a manifest for given input image","description":"Generate a manifest for given input image","useCases":["Photoshop Photoshop APIs tasks that need this operation","When the workflow goal is to generate a manifest for given input image"],"projections":[{"summary":"Inspect the structured result","description":"Read the returned document or asset facts you need for authoring, such as names, sizes, and ids."}]})
     .withHandler(handler)
 }

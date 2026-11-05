@@ -3,7 +3,7 @@
 import * as shells from "./shells.js"
 import * as schemas from "./schemas.js"
 import { invokeAdobeOperation } from "../../runtime/invoke.js"
-import { photoshopManifestDocumentSchema } from "../../runtime/photoshop-manifest.js"
+import { adobeAsyncResultPassthroughSchema } from "../../runtime/photoshop-manifest.js"
 
 /** Auto crop */
 export const photoshop_auto_crop = shells.photoshop_auto_crop(async (input, ctx) => {
@@ -90,8 +90,8 @@ export const photoshop_generate_manifest = shells.photoshop_generate_manifest(as
     parameters: {"body":["exportOptions","extractSmartObjectData","image","includeLayerThumbnails","includeXmp","maximumThumbnailDepth","outputs","trimToTransparency"]},
     bodySchema: schemas.Schema_GenerateManifestRequest,
     ctx,
-    outputSchema: photoshopManifestDocumentSchema,
+    outputSchema: adobeAsyncResultPassthroughSchema,
     asyncMode: "submit",
-    materialize: "photoshop-manifest",
+    defaultManifestOutputs: true,
   })
 })

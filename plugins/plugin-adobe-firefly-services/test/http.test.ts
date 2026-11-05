@@ -1,12 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import { AdobeHttpError, buildUrl, createAdobeHttpClient } from "../src/http/client.js"
 import { extractAdobeStatusUrl, pollAdobeJob } from "../src/http/async-job.js"
-import {
-  collectManifestDestinationUrls,
-  extractEmbeddedManifestJson,
-  materializePhotoshopManifest,
-  photoshopManifestDocumentSchema,
-} from "../src/runtime/photoshop-manifest.js"
+import { adobeAsyncResultPassthroughSchema } from "../src/runtime/photoshop-manifest.js"
+import { unwrapAdobeResult } from "../src/runtime/invoke.js"
 
 describe("Adobe HTTP client", () => {
   it("buildUrl substitutes path and query params", () => {
@@ -85,35 +81,34 @@ describe("pollAdobeJob", () => {
   })
 })
 
-describe("photoshop manifest materialize", () => {
-  it("parses destination URLs and embedded job JSON", () => {
-    expect(
-      collectManifestDestinationUrls({
-        outputs: [{ destination: { url: "https://blob.example/m.json" } }],
-      }),
-    ).toEqual(["https://blob.example/m.json"])
-    expect(
-      extractEmbeddedManifestJson({
-        result: { layers: [{ id: 1, name: "A" }] },
-      }),
-    ).toEqual({ layers: [{ id: 1, name: "A" }] })
-  })
-
-  it("downloads manifest JSON from destination when not embedded", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ layers: [{ id: 42, name: "Text" }] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    )
-    const doc = await materializePhotoshopManifest({
-      jobStatus: { status: "succeeded", jobId: "j1" },
-      requestBody: {
-        outputs: [{ destination: { url: "https://blob.example/m.json" } }],
+describe("generate-manifest raw result", () => {
+  it("unwraps the job envelope and accepts embedded destination content", () => {
+    const job = {
+      status: "succeeded",
+      result: {
+        outputs: [
+          {
+            destination: {
+              embedded: "json",
+              mediaType: "application/json",
+              content: {
+                version: 1,
+                document: { title: "Poster", bounds: { right: 100, bottom: 200 } },
+                layers: [{ id: 2, name: "L1", type: "background_layer" }],
+              },
+            },
+            mediaType: "application/json",
+          },
+        ],
       },
-      fetchImpl: fetchImpl as unknown as typeof fetch,
-    })
-    expect(doc).toEqual({ layers: [{ id: 42, name: "Text" }] })
-    expect(photoshopManifestDocumentSchema.safeParse(doc).success).toBe(true)
+    }
+    const unwrapped = unwrapAdobeResult(job)
+    expect(adobeAsyncResultPassthroughSchema.parse(unwrapped)).toEqual(job.result)
+    const layers = (
+      unwrapped as {
+        outputs: { destination: { content: { layers: { name: string }[] } } }[]
+      }
+    ).outputs[0]!.destination.content.layers
+    expect(layers[0]!.name).toBe("L1")
   })
 })

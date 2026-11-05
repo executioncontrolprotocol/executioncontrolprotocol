@@ -562,7 +562,7 @@ function main() {
             bodySchemaExpr: inputBuilt.bodySchemaExpr,
             outputZod: outputResolved.outputZod,
             opClass,
-            materialize: outputResolved.materialize,
+            defaultManifestOutputs: outputResolved.defaultManifestOutputs,
             operationId: opId,
             summary: operation.summary ?? "",
             operation,
@@ -606,12 +606,12 @@ function main() {
     )
     shellLines.push(`import { z } from "zod"`)
     shellLines.push(`import * as schemas from "./schemas.js"`)
-    const needsManifestSchema = ops.some(
-      (o) => o.outputZod === "photoshopManifestDocumentSchema",
+    const needsAsyncPassthrough = ops.some(
+      (o) => o.outputZod === "adobeAsyncResultPassthroughSchema",
     )
-    if (needsManifestSchema) {
+    if (needsAsyncPassthrough) {
       shellLines.push(
-        `import { photoshopManifestDocumentSchema } from "../../runtime/photoshop-manifest.js"`,
+        `import { adobeAsyncResultPassthroughSchema } from "../../runtime/photoshop-manifest.js"`,
       )
     }
     shellLines.push(``)
@@ -623,8 +623,8 @@ function main() {
         expr.replace(/\bSchema_([A-Za-z0-9_]+)\b/g, "schemas.Schema_$1")
       const inputZod = qualify(op.inputZod)
       const outputZod =
-        op.outputZod === "photoshopManifestDocumentSchema"
-          ? "photoshopManifestDocumentSchema"
+        op.outputZod === "adobeAsyncResultPassthroughSchema"
+          ? "adobeAsyncResultPassthroughSchema"
           : qualify(op.outputZod)
       const capabilityMetadata = deriveCapabilityMetadata(op.operation, op.family, op.opName)
 
@@ -656,9 +656,9 @@ function main() {
     }
     capLines.push(`import * as schemas from "./schemas.js"`)
     capLines.push(`import { invokeAdobeOperation } from "../../runtime/invoke.js"`)
-    if (needsManifestSchema) {
+    if (needsAsyncPassthrough) {
       capLines.push(
-        `import { photoshopManifestDocumentSchema } from "../../runtime/photoshop-manifest.js"`,
+        `import { adobeAsyncResultPassthroughSchema } from "../../runtime/photoshop-manifest.js"`,
       )
     }
     capLines.push(``)
@@ -668,8 +668,8 @@ function main() {
         expr.replace(/\bSchema_([A-Za-z0-9_]+)\b/g, "schemas.Schema_$1")
 
       const outputZod =
-        op.outputZod === "photoshopManifestDocumentSchema"
-          ? "photoshopManifestDocumentSchema"
+        op.outputZod === "adobeAsyncResultPassthroughSchema"
+          ? "adobeAsyncResultPassthroughSchema"
           : qualify(op.outputZod)
 
       const asyncMode = op.opClass === "async-submit" ? "submit" : "none"
@@ -694,8 +694,8 @@ function main() {
       capLines.push(`    ctx,`)
       capLines.push(`    outputSchema: ${outputZod},`)
       capLines.push(`    asyncMode: ${JSON.stringify(asyncMode)},`)
-      if (op.materialize) {
-        capLines.push(`    materialize: ${JSON.stringify(op.materialize)},`)
+      if (op.defaultManifestOutputs) {
+        capLines.push(`    defaultManifestOutputs: true,`)
       }
       capLines.push(`  })`)
       capLines.push(`})`)

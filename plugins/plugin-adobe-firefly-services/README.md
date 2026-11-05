@@ -86,12 +86,15 @@ workflows:
   capabilities.
 - **Sync** caps (list/get metadata) are unchanged.
 
-`photoshop-generate-manifest` materializes the **PSD manifest JSON** (layer tree)
-after the job succeeds so you can `ref("manifest.layers.0.id")`. When `outputs` is
+`photoshop-generate-manifest` returns Adobe’s raw async **`result`** (same
+transport unwrap as Firefly). For embedded JSON destinations, layers live at
+`outputs.0.destination.content.layers` — e.g.
+`ref("manifest.outputs.0.destination.content.layers.0.id")`. When `outputs` is
 omitted (or empty), the capability defaults to
 `[{ destination: { embedded: "json" }, mediaType: "application/json" }]` so a
 “read layers” step only needs `image`. Destinations must use a concrete variant
 (`embedded`, hosted `validityPeriod`, or `url`) — empty `{}` is not valid.
+Hosted/URL destinations are not auto-fetched; add an explicit download step if needed.
 
 ## Capability input shape
 

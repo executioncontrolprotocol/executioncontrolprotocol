@@ -6,7 +6,7 @@ import {
 import type { CapabilityDefinition } from "@executioncontrolprotocol/core"
 import { EXT_ID } from "./shared.js"
 
-/** Capability that materializes a PSD layer tree for author-time inspect. @category Adobe */
+/** Capability that returns Adobe's generate-manifest job result for author-time inspect. @category Adobe */
 export const PHOTOSHOP_GENERATE_MANIFEST_ID =
   `${EXT_ID}.photoshop-generate-manifest` as const
 
@@ -21,11 +21,12 @@ const GENERATE_MANIFEST_PROJECTIONS: CapabilityProjection[] = [
   {
     summary: "Retrieve all visible layers",
     description:
-      "Look through the document layers and keep each one whose visible field is true. Use the layer id and name.",
+      "Read outputs.0.destination.content.layers (embedded JSON destination). Keep each layer whose visible field is true; use id and name.",
   },
   {
     summary: "Read the image size",
-    description: "Read width and height from the top of the result.",
+    description:
+      "Read document bounds from outputs.0.destination.content.document.bounds (right/bottom), not top-level width/height.",
   },
 ]
 
@@ -33,7 +34,7 @@ const OVERLAYS: Overlay[] = [
   {
     id: PHOTOSHOP_GENERATE_MANIFEST_ID,
     description:
-      "Call this while authoring when the user has a Photoshop file and the next steps depend on its layers or size. The output can be large.",
+      "Call this while authoring when the user has a Photoshop file and the next steps depend on its layers or size. Returns Adobe's raw result (large). Prefer embedded JSON outputs (default when omitted).",
     extraUseCases: ["Inspect a PSD before choosing which layer to edit"],
     projections: GENERATE_MANIFEST_PROJECTIONS,
   },

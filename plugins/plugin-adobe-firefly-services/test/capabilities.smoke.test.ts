@@ -351,7 +351,23 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     expect(fetchImpl.mock.calls.some((c) => String(c[0]).includes("ims"))).toBe(true)
   })
 
-  it("photoshop-generate-manifest polls and returns manifest JSON", async () => {
+  it("photoshop-generate-manifest polls and returns Adobe raw result", async () => {
+    const adobeResult = {
+      outputs: [
+        {
+          destination: {
+            embedded: "json",
+            mediaType: "application/json",
+            content: {
+              version: 1,
+              document: { title: "Poster", bounds: { right: 640, bottom: 426 } },
+              layers: [{ id: 2, name: "L1", type: "background_layer" }],
+            },
+          },
+          mediaType: "application/json",
+        },
+      ],
+    }
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("adobelogin.com") || url.includes("/ims/token")) {
@@ -364,10 +380,7 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
         })
       }
       if (url.includes("photoshop-api.adobe.io") && url.includes("/v2/status/m-1")) {
-        return jsonResponse({ jobId: "m-1", status: "succeeded", result: {} })
-      }
-      if (url.includes("blob.example/manifest.json")) {
-        return jsonResponse({ layers: [{ id: 7, name: "Headline" }], name: "Poster" })
+        return jsonResponse({ jobId: "m-1", status: "succeeded", result: adobeResult })
       }
       return jsonResponse({ unexpected: url }, 500)
     })
@@ -378,17 +391,15 @@ describe("@executioncontrolprotocol/adobe-firefly-services capabilities", () => 
     )(
       {
         image: { source: { url: "https://blob.example/a.psd" } },
-        outputs: [
-          {
-            mediaType: "application/json",
-            destination: { storageType: "azure", url: "https://blob.example/manifest.json" },
-          },
-        ],
       },
       { ...ctx, extensionConfig: { ...ctx.extensionConfig, pollIntervalMs: 1, pollTimeoutMs: 5_000 } },
     )
 
-    expect(out).toEqual({ layers: [{ id: 7, name: "Headline" }], name: "Poster" })
+    expect(out).toEqual(adobeResult)
+    expect(
+      (out as { outputs: { destination: { content: { layers: { name: string }[] } } }[] }).outputs[0]
+        ?.destination.content.layers[0]?.name,
+    ).toBe("L1")
   })
 
   it("generate-images returns unwrapped outputs, not the job envelope", async () => {

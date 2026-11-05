@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { ECP_INPUT_INVALID, EcpError } from "@executioncontrolprotocol/core/types"
+import { Schema_GenerateManifestRequest } from "../src/generated/photoshop/schemas.js"
 import {
   assembleAdobeOperationInput,
+  bodySchemaAcceptsCaiClaimVersion,
   ensureDefaultCaiClaimVersion,
 } from "../src/runtime/invoke.js"
 
@@ -153,6 +155,38 @@ describe("ensureDefaultCaiClaimVersion", () => {
   })
 })
 
+const photoshopManifestBodySchema = z
+  .object({
+    image: z
+      .object({
+        source: z.object({ url: z.string().optional() }).passthrough().optional(),
+      })
+      .passthrough()
+      .optional(),
+    outputs: z
+      .array(
+        z.object({
+          destination: z.record(z.string(), z.unknown()).optional(),
+          mediaType: z.string().optional(),
+        }),
+      )
+      .optional(),
+  })
+  .strict()
+
+const photoshopBodyKeys = { body: ["image", "outputs"] }
+
+describe("bodySchemaAcceptsCaiClaimVersion", () => {
+  it("is true for Firefly expand-style schemas", () => {
+    expect(bodySchemaAcceptsCaiClaimVersion(expandBodySchema)).toBe(true)
+  })
+
+  it("is false for Photoshop schemas that reject the field", () => {
+    expect(bodySchemaAcceptsCaiClaimVersion(photoshopManifestBodySchema)).toBe(false)
+    expect(bodySchemaAcceptsCaiClaimVersion(Schema_GenerateManifestRequest)).toBe(false)
+  })
+})
+
 describe("assembleAdobeOperationInput caiClaimVersion", () => {
   it("defaults caiClaimVersion to 2 for expand-style image requests", () => {
     const assembled = assembleAdobeOperationInput(
@@ -178,6 +212,50 @@ describe("assembleAdobeOperationInput caiClaimVersion", () => {
     expect(assembled.body).toEqual({
       image: { source: { url: "https://example.com/a.png" } },
       caiClaimVersion: 1,
+    })
+  })
+
+  it("does not inject caiClaimVersion into Photoshop image bodies", () => {
+    const assembled = assembleAdobeOperationInput(
+      {
+        image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
+        outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
+      },
+      photoshopBodyKeys,
+      photoshopManifestBodySchema,
+    )
+    expect(assembled.body).toEqual({
+      image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
+      outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
+    })
+    expect(assembled.body).not.toHaveProperty("caiClaimVersion")
+  })
+
+  it("does not inject caiClaimVersion for generated Photoshop generate-manifest schema", () => {
+    const assembled = assembleAdobeOperationInput(
+      {
+        image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
+        outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
+      },
+      photoshopBodyKeys,
+      Schema_GenerateManifestRequest,
+    )
+    expect(assembled.body).not.toHaveProperty("caiClaimVersion")
+  })
+
+  it("strips undeclared keys from the wire body", () => {
+    const assembled = assembleAdobeOperationInput(
+      {
+        image: { source: { url: "https://example.com/a.png" } },
+        caiClaimVersion: 2,
+        notARealField: true,
+      },
+      expandBodyKeys,
+      expandBodySchema,
+    )
+    expect(assembled.body).toEqual({
+      image: { source: { url: "https://example.com/a.png" } },
+      caiClaimVersion: 2,
     })
   })
 })

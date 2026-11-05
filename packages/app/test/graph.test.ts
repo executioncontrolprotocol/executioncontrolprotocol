@@ -141,6 +141,60 @@ describe("workflowToReactFlow", () => {
     expect(edges[0]!.sourceHandle).toBe("echo")
   })
 
+  it("encodes a Firefly-like generate + parallel crop/expand graph", () => {
+    const generatedUrl = ref("image.outputs.0.image.url")
+    const manifest = workflow("firefly image")
+      .accepts({
+        type: "object",
+        properties: {
+          prompt: { type: "string" },
+          expand: { type: "boolean" },
+        },
+        required: ["prompt"],
+      })
+      .run([
+        step("@vendor/firefly.generate", "Generate image")
+          .with({ prompt: ref("prompt") })
+          .as("image"),
+        parallel(
+          [
+            [
+              step("@vendor/sharp.derive", "Crop")
+                .with({ image: { kind: "url", url: generatedUrl } })
+                .as("crops"),
+            ],
+            [
+              step("@vendor/firefly.expand", "Expand to 4:5")
+                .with({ image: { source: { url: generatedUrl } } })
+                .when(expr((state) => state.expand === true))
+                .as("expandedPortrait"),
+            ],
+            [
+              step("@vendor/firefly.expand", "Expand to 16:9")
+                .with({ image: { source: { url: generatedUrl } } })
+                .when(expr((state) => state.expand === true))
+                .as("expandedLandscape"),
+            ],
+          ],
+          { label: "Aspect ratios" },
+        ),
+      ])
+      .toManifest()
+    const doc = workflowToReactFlow(manifest)
+    expect(doc.nodes.every((n) => n.type === "ecp-step" || n.type === "ecp-io")).toBe(true)
+    const dataEdges = doc.edges.filter((e) => e.data.kind === "data")
+    const nestedTargets = dataEdges.map((e) => e.targetHandle)
+    expect(nestedTargets).toEqual(expect.arrayContaining(["image.url", "image.source.url"]))
+    const whenBadges = doc.nodes
+      .filter((n) => n.type === "ecp-step")
+      .map((n) => (n.data as ReactFlowStepData).whenBadge ?? "")
+    expect(whenBadges.some((badge) => badge.includes("state.expand"))).toBe(true)
+    const parallelRoutes = doc.edges.filter(
+      (e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "parallel",
+    )
+    expect(parallelRoutes.length).toBeGreaterThanOrEqual(2)
+  })
+
   it("shows when badges and a when data edge from Inputs", () => {
     const manifest = workflow("Gated")
       .accepts({

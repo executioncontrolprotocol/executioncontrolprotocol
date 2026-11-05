@@ -42,7 +42,7 @@ export const ASYNC_FINAL_OUTPUT_BY_OP = {
   "photoshop-create-composite": "Result",
   "photoshop-edit": "Result",
   "photoshop-execute-actions": "Result",
-  "photoshop-generate-manifest": "__photoshopManifestDocumentSchema",
+  "photoshop-generate-manifest": "__adobeAsyncResultPassthrough",
 
   // firefly — unwrap JobResponse.result
   "firefly-generate-images-v3-async": "JobResult",
@@ -216,7 +216,7 @@ export function acceptSchemaNameForOperation(operation, doc) {
  * @param {object} operation
  * @param {object} doc
  * @param {(schema: object, context: string) => string} schemaToZod
- * @returns {{ outputZod: string, materialize?: string, finalComponent?: string }}
+ * @returns {{ outputZod: string, defaultManifestOutputs?: boolean, finalComponent?: string }}
  */
 export function resolveOutputForOperation(opName, opClass, operation, doc, schemaToZod) {
   if (opClass !== "async-submit") {
@@ -224,10 +224,10 @@ export function resolveOutputForOperation(opName, opClass, operation, doc, schem
   }
 
   const finalName = ASYNC_FINAL_OUTPUT_BY_OP[opName]
-  if (finalName === "__photoshopManifestDocumentSchema") {
+  if (finalName === "__adobeAsyncResultPassthrough") {
     return {
-      outputZod: "photoshopManifestDocumentSchema",
-      materialize: "photoshop-manifest",
+      outputZod: "adobeAsyncResultPassthroughSchema",
+      defaultManifestOutputs: true,
       finalComponent: finalName,
     }
   }

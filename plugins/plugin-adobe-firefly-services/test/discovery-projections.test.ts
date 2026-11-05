@@ -11,6 +11,7 @@ describe("withPhotoshopDiscoveryProjections", () => {
     const cap = next.find((c) => c.id === PHOTOSHOP_GENERATE_MANIFEST_ID)
     expect(cap?.metadata?.projections?.length).toBeGreaterThan(0)
     expect(cap?.metadata?.projections?.[0]?.summary).toMatch(/visible layers/i)
+    expect(cap?.metadata?.projections?.[0]?.description).toMatch(/destination\.content\.layers/)
     expect(cap?.metadata).not.toHaveProperty("samplePrompts")
   })
 

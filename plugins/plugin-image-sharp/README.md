@@ -45,6 +45,10 @@ See `examples/image-prep.ecp.ts`.
 | `@executioncontrolprotocol/image-sharp.metadata` | Metadata-only inspect. |
 | `@executioncontrolprotocol/image-sharp.stats` | Stats-only inspect. |
 
+`position: "attention"` / crop `strategy: "attention"` (and `entropy`) bias toward high-contrast
+regions. Prefer `center` (or an explicit compass position) when the subject is not the brightest
+area of the frame.
+
 ```sh
 ecp image-sharp inspect --input fixtures/inspect-input.json --json
 ```

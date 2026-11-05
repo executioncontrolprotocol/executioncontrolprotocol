@@ -40,20 +40,18 @@ export type { AdobeHttpClient, AdobeRequestOptions } from "./http/client.js"
 export { extractAdobeStatusUrl, pollAdobeJob } from "./http/async-job.js"
 export type { PollAdobeJobOptions } from "./http/async-job.js"
 export {
-  collectManifestDestinationUrls,
-  extractEmbeddedManifestJson,
-  materializePhotoshopManifest,
-  photoshopManifestDocumentSchema,
-  photoshopManifestLayerSchema,
+  adobeAsyncResultPassthroughSchema,
+  withDefaultManifestOutputs,
+  DEFAULT_PHOTOSHOP_MANIFEST_OUTPUTS,
 } from "./runtime/photoshop-manifest.js"
 export {
   assembleAdobeOperationInput,
+  bodySchemaAcceptsCaiClaimVersion,
   ensureDefaultCaiClaimVersion,
   unwrapAdobeResult,
 } from "./runtime/invoke.js"
 export type {
   AdobeAsyncMode,
-  AdobeMaterializeMode,
   AdobeOperationInput,
   AdobeParameterMap,
   AssembledAdobeRequest,

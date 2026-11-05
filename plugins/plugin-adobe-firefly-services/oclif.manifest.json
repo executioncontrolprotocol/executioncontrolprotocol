@@ -62,7 +62,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-avatars",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -70,7 +69,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get available avatars",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-dub": {
       "aliases": [
@@ -133,7 +133,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-dub",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -141,7 +140,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Dub audio or video",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-dub-dub": {
       "aliases": [
@@ -204,7 +204,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-dub-dub",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -212,7 +211,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Dub audio or video",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-generate-avatar": {
       "aliases": [
@@ -275,7 +275,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-generate-avatar",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -283,7 +282,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate avatar video from text",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-generate-reframed-video": {
       "aliases": [
@@ -360,7 +360,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-generate-reframed-video",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -368,7 +367,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Reframe video",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-generate-reframed-video-v2": {
       "aliases": [
@@ -431,7 +431,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-generate-reframed-video-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -439,7 +438,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Reframe video v2",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-generate-speech": {
       "aliases": [
@@ -518,7 +518,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-generate-speech",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -526,7 +525,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate speech from text",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-get-presets": {
       "aliases": [
@@ -589,7 +589,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-get-presets",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -597,7 +596,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Fetch video rendering presets",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-list-render-jobs": {
       "aliases": [
@@ -724,7 +724,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-list-render-jobs",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -732,7 +731,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "List render jobs",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-template-describe": {
       "aliases": [
@@ -835,7 +835,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-template-describe",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -843,7 +842,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Describe template",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-template-render": {
       "aliases": [
@@ -946,7 +946,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-template-render",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -954,7 +953,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Render template",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-transcribe": {
       "aliases": [
@@ -1017,7 +1017,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-transcribe",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1025,7 +1024,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Transcribe media",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-transcribe-transcribe": {
       "aliases": [
@@ -1088,7 +1088,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-transcribe-transcribe",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1096,7 +1095,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Transcribe media",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:audio-video-voices": {
       "aliases": [
@@ -1159,7 +1159,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:audio-video-voices",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1167,7 +1166,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get available voices",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:creative-production-batch-execute": {
       "aliases": [
@@ -1252,7 +1252,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:creative-production-batch-execute",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1260,7 +1259,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Execute a batch of assets through a workflow",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:creative-production-list-batch-executions": {
       "aliases": [
@@ -1421,7 +1421,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:creative-production-list-batch-executions",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1429,7 +1428,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "List individual execution results",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:creative-production-list-batches": {
       "aliases": [
@@ -1624,7 +1624,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:creative-production-list-batches",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1632,7 +1631,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "List batches",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:express-export-rendition": {
       "aliases": [
@@ -1727,7 +1727,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:express-export-rendition",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1735,7 +1734,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Export rendition",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:express-generate-variation": {
       "aliases": [
@@ -1814,7 +1814,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:express-generate-variation",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1822,7 +1821,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate variation",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:express-tagged-document-details": {
       "aliases": [
@@ -1917,7 +1917,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:express-tagged-document-details",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -1925,7 +1924,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Tagged document details",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:express-tagged-documents": {
       "aliases": [
@@ -2020,7 +2020,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:express-tagged-documents",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2028,7 +2027,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Tagged documents",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-adaptive-composite": {
       "aliases": [
@@ -2169,7 +2169,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-adaptive-composite",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2177,7 +2176,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate adaptive composite",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-expand-images-v3-async": {
       "aliases": [
@@ -2288,7 +2288,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-expand-images-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2296,7 +2295,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Expand image",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-fill-images-v3-async": {
       "aliases": [
@@ -2439,7 +2439,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-fill-images-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2447,7 +2446,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Fill image",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-generate-images-v3-async": {
       "aliases": [
@@ -2676,7 +2676,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-generate-images-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2684,7 +2683,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate images",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-generate-images-v5-async": {
       "aliases": [
@@ -2843,7 +2843,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-generate-images-v5-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2851,7 +2850,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate images with Image5",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-generate-object-composite-v3-async": {
       "aliases": [
@@ -2962,7 +2962,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-generate-object-composite-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -2970,7 +2969,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate object composite",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-generate-similar-images-v3-async": {
       "aliases": [
@@ -3091,7 +3091,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-generate-similar-images-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3099,7 +3098,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate similar images",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-generate-video-v3": {
       "aliases": [
@@ -3232,7 +3232,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-generate-video-v3",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3240,7 +3239,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate video",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-get-custom-models": {
       "aliases": [
@@ -3429,7 +3429,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-get-custom-models",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3437,7 +3436,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Retrieve custom models",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-precise-composite": {
       "aliases": [
@@ -3548,7 +3548,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-precise-composite",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3556,7 +3555,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate precise composite",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-precise-upsampler-v3-async": {
       "aliases": [
@@ -3657,7 +3657,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-precise-upsampler-v3-async",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3665,7 +3664,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Upscale image",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:firefly-storage-image-v2": {
       "aliases": [
@@ -3728,7 +3728,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:firefly-storage-image-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3736,7 +3735,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Upload image",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:illustrator-create-rendition": {
       "aliases": [
@@ -3799,7 +3799,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:illustrator-create-rendition",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3807,7 +3806,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create rendition",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:illustrator-data-merge": {
       "aliases": [
@@ -3870,7 +3870,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:illustrator-data-merge",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3878,7 +3877,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Data merge",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:illustrator-execute-custom-script-capability": {
       "aliases": [
@@ -3973,7 +3973,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:illustrator-execute-custom-script-capability",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -3981,7 +3980,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Submit a custom script execution request",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:illustrator-register-custom-script-capability": {
       "aliases": [
@@ -4044,7 +4044,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:illustrator-register-custom-script-capability",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4052,7 +4051,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Submit a Custom Script",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:illustrator-trace-image": {
       "aliases": [
@@ -4115,7 +4115,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:illustrator-trace-image",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4123,7 +4122,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Submit a job",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-convert-pdfto-in-design": {
       "aliases": [
@@ -4186,7 +4186,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-convert-pdfto-in-design",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4194,7 +4193,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Convert PDF to InDesign document",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-data-merge": {
       "aliases": [
@@ -4257,7 +4257,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-data-merge",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4265,7 +4264,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Perform a data merge",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-data-merge-tags": {
       "aliases": [
@@ -4328,7 +4328,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-data-merge-tags",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4336,7 +4335,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get data merge tags",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-delete-custom-script": {
       "aliases": [
@@ -4415,7 +4415,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-delete-custom-script",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4423,7 +4422,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Delete a Custom Script",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-execute-custom-script": {
       "aliases": [
@@ -4518,7 +4518,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-execute-custom-script",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4526,7 +4525,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Submit a custom script execution request",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-get-custom-script-details": {
       "aliases": [
@@ -4605,7 +4605,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-get-custom-script-details",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4613,7 +4612,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get Custom Script details",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-get-document-info": {
       "aliases": [
@@ -4676,7 +4676,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-get-document-info",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4684,7 +4683,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get document information",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-list-app-versions": {
       "aliases": [
@@ -4747,7 +4747,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-list-app-versions",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4755,7 +4754,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Get Current App Versions",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-list-custom-scripts": {
       "aliases": [
@@ -4834,7 +4834,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-list-custom-scripts",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4842,7 +4841,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "List custom scripts API",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-remap-links": {
       "aliases": [
@@ -4921,7 +4921,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-remap-links",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -4929,7 +4928,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Remap links",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-rendition-job": {
       "aliases": [
@@ -4992,7 +4992,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-rendition-job",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5000,7 +4999,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create JPEG, PNG, or PDF renditions",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-submit-custom-script": {
       "aliases": [
@@ -5063,7 +5063,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-submit-custom-script",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5071,7 +5070,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Submit a Custom Script",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:indesign-update-script-app-version": {
       "aliases": [
@@ -5208,7 +5208,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:indesign-update-script-app-version",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5216,7 +5215,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Update Custom Script App Version",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-auto-crop": {
       "aliases": [
@@ -5295,7 +5295,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-auto-crop",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5303,7 +5302,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Auto crop",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-create-artboard": {
       "aliases": [
@@ -5382,7 +5382,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-create-artboard",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5390,7 +5389,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create an artboard",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-create-composite": {
       "aliases": [
@@ -5453,7 +5453,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-create-composite",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5461,7 +5460,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create or edit a composite",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-edit": {
       "aliases": [
@@ -5524,7 +5524,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-edit",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5532,7 +5531,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Edit an image with various adjustments",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-execute-actions": {
       "aliases": [
@@ -5595,7 +5595,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-execute-actions",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5603,7 +5602,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Execute Photoshop actions, scripts, and transformations",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:photoshop-generate-manifest": {
       "aliases": [
@@ -5738,7 +5738,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:photoshop-generate-manifest",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5746,7 +5745,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate a manifest for given input image",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-create-space-from-frame-io-v2": {
       "aliases": [
@@ -5857,7 +5857,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-create-space-from-frame-io-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -5865,7 +5864,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create Space From Frame IO API",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-create-space-from-next-frame-io-v2": {
       "aliases": [
@@ -5992,7 +5992,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-create-space-from-next-frame-io-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6000,7 +5999,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create Space From Next Frame IO API",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-create-space-url-v2": {
       "aliases": [
@@ -6063,7 +6063,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-create-space-url-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6071,7 +6070,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create Space from URL API",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-create-space-v1": {
       "aliases": [
@@ -6134,7 +6134,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-create-space-v1",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6142,7 +6141,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create Space",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-create-space-v2": {
       "aliases": [
@@ -6205,7 +6205,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-create-space-v2",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6213,7 +6212,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create Space API",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-composites-compose": {
       "aliases": [
@@ -6546,7 +6546,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-composites-compose",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6554,7 +6553,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Generate 3D object composite",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-scenes-assemble": {
       "aliases": [
@@ -6697,7 +6697,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-scenes-assemble",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6705,7 +6704,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Create 3D scene",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-scenes-convert": {
       "aliases": [
@@ -6848,7 +6848,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-scenes-convert",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6856,7 +6855,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Convert 3D files",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-scenes-describe": {
       "aliases": [
@@ -6965,7 +6965,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-scenes-describe",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -6973,7 +6972,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Describe 3D scene",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-scenes-render": {
       "aliases": [
@@ -7082,7 +7082,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-scenes-render",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -7090,7 +7089,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Render 3D object",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     },
     "adobe-firefly-services:substance3d-v1-scenes-render-basic": {
       "aliases": [
@@ -7199,7 +7199,6 @@
         }
       },
       "hasDynamicHelp": false,
-      "hidden": false,
       "hiddenAliases": [],
       "id": "firefly:substance3d-v1-scenes-render-basic",
       "pluginAlias": "@executioncontrolprotocol/plugin-adobe-firefly-services",
@@ -7207,7 +7206,8 @@
       "pluginType": "core",
       "strict": true,
       "summary": "Render 3D object (basic version)",
-      "enableJsonFlag": true
+      "enableJsonFlag": true,
+      "hidden": false
     }
   }
 }

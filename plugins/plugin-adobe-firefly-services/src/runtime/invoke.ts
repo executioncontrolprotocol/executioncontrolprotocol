@@ -3,10 +3,7 @@ import { z } from "zod"
 import { createImsTokenProvider } from "../auth/ims.js"
 import { buildUrl, createAdobeHttpClient } from "../http/client.js"
 import { extractAdobeStatusUrl, pollAdobeJob } from "../http/async-job.js"
-import {
-  materializePhotoshopManifest,
-  withDefaultManifestOutputs,
-} from "./photoshop-manifest.js"
+import { withDefaultManifestOutputs } from "./photoshop-manifest.js"
 
 /**
  * Capability handler context fields used by Adobe invoke.
@@ -69,12 +66,6 @@ export interface AssembledAdobeRequest {
  * @category Runtime
  */
 export type AdobeAsyncMode = "submit" | "none"
-
-/**
- * Optional product materialization after a successful async poll.
- * @category Runtime
- */
-export type AdobeMaterializeMode = "photoshop-manifest"
 
 /**
  * Read optional extension config bag from a capability handler context.
@@ -182,6 +173,22 @@ export function ensureDefaultCaiClaimVersion(body: unknown): unknown {
 }
 
 /**
+ * True when {@link bodySchema} recognizes top-level `caiClaimVersion`.
+ * Firefly v3 image requests declare it; Photoshop / other families must not
+ * receive a defaulted Claim field (Adobe 400 `invalid fields: caiClaimVersion`).
+ * @category Runtime
+ */
+export function bodySchemaAcceptsCaiClaimVersion(bodySchema: z.ZodType): boolean {
+  const probe = bodySchema.safeParse({ caiClaimVersion: 2 })
+  if (probe.success) return true
+  return !probe.error.issues.some((issue) => {
+    if (issue.code !== "unrecognized_keys") return false
+    const keys = (issue as { keys?: unknown }).keys
+    return Array.isArray(keys) && keys.includes("caiClaimVersion")
+  })
+}
+
+/**
  * Build path, query, headers, and JSON body from a flat capability input.
  * When `bodySchema` is set, a provided `body` or any body parameter is merged
  * then parsed against that schema.
@@ -201,17 +208,19 @@ export function assembleAdobeOperationInput(
 
   let body: unknown
   if (bodySchema && (hasBody || hasBodyParam)) {
-    // Validate the author/merged body first, then inject host defaults such as
-    // caiClaimVersion. Keep the merged object (not Zod's stripped `.data`) so
-    // product fields outside the projected schema remain for post-processing.
+    // Send the schema-validated body so undeclared keys never reach Adobe.
+    // Only Firefly schemas that declare `caiClaimVersion` get the Claim 2 default.
     const merged = mergeParameterBody(input.body, bodyParams)
     const parsed = bodySchema.safeParse(merged)
     if (!parsed.success) {
       throw new Error(`Adobe request body failed schema: ${parsed.error.message}`)
     }
-    body = ensureDefaultCaiClaimVersion(merged)
+    body = bodySchemaAcceptsCaiClaimVersion(bodySchema)
+      ? ensureDefaultCaiClaimVersion(parsed.data)
+      : parsed.data
   } else if (!bodySchema && hasBody) {
-    body = ensureDefaultCaiClaimVersion(input.body)
+    // No schema → no Claim injection (cannot tell Firefly from Photoshop).
+    body = input.body
   }
 
   return {
@@ -241,8 +250,11 @@ export async function invokeAdobeOperation(options: {
   outputSchema: z.ZodType
   /** When \`submit\`, always poll status URL and require one. */
   asyncMode?: AdobeAsyncMode
-  /** Optional post-poll materialization (e.g. PSD manifest JSON). */
-  materialize?: AdobeMaterializeMode
+  /**
+   * When true, fill generate-manifest `outputs` with embedded JSON if omitted.
+   * Does not reshape the response — authors read Adobe's raw `result`.
+   */
+  defaultManifestOutputs?: boolean
 }): Promise<unknown> {
   const rawCfg = readExtensionConfig(options.ctx)
   const clientId = typeof rawCfg.clientId === "string" ? rawCfg.clientId : undefined
@@ -251,10 +263,9 @@ export async function invokeAdobeOperation(options: {
     throw new Error("Adobe clientId and clientSecret are required in extension config")
   }
 
-  const input =
-    options.materialize === "photoshop-manifest"
-      ? withDefaultManifestOutputs(options.input as Record<string, unknown>)
-      : options.input
+  const input = options.defaultManifestOutputs
+    ? withDefaultManifestOutputs(options.input as Record<string, unknown>)
+    : options.input
 
   const assembled = assembleAdobeOperationInput(
     input,
@@ -294,21 +305,20 @@ export async function invokeAdobeOperation(options: {
         `Adobe async submit ${options.method} ${options.pathTemplate} returned no status URL`,
       )
     }
-    result = await pollAdobeJob({
-      statusUrl,
-      client,
-      intervalMs: optionalPositiveInt(rawCfg.pollIntervalMs),
-      timeoutMs: optionalPositiveInt(rawCfg.pollTimeoutMs),
-    })
-
-    if (options.materialize === "photoshop-manifest") {
-      result = await materializePhotoshopManifest({
-        jobStatus: result,
-        requestBody: assembled.body,
+    try {
+      result = await pollAdobeJob({
+        statusUrl,
+        client,
+        intervalMs: optionalPositiveInt(rawCfg.pollIntervalMs),
+        timeoutMs: optionalPositiveInt(rawCfg.pollTimeoutMs),
       })
-    } else {
-      result = unwrapAdobeResult(result)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(
+        `${message} (async status redacted; inspect the provider job status URL for the full body)`,
+      )
     }
+    result = unwrapAdobeResult(result)
   }
 
   const parsed = options.outputSchema.safeParse(result)
