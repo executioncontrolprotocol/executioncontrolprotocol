@@ -179,13 +179,19 @@ export class ZodEmitter {
     }
 
     if (schema.oneOf?.length) {
-      const parts = schema.oneOf.map((s, i) => this.schemaToZod(s, `${context}.oneOf[${i}]`))
+      const ordered = [...schema.oneOf].sort(
+        (a, b) => (b.required?.length ?? 0) - (a.required?.length ?? 0),
+      )
+      const parts = ordered.map((s, i) => this.schemaToZod(s, `${context}.oneOf[${i}]`))
       const expr = parts.length === 1 ? parts[0] : `z.union([${parts.join(", ")}])`
       return this.maybeNullable(schema, expr)
     }
 
     if (schema.anyOf?.length) {
-      const parts = schema.anyOf.map((s, i) => this.schemaToZod(s, `${context}.anyOf[${i}]`))
+      const ordered = [...schema.anyOf].sort(
+        (a, b) => (b.required?.length ?? 0) - (a.required?.length ?? 0),
+      )
+      const parts = ordered.map((s, i) => this.schemaToZod(s, `${context}.anyOf[${i}]`))
       const expr = parts.length === 1 ? parts[0] : `z.union([${parts.join(", ")}])`
       return this.maybeNullable(schema, expr)
     }
@@ -284,8 +290,11 @@ export class ZodEmitter {
 
     const ap = schema.additionalProperties
     if (ap === false || ap === undefined) {
+      // Empty objects stay non-strict so allOf/intersection bases do not reject sibling keys.
+      // Objects with properties are `.strict()` so oneOf unions do not strip unknown keys onto
+      // the first all-optional member (e.g. destination.embedded → {}).
       if (entries.length === 0) return "z.object({})"
-      return `z.object({\n${entries.join(",\n")}\n})`
+      return `z.object({\n${entries.join(",\n")}\n}).strict()`
     }
     if (ap === true) {
       this.#errors.push(
@@ -306,7 +315,7 @@ export class ZodEmitter {
       return `z.object({\n${entries.join(",\n")}\n}).catchall(${valueExpr})`
     }
     if (entries.length === 0) return "z.object({})"
-    return `z.object({\n${entries.join(",\n")}\n})`
+    return `z.object({\n${entries.join(",\n")}\n}).strict()`
   }
 
   /**

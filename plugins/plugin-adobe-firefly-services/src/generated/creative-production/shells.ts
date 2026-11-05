@@ -55,8 +55,8 @@ export function creative_production_list_batch_executions(handler: CapabilityHan
   "offset": z.number().int().optional(),
   "count": z.number().int().optional(),
   "hasMore": z.boolean().optional()
-}).optional()
-}))
+}).strict().optional()
+}).strict())
     .withMetadata({"summary":"List individual execution results","description":"List all individual asset execution results within a batch, with optional filtering. Returns detailed results for each asset including: - Execution status (pending, running, success, failed) - Input asset data - Output results (if successful) - Error messages (if failed) - Timing information The response supports pagination and filtering by execution status.","useCases":["Creative Production Batches tasks that need this operation","When the workflow goal is to list individual execution results"],"projections":[{"summary":"Take listed items","description":"Keep each item id and display name from the list so later steps can select one."}]})
     .withHandler(handler)
 }

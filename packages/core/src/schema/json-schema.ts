@@ -267,6 +267,52 @@ function typeMatches(schema: Record<string, unknown>, value: unknown): boolean {
   return true
 }
 
+function applyDefaultsToObject(
+  schema: Record<string, unknown>,
+  obj: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...obj }
+  const props = schema.properties
+  if (!isJsonSchemaObject(props)) return out
+  for (const [name, prop] of Object.entries(props)) {
+    if (!isJsonSchemaObject(prop)) continue
+    if (!(name in out) && Object.prototype.hasOwnProperty.call(prop, "default")) {
+      out[name] = structuredClone(prop.default)
+      continue
+    }
+    const current = out[name]
+    if (
+      current !== null &&
+      typeof current === "object" &&
+      !Array.isArray(current) &&
+      shouldRecurseJsonSchemaProperty(prop)
+    ) {
+      out[name] = applyDefaultsToObject(prop, current as Record<string, unknown>)
+    }
+  }
+  return out
+}
+
+/**
+ * Fill missing object properties from JSON Schema `default` values.
+ * Does not overwrite present keys (including `false`, `0`, and `""`).
+ * Recurses into nested object schemas.
+ * @category Schema
+ */
+export function applyJsonSchemaDefaults(
+  schema: Record<string, unknown> | undefined,
+  value: unknown
+): Record<string, unknown> {
+  const base =
+    value === undefined || value === null
+      ? {}
+      : typeof value === "object" && !Array.isArray(value)
+        ? { ...(value as Record<string, unknown>) }
+        : {}
+  if (!schema || Object.keys(schema).length === 0) return base
+  return applyDefaultsToObject(schema, base)
+}
+
 /**
  * Validate a value against a subset of JSON Schema (object properties, required, types).
  * @category Schema

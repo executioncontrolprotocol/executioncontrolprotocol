@@ -152,13 +152,13 @@ describe("workflowToReactFlow", () => {
         step("@executioncontrolprotocol/test.echo", "Maybe")
           .id("maybe")
           .with({ value: "x" })
-          .when(expr.eq("expand", true))
+          .when(expr((state) => state.expand === true))
           .as("maybe"),
       ])
       .toManifest()
     const doc = workflowToReactFlow(manifest)
     const stepNode = doc.nodes.find((n) => n.id === "maybe")
-    expect((stepNode!.data as ReactFlowStepData).whenBadge).toContain("expand")
+    expect((stepNode!.data as ReactFlowStepData).whenBadge).toContain("state.expand")
     const whenEdge = doc.edges.find(
       (e) => e.target === "maybe" && e.targetHandle === "when"
     )
@@ -172,11 +172,11 @@ describe("workflowToReactFlow", () => {
         branch([
           step("@executioncontrolprotocol/test.echo", "Yes")
             .with({ value: "y" })
-            .when(expr.eq("flag", true))
+            .when(expr((state) => state.flag === true))
             .as("yes"),
           step("@executioncontrolprotocol/test.echo", "No")
             .with({ value: "n" })
-            .when(expr.eq("flag", false))
+            .when(expr((state) => state.flag === false))
             .as("no"),
         ]),
       ])
@@ -188,7 +188,7 @@ describe("workflowToReactFlow", () => {
     )
     expect(routes.length).toBeGreaterThanOrEqual(2)
     const badges = routes.map((e) => (e.data as ReactFlowRouteEdgeData).whenBadge ?? "")
-    expect(badges.some((badge) => badge.includes("flag"))).toBe(true)
+    expect(badges.some((badge) => badge.includes("state.flag"))).toBe(true)
     expect(
       routes.every((e) => typeof (e.data as ReactFlowRouteEdgeData).armIndex === "number")
     ).toBe(true)
@@ -201,7 +201,7 @@ describe("workflowToReactFlow", () => {
   it("emits a loop-back route with untilBadge", () => {
     const manifest = workflow("Loop")
       .run([
-        loop({ until: expr.eq("done", true), label: "retry" }, [
+        loop({ until: expr((state) => state.done === true), label: "retry" }, [
           step("@executioncontrolprotocol/test.echo", "Tick").with({ value: "1" }).as("tick"),
         ]),
       ])
@@ -214,7 +214,7 @@ describe("workflowToReactFlow", () => {
     expect(loopRoutes.length).toBeGreaterThanOrEqual(1)
     const loopBack = loopRoutes.find((e) => (e.data as ReactFlowRouteEdgeData).loopBack)
     expect(loopBack).toBeDefined()
-    expect((loopBack!.data as ReactFlowRouteEdgeData).untilBadge).toContain("done")
+    expect((loopBack!.data as ReactFlowRouteEdgeData).untilBadge).toContain("state.done")
     expect(doc.edges.every((e) => e.data.kind === "data" || e.data.kind === "route")).toBe(true)
   })
 

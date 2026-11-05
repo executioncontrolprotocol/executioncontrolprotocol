@@ -7,9 +7,9 @@ export const Schema_HyphenationLanguage: z.ZodTypeAny = z.lazy(() => (z.enum(["A
 export const Schema_InputAsset: z.ZodTypeAny = z.lazy(() => (z.object({
   "source": z.object({
   "url": z.string()
-}),
+}).strict(),
   "destination": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_BaseJobRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "assets": z.array(Schema_InputAsset),
@@ -17,7 +17,7 @@ export const Schema_BaseJobRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "generalSettings": z.object({
   "fonts": z.object({
   "fontsDirectories": z.array(z.string()).optional()
-}).optional(),
+}).strict().optional(),
   "links": z.object({
   "replaceLinks": z.array(z.object({
   "targetDocument": z.string(),
@@ -25,27 +25,27 @@ export const Schema_BaseJobRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "newAssetRelativePath": z.string(),
   "currentURI": z.string().optional(),
   "linkID": z.number().int().optional()
-}))
-})).optional()
-}).optional(),
+}).strict())
+}).strict()).optional()
+}).strict().optional(),
   "appLogs": z.object({
   "logsRelativePath": z.string().optional()
-}).optional()
-}).optional()
-}).optional()
-})))
+}).strict().optional()
+}).strict().optional()
+}).strict().optional()
+}).strict()))
 
 export const Schema_OutputAsset: z.ZodTypeAny = z.lazy(() => (z.object({
   "destination": z.object({
   "url": z.string(),
   "storageType": z.enum(["Azure", "Dropbox", "AWS"]).optional()
-}),
+}).strict(),
   "source": z.string()
-})))
+}).strict()))
 
 export const Schema_BaseJobRequestWithOutput: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequest, z.object({
   "outputs": z.array(Schema_OutputAsset).optional()
-}))))
+}).strict())))
 
 export const Schema_MergeDataRequest: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequestWithOutput, z.object({
   "params": z.object({
@@ -57,7 +57,7 @@ export const Schema_MergeDataRequest: z.ZodTypeAny = z.lazy(() => (z.intersectio
   "pdfPreset": z.enum(["High Quality Print", "PDF/X-1a:2001", "PDF/X-3:2002", "PDF/X-4:2008", "Press Quality", "Smallest File Size"]).optional(),
   "quality": z.enum(["low", "medium", "high", "maximum"]).optional(),
   "linkImages": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "recordRange": z.string().optional(),
   "allowMultipleRecordsPerPage": z.boolean().optional(),
   "multipleRecordLayoutOptions": z.object({
@@ -68,12 +68,12 @@ export const Schema_MergeDataRequest: z.ZodTypeAny = z.lazy(() => (z.intersectio
   "rightMargin": z.string().optional(),
   "columnSpacing": z.string().optional(),
   "rowSpacing": z.string().optional()
-}).optional(),
+}).strict().optional(),
   "imagePlacementOptions": z.object({
   "centerImage": z.boolean().optional(),
   "fittingOption": z.enum(["content_aware_fit", "fill_proportional", "fit_content_to_frame", "fit_frame_to_content", "honor_existing_style", "preserve_sizes", "proportional"]).optional(),
   "linkImages": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "hyphenationSettings": z.object({
   "afterFirst": z.number().int().optional(),
   "beforeLast": z.number().int().optional(),
@@ -86,20 +86,20 @@ export const Schema_MergeDataRequest: z.ZodTypeAny = z.lazy(() => (z.intersectio
   "dictionarySettings": z.array(z.object({
   "language": Schema_HyphenationLanguage,
   "wordList": z.array(z.string())
-})).optional()
-}).optional(),
+}).strict()).optional()
+}).strict().optional(),
   "pagesPerDocument": z.number().int().optional(),
   "removeBlankLines": z.boolean().optional(),
   "convertUrlToHyperlink": z.boolean().optional(),
   "outputFileBaseString": z.string().optional(),
   "outputFolderPath": z.string().optional()
-})
-}))))
+}).strict()
+}).strict())))
 
 export const Schema_Error: z.ZodTypeAny = z.lazy(() => (z.object({
   "message": z.string(),
   "error_code": z.string()
-})))
+}).strict()))
 
 export const Schema_MergeDataTagsRequest: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequest, z.object({
   "params": z.object({
@@ -107,8 +107,8 @@ export const Schema_MergeDataTagsRequest: z.ZodTypeAny = z.lazy(() => (z.interse
   "dataSource": z.string().optional(),
   "filter": z.array(z.enum(["all", "text", "image", "qr"])).optional(),
   "includePageItemIdentifiers": z.boolean().optional()
-})
-}))))
+}).strict()
+}).strict())))
 
 export const Schema_RemapLinksRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "assets": z.array(Schema_InputAsset),
@@ -117,31 +117,31 @@ export const Schema_RemapLinksRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "dataSource": z.array(z.object({
   "sourceURI": z.string(),
   "destinationURI": z.string()
-}))
-}),
+}).strict())
+}).strict(),
   "outputs": z.array(Schema_OutputAsset).optional()
-})))
+}).strict()))
 
 export const Schema_DocumentInfoRequest: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequest, z.object({
   "params": z.object({
   "targetDocument": z.string(),
   "pageInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "linkInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "fontInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "pageItemInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "textStoryInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional()
-})
-}))))
+}).strict().optional()
+}).strict()
+}).strict())))
 
 export const Schema_ConvertToInDesignRequest: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequestWithOutput, z.object({
   "params": z.object({
@@ -149,8 +149,8 @@ export const Schema_ConvertToInDesignRequest: z.ZodTypeAny = z.lazy(() => (z.int
   "outputMediaType": z.enum(["application/x-indesign", "application/vnd.adobe.indesign-idml-package"]),
   "embedLinks": z.boolean().optional(),
   "outputFilebaseString": z.string().optional()
-})
-}))))
+}).strict()
+}).strict())))
 
 export const Schema_ConvertToInDesignResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "outputs": z.array(z.object({
@@ -160,9 +160,9 @@ export const Schema_ConvertToInDesignResponse: z.ZodTypeAny = z.lazy(() => (z.ob
   "missingLinks": z.array(z.string()).optional(),
   "missingFonts": z.array(z.string()).optional(),
   "otherWarnings": z.array(z.string()).optional()
-}).optional()
-})).optional()
-})))
+}).strict().optional()
+}).strict()).optional()
+}).strict()))
 
 export const Schema_CreateRenditionRequest: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseJobRequestWithOutput, z.object({
   "params": z.object({
@@ -194,15 +194,15 @@ export const Schema_CreateRenditionRequest: z.ZodTypeAny = z.lazy(() => (z.inter
   "pdfPreset": z.enum(["High Quality Print", "PDF/X-1a:2001", "PDF/X-3:2002", "PDF/X-4:2008", "Press Quality", "Smallest File Size"]).optional(),
   "outputFileBaseString": z.string().optional(),
   "outputFolderPath": z.string().optional()
-})
-}))))
+}).strict()
+}).strict())))
 
 export const Schema_CustomScriptsListResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "capabilities": z.array(Schema_CustomScriptDetails).optional(),
   "paging": z.object({
   "nextUrl": z.string().optional()
-}).optional()
-})))
+}).strict().optional()
+}).strict()))
 
 export const Schema_CustomScriptDetails: z.ZodTypeAny = z.lazy(() => (z.object({
   "version": z.string().optional(),
@@ -213,40 +213,40 @@ export const Schema_CustomScriptDetails: z.ZodTypeAny = z.lazy(() => (z.object({
   "appVersionStrategy": z.enum(["latest_version", "fixed_major_version", "fixed_major_and_minor_version"]).optional(),
   "majorAppVersion": z.string().optional(),
   "minorAppVersion": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_AppVersionUpdateRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "appVersionStrategy": z.enum(["latest_version", "fixed_major_version", "fixed_major_and_minor_version"]),
   "majorAppVersion": z.string().optional(),
   "minorAppVersion": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_AppVersionInfo: z.ZodTypeAny = z.lazy(() => (z.object({
   "product": z.string().optional(),
   "majorAppVersion": z.string().optional(),
   "minorAppVersion": z.string().optional(),
   "status": z.enum(["active", "preview"]).optional()
-})))
+}).strict()))
 
 export const Schema_BaseEvent: z.ZodTypeAny = z.lazy(() => (z.object({
   "jobId": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_notstartedEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseEvent, z.object({
   "status": z.enum(["not_started"]).optional()
-}))))
+}).strict())))
 
 export const Schema_runningEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseEvent, z.object({
   "status": z.enum(["running"]).optional(),
   "message": z.string().optional()
-}))))
+}).strict())))
 
 export const Schema_succeededEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseEvent, z.object({
   "status": z.enum(["succeeded"]).optional(),
   "data": z.object({}).optional(),
   "dataURL": z.string().optional(),
   "outputs": z.object({}).optional()
-}))))
+}).strict())))
 
 export const Schema_failedEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseEvent, z.object({
   "status": z.enum(["failed"]).optional(),
@@ -255,8 +255,8 @@ export const Schema_failedEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Sch
   "message": z.string().optional(),
   "source": z.string().optional(),
   "url": z.string().optional()
-})).optional()
-}))))
+}).strict()).optional()
+}).strict())))
 
 export const Schema_partialSuccessEvent: z.ZodTypeAny = z.lazy(() => (z.intersection(Schema_BaseEvent, z.object({
   "status": z.enum(["partial_success"]).optional(),
@@ -268,5 +268,5 @@ export const Schema_partialSuccessEvent: z.ZodTypeAny = z.lazy(() => (z.intersec
   "message": z.string().optional(),
   "source": z.string().optional(),
   "url": z.string().optional()
-})).optional()
-}))))
+}).strict()).optional()
+}).strict())))

@@ -74,7 +74,7 @@ describe("workflow().with() and requirements()", () => {
           [step("@acme/mail.send", "B")],
         ]),
         branch([step("@vendor/search.query", "C")]),
-        loop({ until: { eq: ["done", true] } }, [
+        loop({ until: { $fn: true, source: "(state) => state.done === true", params: ["state"] } }, [
           step("@executioncontrolprotocol/openai.generate", "D"),
         ]),
       ])

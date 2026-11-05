@@ -41,13 +41,12 @@ function normalizeInputValue(value: unknown): unknown {
 function normalizeExpr(expr: unknown): unknown {
   if (expr === null || typeof expr !== "object") return expr
   const obj = expr as Record<string, unknown>
-  if ("eq" in obj && Array.isArray(obj.eq)) {
-    return { eq: [obj.eq[0], obj.eq[1]] }
+  if (obj.$fn === true && typeof obj.source === "string") {
+    const out: Record<string, unknown> = { $fn: true, source: obj.source }
+    if (Array.isArray(obj.params)) out.params = [...obj.params]
+    return out
   }
-  if ("neq" in obj && Array.isArray(obj.neq)) {
-    return { neq: [obj.neq[0], obj.neq[1]] }
-  }
-  return sortKeys(obj as Record<string, unknown>)
+  return sortKeys(obj)
 }
 
 function normalizeStepNode(node: StepNode): StepNode {

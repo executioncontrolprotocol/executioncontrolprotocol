@@ -52,8 +52,8 @@ export const creative_production_list_batch_executions = shells.creative_product
   "offset": z.number().int().optional(),
   "count": z.number().int().optional(),
   "hasMore": z.boolean().optional()
-}).optional()
-}),
+}).strict().optional()
+}).strict(),
     asyncMode: "none",
   })
 })

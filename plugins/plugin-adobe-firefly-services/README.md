@@ -87,7 +87,11 @@ workflows:
 - **Sync** caps (list/get metadata) are unchanged.
 
 `photoshop-generate-manifest` materializes the **PSD manifest JSON** (layer tree)
-after the job succeeds so you can `ref("manifest.layers.0.id")`.
+after the job succeeds so you can `ref("manifest.layers.0.id")`. When `outputs` is
+omitted (or empty), the capability defaults to
+`[{ destination: { embedded: "json" }, mediaType: "application/json" }]` so a
+“read layers” step only needs `image`. Destinations must use a concrete variant
+(`embedded`, hosted `validityPeriod`, or `url`) — empty `{}` is not valid.
 
 ## Capability input shape
 

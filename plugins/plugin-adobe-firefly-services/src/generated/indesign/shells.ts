@@ -20,7 +20,7 @@ export function indesign_data_merge(handler: CapabilityHandler) {
   "pdfPreset": z.enum(["High Quality Print", "PDF/X-1a:2001", "PDF/X-3:2002", "PDF/X-4:2008", "Press Quality", "Smallest File Size"]).optional(),
   "quality": z.enum(["low", "medium", "high", "maximum"]).optional(),
   "linkImages": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "recordRange": z.string().optional(),
   "allowMultipleRecordsPerPage": z.boolean().optional(),
   "multipleRecordLayoutOptions": z.object({
@@ -31,12 +31,12 @@ export function indesign_data_merge(handler: CapabilityHandler) {
   "rightMargin": z.string().optional(),
   "columnSpacing": z.string().optional(),
   "rowSpacing": z.string().optional()
-}).optional(),
+}).strict().optional(),
   "imagePlacementOptions": z.object({
   "centerImage": z.boolean().optional(),
   "fittingOption": z.enum(["content_aware_fit", "fill_proportional", "fit_content_to_frame", "fit_frame_to_content", "honor_existing_style", "preserve_sizes", "proportional"]).optional(),
   "linkImages": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "hyphenationSettings": z.object({
   "afterFirst": z.number().int().optional(),
   "beforeLast": z.number().int().optional(),
@@ -49,14 +49,14 @@ export function indesign_data_merge(handler: CapabilityHandler) {
   "dictionarySettings": z.array(z.object({
   "language": schemas.Schema_HyphenationLanguage,
   "wordList": z.array(z.string())
-})).optional()
-}).optional(),
+}).strict()).optional()
+}).strict().optional(),
   "pagesPerDocument": z.number().int().optional(),
   "removeBlankLines": z.boolean().optional(),
   "convertUrlToHyperlink": z.boolean().optional(),
   "outputFileBaseString": z.string().optional(),
   "outputFolderPath": z.string().optional()
-}).optional(),
+}).strict().optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
   body: schemas.Schema_MergeDataRequest.optional()
 }))
@@ -75,7 +75,7 @@ export function indesign_data_merge_tags(handler: CapabilityHandler) {
   "dataSource": z.string().optional(),
   "filter": z.array(z.enum(["all", "text", "image", "qr"])).optional(),
   "includePageItemIdentifiers": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   body: schemas.Schema_MergeDataTagsRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
@@ -94,8 +94,8 @@ export function indesign_remap_links(handler: CapabilityHandler) {
   "dataSource": z.array(z.object({
   "sourceURI": z.string(),
   "destinationURI": z.string()
-}))
-}).optional(),
+}).strict())
+}).strict().optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
   body: schemas.Schema_RemapLinksRequest.optional()
 }))
@@ -138,7 +138,7 @@ export function indesign_rendition_job(handler: CapabilityHandler) {
   "pdfPreset": z.enum(["High Quality Print", "PDF/X-1a:2001", "PDF/X-3:2002", "PDF/X-4:2008", "Press Quality", "Smallest File Size"]).optional(),
   "outputFileBaseString": z.string().optional(),
   "outputFolderPath": z.string().optional()
-}).optional(),
+}).strict().optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
   body: schemas.Schema_CreateRenditionRequest.optional()
 }))
@@ -178,7 +178,7 @@ export function indesign_execute_custom_script(handler: CapabilityHandler) {
   "generalSettings": z.object({
   "fonts": z.object({
   "fontsDirectories": z.array(z.string()).optional()
-}).optional(),
+}).strict().optional(),
   "links": z.object({
   "replaceLinks": z.array(z.object({
   "targetDocument": z.string(),
@@ -186,14 +186,14 @@ export function indesign_execute_custom_script(handler: CapabilityHandler) {
   "newAssetRelativePath": z.string(),
   "currentURI": z.string().optional(),
   "linkID": z.number().int().optional()
-}))
-})).optional()
-}).optional(),
+}).strict())
+}).strict()).optional()
+}).strict().optional(),
   "appLogs": z.object({
   "logsRelativePath": z.string().optional()
-}).optional()
-}).optional()
-}).optional(),
+}).strict().optional()
+}).strict().optional()
+}).strict().optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
   body: schemas.Schema_BaseJobRequestWithOutput.optional()
 }))
@@ -236,7 +236,7 @@ export function indesign_update_script_app_version(handler: CapabilityHandler) {
 }))
     .withOutput(z.object({
   "message": z.string().optional()
-}))
+}).strict())
     .withMetadata({"summary":"Update Custom Script App Version","description":"Updates the InDesign app version configuration for a registered custom script. Allows customers to specify version strategies: use latest version, fix to a major version, or fix to a specific major and minor version.","useCases":["Indesign Custom Scripts tasks that need this operation","When the workflow goal is to update Custom Script App Version"],"projections":[{"summary":"Use the operation result","description":"Take the fields from the response that the next workflow step needs (ids or asset URLs)."}]})
     .withHandler(handler)
 }
@@ -259,20 +259,20 @@ export function indesign_get_document_info(handler: CapabilityHandler) {
   "targetDocument": z.string(),
   "pageInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "linkInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "fontInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "pageItemInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional(),
+}).strict().optional(),
   "textStoryInfo": z.object({
   "enabled": z.boolean().optional()
-}).optional()
-}).optional(),
+}).strict().optional()
+}).strict().optional(),
   body: schemas.Schema_DocumentInfoRequest.optional()
 }))
     .withOutput(schemas.Schema_succeededEvent)
@@ -290,7 +290,7 @@ export function indesign_convert_pdfto_in_design(handler: CapabilityHandler) {
   "outputMediaType": z.enum(["application/x-indesign", "application/vnd.adobe.indesign-idml-package"]),
   "embedLinks": z.boolean().optional(),
   "outputFilebaseString": z.string().optional()
-}).optional(),
+}).strict().optional(),
   outputs: z.array(schemas.Schema_OutputAsset).optional(),
   body: schemas.Schema_ConvertToInDesignRequest.optional()
 }))

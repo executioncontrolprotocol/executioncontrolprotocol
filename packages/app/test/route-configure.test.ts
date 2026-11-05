@@ -27,14 +27,23 @@ describe("edgeMenuActions", () => {
 })
 
 describe("parseExprBadge", () => {
-  it("parses eq and neq badges", () => {
-    expect(parseExprBadge('eq("flag", true)')).toEqual({ eq: ["flag", true] })
-    expect(parseExprBadge("neq(expand, false)")).toEqual({ neq: ["expand", false] })
+  it("parses function source into $fn documents", () => {
+    expect(parseExprBadge("(state) => state.flag === true")).toEqual({
+      $fn: true,
+      source: "(state) => state.flag === true",
+      params: ["state"],
+    })
+    expect(parseExprBadge("(state) => state.expand !== false")).toEqual({
+      $fn: true,
+      source: "(state) => state.expand !== false",
+      params: ["state"],
+    })
   })
 
-  it("rejects invalid badges", () => {
-    expect(() => parseExprBadge("flag == true")).toThrow(/Expected eq/)
-    expect(() => parseExprBadge("eq(flag, not-json)")).toThrow(/valid JSON/)
+  it("rejects invalid sources", () => {
+    expect(() => parseExprBadge("flag == true")).toThrow(/Invalid expression source/)
+    expect(() => parseExprBadge("")).toThrow(/must not be empty/)
+    expect(() => parseExprBadge("function () { [native code] }")).toThrow(/native/)
   })
 })
 
@@ -45,11 +54,11 @@ describe("renderConfiguredRouteSource", () => {
         branch([
           step("@executioncontrolprotocol/test.echo", "Yes")
             .with({ value: "y" })
-            .when(expr.eq("flag", true))
+            .when(expr((state) => state.flag === true))
             .as("yes"),
           step("@executioncontrolprotocol/test.echo", "No")
             .with({ value: "n" })
-            .when(expr.eq("flag", false))
+            .when(expr((state) => state.flag === false))
             .as("no"),
         ]),
       ])
@@ -61,18 +70,18 @@ describe("renderConfiguredRouteSource", () => {
       route: "branch",
       structureId: branchNode!.id,
       armIndex: 0,
-      whenBadge: 'eq("flag", true)',
+      whenBadge: "(state) => state.flag === true",
     }
     const source = renderConfiguredRouteSource(manifest, route, {
-      whenText: 'eq("flag", false)',
+      whenText: "(state) => state.flag === false",
     })
-    expect(source).toContain('eq("flag", false)')
+    expect(source).toContain("state.flag === false")
   })
 
   it("rewrites loop until and maxRounds", () => {
     const manifest = workflow("Loop")
       .run([
-        loop({ until: expr.eq("done", true), maxRounds: 3 }, [
+        loop({ until: expr((state) => state.done === true), maxRounds: 3 }, [
           step("@executioncontrolprotocol/test.echo", "Tick").with({ value: "1" }).as("tick"),
         ]),
       ])
@@ -83,15 +92,15 @@ describe("renderConfiguredRouteSource", () => {
       kind: "route",
       route: "loop",
       structureId: loopNode!.id,
-      untilBadge: 'eq("done", true)',
+      untilBadge: "(state) => state.done === true",
       maxRounds: 3,
       loopBack: true,
     }
     const source = renderConfiguredRouteSource(manifest, route, {
-      untilText: 'eq("done", false)',
+      untilText: "(state) => state.done === false",
       maxRounds: 5,
     })
-    expect(source).toContain('eq("done", false)')
+    expect(source).toContain("state.done === false")
     expect(source).toContain("5")
   })
 })
@@ -101,7 +110,7 @@ describe("unwrapRouteStructure", () => {
     const manifest = workflow("Loop")
       .run([
         step("@executioncontrolprotocol/test.echo", "Before").with({ value: "b" }).as("before"),
-        loop({ until: expr.eq("done", true), label: "retry" }, [
+        loop({ until: expr((state) => state.done === true), label: "retry" }, [
           step("@executioncontrolprotocol/test.echo", "Tick").with({ value: "1" }).as("tick"),
         ]),
         step("@executioncontrolprotocol/test.echo", "After").with({ value: "a" }).as("after"),
@@ -111,9 +120,9 @@ describe("unwrapRouteStructure", () => {
     expect(loopNode?.type).toBe("loop")
     const source = renderUnwrappedRouteSource(manifest, loopNode!.id)
     expect(source).not.toContain("loop(")
-    expect(source).toContain(".as(\"tick\")")
-    expect(source).toContain(".as(\"before\")")
-    expect(source).toContain(".as(\"after\")")
+    expect(source).toContain('.as("tick")')
+    expect(source).toContain('.as("before")')
+    expect(source).toContain('.as("after")')
   })
 
   it("unwraps a branch into sequential arms and preserves when", () => {
@@ -122,11 +131,11 @@ describe("unwrapRouteStructure", () => {
         branch([
           step("@executioncontrolprotocol/test.echo", "Yes")
             .with({ value: "y" })
-            .when(expr.eq("flag", true))
+            .when(expr((state) => state.flag === true))
             .as("yes"),
           step("@executioncontrolprotocol/test.echo", "No")
             .with({ value: "n" })
-            .when(expr.eq("flag", false))
+            .when(expr((state) => state.flag === false))
             .as("no"),
         ]),
       ])
@@ -135,12 +144,13 @@ describe("unwrapRouteStructure", () => {
     expect(branchNode?.type).toBe("branch")
     const source = renderUnwrappedRouteSource(manifest, branchNode!.id)
     expect(source).not.toContain("branch(")
-    expect(source).toContain(".as(\"yes\")")
-    expect(source).toContain(".as(\"no\")")
-    expect(source).toContain('eq("flag", true)')
+    expect(source).toContain('.as("yes")')
+    expect(source).toContain('.as("no")')
+    expect(source).toContain("state.flag === true")
   })
 
   it("copies arm when onto a bare first step when unwrapping", () => {
+    const when = { $fn: true as const, source: "(state) => state.flag === true", params: ["state"] }
     const manifest = workflow("Bare")
       .run([
         {
@@ -148,7 +158,7 @@ describe("unwrapRouteStructure", () => {
           id: "branch-bare",
           branches: [
             {
-              when: { eq: ["flag", true] as [string, boolean] },
+              when,
               steps: [
                 {
                   id: "yes",
@@ -167,7 +177,7 @@ describe("unwrapRouteStructure", () => {
     expect(flat).toHaveLength(1)
     expect(flat[0]).toMatchObject({
       id: "yes",
-      when: { eq: ["flag", true] },
+      when,
     })
   })
 
@@ -184,8 +194,8 @@ describe("unwrapRouteStructure", () => {
     expect(parallelNode?.type).toBe("parallel")
     const source = renderUnwrappedRouteSource(manifest, parallelNode!.id)
     expect(source).not.toContain("parallel(")
-    expect(source).toContain(".as(\"a\")")
-    expect(source).toContain(".as(\"b\")")
+    expect(source).toContain('.as("a")')
+    expect(source).toContain('.as("b")')
   })
 })
 
@@ -198,13 +208,13 @@ describe("wrapStepInRoute", () => {
       .toManifest()
     const source = renderWrappedStepSource(manifest, "tick", {
       routeKind: "loop",
-      untilText: 'eq("done", true)',
+      untilText: "(state) => state.done === true",
       maxRounds: 2,
     })
     expect(source).toContain("loop(")
-    expect(source).toContain('eq("done", true)')
+    expect(source).toContain("state.done === true")
     expect(source).toContain("2")
-    expect(source).toContain(".as(\"tick\")")
+    expect(source).toContain('.as("tick")')
   })
 
   it("wraps a step in a branch with when", () => {
@@ -215,11 +225,11 @@ describe("wrapStepInRoute", () => {
       .toManifest()
     const source = renderWrappedStepSource(manifest, "yes", {
       routeKind: "branch",
-      whenText: 'eq("flag", true)',
+      whenText: "(state) => state.flag === true",
     })
     expect(source).toContain("branch(")
-    expect(source).toContain('eq("flag", true)')
-    expect(source).toContain(".as(\"yes\")")
+    expect(source).toContain("state.flag === true")
+    expect(source).toContain('.as("yes")')
   })
 
   it("wraps a step in a single parallel lane", () => {
@@ -230,7 +240,7 @@ describe("wrapStepInRoute", () => {
       .toManifest()
     const source = renderWrappedStepSource(manifest, "a", { routeKind: "parallel" })
     expect(source).toContain("parallel(")
-    expect(source).toContain(".as(\"a\")")
+    expect(source).toContain('.as("a")')
   })
 
   it("rejects branch wrap without when", () => {

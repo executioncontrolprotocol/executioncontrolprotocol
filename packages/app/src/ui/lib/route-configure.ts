@@ -11,25 +11,28 @@ import type {
 import type { ReactFlowRouteEdgeData, ReactFlowRouteKind } from "../../graph/index.js"
 
 /**
- * Parse a short badge / dialog string into an {@link ExprValue}.
- * Accepts `eq(path, value)` / `neq(path, value)` (value is JSON).
+ * Parse dialog / badge text into a portable {@link ExprValue}.
+ * Accepts a JS function source such as `(state) => state.expand === true`.
  * @category App
  */
 export function parseExprBadge(text: string): ExprValue {
   const trimmed = text.trim()
-  const match = /^(eq|neq)\(\s*([^,]+)\s*,\s*(.*)\)\s*$/s.exec(trimmed)
-  if (!match) {
-    throw new Error('Expected eq(path, value) or neq(path, value) — value must be JSON (e.g. true, "x")')
+  if (!trimmed) {
+    throw new Error("Expression source must not be empty")
   }
-  const op = match[1] as "eq" | "neq"
-  const path = match[2]!.trim().replace(/^["']|["']$/g, "")
-  let value: unknown
+  if (/\[native code\]/i.test(trimmed)) {
+    throw new Error("Cannot use native or bound function source")
+  }
   try {
-    value = JSON.parse(match[3]!.trim())
-  } catch {
-    throw new Error("Expression value must be valid JSON")
+    const rehydrated = new Function(`"use strict"; return (${trimmed});`)()
+    if (typeof rehydrated !== "function") {
+      throw new Error("Expression source must evaluate to a function")
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Invalid expression source: ${message}`)
   }
-  return op === "eq" ? { eq: [path, value] } : { neq: [path, value] }
+  return { $fn: true, source: trimmed, params: ["state"] }
 }
 
 function isStepNode(node: WorkflowNode): node is StepNode {

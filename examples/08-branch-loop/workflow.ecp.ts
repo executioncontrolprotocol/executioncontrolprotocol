@@ -23,22 +23,29 @@ export default workflow("Branch and loop demo")
     branch([
       step("@executioncontrolprotocol/test.echo", "Expand path")
         .with({ value: "expanded" })
-        .when(expr.eq("expand", true))
+        .when(expr((state) => state.expand === true))
         .as("expanded"),
       step("@executioncontrolprotocol/test.echo", "Skip path")
         .with({ value: "skipped-arm" })
-        .when(expr.eq("expand", false))
+        .when(expr((state) => state.expand === false))
         .as("compact"),
     ]),
     step("@executioncontrolprotocol/test.echo", "Gated follow-up")
       .with({ value: "only-when-expand" })
-      .when(expr.eq("expand", true))
+      .when(expr((state) => state.expand === true))
       .as("gated"),
-    loop({ label: "retry", until: expr.eq("tick.echo", "tick"), maxRounds: 2 }, [
-      step("@executioncontrolprotocol/test.echo", "Loop body")
-        .with({ value: "tick" })
-        .as("tick"),
-    ]),
+    loop(
+      {
+        label: "retry",
+        until: expr((state) => (state.tick as { echo?: string } | undefined)?.echo === "tick"),
+        maxRounds: 2,
+      },
+      [
+        step("@executioncontrolprotocol/test.echo", "Loop body")
+          .with({ value: "tick" })
+          .as("tick"),
+      ]
+    ),
   ])
   .returns({
     type: "object",

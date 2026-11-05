@@ -102,15 +102,15 @@ export const audio_video_generate_reframed_video = shells.audio_video_generate_r
   "video": z.object({
   "source": z.object({
   "url": z.string()
-}),
+}).strict(),
   "mediaType": z.enum(["video/mp4", "video/quicktime"])
-}),
+}).strict(),
   "sceneEditDetection": z.boolean().optional(),
   "overlays": z.array(schemas.Schema_Overlay).optional(),
   "outputConfig": z.object({
   "aspectRatios": z.array(z.string())
-})
-}),
+}).strict()
+}).strict(),
     ctx,
     outputSchema: schemas.Schema_StatusAPIResponse,
     asyncMode: "submit",
@@ -174,16 +174,16 @@ export const audio_video_generate_reframed_video_v2 = shells.audio_video_generat
   "aspectRatio": schemas.Schema_AspectRatioV2,
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-}), z.object({
+}).strict(), z.object({
   "resolution": z.object({
   "width": z.number().int(),
   "height": z.number().int()
-}),
+}).strict(),
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-})]))
-})
-}),
+}).strict()]))
+}).strict()
+}).strict(),
     ctx,
     outputSchema: schemas.Schema_StatusAPIResponse,
     asyncMode: "submit",

@@ -1,6 +1,7 @@
 import type { CapabilityId, CommitMode, InputValue } from "../types/index.js"
 import type { ExprValue } from "../types/index.js"
 import type { StepNode } from "../types/index.js"
+import { expr } from "../helpers/expr.js"
 import { slugify } from "../util/slug.js"
 
 /** Commit options for `.as()`. */
@@ -55,9 +56,10 @@ export class StepBuilder<K extends string = string> {
     return this
   }
 
-  /** Conditional execution. */
-  when(condition: ExprValue): this {
-    this.whenExpr = condition
+  /** Conditional execution (`expr((state) => …)` or a portable `{ $fn, source }`). */
+  when(condition: ExprValue | ((state: Record<string, unknown>) => unknown)): this {
+    this.whenExpr =
+      typeof condition === "function" ? expr(condition) : condition
     return this
   }
 

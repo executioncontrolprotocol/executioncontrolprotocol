@@ -29,6 +29,10 @@ import { pendingToMutationRecords } from "./mutation-records.js"
 import { evaluatePolicies } from "./policy-engine.js"
 import { resolveStepInput } from "./resolve-input.js"
 import {
+  evalSerializableFunction,
+  isSerializableFunction,
+} from "../helpers/serializable-function.js"
+import {
   collectStateHandles,
   createMutationBuffer,
   createTransactionalStore,
@@ -72,16 +76,10 @@ function evalExpr(
   state: Record<string, unknown>
 ): boolean {
   if (!expr) return true
-  if ("eq" in expr && Array.isArray(expr.eq)) {
-    const [path, expected] = expr.eq
-    const parts = String(path).split(".")
-    let cur: unknown = state
-    for (const p of parts) {
-      if (cur && typeof cur === "object") cur = (cur as Record<string, unknown>)[p]
-    }
-    return cur === expected
+  if (!isSerializableFunction(expr)) {
+    throw new Error("Unsupported expression shape; expected { $fn: true, source }")
   }
-  return true
+  return Boolean(evalSerializableFunction(expr, state))
 }
 
 async function runWithConcurrency<T>(

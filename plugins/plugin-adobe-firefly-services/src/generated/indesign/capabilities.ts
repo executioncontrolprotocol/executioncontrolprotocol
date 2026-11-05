@@ -147,7 +147,7 @@ export const indesign_update_script_app_version = shells.indesign_update_script_
     ctx,
     outputSchema: z.object({
   "message": z.string().optional()
-}),
+}).strict(),
     asyncMode: "none",
   })
 })

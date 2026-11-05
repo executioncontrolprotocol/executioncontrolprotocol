@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
+  applyJsonSchemaDefaults,
   flattenJsonSchemaProperties,
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
@@ -38,6 +39,25 @@ describe("workflow accepts / returns", () => {
     })
     expect(manifest.workflow.returns?.properties).toMatchObject({
       echo: { type: "object" },
+    })
+  })
+
+  it("applies accepts property defaults without overwriting present values", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        expand: { type: "boolean", default: true },
+        nested: {
+          type: "object",
+          properties: { n: { type: "number", default: 2 } },
+        },
+      },
+    }
+    expect(applyJsonSchemaDefaults(schema, {})).toEqual({ expand: true })
+    expect(applyJsonSchemaDefaults(schema, { expand: false })).toEqual({ expand: false })
+    expect(applyJsonSchemaDefaults(schema, { nested: {} })).toEqual({
+      expand: true,
+      nested: { n: 2 },
     })
   })
 

@@ -20,7 +20,12 @@ export { ref } from "./helpers/ref.js"
 export { state } from "./helpers/state.js"
 export { env } from "./helpers/env.js"
 export { secrets } from "./helpers/secrets.js"
-export { expr } from "./helpers/expr.js"
+export { expr, type ExprPredicate } from "./helpers/expr.js"
+export {
+  evalSerializableFunction,
+  isSerializableFunction,
+  serializeFunction,
+} from "./helpers/serializable-function.js"
 export { mergeParameterBody } from "./helpers/merge-parameter-body.js"
 export {
   toProviderChatTurns,
@@ -67,6 +72,7 @@ export {
   jsonSchemaFromZod,
   jsonSchemaObjectProperties,
   flattenJsonSchemaProperties,
+  applyJsonSchemaDefaults,
   validateAgainstJsonSchema,
   resolveStatePath,
   pickWorkflowReturns,

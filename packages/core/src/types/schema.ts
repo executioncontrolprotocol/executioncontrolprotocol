@@ -71,11 +71,26 @@ export interface SecretValue {
   fallback?: unknown
 }
 
-/** Expression value in workflow conditions. @category Workflow */
-export type ExprValue =
-  | { eq: [string, unknown] }
-  | { neq: [string, unknown] }
-  | Record<string, unknown>
+/**
+ * Portable JS function stored as source text (no closed-over environment).
+ * Shared shape for workflow conditions and later custom script steps.
+ * @category Workflow
+ */
+export interface SerializableFunction {
+  /** Discriminator for script-like values. */
+  $fn: true
+  /** `Function#toString()` result. */
+  source: string
+  /** Declared parameter names for documentation / tooling (default `["state"]` for expr). */
+  params?: string[]
+}
+
+/**
+ * Expression value in workflow conditions (`when` / loop `until`).
+ * Always a {@link SerializableFunction}.
+ * @category Workflow
+ */
+export type ExprValue = SerializableFunction
 
 /** Input value allowed in step config. @category Workflow */
 export type InputValue =

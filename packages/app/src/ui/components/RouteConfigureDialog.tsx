@@ -35,10 +35,14 @@ export function RouteConfigureDialog({
     target.mode === "edit" ? target.route.route : "loop"
   const [routeKind, setRouteKind] = useState<ReactFlowRouteKind>(initialKind)
   const [whenText, setWhenText] = useState(
-    target.mode === "edit" ? (target.route.whenBadge ?? 'eq("flag", true)') : 'eq("flag", true)'
+    target.mode === "edit"
+      ? (target.route.whenBadge ?? "(state) => state.flag === true")
+      : "(state) => state.flag === true"
   )
   const [untilText, setUntilText] = useState(
-    target.mode === "edit" ? (target.route.untilBadge ?? "") : ""
+    target.mode === "edit"
+      ? (target.route.untilBadge ?? "(state) => false")
+      : "(state) => false"
   )
   const [maxRoundsText, setMaxRoundsText] = useState(
     target.mode === "edit" && target.route.maxRounds !== undefined
@@ -97,7 +101,7 @@ export function RouteConfigureDialog({
         {showWhen ? (
           <label className="mb-3 block">
             <span className="mb-1 block font-mono text-[11px] text-on-surface-variant">
-              when (eq/neq)
+              when (function source)
             </span>
             <input
               className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1.5 font-mono text-sm text-on-surface"
@@ -112,7 +116,7 @@ export function RouteConfigureDialog({
           <>
             <label className="mb-3 block">
               <span className="mb-1 block font-mono text-[11px] text-on-surface-variant">
-                until (eq/neq, optional)
+                until (function source, optional)
               </span>
               <input
                 className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1.5 font-mono text-sm text-on-surface"

@@ -48,6 +48,7 @@ import { getEnvironmentDefinition } from "../definitions/environment.js"
 import type { EncodingEnvironmentHost } from "./encoding-host.js"
 import { EcpImpl, type Ecp } from "./ecp.js"
 import { createInvokeBuilder } from "../invoke/invoke-builder.js"
+import { applyJsonSchemaDefaults } from "../schema/json-schema.js"
 import { validateWorkflowAcceptsInput } from "../schema/workflow-io.js"
 import {
   registryControlPolicy,
@@ -660,7 +661,11 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
         `Workflow validation failed: ${validation.errors.map((e) => e.message).join("; ")}`
       )
     }
-    const acceptsCheck = validateWorkflowAcceptsInput(workflow, options?.input)
+    const inputWithDefaults = applyJsonSchemaDefaults(
+      workflow.workflow.accepts as Record<string, unknown> | undefined,
+      options?.input
+    )
+    const acceptsCheck = validateWorkflowAcceptsInput(workflow, inputWithDefaults)
     if (!acceptsCheck.ok) {
       throw new Error(acceptsCheck.message)
     }
@@ -669,7 +674,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
         schema: "@executioncontrolprotocol.run.result",
         version: LATEST_ECP_VERSION,
         run: { id: "dry-run", status: "completed" },
-        state: options.input ?? {},
+        state: inputWithDefaults,
       }
     }
 
@@ -681,7 +686,7 @@ export class Environment implements EnvironmentLifecycleHost, EncodingEnvironmen
 
     return executor.execute(workflow, {
       runId: globalThis.crypto.randomUUID(),
-      input: options?.input ?? {},
+      input: inputWithDefaults,
       registry: this.registry,
       bindings,
       signal: options?.signal,

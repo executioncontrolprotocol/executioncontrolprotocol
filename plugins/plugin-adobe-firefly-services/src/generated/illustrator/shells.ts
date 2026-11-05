@@ -24,15 +24,15 @@ export function illustrator_execute_custom_script_capability(handler: Capability
   assets: z.array(z.object({
   "source": z.object({
   "url": z.string()
-}),
+}).strict(),
   "destination": z.string()
-})).optional(),
+}).strict()).optional(),
   params: z.object({
   "targetDocument": z.string(),
   "outputFolderPath": z.string(),
   "zip": z.string().optional(),
   "fontFolderPath": z.string().optional()
-}).optional(),
+}).strict().optional(),
   body: schemas.Schema_CustomScriptExecuteRequest.optional()
 }))
     .withOutput(schemas.Schema_CustomScriptJobSucceededResponse)

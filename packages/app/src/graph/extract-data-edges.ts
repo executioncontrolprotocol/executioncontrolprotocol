@@ -153,11 +153,8 @@ export function walkInputRefs(
  * @category App
  */
 export function formatWhenBadge(expr: ExprValue): string {
-  if ("eq" in expr && Array.isArray(expr.eq)) {
-    return `eq(${String(expr.eq[0])}, ${JSON.stringify(expr.eq[1])})`
-  }
-  if ("neq" in expr && Array.isArray(expr.neq)) {
-    return `neq(${String(expr.neq[0])}, ${JSON.stringify(expr.neq[1])})`
+  if (expr && typeof expr === "object" && "$fn" in expr && typeof expr.source === "string") {
+    return expr.source
   }
   try {
     return JSON.stringify(expr)
@@ -168,14 +165,13 @@ export function formatWhenBadge(expr: ExprValue): string {
 
 /**
  * State / accepts key referenced by a `when` expression, when present.
+ * Best-effort parse of `state.<path>` inside serializable function source.
  * @category App
  */
 export function stateKeyFromWhenExpr(expr: ExprValue): string | undefined {
-  if ("eq" in expr && Array.isArray(expr.eq) && expr.eq[0] !== undefined) {
-    return String(expr.eq[0])
-  }
-  if ("neq" in expr && Array.isArray(expr.neq) && expr.neq[0] !== undefined) {
-    return String(expr.neq[0])
+  if (expr && typeof expr === "object" && "$fn" in expr && typeof expr.source === "string") {
+    const match = /\bstate\.([A-Za-z_][\w.]*)/.exec(expr.source)
+    return match?.[1]
   }
   return undefined
 }

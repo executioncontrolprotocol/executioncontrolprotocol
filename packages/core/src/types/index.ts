@@ -37,6 +37,7 @@ export type {
   EnvValue,
   SecretValue,
   ExprValue,
+  SerializableFunction,
   InputValue,
   EcpDocumentBase,
 } from "./schema.js"

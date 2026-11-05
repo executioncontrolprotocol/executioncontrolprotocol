@@ -7,32 +7,32 @@ export const Schema_ffapierrors_FFAPIError: z.ZodTypeAny = z.lazy(() => (z.objec
   "error_code": z.string(),
   "error_details": z.array(z.object({})).optional(),
   "message": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_ffapierrors_FFAPIErrorDetail: z.ZodTypeAny = z.lazy(() => (z.object({
   "error_code": z.string(),
   "error_context": z.record(z.string(), z.string()).optional(),
   "loc": z.string(),
   "msg": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_FileFrameIO: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
   "accessToken": z.string(),
   "folderId": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_FileNextFrameIO: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
   "accessToken": z.string(),
   "accountId": z.string(),
   "folderId": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_FileURL: z.ZodTypeAny = z.lazy(() => (z.object({
   "filepath": z.string().optional(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_MountedSource: z.ZodTypeAny = z.lazy(() => (z.object({
   "frame.io": Schema_rest_base_SourceFrameIO.optional(),
@@ -40,27 +40,27 @@ export const Schema_rest_base_MountedSource: z.ZodTypeAny = z.lazy(() => (z.obje
   "next.frame.io": Schema_rest_base_SourceFrameIOV4.optional(),
   "space": Schema_rest_base_SourceSpace.optional(),
   "url": Schema_rest_base_SourceURL.optional()
-})))
+}).strict()))
 
 export const Schema_rest_base_SourceFrameIO: z.ZodTypeAny = z.lazy(() => (z.object({
   "accessToken": z.string(),
   "folderId": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_SourceFrameIOV4: z.ZodTypeAny = z.lazy(() => (z.object({
   "accessToken": z.string(),
   "accountId": z.string(),
   "folderId": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_SourceSpace: z.ZodTypeAny = z.lazy(() => (z.object({
   "id": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_SourceURL: z.ZodTypeAny = z.lazy(() => (z.object({
   "filename": z.string().optional(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_rest_base_Space: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -69,13 +69,13 @@ export const Schema_rest_base_Space: z.ZodTypeAny = z.lazy(() => (z.object({
   "id": z.string(),
   "url": z.string(),
   "archiveUrl": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_rest_base_SpaceFile: z.ZodTypeAny = z.lazy(() => (z.object({
   "name": z.string(),
   "size": z.number().int().min(0),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1_ComposeSceneRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -96,51 +96,51 @@ export const Schema_restv1_ComposeSceneRequest: z.ZodTypeAny = z.lazy(() => (z.o
   "size": Schema_types_OutputSize.optional(),
   "sources": z.array(Schema_rest_base_MountedSource),
   "styleImage": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_types_ComposeEnvironment: z.ZodTypeAny = z.lazy(() => (z.object({
   "file": z.string(),
   "rotation": Schema_types_Rotation.optional()
-})))
+}).strict()))
 
 export const Schema_types_Rotation: z.ZodTypeAny = z.lazy(() => (z.object({
   "euler": z.array(z.number()).optional(),
   "quaternion": z.array(z.number()).optional()
-})))
+}).strict()))
 
 export const Schema_types_ComposeSceneSceneDetails: z.ZodTypeAny = z.lazy(() => (z.object({
   "camera": Schema_types_SceneCamera.optional()
-})))
+}).strict()))
 
 export const Schema_types_SceneCamera: z.ZodTypeAny = z.lazy(() => (z.object({
   "focal": z.number().min(10).max(1000).optional(),
   "sensorWidth": z.number().min(1).max(100).optional(),
   "transform": Schema_types_Transform.optional()
-})))
+}).strict()))
 
 export const Schema_types_Transform: z.ZodTypeAny = z.lazy(() => (z.object({
   "azimuthAltitude": Schema_types_AzimuthAltitude.optional(),
   "matrix": z.array(z.number()).optional(),
   "trs": Schema_types_TRS.optional()
-})))
+}).strict()))
 
 export const Schema_types_AzimuthAltitude: z.ZodTypeAny = z.lazy(() => (z.object({
   "altitude": z.number().min(-90).max(90),
   "azimuth": z.number(),
   "lookAt": z.array(z.number()).nullable(),
   "radius": z.number().min(0)
-})))
+}).strict()))
 
 export const Schema_types_TRS: z.ZodTypeAny = z.lazy(() => (z.object({
   "rotation": Schema_types_Rotation,
   "scale": z.array(z.number()).nullable(),
   "translation": z.array(z.number()).nullable()
-})))
+}).strict()))
 
 export const Schema_types_OutputSize: z.ZodTypeAny = z.lazy(() => (z.object({
   "height": z.number().int().min(1).max(2688),
   "width": z.number().int().min(1).max(2688)
-})))
+}).strict()))
 
 export const Schema_restv1beta_ComposeOutput: z.ZodTypeAny = z.lazy(() => (z.object({
   "backgroundImage": Schema_restv1beta_ComposeOutputImage,
@@ -148,11 +148,11 @@ export const Schema_restv1beta_ComposeOutput: z.ZodTypeAny = z.lazy(() => (z.obj
   "lightingSeed": z.number().int(),
   "maskImage": Schema_restv1beta_ComposeOutputImage,
   "seed": z.number().int()
-})))
+}).strict()))
 
 export const Schema_restv1beta_ComposeOutputImage: z.ZodTypeAny = z.lazy(() => (z.object({
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_ComposeSceneJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "outputSpace": Schema_rest_base_Space,
@@ -160,12 +160,12 @@ export const Schema_restv1beta_ComposeSceneJobResult: z.ZodTypeAny = z.lazy(() =
   "promptHasBlockedArtists": z.boolean(),
   "promptHasDeniedWords": z.boolean(),
   "warnings": z.array(Schema_types_Warning).nullable().optional()
-})))
+}).strict()))
 
 export const Schema_types_Warning: z.ZodTypeAny = z.lazy(() => (z.object({
   "context": z.string(),
   "message": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_ComposeSceneRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -186,7 +186,7 @@ export const Schema_restv1beta_ComposeSceneRequest: z.ZodTypeAny = z.lazy(() => 
   "size": Schema_types_OutputSize.optional(),
   "sources": z.array(Schema_rest_base_MountedSource),
   "styleImage": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_restv1beta_ComposeSceneResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -196,12 +196,12 @@ export const Schema_restv1beta_ComposeSceneResponse: z.ZodTypeAny = z.lazy(() =>
   "result": Schema_restv1beta_ComposeSceneJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_CreateSceneJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "outputSpace": Schema_rest_base_Space,
   "sceneUrl": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_CreateSceneRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -209,7 +209,7 @@ export const Schema_restv1beta_CreateSceneRequest: z.ZodTypeAny = z.lazy(() => (
   "fileBaseName": z.string().min(1),
   "scene": Schema_types_SceneDescription,
   "sources": z.array(Schema_rest_base_MountedSource)
-})))
+}).strict()))
 
 export const Schema_types_SceneDescription: z.ZodTypeAny = z.lazy(() => (z.object({
   "baseFile": Schema_types_SceneBaseFile.optional(),
@@ -219,33 +219,33 @@ export const Schema_types_SceneDescription: z.ZodTypeAny = z.lazy(() => (z.objec
   "materials": z.array(Schema_types_MaterialAssign).nullable().optional(),
   "metersPerUnit": z.number().optional(),
   "models": Schema_types_SceneModels.optional()
-})))
+}).strict()))
 
 export const Schema_types_SceneBaseFile: z.ZodTypeAny = z.lazy(() => (z.object({
   "file": z.string(),
   "modelsRootNodeName": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_types_SceneEnvironment: z.ZodTypeAny = z.lazy(() => (z.object({
   "exposure": z.number().min(-10).max(10).optional(),
   "file": z.string().optional(),
   "preserveLights": z.boolean().optional(),
   "rotation": Schema_types_Rotation.optional()
-})))
+}).strict()))
 
 export const Schema_types_FormatOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "usd": Schema_types_UsdOptions
-})))
+}).strict()))
 
 export const Schema_types_UsdOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "variants": z.array(Schema_types_UsdVariant).nullable()
-})))
+}).strict()))
 
 export const Schema_types_UsdVariant: z.ZodTypeAny = z.lazy(() => (z.object({
   "primName": z.string(),
   "variant": z.string(),
   "variantSet": z.string()
-})))
+}).strict()))
 
 export const Schema_types_MaterialAssign: z.ZodTypeAny = z.lazy(() => (z.object({
   "material": Schema_types_Material,
@@ -253,12 +253,12 @@ export const Schema_types_MaterialAssign: z.ZodTypeAny = z.lazy(() => (z.object(
   "nodeList": z.array(z.string()).nullable(),
   "assignByDefault": z.boolean().optional(),
   "excludeFromDefault": z.array(z.string()).optional()
-})))
+}).strict()))
 
 export const Schema_types_Material: z.ZodTypeAny = z.lazy(() => (z.object({
   "sbs": Schema_types_SbsMaterial.optional(),
   "solidColor": Schema_types_SolidColorMaterial.optional()
-})))
+}).strict()))
 
 export const Schema_types_SbsMaterial: z.ZodTypeAny = z.lazy(() => (z.object({
   "preset": z.string().optional(),
@@ -267,18 +267,18 @@ export const Schema_types_SbsMaterial: z.ZodTypeAny = z.lazy(() => (z.object({
   "sbsar": z.string().optional(),
   "scale": z.array(z.number()).optional(),
   "translation": z.array(z.number()).optional()
-})))
+}).strict()))
 
 export const Schema_types_SolidColorMaterial: z.ZodTypeAny = z.lazy(() => (z.object({
   "color": z.array(z.number()).nullable(),
   "metallicFactor": z.number().min(0).max(1).optional(),
   "roughnessFactor": z.number().min(0).max(1).optional()
-})))
+}).strict()))
 
 export const Schema_types_SceneModels: z.ZodTypeAny = z.lazy(() => (z.object({
   "imports": z.array(Schema_types_SceneModel).nullable().optional(),
   "modelsRootNodeTransform": Schema_types_Transform.optional()
-})))
+}).strict()))
 
 export const Schema_types_SceneModel: z.ZodTypeAny = z.lazy(() => (z.object({
   "anchorName": z.string().optional(),
@@ -286,7 +286,7 @@ export const Schema_types_SceneModel: z.ZodTypeAny = z.lazy(() => (z.object({
   "formatOptions": Schema_types_FormatOptions.optional(),
   "materialOverrides": z.array(Schema_types_MaterialOverride).nullable().optional(),
   "transform": Schema_types_Transform.optional()
-})))
+}).strict()))
 
 export const Schema_types_MaterialOverride: z.ZodTypeAny = z.lazy(() => (z.object({
   "absorptionColorFactor": z.array(z.number()).optional(),
@@ -315,7 +315,7 @@ export const Schema_types_MaterialOverride: z.ZodTypeAny = z.lazy(() => (z.objec
   "translucencyTexture": z.string().optional(),
   "volumeThicknessFactor": z.number().min(0).optional(),
   "volumeThicknessTexture": z.string().optional()
-})))
+}).strict()))
 
 export const Schema_restv1beta_CreateSceneResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -325,18 +325,18 @@ export const Schema_restv1beta_CreateSceneResponse: z.ZodTypeAny = z.lazy(() => 
   "result": Schema_restv1beta_CreateSceneJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_ModelConvertJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "outputSpace": Schema_rest_base_Space
-})))
+}).strict()))
 
 export const Schema_restv1beta_ModelConvertRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
   "format": z.enum(["glb", "gltf", "fbx", "usdz", "usda", "usdc", "obj"]),
   "modelEntrypoint": z.string().optional(),
   "sources": z.array(Schema_rest_base_MountedSource)
-})))
+}).strict()))
 
 export const Schema_restv1beta_ModelConvertResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -346,7 +346,7 @@ export const Schema_restv1beta_ModelConvertResponse: z.ZodTypeAny = z.lazy(() =>
   "result": Schema_restv1beta_ModelConvertJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderModelRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -358,18 +358,18 @@ export const Schema_restv1beta_RenderModelRequest: z.ZodTypeAny = z.lazy(() => (
   "scene": Schema_types_SimpleSceneDescription,
   "size": Schema_types_SizeOptions.optional(),
   "sources": z.array(Schema_rest_base_MountedSource)
-})))
+}).strict()))
 
 export const Schema_types_AutoFramingOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "algorithm": z.enum(["auto", "bounding_cylinder", "frustum_fit"]).optional(),
   "zoomFactor": z.number().min(0.001).max(100).optional()
-})))
+}).strict()))
 
 export const Schema_types_BackgroundOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "backgroundColor": z.array(z.number()).nullable().optional(),
   "backgroundImage": z.string().optional(),
   "showEnvironment": z.boolean().optional()
-})))
+}).strict()))
 
 export const Schema_types_RenderExtraOutputs: z.ZodTypeAny = z.lazy(() => (z.object({
   "exportDistanceToCamera": z.boolean().optional(),
@@ -378,15 +378,15 @@ export const Schema_types_RenderExtraOutputs: z.ZodTypeAny = z.lazy(() => (z.obj
   "exportMatte": Schema_types_RenderExtraOutputExportMatte.optional(),
   "exportObjectIds": z.boolean().optional(),
   "exportObjectMasks": Schema_types_ExportMasksOptions.optional()
-})))
+}).strict()))
 
 export const Schema_types_ExportMasksOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "selection": z.array(z.string()).nullable().optional()
-})))
+}).strict()))
 
 export const Schema_types_RenderExtraOutputExportMatte: z.ZodTypeAny = z.lazy(() => (z.object({
   "includeNodes": z.array(z.string()).nullable()
-})))
+}).strict()))
 
 export const Schema_types_GroundPlaneOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "autoGroundScene": z.boolean().optional(),
@@ -396,7 +396,7 @@ export const Schema_types_GroundPlaneOptions: z.ZodTypeAny = z.lazy(() => (z.obj
   "reflectionsRoughness": z.number().min(0).max(1).optional(),
   "shadows": z.boolean().optional(),
   "shadowsOpacity": z.number().min(0).max(1).optional()
-})))
+}).strict()))
 
 export const Schema_types_SimpleSceneDescription: z.ZodTypeAny = z.lazy(() => (z.object({
   "camera": Schema_types_SceneCamera.optional(),
@@ -407,12 +407,12 @@ export const Schema_types_SimpleSceneDescription: z.ZodTypeAny = z.lazy(() => (z
   "metersPerUnit": z.number().optional(),
   "modelFile": z.string().optional(),
   "modelTransform": Schema_types_Transform.optional()
-})))
+}).strict()))
 
 export const Schema_types_SizeOptions: z.ZodTypeAny = z.lazy(() => (z.object({
   "height": z.number().int().min(16).max(2304),
   "width": z.number().int().min(16).max(3840)
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderModelResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -422,7 +422,7 @@ export const Schema_restv1beta_RenderModelResponse: z.ZodTypeAny = z.lazy(() => 
   "result": Schema_restv1beta_RenderSceneJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderSceneJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "distanceToCameraUrl": z.string().optional(),
@@ -434,22 +434,22 @@ export const Schema_restv1beta_RenderSceneJobResult: z.ZodTypeAny = z.lazy(() =>
   "outputSpace": Schema_rest_base_Space,
   "renderUrl": z.string(),
   "warnings": z.array(Schema_types_Warning).nullable().optional()
-})))
+}).strict()))
 
 export const Schema_types_IdsMapData: z.ZodTypeAny = z.lazy(() => (z.object({
   "fileName": z.string(),
   "ids": z.array(Schema_types_NameToColorBinding).nullable()
-})))
+}).strict()))
 
 export const Schema_types_NameToColorBinding: z.ZodTypeAny = z.lazy(() => (z.object({
   "color": z.string(),
   "name": z.string()
-})))
+}).strict()))
 
 export const Schema_types_MaskNameToFileBinding: z.ZodTypeAny = z.lazy(() => (z.object({
   "fileName": z.string(),
   "name": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderModelTurntableRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -466,7 +466,7 @@ export const Schema_restv1beta_RenderModelTurntableRequest: z.ZodTypeAny = z.laz
   "size": Schema_types_SizeOptions.optional(),
   "sources": z.array(Schema_rest_base_MountedSource),
   "useRasterizer": z.boolean().optional()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderModelTurntableResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -476,14 +476,14 @@ export const Schema_restv1beta_RenderModelTurntableResponse: z.ZodTypeAny = z.la
   "result": Schema_restv1beta_RenderSceneTurntableJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderSceneTurntableJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "framesUrls": z.array(z.string()),
   "outputSpace": Schema_rest_base_Space,
   "renderUrl": z.string(),
   "warnings": z.array(Schema_types_Warning).nullable().optional()
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderSceneRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -495,7 +495,7 @@ export const Schema_restv1beta_RenderSceneRequest: z.ZodTypeAny = z.lazy(() => (
   "scene": Schema_types_SceneDescription,
   "size": Schema_types_SizeOptions.optional(),
   "sources": z.array(Schema_rest_base_MountedSource)
-})))
+}).strict()))
 
 export const Schema_restv1beta_RenderSceneResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -505,11 +505,11 @@ export const Schema_restv1beta_RenderSceneResponse: z.ZodTypeAny = z.lazy(() => 
   "result": Schema_restv1beta_RenderSceneJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_restv1beta_SceneDescJobResult: z.ZodTypeAny = z.lazy(() => (z.object({
   "stats": Schema_types_SceneStatsInfo
-})))
+}).strict()))
 
 export const Schema_types_SceneStatsInfo: z.ZodTypeAny = z.lazy(() => (z.object({
   "cameraNames": z.array(z.string()).nullable(),
@@ -528,7 +528,7 @@ export const Schema_types_SceneStatsInfo: z.ZodTypeAny = z.lazy(() => (z.object(
   "numTriangles": z.number().int(),
   "numVertices": z.number().int(),
   "sceneUpAxis": z.string()
-})))
+}).strict()))
 
 export const Schema_types_SceneStatsNode: z.ZodTypeAny = z.lazy(() => (z.object({
   "assignedMaterialName": z.string().optional(),
@@ -538,7 +538,7 @@ export const Schema_types_SceneStatsNode: z.ZodTypeAny = z.lazy(() => (z.object(
   "type": z.string(),
   "variants": z.array(Schema_types_SceneStatsNodeVariant).nullable().optional(),
   "worldSpaceBoundingBox": Schema_types_SceneStatsBoundingBox.optional()
-})))
+}).strict()))
 
 export const Schema_types_CameraStats: z.ZodTypeAny = z.lazy(() => (z.object({
   "aspectRatio": z.number(),
@@ -551,24 +551,24 @@ export const Schema_types_CameraStats: z.ZodTypeAny = z.lazy(() => (z.object({
   "projection": z.string(),
   "verticalAperture": z.number(),
   "verticalApertureOffset": z.number()
-})))
+}).strict()))
 
 export const Schema_types_SceneStatsNodeVariant: z.ZodTypeAny = z.lazy(() => (z.object({
   "currentValue": z.string(),
   "name": z.string(),
   "values": z.array(z.string()).nullable()
-})))
+}).strict()))
 
 export const Schema_types_SceneStatsBoundingBox: z.ZodTypeAny = z.lazy(() => (z.object({
   "max": z.array(z.number()).nullable(),
   "min": z.array(z.number()).nullable()
-})))
+}).strict()))
 
 export const Schema_restv1beta_SceneDescRequest: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
   "sceneFile": z.string().optional(),
   "sources": z.array(Schema_rest_base_MountedSource)
-})))
+}).strict()))
 
 export const Schema_restv1beta_SceneDescResponse: z.ZodTypeAny = z.lazy(() => (z.object({
   "$schema": z.string().optional(),
@@ -578,14 +578,14 @@ export const Schema_restv1beta_SceneDescResponse: z.ZodTypeAny = z.lazy(() => (z
   "result": Schema_restv1beta_SceneDescJobResult.optional(),
   "status": z.string(),
   "url": z.string()
-})))
+}).strict()))
 
 export const Schema_types_RendererConfig: z.ZodTypeAny = z.lazy(() => (z.object({
   "type": z.enum(["ssca", "rtx"])
-})))
+}).strict()))
 
 export const Schema_types_ShadowCatchingMaterial: z.ZodTypeAny = z.lazy(() => (z.object({
   "reflectionOpacity": z.number(),
   "roughness": z.number(),
   "shadowOpacity": z.number()
-})))
+}).strict()))

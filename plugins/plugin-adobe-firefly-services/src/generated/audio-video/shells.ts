@@ -23,7 +23,7 @@ export function audio_video_generate_speech(handler: CapabilityHandler) {
   voiceId: z.string().optional(),
   output: z.object({
   "mediaType": schemas.Schema_SupportedAudioOutputAudioFormat
-}).optional(),
+}).strict().optional(),
   body: schemas.Schema_TTSRequest.optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
@@ -38,7 +38,7 @@ export function audio_video_template_describe(handler: CapabilityHandler) {
   type: z.enum(["mogrt", "aep"]).optional(),
   source: z.object({
   "url": z.string()
-}).optional(),
+}).strict().optional(),
   compName: z.string().optional(),
   body: schemas.Schema_TemplateDescribeRequest.optional()
 }))
@@ -63,29 +63,29 @@ export function audio_video_template_render(handler: CapabilityHandler) {
   type: z.enum(["mogrt", "aep"]).optional(),
   source: z.object({
   "url": z.string()
-}).optional(),
+}).strict().optional(),
   compName: z.string().optional(),
   fonts: z.array(z.object({
   "name": z.string(),
   "source": z.object({
   "url": z.string()
-})
-})).optional(),
+}).strict()
+}).strict()).optional(),
   config: z.object({
   "handleMissingFonts": z.enum(["fail", "use_default"]).optional(),
   "sidecar": z.enum(["aep"]).optional()
-}).optional(),
+}).strict().optional(),
   assets: z.array(z.object({
   "source": z.object({
   "url": z.string()
-})
-})).optional(),
+}).strict()
+}).strict()).optional(),
   presets: z.array(z.object({
   "source": z.object({
   "presetId": z.string().optional(),
   "url": z.string().optional()
-})
-})).optional(),
+}).strict()
+}).strict()).optional(),
   variations: z.array(z.object({
   "variables": z.array(z.object({
   "variableId": z.string(),
@@ -97,8 +97,8 @@ export function audio_video_template_render(handler: CapabilityHandler) {
   "assetIndex": z.number().int().optional(),
   "scale": z.enum(["no_scale", "fit_to_frame", "stretch_to_fill", "fill_frame"]).optional(),
   "audioPreference": z.enum(["replace", "mix"]).optional()
-}))
-})).optional(),
+}).strict())
+}).strict()).optional(),
   layerOperations: z.array(z.object({
   "operation": z.enum(["trim_comp", "trim_inpoint", "trim_outpoint", "shift_inpoint", "shift_outpoint", "match_source_duration", "set_layer_duration", "stretch_layer", "enable_layer"]),
   "layerId": z.string().optional(),
@@ -116,13 +116,13 @@ export function audio_video_template_render(handler: CapabilityHandler) {
   "videoEnabled": z.boolean().optional(),
   "audioEnabled": z.boolean().optional(),
   "solo": z.boolean().optional()
-})).optional(),
+}).strict()).optional(),
   outputs: z.array(z.object({
   "variationIndex": z.number().int(),
   "presetIndex": z.number().int(),
   "fileName": z.string().optional(),
   "destination": z.string().optional()
-})).optional(),
+}).strict()).optional(),
   body: schemas.Schema_TemplateRenderRequest.optional()
 }))
     .withOutput(schemas.Schema_JobStatus)
@@ -151,27 +151,27 @@ export function audio_video_generate_reframed_video(handler: CapabilityHandler) 
   video: z.object({
   "source": z.object({
   "url": z.string()
-}),
+}).strict(),
   "mediaType": z.enum(["video/mp4", "video/quicktime"])
-}).optional(),
+}).strict().optional(),
   sceneEditDetection: z.boolean().optional(),
   overlays: z.array(schemas.Schema_Overlay).optional(),
   outputConfig: z.object({
   "aspectRatios": z.array(z.string())
-}).optional(),
+}).strict().optional(),
   body: z.object({
   "video": z.object({
   "source": z.object({
   "url": z.string()
-}),
+}).strict(),
   "mediaType": z.enum(["video/mp4", "video/quicktime"])
-}),
+}).strict(),
   "sceneEditDetection": z.boolean().optional(),
   "overlays": z.array(schemas.Schema_Overlay).optional(),
   "outputConfig": z.object({
   "aspectRatios": z.array(z.string())
-})
-}).optional()
+}).strict()
+}).strict().optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
     .withMetadata({"summary":"Reframe video","description":"This endpoint enables you to reframe video using AI. Provide video input with a pre-signed URL to generate reframed video output. This API has more limited capabilities than the v2 endpoint, and may be deprecated soon. **It's recommended to use the v2 endpoint instead.**","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})
@@ -222,15 +222,15 @@ export function audio_video_generate_reframed_video_v2(handler: CapabilityHandle
   "aspectRatio": schemas.Schema_AspectRatioV2,
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-}), z.object({
+}).strict(), z.object({
   "resolution": z.object({
   "width": z.number().int(),
   "height": z.number().int()
-}),
+}).strict(),
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-})]))
-}).optional(),
+}).strict()]))
+}).strict().optional(),
   body: z.object({
   "video": schemas.Schema_VideoInputV2,
   "analysis": schemas.Schema_AnalysisV2.optional(),
@@ -241,16 +241,16 @@ export function audio_video_generate_reframed_video_v2(handler: CapabilityHandle
   "aspectRatio": schemas.Schema_AspectRatioV2,
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-}), z.object({
+}).strict(), z.object({
   "resolution": z.object({
   "width": z.number().int(),
   "height": z.number().int()
-}),
+}).strict(),
   "mediaDestination": schemas.Schema_Destination.optional(),
   "sidecarDestination": schemas.Schema_Destination.optional()
-})]))
-})
-}).optional()
+}).strict()]))
+}).strict()
+}).strict().optional()
 }))
     .withOutput(schemas.Schema_StatusAPIResponse)
     .withMetadata({"summary":"Reframe video v2","description":"This endpoint enables you to reframe the input media. You can provide a video input via a pre-signed URL to generate reframed output video.","useCases":["Audio Video Reframe tasks that need this operation","When the workflow goal is to reframe video v2"],"projections":[{"summary":"Take returned assets","description":"Keep asset URLs or output references from the result for download or the next edit step."}]})

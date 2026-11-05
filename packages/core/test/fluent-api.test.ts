@@ -82,8 +82,10 @@ describe("fluent API surface", () => {
     expect(state("b").path).toBe("b")
     expect(env("KEY").$env).toBe("KEY")
     expect(secrets("my/key").$secret).toBe("my/key")
-    expect(expr.eq("x", 1)).toEqual({ eq: ["x", 1] })
-    expect(expr.neq("x", 1)).toEqual({ neq: ["x", 1] })
+    const predicate = expr((state) => state.x === 1)
+    expect(predicate.$fn).toBe(true)
+    expect(predicate.source).toContain("state.x")
+    expect(predicate.params).toEqual(["state"])
   })
 
   it("flow helpers produce node types", () => {

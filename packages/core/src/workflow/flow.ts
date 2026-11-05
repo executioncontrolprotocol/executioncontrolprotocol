@@ -42,7 +42,7 @@ export function branch(
       const stepNode = node.type === "step" || !node.type ? node : undefined
       return {
         ...(s.label ? { label: s.label } : {}),
-        when: stepNode?.when ?? { eq: ["", true] },
+        when: stepNode?.when ?? { $fn: true, source: "(state) => true", params: ["state"] },
         steps: [node],
       }
     }),

@@ -3,7 +3,10 @@ import { z } from "zod"
 import { createImsTokenProvider } from "../auth/ims.js"
 import { buildUrl, createAdobeHttpClient } from "../http/client.js"
 import { extractAdobeStatusUrl, pollAdobeJob } from "../http/async-job.js"
-import { materializePhotoshopManifest } from "./photoshop-manifest.js"
+import {
+  materializePhotoshopManifest,
+  withDefaultManifestOutputs,
+} from "./photoshop-manifest.js"
 
 /**
  * Capability handler context fields used by Adobe invoke.
@@ -198,13 +201,15 @@ export function assembleAdobeOperationInput(
 
   let body: unknown
   if (bodySchema && (hasBody || hasBodyParam)) {
-    // Keep the merged body (not Zod's stripped `.data`) so product fields
-    // outside the projected schema remain available for post-processing.
-    body = ensureDefaultCaiClaimVersion(mergeParameterBody(input.body, bodyParams))
-    const parsed = bodySchema.safeParse(body)
+    // Validate the author/merged body first, then inject host defaults such as
+    // caiClaimVersion. Keep the merged object (not Zod's stripped `.data`) so
+    // product fields outside the projected schema remain for post-processing.
+    const merged = mergeParameterBody(input.body, bodyParams)
+    const parsed = bodySchema.safeParse(merged)
     if (!parsed.success) {
       throw new Error(`Adobe request body failed schema: ${parsed.error.message}`)
     }
+    body = ensureDefaultCaiClaimVersion(merged)
   } else if (!bodySchema && hasBody) {
     body = ensureDefaultCaiClaimVersion(input.body)
   }
@@ -246,8 +251,13 @@ export async function invokeAdobeOperation(options: {
     throw new Error("Adobe clientId and clientSecret are required in extension config")
   }
 
+  const input =
+    options.materialize === "photoshop-manifest"
+      ? withDefaultManifestOutputs(options.input as Record<string, unknown>)
+      : options.input
+
   const assembled = assembleAdobeOperationInput(
-    options.input,
+    input,
     options.parameters,
     options.bodySchema,
   )

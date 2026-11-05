@@ -64,12 +64,14 @@ export const inputValueSchema: z.ZodType<unknown> = z.lazy(() =>
   ])
 )
 
-/** Expression value for step/branch conditions. @category Validation */
-export const exprValueSchema = z.union([
-  z.object({ eq: z.tuple([z.string(), z.unknown()]) }).strict(),
-  z.object({ neq: z.tuple([z.string(), z.unknown()]) }).strict(),
-  z.record(z.unknown()),
-])
+/** Portable JS function / workflow condition. @category Validation */
+export const exprValueSchema = z
+  .object({
+    $fn: z.literal(true),
+    source: z.string().min(1),
+    params: z.array(z.string().min(1)).optional(),
+  })
+  .strict()
 
 /** Single capability step node. @category Validation */
 export const stepNodeSchema = z
