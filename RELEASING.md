@@ -5,11 +5,13 @@ Packages are versioned independently with [Changesets](https://github.com/change
 ## Branches
 
 - **`development`** — Default branch after the reset. PRs here get a Changesets status check.
-- **`milestone/cli-reset`** — Reset work. Keep it after the 0.50.0 field-test for a later 1.0.
+- **`milestone/realignment`** — The realignment milestone (see `REALIGNMENT-PLAN.md`). Nothing
+  from it merges to `development` or `main` until the milestone is released as a new major.
+- **`milestone/cli-reset`** — The previous (CLI reset) milestone. History.
 - **`main`** — Publishes `latest` when `ENABLE_NPM_PUBLISH` is `true`. Phase 9 field-test is
   **0.50.0**, not 1.0.0. Do not reuse the existing `v1.0.0` tag (`a938230`).
-- **`feat/**`** — Feature branches. Open PRs into `milestone/cli-reset` until the field-test
-  merge path; then into `development`.
+- **`feat/**`** — Feature branches. Realignment work uses `feat/realignment-*` with PRs into
+  `milestone/realignment`.
 
 ## Latest (Phase 9 field-test)
 

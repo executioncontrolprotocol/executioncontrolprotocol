@@ -5,15 +5,16 @@ alwaysApply: true
 
 # Compatibility policy
 
-**Default: don't preserve backward compatibility** unless a phase doc or the user explicitly
-asks for it. The reset ships as 1.0, a major version.
+**Default: don't preserve backward compatibility** unless the plan, a phase doc or the user
+explicitly asks for it. The realignment ships as a new major version.
 
-- **APIs and manifests:** use current names and shapes only. Don't add loaders, commands or
-  type aliases whose only job is to accept old names (for example, no `withExtensions`
-  alias after Phase 2 introduces `.with([...])`).
-- **CLI:** one command path per concern. Phase 4 deleted `ecp test` when `ecp runs` replaced
-  it; no alias.
+- **APIs and manifests:** use current names and shapes only (`execution`, not `workflow`;
+  `expr`, not `when`/`until`). Don't add loaders, commands or type aliases whose only job is to
+  accept old names.
+- **The one planned exception:** a v1 → v2 conversion (`ecp migrate` or the Phase 0 v1
+  adapter for fixtures), not a runtime that accepts both.
+- **CLI:** one command path per concern; no aliases for retired commands.
 - **Types:** avoid `@deprecated` re-exports of renamed symbols; keep one canonical name.
-- **Published packages:** the only compatibility work is Phase 9's `npm deprecate` messages
-  pointing 0.x packages at their replacements.
+- **Published packages:** compatibility work for 0.x packages (for example `npm deprecate`
+  pointers) is decided at release time, not built into the code.
 - **When in doubt,** choose the simpler, stricter behaviour and explain the change in the PR.

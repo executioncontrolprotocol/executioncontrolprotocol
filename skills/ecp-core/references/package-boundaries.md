@@ -1,31 +1,36 @@
-# Package boundaries (ECP core)
+# Package boundaries (realignment)
 
-## After Phase 2
+Package names and directories for the new code are confirmed in Phase 1. The boundaries below
+are decided (see `REALIGNMENT-PLAN.md`).
 
-Protocol types live at `@executioncontrolprotocol/core/types`. `registry-control` lives in core.
-`packages/types` is gone. Hosts live in `packages/environments/{node,browser}`.
+## Target components
 
-**Core is host-agnostic.** Exports are `.` and `./types` only. ESLint bans `node:*`, `fs`,
-`path`, and `child_process` under `packages/core/src/**`.
+| Component | Owns | Must not |
+| --- | --- | --- |
+| Core (engine) | Execution manifest v2 types and validation, executor, registry (from plugin manifests), service container (`defineService`, `use`, `get`), `$ref`/`$state`/`$expr`/`$script` resolution | Do I/O directly; everything external goes through services |
+| Services (implementations) | `PluginAdapter` (in-process, lazy), `StorageProvider` (`localstorage`), `SecretsProvider` (env/keychain), `ExpressionEngine` (QuickJS-WASM), `Formatter` (json, toon), `Endpoint` (HTTP API), `Auth` (local token) | Run inside an execution |
+| ECP host | One restartable process: engine + services + loaded plugins + HTTP API (`/retrieve`, `/execute`, `/commit`, `/watch`, `/health`) | Evaluate JS outside QuickJS; branch on capability ids |
+| Host supervisor | `~/.ecp/host.json`, start/drain/restart, same port across restarts | Run capabilities |
+| MCP relay | Three tools (`retrieve`, `execute`, `commit`) forwarded to the host API | Run capabilities, own storage, change its tool list |
+| CLI | oclif: `ecp mcp start`, `ecp app`, `ecp retrieve/execute/commit`, `ecp plugins …`, `ecp secrets …`, `ecp host …` (as decided) | Per-capability commands |
+| App | React UI served by the host API; graph and run status | Write files directly (goes through `commit`) |
+| Plugin authoring package | Capability definition, config schema, `ecp.manifest.json` generation | Import host, CLI, relay or App |
+| Plugins | Capabilities only | Import host, CLI, relay or App; mark config fields as secret |
 
-| Package | Owns |
+## Legacy packages
+
+| Package | Becomes |
 | --- | --- |
-| `@executioncontrolprotocol/core` | The engine: Fluent API, registry, validation, executor, policy engine, `registry-control`, encoding, patch, journal model |
-| `@executioncontrolprotocol/node` | The Node environment: executor, workflow file loader, compile, file and media I/O, OS keychain and env-var secrets providers |
-| `@executioncontrolprotocol/browser` | The browser environment: executor, browser compile (esbuild-wasm), file and blob helpers |
-| `@executioncontrolprotocol/cli` | The `ecp` host: plugin management, hooks, operations |
-| `@executioncontrolprotocol/plugin-sdk` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library (Phase 3) |
-| `@executioncontrolprotocol/mcp` | MCP server and `ecp mcp serve` |
-| `@executioncontrolprotocol/app`, `plugin-app` | Visual co-editor and its CLI plugin (Phase 8 Done). `plugin-app` may import `node` and `app`; it must not import `cli` or `mcp` |
-| `plugin-*` | Capability sets. Depend on `core` (peer) and `plugin-sdk`. All 13 first-party plugins live under `plugins/` after Phase 5 |
+| `packages/core` | Reference for core (manifest types, executor routing, resolution, commit modes, validation, Fluent builder) |
+| `packages/environments/node` | Reference for the keychain `SecretsProvider` and run records |
+| `packages/environments/browser` | Out of scope |
+| `packages/cli` | Reference for oclif plugin management |
+| `packages/plugin-sdk` | Reference; command generation is dropped |
+| `packages/mcp` | Replaced by the MCP relay |
+| `packages/app`, `plugins/plugin-app` | Reference for the App (graph mapping, run overlay) |
+| `plugins/plugin-format-*` | `Formatter` implementations |
+| `plugins/plugin-budget`, `plugin-approval`, `plugin-state-control` | Out of scope (policies) |
+| Other `plugins/plugin-*` | Ported to the new plugin API, test/anthropic/firefly/azure-blob first |
 
-Extensions depend on `core` and `core/types` only, never on `node`, `browser`, `cli` or `mcp`.
-Bind `extension(definition)` on `environment(id, label?).with([...])`.
-
-Operational APIs live on **`Ecp` after `init()`**: `run`, `validate`, `describe`, `search`,
-`invoke`, `encode`, `decode`, `patch`, `terminate`. Phase 4 adds stepping, resume and rerun on
-the run journal, replacing `test`.
-
-Fluent encode is in core; there's no `format-fluent` extension.
-
-See `RESET-PLAN.md` §4.1 and §4.4, and root `AGENTS.md`.
+Legacy packages are reference code: read them, don't extend them, delete each in the PR that
+replaces it.

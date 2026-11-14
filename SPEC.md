@@ -1,5 +1,9 @@
 # Spec: Execution Control Protocol (ECP) — v1 (current)
 
+> **History.** This describes the v1 workflow model the current packages implement. The
+> realignment replaces it; see [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md). The new spec is
+> written in Phase 0 under `realignment/spec/`.
+
 This repository currently implements ECP as a **TypeScript-first workflow authoring
 and execution protocol**.
 

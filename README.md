@@ -1,5 +1,10 @@
 # Execution Control Protocol (ECP)
 
+> **In progress:** the `milestone/realignment` branch is redesigning ECP around a host with
+> three operations (`retrieve`, `execute`, `commit`) and JSON execution manifests. See
+> [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md). The instructions below describe the published
+> 0.52 CLI.
+
 [![CI](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml)
 
 ECP (Execution Control Protocol) is the **deterministic delegation** layer an

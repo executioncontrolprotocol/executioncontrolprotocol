@@ -1,5 +1,8 @@
 # ECP Setup Guide
 
+> **Note:** this guide covers the current (legacy) packages and the published 0.52 CLI. The
+> realignment milestone replaces them; see [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md).
+
 This guide covers building the monorepo, installing the `ecp` CLI, and running
 workflows locally on Node.
 

@@ -1,18 +1,18 @@
-# Core examples index
+# Examples (realignment)
 
-Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). Optional `config.ecp.ts` holds machine settings.
+`examples/*` are legacy single-file `*.ecp.ts` workflows (v1). In Phase 0 they're converted to
+v2 execution manifests (`*.ecp.json`) and become conformance fixtures: each must produce the
+same state outcome on the legacy executor (through a v1 adapter) and on the new one.
 
-| Folder | Teaches | Reset |
+| Folder | Teaches | Phase 0 fixture covers |
 | --- | --- | --- |
-| `01-echo` | Minimal Fluent + `plugin-test` (`test.echo`) | Single `workflow.ecp.ts`; `.with([extension("@executioncontrolprotocol/test")])` |
-| `02-weekly-brief` | Multi-step, `ref()`, a model step | Single `workflow.ecp.ts`; `memory` replaced by workflow input in Phase 1 |
-| `03-secrets-bind` | Keychain and `secrets()` in extension config | Single `workflow.ecp.ts`; does not bind `secrets` in the workflow |
-| `04-encode-decode` | TOON round-trip | **Removed in Phase 1** (format plugins cover it) |
-| `05-test-session` | `ecp test start` / `run --to` / `rerun` / `status` | **Removed in Phase 1**; use `ecp run --to` / `runs resume` / `runs rerun` |
-| `06-invoke` | `ecp environments invoke` outside a workflow | Single `workflow.ecp.ts` |
-| `07-accepts-returns` | `.accepts()` / `.returns()`, `ecp run --input` | Single `workflow.ecp.ts` |
-| `plugins/plugin-*/examples` | Plugin `*.ecp.ts` examples | Moved in Phase 5 (Slack example removed in Phase 1) |
-| `reset/dogfood/` | Phase 6 Dogfood A fixtures + local proofs | Not converted examples; see `reset/dogfood/README.md` |
-| `08-ollama-*` | Retired stubs | **Deleted in Phase 4 PR 1** (they were empty READMEs, not converted) |
+| `01-echo` | Minimal step | Smallest valid execution |
+| `02-weekly-brief` | Multi-step, refs, a model step | Sequence, `$ref`, `config` on a step |
+| `03-secrets-bind` | Secrets in extension config | Config object with `$secret` (no secrets in the execution) |
+| `06-invoke` | Calling one capability | One-step `execute` |
+| `07-accepts-returns` | `accepts` / `returns`, run input | Execution `accepts`/`returns` |
+| `08-branch-loop` | Branch, gated step, loop | `branch` with default arm, `expr` on a step, `loop` with `maxRounds` |
+| `plugins/plugin-*/examples` | Plugin-specific workflows | Firefly dogfood workflows become fixtures for `$script` and HTTP capabilities |
 
-See `examples/README.md` and `RESET-PLAN.md` §5.5.
+The plan's "Full example" (`localize-banner`) is the reference for a v2 execution using every
+feature.

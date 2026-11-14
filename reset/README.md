@@ -1,5 +1,9 @@
 # ECP reset — phase docs
 
+> **History (superseded 2026-11-14).** These are the CLI reset phase docs. The realignment
+> replaces them: see [`REALIGNMENT-PLAN.md`](../REALIGNMENT-PLAN.md) and
+> [`realignment/`](../realignment/README.md). Don't execute these phases.
+
 These are the working docs for the `milestone/cli-reset` milestone. `RESET-PLAN.md` at the
 repo root holds the decisions and the target architecture; each phase doc here holds the
 detail needed to do the work: scope, file-level tasks, design notes, tests and exit criteria.

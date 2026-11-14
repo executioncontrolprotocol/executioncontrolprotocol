@@ -14,7 +14,7 @@ alwaysApply: true
 - No `any` without an `eslint-disable` comment explaining why.
 - **Use the protocol's type aliases for ECP values,** not bare primitives. Ids, schema names,
   versions and closed sets have dedicated types in `@executioncontrolprotocol/core/types`:
-  for example `NamespacedId`, `EcpSchema`, `LATEST_ECP_VERSION`,
+  for example `NamespacedId`, `EcpSchema`, the manifest version constant,
   `ValidationSeverity`. Primitives are for generic fields (`name`, `description`) and free-form
   content.
 - Run `pnpm run build` (`tsc -b`) and `pnpm run lint:ts` before committing.
@@ -26,8 +26,8 @@ alwaysApply: true
   existing event syntax). Never camelCase or snake_case.
 - **CLI tokens** (flags, subcommands, `key=value` keys): kebab-case. See `cli-crud.mdc`.
 - **Types and interfaces:** PascalCase.
-- **Error codes:** `ECP_*` in SCREAMING_SNAKE_CASE (`ECP_PLUGINS_MISSING`). See
-  `RESET-PLAN.md` §4.6.
+- **Error codes:** `ECP_*` in SCREAMING_SNAKE_CASE (`ECP_PLUGINS_MISSING`). The catalogue is
+  `realignment/spec/operations.md` (Phase 0).
 
 ## Documentation
 

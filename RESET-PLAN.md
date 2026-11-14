@@ -1,5 +1,10 @@
 # ECP Reset Plan — deterministic delegation for agents
 
+> **History (superseded 2026-11-14).** This was the plan for the CLI reset milestone. The
+> realignment replaces it: see [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md) and
+> [`realignment/`](realignment/README.md). Its rules, layouts and target architecture no longer
+> apply; read it for history only.
+>
 > Status: committed plan · branch `milestone/cli-reset` · baseline tag `pre-reset` (`07e91a8`)
 > Decided 2026-10-19/20. Replaces the direction in `ecp-overhaul.md`.
 > Detailed phase docs: [`reset/`](reset/README.md).
