@@ -9,7 +9,7 @@ workflows locally on Node.
 For architecture and the current spec, see:
 
 - [`AGENTS.md`](AGENTS.md) — monorepo commands + package boundaries
-- [`RESET-PLAN.md`](RESET-PLAN.md) — CLI reset plan (source of truth during the milestone)
+- [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md) — realignment plan (source of truth during the milestone)
 
 ------------------------------------------------------------------------
 

@@ -17,7 +17,7 @@ This CLI is how you run ECP deterministically in a Node.js / TypeScript ecosyste
 - Encode/decode on `Ecp` after `init()` (the CLI `encode`/`decode` commands were removed in Phase 1)
 
 For the architecture and monorepo package boundaries, start with
-[`AGENTS.md`](../../AGENTS.md) and [`RESET-PLAN.md`](../../RESET-PLAN.md).
+[`AGENTS.md`](../../AGENTS.md) and [`REALIGNMENT-PLAN.md`](../../REALIGNMENT-PLAN.md).
 
 ## Install
 

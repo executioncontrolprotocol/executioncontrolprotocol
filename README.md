@@ -93,7 +93,7 @@ ecp plugins link plugins/plugin-jsonata
 Dependencies are TypeScript, Zod, oclif, and workspace packages (`workspace:^`).
 
 **Monorepo guide:** [`AGENTS.md`](AGENTS.md)
-**Reset plan (contributor):** [`RESET-PLAN.md`](RESET-PLAN.md)
+**Realignment plan (contributor):** [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md)
 
 ## Checks
 

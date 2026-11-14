@@ -6,8 +6,8 @@ alwaysApply: true
 # ECP specification
 
 - **Source of truth:** `REALIGNMENT-PLAN.md`, then the build spec in `realignment/spec/` once
-  Phase 0 writes it (see `realignment-milestone.mdc`). `RESET-PLAN.md`, `reset/` and `SPEC.md`
-  describe the previous design and are history.
+  Phase 0 writes it (see `realignment-milestone.mdc`). `SPEC.md` describes the previous
+  design and is history; the CLI reset plan is retired.
 - **Executions** (formerly workflows) are JSON manifests:
   `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The exact schema is
   `realignment/spec/execution.schema.json` (Phase 0). Until it exists, the plan's
@@ -21,8 +21,9 @@ alwaysApply: true
   plugin manifests, and the execution schema). Plugins author schemas with zod and export JSON
   Schema.
 - **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. Error
-  codes are `ECP_*`; the catalogue is `realignment/spec/operations.md` (Phase 0), carrying over
-  what fits from `packages/core/src/types/errors.ts`.
+  codes are `ECP_*`; the catalogue is `realignment/spec/operations.md` (Phase 0). Until then the
+  baseline is the plan's "Carried over from the CLI reset" section (codes to keep, rename and
+  drop; exit codes).
 - Legacy code in `packages/core/src/types` uses `@executioncontrolprotocol.workflow` v1.0 and
   `$fn` expressions. Treat it as reference, not as the target.
 - Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model.

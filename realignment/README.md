@@ -4,8 +4,8 @@ Working docs for the `milestone/realignment` milestone. [`REALIGNMENT-PLAN.md`](
 at the repo root holds the decisions and the target architecture. Each phase gets a doc here
 with scope, tasks, tests and exit criteria **before** work on it starts.
 
-`RESET-PLAN.md` and `reset/` are the previous milestone's record (the CLI reset). They are
-history, not instructions.
+The previous milestone's plan (the CLI reset) is retired. What still applies is in the plan's
+"Carried over from the CLI reset" section.
 
 | Phase | Doc | Status | Depends on |
 | --- | --- | --- | --- |

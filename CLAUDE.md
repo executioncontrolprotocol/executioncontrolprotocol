@@ -10,4 +10,5 @@ before changing anything. When asked to execute a phase, `realignment/phase-<n>-
 task list. No implementation code until Phase 0 (the build spec) is done.
 
 `.cursor/rules/` holds the detailed conventions (CLI naming, plugins, testing, TypeScript);
-they apply to Claude Code too. `RESET-PLAN.md` and `reset/` are history, not instructions.
+they apply to Claude Code too. The CLI reset plan (`RESET-PLAN.md`, `reset/`) is retired; what
+still applies is in the plan's "Carried over from the CLI reset" section.

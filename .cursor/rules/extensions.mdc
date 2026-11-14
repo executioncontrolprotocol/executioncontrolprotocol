@@ -31,7 +31,7 @@ the reference for what carries over. Don't add new legacy-style plugins or featu
 
 | May use | Must not use |
 | --- | --- |
-| The plugin authoring package, `zod`, focused third-party libraries | The host, CLI, MCP relay or App packages |
+| The plugin authoring package (as a **peer dependency**, so the registry never splits), `zod`, focused third-party libraries | The host, CLI, MCP relay or App packages |
 
 ## Metadata
 
@@ -87,6 +87,13 @@ accessible and also list known **object primitives** as dotted ports. **Arrays s
   it.
 
 ## Handlers and I/O
+
+- Handlers are `(input, ctx) => output`. `ctx` carries the resolved config, a store for staged
+  writes (`$state` handles), read-only state, run and step info, a logger, usage reporting, and
+  mediated calls to other capabilities through the host.
+- Technical retries (network, rate limits) live in the plugin or host, never in the execution.
+- Heavy SDKs stay in their own plugin package. Be honest about stubs: a mocked capability is
+  labelled as such and never shipped as real.
 
 - Handlers receive typed input, the resolved config, and a context from the host. Don't reach
   into host internals.

@@ -1,8 +1,10 @@
 # ECP Realignment Plan
 
 > **Status:** planning, 2026-11-14. Milestone branch: `milestone/realignment`.
-> This plan is the source of truth for the realignment. It supersedes `RESET-PLAN.md` and `reset/`
-> (kept as history). Phase docs live in [`realignment/`](realignment/README.md).
+> This plan is the source of truth for the realignment. It replaces the CLI reset plan
+> (`RESET-PLAN.md` and `reset/`, retired 2026-11-14; what still applies is in "Carried over from
+> the CLI reset", and the originals are in git history at `27238c96`). Phase docs live in
+> [`realignment/`](realignment/README.md).
 > **No implementation code until Phase 0 (the build spec) is done**; see "Implementation readiness".
 > Grounded in `development` @ `5a523783` (2026-11-04).
 
@@ -681,10 +683,130 @@ Smallest valid execution (one capability call):
 | Workflow validation (`validate/workflow*.ts`) | App, browser environment, harness remnants |
 | Fluent builder (`workflow/builder.ts`, `flow.ts`, helpers) → the SDK | Per-capability CLI command generation |
 | Capability definition shape (`defineExtension`, zod accepts/returns) → plugin authoring | `discovery` marker; `$secret`/`$env` in manifests |
-| oclif plugin management, `ecp plugins link` | RESET-PLAN.md and `reset/` phase docs (archive as history) |
+| oclif plugin management, `ecp plugins link` | The CLI reset plan and phase docs (retired; relevant parts below) |
+| `examples/dogfood/` agent-repair workflows → Phase 0 fixtures | |
 | Run journal shape → `run` objects | |
 | `packages/app` graph mapping and UI components → the App | The App's TS-source editing and `HostAdapter` save-to-file |
 | `format-toon` / `format-mermaid` logic → `Formatter` implementations | |
+
+## Carried over from the CLI reset
+
+The CLI reset plan (`RESET-PLAN.md`, `reset/`) was retired on 2026-11-14. These parts still
+apply, adapted to this plan. Where they conflict with anything above, the sections above win.
+
+### Principles
+
+1. **Delegation, not orchestration.** ECP serves the agent that operates it. Features that make
+   ECP try to think for the agent are out of scope.
+2. **Model-legible everywhere.** `--json` on every command, stable `ECP_*` error codes with
+   paths and suggestions, structured run records, and help and metadata written for a model
+   reader.
+3. **The self-healing loop is the product.** Author, validate, execute, observe; on failure,
+   diagnose (error code, run record, step output), repair, and rerun cheaply. Every failure
+   must be legible and every fix cheap to retry.
+4. **Core runs anywhere.** The engine does no I/O itself; everything external goes through
+   services, so the same engine can run in a CLI process, the host, a function, or later a
+   browser.
+5. **Trim before building.** Don't port legacy code that the plan doesn't need.
+6. **Be honest about stubs.** Anything mocked or unimplemented is labelled as such and never
+   shipped as if it were real.
+7. **Discover, don't hard-code.** Agents find capabilities with `retrieve`; hosts read plugin
+   metadata and never branch on capability ids.
+
+### Baseline for run records, error codes and exit codes (input to Phase 0)
+
+Phase 0 writes the final versions in `realignment/spec/objects.md` and `operations.md`. Start
+from the reset's design and `packages/core/src/types/errors.ts`:
+
+- **Run record:** per run, the execution (path or id, and a hash), resolved graph, plugin
+  versions, status and timing; per step, input after resolution, output, error, attempts and
+  timing. Secrets redacted. One file per record, written as each step completes. Keep the
+  format structured and versioned from the first release: run records are the corpus for later
+  analysis and replay.
+- **Events:** `run.start`, `step.start`, `step.end`, `step.error`, `run.end`. The App's `/watch`
+  stream and MCP progress use the same events.
+- **Error codes to keep (renamed where the vocabulary changed):** `ECP_EXECUTION_LOAD` (was
+  `ECP_WORKFLOW_LOAD`), `ECP_PLUGINS_MISSING`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID`,
+  `ECP_REF_UNRESOLVED`, `ECP_CONFIG_INVALID` (was `ECP_BINDING_INVALID`), `ECP_SECRET_MISSING`,
+  `ECP_STEP_FAILED`, `ECP_OUTPUT_INVALID`, `ECP_PLUGIN_DENIED`. New ones from this plan include
+  `ECP_VERSION_CONFLICT` (stale `ifVersion`), `ECP_EXPR_INVALID` / `ECP_EXPR_TIMEOUT` (QuickJS),
+  `ECP_SCRIPT_INVALID` (`$script` syntax check) and `ECP_HOST_RESTARTED`.
+- **Dropped with policies and environments:** `ECP_POLICY_DENIED`, `ECP_RUN_PAUSED`,
+  `ECP_ENVIRONMENT_UNSUPPORTED`. `ECP_RERUN_INCOMPATIBLE` returns only if step-level rerun does.
+- **Run statuses:** `completed`, `failed`, `cancelled`, plus `interrupted` (host restart,
+  resumable). `paused` returns with policies.
+- **Exit codes:** `0` success, `1` execution failed, `2` validation or usage error, `3` missing
+  plugins.
+
+### Plugin management (patterns borrowed from Adobe I/O CLI)
+
+- Thin root CLI; plugins are separate npm packages managed with `@oclif/plugin-plugins`
+  (`install`, `uninstall`, `link`, `update`).
+- Short install names through the scope and `plugin-` prefix: `ecp plugins install jsonata` →
+  `@executioncontrolprotocol/plugin-jsonata`.
+- `ecp plugins discover` searches npm for the keyword `ecosystem:ecp-plugin` (later; not in the
+  MVP command table).
+- Unknown capability or topic → name the plugin that provides it and the install command
+  (`ECP_PLUGINS_MISSING`).
+- `plugins link` is the documented plugin-author loop.
+- A plugin **trust check** before install (allowed sources, third-party plugins on or off),
+  reported as `ECP_PLUGIN_DENIED`. In the MVP this is a simple allowlist; richer trust policy
+  comes back with policies.
+- The plugin authoring package is a **peer dependency** of plugins, so a plugin's install folder
+  never gets its own copy of core and the registry never splits.
+
+### Model invariants that still hold
+
+- **State:** `$ref` reads committed state; `$state` is a mutable handle passed to the
+  capability. Writes are staged and committed together with the step's `as` output, or
+  discarded on failure. `as` is the normal path into committed state.
+- **Retries:** business loops live in the execution (`loop`); technical retries (network,
+  rate limits) live in the host or the plugin, never in the manifest.
+- **Validation layers:** execution-only checks (schema, unique step ids, graph shape, ref
+  order) and host-aware checks (capabilities installed, schemas, required config). Every issue
+  has `code`, `message`, `path`, `suggestions` and `severity`.
+- **Capability handlers** are `(input, ctx) => output`, with the resolved config, a store for
+  staged writes, read-only state, run and step info, a logger, usage reporting, and mediated
+  calls to other capabilities through the host (so validation applies to them too).
+- **Ids:** the `@executioncontrolprotocol/*` namespace; schema ids are
+  `@executioncontrolprotocol.<object>`.
+
+### Positioning that still holds
+
+- **Embrace and extend MCP.** ECP doesn't redefine tool calling; it runs and validates
+  capabilities and exposes three operations as MCP tools.
+- **Custody is a service.** Which vault answers a `$secret` reference is decided by the host's
+  `SecretsProvider`, never by the execution.
+- **Hosted never diverges.** A hosted ECP may add service implementations (stores, secrets
+  providers, auth, remote plugin hosts) and plugins, never execution semantics. Anything a
+  hosted execution expresses must run on a local host.
+- **Connectors are commodity.** Composition, validation and the run record are the value;
+  connector breadth can come later from adapter plugins.
+- **Host-native document scripting** (Photoshop, InDesign) is reached through capabilities that
+  take a `$script` for the remote runtime.
+
+### App UI preferences
+
+Dark mode, Tailwind with shadcn, Lucide icons, Monaco for code and JSON views, Mermaid where a
+diagram helps, progressive panel reveal with the execution opening full-screen from the right,
+and the design tokens in `packages/app/DESIGN.md`. The App is not a chat client.
+
+### Risks (still relevant)
+
+| Risk | Mitigation |
+| --- | --- |
+| A plugin install gets its own copy of core and the registry splits | Authoring package as a peer dependency; registry built from manifests by the host |
+| Startup slows as plugins pile up | Per-plugin manifests, lazy imports, budgets and the CLI benchmark ("Measurements") |
+| Loose model output in CLI flags (nested input) | Flags only for top-level primitives; `--input` JSON (or a file) for everything else |
+| One user-level plugin install can't satisfy two executions pinning different majors | Warn on mismatch; per-execution installs later if it happens in practice |
+| 0.x users break | The realignment is a new major; 0.x stays installable and gets deprecation pointers at release |
+
+### Release facts
+
+- Packages are versioned with Changesets (see `RELEASING.md`). Pushes to `main` publish to npm.
+- Don't reuse the existing `v1.0.0` git tag (`a938230`); release tags use a distinct name.
+- At release, `npm deprecate` the 0.x packages that were renamed or removed, with pointers to
+  their replacements.
 
 ## Implementation readiness
 
@@ -782,6 +904,20 @@ Designed for, not built in the MVP. Each one is a new service implementation, no
 - **Policies** back on the before/after-call hook.
 - **Plugin isolation** for untrusted plugins on hosted runtimes (separate process or sandbox per plugin). Locally, plugins share the host process; a crash restarts the host and runs resume.
 - **App editing**: canvas edits written through `commit` and patches.
+- **Healing automation:** an `--on-failure "<command>"` hook that wakes an agent with the run
+  record path when an unattended execution fails, and scheduled executions. Decide where
+  schedules live (OS scheduler vs the host) first.
+- **Typed-decision plugin:** small-model choice / yes-no / score decisions as ordinary
+  capabilities, feeding `branch` arms. Drift signals escalate through the same failure path.
+- **Domain plugins:** a design-document plugin built on the image pipeline (Firefly, Sharp,
+  FAL); a real Slack plugin; a memory plugin (decide the backing store first); an
+  OpenTelemetry plugin on CLI and host lifecycle hooks; an n8n adapter for connector breadth
+  (after a license and credential-handling review).
+- **Durable runtimes:** a Temporal-backed execution service, once there's a real hosted need.
+- **In-page App:** the App running against a browser host, once a browser secrets provider
+  exists.
+- **Per-execution plugin isolation:** project-local plugin installs, if version conflicts
+  happen in practice.
 
 ## Open questions
 

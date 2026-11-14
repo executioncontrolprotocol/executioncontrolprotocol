@@ -17,7 +17,8 @@ This skill is for **working inside this repository** on `milestone/realignment`.
 1. `REALIGNMENT-PLAN.md`: decisions, architecture, vocabulary, diagrams. Source of truth.
 2. `realignment/README.md` and the phase doc you were asked to execute.
 3. `AGENTS.md` and `.cursor/rules/`: rules for working in the repo.
-4. `RESET-PLAN.md` and `reset/` are the previous milestone's record. History only.
+4. The CLI reset plan is retired; what still applies is in the plan's "Carried over from the
+   CLI reset" section.
 
 **No implementation code before Phase 0 (the build spec) is done.**
 

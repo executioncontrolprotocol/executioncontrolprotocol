@@ -12,8 +12,11 @@ executing the ECP realignment.
 3. **This file and `.cursor/rules/`** hold the rules for working in the repo. Where anything
    here disagrees with the plan or a phase doc, the plan wins: say so in your PR and propose a
    fix to this file.
-4. **`RESET-PLAN.md` and `reset/`** are the previous milestone's record (the CLI reset). Read
-   them for history only. Their rules, layouts and target architecture no longer apply.
+
+The previous milestone's plan (the CLI reset, `RESET-PLAN.md` and `reset/`) was retired on
+2026-11-14. What still applies is in the plan's "Carried over from the CLI reset" section; the
+originals are in git history (`git show 27238c96:RESET-PLAN.md`). Don't resurrect them as
+instructions.
 
 Ground rules:
 
@@ -42,6 +45,19 @@ localhost HTTP API. Every key host component is a swappable **service**
 
 Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
 
+## Principles
+
+- **Delegation, not orchestration.** ECP serves the agent that operates it; don't build
+  features that try to think for the agent.
+- **Model-legible everywhere.** `--json` on every command, stable `ECP_*` codes with paths and
+  suggestions, structured run records, help and metadata written for a model reader.
+- **The self-healing loop is the product.** Every failure legible, every fix cheap to retry.
+- **Core does no I/O.** Everything external goes through services.
+- **Trim before building.** Don't port legacy code the plan doesn't need.
+- **Be honest about stubs.** Label anything mocked or unimplemented; never ship it as real.
+- **Hosted never diverges.** Hosted ECP adds service implementations and plugins, never
+  execution semantics.
+
 ## Repository map (legacy code, and what happens to it)
 
 | Path | What it is today | In the realignment |
@@ -57,10 +73,9 @@ Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
 | `plugins/plugin-openai/`, `plugin-ollama/`, `plugin-fal/`, `plugin-image-sharp/`, `plugin-jsonata/` | Capability plugins | Ported later, as needed |
 | `plugins/plugin-format-toon/`, `plugin-format-mermaid/` | Format capabilities | Become `Formatter` service implementations, not plugins |
 | `plugins/plugin-budget/`, `plugin-approval/`, `plugin-state-control/` | Policies | Out of scope until policies return |
-| `examples/` | `*.ecp.ts` workflow files | Converted to v2 execution fixtures in Phase 0 |
+| `examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Converted to v2 execution fixtures in Phase 0 |
 | `skills/ecp-core/` | Contributor skill for this repo | Rewritten for the realignment; keep it in step with this file |
 | `REALIGNMENT-PLAN.md`, `realignment/` | The plan and phase docs | Source of truth |
-| `RESET-PLAN.md`, `reset/` | The CLI reset record | History only |
 
 ## Rules that hold throughout
 
@@ -72,8 +87,9 @@ Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
     `{ "$secret": "key" }` references; values live in the secrets provider and are set outside
     MCP (`ecp secrets set`).
   - Pre-commit runs Secretlint; CI also runs Gitleaks.
-- **Plugins never import hosts.** Plugin packages depend on the plugin authoring package and
-  focused third-party libraries, never on the host, CLI, relay or App packages.
+- **Plugins never import hosts.** Plugin packages depend on the plugin authoring package (as a
+  peer dependency) and focused third-party libraries, never on the host, CLI, relay or App
+  packages. Heavy SDKs stay in their own plugin package.
 - **Vendor-neutral host:** the host, CLI, relay and App must not branch on specific capability
   ids or output shapes. Domain knowledge lives in the plugin, surfaced through metadata and
   schemas.

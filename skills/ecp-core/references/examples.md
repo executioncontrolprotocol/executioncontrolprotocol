@@ -12,6 +12,7 @@ same state outcome on the legacy executor (through a v1 adapter) and on the new 
 | `06-invoke` | Calling one capability | One-step `execute` |
 | `07-accepts-returns` | `accepts` / `returns`, run input | Execution `accepts`/`returns` |
 | `08-branch-loop` | Branch, gated step, loop | `branch` with default arm, `expr` on a step, `loop` with `maxRounds` |
+| `dogfood/` | Agent-repair tasks: JSONata reshape, resize + upload, caption; each with an injected failure | Error codes (`ECP_STEP_FAILED`, `ECP_REF_UNRESOLVED`, `ECP_PLUGINS_MISSING`) and repair loops; see `examples/dogfood/README.md` |
 | `plugins/plugin-*/examples` | Plugin-specific workflows | Firefly dogfood workflows become fixtures for `$script` and HTTP capabilities |
 
 The plan's "Full example" (`localize-banner`) is the reference for a v2 execution using every

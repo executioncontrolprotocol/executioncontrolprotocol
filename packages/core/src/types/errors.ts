@@ -1,5 +1,6 @@
 /**
- * Canonical ECP error catalogue (RESET-PLAN §4.6).
+ * ECP error catalogue for the legacy packages. The realignment's catalogue is
+ * `realignment/spec/operations.md` (baseline in REALIGNMENT-PLAN.md, "Carried over from the CLI reset").
  * @category Errors
  */
 export const ECP_ERROR_CODES = {

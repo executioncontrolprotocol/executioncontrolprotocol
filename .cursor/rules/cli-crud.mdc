@@ -41,6 +41,13 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
   place when terminology changes.
 - Don't add commands beyond this table without a plan or phase-doc change.
 
+## Input
+
+- **Flags only for top-level primitives.** Nested input goes in `--input <json | file>`, never
+  in dotted or repeated flags (model output in flags is too loose).
+- Plugin install names are short: `ecp plugins install jsonata` resolves to
+  `@executioncontrolprotocol/plugin-jsonata` (scope + `plugin-` prefix).
+
 ## Output
 
 - **`--json`** on every command prints `{ ok: true, data }` or
@@ -48,6 +55,10 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
   (catalogue in `realignment/spec/operations.md`, Phase 0).
 - `--out <file>` writes large results to a file and prints a summary, so agents choose what
   enters their context.
+- **Exit codes:** `0` success, `1` execution failed, `2` validation or usage error, `3` missing
+  plugins (final list in `realignment/spec/operations.md`).
+- Missing capability or plugin: name the plugin and the exact install command
+  (`ECP_PLUGINS_MISSING`).
 
 ## Verbs
 

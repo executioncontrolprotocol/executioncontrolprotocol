@@ -19,8 +19,9 @@ This repo is executing the ECP realignment on `milestone/realignment`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
 - **Legacy packages are reference code.** Read them for what carries over; don't extend them.
   Delete a legacy package in the PR that replaces it.
-- **History, not instructions:** `RESET-PLAN.md`, `reset/`, `SPEC.md` (v1 workflow model).
-  Don't follow their rules, layouts or phase lists.
+- **Retired:** the CLI reset plan (`RESET-PLAN.md`, `reset/`), removed 2026-11-14. What still
+  applies is in the plan's "Carried over from the CLI reset" section; don't recover the old
+  files as instructions. `SPEC.md` describes the v1 workflow model and is history.
 - **Out of scope until the plan says otherwise:** policies, remote plugin hosts, caller auth
   beyond the local token, the browser environment, per-capability CLI commands or MCP tools.
 - **If the plan or a phase doc is wrong or impossible,** stop and report it instead of
