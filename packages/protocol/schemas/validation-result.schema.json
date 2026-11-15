@@ -23,7 +23,8 @@
           "expected": {},
           "actual": {},
           "suggestions": { "type": "array", "items": { "type": "string" } },
-          "available": { "type": "array", "items": { "type": "string" }, "maxItems": 50 }
+          "available": { "type": "array", "items": { "type": "string" }, "maxItems": 50 },
+          "details": { "type": "object" }
         }
       }
     },

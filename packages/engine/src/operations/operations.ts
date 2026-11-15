@@ -731,10 +731,13 @@ function validateConfigValues(schema: Record<string, unknown>, values: unknown):
   return undefined
 }
 
+/** Non-empty stand-in so plugin config schemas with `minLength` accept `$secret`/`$env` refs. */
+const SECRET_PLACEHOLDER = "*"
+
 function normalizeSecrets(value: unknown): unknown {
   if (Array.isArray(value)) return value.map((item) => normalizeSecrets(item))
   if (!isRecord(value)) return value
-  if (typeof value.$secret === "string" || typeof value.$env === "string") return ""
+  if (typeof value.$secret === "string" || typeof value.$env === "string") return SECRET_PLACEHOLDER
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, normalizeSecrets(child)]))
 }
 

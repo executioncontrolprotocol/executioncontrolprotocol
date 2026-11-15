@@ -122,10 +122,11 @@ export function createImsTokenProvider(
     }
     const text = await res.text()
     if (!res.ok) {
-      throw new AdobeServiceError(PROVIDER_ERROR, `Adobe IMS token request returned HTTP ${res.status}.`, {
+      const body = parseBody(text)
+      throw new AdobeServiceError(PROVIDER_ERROR, imsHttpErrorMessage(res.status, body), {
         endpoint,
         status: res.status,
-        body: parseBody(text),
+        body,
       })
     }
     const json = parseBody(text) as { access_token?: unknown; expires_in?: unknown }
@@ -189,4 +190,22 @@ function parseBody(text: string): unknown {
   } catch {
     return text.slice(0, 2000)
   }
+}
+
+function imsHttpErrorMessage(status: number, body: unknown): string {
+  const detail =
+    isRecord(body) && typeof body.error_description === "string"
+      ? body.error_description
+      : isRecord(body) && typeof body.error === "string"
+        ? body.error
+        : isRecord(body) && isRecord(body.error) && typeof body.error.message === "string"
+          ? body.error.message
+          : undefined
+  return detail
+    ? `Adobe IMS token request returned HTTP ${status}: ${detail}`
+    : `Adobe IMS token request returned HTTP ${status}.`
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

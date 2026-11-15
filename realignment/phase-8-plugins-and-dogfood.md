@@ -26,5 +26,6 @@ Phase 2 in parallel with Phases 4–7. **Spec:** 08, 12 (A10).
 - [x] Four plugins built with checked manifests and passing tests.
 - [x] All v1 conversions run on the new engine with expected outcomes.
 - [ ] A10 run live once; its output (run record summary, produced PSD link or artifact) attached to the PR.
+  - Spec 12 A10 requires `examples/localize-banner` against real Firefly + Anthropic **producing a PSD**.
   - Suite ready: `packages/host/test/integration/localize-banner.live.test.ts` (skips without Firefly + Anthropic + signed URLs).
-  - Skip evidence: `realignment/evidence/a10-localize-banner.md`. Re-run with secrets to write `a10-localize-banner.json` for the PR.
+  - Partial live evidence 2026-11-15 (option-3): Anthropic `generate` + Firefly `firefly-generate-images-v3-async` both **completed** — `realignment/evidence/a10-smoke-runs.json`, `a10-localize-banner.md`. Secrets and balance are good; still blocked on `ECP_LIVE_LOCALIZE_SOURCE_URL` / `ECP_LIVE_LOCALIZE_OUTPUT_URL` (or Azure SAS) for the PSD path.

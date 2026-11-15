@@ -28,6 +28,11 @@ export interface ValidationIssue {
   suggestions?: string[]
   /** Valid ref paths at this point, capped at 50. */
   available?: string[]
+  /**
+   * Structured facts from a thrown capability error (`error.details`), after secret redaction.
+   * Used for provider HTTP bodies and similar debug payloads on step/run failures.
+   */
+  details?: Record<string, unknown>
 }
 
 /**

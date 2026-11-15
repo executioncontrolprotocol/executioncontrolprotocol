@@ -32,7 +32,15 @@ internally. Details in `.cursor/rules/extensions.mdc`.
 Capabilities that take a script for a remote runtime (Photoshop UXP) accept a plain string;
 executions supply it with `$script`, which the host syntax-checks and never runs.
 
+## Provider failures
+
+Upstream HTTP/SDK failures must throw `ECP_PROVIDER_ERROR` with the **provider's own text** in
+`message` and the status/body in `details`. Status-only messages are not enough. The engine
+copies those fields onto the run. Rule and examples: `.cursor/rules/extensions.mdc`
+("Provider and handler failures"); contract: `realignment/spec/08-plugins.md`.
+
 ## Tests
 
 Test the plugin on its own with fixtures, without starting a host. Tests needing a live API or
-model skip cleanly without credentials.
+model skip cleanly without credentials. Assert provider error paths include the original text
+in `message` and the response in `details`.

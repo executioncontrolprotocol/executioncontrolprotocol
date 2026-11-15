@@ -100,7 +100,41 @@ accessible and also list known **object primitives** as dotted ports. **Arrays s
 - For binary data, use the shared file-reference helpers (artifact, file, url refs). Don't
   reimplement fs, fetch or artifact maps.
 
+## Provider and handler failures
+
+Every capability that talks to an upstream API, SDK, or network must leave the **provider's own
+error text** on the run so agents can debug without leaving ECP. The engine copies `message`,
+`code`, and `details` from a thrown error onto the step and run records (after secret redaction).
+
+**Required on every upstream failure:**
+
+1. Throw with `code: "ECP_PROVIDER_ERROR"` (or another catalogue code when it fits better).
+2. `message` must include the provider's sentence when the body has one (status alone is not
+   enough). Example: `Anthropic Messages API returned HTTP 400: Your credit balance is too low…`
+   not `…returned HTTP 400.`
+3. `details` must include at least `status` (when HTTP) and the parsed `body` (or truncated
+   text). Add method, redacted URL, endpoint, and similar facts when useful.
+4. Never put secret values in `message` or `details`; the host redacts known secrets, but do
+   not echo tokens, API keys, or Authorization headers.
+
+```ts
+// BAD — status only; body discarded
+throw Object.assign(new Error(`API returned HTTP ${status}.`), { code: "ECP_PROVIDER_ERROR" })
+
+// GOOD — provider text in message; body inspectable on the run
+throw Object.assign(
+  new Error(`Vendor API returned HTTP ${status}: ${providerMessage}`),
+  { code: "ECP_PROVIDER_ERROR", details: { status, body } },
+)
+```
+
+Extract `providerMessage` from common shapes (`error.message`, `error_description`, top-level
+`message`, string `error`, or a short slice of a non-JSON body). Unit-test at least one HTTP
+error path asserting both `message` and `details.body`.
+
 ## Tests
 
 - Test the plugin on its own, with fixtures, without starting a host.
 - Tests that need a real API or model skip cleanly when the service or key is unavailable.
+- Every provider HTTP/SDK error path asserts the original provider text appears in
+  `error.message` and the response (or SDK payload) appears in `error.details`.

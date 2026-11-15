@@ -19,6 +19,22 @@ function codedError(code: string, message: string, details: Record<string, unkno
   return Object.assign(new Error(message), { code, details })
 }
 
+function providerErrorMessage(prefix: string, status: number, body: unknown): string {
+  const detail =
+    isRecord(body) && isRecord(body.error) && typeof body.error.message === "string"
+      ? body.error.message
+      : isRecord(body) && typeof body.message === "string"
+        ? body.message
+        : undefined
+  return detail
+    ? `${prefix} returned HTTP ${status}: ${detail}`
+    : `${prefix} returned HTTP ${status}.`
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
 function resolveConfig(raw: unknown): AnthropicConfig {
   const parsed = anthropicConfigSchema.safeParse(raw)
   if (!parsed.success) {
@@ -66,9 +82,10 @@ export default async function handler(input: GenerateInput, ctx: HandlerContext)
   })
 
   if (!res.ok) {
-    throw codedError("ECP_PROVIDER_ERROR", `Anthropic Messages API returned HTTP ${res.status}.`, {
+    const body = await readBody(res)
+    throw codedError("ECP_PROVIDER_ERROR", providerErrorMessage("Anthropic Messages API", res.status, body), {
       status: res.status,
-      body: await readBody(res),
+      body,
     })
   }
 

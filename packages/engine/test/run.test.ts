@@ -47,7 +47,10 @@ async function invoke(request: CapabilityCall, signal: AbortSignal, store: State
     return { echo: input.value === undefined ? "hi" : input.value }
   }
   if (request.capabilityId.endsWith(".fail")) {
-    throw Object.assign(new Error(String(input.message ?? "failed")), { code: input.code ?? "ECP_STEP_FAILED" })
+    throw Object.assign(new Error(String(input.message ?? "failed")), {
+      code: input.code ?? "ECP_STEP_FAILED",
+      ...(isRecord(input.details) ? { details: input.details } : {}),
+    })
   }
   if (request.capabilityId.endsWith(".delay")) {
     await new Promise<void>((resolve, reject) => {
@@ -78,6 +81,10 @@ async function invoke(request: CapabilityCall, signal: AbortSignal, store: State
     }
   }
   throw new Error(`no handler for ${request.capabilityId}`)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 describe("run fixtures", () => {
@@ -229,6 +236,54 @@ describe("run fixtures", () => {
       { capabilities, call: invoke, expression: engine },
     )
     expect(badOutput.error?.code).toBe("ECP_OUTPUT_INVALID")
+
+    const providerFail = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            id: "provider",
+            uses: "@executioncontrolprotocol/test.fail",
+            input: {
+              message: "Provider returned HTTP 400: invalid client_secret parameter",
+              code: "ECP_PROVIDER_ERROR",
+              details: {
+                status: 400,
+                body: { error: "invalid_client", error_description: "invalid client_secret parameter" },
+                token: "super-secret",
+              },
+            },
+            as: "out",
+          },
+        ],
+      },
+      {},
+      {
+        capabilities,
+        call: invoke,
+        expression: engine,
+        getSecret: async () => "super-secret",
+        configs: [secretConfig],
+      },
+    )
+    expect(providerFail.error?.code).toBe("ECP_PROVIDER_ERROR")
+    expect(providerFail.error?.message).toContain("invalid client_secret parameter")
+    expect(providerFail.error?.details).toMatchObject({
+      status: 400,
+      body: { error: "invalid_client", error_description: "invalid client_secret parameter" },
+      token: "[redacted]",
+    })
+    const stepError = providerFail.records.find((event) => event.type === "step.error")
+    expect(stepError?.data.error).toMatchObject({
+      code: "ECP_PROVIDER_ERROR",
+      message: expect.stringContaining("invalid client_secret parameter"),
+      details: {
+        status: 400,
+        body: { error: "invalid_client", error_description: "invalid client_secret parameter" },
+        token: "[redacted]",
+      },
+    })
   })
 
   it("resolves refs, scripts, merge, append, returns, and env values", async () => {

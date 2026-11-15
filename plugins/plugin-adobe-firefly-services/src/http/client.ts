@@ -118,12 +118,17 @@ export function createAdobeHttpClient(options: AdobeHttpClientOptions): AdobeHtt
           await sleep(retryDelayMs(res.headers.get("retry-after"), attempt, retryBaseMs), req.signal)
           continue
         }
-        throw new AdobeServiceError(PROVIDER_ERROR, `Adobe API returned HTTP ${res.status} for ${req.method} ${pathOf(req.url)}.`, {
-          method: req.method,
-          url: redactUrl(req.url),
-          status: res.status,
-          body: parseErrorBody(text),
-        })
+        const errorBody = parseErrorBody(text)
+        throw new AdobeServiceError(
+          PROVIDER_ERROR,
+          adobeHttpErrorMessage(res.status, req.method, pathOf(req.url), errorBody),
+          {
+            method: req.method,
+            url: redactUrl(req.url),
+            status: res.status,
+            body: errorBody,
+          },
+        )
       }
     },
   }
@@ -188,4 +193,23 @@ function parseErrorBody(text: string): unknown {
   } catch {
     return text.slice(0, MAX_ERROR_BODY_CHARS)
   }
+}
+
+function adobeHttpErrorMessage(status: number, method: string, path: string, body: unknown): string {
+  const detail = providerDetail(body)
+  const base = `Adobe API returned HTTP ${status} for ${method} ${path}`
+  return detail ? `${base}: ${detail}` : `${base}.`
+}
+
+function providerDetail(body: unknown): string | undefined {
+  if (!isRecord(body)) return typeof body === "string" && body.length > 0 ? body.slice(0, 500) : undefined
+  if (typeof body.error_description === "string") return body.error_description
+  if (typeof body.message === "string") return body.message
+  if (typeof body.error === "string") return body.error
+  if (isRecord(body.error) && typeof body.error.message === "string") return body.error.message
+  return undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

@@ -458,10 +458,16 @@ function resolvePath(directory: string | undefined, filePath: string): string | 
   return `${directory.replace(/[\\/]$/, "")}${separator}${filePath}`
 }
 
+/**
+ * Stand-in for `$secret` / `$env` when validating config values against a plugin schema.
+ * Must be a non-empty string so `minLength` / `.min(1)` schemas still pass.
+ */
+const SECRET_PLACEHOLDER = "*"
+
 function maskSecrets(value: unknown): unknown {
   if (Array.isArray(value)) return value.map((item) => maskSecrets(item))
   if (!isRecord(value)) return value
-  if (typeof value.$secret === "string" || typeof value.$env === "string") return ""
+  if (typeof value.$secret === "string" || typeof value.$env === "string") return SECRET_PLACEHOLDER
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, maskSecrets(child)]))
 }
 

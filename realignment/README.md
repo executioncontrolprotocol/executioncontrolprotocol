@@ -23,7 +23,7 @@ The previous milestone's plan (the CLI reset) is retired. What still applies is 
 | 5 | [CLI and the background-host decision](phase-5-cli.md) | Done 2026-11-15 | 3, 4 |
 | 6 | [MCP relay](phase-6-mcp-relay.md) | Done 2026-11-15 | 4, 5 |
 | 7 | [App](phase-7-app.md) | Done 2026-11-15 | 4 (5 for `ecp app`) |
-| 8 | [First-party plugins and dogfood](phase-8-plugins-and-dogfood.md) | In progress — A10 live pending Firefly secrets (2026-11-15) | 2 (3 for end-to-end) |
+| 8 | [First-party plugins and dogfood](phase-8-plugins-and-dogfood.md) | In progress — A10 option-3 smoke green; full PSD path needs signed URLs (2026-11-15) | 2 (3 for end-to-end) |
 | 9 | [MVP acceptance and cleanup](phase-9-acceptance.md) | Not started | 0–8 |
 
 Critical path: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 9. Phases 7 and 8 can run in parallel with 5–6

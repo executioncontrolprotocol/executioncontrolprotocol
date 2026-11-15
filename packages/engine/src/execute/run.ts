@@ -239,7 +239,7 @@ export function startExecution(
         emit("run.end", { status: "interrupted" })
         return finish("interrupted", manifest, state, runtime)
       }
-      const issue = toIssue(error)
+      const issue = toIssue(error, runtime.secrets)
       const cancelled = issue.code === "ECP_RUN_CANCELLED" || runtime.controller.signal.aborted
       emit("run.end", { status: cancelled ? "cancelled" : "failed", error: issue })
       return finish(cancelled ? "cancelled" : "failed", manifest, state, runtime, issue)
@@ -396,11 +396,14 @@ async function runStep(
       if (runtime.interrupted) return
       throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
-    const issue = toIssue(error)
+    const issue = toIssue(error, runtime.secrets)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
     await persistStep(runtime, node, summary, resolvedInput, null, issue)
-    throw Object.assign(new Error(issue.message), { code: issue.code })
+    throw Object.assign(new Error(issue.message), {
+      code: issue.code,
+      ...(issue.details ? { details: issue.details } : {}),
+    })
   } finally {
     clearTimeout(timer)
   }
@@ -654,10 +657,20 @@ function redact(value: unknown, secrets: Set<string>): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redact(child, secrets)]))
 }
 
-function toIssue(error: unknown): ValidationIssue {
+function toIssue(error: unknown, secrets: Set<string> = new Set()): ValidationIssue {
   const code = isRecord(error) && typeof error.code === "string" ? error.code : "ECP_STEP_FAILED"
   const message = error instanceof Error ? error.message : "Step failed."
-  return { code: code as ValidationIssue["code"], severity: "error", message, path: "" }
+  const rawDetails = isRecord(error) && isRecord(error.details) ? error.details : undefined
+  const details = rawDetails
+    ? (redact(rawDetails, secrets) as Record<string, unknown>)
+    : undefined
+  return {
+    code: code as ValidationIssue["code"],
+    severity: "error",
+    message,
+    path: "",
+    ...(details && Object.keys(details).length > 0 ? { details } : {}),
+  }
 }
 
 function assertSchema(schema: Record<string, unknown> | undefined, value: unknown, code: "ECP_INPUT_INVALID" | "ECP_OUTPUT_INVALID"): void {

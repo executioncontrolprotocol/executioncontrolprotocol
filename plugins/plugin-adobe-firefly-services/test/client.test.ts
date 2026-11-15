@@ -62,7 +62,7 @@ describe("createAdobeHttpClient", () => {
     const fetchImpl = sequence(jsonResponse(400, { error_code: "invalid_request", message: "bad prompt" }))
     await expect(client(fetchImpl).request({ method: "POST", url: URL_WITH_QUERY, body: {} })).rejects.toMatchObject({
       code: "ECP_PROVIDER_ERROR",
-      message: "Adobe API returned HTTP 400 for POST /v2/edit.",
+      message: "Adobe API returned HTTP 400 for POST /v2/edit: bad prompt",
       details: {
         status: 400,
         method: "POST",

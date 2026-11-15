@@ -99,7 +99,7 @@ describe("createImsTokenProvider", () => {
 
     await expect(getToken()).rejects.toMatchObject({
       code: "ECP_PROVIDER_ERROR",
-      message: expect.stringContaining("401"),
+      message: "Adobe IMS token request returned HTTP 401: invalid_client",
       details: { status: 401, body: { error: "invalid_client" }, endpoint: DEFAULT_IMS_TOKEN_URL },
     })
   })

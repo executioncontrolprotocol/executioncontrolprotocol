@@ -120,7 +120,7 @@ describe("anthropic generate", () => {
 
     await expect(generate({ prompt: "p" }, context)).rejects.toMatchObject({
       code: "ECP_PROVIDER_ERROR",
-      message: expect.stringContaining("401"),
+      message: "Anthropic Messages API returned HTTP 401: invalid x-api-key",
       details: { status: 401, body: errorBody },
     })
     expect(context.recorded).toEqual([])
