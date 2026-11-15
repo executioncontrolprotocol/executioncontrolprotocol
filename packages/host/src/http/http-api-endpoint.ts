@@ -21,6 +21,9 @@ import {
 import { VERSION } from "../version.js"
 import { refuse, statusForEnvelope } from "./envelope.js"
 import { listExecutionFiles, readAllowedFile } from "./files.js"
+import { watchExecutionPath } from "./path-watch.js"
+import { resolveAppRoot } from "./resolve-app-root.js"
+import { serveAppStatic } from "./static-app.js"
 
 const BODY_MAX_BYTES = 10 * 1024 * 1024
 const HEARTBEAT_MS = 15_000
@@ -37,6 +40,8 @@ export interface HttpApiEndpointOptions {
   token: string
   /** When true, `/v1/admin/shutdown` calls `process.exit(0)`. Default false. */
   exitOnShutdown?: boolean
+  /** Absolute path to the App `dist/web` bundle. Resolved automatically when omitted. */
+  appRoot?: string
 }
 
 type HealthStatus = "starting" | "ok" | "draining"
@@ -52,6 +57,7 @@ export class HttpApiEndpoint implements Endpoint {
   private readonly ctx: ServiceContext
   private readonly preferredPort: number
   private readonly exitOnShutdown: boolean
+  private readonly appRoot: string | undefined
   private server: Server | undefined
   private operations: Operations | undefined
   private draining = false
@@ -72,6 +78,7 @@ export class HttpApiEndpoint implements Endpoint {
     if (!opts.token) throw new Error("HttpApiEndpoint requires options.token.")
     this.preferredPort = opts.port ?? 0
     this.exitOnShutdown = opts.exitOnShutdown === true
+    this.appRoot = resolveAppRoot(opts.appRoot)
   }
 
   /** Attach the host operations facade after the environment is ready. */
@@ -140,7 +147,12 @@ export class HttpApiEndpoint implements Endpoint {
         return
       }
       if (method === "GET" && (pathName === "/app" || pathName.startsWith("/app/"))) {
-        this.writeJson(res, 404, refuse("ECP_NOT_FOUND", "App static bundle lands in Phase 7."))
+        if (this.appRoot && serveAppStatic(this.appRoot, pathName, res)) return
+        this.writeJson(
+          res,
+          404,
+          refuse("ECP_NOT_FOUND", "App static bundle is missing. Run pnpm run build first."),
+        )
         return
       }
       if (method === "GET" && pathName === "/v1/health") {
@@ -318,8 +330,15 @@ export class HttpApiEndpoint implements Endpoint {
         .filter(Boolean),
     )
     const runId = url.searchParams.get("runId") ?? undefined
-    // `path` query is reserved for App file hot-reload (Phase 7).
-    void url.searchParams.get("path")
+    const watchPath = url.searchParams.get("path") ?? undefined
+    if (watchPath && !watchPath.endsWith(".ecp.json")) {
+      this.writeJson(
+        res,
+        400,
+        refuse("ECP_REQUEST_INVALID", "Query path must be an absolute .ecp.json execution file."),
+      )
+      return
+    }
     res.writeHead(200, {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache",
@@ -336,12 +355,18 @@ export class HttpApiEndpoint implements Endpoint {
       send("storage", change)
     }
     const unwatch = storage.watch(onChange)
+    const unwatchPath = watchPath
+      ? watchExecutionPath(watchPath, (event) => {
+          send("file", event)
+        })
+      : undefined
     const heartbeat = setInterval(() => {
       res.write(`: heartbeat ${new Date().toISOString()}\n\n`)
     }, HEARTBEAT_MS)
     const close = (): void => {
       clearInterval(heartbeat)
       unwatch()
+      unwatchPath?.()
     }
     req.on("close", close)
   }

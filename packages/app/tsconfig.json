@@ -5,6 +5,12 @@
     "rootDir": "src"
   },
   "include": [
-    "src"
+    "src/index.ts",
+    "src/graph/**/*.ts",
+    "src/client/**/*.ts",
+    "src/form/**/*.ts"
+  ],
+  "references": [
+    { "path": "../protocol" }
   ]
 }

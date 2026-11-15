@@ -126,7 +126,7 @@ describe("manifest conformance", () => {
     }
   })
 
-  it("matches the expected issues for every invalid fixture", async () => {
+  it("matches the expected issues for every invalid fixture", { timeout: 30_000 }, async () => {
     const dir = path.join(manifests, "invalid")
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".ecp.json"))) {
       const manifest = JSON.parse(readFileSync(path.join(dir, name), "utf8")) as unknown

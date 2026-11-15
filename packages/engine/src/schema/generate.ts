@@ -41,7 +41,9 @@ export function generateExecutionSchema(capabilities: readonly CapabilityEntry[]
 
 function wrapValue(schema: JsonSchema): JsonSchema {
   const original = wrapChildren(schema)
-  const scriptBranch = allowsString(schema)
+  // `$script` resolves to a string. Allow it on string fields and open schemas (`{}` /
+  // `unknown`) that already accept any JSON value.
+  const scriptBranch = allowsString(schema) || isOpenSchema(schema)
     ? { if: marker("$script"), then: SCRIPT_VALUE, else: original }
     : { if: marker("$script"), then: false, else: original }
   return {
@@ -91,4 +93,13 @@ function allowsString(schema: JsonSchema): boolean {
   const type = schema.type
   if (type === "string") return true
   return Array.isArray(type) && type.includes("string")
+}
+
+/** True when the schema does not constrain the value shape (e.g. `{}` / zod unknown). */
+function isOpenSchema(schema: JsonSchema): boolean {
+  if (schema.type !== undefined) return false
+  if (schema.enum !== undefined || schema.const !== undefined) return false
+  if (schema.oneOf !== undefined || schema.anyOf !== undefined || schema.allOf !== undefined) return false
+  if (schema.not !== undefined || schema.if !== undefined) return false
+  return true
 }

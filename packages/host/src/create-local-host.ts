@@ -59,6 +59,8 @@ export interface CreateLocalHostOptions {
   defaultMaxConcurrency?: number
   /** When true, admin shutdown calls `process.exit(0)`. */
   exitOnShutdown?: boolean
+  /** Absolute path to the App `dist/web` bundle (server mode). */
+  appRoot?: string
 }
 
 /**
@@ -132,6 +134,7 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
           port: listenPort,
           token: token!,
           exitOnShutdown: options.exitOnShutdown === true,
+          ...(options.appRoot ? { appRoot: options.appRoot } : {}),
         },
       })
   }

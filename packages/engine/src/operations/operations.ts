@@ -305,9 +305,13 @@ async function execute(
 
     const plugins = services.get(PluginAdapter)
     const capabilities = plugins.capabilities()
+    const storage = services.get(StorageProvider)
+    const executionDir = dirnameOf(loaded.ref.path)
     const validation = await validateExecution(manifest, {
       capabilities,
       input: input.mode === "validate" || input.mode === undefined ? input.input : input.input,
+      ...(executionDir ? { executionDir } : {}),
+      readText: (absolutePath) => storage.readTextFile(absolutePath),
     })
     if (validation.issues.some((issue) => issue.severity === "error")) {
       const first = validation.issues.find((issue) => issue.severity === "error")
@@ -451,6 +455,7 @@ async function startAndAwait(
   const configs = await storage.listConfigs()
   const controller = new AbortController()
   const schemas = await HostSchemaSet.create(plugins.capabilities())
+  const executionDir = dirnameOf(ref.path)
   const handle = startExecution(manifest, runInput, {
     capabilities: plugins.capabilities(),
     expression: expression as ExpressionEngineService,
@@ -458,6 +463,7 @@ async function startAndAwait(
     getSecret: secrets ? (key) => secrets.get(key) : undefined,
     getEnv: (name) => process.env[name],
     readText: (absolutePath) => storage.readTextFile(absolutePath),
+    ...(executionDir ? { executionDir } : {}),
     maxConcurrency: options.settings?.defaultMaxConcurrency,
     defaultStepTimeoutMs: options.settings?.defaultStepTimeoutMs,
     signal: controller.signal,
@@ -799,4 +805,14 @@ function isConfig(value: unknown): value is ConfigObject {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/** Parent directory of an absolute execution path (POSIX or Windows). */
+function dirnameOf(filePath: string | null | undefined): string | undefined {
+  if (!filePath) return undefined
+  const unix = filePath.lastIndexOf("/")
+  const win = filePath.lastIndexOf("\\")
+  const index = Math.max(unix, win)
+  if (index <= 0) return undefined
+  return filePath.slice(0, index)
 }

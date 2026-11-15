@@ -13,6 +13,9 @@ export default defineConfig({
         "packages/host/src/**/*.ts",
         "packages/cli/src/**/*.ts",
         "packages/mcp-relay/src/**/*.ts",
+        "packages/app/src/graph/**/*.ts",
+        "packages/app/src/form/**/*.ts",
+        "packages/app/src/client/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
       ],
       exclude: [

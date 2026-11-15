@@ -27,6 +27,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@executioncontrolprotocol/app": "workspace:*",
     "@executioncontrolprotocol/engine": "workspace:*",
     "@executioncontrolprotocol/formatters": "workspace:*",
     "@executioncontrolprotocol/local": "workspace:*",

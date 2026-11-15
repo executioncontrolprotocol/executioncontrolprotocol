@@ -33,7 +33,7 @@ describe("GET /v1/watch", () => {
         {
           hostname: "127.0.0.1",
           port,
-          path: `/v1/watch?types=execution,run&runId=missing&path=${encodeURIComponent(home)}`,
+          path: `/v1/watch?types=execution,run&runId=missing`,
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,

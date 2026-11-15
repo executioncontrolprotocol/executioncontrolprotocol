@@ -1,12 +1,17 @@
 import { defineConfig } from "@playwright/test"
 
 /**
- * App end-to-end tests. The suite itself arrives in Phase 7; until then the
- * project is empty and `test:app` passes with `--pass-with-no-tests`.
+ * App end-to-end tests (acceptance A8). Specs start a real host in a temp `ECP_HOME`.
  */
 export default defineConfig({
   testDir: "packages/app/test/e2e",
   testMatch: "**/*.spec.ts",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   reporter: "line",
+  use: {
+    trace: "on-first-retry",
+  },
 })

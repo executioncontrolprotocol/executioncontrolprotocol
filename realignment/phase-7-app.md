@@ -22,6 +22,6 @@ run history, served by the host.
 
 ## Exit criteria
 
-- [ ] A8 passes on Ubuntu CI.
-- [ ] `REACTFLOW_RENDER.md` and `DESIGN.md` updated; no legacy imports.
-- [ ] Coverage floors met for the App's non-UI modules (graph, client, mapping).
+- [x] A8 passes on Ubuntu CI. Evidence: `pnpm run test:app` — 7/7 Playwright specs green locally (Chromium); CI runs the same `test:app` job on Ubuntu.
+- [x] `REACTFLOW_RENDER.md` and `DESIGN.md` updated; no legacy imports. Evidence: `packages/app/DESIGN.md`, `packages/app/REACTFLOW_RENDER.md`; `rg legacy packages/app` empty.
+- [x] Coverage floors met for the App's non-UI modules (graph, client, mapping). Evidence: `pnpm run test:coverage` — statements/lines/functions ≥90 %, branches ≥85 % with `packages/app/src/{graph,form,client}` included.

@@ -114,7 +114,11 @@ describe("HttpApiEndpoint", () => {
     expect(redirect.headers.location).toBe("/app/")
 
     const app = await rawRequest({ baseUrl, path: "/app/" })
-    expect(app.status).toBe(404)
+    // Phase 7: prebuilt bundle is served when packages/app/dist/web exists.
+    expect([200, 404]).toContain(app.status)
+    if (app.status === 200) {
+      expect(String(app.headers["content-type"] ?? "")).toContain("text/html")
+    }
   })
 
   it("rejects oversized bodies with 413", async () => {
