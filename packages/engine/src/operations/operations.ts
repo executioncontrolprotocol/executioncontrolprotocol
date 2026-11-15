@@ -456,7 +456,7 @@ async function startAndAwait(
     expression: expression as ExpressionEngineService,
     configs,
     getSecret: secrets ? (key) => secrets.get(key) : undefined,
-    getEnv: () => undefined,
+    getEnv: (name) => process.env[name],
     readText: (absolutePath) => storage.readTextFile(absolutePath),
     maxConcurrency: options.settings?.defaultMaxConcurrency,
     defaultStepTimeoutMs: options.settings?.defaultStepTimeoutMs,

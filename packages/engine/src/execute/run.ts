@@ -594,9 +594,23 @@ async function resolveConfig(
   deps: RunDependencies,
   secrets: Set<string>,
 ): Promise<Record<string, unknown> | undefined> {
-  if (!node.config) return undefined
-  const config = deps.configs?.find((item) => item.id === node.config)
-  if (!config) throw Object.assign(new Error(`Config ${node.config} does not exist.`), { code: "ECP_CONFIG_UNKNOWN" })
+  let configId = node.config
+  if (!configId && node.uses) {
+    const capability = deps.capabilities.find((item) => item.id === node.uses)
+    if (capability) {
+      const slash = capability.plugin.lastIndexOf("/")
+      const short = slash >= 0 ? capability.plugin.slice(slash + 1) : capability.plugin
+      configId = `${short}/default`
+    }
+  }
+  if (!configId) return undefined
+  const config = deps.configs?.find((item) => item.id === configId)
+  if (!config) {
+    if (node.config) {
+      throw Object.assign(new Error(`Config ${node.config} does not exist.`), { code: "ECP_CONFIG_UNKNOWN" })
+    }
+    return undefined
+  }
   return resolveSecrets(config.values, deps, secrets) as Promise<Record<string, unknown>>
 }
 

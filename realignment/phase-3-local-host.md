@@ -25,6 +25,9 @@ complete MVP behaviour without HTTP.
 
 ## Exit criteria
 
-- [ ] All operations work in-process on disk; integration suite green on Ubuntu and Windows.
-- [ ] Acceptance A2, A3 (CLI-free variant), A4, A5, A7 pass as integration tests.
-- [ ] Coverage floors met for `local`, `formatters`, `host` (in-process part).
+- [x] All operations work in-process on disk; integration suite green on Ubuntu and Windows.
+  Evidence: `packages/host/test/integration/ops.test.ts` and acceptance suite; `pnpm exec vitest run --project integration`.
+- [x] Acceptance A2, A3 (CLI-free variant), A4, A5, A7 pass as integration tests.
+  Evidence: `packages/host/test/integration/acceptance.test.ts`.
+- [x] Coverage floors met for `local`, `formatters`, `host` (in-process part).
+  Evidence: `vitest.config.mts` includes those packages; `pnpm run test:coverage` green.

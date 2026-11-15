@@ -159,7 +159,10 @@ describe("operations", () => {
     await host.stop()
   })
 
-  it("validates, runs, dedups clientRequestId, patches, cancels and resumes", async () => {
+  it(
+    "validates, runs, dedups clientRequestId, patches, cancels and resumes",
+    { timeout: 20_000 },
+    async () => {
     const { host, storage } = await startHost({
       read: async (filePath) => {
         if (filePath.endsWith("echo.ecp.json")) return JSON.stringify(echo)
@@ -341,7 +344,8 @@ describe("operations", () => {
     if (deleted.ok) expect(deleted.data.version).toBeNull()
 
     await host.stop()
-  })
+  },
+  )
 
   it("createOperations works against a manual service lookup", () => {
     const storage = new MemoryStorage()

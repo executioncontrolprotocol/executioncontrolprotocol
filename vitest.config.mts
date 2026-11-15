@@ -9,6 +9,8 @@ export default defineConfig({
         "packages/quickjs/src/**/*.ts",
         "packages/plugin-sdk/src/**/*.ts",
         "packages/local/src/**/*.ts",
+        "packages/formatters/src/**/*.ts",
+        "packages/host/src/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
       ],
       exclude: ["legacy/**", "**/dist/**", "**/*.d.ts", "**/bin/**"],
@@ -25,7 +27,12 @@ export default defineConfig({
           name: "unit",
           environment: "node",
           include: ["packages/**/test/**/*.test.ts", "plugins/**/test/**/*.test.ts"],
-          exclude: ["legacy/**", "**/dist/**", "**/node_modules/**"],
+          exclude: [
+            "legacy/**",
+            "**/dist/**",
+            "**/node_modules/**",
+            "packages/host/test/integration/**",
+          ],
         },
       },
       {

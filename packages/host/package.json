@@ -2,7 +2,7 @@
   "name": "@executioncontrolprotocol/host",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP host package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "In-process and server ECP host composition.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -19,5 +19,15 @@
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/engine": "workspace:*",
+    "@executioncontrolprotocol/formatters": "workspace:*",
+    "@executioncontrolprotocol/local": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@executioncontrolprotocol/quickjs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

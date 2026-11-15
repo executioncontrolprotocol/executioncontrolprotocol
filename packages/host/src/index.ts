@@ -1,5 +1,7 @@
 /**
- * Package version. The implementation arrives in a later phase.
- * @category Definitions
+ * Local ECP host composition.
+ * @category Host
  */
-export const VERSION = "2.0.0"
+export { VERSION } from "./version.js"
+export { createLocalHost } from "./create-local-host.js"
+export type { CreateLocalHostOptions, LocalHost, LocalHostTiming } from "./create-local-host.js"

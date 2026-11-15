@@ -1,0 +1,16 @@
+{
+  "status": "completed",
+  "result": {
+    "greeting": { "echo": "hello world" },
+    "staged": { "ok": true },
+    "branch": { "echo": "named" }
+  },
+  "steps": {
+    "greet": "completed",
+    "note": "completed",
+    "named": "completed",
+    "left": "completed",
+    "right": "completed"
+  },
+  "events": ["run.start", "step.start", "step.end", "step.start", "step.end", "branch.select", "step.start", "step.end", "step.start", "step.end", "step.start", "step.end", "run.end"]
+}

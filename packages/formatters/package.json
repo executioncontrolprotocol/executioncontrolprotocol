@@ -2,7 +2,7 @@
   "name": "@executioncontrolprotocol/formatters",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP formatters package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "JSON and TOON formatters for ECP retrieve/execute output.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -19,5 +19,12 @@
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@toon-format/toon": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

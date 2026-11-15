@@ -24,6 +24,7 @@
     "@executioncontrolprotocol/engine": "workspace:*",
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "@executioncontrolprotocol/protocol": "workspace:*",
+    "@napi-rs/keyring": "^2.1.2",
     "ajv": "catalog:",
     "ajv-formats": "catalog:"
   },
