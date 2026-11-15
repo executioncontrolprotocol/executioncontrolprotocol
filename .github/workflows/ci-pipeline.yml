@@ -179,6 +179,31 @@ jobs:
       - run: pnpm exec playwright install chromium --with-deps
       - run: pnpm run test:app
 
+  # A8 App Playwright on Windows so acceptance is not Ubuntu-only.
+  app-windows:
+    name: app-windows
+    runs-on: windows-latest
+    timeout-minutes: 25
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install chromium
+      - run: pnpm run test:app
+
   bench:
     name: bench
     runs-on: ubuntu-latest
@@ -205,7 +230,7 @@ jobs:
       vars.ENABLE_NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [secrets, build, lint, unit, integration, e2e-ubuntu, e2e-windows, app, bench]
+    needs: [secrets, build, lint, unit, integration, e2e-ubuntu, e2e-windows, app, app-windows, bench]
     permissions:
       contents: read
     steps:

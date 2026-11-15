@@ -35,7 +35,5 @@ alwaysApply: true
 - **Vendor-neutral host:** the host, CLI, MCP relay and App must not hard-code
   capability-specific ids or output shapes. Use plugin metadata and schemas. Domain knowledge
   lives in the plugin.
-- **Legacy packages are reference code.** Don't extend them; replace and delete them as the
-  phase docs say.
 - **Realignment milestone:** see `realignment-milestone.mdc`. The plan and phase docs take
-  precedence over older guidance.
+  precedence over older guidance. MVP packages live under `packages/` and `plugins/`.

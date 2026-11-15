@@ -923,5 +923,25 @@ Resolved by the MVP spec (2026-11-14): package names, QuickJS limits and the `$s
 
 Still open, decided inside their phases:
 
-- Background host for one-off CLI commands (Phase 5 benchmark decision).
-- Release tag naming and the 0.x deprecation list (Phase 9).
+- Background host for one-off CLI commands (Phase 5 benchmark decision) — **done:** keep
+  in-process fallback.
+- Release tag naming and the 0.x deprecation list (Phase 9) — **done:** see `RELEASING.md`
+  (`mvp-YYYY.MM.DD`).
+
+## Retrospective (Phase 9)
+
+Notable drifts from the original spec/plan while building, and why:
+
+| Drift | Spec / plan said | What shipped | Why |
+| --- | --- | --- | --- |
+| All-features fixture path | `fixtures/manifests/runs/all-features.ecp.json` | `fixtures/manifests/acceptance/all-features.ecp.json` | Keeps the heavy acceptance run separate from smaller run fixtures; spec 12 updated. |
+| A10 Azure storage | Firefly-only / generic storage | Adobe `storageType: "azure"` + Azure SAS config | Firefly upload failed without Azure storage type; dogfood needs a provisioned container. |
+| Provider errors | Generic step failure | `ECP_PROVIDER_ERROR` with `message` + `details` on the issue | Agents need the provider body (IMS, credit, HTTP) to repair; rule in `extensions.mdc` / spec 08. |
+| CLI warm host | Optional auto-start if warm saves ≥ ~300 ms | Keep in-process when no host (Phase 5: ~85 ms B3 savings) | Budgets in `bench/budgets.json`; MCP/App still require a running host. |
+| Mid-session second plugin in A6 | `plugins link` of a second fixture | Pack + `plugins install` of the minimal fixture | Linked packages require a `definePlugin` `dist/index.js`; hand-written manifests load on install. |
+| In-process event flush | Assumed disk always has `events.ndjson` after CLI execute | Warm host for A2 disk asserts | CLI `finishOperation` calls `process.exit` before `ops.close()` flushes event batches. |
+| `$script` into maxLength | Capability with maxLength | `test.bounded` on plugin-test | Fixture-only `bounded` was engine-only; e2e needs a real linked plugin. |
+| Release tag | Avoid `v1.0.0` | `mvp-YYYY.MM.DD` | Documented in `RELEASING.md`; no publish in Phase 9. |
+
+What stayed true: three operations, JSON executions, in-process plugins, supervisor + MCP relay,
+vendor-neutral host, QuickJS-only `expr`/`$expr`, secrets only via config + keychain.

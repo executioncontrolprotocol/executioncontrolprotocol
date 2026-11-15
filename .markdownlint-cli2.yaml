@@ -3,6 +3,5 @@ globs:
   - "**/*.md"
 ignores:
   - "**/node_modules/**"
-  - "legacy/**"
   - ".changeset/**"
   - ".git/**"

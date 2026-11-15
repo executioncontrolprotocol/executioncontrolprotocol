@@ -1,5 +1,5 @@
 {
-  "runId": "run-20261115T195522Z-e7e432",
+  "runId": "run-20261115T202107Z-07c82a",
   "status": "completed",
   "result": {
     "translation": {
@@ -16,8 +16,8 @@
             "storageType": "azure",
             "url": "https://executioncontrolprotocol.blob.core.windows.net/ecp-test/localize-banner/banner-out.png?[redacted]",
             "mediaType": "image/png",
-            "_id": "c6f327f3-2cc4-431a-9240-620beca6307f",
-            "_filePath": "c6f327f3-2cc4-431a-9240-620beca6307f.png"
+            "_id": "70bc69f4-029f-4637-bb85-3003c69d2151",
+            "_filePath": "70bc69f4-029f-4637-bb85-3003c69d2151.png"
           },
           "mediaType": "image/png"
         }
@@ -28,16 +28,16 @@
     {
       "nodeId": "translate",
       "status": "completed",
-      "durationMs": 1196
+      "durationMs": 1149
     },
     {
       "nodeId": "actions",
       "status": "completed",
-      "durationMs": 5319
+      "durationMs": 5610
     }
   ],
   "provisioned": true,
   "sourceBlob": "localize-banner/banner-with-text.psd",
   "outputBlob": "localize-banner/banner-out.png",
-  "recordedAt": "2026-11-15T19:55:31.910Z"
+  "recordedAt": "2026-11-15T20:21:17.509Z"
 }

@@ -24,7 +24,7 @@ The previous milestone's plan (the CLI reset) is retired. What still applies is 
 | 6 | [MCP relay](phase-6-mcp-relay.md) | Done 2026-11-15 | 4, 5 |
 | 7 | [App](phase-7-app.md) | Done 2026-11-15 | 4 (5 for `ecp app`) |
 | 8 | [First-party plugins and dogfood](phase-8-plugins-and-dogfood.md) | Done 2026-11-15 (A10 live green) | 2 (3 for end-to-end) |
-| 9 | [MVP acceptance and cleanup](phase-9-acceptance.md) | Not started | 0–8 |
+| 9 | [MVP acceptance and cleanup](phase-9-acceptance.md) | Done 2026-11-15 | 0–8 |
 
 Critical path: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 9. Phases 7 and 8 can run in parallel with 5–6
 once their dependencies land.
@@ -49,8 +49,6 @@ No MVP phase depends on it, and MVP work must not add Fluent parsing or Fluent-s
   to `main` (publishes to npm) or `development`.
 - **Tests with every change:** positive, negative and edge cases; coverage floors (90 % lines,
   functions, statements; 85 % branches) never lowered.
-- **Legacy code is reference only** (under `legacy/` after Phase 0). Copy and adapt what the
-  phase doc names; never import from `legacy/`.
 - **If the spec or a phase doc is wrong,** stop and say so in the PR rather than improvising.
 - **Done means:** every exit criterion checked off with evidence in the PR (test names, CI
   links, numbers), CI green, and the status updated in this table.

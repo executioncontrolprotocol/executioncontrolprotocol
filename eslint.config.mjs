@@ -7,7 +7,6 @@ export default tseslint.config(
       "**/dist/",
       "**/node_modules/",
       "**/coverage/",
-      "legacy/**",
       "fixtures/**/*.js",
       "examples/**/*.uxp.js",
       "pnpm-lock.yaml",

@@ -3,6 +3,42 @@
     {
       "accepts": {
         "properties": {
+          "text": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "description": "Returns `text` under `text`. Accepts strings up to 40 characters.",
+      "id": "@executioncontrolprotocol/test.bounded",
+      "name": "bounded",
+      "projections": [
+        "Take `text`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "summary": "Echo a length-limited string.",
+      "useCases": [
+        "Exercise $script into a maxLength field"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
           "capabilityId": {
             "type": "string"
           },
@@ -110,7 +146,7 @@
         "type": "object"
       },
       "summary": "Wait for milliseconds.",
-      "timeoutMs": 1000,
+      "timeoutMs": 60000,
       "useCases": [
         "Exercise cancel and timeout"
       ]
@@ -338,9 +374,9 @@
     "type": "object"
   },
   "entry": "./dist/index.js",
-  "hash": "c3cfe87f45f6f4814bc6032a205b8c2458d167a8c981229ec3daf463324c6949",
+  "hash": "98c77881aaeb9393cf8401874433626c584cce2df2800cfdbba14b39137bf55d",
   "plugin": {
-    "description": "Echo, fail, delay, stage, config-echo, file-roundtrip and call for every executor and handler-context feature.",
+    "description": "Echo, fail, delay, stage, config-echo, file-roundtrip, call and bounded for every executor and handler-context feature.",
     "id": "@executioncontrolprotocol/test",
     "package": "@executioncontrolprotocol/plugin-test",
     "summary": "Fixture capabilities for engine and host tests.",

@@ -43,8 +43,23 @@ export const delay = capability({
   projections: ["Take `waitedMs`"],
   accepts: z.object({ ms: z.number().int().min(0) }),
   returns: z.object({ waitedMs: z.number().int() }),
-  timeoutMs: 1000,
+  /** Long enough for A6 interruption / resume scenarios. */
+  timeoutMs: 60_000,
   handler: () => import("./capabilities/delay.js"),
+})
+
+/**
+ * Bounded string capability (maxLength on `text` for `$script` acceptance).
+ * @category Plugins
+ */
+export const bounded = capability({
+  summary: "Echo a length-limited string.",
+  description: "Returns `text` under `text`. Accepts strings up to 40 characters.",
+  useCases: ["Exercise $script into a maxLength field"],
+  projections: ["Take `text`"],
+  accepts: z.object({ text: z.string().max(40) }),
+  returns: z.object({ text: z.string() }),
+  handler: () => import("./capabilities/bounded.js"),
 })
 
 /**
@@ -142,7 +157,7 @@ export default definePlugin({
   id: "@executioncontrolprotocol/test",
   summary: "Fixture capabilities for engine and host tests.",
   description:
-    "Echo, fail, delay, stage, config-echo, file-roundtrip and call for every executor and handler-context feature.",
+    "Echo, fail, delay, stage, config-echo, file-roundtrip, call and bounded for every executor and handler-context feature.",
   config: z
     .object({
       secret: z.string().optional(),
@@ -157,5 +172,6 @@ export default definePlugin({
     "config-echo": configEcho,
     "file-roundtrip": fileRoundtrip,
     call,
+    bounded,
   },
 })

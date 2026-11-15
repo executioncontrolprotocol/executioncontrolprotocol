@@ -19,14 +19,12 @@ Don't ship only a happy-path test.
 ## Where tests go
 
 - Vitest. Put tests next to the package's source in `test/` (for example
-  `packages/core/test/**`), following existing patterns in that package.
-- **CLI and host behaviour:** integration tests run the CLI and host in hermetic temp folders
-  (oclif data directory and `~/.ecp` equivalents), never the real user folders.
-- **Legacy core:** its unit tests also run in the browser project (`pnpm run test:browser`)
-  until the package is replaced.
+  `packages/engine/test/**`), following existing patterns in that package.
+- **CLI and host behaviour:** integration and e2e tests use hermetic temp `ECP_HOME` folders,
+  never the real user home. Acceptance scenarios live in `test/e2e/acceptance/`.
+- **App:** Playwright under `packages/app/test/e2e/` (`pnpm run test:app`).
 - **Plugins:** tested on their own with fixtures; their `ecp.manifest.json` is checked against
-  the code in CI. `scripts/plugin-pack-smoke.mjs` (legacy) installs each packed plugin into a
-  clean CLI.
+  the code in CI (`pnpm run plugins:check-manifests`).
 
 ## Coverage commands
 

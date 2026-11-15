@@ -6,8 +6,8 @@ alwaysApply: true
 # ECP specification
 
 - **Source of truth:** the MVP build spec in `realignment/spec/` (exact contracts), then
-  `REALIGNMENT-PLAN.md` (see `realignment-milestone.mdc`). `SPEC.md` describes the previous
-  design and is history; the CLI reset plan is retired.
+  `REALIGNMENT-PLAN.md` (see `realignment-milestone.mdc`). `SPEC.md` points at
+  `realignment/spec/`; the CLI reset plan is retired.
 - **Executions** (formerly workflows) are JSON manifests:
   `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The shape is
   `realignment/spec/02-execution-manifest.md`; the JSON Schema is
@@ -23,6 +23,5 @@ alwaysApply: true
 - **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. Error
   codes are `ECP_*`; the catalogue is `realignment/spec/06-operations.md` (with HTTP statuses
   and CLI exit codes). Validation layers and the issue shape are in `03-validation.md`.
-- Legacy code in `packages/core/src/types` uses `@executioncontrolprotocol.workflow` v1.0 and
-  `$fn` expressions. Treat it as reference, not as the target.
-- Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model.
+- Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model or v1
+  `@executioncontrolprotocol.workflow` / `$fn` shapes.

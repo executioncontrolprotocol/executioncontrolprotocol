@@ -21,7 +21,7 @@ the docs and agent rules describe exactly what was built.
 
 ## Exit criteria
 
-- [ ] A1–A12 pass in CI (A10 recorded from its live run).
-- [ ] `legacy/` deleted; `pnpm run check` green; coverage floors met everywhere.
-- [ ] Docs and rules updated; doc index regenerated.
-- [ ] Release checklist ready for the publish decision.
+- [x] A1–A12 pass in CI (A10 recorded from its live run). Evidence: `test/e2e/acceptance/`, Windows `app-windows` job, `realignment/evidence/a10-localize-banner.*`.
+- [x] `legacy/` deleted; `pnpm run check` green; coverage floors met everywhere.
+- [x] Docs and rules updated; doc index regenerated (`node scripts/gen-doc-index.mjs`).
+- [x] Release checklist ready for the publish decision (`RELEASING.md`, `.changeset/mvp-realignment-majors.md`). No publish in this phase.

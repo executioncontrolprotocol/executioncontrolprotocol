@@ -6,9 +6,8 @@ alwaysApply: false
 
 # CLI conventions
 
-The legacy CLI in `packages/cli` (generated per-capability commands, `ecp run`, `--config`,
-`ecp runs …`) is reference code. The target surface is in `REALIGNMENT-PLAN.md` ("CLI");
-naming rules below apply to both.
+The MVP CLI is `packages/cli`. The command surface is in `REALIGNMENT-PLAN.md` ("CLI") and
+`realignment/spec/10-cli.md`. There are no generated per-capability commands.
 
 ## User-facing tokens are kebab-case
 

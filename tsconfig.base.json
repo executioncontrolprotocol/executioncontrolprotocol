@@ -16,5 +16,5 @@
     "noFallthroughCasesInSwitch": true,
     "composite": true
   },
-  "exclude": ["node_modules", "dist", "legacy"]
+  "exclude": ["node_modules", "dist"]
 }

@@ -7,6 +7,7 @@ import stage from "../src/capabilities/stage.js"
 import configEcho from "../src/capabilities/config-echo.js"
 import fileRoundtrip from "../src/capabilities/file-roundtrip.js"
 import call from "../src/capabilities/call.js"
+import bounded from "../src/capabilities/bounded.js"
 import plugin from "../src/index.js"
 
 function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
@@ -45,8 +46,9 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
 }
 
 describe("plugin-test capabilities", () => {
-  it("defines the seven capabilities from the spec", () => {
+  it("defines the eight capabilities from the spec", () => {
     expect(Object.keys(plugin.capabilities).sort()).toEqual([
+      "bounded",
       "call",
       "config-echo",
       "delay",
@@ -57,7 +59,8 @@ describe("plugin-test capabilities", () => {
     ])
   })
 
-  it("echoes, fails, delays, stages, echoes config, round-trips files and calls", async () => {
+  it("echoes, fails, delays, stages, echoes config, round-trips files, calls and bounds", async () => {
+    await expect(bounded({ text: "ok" }, ctx())).resolves.toEqual({ text: "ok" })
     await expect(echo({ value: "hi" }, ctx())).resolves.toEqual({ echo: "hi" })
 
     await expect(fail({ code: "ECP_STEP_FAILED", message: "boom" }, ctx())).rejects.toMatchObject({

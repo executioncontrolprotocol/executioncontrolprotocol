@@ -19,8 +19,8 @@ This repo is executing the ECP realignment on `milestone/realignment`.
   its tasks in order. Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment` and
   open the PR into `milestone/realignment`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
-- **Legacy packages are reference code.** Read them for what carries over; don't extend them.
-  Delete a legacy package in the PR that replaces it.
+- **MVP packages** live under `packages/` and `plugins/`. Do not resurrect deleted `legacy/`
+  trees.
 - **Retired:** the CLI reset plan (`RESET-PLAN.md`, `reset/`), removed 2026-11-14. What still
   applies is in the plan's "Carried over from the CLI reset" section; don't recover the old
   files as instructions. `SPEC.md` describes the v1 workflow model and is history.

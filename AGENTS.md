@@ -27,15 +27,14 @@ Ground rules:
 - Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment`; open PRs into
   `milestone/realignment`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
-- **The existing packages are legacy reference code.** Read them for what to carry over (plan:
-  "What carries over"). Don't extend them or add features to them. A legacy package is deleted
-  in the PR that replaces it.
+- **MVP packages live under `packages/` and `plugins/`.** Implement against `realignment/spec/`.
+  Do not resurrect deleted `legacy/` trees.
 - Keep the pre-commit hook on. Don't skip, delete or weaken valid tests to get CI green, except
   for removals a phase doc explicitly lists.
 - If the plan or a phase doc is wrong or impossible, stop and say so rather than improvising.
   Label anything stubbed, mocked or deferred honestly, in code and in the PR.
 
-## What ECP is (target)
+## What ECP is
 
 An **ECP host** runs **executions**: JSON manifests of capability steps with routing (parallel,
 branch, loop, `expr` gates). The host validates every capability call against the
@@ -45,7 +44,8 @@ operations, `retrieve`, `execute`, `commit`, through an MCP relay, the CLI, or t
 localhost HTTP API. Every key host component is a swappable **service**
 (`environment.use(Impl, Interface.service)`). Policies are out of scope for now.
 
-Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
+Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`. Architecture summary:
+`ARCHITECTURE.md`.
 
 ## Principles
 
@@ -54,33 +54,32 @@ Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
 - **Model-legible everywhere.** `--json` on every command, stable `ECP_*` codes with paths and
   suggestions, structured run records, help and metadata written for a model reader.
 - **The self-healing loop is the product.** Every failure legible, every fix cheap to retry.
-- **Core does no I/O.** Everything external goes through services.
-- **Trim before building.** Don't port legacy code the plan doesn't need.
+- **Engine does no I/O.** Everything external goes through services.
 - **Be honest about stubs.** Label anything mocked or unimplemented; never ship it as real.
 - **Hosted never diverges.** Hosted ECP adds service implementations and plugins, never
   execution semantics.
 
-## Repository map (legacy code, and what happens to it)
+## Repository map (MVP)
 
-| Path | What it is today | In the realignment |
-| --- | --- | --- |
-| `legacy/packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types | Reference. Manifest types, executor routing, input resolution, commit modes, validation and the Fluent builder carry over (adapted). The policy engine and requirements/bindings don't |
-| `legacy/packages/environments/node/` | Node host: compile, loaders, OS secrets, process-env, run journal | Reference. OS keychain naming and the journal shape carry over |
-| `legacy/packages/environments/browser/` | Browser host | Out of scope |
-| `legacy/packages/cli/` | `ecp` CLI (oclif, generated operations) | Reference. oclif plugin management and `plugins link` carry over; generated per-capability commands don't |
-| `legacy/packages/plugin-sdk/` | `toCommands`, `defineOperation`, plugin build | Reference. Per-capability command generation is dropped |
-| `legacy/packages/mcp/` | MCP server exposing tools per capability | Replaced by the MCP relay (three tools) |
-| `legacy/packages/app/`, `legacy/plugins/plugin-app/` | Visual App and its CLI plugin | Reference. Graph mapping and run overlay carry over onto the host API |
-| `legacy/plugins/plugin-test/`, `plugin-anthropic/`, `plugin-adobe-firefly-services/`, `plugin-azure-blob-storage/` | Capability plugins | First to be ported to the new plugin API |
-| `legacy/plugins/plugin-openai/`, `plugin-ollama/`, `plugin-fal/`, `plugin-image-sharp/`, `plugin-jsonata/` | Capability plugins | Ported later, as needed |
-| `legacy/plugins/plugin-format-toon/`, `plugin-format-mermaid/` | Format capabilities | Become `Formatter` service implementations, not plugins |
-| `legacy/plugins/plugin-budget/`, `plugin-approval/`, `plugin-state-control/` | Policies | Out of scope until policies return |
-| `legacy/examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Converted to v2 fixtures in `fixtures/v1/`; v2 examples return in Phase 8 |
-| `skills/ecp-core/` | Contributor skill for this repo | Rewritten for the realignment; keep it in step with this file |
-| `REALIGNMENT-PLAN.md`, `realignment/`, `realignment/spec/` | The plan, phase docs and MVP build spec | Source of truth |
+| Path | Role |
+| --- | --- |
+| `packages/protocol` | Types, JSON schemas, service tokens, error catalogue |
+| `packages/engine` | Executor, validation, operations, service container |
+| `packages/quickjs` | QuickJS-WASM `ExpressionEngine` |
+| `packages/local` | Disk storage, OS secrets, in-process plugin registration |
+| `packages/formatters` | JSON and TOON formatters |
+| `packages/host` | Local host, HTTP API, supervisor |
+| `packages/cli` | `ecp` CLI |
+| `packages/mcp-relay` | Stdio MCP relay (three tools) |
+| `packages/app` | Visual App (`/app/`) |
+| `packages/plugin-sdk` | `definePlugin` / `capability` |
+| `plugins/plugin-test` | Harness capabilities (reference plugin) |
+| `plugins/plugin-anthropic`, `plugin-azure-blob-storage`, `plugin-adobe-firefly-services` | MVP provider plugins |
+| `fixtures/`, `examples/`, `test/e2e/`, `bench/` | Fixtures, examples, e2e/acceptance, budgets |
+| `skills/ecp-core/` | Contributor skill |
+| `REALIGNMENT-PLAN.md`, `realignment/`, `realignment/spec/` | Plan, phases, MVP build spec |
 
-Phase 0 moves every legacy path above to `legacy/` (outside the workspace and CI); Phase 9 deletes it.
-The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`): no MVP work adds Fluent.
+The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
 
 ## Rules that hold throughout
 
@@ -112,29 +111,28 @@ The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`): no MV
 - **File formats:** executions, configs, run records and manifests are JSON. Fluent TypeScript
   is an optional authoring SDK that compiles to JSON. See `.cursor/rules/file-formats.mdc`.
 
-## Commands (legacy code)
+## Commands
 
-These run the existing packages and their tests. New packages add their scripts to the root
-`package.json` as they land.
+Root `package.json` is the source of truth:
 
 ```sh
-pnpm install                 # always from the repo root
-pnpm run build               # tsc -b tsconfig.build.json
-pnpm run check               # build + schema + lint + secrets + coverage + integration + e2e
+pnpm install            # always from the repo root
+pnpm run build          # tsc -b + App web bundle
+pnpm run check          # build + manifests + lint + secrets + no-file-deps + coverage + integration + e2e + app
 pnpm run test:unit
-pnpm run test:coverage       # the coverage gate (pre-commit + CI unit job)
+pnpm run test:coverage  # coverage gate (pre-commit + CI)
 pnpm run test:integration
-pnpm run test:e2e
+pnpm run test:e2e       # includes test/e2e/acceptance/A1–A12
+pnpm run test:app       # Playwright A8
+pnpm run bench          # budgets in bench/budgets.json
 pnpm run lint
 pnpm run secrets:scan
 ```
 
 Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change, then lint-staged,
-lint and the coverage gate. CI (`.github/workflows/ci.yml`) runs on `main`, `development`,
-`feat/**` and `milestone/**`.
+lint and the coverage gate. CI (`.github/workflows/ci-pipeline.yml`) runs on `main`,
+`development`, `feat/**` and `milestone/**`.
 
 ## Agent skill
 
-Contributor skill for this repo: `skills/ecp-core/` (rewritten for the realignment). The
-consumer `ecp` skill in `executioncontrolprotocol/docs` describes the published 0.52 CLI, not
-the realignment.
+Contributor skill: `skills/ecp-core/`. Plugin authoring points at `plugins/plugin-test`.

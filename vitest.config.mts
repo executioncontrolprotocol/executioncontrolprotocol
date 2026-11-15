@@ -22,7 +22,6 @@ export default defineConfig({
         "plugins/plugin-adobe-firefly-services/src/**/*.ts",
       ],
       exclude: [
-        "legacy/**",
         "**/dist/**",
         "**/*.d.ts",
         "**/bin/**",
@@ -60,7 +59,6 @@ export default defineConfig({
           environment: "node",
           include: ["packages/**/test/**/*.test.ts", "plugins/**/test/**/*.test.ts"],
           exclude: [
-            "legacy/**",
             "**/dist/**",
             "**/node_modules/**",
             "packages/host/test/integration/**",
@@ -72,7 +70,7 @@ export default defineConfig({
           name: "integration",
           environment: "node",
           include: ["packages/host/test/integration/**/*.test.ts"],
-          exclude: ["legacy/**", "**/dist/**", "**/node_modules/**"],
+          exclude: ["**/dist/**", "**/node_modules/**"],
         },
       },
       {
@@ -80,7 +78,7 @@ export default defineConfig({
           name: "e2e",
           environment: "node",
           include: ["test/e2e/**/*.test.ts"],
-          exclude: ["legacy/**", "**/node_modules/**"],
+          exclude: ["**/node_modules/**"],
         },
       },
     ],
