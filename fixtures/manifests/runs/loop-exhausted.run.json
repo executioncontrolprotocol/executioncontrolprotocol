@@ -1,0 +1,24 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "tick": {
+      "echo": "tick"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "tick",
+      "status": "completed",
+      "round": 0
+    }
+  ],
+  "events": [
+    "run.start",
+    "loop.round",
+    "step.start",
+    "step.end",
+    "loop.exhausted",
+    "run.end"
+  ]
+}

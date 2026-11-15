@@ -1,0 +1,102 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "all-features",
+    "label": "All features (plugin-test)",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "greeting": {},
+        "staged": {},
+        "branch": {}
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "greet",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$expr": "(state) => `hello ${state.name}`"
+        }
+      },
+      "as": "greeting",
+      "mode": "replace"
+    },
+    {
+      "id": "note",
+      "uses": "@executioncontrolprotocol/test.stage",
+      "input": {
+        "handle": { "$state": "history" },
+        "op": "append",
+        "value": "started"
+      },
+      "as": "staged",
+      "mode": "replace"
+    },
+    {
+      "type": "branch",
+      "id": "pick",
+      "branches": [
+        {
+          "label": "named",
+          "expr": "(state) => typeof state.name === 'string'",
+          "steps": [
+            {
+              "id": "named",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": { "value": "named" },
+              "as": "branch",
+              "mode": "replace"
+            }
+          ]
+        },
+        {
+          "label": "default",
+          "steps": [
+            {
+              "id": "fallback",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": { "value": "default" },
+              "as": "branch",
+              "mode": "replace"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "parallel",
+      "id": "together",
+      "branches": [
+        [
+          {
+            "id": "left",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": { "value": "L" },
+            "as": "left",
+            "mode": "replace"
+          }
+        ],
+        [
+          {
+            "id": "right",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": { "value": "R" },
+            "as": "right",
+            "mode": "replace"
+          }
+        ]
+      ]
+    }
+  ]
+}

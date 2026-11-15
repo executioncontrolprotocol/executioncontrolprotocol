@@ -1,0 +1,17 @@
+{
+  "input": {},
+  "status": "failed",
+  "result": {},
+  "steps": [
+    {
+      "nodeId": "Reshape",
+      "status": "failed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.error",
+    "run.end"
+  ]
+}

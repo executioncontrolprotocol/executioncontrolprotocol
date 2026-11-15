@@ -1,0 +1,34 @@
+---
+description: The realignment milestone — REALIGNMENT-PLAN.md and realignment/ phase docs take precedence
+alwaysApply: true
+---
+
+# Realignment milestone
+
+This repo is executing the ECP realignment on `milestone/realignment`.
+
+- **Source of truth:** [`realignment/spec/`](../../realignment/spec/README.md) for exact MVP
+  contracts, [`REALIGNMENT-PLAN.md`](../../REALIGNMENT-PLAN.md) for decisions and rationale, and
+  [`realignment/`](../../realignment/README.md) for each phase's doc.
+  When another rule or `AGENTS.md` disagrees with them, follow the plan, say so in the PR, and
+  propose a fix to the rule.
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
+  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
+  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
+- **Executing a phase:** read the plan, then `realignment/README.md`, then the phase doc. Work
+  its tasks in order. Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment` and
+  open the PR into `milestone/realignment`.
+- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **MVP packages** live under `packages/` and `plugins/`. Do not resurrect deleted `legacy/`
+  trees.
+- **Retired:** the CLI reset plan (`RESET-PLAN.md`, `reset/`), removed 2026-11-14. What still
+  applies is in the plan's "Carried over from the CLI reset" section; don't recover the old
+  files as instructions. `SPEC.md` describes the v1 workflow model and is history.
+- **Out of scope until the plan says otherwise:** policies, remote plugin hosts, caller auth
+  beyond the local token, the browser environment, per-capability CLI commands or MCP tools,
+  and anything Fluent (post-MVP phase).
+- **If the plan or a phase doc is wrong or impossible,** stop and report it instead of
+  improvising.
+- **Honesty:** label stubs, mocks and deferred work in code and in the PR.
+- **Done means:** every exit criterion in the phase doc is checked off with evidence in the PR,
+  CI is green, and the status is updated in `realignment/README.md`.

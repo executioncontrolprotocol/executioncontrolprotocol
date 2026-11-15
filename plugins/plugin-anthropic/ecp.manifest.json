@@ -1,0 +1,101 @@
+{
+  "capabilities": [
+    {
+      "accepts": {
+        "properties": {
+          "maxTokens": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "system": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "description": "Sends one user prompt, with an optional system prompt, to the Anthropic Messages API using the model from the config object, and returns the reply text with token usage. Provider failures (bad key, rate limit, overload) fail the step with ECP_PROVIDER_ERROR and the HTTP status in details.",
+      "id": "@executioncontrolprotocol/anthropic.generate",
+      "name": "generate",
+      "projections": [
+        "Take `text` for the reply; `usage` reports input and output tokens for cost tracking"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "usage": {
+            "additionalProperties": false,
+            "properties": {
+              "inputTokens": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "outputTokens": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "inputTokens",
+              "outputTokens"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "text",
+          "usage"
+        ],
+        "type": "object"
+      },
+      "summary": "Generate text with a Claude model.",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Draft, rewrite, summarise or translate text from a prompt",
+        "Turn upstream step output into a short caption, title or brief"
+      ]
+    }
+  ],
+  "configSchema": {
+    "properties": {
+      "apiKey": {
+        "type": "string"
+      },
+      "baseUrl": {
+        "format": "uri",
+        "type": "string"
+      },
+      "model": {
+        "default": "claude-sonnet-4-5",
+        "type": "string"
+      }
+    },
+    "required": [
+      "apiKey"
+    ],
+    "type": "object"
+  },
+  "entry": "./dist/index.js",
+  "hash": "daad6934fef1be0bfca16908a530510eea26a89f48e0ea0fa05519e8d472c77e",
+  "plugin": {
+    "description": "Text generation with Claude through the Anthropic Messages API. The config object holds the API key (as a secret reference), the model and an optional base URL for proxies.",
+    "id": "@executioncontrolprotocol/anthropic",
+    "package": "@executioncontrolprotocol/plugin-anthropic",
+    "summary": "Claude models from Anthropic.",
+    "version": "0.60.0"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "0.60.0",
+  "version": "1.0"
+}

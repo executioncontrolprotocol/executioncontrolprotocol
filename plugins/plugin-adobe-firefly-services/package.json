@@ -1,72 +1,45 @@
 {
   "name": "@executioncontrolprotocol/plugin-adobe-firefly-services",
-  "version": "0.52.0",
-  "description": "Adobe Firefly Services plugin for ECP (family-prefixed kebab capability ids)",
-  "license": "Apache-2.0",
+  "version": "0.60.0",
+  "private": true,
+  "description": "Adobe Firefly Services APIs (Firefly, Photoshop, Express, InDesign, Illustrator, Substance 3D) as ECP capabilities generated from OpenAPI.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "browser": "./dist/index.browser.js",
-      "node": "./dist/index.js",
-      "import": "./dist/index.js"
-    },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
-    }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "openapi",
-    "oclif.manifest.json"
-  ],
-  "scripts": {
-    "build": "tsc -b && ecp plugins build",
-    "fetch:specs": "node ./scripts/fetch-specs.mjs",
-    "generate": "node ./scripts/generate-capabilities.mjs",
-    "codegen": "npm run fetch:specs && npm run generate"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
-  },
-  "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
-    "yaml": "^2.9.0",
-    "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "adobe-firefly-services": {
-        "description": "Call Adobe Firefly Services APIs across creative product families"
-      },
-      "firefly": {
-        "description": "Call Adobe Firefly Services APIs across creative product families"
-      }
-    }
+  "engines": {
+    "node": ">=22.12"
   },
   "keywords": [
     "ecosystem:ecp-plugin",
     "oclif-plugin"
-  ]
+  ],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ecp.manifest.json": "./ecp.manifest.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "ecp.manifest.json"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-capabilities.mjs",
+    "check:generated": "node scripts/generate-capabilities.mjs --check",
+    "build": "node scripts/generate-capabilities.mjs && tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  }
 }

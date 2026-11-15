@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_EXECUTION_LOAD",
+    "path": "/version",
+    "severity": "error"
+  }
+]

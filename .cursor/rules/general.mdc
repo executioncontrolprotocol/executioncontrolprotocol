@@ -6,8 +6,7 @@ alwaysApply: true
 # General rules
 
 - TypeScript-first monorepo using pnpm workspaces. Workspace globs are in
-  `pnpm-workspace.yaml`. Hosts live in `packages/environments/*`. Later phases move
-  plugins to `plugins/*`.
+  `pnpm-workspace.yaml`.
 - No Python dependencies; validation and linting use npm packages.
 - Run `pnpm install` from the repo root only.
 - `pnpm run check` runs the full suite: build, schema generation, lint, secrets scan, coverage
@@ -21,8 +20,8 @@ alwaysApply: true
   - `pnpm run build` doesn't check coverage; `pnpm run test:coverage` is the gate (pre-commit
     and CI).
   - Floors live in `vitest.config.mts`. Raise them toward 90%; never lower one to get CI green.
-  - Don't delete, skip or weaken valid tests to pass. The only exception is a removal a phase
-    doc explicitly lists.
+  - Don't delete, skip or weaken valid tests to pass. The exceptions are removals a phase doc
+    explicitly lists, and tests deleted together with the legacy package they cover.
 - **Coverage config hygiene:** never put `!` globs in `test.include` under Vitest projects
   (vitest#10164); use `test.exclude`.
 - **Extract repeated values:** a literal used more than twice in implementation code becomes a
@@ -31,12 +30,10 @@ alwaysApply: true
   - Extract shared helpers once a pattern is real, not for hypothetical reuse.
   - Reuse existing modules before adding parallel paths.
   - Intentional duplication across published package boundaries is fine.
-- **No large-scale renames** unless a phase doc calls for them. Phase 2's `types` → `core/types`
-  move is one that does.
 - **No `file:` package links** in any dependency field; use `workspace:*` / `workspace:^`.
   Gate: `pnpm run check:no-file-deps`.
-- **Vendor-neutral hosts:** core, environments, the CLI, MCP and the App must not hard-code
-  extension-specific ids or output shapes. Use protocol metadata (`summary`, `useCases`,
-  `projections`, schemas). Domain knowledge lives in the extension.
-- **Reset milestone:** see `reset-milestone.mdc`. The plan and phase docs take precedence over
-  older guidance.
+- **Vendor-neutral host:** the host, CLI, MCP relay and App must not hard-code
+  capability-specific ids or output shapes. Use plugin metadata and schemas. Domain knowledge
+  lives in the plugin.
+- **Realignment milestone:** see `realignment-milestone.mdc`. The plan and phase docs take
+  precedence over older guidance. MVP packages live under `packages/` and `plugins/`.

@@ -1,0 +1,94 @@
+{
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "version": "1.0",
+  "plugin": {
+    "id": "@executioncontrolprotocol/fixture-creative",
+    "package": "@executioncontrolprotocol/fixture-creative",
+    "version": "0.60.0",
+    "summary": "Stand-in shapes for Anthropic and Firefly steps in fixtures.",
+    "description": "Not a runtime plugin. Declares the capability shapes localize-banner references."
+  },
+  "sdkVersion": "2.0.0",
+  "capabilities": [
+    {
+      "id": "@executioncontrolprotocol/anthropic.generate",
+      "name": "generate",
+      "summary": "Generate text.",
+      "description": "Fixture shape for an Anthropic generate call.",
+      "useCases": [
+        "Translate a headline."
+      ],
+      "projections": [
+        "Take the text field."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string"
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+      "name": "photoshop-actions",
+      "summary": "Run a Photoshop action.",
+      "description": "Fixture shape. options.uxp.source.content is a string so executions can pass $script.",
+      "useCases": [
+        "Apply a banner action."
+      ],
+      "projections": [
+        "Take the document ref."
+      ],
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "object",
+            "properties": {
+              "uxp": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "maxLength": 200000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "fixture-creative"
+}

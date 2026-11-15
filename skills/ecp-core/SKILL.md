@@ -1,33 +1,32 @@
 ---
 name: ecp-core
 description: >-
-  Contributes to the ECP monorepo (core, environments, CLI, MCP, plugin SDK,
-  plugins) during and after the CLI reset. Use when executing a reset phase,
-  changing package boundaries, writing extensions or plugins, or running the
-  monorepo checks. Not for everyday workflow authoring (use the docs ecp skill
-  instead).
+  Contributes to the ECP monorepo MVP (host, execution manifest v2, plugins, MCP
+  relay, CLI, App). Use when planning or executing a realignment phase,
+  implementing the MVP build spec, or writing plugins. Not for the old 0.52
+  consumer CLI (use the docs ecp skill for that).
 ---
 
 # ECP core monorepo
 
-Install: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`
-
-This skill is for **working inside this repository**. Consumer workflow authoring uses
-`npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on docs `main`).
+This skill is for **working inside this repository** on `milestone/realignment` and
+`feat/realignment-*` branches.
 
 ## Start here
 
-1. `AGENTS.md` and `.cursor/rules/`: the code as it is now, plus conventions. Phase 1
-   removals (harnesses, evals, EQL, demo) are gone; don't reintroduce them.
-2. 1.0 leftovers live in `reset/later.md`. Cut work from `development`.
-3. `RESET-PLAN.md` and `reset/phase-<n>-*.md` are the completed reset record.
+1. `realignment/spec/README.md` — MVP build spec (exact contracts). Wins over everything else.
+2. `REALIGNMENT-PLAN.md` — decisions, architecture, vocabulary, diagrams.
+3. `realignment/README.md` and the phase doc you were asked to execute.
+4. `AGENTS.md` and `.cursor/rules/` — rules for working in the repo.
+5. `ARCHITECTURE.md` / `SETUP.md` — shipped package layout and local setup.
+
+**Build from `realignment/spec/`**; change the spec first if a contract must change.
 
 ## Progressive disclosure
 
-- `references/package-boundaries.md`: core, environments, hosts, now and after the reset
-- `references/extension-authoring.md`: extension and plugin contract, now and after the reset
-- `references/examples.md`: what's in `examples/` and what changes
-- Harnesses and evals were removed in Phase 1 (`pre-reset` has the old `harness-eval.md`)
+- `references/package-boundaries.md` — MVP packages and boundaries
+- `references/extension-authoring.md` — plugin contract (`plugins/plugin-test` is the reference)
+- `references/examples.md` — v2 examples and fixtures
 
 ## Quick commands
 
@@ -36,11 +35,9 @@ pnpm install
 pnpm run build
 pnpm run check
 pnpm run test:unit
-pnpm run test:plugin-pack
+pnpm run test:e2e
+pnpm run test:app
 ```
 
-**Monorepo dev:** `pnpm --filter @executioncontrolprotocol/cli start`, or `pnpm link --global`
-from `packages/cli/` after `pnpm run build`.
-
-All workspace packages use `workspace:*` / `workspace:^` dependencies. Never add `file:` links.
-Open PRs into `development`. Pushes to `main` publish to npm.
+All workspace packages use `workspace:*` / `workspace:^`. Never add `file:` links.
+Open PRs into `milestone/realignment`. Never push to `main` (publishes to npm) or `development`.

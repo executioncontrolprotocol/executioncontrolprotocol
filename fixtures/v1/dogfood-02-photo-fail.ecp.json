@@ -1,0 +1,20 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Upload",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": {
+          "kind": "file",
+          "path": "__MISSING_PNG__",
+          "mediaType": "image/png"
+        },
+        "blobName": "product.png"
+      },
+      "as": "upload"
+    }
+  ]
+}

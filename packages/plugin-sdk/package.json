@@ -1,34 +1,36 @@
 {
   "name": "@executioncontrolprotocol/plugin-sdk",
-  "version": "0.52.0",
-  "description": "Generate oclif commands and plugin files from ECP definitions",
-  "license": "Apache-2.0",
+  "version": "0.60.0",
+  "description": "Authoring API and ecp-plugin-manifest bin for ECP capability plugins.",
+  "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "bin": {
+    "ecp-plugin-manifest": "./dist/bin/ecp-plugin-manifest.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "README.md"
+    "dist"
   ],
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@oclif/core": "^5.1.8"
+    "@executioncontrolprotocol/protocol": "workspace:*"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
+    "@types/node": "catalog:",
     "zod": "catalog:"
   }
 }

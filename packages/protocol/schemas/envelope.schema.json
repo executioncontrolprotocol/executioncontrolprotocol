@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/envelope.schema.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "data"],
+      "properties": {
+        "ok": { "const": true },
+        "data": {}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "error"],
+      "properties": {
+        "ok": { "const": false },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string", "pattern": "^ECP_[A-Z0-9_]+$" },
+            "message": { "type": "string" },
+            "path": { "type": "string" },
+            "suggestions": { "type": "array", "items": { "type": "string" } },
+            "issues": { "type": "array" },
+            "retryAfterMs": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "echo": {
+      "echo": "hello from fluent API"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Echo",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ]
+}

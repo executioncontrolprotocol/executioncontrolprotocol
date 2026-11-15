@@ -1,71 +1,19 @@
 {
   "files": [],
   "references": [
-    {
-      "path": "packages/core"
-    },
-    {
-      "path": "packages/plugin-sdk"
-    },
-    {
-      "path": "packages/environments/node"
-    },
-    {
-      "path": "packages/environments/browser"
-    },
-    {
-      "path": "packages/cli"
-    },
-    {
-      "path": "plugins/plugin-jsonata"
-    },
-    {
-      "path": "plugins/plugin-test"
-    },
-    {
-      "path": "plugins/plugin-anthropic"
-    },
-    {
-      "path": "plugins/plugin-openai"
-    },
-    {
-      "path": "plugins/plugin-ollama"
-    },
-    {
-      "path": "plugins/plugin-format-toon"
-    },
-    {
-      "path": "plugins/plugin-format-mermaid"
-    },
-    {
-      "path": "plugins/plugin-budget"
-    },
-    {
-      "path": "plugins/plugin-approval"
-    },
-    {
-      "path": "plugins/plugin-state-control"
-    },
-    {
-      "path": "plugins/plugin-fal"
-    },
-    {
-      "path": "plugins/plugin-image-sharp"
-    },
-    {
-      "path": "plugins/plugin-azure-blob-storage"
-    },
-    {
-      "path": "plugins/plugin-adobe-firefly-services"
-    },
-    {
-      "path": "packages/mcp"
-    },
-    {
-      "path": "packages/app"
-    },
-    {
-      "path": "plugins/plugin-app"
-    }
+    { "path": "packages/protocol" },
+    { "path": "packages/engine" },
+    { "path": "packages/quickjs" },
+    { "path": "packages/formatters" },
+    { "path": "packages/local" },
+    { "path": "packages/plugin-sdk" },
+    { "path": "packages/host" },
+    { "path": "packages/mcp-relay" },
+    { "path": "packages/cli" },
+    { "path": "packages/app" },
+    { "path": "plugins/plugin-test" },
+    { "path": "plugins/plugin-anthropic" },
+    { "path": "plugins/plugin-azure-blob-storage" },
+    { "path": "plugins/plugin-adobe-firefly-services" }
   ]
 }

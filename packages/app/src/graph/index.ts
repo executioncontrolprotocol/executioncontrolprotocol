@@ -1,60 +1,90 @@
-export { workflowToReactFlow } from "./workflow-to-reactflow.js"
-export { renderPatchedManifest, renderPatchedStepInput } from "./patch-source.js"
-export { shouldApplyWatchedSource } from "./dirty-buffer.js"
+/**
+ * Execution graph encoder: manifest to React Flow nodes and edges, layout and run status.
+ * @category App
+ */
+export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
   collectSteps,
+  EXPR_HANDLE_ID,
   extractDataEdges,
-  extractWhenEdges,
-  formatWhenBadge,
+  extractExprEdges,
+  formatExprBadge,
   longestMatchingPortId,
+  OUTPUT_HANDLE_ID,
   parseStateRef,
   resolveInputHandle,
-  stateKeyFromWhenExpr,
+  stateKeyFromExpr,
+  stateReadsFromExpr,
+  walkInputExprs,
   walkInputRefs,
-  WHEN_HANDLE_ID,
 } from "./extract-data-edges.js"
 export {
+  acceptsPropertyKeys,
   acceptsReactFlowNode,
-  returnsReactFlowNode,
+  EXECUTION_ACCEPTS_NODE_ID,
+  EXECUTION_RETURNS_NODE_ID,
+  isStepNode,
   portsFromJsonSchemaObject,
-  jsonSchemaObjectProperties,
-  WORKFLOW_ACCEPTS_NODE_ID,
-  WORKFLOW_RETURNS_NODE_ID,
+  returnsReactFlowNode,
+  returnsSourceKeys,
 } from "./io-from-schema.js"
 export {
-  portsForStep,
-  formatLiteralValue,
-  truncateLiteralPreview,
-  ensureOutputPort,
-  ensureInputPort,
-  toJsonObjectSchema,
-} from "./ports-from-zod.js"
+  flattenJsonSchemaProperties,
+  isJsonObject,
+  jsonSchemaObjectProperties,
+  type JsonSchemaProperty,
+} from "./json-schema.js"
 export {
-  valueSchemaFromZod,
+  isExprMarker,
+  isRefMarker,
+  isScriptMarker,
+  isStateMarker,
+  refPathFromValue,
+} from "./markers.js"
+export {
+  ensureInputPort,
+  ensureOutputPort,
+  formatLiteralValue,
+  portsForStep,
+  truncateLiteralPreview,
+} from "./ports-from-schema.js"
+export {
+  fileRefValueSchemaHint,
+  isFileValueSchemaHint,
+  typeLabelFromSchema,
   valueSchemaFromEqlLabel,
   valueSchemaFromJsonSchemaProp,
   valueSchemasFromCapabilitySchema,
-  unwrapZodType,
-  isFileValueSchemaHint,
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
 export { layoutReactFlowDocument } from "./layout.js"
 export {
-  reactFlowRunProgress,
   ReactFlowRunProgress,
+  reactFlowRunProgress,
   type ReactFlowProgressEventName,
 } from "./progress.js"
-export { applyPublicRunEvent } from "./map-run-events.js"
+export {
+  applyRunEvent,
+  armRunState,
+  createRunGraphState,
+  reduceRunEvent,
+  replayRunEvents,
+  type RunGraphLoop,
+  type RunGraphState,
+  type RunGraphStep,
+} from "./map-run-events.js"
 export type {
   CapabilityIoSchemas,
   CapabilitySchemaIndex,
   ReactFlowArmRunState,
+  ReactFlowArmStatusDetail,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
   ReactFlowIoData,
   ReactFlowIoKind,
+  ReactFlowLoopRoundDetail,
   ReactFlowNode,
   ReactFlowPlainEdgeData,
   ReactFlowPort,
@@ -62,6 +92,7 @@ export type {
   ReactFlowRouteEdgeData,
   ReactFlowRouteKind,
   ReactFlowRunLifecycleDetail,
+  ReactFlowRunOutcome,
   ReactFlowStepData,
   ReactFlowStepStatus,
   ReactFlowStepStatusDetail,

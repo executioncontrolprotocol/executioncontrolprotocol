@@ -1,261 +1,159 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
-import { ECP_INPUT_INVALID, EcpError } from "@executioncontrolprotocol/core/types"
-import { Schema_GenerateManifestRequest } from "../src/generated/photoshop/schemas.js"
 import {
   assembleAdobeOperationInput,
-  bodySchemaAcceptsCaiClaimVersion,
   ensureDefaultCaiClaimVersion,
-} from "../src/runtime/invoke.js"
+  mergeParameterBody,
+  unwrapAdobeResult,
+  withDefaultManifestOutputs,
+} from "../src/runtime/assemble.js"
+import { In_GenerateManifestRequest } from "../src/generated/photoshop/schemas.js"
 
-const generateBodySchema = z.object({
+const generateBody = z.strictObject({
   prompt: z.string().min(1),
   seeds: z.array(z.number().int()).optional(),
   numVariations: z.number().int().min(1).max(4).optional(),
+  image: z.looseObject({}).optional(),
+  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
 })
+const rules = { parameters: { body: ["prompt", "seeds", "numVariations", "image", "caiClaimVersion"] }, bodySchema: generateBody }
 
-const bodyKeys = { body: ["prompt", "seeds", "numVariations"] }
-
-describe("assembleAdobeOperationInput", () => {
-  it("sends parameters alone as the JSON body", () => {
-    const assembled = assembleAdobeOperationInput(
-      { prompt: "sunset", numVariations: 2 },
-      bodyKeys,
-      generateBodySchema,
-    )
-    expect(assembled.body).toEqual({ prompt: "sunset", numVariations: 2 })
+describe("mergeParameterBody", () => {
+  it("lets set parameters replace body keys and keeps the rest", () => {
+    expect(mergeParameterBody({ a: 1, b: { x: 1 } }, { b: { y: 2 }, c: 3 })).toEqual({ a: 1, b: { y: 2 }, c: 3 })
   })
 
-  it("overrides and augments body with parameters", () => {
-    const assembled = assembleAdobeOperationInput(
-      {
-        prompt: "from-param",
-        body: { prompt: "from-body", seeds: [7] },
-      },
-      bodyKeys,
-      generateBodySchema,
+  it("omits undefined parameters so they never wipe body keys", () => {
+    expect(mergeParameterBody({ a: 1 }, { a: undefined })).toEqual({ a: 1 })
+  })
+
+  it("returns the parameters alone when there is no body, and the body alone when nothing is set", () => {
+    expect(mergeParameterBody(undefined, { a: 1 })).toEqual({ a: 1 })
+    expect(mergeParameterBody(["raw"], {})).toEqual(["raw"])
+  })
+
+  it("rejects a non-object body when parameters are set", () => {
+    expect(() => mergeParameterBody(["x"], { a: 1 })).toThrow(
+      expect.objectContaining({ code: "ECP_INPUT_INVALID", details: { issues: [{ path: "body", message: "Expected an object." }] } }),
     )
+  })
+})
+
+describe("assembleAdobeOperationInput", () => {
+  it("sends hoisted parameters alone as the JSON body", () => {
+    expect(assembleAdobeOperationInput({ prompt: "sunset", numVariations: 2 }, rules).body).toEqual({
+      prompt: "sunset",
+      numVariations: 2,
+    })
+  })
+
+  it("merges body under parameters: { ...body, ...set }", () => {
+    const assembled = assembleAdobeOperationInput({ prompt: "from-param", body: { prompt: "from-body", seeds: [7] } }, rules)
     expect(assembled.body).toEqual({ prompt: "from-param", seeds: [7] })
   })
 
-  it("maps path, query, and header keys", () => {
+  it("keeps a body key when the matching parameter is omitted", () => {
+    expect(assembleAdobeOperationInput({ body: { prompt: "keep", seeds: [2] } }, rules).body).toEqual({ prompt: "keep", seeds: [2] })
+  })
+
+  it("maps path, query and header keys and stringifies non-scalar values", () => {
     const assembled = assembleAdobeOperationInput(
-      {
-        jobId: "job-1",
-        limit: "10",
-        "x-model-version": "image5",
-        prompt: "dunes",
-      },
-      {
-        path: ["jobId"],
-        query: ["limit"],
-        headers: ["x-model-version"],
-        body: ["prompt"],
-      },
-      generateBodySchema,
+      { jobId: "job-1", limit: 10, filter: { a: 1 }, "x-model-version": "image5", "x-flag": true, prompt: "dunes", stray: 1 },
+      { parameters: { path: ["jobId"], query: ["limit", "filter"], headers: ["x-model-version", "x-flag"], body: ["prompt"] }, bodySchema: generateBody },
     )
-    expect(assembled.path).toEqual({ jobId: "job-1" })
-    expect(assembled.query).toEqual({ limit: "10" })
-    expect(assembled.headers).toEqual({ "x-model-version": "image5" })
-    expect(assembled.body).toEqual({ prompt: "dunes" })
+    expect(assembled).toEqual({
+      path: { jobId: "job-1" },
+      query: { limit: 10, filter: '{"a":1}' },
+      headers: { "x-model-version": "image5", "x-flag": "true" },
+      body: { prompt: "dunes" },
+    })
   })
 
-  it("rejects a merged body missing prompt", () => {
-    expect(() =>
-      assembleAdobeOperationInput(
-        { body: { seeds: [1] } },
-        bodyKeys,
-        generateBodySchema,
-      ),
-    ).toThrow(/Adobe request body failed schema/)
+  it("fails with issue paths when the merged body misses a required field", () => {
+    expect(() => assembleAdobeOperationInput({ body: { seeds: [1] } }, rules)).toThrow(
+      expect.objectContaining({
+        code: "ECP_INPUT_INVALID",
+        details: { issues: [expect.objectContaining({ path: "prompt" })] },
+      }),
+    )
   })
 
-  it("rejects a non-object body when a body parameter is set", () => {
-    expect(() =>
-      assembleAdobeOperationInput(
-        { prompt: "x", body: ["not-an-object"] },
-        bodyKeys,
-        generateBodySchema,
-      ),
-    ).toThrow(EcpError)
-    try {
-      assembleAdobeOperationInput(
-        { prompt: "x", body: ["not-an-object"] },
-        bodyKeys,
-        generateBodySchema,
-      )
-    } catch (err) {
-      expect(err).toBeInstanceOf(EcpError)
-      expect((err as EcpError).code).toBe(ECP_INPUT_INVALID)
-      return
-    }
-    expect.fail("expected EcpError")
+  it("rejects body keys the API schema does not declare", () => {
+    expect(() => assembleAdobeOperationInput({ prompt: "x", body: { notAField: 1 } }, rules)).toThrow(
+      expect.objectContaining({ code: "ECP_INPUT_INVALID" }),
+    )
   })
 
-  it("does not erase a body key when the matching parameter is omitted", () => {
+  it("validates an empty body when the API requires one", () => {
+    expect(() => assembleAdobeOperationInput({}, { ...rules, bodyRequired: true })).toThrow(
+      expect.objectContaining({ code: "ECP_INPUT_INVALID" }),
+    )
+  })
+
+  it("sends no body when nothing is set and none is required", () => {
+    expect(assembleAdobeOperationInput({}, rules)).toEqual({ path: {}, query: {}, headers: {} })
+    expect(assembleAdobeOperationInput({})).toEqual({ path: {}, query: {}, headers: {} })
+  })
+
+  it("passes a body through unchecked when the operation has no schema", () => {
+    expect(assembleAdobeOperationInput({ body: [1, 2] }, {}).body).toEqual([1, 2])
+  })
+
+  it("defaults caiClaimVersion to 2 only when the operation asks for it", () => {
+    const image = { source: { url: "https://example.test/a.png" } }
+    expect(assembleAdobeOperationInput({ prompt: "p", image }, { ...rules, defaultCaiClaimVersion: true }).body).toEqual({
+      prompt: "p",
+      image,
+      caiClaimVersion: 2,
+    })
+    expect(assembleAdobeOperationInput({ prompt: "p", image }, rules).body).toEqual({ prompt: "p", image })
+  })
+
+  it("never injects caiClaimVersion into the generated Photoshop manifest schema", () => {
     const assembled = assembleAdobeOperationInput(
-      { body: { prompt: "keep", seeds: [2] } },
-      bodyKeys,
-      generateBodySchema,
+      withDefaultManifestOutputs({ image: { source: { url: "https://example.test/a.psd" } } }),
+      { parameters: { body: ["image", "outputs"] }, bodySchema: In_GenerateManifestRequest, bodyRequired: true },
     )
-    expect(assembled.body).toEqual({ prompt: "keep", seeds: [2] })
-  })
-
-  it("leaves body undefined when neither body nor parameters are set", () => {
-    const assembled = assembleAdobeOperationInput({}, bodyKeys, generateBodySchema)
-    expect(assembled.body).toBeUndefined()
-  })
-
-  it("does not treat poll knobs as request fields", () => {
-    const assembled = assembleAdobeOperationInput(
-      { prompt: "sunset", pollIntervalMs: 1000, pollTimeoutMs: 5_000 },
-      bodyKeys,
-      generateBodySchema,
-    )
-    expect(assembled.body).toEqual({ prompt: "sunset" })
-    expect(assembled).not.toHaveProperty("pollIntervalMs")
-    expect(assembled).not.toHaveProperty("pollTimeoutMs")
+    expect(assembled.body).not.toHaveProperty("caiClaimVersion")
   })
 })
-
-const expandBodySchema = z.object({
-  image: z.object({ source: z.object({ url: z.string().optional() }).passthrough() }),
-  caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional(),
-  prompt: z.string().optional(),
-})
-
-const expandBodyKeys = { body: ["image", "caiClaimVersion", "prompt"] }
 
 describe("ensureDefaultCaiClaimVersion", () => {
-  it("defaults to 2 when an image input is present and the field is omitted", () => {
-    expect(
-      ensureDefaultCaiClaimVersion({
-        image: { source: { url: "https://example.com/a.png" } },
-      }),
-    ).toEqual({
-      image: { source: { url: "https://example.com/a.png" } },
-      caiClaimVersion: 2,
-    })
-  })
-
-  it("leaves an explicit caiClaimVersion alone", () => {
-    expect(
-      ensureDefaultCaiClaimVersion({
-        image: { source: { url: "https://example.com/a.png" } },
-        caiClaimVersion: 1,
-      }),
-    ).toEqual({
-      image: { source: { url: "https://example.com/a.png" } },
-      caiClaimVersion: 1,
-    })
-  })
-
-  it("does not add caiClaimVersion when there is no image input", () => {
-    expect(ensureDefaultCaiClaimVersion({ prompt: "sunset" })).toEqual({ prompt: "sunset" })
+  it("adds 2 for image inputs, keeps an explicit value and skips text-only bodies", () => {
+    expect(ensureDefaultCaiClaimVersion({ mask: {} })).toEqual({ mask: {}, caiClaimVersion: 2 })
+    expect(ensureDefaultCaiClaimVersion({ image: {}, caiClaimVersion: 1 })).toEqual({ image: {}, caiClaimVersion: 1 })
+    expect(ensureDefaultCaiClaimVersion({ prompt: "x" })).toEqual({ prompt: "x" })
+    expect(ensureDefaultCaiClaimVersion("raw")).toBe("raw")
   })
 })
 
-const photoshopManifestBodySchema = z
-  .object({
-    image: z
-      .object({
-        source: z.object({ url: z.string().optional() }).passthrough().optional(),
-      })
-      .passthrough()
-      .optional(),
-    outputs: z
-      .array(
-        z.object({
-          destination: z.record(z.string(), z.unknown()).optional(),
-          mediaType: z.string().optional(),
-        }),
-      )
-      .optional(),
-  })
-  .strict()
-
-const photoshopBodyKeys = { body: ["image", "outputs"] }
-
-describe("bodySchemaAcceptsCaiClaimVersion", () => {
-  it("is true for Firefly expand-style schemas", () => {
-    expect(bodySchemaAcceptsCaiClaimVersion(expandBodySchema)).toBe(true)
+describe("unwrapAdobeResult", () => {
+  it("returns the result object and drops the job envelope", () => {
+    expect(unwrapAdobeResult({ jobId: "j", status: "succeeded", result: { outputs: [1] } })).toEqual({ outputs: [1] })
   })
 
-  it("is false for Photoshop schemas that reject the field", () => {
-    expect(bodySchemaAcceptsCaiClaimVersion(photoshopManifestBodySchema)).toBe(false)
-    expect(bodySchemaAcceptsCaiClaimVersion(Schema_GenerateManifestRequest)).toBe(false)
+  it("leaves bodies without a result object unchanged", () => {
+    expect(unwrapAdobeResult({ status: "succeeded", outputs: [] })).toEqual({ status: "succeeded", outputs: [] })
+    expect(unwrapAdobeResult({ result: [1] })).toEqual({ result: [1] })
+    expect(unwrapAdobeResult({ result: null })).toEqual({ result: null })
+    expect(unwrapAdobeResult([1])).toEqual([1])
+    expect(unwrapAdobeResult(undefined)).toBeUndefined()
   })
 })
 
-describe("assembleAdobeOperationInput caiClaimVersion", () => {
-  it("defaults caiClaimVersion to 2 for expand-style image requests", () => {
-    const assembled = assembleAdobeOperationInput(
-      { image: { source: { url: "https://example.com/a.png" } } },
-      expandBodyKeys,
-      expandBodySchema,
-    )
-    expect(assembled.body).toEqual({
-      image: { source: { url: "https://example.com/a.png" } },
-      caiClaimVersion: 2,
-    })
-  })
-
-  it("keeps an author-provided caiClaimVersion", () => {
-    const assembled = assembleAdobeOperationInput(
-      {
-        image: { source: { url: "https://example.com/a.png" } },
-        caiClaimVersion: 1,
-      },
-      expandBodyKeys,
-      expandBodySchema,
-    )
-    expect(assembled.body).toEqual({
-      image: { source: { url: "https://example.com/a.png" } },
-      caiClaimVersion: 1,
-    })
-  })
-
-  it("does not inject caiClaimVersion into Photoshop image bodies", () => {
-    const assembled = assembleAdobeOperationInput(
-      {
-        image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
-        outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
-      },
-      photoshopBodyKeys,
-      photoshopManifestBodySchema,
-    )
-    expect(assembled.body).toEqual({
-      image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
+describe("withDefaultManifestOutputs", () => {
+  it("adds embedded JSON outputs when none are set", () => {
+    expect(withDefaultManifestOutputs({ image: 1 })).toEqual({
+      image: 1,
       outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
     })
-    expect(assembled.body).not.toHaveProperty("caiClaimVersion")
+    expect(withDefaultManifestOutputs({ outputs: [], body: { outputs: [] } }).outputs).toHaveLength(1)
   })
 
-  it("does not inject caiClaimVersion for generated Photoshop generate-manifest schema", () => {
-    const assembled = assembleAdobeOperationInput(
-      {
-        image: { source: { url: "https://filesamples.com/samples/image/psd/sample.psd" } },
-        outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }],
-      },
-      photoshopBodyKeys,
-      Schema_GenerateManifestRequest,
-    )
-    expect(assembled.body).not.toHaveProperty("caiClaimVersion")
-  })
-
-  it("strips undeclared keys from the wire body", () => {
-    const assembled = assembleAdobeOperationInput(
-      {
-        image: { source: { url: "https://example.com/a.png" } },
-        caiClaimVersion: 2,
-        notARealField: true,
-      },
-      expandBodyKeys,
-      expandBodySchema,
-    )
-    expect(assembled.body).toEqual({
-      image: { source: { url: "https://example.com/a.png" } },
-      caiClaimVersion: 2,
-    })
+  it("keeps outputs set as a parameter or in body", () => {
+    const param = { outputs: [{ mediaType: "image/png" }] }
+    expect(withDefaultManifestOutputs(param)).toBe(param)
+    const inBody = { body: { outputs: [{ mediaType: "image/png" }] } }
+    expect(withDefaultManifestOutputs(inBody)).toBe(inBody)
   })
 })

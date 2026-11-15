@@ -1,0 +1,28 @@
+{
+  "input": {
+    "signals": ["a"]
+  },
+  "status": "completed",
+  "result": {
+    "brief": {
+      "text": "brief",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5
+      }
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Generate",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Phase 8 retarget: openai.generate replaced by anthropic.generate (mocked fetch in tests)."
+}

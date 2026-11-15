@@ -1,0 +1,26 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array"
+        }
+      },
+      "required": ["items"]
+    }
+  },
+  "steps": [
+    {
+      "id": "Reshape",
+      "uses": "@executioncontrolprotocol/test.fail",
+      "input": {
+        "code": "ECP_STEP_FAILED",
+        "message": "wrong path"
+      },
+      "as": "summary"
+    }
+  ]
+}

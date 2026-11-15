@@ -1,0 +1,24 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "slot",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "a"
+      },
+      "as": "slot",
+      "mode": "create"
+    },
+    {
+      "id": "second",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "b"
+      },
+      "as": "slot",
+      "mode": "replace"
+    }
+  ]
+}

@@ -1,35 +1,23 @@
-import { defineConfig } from "vite"
-import react from "@vitejs/plugin-react"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
 
 const root = path.dirname(fileURLToPath(import.meta.url))
-const appOrigin = process.env.ECP_APP_ORIGIN ?? "http://127.0.0.1:8787"
-const proxy = {
-  "/api": { target: appOrigin, ws: true, changeOrigin: true },
-  "/v1": { target: appOrigin, changeOrigin: true },
-}
+// The host port is random per supervisor; read it from `~/.ecp/host.json` when developing.
+const hostOrigin = process.env.ECP_HOST_ORIGIN
 
 export default defineConfig({
   root,
+  base: "/app/",
   plugins: [react()],
   build: {
     outDir: "dist/web",
-    emptyOutDir: false,
+    emptyOutDir: true,
   },
   server: {
     host: "127.0.0.1",
     port: 5173,
-    proxy,
-  },
-  preview: {
-    host: "127.0.0.1",
-    proxy,
-  },
-  resolve: {
-    alias: {
-      "@executioncontrolprotocol/core/types": path.resolve(root, "../core/src/types/index.ts"),
-      "@executioncontrolprotocol/core": path.resolve(root, "../core/src/index.ts"),
-    },
+    ...(hostOrigin ? { proxy: { "/v1": { target: hostOrigin, changeOrigin: true } } } : {}),
   },
 })

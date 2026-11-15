@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/commit.input.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "action"],
+  "properties": {
+    "type": { "enum": ["execution", "config"] },
+    "action": { "enum": ["create", "update", "delete"] },
+    "id": { "type": "string", "minLength": 1 },
+    "object": {},
+    "patch": { "type": "array" },
+    "ifVersion": { "type": "integer", "minimum": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "enum": ["update", "delete"] } }, "required": ["action"] },
+      "then": { "required": ["ifVersion"] }
+    },
+    {
+      "if": { "properties": { "action": { "const": "update" } }, "required": ["action"] },
+      "then": { "not": { "required": ["object", "patch"] } }
+    }
+  ]
+}

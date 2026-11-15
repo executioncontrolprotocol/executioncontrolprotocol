@@ -1,0 +1,30 @@
+{
+  "input": {
+    "items": [
+      { "title": "Widget" },
+      { "title": "Gadget" }
+    ]
+  },
+  "status": "completed",
+  "result": {
+    "summary": {
+      "echo": {
+        "title": "Widget",
+        "count": 2
+      }
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Reshape",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Phase 8 retarget: jsonata.transform replaced by test.echo + $expr."
+}

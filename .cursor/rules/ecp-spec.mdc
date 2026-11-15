@@ -5,22 +5,23 @@ alwaysApply: true
 
 # ECP specification
 
-- **Source of truth during the reset:** `RESET-PLAN.md` and `reset/` (see
-  `reset-milestone.mdc`). `ecp-overhaul.md` was deleted in Phase 1.
-- **Types:** `packages/core/src/types` (`@executioncontrolprotocol/core/types`).
-- **Fluent API and engine:** `packages/core/src` (`@executioncontrolprotocol/core`).
-- **Manifests:** workflows use `schema: "@executioncontrolprotocol.workflow"` and
-  `version: "1.0"` (`LATEST_ECP_VERSION`). Workflow-file bindings compile into a
-  separate `@executioncontrolprotocol.requirements` block (`requirements()`), never into
-  the portable manifest. Run journals use `schema: "@executioncontrolprotocol.run.journal"`
-  (`journalVersion: 1`).
-- **Portability:**
-  - A compiled workflow manifest never contains secrets or host config.
-  - A workflow *file* declares its extension and policy bindings with
-    `workflow(...).with([...])`, and compiling splits them into the requirements block.
-  - Environments are hosts (Node, browser, later Temporal) that add their own bindings and
-    always-on policies.
-- **Validation:** use Zod for config schemas, capability I/O and manifest validation.
-- **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. New
-  error codes use the `ECP_*` catalogue in `RESET-PLAN.md` §4.6.
-- Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model.
+- **Source of truth:** the MVP build spec in `realignment/spec/` (exact contracts), then
+  `REALIGNMENT-PLAN.md` (see `realignment-milestone.mdc`). `SPEC.md` points at
+  `realignment/spec/`; the CLI reset plan is retired.
+- **Executions** (formerly workflows) are JSON manifests:
+  `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The shape is
+  `realignment/spec/02-execution-manifest.md`; the JSON Schema is
+  `packages/protocol/schemas/execution.base.schema.json` (written in Phase 0).
+- **Portability:** an execution never contains secrets, `$secret`/`$env` references, bindings
+  or host config. It references capabilities by id; steps may name a `config` object.
+- **Expressions:** one `expr` field on steps, branch arms and loops; `true` means go. Computed
+  values use `{ "$expr": "(state) => …" }`. Both run only in the QuickJS sandbox. `$script` is a
+  value the host syntax-checks and never runs.
+- **Validation:** the host validates against JSON Schema (capability `accepts`/`returns` from
+  plugin manifests, and the execution schema). Plugins author schemas with zod and export JSON
+  Schema.
+- **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. Error
+  codes are `ECP_*`; the catalogue is `realignment/spec/06-operations.md` (with HTTP statuses
+  and CLI exit codes). Validation layers and the issue shape are in `03-validation.md`.
+- Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model or v1
+  `@executioncontrolprotocol.workflow` / `$fn` shapes.

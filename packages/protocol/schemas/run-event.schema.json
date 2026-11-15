@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/run-event.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seq", "at", "type", "data"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 1 },
+    "at": { "type": "string" },
+    "type": {
+      "enum": [
+        "run.start",
+        "step.start",
+        "step.skip",
+        "step.end",
+        "step.error",
+        "branch.select",
+        "loop.round",
+        "loop.exhausted",
+        "run.interrupted",
+        "run.resume",
+        "run.end"
+      ]
+    },
+    "data": { "type": "object" }
+  }
+}

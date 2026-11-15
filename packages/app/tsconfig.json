@@ -2,19 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
-    "composite": true
+    "rootDir": "src"
   },
   "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "src/ui/**",
-    "src/web/**"
+    "src/index.ts",
+    "src/version.ts",
+    "src/graph/**/*.ts",
+    "src/client/**/*.ts",
+    "src/form/**/*.ts"
   ],
   "references": [
-    {
-      "path": "../core"
-    }
+    { "path": "../protocol" }
   ]
 }

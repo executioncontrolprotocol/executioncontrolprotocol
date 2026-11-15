@@ -1,0 +1,32 @@
+{
+  "name": "@executioncontrolprotocol/mcp-relay",
+  "version": "0.60.0",
+  "private": true,
+  "description": "MCP stdio relay for the three ECP host operations.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/host": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

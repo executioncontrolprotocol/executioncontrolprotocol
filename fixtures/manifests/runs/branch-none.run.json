@@ -1,0 +1,11 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {},
+  "steps": [],
+  "events": [
+    "run.start",
+    "branch.select",
+    "run.end"
+  ]
+}

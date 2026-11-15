@@ -1,210 +1,138 @@
 # AGENTS.md
 
-## Read this first: the CLI reset milestone
+## Read this first: the realignment milestone
 
-This branch line (`milestone/cli-reset` and `feat/phase-*` branches cut from it) is executing
-the ECP reset. On these branches:
+This branch line (`milestone/realignment` and `feat/realignment-*` branches cut from it) is
+executing the ECP realignment.
 
-1. **[`RESET-PLAN.md`](RESET-PLAN.md)** holds the decisions and the target architecture.
-2. **[`reset/`](reset/README.md)** holds one detailed doc per phase: scope, file-level tasks,
-   tests, exit criteria. If you were asked to execute a phase, its doc is your task list.
-3. **This file and `.cursor/rules/`** describe the code as it is *now* and the rules for
-   changing it. Where anything here disagrees with `RESET-PLAN.md` or a phase doc, the plan
-   wins. Say so in your PR, and propose a fix to this file.
+1. **[`realignment/spec/`](realignment/spec/README.md)** is the MVP build spec: exact contracts. It wins
+   over everything else.
+2. **[`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md)** holds the decisions, architecture and rationale.
+3. **[`realignment/`](realignment/README.md)** holds the phase docs. If you were asked to
+   execute a phase, its doc is your task list.
+4. **This file and `.cursor/rules/`** hold the rules for working in the repo. Where anything
+   here disagrees with the plan or a phase doc, the plan wins: say so in your PR and propose a
+   fix to this file.
 
-Ground rules for every phase:
+The previous milestone's plan (the CLI reset, `RESET-PLAN.md` and `reset/`) was retired on
+2026-11-14. What still applies is in the plan's "Carried over from the CLI reset" section; the
+originals are in git history (`git show 27238c96:RESET-PLAN.md`). Don't resurrect them as
+instructions.
 
-- Branch `feat/phase-<n>-<slug>` from `milestone/cli-reset`; open the PR into
-  `milestone/cli-reset`.
-- **Never push to `main` or `development` except the Phase 9 field-test merge path**
-  (`milestone/cli-reset` → `development` → `main` with `ENABLE_NPM_PUBLISH`). Pushes to
-  `main` publish to npm. Phase 9 publishes **0.50.0**, not 1.0.
+Ground rules:
+
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
+  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
+  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
+- Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment`; open PRs into
+  `milestone/realignment`.
+- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **MVP packages live under `packages/` and `plugins/`.** Implement against `realignment/spec/`.
+  Do not resurrect deleted `legacy/` trees.
 - Keep the pre-commit hook on. Don't skip, delete or weaken valid tests to get CI green, except
   for removals a phase doc explicitly lists.
-- **Don't reintroduce Phase 1 removals** (harnesses, evals, EQL, the demo, `browser-secrets`,
-  `image-policy`, Temporal, CLI `serve`/`up`/`encode`/`decode`). Don't extend code a later
-  phase still removes; the status column below says which code that is.
-- If a phase doc is wrong or impossible, stop and say so rather than improvising. Label
-  anything stubbed, mocked or deferred honestly, in code and in the PR.
-- Update the phase's status in `reset/README.md` and `RESET-PLAN.md` §7 in the same PR that
-  finishes it.
+- If the plan or a phase doc is wrong or impossible, stop and say so rather than improvising.
+  Label anything stubbed, mocked or deferred honestly, in code and in the PR.
 
-## What ECP is (after the reset)
+## What ECP is
 
-ECP is the **deterministic delegation capability** that an orchestrating agent operates: the
-agent authors workflow files, runs them, reads structured errors and run journals, and repairs
-and reruns them. ECP is part of a harness, never the whole harness. The primary surface is an
-oclif CLI (`ecp`) whose capabilities come from npm plugins. MCP and a visual App are plugins
-on top. See `RESET-PLAN.md` §0–§1.
+An **ECP host** runs **executions**: JSON manifests of capability steps with routing (parallel,
+branch, loop, `expr` gates). The host validates every capability call against the
+capability's `accepts`/`returns` schemas. Plugins only provide capabilities; they're loaded into
+the host process on first call, from per-plugin manifests. Agents use exactly three
+operations, `retrieve`, `execute`, `commit`, through an MCP relay, the CLI, or the host's
+localhost HTTP API. Every key host component is a swappable **service**
+(`environment.use(Impl, Interface.service)`). Policies are out of scope for now.
 
-## Repository map
+Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`. Architecture summary:
+`ARCHITECTURE.md`.
 
-| Path | What it is | Reset status |
-| --- | --- | --- |
-| `packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types (`@executioncontrolprotocol/core`, `./types`) | Host-agnostic. Exports `.` and `./types` only. `registry-control` is in core |
-| `packages/core/src/types/` | Protocol types and JSON Schemas (`@executioncontrolprotocol/core/types`) | Folded from `packages/types` in Phase 2 PR 1 |
-| `packages/environments/node/` | Node host (`@executioncontrolprotocol/node`) | Includes compile, loaders, OS secrets, process-env, and the run journal |
-| `packages/environments/browser/` | Browser host (`@executioncontrolprotocol/browser`) | Includes browser compile (esbuild-wasm). Authoring panels and secrets provider removed in Phase 1 |
-| `packages/cli/` | `ecp` CLI (oclif 5, generated operations + hooks) | Rebuilt in Phase 3 |
-| `packages/plugin-sdk/` | `toCommands`, `EcpCommand`, `defineOperation`, plugin build library | Added in Phase 3 |
-| `plugins/plugin-jsonata/` | Reference plugin (`@executioncontrolprotocol/plugin-jsonata`) | Migrated in Phase 3 |
-| `plugins/plugin-test/` | Stub echo/placeholder plugin (`@executioncontrolprotocol/plugin-test`) | Not a Node default; `ecp plugins link plugins/plugin-test` |
-| `plugins/plugin-anthropic/` | Anthropic model provider (`@executioncontrolprotocol/plugin-anthropic`) | Migrated in Phase 5 PR 1 |
-| `plugins/plugin-openai/` | OpenAI model provider (`@executioncontrolprotocol/plugin-openai`) | Migrated in Phase 5 PR 1 |
-| `plugins/plugin-ollama/` | Ollama model provider (`@executioncontrolprotocol/plugin-ollama`) | Migrated in Phase 5 PR 1 |
-| `packages/mcp/` | MCP adapter | Phase 7 Done: `createEcpMcpServer({ host })`, `toMcpTools`, `ecp mcp serve` (stdio + HTTP 127.0.0.1/bearer/`--allow-remote`), `list_changed`, progress. CLI `oclif.jitPlugins` pins `"^0.52"`. First-use JIT from npm waits on the 0.52.0 publish |
-| `packages/app/` | Visual App (`@executioncontrolprotocol/app`) | Phase 8 Done: `HostAdapter`, graph encoder, prebuilt `dist/web`. React is an optional peer |
-| `plugins/plugin-app/` | JIT CLI plugin (`@executioncontrolprotocol/plugin-app`) | Phase 8 Done: `ecp app` loopback + token + `--no-open`. CLI `oclif.jitPlugins` pins `"^0.52"`. First-use JIT from npm waits on the 0.52.0 publish. Proven with `ecp plugins link plugins/plugin-app` |
-| `plugins/plugin-format-toon/` | TOON encode/decode (`@executioncontrolprotocol/plugin-format-toon`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-toon` |
-| `plugins/plugin-format-mermaid/` | Mermaid encode (`@executioncontrolprotocol/plugin-format-mermaid`) | Migrated in Phase 5 PR 2. Id stays `@executioncontrolprotocol/format-mermaid` |
-| `plugins/plugin-budget/` | Budget policy | Migrated in Phase 5 PR 2 |
-| `plugins/plugin-approval/` | Approval policy | Migrated in Phase 5 PR 2 |
-| `plugins/plugin-state-control/` | State-control policy | Migrated in Phase 5 PR 2 |
-| `plugins/plugin-fal/` | FAL generative inference (`@executioncontrolprotocol/plugin-fal`) | Migrated in Phase 5 PR 3 |
-| `plugins/plugin-image-sharp/` | Sharp image processing (`@executioncontrolprotocol/plugin-image-sharp`) | Migrated in Phase 5 PR 3. Native binaries smoked on Ubuntu CI only |
-| `plugins/plugin-azure-blob-storage/` | Azure Blob upload/SAS/download | Migrated in Phase 5 PR 3 |
-| `plugins/plugin-adobe-firefly-services/` | Adobe Firefly Services (`@executioncontrolprotocol/plugin-adobe-firefly-services`) | Migrated in Phase 5 PR 4. Id stays `@executioncontrolprotocol/adobe-firefly-services`. Generated `firefly` topic alias |
-| `examples/` | Single-file `*.ecp.ts` workflows (01, 02, 03, 06, 07) | Converted in Phase 4 PR 1; plugin examples live next to each plugin |
-| `skills/ecp-core/` | Contributor skill for this repo | Kept current with this file |
-| `RESET-PLAN.md`, `reset/` | The reset plan and phase docs | Source of truth during the milestone |
+## Principles
 
-Removed in Phase 1 (recoverable at `pre-reset`): `packages/harnesses/*`, `packages/evals`,
-`packages/runtimes/temporal`, `apps/browser-demo`, `packages/extensions/format-reactflow`.
-The demo graph editor returned as `packages/app` + `plugins/plugin-app` in Phase 8.
+- **Delegation, not orchestration.** ECP serves the agent that operates it; don't build
+  features that try to think for the agent.
+- **Model-legible everywhere.** `--json` on every command, stable `ECP_*` codes with paths and
+  suggestions, structured run records, help and metadata written for a model reader.
+- **The self-healing loop is the product.** Every failure legible, every fix cheap to retry.
+- **Engine does no I/O.** Everything external goes through services.
+- **Be honest about stubs.** Label anything mocked or unimplemented; never ship it as real.
+- **Hosted never diverges.** Hosted ECP adds service implementations and plugins, never
+  execution semantics.
 
-Target layout after the milestone: `packages/{core,cli,mcp,plugin-sdk,app}`,
-`packages/environments/{node,browser}`, `plugins/plugin-*`, `examples/` (single-file
-workflows). See `RESET-PLAN.md` §2.3.
+## Repository map (MVP)
+
+| Path | Role |
+| --- | --- |
+| `packages/protocol` | Types, JSON schemas, service tokens, error catalogue |
+| `packages/engine` | Executor, validation, operations, service container |
+| `packages/quickjs` | QuickJS-WASM `ExpressionEngine` |
+| `packages/local` | Disk storage, OS secrets, in-process plugin registration |
+| `packages/formatters` | JSON and TOON formatters |
+| `packages/host` | Local host, HTTP API, supervisor |
+| `packages/cli` | `ecp` CLI |
+| `packages/mcp-relay` | Stdio MCP relay (three tools) |
+| `packages/app` | Visual App (`/app/`) |
+| `packages/plugin-sdk` | `definePlugin` / `capability` |
+| `plugins/plugin-test` | Harness capabilities (reference plugin) |
+| `plugins/plugin-anthropic`, `plugin-azure-blob-storage`, `plugin-adobe-firefly-services` | MVP provider plugins |
+| `fixtures/`, `examples/`, `test/e2e/`, `bench/` | Fixtures, examples, e2e/acceptance, budgets |
+| `skills/ecp-core/` | Contributor skill |
+| `REALIGNMENT-PLAN.md`, `realignment/`, `realignment/spec/` | Plan, phases, MVP build spec |
+
+The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
 
 ## Rules that hold throughout
 
 - **No `file:` package links.** Never put `"file:..."` in any dependency field. In-repo
   packages use `workspace:*` / `workspace:^`. Gate: `pnpm run check:no-file-deps`.
-- **Core stays host-agnostic.** The `@executioncontrolprotocol/core` root entry has no Node or
-  browser I/O. Exports are `.` and `./types` only. Node compile/loaders live on
-  `@executioncontrolprotocol/node`; browser compile lives on `@executioncontrolprotocol/browser`.
-- **Extensions never import hosts.** Extension and plugin packages depend on `core` and
-  `core/types` plus focused third-party libraries, never on `node`, `browser`, `cli`
-  or `mcp`. See `.cursor/rules/extensions.mdc`.
-- **Operational APIs live on `Ecp` after `init()`** (`run`, `validate`, `describe`, `search`,
-  `invoke`, `encode`, `decode`, `patch`, `terminate`), not on the environment builder.
-- **Fluent rendering is in core** (`toFluentSource`, `ecp.encode(...).as("fluent")`). There's no
-  `format-fluent` extension.
-- **Workflow manifests** use `schema: "@executioncontrolprotocol.workflow"`, version `1.0`. The
-  compiled manifest never contains secrets or host config. Workflow-file bindings
-  (`workflow(...).with([...])`) compile into a separate `@executioncontrolprotocol.requirements`
-  block, never into the manifest.
 - **Secrets:**
   - Never commit live keys; use `.env` (gitignored), the OS keychain, or CI secrets.
-  - Workflow and config files reference secrets with `secrets("key")`, never values.
+  - Executions never contain secrets or `$secret`/`$env` references. Config objects hold
+    `{ "$secret": "key" }` references; values live in the secrets provider and are set outside
+    MCP (`ecp secrets set`).
   - Pre-commit runs Secretlint; CI also runs Gitleaks.
+- **Plugins never import hosts.** Plugin packages depend on the plugin authoring package (as a
+  peer dependency) and focused third-party libraries, never on the host, CLI, relay or App
+  packages. Heavy SDKs stay in their own plugin package.
+- **Vendor-neutral host:** the host, CLI, relay and App must not branch on specific capability
+  ids or output shapes. Domain knowledge lives in the plugin, surfaced through metadata and
+  schemas.
+- **JS in executions:** host-evaluated JavaScript (`expr`, `$expr`) runs only in the QuickJS
+  sandbox, never with `new Function` or `eval` in the host process. `$script` is a value: the
+  host parses it and never runs it.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
   - Coverage floors live in `vitest.config.mts`; raise them toward 90%, never lower them to
     get CI green.
   - Never use `!` globs in Vitest `test.include` (vitest#10164).
   - See `.cursor/rules/testing-coverage.mdc`.
-- **No backwards-compatibility shims** unless a phase doc asks for one (Phase 9 handles npm
-  deprecations). See `.cursor/rules/no-backwards-compatibility.mdc`.
-- **Authored config is TypeScript/JavaScript; machine-managed state is JSON.** Workflows and
-  the config file are `.ts`/`.js`. `trust.json` and run journals are JSON. See
-  `.cursor/rules/file-formats.mdc`.
-- **Vendor-neutral hosts:** core, environments, CLI, MCP and the App must not branch on specific
-  extension ids or output shapes. Domain knowledge lives in the extension, surfaced through
-  metadata (`summary`, `useCases`, `projections`).
+- **No backwards-compatibility shims** unless the plan or a phase doc asks for one. See
+  `.cursor/rules/no-backwards-compatibility.mdc`.
+- **File formats:** executions, configs, run records and manifests are JSON. Fluent TypeScript
+  is an optional authoring SDK that compiles to JSON. See `.cursor/rules/file-formats.mdc`.
 
 ## Commands
 
+Root `package.json` is the source of truth:
+
 ```sh
-pnpm install                 # always from the repo root
-pnpm run build               # tsc -b tsconfig.build.json
-pnpm run check               # build + schema + lint + secrets + coverage + integration + e2e
+pnpm install            # always from the repo root
+pnpm run build          # tsc -b + App web bundle
+pnpm run check          # build + manifests + lint + secrets + no-file-deps + coverage + integration + e2e + app
 pnpm run test:unit
-pnpm run test:coverage       # the coverage gate (pre-commit + CI unit job)
+pnpm run test:coverage  # coverage gate (pre-commit + CI)
 pnpm run test:integration
-pnpm run test:e2e
-pnpm run test:browser        # Vitest browser project (run test:browser:install once)
-pnpm run test:plugin-pack    # packed CLI + plugin tarball install smoke
+pnpm run test:e2e       # includes test/e2e/acceptance/A1–A12
+pnpm run test:app       # Playwright A8
+pnpm run bench          # budgets in bench/budgets.json
 pnpm run lint
 pnpm run secrets:scan
-pnpm run generate:schema     # JSON Schemas (`packages/core/dist/schemas`)
 ```
-
-Removed in Phase 1:
-
-- The demo scripts (`dev:demo`, `up:demo`, `build:demo`, `test:demo`).
-- The eval scripts (`test:eval:*`, `eval:*`).
-
-Replaced by Changesets in Phase 5 (`pnpm exec changeset`, `pnpm run test:plugin-pack`).
-`pnpm run version:check-vs-npm` still gates `development`: each publishable package.json
-must be greater than npm latest. The old `version:bump` / `publish:workspaces` scripts are gone.
 
 Pre-commit (`.husky/pre-commit`) runs `pnpm install` when lockfiles change, then lint-staged,
-lint and the coverage gate. CI (`.github/workflows/ci.yml`) runs on `main`, `development`,
-`feat/**` and `milestone/**`.
-
-## CLI today and after the reset
-
-The CLI uses oclif v5 (`@oclif/core`). Commands are generated: the CLI's own commands are
-`defineOperation(...)` definitions in `packages/cli/src/operations/`, compiled with
-`toCommands` from `@executioncontrolprotocol/plugin-sdk`. Plugin commands come from extension
-definitions. The only hand-written oclif code is the hooks.
-
-```sh
-ecp plugins link plugins/plugin-test
-ecp run examples/01-echo/workflow.ecp.ts
-ecp run brief.ecp.ts --to fetch
-ecp run brief.ecp.ts --events
-ecp workflows validate examples/01-echo/workflow.ecp.ts
-ecp environments describe
-ecp config init
-ecp config edit
-ecp runs list
-ecp runs show <id>
-ecp runs resume <id>
-ecp runs rerun <id> --from web
-ecp workflows install brief.ecp.ts
-ecp workflows init brief
-ecp plugins new jsonata
-ecp plugins link plugins/plugin-jsonata
-ecp plugins discover jsonata --json
-ecp jsonata transform --expression '$.a' --input payload.json --json
-ecp mcp serve
-ecp mcp serve --tools meta
-ecp mcp serve --http
-ecp app examples/01-echo/workflow.ecp.ts
-ecp app brief.ecp.ts --no-open
-```
-
-- **Phase 1** removed `serve`, `up`, `encode` and `decode`. **Phase 4** removed `ecp test`
-  (`ecp run --to`, `ecp runs resume`, `ecp runs rerun` replace it).
-- **`--config` is optional** on `run` / `workflows validate` / `workflows install`. Omit it to
-  use the process host (built-in Node + installed plugins), merging `~/.ecp/config/config.ecp.ts`
-  when that file exists. `--config <file>` is machine settings (`config().with([...])`), not a
-  replacement catalog. `environments describe` / `search` / `invoke` take it the same way.
-- **`--json`** prints `{ ok: true, data }` or `{ ok: false, error: { code, message, path, suggestions } }`.
-- Journals live under `.ecp/runs/<runId>/` (override with `ECP_RUNS_DIR`).
-
-## Extension and plugin authoring
-
-See `.cursor/rules/extensions.mdc` for the full contract. In short:
-
-- Define with `defineExtension(...)` and `capabilityFor(...)`.
-- Write product prose in `.withMetadata({ summary, description, useCases, projections })`;
-  projections are required.
-- Use zod schemas, imported from `"zod"` directly.
-- Use `resolveFile` / `writeMediaArtifact` for binary I/O.
-- The plugin contract after Phase 2:
-  - Definitions are plain data. Bind `extension(definition)` / `policy(definition)`.
-  - `.supports(environmentId, range?)` restricts an extension or policy to an environment.
-  - Hosts register the default-exported definition with `registry.registerExtension(definition)`
-    (no `register*Extension` helpers, no `globalRegistry`).
-  - Phase 5 PR 4 finished first-party plugin moves, including `plugin-adobe-firefly-services`
-    with a generated `firefly` topic alias from `metadata.topicAlias`. `ecp plugins build`
-    generates oclif files.
+lint and the coverage gate. CI (`.github/workflows/ci-pipeline.yml`) runs on `main`,
+`development`, `feat/**` and `milestone/**`.
 
 ## Agent skill
 
-Contributor skill for this repo: `npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`.
-The consumer `ecp` skill: `npx skills add executioncontrolprotocol/docs` (`skills/ecp/` on
-docs `main`).
+Contributor skill: `skills/ecp-core/`. Plugin authoring points at `plugins/plugin-test`.

@@ -1,0 +1,12 @@
+{
+  "name": "@executioncontrolprotocol/plugin-minimal-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["ecosystem:ecp-plugin", "oclif-plugin"],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
+  },
+  "files": ["ecp.manifest.json", "index.js"]
+}

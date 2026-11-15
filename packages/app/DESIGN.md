@@ -101,12 +101,16 @@ spacing:
   status-footer-height: 28px
 ---
 
+# Solaris Slate (ECP App design tokens)
+
 ## Brand & Style
+
 The design system moves away from typical tech-neon palettes toward a high-contrast, industrial-luxe aesthetic. It targets professional environments that demand high legibility and a sense of "prestige" utility.
 
 The style is **Modern-Industrial**: combining the precision of a systematic layout with the warmth of a rich yellow primary hue. It leverages deep midnight slate backgrounds to ground the interface, while the primary yellow acts as a high-visibility signal for action and focus. The emotional response should be one of focused energy, reliability, and technical sophistication.
 
 ## Colors
+
 The palette follows a Material Design 3–style token model on a **Deep Midnight** foundation (`#0B1326`). Primary yellow vibrates with intent without causing eye strain.
 
 - **Primary (`#FACC15`):** Critical actions, active states, focus rings, graph edges, and syntax keywords.
@@ -121,51 +125,57 @@ The palette follows a Material Design 3–style token model on a **Deep Midnight
 - **Status-valid (`#4ADE80` / `#86EFAC`):** Success and validation states in the status footer (distinct from primary yellow).
 
 ## Typography
+
 The typography strategy blends contemporary grotesque precision with technical monospaced utility.
 
 - **Headlines:** Hanken Grotesk (400, 600, 800) with tight letter-spacing and heavy weights for authoritative presence. Panel titles may scale down to 14px in compact headers.
-- **Body:** Inter (400, 600, 700) for chat copy, inputs, and interface descriptions.
-- **Labels:** JetBrains Mono (400, 500) for metadata, status tags, code blocks, and canvas labels. Micro sizes (10–11px) appear in badges, status pills, and assistant subtitles.
+- **Body:** Inter (400, 600, 700) for inputs and interface descriptions.
+- **Labels:** JetBrains Mono (400, 500) for metadata, status tags, code blocks, and canvas labels. Micro sizes (10–11px) appear in badges and status pills.
 - **Code:** JetBrains Mono with semantic color tokens — `primary` for keywords, `primary-fixed` for identifiers, `tertiary-fixed-dim` for declarations, `tertiary` for literals, `outline` for comments.
 
 ## Layout & Spacing
+
 The application shell is a **full-height column** (`h-screen`, `overflow-hidden`) with three fixed regions.
 
-- **Header (64px):** Brand title left, centered view navigation, action buttons and avatar right. Horizontal padding uses the 24px gutter token.
-- **Main (flex-1):** Horizontal split between the chat drawer and workspace column. Panels support `is-half` (50% width) and `is-full` (100% width) layout modes driven by view toggles.
+- **Header (64px):** Brand title left, centered view navigation, action buttons right. Horizontal padding uses the 24px gutter token.
+- **Main (flex-1):** The graph canvas with a side panel (node details, validation, run, runs). The JSON view replaces the canvas when active.
 - **Status footer (28px):** Persistent validation strip along the bottom edge.
 
-**View model:** Chat, Workflow, and Code are independently toggleable. At least one view must remain active. Workflow and Code are mutually exclusive within the workspace column. When chat pairs with a workspace view, both columns render at 50% width with a right border on the chat drawer.
+**View model:** The App views and runs executions; it does not edit them. Graph and JSON are mutually exclusive in the main region. The side panel shows one of node, validation, run or runs at a time.
 
 - **Grid rhythm:** All vertical spacing is a multiple of the 8px base unit.
-- **Canvas grid:** Workflow graph uses a 24×24px radial dot pattern (`surface-container-highest` dots on `background`).
+- **Canvas grid:** The execution graph uses a 24×24px radial dot pattern (`surface-container-highest` dots on `background`).
 - **Mobile:** Margins shrink to 20px; multi-column layouts reflow into a single-column vertical stack.
 
 ## Elevation & Depth
+
 Depth is achieved through **tonal layering** and selective effects rather than heavy drop shadows.
 
 - **Level 0 (Base):** `background` / `surface` (`#0B1326`) — app canvas and graph background.
-- **Level 1 (Panels):** `surface-container-low` (`#131B2E`) — composer bar, status footer, code drawer chrome.
-- **Level 2 (Cards / nodes):** `surface-container` (`#171F33`) — workflow nodes, chat container.
-- **Level 3 (Raised chrome):** `surface-container-high` / `surface-container-highest` (`#222A3D` / `#2D3449`) — chat header, assistant bubbles, avatar rings.
-- **Level 4 (Inset wells):** `surface-container-lowest` (`#060E20`) — nav group backgrounds, input fields, code drawer body.
+- **Level 1 (Panels):** `surface-container-low` (`#131B2E`) — side panel, status footer, JSON view chrome.
+- **Level 2 (Cards / nodes):** `surface-container` (`#171F33`) — execution nodes, panel cards.
+- **Level 3 (Raised chrome):** `surface-container-high` / `surface-container-highest` (`#222A3D` / `#2D3449`) — panel headers, badges.
+- **Level 4 (Inset wells):** `surface-container-lowest` (`#060E20`) — nav group backgrounds, input fields, Monaco body.
 - **Glass panels:** `backdrop-filter: blur(12px)` with `rgba(11, 19, 38, 0.85)` for floating overlays.
 - **Glow-primary:** `box-shadow: 0 0 15px rgba(250, 204, 21, 0.2)` on active graph nodes.
 - **Focus accents:** 1px primary borders and rings replace heavy shadows for selection states.
 
 ## Shapes
+
 The shape language is **Tight (0.125rem default)** with graduated rounding for larger containers.
 
 - **Controls (buttons, inputs, nav pills):** 0.125rem (`rounded`) or 0.25rem (`rounded-lg`).
 - **Cards and nodes:** 0.25rem (`rounded-lg`).
 - **Nav groups:** 0.375rem inner workspace group, 0.5rem outer view-nav group.
-- **Avatars and status dots:** `pill` (9999px) for circular elements.
+- **Status dots:** `pill` (9999px) for circular elements.
 - **Scrollbars:** 3px thumb radius on 6px-wide tracks.
 
 ## Iconography
-**Material Symbols Outlined** at 18px for header and nav controls, 14px for inline chat avatars. Default variation: `'FILL' 0, 'wght' 400`. Filled variation (`'FILL' 1`) marks active node types and the assistant avatar.
+
+**Lucide** icons at 18px for header and nav controls, 14px inline. Stroke width 2 by default; 1.5 in dense node chrome.
 
 ## Motion & Effects
+
 - **Drawer transitions:** `0.3s cubic-bezier(0.4, 0, 0.2, 1)` on panel show/hide and layout reflow.
 - **Control hovers:** `0.15s ease` on color, background, border, and filter properties.
 - **Canvas parallax:** Subtle `translate` on mouse movement for graph content depth.
@@ -175,47 +185,49 @@ The shape language is **Tight (0.125rem default)** with graduated rounding for l
 ## Components
 
 ### View navigation
+
 Segmented icon control centered in the header.
 
 - **Outer group:** `surface-container-lowest` fill, `secondary-container` border, 0.5rem radius, 4px internal padding.
-- **Workspace sub-group:** `surface-container-low` fill, `surface-container-high` border, 0.375rem radius — nests Workflow and Code toggles.
+- **Workspace sub-group:** `surface-container-low` fill, `surface-container-high` border, 0.375rem radius — nests the Graph and JSON toggles.
 - **Nav button (32×32):** Transparent default, `on-surface` icon. Hover: `primary-fixed` icon, `secondary-container` fill. Active: solid `primary` fill, `on-primary` icon and border.
 
 ### Header action buttons
-Square icon buttons (32×32) for secondary actions (e.g. Save).
+
+Square icon buttons (32×32) for secondary actions (e.g. Validate).
 
 - **Default:** Transparent background, `outline-variant` border, `on-surface` icon.
 - **Hover:** `secondary-container` fill, `outline` border, `primary-fixed` icon.
 - **Primary variant (`--primary`):** Solid `primary` fill with `on-primary` icon; hover uses brightness filter only.
 
 ### Buttons (general)
-- **Primary:** Solid `primary` background, `on-primary` text/icon. Used for send, execute, and lint actions.
+
+- **Primary:** Solid `primary` background, `on-primary` text/icon. Used for run and open actions.
 - **Secondary / canvas controls:** `surface-container` fill, `outline-variant` border, hover transitions icon color to `primary`.
-- **Chip actions:** `primary/10` background, `primary` text, `primary/20` border, 11px bold uppercase (e.g. "Lint Code", "ACTIVE").
+- **Chip actions:** `primary/10` background, `primary` text, `primary/20` border, 11px bold uppercase (e.g. "ACTIVE").
 
 ### Inputs
-- **Composer input:** `surface-container-lowest` background, `outline-variant` border, `on-surface` text, `outline` placeholder. Focus: `ring-1 ring-primary`, `border-primary`.
-- **Composer bar:** `surface-container-low` background, top border `outline-variant`, 16px horizontal / 24px bottom padding. Minimum row height 50px.
 
-### Chat
-- **Assistant bubble:** `surface-container-high` fill, `outline-variant/30` border, `rounded-lg rounded-tl-none` (tail on top-left).
-- **User bubble:** `primary/10` fill, `primary/20` border, `rounded-lg rounded-tr-none` (tail on top-right).
-- **Avatars:** 24px (chat) or 32px (header/composer); assistant uses `primary-container` square icon well, user uses circular photo with `outline-variant` border.
+- **Form input:** `surface-container-lowest` background, `outline-variant` border, `on-surface` text, `outline` placeholder. Focus: `ring-1 ring-primary`, `border-primary`.
 
-### Workflow canvas
+### Execution canvas
+
 - **Nodes:** `surface-container` cards with `outline-variant` border; selected/active nodes use `border-primary` and `glow-primary`.
 - **Edges:** 2px `primary` SVG paths at 60% opacity.
 - **Canvas header:** Semi-transparent `surface-container-high/40` strip with uppercase `label-sm` title.
 - **Controls:** 40×40 floating buttons bottom-left with `shadow-lg`.
 
-### Code drawer
-- **Header:** `surface-container-low` with `outline-variant` bottom border, primary code icon, "Logic Source" label, lint chip action.
-- **Body:** `surface-container-lowest` background, line-number gutter via `::before` pseudo-element in `outline-variant`.
-- **Layout:** Mutually exclusive with graph drawer; expands to `flex-1` when Code view is active.
+### JSON view
+
+- **Header:** `surface-container-low` with `outline-variant` bottom border and the execution path or id.
+- **Body:** Read-only Monaco on `surface-container-lowest`.
+- **Layout:** Mutually exclusive with the graph; expands to `flex-1` when active.
 
 ### Status footer
+
 - **Container:** `surface-container-low` background, `outline-variant` top border, 28px height, 16px horizontal padding.
 - **Valid pill:** `status-valid-text` text, `status-valid` dot with soft green glow, `rgba(74, 222, 128, 0.12)` background, `rgba(74, 222, 128, 0.35)` border. 10px JetBrains Mono uppercase.
 
 ### Scrollbars
+
 Custom webkit scrollbars: 6px width, transparent track, `surface-container-highest` thumb, `outline-variant` thumb on hover.

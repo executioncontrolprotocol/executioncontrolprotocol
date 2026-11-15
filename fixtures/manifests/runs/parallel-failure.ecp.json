@@ -1,0 +1,32 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "both",
+      "branches": [
+        [
+          {
+            "id": "slow",
+            "uses": "@executioncontrolprotocol/test.delay",
+            "input": {
+              "ms": 5000
+            },
+            "as": "slow"
+          }
+        ],
+        [
+          {
+            "id": "bad",
+            "uses": "@executioncontrolprotocol/test.fail",
+            "input": {
+              "code": "ECP_STEP_FAILED"
+            },
+            "as": "bad"
+          }
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "caption": {
+      "text": "A small widget.",
+      "usage": {
+        "inputTokens": 8,
+        "outputTokens": 4
+      }
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Caption",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Phase 8 retarget: ollama.generate replaced by anthropic.generate (mocked fetch in tests)."
+}

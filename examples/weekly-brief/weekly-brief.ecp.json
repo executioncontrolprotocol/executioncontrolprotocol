@@ -1,0 +1,41 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "weekly-brief",
+    "label": "Weekly leadership brief",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "signals"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "brief": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "Generate",
+      "label": "Generate Executive Brief",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
+      "input": {
+        "prompt": "Create a concise leadership brief.",
+        "system": "You write short executive briefs."
+      },
+      "as": "brief"
+    }
+  ]
+}

@@ -1,0 +1,301 @@
+{
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "version": "1.0",
+  "plugin": {
+    "id": "@executioncontrolprotocol/test",
+    "package": "@executioncontrolprotocol/plugin-test",
+    "version": "0.60.0",
+    "summary": "Fixture capabilities for engine tests.",
+    "description": "Echo, fail, delay, stage, config echo, file round-trip, call and a length-limited string."
+  },
+  "sdkVersion": "2.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "secret": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      }
+    }
+  },
+  "capabilities": [
+    {
+      "id": "@executioncontrolprotocol/test.echo",
+      "name": "echo",
+      "summary": "echo fixture capability.",
+      "description": "Deterministic echo capability for engine tests.",
+      "useCases": [
+        "Exercise echo."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "value": {}
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "echo"
+        ],
+        "properties": {
+          "echo": {}
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.fail",
+      "name": "fail",
+      "summary": "fail fixture capability.",
+      "description": "Deterministic fail capability for engine tests.",
+      "useCases": [
+        "Exercise fail."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.delay",
+      "name": "delay",
+      "summary": "delay fixture capability.",
+      "description": "Deterministic delay capability for engine tests.",
+      "useCases": [
+        "Exercise delay."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "ms"
+        ],
+        "properties": {
+          "ms": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "waitedMs"
+        ],
+        "properties": {
+          "waitedMs": {
+            "type": "integer"
+          }
+        }
+      },
+      "timeoutMs": 1000
+    },
+    {
+      "id": "@executioncontrolprotocol/test.stage",
+      "name": "stage",
+      "summary": "stage fixture capability.",
+      "description": "Deterministic stage capability for engine tests.",
+      "useCases": [
+        "Exercise stage."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "handle",
+          "op",
+          "value"
+        ],
+        "properties": {
+          "handle": {
+            "type": "object"
+          },
+          "op": {
+            "enum": [
+              "set",
+              "merge",
+              "append"
+            ]
+          },
+          "value": {}
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.config-echo",
+      "name": "config-echo",
+      "summary": "config-echo fixture capability.",
+      "description": "Deterministic config-echo capability for engine tests.",
+      "useCases": [
+        "Exercise config-echo."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "keys",
+          "secretLength"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "secretLength": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.file-roundtrip",
+      "name": "file-roundtrip",
+      "summary": "file-roundtrip fixture capability.",
+      "description": "Deterministic file-roundtrip capability for engine tests.",
+      "useCases": [
+        "Exercise file-roundtrip."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "object"
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "artifact"
+        ],
+        "properties": {
+          "artifact": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.call",
+      "name": "call",
+      "summary": "call fixture capability.",
+      "description": "Deterministic call capability for engine tests.",
+      "useCases": [
+        "Exercise call."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "input"
+        ],
+        "properties": {
+          "capabilityId": {
+            "type": "string"
+          },
+          "input": {}
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "result"
+        ],
+        "properties": {
+          "result": {}
+        }
+      }
+    },
+    {
+      "id": "@executioncontrolprotocol/test.bounded",
+      "name": "bounded",
+      "summary": "bounded fixture capability.",
+      "description": "Deterministic bounded capability for engine tests.",
+      "useCases": [
+        "Exercise bounded."
+      ],
+      "projections": [
+        "Use the returned object."
+      ],
+      "accepts": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 40
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "fixture"
+}

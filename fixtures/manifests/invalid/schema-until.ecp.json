@@ -1,0 +1,23 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "loop",
+      "id": "refine",
+      "expr": "(state) => false",
+      "maxRounds": 1,
+      "until": "(state) => true",
+      "steps": [
+        {
+          "id": "echo",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "hi"
+          },
+          "as": "echo"
+        }
+      ]
+    }
+  ]
+}

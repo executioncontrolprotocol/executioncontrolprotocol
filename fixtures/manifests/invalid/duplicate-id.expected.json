@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/1/id",
+    "severity": "error"
+  }
+]

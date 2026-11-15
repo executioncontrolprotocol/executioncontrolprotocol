@@ -33,7 +33,10 @@ export function publishedVersion(name) {
  */
 export function checkWorkspaceVersionsVsNpm(packages, lookup = publishedVersion) {
   if (packages.length === 0) {
-    return { ok: false, lines: ["No publishable workspace packages found under packages/ and plugins/"] }
+    return {
+      ok: true,
+      lines: ["No publishable workspace packages (private packages are skipped)."],
+    }
   }
 
   /** @type {string[]} */

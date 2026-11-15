@@ -1,62 +1,42 @@
 {
   "name": "@executioncontrolprotocol/plugin-test",
-  "version": "0.52.0",
-  "description": "Stub echo and placeholder capabilities for ECP examples and tests",
-  "license": "Apache-2.0",
+  "version": "0.60.0",
+  "private": true,
+  "description": "Test harness capabilities for every executor and handler-context feature.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
-    }
+    "./ecp.manifest.json": "./ecp.manifest.json"
   },
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "oclif.manifest.json",
-    "README.md"
+    "ecp.manifest.json"
   ],
   "scripts": {
-    "build": "tsc -b && ecp plugins build"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+    "build": "tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "test": {
-        "description": "Stub capabilities for examples, CLI demos, and unit tests."
-      }
-    }
-  },
-  "keywords": [
-    "ecosystem:ecp-plugin",
-    "oclif-plugin"
-  ]
+  }
 }

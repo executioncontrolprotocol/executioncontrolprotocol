@@ -1,3 +1,2 @@
 @echo off
-
-node "%~dp0\ecp.js" %*
+node "%~dp0\run.js" %*
