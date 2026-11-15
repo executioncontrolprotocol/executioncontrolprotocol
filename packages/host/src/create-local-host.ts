@@ -14,11 +14,15 @@ import {
   LocalStorage,
 } from "@executioncontrolprotocol/local"
 import {
+  Auth,
+  Endpoint,
   ExpressionEngine,
   Formatter,
   PluginAdapter,
   SecretsProvider,
   StorageProvider,
+  type Auth as AuthService,
+  type Endpoint as EndpointService,
   type ExpressionEngine as ExpressionEngineService,
   type Formatter as FormatterService,
   type HostSettings,
@@ -28,6 +32,9 @@ import {
   type StorageProvider as StorageProviderService,
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "@executioncontrolprotocol/quickjs"
+import { LocalTokenAuth } from "./auth/local-token-auth.js"
+import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
+import { generateHostToken } from "./token.js"
 
 /**
  * Options for {@link createLocalHost}.
@@ -36,8 +43,12 @@ import { QuickJsExpressionEngine } from "@executioncontrolprotocol/quickjs"
 export interface CreateLocalHostOptions {
   /** Absolute `ECP_HOME`. */
   home: string
-  /** `in-process` for Phase 3; `server` adds HTTP in Phase 4. */
+  /** `in-process` skips HTTP; `server` binds Auth + HttpApiEndpoint. */
   mode?: "in-process" | "server"
+  /** Listen port when `mode` is `server`. `0` picks an ephemeral port. */
+  port?: number
+  /** Bearer token when `mode` is `server`. Generated when omitted. */
+  token?: string
   /** Extra plugin package roots (tests). */
   extraPlugins?: string[]
   /** Log level. */
@@ -46,6 +57,8 @@ export interface CreateLocalHostOptions {
   defaultStepTimeoutMs?: number
   /** Override default concurrency. */
   defaultMaxConcurrency?: number
+  /** When true, admin shutdown calls `process.exit(0)`. */
+  exitOnShutdown?: boolean
 }
 
 /**
@@ -62,7 +75,7 @@ export interface LocalHostTiming {
 }
 
 /**
- * Local host with disk services. Phase 3 covers `mode: "in-process"` only.
+ * Local host with disk services, optionally listening on HTTP.
  * @category Host
  */
 export interface LocalHost extends Host {
@@ -70,16 +83,20 @@ export interface LocalHost extends Host {
   readonly timing: LocalHostTiming
   /** Stable schema hash written at startup. */
   readonly schemaHash: string
+  /** Bound HTTP URL when `mode` is `server`. */
+  readonly url?: string
+  /** Token used by the HTTP API when `mode` is `server`. */
+  readonly token?: string
+  /** Resolves when `/v1/admin/shutdown` completes (server mode). */
+  whenShutdown(): Promise<void>
 }
 
 /**
- * Compose the local in-process host and run the startup sequence.
+ * Compose the local host and run the startup sequence.
  * @category Host
  */
 export async function createLocalHost(options: CreateLocalHostOptions): Promise<LocalHost> {
-  if (options.mode === "server") {
-    throw new Error('createLocalHost mode "server" lands in Phase 4.')
-  }
+  const mode = options.mode ?? "in-process"
   const started = Date.now()
   await mkdir(options.home, { recursive: true })
 
@@ -88,7 +105,10 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     await writeFile(filePath, text, "utf8")
   }
 
-  const host = await createEnvironment()
+  const token = mode === "server" ? (options.token ?? generateHostToken()) : undefined
+  const port = mode === "server" ? (options.port ?? 0) : undefined
+
+  let env = createEnvironment()
     .use(LocalPluginRegistration as ServiceClass<PluginAdapterService>, PluginAdapter, {
       options: {
         dataDir: path.join(options.home, "plugins"),
@@ -100,15 +120,31 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     .use(QuickJsExpressionEngine as ServiceClass<ExpressionEngineService>, ExpressionEngine)
     .use(JsonFormatter as ServiceClass<FormatterService>, Formatter, { default: true })
     .use(ToonFormatter as ServiceClass<FormatterService>, Formatter)
-    .start({
-      home: options.home,
-      mode: "in-process",
-      extraPlugins: options.extraPlugins,
-      logLevel: options.logLevel,
-      defaultStepTimeoutMs: options.defaultStepTimeoutMs,
-      defaultMaxConcurrency: options.defaultMaxConcurrency,
-      writeTextFile,
-    } as HostSettings & { writeTextFile: typeof writeTextFile })
+
+  if (mode === "server") {
+    const listenPort = port ?? 0
+    env = env
+      .use(LocalTokenAuth as ServiceClass<AuthService>, Auth, {
+        options: { token: token!, port: listenPort },
+      })
+      .use(HttpApiEndpoint as ServiceClass<EndpointService>, Endpoint, {
+        options: {
+          port: listenPort,
+          token: token!,
+          exitOnShutdown: options.exitOnShutdown === true,
+        },
+      })
+  }
+
+  const host = await env.start({
+    home: options.home,
+    mode,
+    extraPlugins: options.extraPlugins,
+    logLevel: options.logLevel,
+    defaultStepTimeoutMs: options.defaultStepTimeoutMs,
+    defaultMaxConcurrency: options.defaultMaxConcurrency,
+    writeTextFile,
+  } as HostSettings & { writeTextFile: typeof writeTextFile })
 
   const startMs = Date.now() - started
 
@@ -120,6 +156,18 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   const schemaHash = await writeExecutionSchema(host)
   const schemaMs = Date.now() - schemaStarted
 
+  let url: string | undefined
+  let whenShutdown = async (): Promise<void> => undefined
+  if (mode === "server") {
+    const endpoint = host.services.get(Endpoint, HttpApiEndpoint.id) as HttpApiEndpoint
+    const auth = host.services.get(Auth) as LocalTokenAuth
+    auth.setPort(endpoint.port)
+    endpoint.bindOperations(host.operations)
+    endpoint.markReady()
+    url = endpoint.url
+    whenShutdown = () => endpoint.whenShutdown()
+  }
+
   return {
     services: host.services,
     operations: host.operations,
@@ -127,6 +175,9 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     stop: () => host.stop(),
     timing: { startMs, interruptMs, schemaMs },
     schemaHash,
+    url,
+    token,
+    whenShutdown,
   }
 }
 

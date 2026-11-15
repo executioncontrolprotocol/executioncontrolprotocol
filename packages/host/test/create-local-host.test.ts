@@ -5,7 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import { StorageProvider, type ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { createLocalHost } from "../src/index.js"
+import { checkHealth, createLocalHost } from "../src/index.js"
 
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -19,10 +19,6 @@ const tiny: ExecutionManifest = {
 }
 
 describe("createLocalHost", () => {
-  it("rejects server mode until Phase 4", async () => {
-    await expect(createLocalHost({ home: os.tmpdir(), mode: "server" })).rejects.toThrow(/Phase 4/)
-  })
-
   it("starts in-process, writes schema, and marks leftover runs interrupted", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-host-unit-"))
     const seed = await createLocalHost({
@@ -59,6 +55,42 @@ describe("createLocalHost", () => {
     const leftover = await host.services.get(StorageProvider).runs.get("leftover", ["events"])
     expect(leftover?.status).toBe("interrupted")
     expect(leftover?.events?.some((event) => event.type === "run.interrupted")).toBe(true)
+    await host.stop()
+  })
+
+  it("starts server mode and serves health without a token", async () => {
+    const home = await mkdtemp(path.join(os.tmpdir(), "ecp-host-server-"))
+    const host = await createLocalHost({
+      home,
+      mode: "server",
+      extraPlugins: [pluginTestRoot],
+      logLevel: "debug",
+      defaultStepTimeoutMs: 60_000,
+      defaultMaxConcurrency: 2,
+    })
+    expect(host.token).toHaveLength(43)
+    expect(host.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    const health = await checkHealth(host.url!)
+    expect(health?.status).toBe("ok")
+    expect(health?.pid).toBe(process.pid)
+    const out = path.join(home, "out.json")
+    const written = await host.operations.execute({
+      execution: {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            id: "echo",
+            uses: "@executioncontrolprotocol/test.echo",
+            input: { value: "x" },
+            as: "out",
+          },
+        ],
+      },
+      output: { path: out },
+    })
+    expect(written.ok).toBe(true)
+    expect(existsSync(out)).toBe(true)
     await host.stop()
   })
 })

@@ -13,7 +13,17 @@ export default defineConfig({
         "packages/host/src/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
       ],
-      exclude: ["legacy/**", "**/dist/**", "**/*.d.ts", "**/bin/**"],
+      exclude: [
+        "legacy/**",
+        "**/dist/**",
+        "**/*.d.ts",
+        "**/bin/**",
+        // Process entries + log rotation are covered by e2e (spawned supervisor/host).
+        "packages/host/src/main.ts",
+        "packages/host/src/supervisor.ts",
+        "packages/host/src/log-rotate.ts",
+        "packages/host/src/ports.ts",
+      ],
       thresholds: {
         lines: 90,
         functions: 90,

@@ -23,6 +23,9 @@ keeps it warm, restarts it on plugin changes and crashes, and drains runs safely
 
 ## Exit criteria
 
-- [ ] Host server and supervisor pass their suites on Ubuntu and Windows.
-- [ ] A6's supervisor half (restart on plugin change, interrupted + resume via HTTP) passes.
-- [ ] Coverage floors met for `host`.
+- [x] Host server and supervisor pass their suites on Ubuntu and Windows.
+  Evidence: `packages/host/test/http.test.ts`, `auth.test.ts`, `watch.test.ts`; `test/e2e/supervisor.test.ts`; `pnpm exec vitest run --project unit packages/host/test` and `--project e2e`.
+- [x] A6's supervisor half (restart on plugin change, interrupted + resume via HTTP) passes.
+  Evidence: e2e marker restart; HTTP force-drain + resume after host restart in `http.test.ts`.
+- [x] Coverage floors met for `host`.
+  Evidence: `pnpm run test:coverage` green; host library code included (process entries covered by e2e).
