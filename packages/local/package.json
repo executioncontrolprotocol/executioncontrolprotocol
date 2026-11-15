@@ -2,7 +2,7 @@
   "name": "@executioncontrolprotocol/local",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP local package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "Local PluginAdapter, storage and secrets for the Node host.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -19,5 +19,16 @@
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/engine": "workspace:*",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "zod": "catalog:"
   }
 }

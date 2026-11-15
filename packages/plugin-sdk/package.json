@@ -1,11 +1,14 @@
 {
   "name": "@executioncontrolprotocol/plugin-sdk",
   "version": "2.0.0",
+  "description": "Authoring API and ecp-plugin-manifest bin for ECP capability plugins.",
   "private": true,
-  "description": "ECP plugin-sdk package. Scaffolded in Phase 0; behaviour lands in its phase.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
+  },
+  "bin": {
+    "ecp-plugin-manifest": "./dist/bin/ecp-plugin-manifest.js"
   },
   "exports": {
     ".": {
@@ -19,5 +22,15 @@
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "zod": "catalog:"
   }
 }

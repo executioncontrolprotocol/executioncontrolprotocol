@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { VERSION } from "../src/index.js"
+import plugin from "../src/index.js"
 
 describe("plugin-test", () => {
-  it("exports its version", () => {
-    expect(VERSION).toBe("2.0.0")
+  it("exports the test plugin definition", () => {
+    expect(plugin.id).toBe("@executioncontrolprotocol/test")
   })
 })

@@ -4,8 +4,14 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      include: ["packages/engine/src/**/*.ts", "packages/quickjs/src/**/*.ts"],
-      exclude: ["legacy/**", "**/dist/**", "**/*.d.ts"],
+      include: [
+        "packages/engine/src/**/*.ts",
+        "packages/quickjs/src/**/*.ts",
+        "packages/plugin-sdk/src/**/*.ts",
+        "packages/local/src/**/*.ts",
+        "plugins/plugin-test/src/**/*.ts",
+      ],
+      exclude: ["legacy/**", "**/dist/**", "**/*.d.ts", "**/bin/**"],
       thresholds: {
         lines: 90,
         functions: 90,
@@ -19,7 +25,7 @@ export default defineConfig({
           name: "unit",
           environment: "node",
           include: ["packages/**/test/**/*.test.ts", "plugins/**/test/**/*.test.ts"],
-          exclude: ["legacy/**", "**/dist/**"],
+          exclude: ["legacy/**", "**/dist/**", "**/node_modules/**"],
         },
       },
       {
@@ -27,7 +33,7 @@ export default defineConfig({
           name: "integration",
           environment: "node",
           include: ["packages/host/test/integration/**/*.test.ts"],
-          exclude: ["legacy/**", "**/dist/**"],
+          exclude: ["legacy/**", "**/dist/**", "**/node_modules/**"],
         },
       },
       {
@@ -35,7 +41,7 @@ export default defineConfig({
           name: "e2e",
           environment: "node",
           include: ["test/e2e/**/*.test.ts"],
-          exclude: ["legacy/**"],
+          exclude: ["legacy/**", "**/node_modules/**"],
         },
       },
     ],

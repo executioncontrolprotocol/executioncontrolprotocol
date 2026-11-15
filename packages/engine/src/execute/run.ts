@@ -366,6 +366,7 @@ async function runStep(
         input: resolvedInput,
         config,
         context: { runId: runtime.runId, stepId: node.id, round, state },
+        store,
       },
       signal,
       store,

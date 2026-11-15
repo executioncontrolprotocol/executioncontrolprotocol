@@ -1,0 +1,352 @@
+{
+  "capabilities": [
+    {
+      "accepts": {
+        "properties": {
+          "capabilityId": {
+            "type": "string"
+          },
+          "config": {
+            "type": "string"
+          },
+          "input": {}
+        },
+        "required": [
+          "capabilityId"
+        ],
+        "type": "object"
+      },
+      "description": "Invokes `capabilityId` through `ctx.call` with the given input.",
+      "id": "@executioncontrolprotocol/test.call",
+      "name": "call",
+      "projections": [
+        "Take `result`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {}
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      },
+      "summary": "Call another capability.",
+      "useCases": [
+        "Exercise nested capability calls"
+      ]
+    },
+    {
+      "accepts": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "description": "Returns config keys and the length of `secret`, never the value.",
+      "id": "@executioncontrolprotocol/test.config-echo",
+      "name": "config-echo",
+      "projections": [
+        "Take `keys` and `secretLength`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "secretLength": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "keys",
+          "secretLength"
+        ],
+        "type": "object"
+      },
+      "summary": "Echo config metadata.",
+      "useCases": [
+        "Exercise config and secret resolution"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
+          "ms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ms"
+        ],
+        "type": "object"
+      },
+      "description": "Sleeps for `ms` and honours `signal`.",
+      "id": "@executioncontrolprotocol/test.delay",
+      "name": "delay",
+      "projections": [
+        "Take `waitedMs`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "waitedMs": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "waitedMs"
+        ],
+        "type": "object"
+      },
+      "summary": "Wait for milliseconds.",
+      "timeoutMs": 1000,
+      "useCases": [
+        "Exercise cancel and timeout"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
+          "value": {}
+        },
+        "type": "object"
+      },
+      "description": "Returns the input value under `echo`.",
+      "id": "@executioncontrolprotocol/test.echo",
+      "name": "echo",
+      "projections": [
+        "Take `echo`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "echo": {}
+        },
+        "required": [
+          "echo"
+        ],
+        "type": "object"
+      },
+      "summary": "Echo a value.",
+      "useCases": [
+        "Round-trip a value through the executor"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Throws with the given code and message.",
+      "id": "@executioncontrolprotocol/test.fail",
+      "name": "fail",
+      "projections": [
+        "Expect the step to fail"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "summary": "Fail with a code.",
+      "useCases": [
+        "Exercise step failure paths"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
+          "file": {
+            "properties": {
+              "headers": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "kind": {
+                "enum": [
+                  "file",
+                  "url",
+                  "artifact"
+                ],
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "type": "object"
+      },
+      "description": "Reads `file` and writes the bytes as a run artifact.",
+      "id": "@executioncontrolprotocol/test.file-roundtrip",
+      "name": "file-roundtrip",
+      "projections": [
+        "Take `artifact`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "artifact",
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "number"
+              },
+              "uri": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "uri"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "artifact"
+        ],
+        "type": "object"
+      },
+      "summary": "Read a file ref and write an artifact.",
+      "useCases": [
+        "Exercise files.read and writeArtifact"
+      ]
+    },
+    {
+      "accepts": {
+        "properties": {
+          "fail": {
+            "type": "boolean"
+          },
+          "handle": {
+            "additionalProperties": {},
+            "properties": {
+              "$state": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "op": {
+            "enum": [
+              "set",
+              "merge",
+              "append"
+            ],
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "handle",
+          "op",
+          "value"
+        ],
+        "type": "object"
+      },
+      "description": "Writes through a `$state` handle using the handler store.",
+      "id": "@executioncontrolprotocol/test.stage",
+      "name": "stage",
+      "projections": [
+        "Take `ok`"
+      ],
+      "returns": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "type": "object"
+      },
+      "summary": "Stage a state write.",
+      "useCases": [
+        "Exercise staged commits"
+      ]
+    }
+  ],
+  "configSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "label": {
+        "type": "string"
+      },
+      "secret": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "entry": "./dist/index.js",
+  "hash": "158d12a81ff684b547e116897f361e75ba3616e7c3967c5190a44c2a7554eae0",
+  "plugin": {
+    "description": "Echo, fail, delay, stage, config-echo, file-roundtrip and call for every executor and handler-context feature.",
+    "id": "@executioncontrolprotocol/test",
+    "package": "@executioncontrolprotocol/plugin-test",
+    "summary": "Fixture capabilities for engine and host tests.",
+    "version": "2.0.0"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "2.0.0",
+  "version": "1.0"
+}

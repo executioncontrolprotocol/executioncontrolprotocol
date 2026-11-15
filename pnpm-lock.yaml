@@ -134,11 +134,45 @@ importers:
 
   packages/host: {}
 
-  packages/local: {}
+  packages/local:
+    dependencies:
+      '@executioncontrolprotocol/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@executioncontrolprotocol/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      '@executioncontrolprotocol/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      ajv-formats:
+        specifier: 'catalog:'
+        version: 3.0.1(ajv@8.20.0)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   packages/mcp-relay: {}
 
-  packages/plugin-sdk: {}
+  packages/plugin-sdk:
+    dependencies:
+      '@executioncontrolprotocol/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   packages/protocol: {}
 

@@ -86,6 +86,10 @@ export class FixturePluginAdapter implements PluginAdapter {
     if (!handler) {
       throw new Error(`ECP_PLUGIN_LOAD_FAILED: no handler for ${request.capabilityId}`)
     }
-    return handler(request.input, { signal, config: request.config, store: this.currentStore })
+    return handler(request.input, {
+      signal,
+      config: request.config,
+      store: request.store ?? this.currentStore,
+    })
   }
 }

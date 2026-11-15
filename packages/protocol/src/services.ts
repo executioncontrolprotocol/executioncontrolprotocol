@@ -12,7 +12,7 @@ import type {
 } from "./objects.js"
 import type { RunEvent } from "./objects.js"
 import type { ValidationIssue } from "./validation.js"
-import type { HandlerContextInit } from "./plugins.js"
+import type { HandlerContextInit, HandlerStore } from "./plugins.js"
 
 /**
  * Token for one service interface. `multiple` allows more than one implementation.
@@ -99,6 +99,13 @@ export interface CapabilityCall {
   config: Record<string, unknown> | undefined
   /** Values the host passes into the handler context. */
   context: HandlerContextInit
+  /** Staged writes for this step. Present when the host builds a full handler context. */
+  store?: HandlerStore
+  /** Optional sink for `ctx.usage.record` (executor writes these onto the step record). */
+  usage?: {
+    /** Append one usage entry. */
+    record(entry: { kind: string; amount: number; unit: string; detail?: unknown }): void
+  }
 }
 
 /**

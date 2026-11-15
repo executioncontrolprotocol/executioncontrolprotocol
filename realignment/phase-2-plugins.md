@@ -24,6 +24,9 @@ handler-context feature.
 
 ## Exit criteria
 
-- [ ] `plugin-test` builds with a checked manifest; `ecp-plugin-manifest --check` runs in CI for every plugin.
-- [ ] Registry built from manifests only (test proves no handler module is imported before the first call).
-- [ ] Coverage floors met for `plugin-sdk`, `local` (plugin part) and `plugin-test`.
+- [x] `plugin-test` builds with a checked manifest; `ecp-plugin-manifest --check` runs in CI for every plugin.
+  Evidence: `plugins/plugin-test` build runs `ecp-plugin-manifest`; root `pnpm run plugins:check-manifests` is in `pnpm run check` and the CI `unit` job.
+- [x] Registry built from manifests only (test proves no handler module is imported before the first call).
+  Evidence: `packages/local/test/plugins.test.ts` — linked plugin whose handler module throws is registered; import fails only on first `call`.
+- [x] Coverage floors met for `plugin-sdk`, `local` (plugin part) and `plugin-test`.
+  Evidence: `vitest.config.mts` includes those trees; `pnpm run test:coverage` green (branches ≥ 85%, other floors ≥ 90%).

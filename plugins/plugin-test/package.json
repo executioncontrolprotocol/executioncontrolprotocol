@@ -2,23 +2,32 @@
   "name": "@executioncontrolprotocol/plugin-test",
   "version": "2.0.0",
   "private": true,
-  "description": "Scaffold for test. The capability implementation arrives in Phase 8.",
+  "description": "Test harness capabilities for every executor and handler-context feature.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin"
+  ],
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./ecp.manifest.json": "./ecp.manifest.json"
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "ecp.manifest.json"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",

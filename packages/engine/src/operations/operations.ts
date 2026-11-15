@@ -9,7 +9,6 @@ import type {
   Formatter as FormatterService,
   OperationError,
   OperationResponse,
-  PluginAdapter as PluginAdapterService,
   RetrieveData,
   RetrieveInput,
   RunRecord,
@@ -31,7 +30,6 @@ import { VERSION } from "../version.js"
 import { closeMatches } from "../schema/suggest.js"
 import { canonicalJson, sha256Hex } from "../schema/canonical.js"
 import { HostSchemaSet, loadExecutionText, validateExecution } from "../validate/validate.js"
-import type { StateStore } from "../execute/run.js"
 import { matchCandidates } from "./match.js"
 import { applyPatch } from "./patch.js"
 
@@ -453,8 +451,6 @@ async function startAndAwait(
   const configs = await storage.listConfigs()
   const controller = new AbortController()
   const schemas = await HostSchemaSet.create(plugins.capabilities())
-  const storeSlot = plugins as PluginAdapterService & { currentStore?: StateStore }
-
   const handle = startExecution(manifest, runInput, {
     capabilities: plugins.capabilities(),
     expression: expression as ExpressionEngineService,
@@ -469,14 +465,7 @@ async function startAndAwait(
     runId,
     store: storage.runs,
     schemas,
-    call: async (request, signal, store) => {
-      storeSlot.currentStore = store
-      try {
-        return await plugins.call(request, signal)
-      } finally {
-        storeSlot.currentStore = undefined
-      }
-    },
+    call: async (request, signal, store) => plugins.call({ ...request, store }, signal),
   })
 
   const settled = handle.outcome.then(async (outcome) => {
