@@ -52,13 +52,25 @@ export class LocalSecrets implements SecretsProvider {
 
   /** Key names from keychain and matching env vars, sorted unique. */
   async list(): Promise<string[]> {
-    const keys = new Set<string>(await this.listKeychain())
+    return (await this.listDetailed()).map((row) => row.key)
+  }
+
+  /**
+   * Keys with provenance. Keychain wins when both are set.
+   * @category Secrets
+   */
+  async listDetailed(): Promise<Array<{ key: string; source: "keychain" | "env" }>> {
+    const keychain = new Set(await this.listKeychain())
+    const envKeys = new Set<string>()
     for (const [name, value] of Object.entries(process.env)) {
       if (!name.startsWith("ECP_SECRET_") || value === undefined) continue
       const logical = name.slice("ECP_SECRET_".length)
-      if (KEY_RE.test(logical)) keys.add(logical)
+      if (KEY_RE.test(logical)) envKeys.add(logical)
     }
-    return [...keys].sort()
+    const keys = new Set<string>([...keychain, ...envKeys])
+    return [...keys]
+      .sort()
+      .map((key) => ({ key, source: keychain.has(key) ? ("keychain" as const) : ("env" as const) }))
   }
 
   /** Whether the OS keychain is usable (for tests that skip). */

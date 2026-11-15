@@ -2,9 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "types": ["node"]
   },
-  "include": [
-    "src"
+  "include": ["src"],
+  "references": [
+    { "path": "../protocol" },
+    { "path": "../engine" },
+    { "path": "../host" },
+    { "path": "../local" }
   ]
 }

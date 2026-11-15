@@ -858,10 +858,10 @@ Startup and restart speed decide how often agents and CLI commands wait. Measure
 | QuickJS-WASM start | 2026-11-14, Windows, `quickjs-emscripten@0.31.0`. Runtime start 11.9 ms; one eval 9.2 ms. Script: `realignment/spikes/phase0-measure.mjs`. | Start under 50 ms. A single eval stays inside the 50 ms expression budget. |
 | JSON Schema compile (per capability) | Same script. Ajv 2020 compiled a generated schema of 84 capabilities × 40 string fields in 511 ms (about 6.1 ms per capability). One validation 61 ms. | Full generation under 1 s. Lazy per-capability compile under 20 ms. |
 | Firefly plugin import | 2026-11-14, Windows, `@executioncontrolprotocol/plugin-adobe-firefly-services@0.51.0`. Dynamic `import()` 239 ms, one sample. | Under 500 ms. |
-| `ecp retrieve`, warm host | (once built) | target: well under 1 s |
-| `ecp retrieve`, no host (in-process) | (once built) | under 1.5 s, from the cold-help upper bound above |
-| `ecp execute` overhead beyond the capabilities called, warm host | (once built) | (Phase 5) |
-| Host start / restart until healthy | (once built) | (Phase 5) |
+| `ecp retrieve`, warm host | 2026-11-15, Windows, Phase 5 CLI. B1 `--id` median 1656 ms (5 runs); B2 `--query` median 1648 ms. oclif cold start still dominates. | Budget medians in `bench/budgets.json` (warm ≤ 3 s). |
+| `ecp retrieve`, no host (in-process) | Same run. B1 median 2387 ms; B2 median 1668 ms. | Budget medians ≤ 5 s. |
+| `ecp execute` echo fixture (B3) | Same run. In-process median 2077 ms; warm median 1993 ms. Warm savings **85 ms** median. | Budget medians ≤ 8 s in-process / ≤ 5 s warm. |
+| Host start / restart until healthy (B6) | Same run. Recorded in `bench/results/` (gitignored); budgets ≤ 15 s start / ≤ 20 s restart. | Enforced by `pnpm run bench` in CI. |
 
 ### CLI benchmark: decides the background-host option
 
@@ -882,11 +882,12 @@ Does a warm background host make repeated CLI commands meaningfully faster? Answ
 
 The MCP column is the lower bound (no process start per call); the question is how close each CLI mode gets to it.
 
-**Decision rule (proposed thresholds, adjust once real numbers exist):**
+**Decision rule:**
 
-- Warm host saves **less than ~300 ms median per call** on scenarios 3 and 4 → the CLI stays in-process. The background host exists only for MCP and the App; `ecp host` is reduced to `status` / `stop` for those.
-- Saves **more** → one-off CLI commands use the background host, with **automatic start and idle shutdown** preferred over an explicit `ecp host start`. Only then decide whether an opt-out (flag or environment variable) is needed, e.g. for CI.
-- Record the decision and the numbers in this section.
+- Warm host saves **less than ~300 ms median per call** on scenarios 3 and 4 → the CLI stays in-process when no host is running (spec 10). The background host remains for MCP and the App; `ecp host start|stop|status|restart|logs` stay available.
+- Saves **more** → one-off CLI commands auto-start the background host, with idle shutdown (15 min idle, no active runs). Only then decide whether an opt-out is needed.
+
+**Phase 5 decision (2026-11-15, Windows):** B3 warm savings median **85 ms** (&lt; ~300 ms). B4 Firefly live skipped (no credentials). **Keep in-process fallback** when no host is running. Spec 10 discovery unchanged; no idle shutdown implemented. Budgets live in `bench/budgets.json` and are enforced by `pnpm run bench` (CI `bench` job).
 
 ## Later
 

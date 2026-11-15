@@ -79,4 +79,24 @@ describe("LocalSecrets", () => {
     delete process.env[envName]
     await host.stop()
   })
+
+  it("listDetailed reports env and keychain sources", async () => {
+    const envOnly = `ENVONLY${Date.now()}`
+    const envName = envNameForKey(envOnly)
+    process.env[envName] = "from-env"
+    const host = await createEnvironment().use(LocalSecrets, SecretsProvider).start({ home: "/tmp/ecp" })
+    const secrets = host.services.get(SecretsProvider) as LocalSecrets
+    const detailed = await secrets.listDetailed()
+    const envRow = detailed.find((row) => row.key.toUpperCase().includes("ENVONLY") && row.source === "env")
+    expect(envRow).toBeDefined()
+    if (await secrets.isKeychainAvailable()) {
+      await secrets.set(key, "from-keychain")
+      process.env[envKey] = "from-env"
+      const again = await secrets.listDetailed()
+      expect(again.find((row) => row.key === key)?.source).toBe("keychain")
+      await secrets.delete(key)
+    }
+    delete process.env[envName]
+    await host.stop()
+  })
 })

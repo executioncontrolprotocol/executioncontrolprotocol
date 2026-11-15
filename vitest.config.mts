@@ -11,6 +11,7 @@ export default defineConfig({
         "packages/local/src/**/*.ts",
         "packages/formatters/src/**/*.ts",
         "packages/host/src/**/*.ts",
+        "packages/cli/src/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
       ],
       exclude: [
@@ -23,6 +24,12 @@ export default defineConfig({
         "packages/host/src/supervisor.ts",
         "packages/host/src/log-rotate.ts",
         "packages/host/src/ports.ts",
+        // oclif command/hook entrypoints and supervisor spawn are exercised by spawned e2e.
+        "packages/cli/src/commands/**",
+        "packages/cli/src/hooks/**",
+        "packages/cli/src/lib/host-discovery.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/version.ts",
       ],
       thresholds: {
         lines: 90,

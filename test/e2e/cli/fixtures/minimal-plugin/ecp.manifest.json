@@ -1,0 +1,36 @@
+{
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "version": "1.0",
+  "sdkVersion": "2.0.0",
+  "plugin": {
+    "id": "@executioncontrolprotocol/minimal-fixture",
+    "package": "@executioncontrolprotocol/plugin-minimal-fixture",
+    "version": "1.0.0",
+    "summary": "Minimal fixture for CLI pack install.",
+    "description": "Provides one capability so retrieve can see it after plugins install."
+  },
+  "capabilities": [
+    {
+      "id": "@executioncontrolprotocol/minimal-fixture.ping",
+      "name": "ping",
+      "summary": "Return ping.",
+      "description": "No-op capability for install tests.",
+      "useCases": ["Prove a packed plugin registered"],
+      "projections": ["Take nothing; return `ok`"],
+      "accepts": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" }
+        },
+        "required": ["ok"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "entry": "./index.js",
+  "hash": "fixture"
+}

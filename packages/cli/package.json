@@ -2,10 +2,13 @@
   "name": "@executioncontrolprotocol/cli",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP cli package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "ECP command-line interface.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
+  },
+  "bin": {
+    "ecp": "./bin/ecp.js"
   },
   "exports": {
     ".": {
@@ -15,9 +18,42 @@
   },
   "types": "./dist/index.d.ts",
   "files": [
+    "bin",
     "dist"
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/engine": "workspace:*",
+    "@executioncontrolprotocol/host": "workspace:*",
+    "@executioncontrolprotocol/local": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@oclif/core": "^5.1.8",
+    "@oclif/plugin-help": "^6.2.33",
+    "@oclif/plugin-not-found": "^3.2.68",
+    "@oclif/plugin-plugins": "^5.4.46"
+  },
+
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "oclif": {
+    "bin": "ecp",
+    "dirname": "ecp",
+    "topicSeparator": " ",
+    "commands": "./dist/commands",
+    "scope": "executioncontrolprotocol",
+    "pluginPrefix": "plugin",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-plugins",
+      "@oclif/plugin-not-found"
+    ],
+    "hooks": {
+      "init": "./dist/hooks/init.js",
+      "finally": "./dist/hooks/plugins-changed.js"
+    }
   }
 }

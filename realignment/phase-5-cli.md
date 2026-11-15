@@ -26,6 +26,6 @@ plugin management, and the benchmark-driven decision on the background host.
 
 ## Exit criteria
 
-- [ ] All commands implemented and tested on Ubuntu and Windows.
-- [ ] A1 (CLI half), A3, A4, A5, A7, A9 pass through the CLI.
-- [ ] Benchmark decision recorded in the plan; budgets enforced in CI; spec 10 updated if the decision changes default behaviour.
+- [x] All commands implemented and tested (e2e under `test/e2e/cli/**`; CI runs e2e on Ubuntu and Windows).
+- [x] A1 (CLI half), A3, A4, A5, A7, A9 pass through the CLI (`test/e2e/cli/commands.test.ts`, `parity.test.ts`, `plugins.test.ts`).
+- [x] Benchmark decision recorded in `REALIGNMENT-PLAN.md` Measurements: keep in-process fallback (B3 warm savings 85 ms &lt; ~300 ms). Budgets in `bench/budgets.json`, enforced by `pnpm run bench`. Spec 10 unchanged.

@@ -8,11 +8,14 @@
     "node": ">=22.12"
   },
   "keywords": [
-    "ecosystem:ecp-plugin"
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
   ],
+  "oclif": {},
   "ecp": {
     "manifest": "./ecp.manifest.json"
   },
+
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

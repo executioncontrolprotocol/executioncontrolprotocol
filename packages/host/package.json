@@ -11,7 +11,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./supervisor": "./dist/supervisor.js",
+    "./main": "./dist/main.js"
   },
   "bin": {
     "ecp-host": "./dist/main.js",

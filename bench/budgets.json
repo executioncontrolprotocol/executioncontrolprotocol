@@ -1,0 +1,15 @@
+{
+  "description": "Phase 5 CLI budgets (median ms). Raised only with evidence; never lowered to pass.",
+  "scenarios": {
+    "B1-retrieve-id-in-process": { "medianMs": 5000 },
+    "B1-retrieve-id-warm": { "medianMs": 3000 },
+    "B2-retrieve-query-in-process": { "medianMs": 5000 },
+    "B2-retrieve-query-warm": { "medianMs": 3000 },
+    "B3-execute-echo-in-process": { "medianMs": 8000 },
+    "B3-execute-echo-warm": { "medianMs": 5000 },
+    "B5-execute-expr-warm": { "medianMs": 5000 },
+    "B6-host-start": { "medianMs": 15000 },
+    "B6-host-restart": { "medianMs": 20000 },
+    "B7-schema": { "medianMs": 5000 }
+  }
+}
