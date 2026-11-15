@@ -210,11 +210,20 @@ describe("mcp relay e2e", () => {
 
     const restart = await runEcp(["host", "restart", "--force", "--json"], { env })
     expect(restart.code).toBe(0)
-    await waitForHost(home, 60_000)
 
-    const interrupted = await callTool(session.client, "retrieve", { type: "run", id: runId! })
-    const status = (interrupted.structuredContent as { item?: { status?: string } })?.item?.status
-      ?? (interrupted.structuredContent as { status?: string }).status
+    // Poll retrieve until the host is back; MCP already retries connection drops.
+    let status: string | undefined
+    for (let i = 0; i < 90; i++) {
+      const interrupted = await callTool(session.client, "retrieve", { type: "run", id: runId! })
+      if (!interrupted.isError) {
+        status =
+          (interrupted.structuredContent as { item?: { status?: string } })?.item?.status ??
+          (interrupted.structuredContent as { status?: string }).status
+        break
+      }
+      await delay(500)
+    }
+    expect(status, "host never became reachable after force restart").toBeTruthy()
     // Force drain/restart may leave interrupted, failed (aborted delay), or already finished.
     expect(["interrupted", "running", "completed", "failed", "cancelled"]).toContain(status)
 

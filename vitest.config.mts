@@ -79,6 +79,11 @@ export default defineConfig({
           environment: "node",
           include: ["test/e2e/**/*.test.ts"],
           exclude: ["**/node_modules/**"],
+          // Spawned host/supervisor/MCP work; keep the default off the 5s Vitest floor.
+          testTimeout: 120_000,
+          hookTimeout: 60_000,
+          // One e2e file at a time avoids cross-test host/port contention on CI runners.
+          fileParallelism: false,
         },
       },
     ],

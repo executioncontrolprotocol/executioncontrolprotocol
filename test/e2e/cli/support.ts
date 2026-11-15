@@ -124,18 +124,20 @@ export function parseJsonStdout<T>(stdout: string): T {
  * Wait until host.json exists and health is ok.
  * @category Test
  */
-export async function waitForHost(home: string, timeoutMs = 45_000): Promise<void> {
+export async function waitForHost(home: string, timeoutMs = 60_000): Promise<void> {
   const { readHostJson, checkHealth } = await import("../../../packages/host/src/index.js")
   const deadline = Date.now() + timeoutMs
+  let last = "no-host.json"
   while (Date.now() < deadline) {
     const file = readHostJson(home)
     if (file) {
       const health = await checkHealth(`http://127.0.0.1:${file.port}`)
+      last = health ? `status=${health.status} port=${file.port}` : `unreachable port=${file.port}`
       if (health?.status === "ok") return
     }
-    await delay(100)
+    await delay(200)
   }
-  throw new Error(`host not healthy under ${home}`)
+  throw new Error(`host not healthy under ${home} (${last})`)
 }
 
 /**

@@ -20,12 +20,20 @@ describe("A1 retrieve via CLI and MCP", () => {
   it("plugins link + retrieve --query/--id find test.echo; same via MCP", async () => {
     assertCliBuilt()
     const { home, env } = await createCliHome({ linkPluginTest: false })
+    cleanups.push(async () => {
+      await runEcp(["host", "stop", "--force", "--json"], { env }).catch(() => undefined)
+    })
 
+    // Link first (no host yet), then start once — avoids restart races during retrieve.
     const link = await runEcp(["plugins", "link", pluginTestRoot, "--no-install"], {
       env,
       timeoutMs: 90_000,
     })
     expect(link.code, link.stderr + link.stdout).toBe(0)
+
+    const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 60_000 })
+    expect(start.code, start.stderr + start.stdout).toBe(0)
+    await waitForHost(home)
 
     const query = await runEcp(["retrieve", "--type", "capability", "--query", "echo", "--json"], {
       env,
@@ -47,9 +55,6 @@ describe("A1 retrieve via CLI and MCP", () => {
     expect(blob).toMatch(/accepts/)
     expect(blob).toMatch(/returns/)
 
-    // CLI retrieve may have started the host; wait out any plugins-link restart before MCP.
-    await waitForHost(home)
-
     const session = await openMcpSession({ env })
     cleanups.push(session.close)
     const search = await callTool(session.client, "retrieve", {
@@ -65,5 +70,5 @@ describe("A1 retrieve via CLI and MCP", () => {
     const mcpBlob = JSON.stringify(mcpOne.structuredContent)
     expect(mcpBlob).toMatch(/accepts/)
     expect(mcpBlob).toMatch(/returns/)
-  }, 120_000)
+  }, 180_000)
 })
