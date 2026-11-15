@@ -744,7 +744,7 @@ from the reset's design and `packages/core/src/types/errors.ts`:
 - **Error codes to keep (renamed where the vocabulary changed):** `ECP_EXECUTION_LOAD` (was
   `ECP_WORKFLOW_LOAD`), `ECP_PLUGINS_MISSING`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID`,
   `ECP_REF_UNRESOLVED`, `ECP_CONFIG_INVALID` (was `ECP_BINDING_INVALID`), `ECP_SECRET_MISSING`,
-  `ECP_STEP_FAILED`, `ECP_OUTPUT_INVALID`, `ECP_PLUGIN_DENIED`. New ones from this plan include
+  `ECP_STEP_FAILED`, `ECP_OUTPUT_INVALID`. (`ECP_PLUGIN_DENIED` is dropped with the trust check.) New ones from this plan include
   `ECP_VERSION_CONFLICT` (stale `ifVersion`), `ECP_EXPR_INVALID` / `ECP_EXPR_TIMEOUT` (QuickJS),
   `ECP_SCRIPT_INVALID` (`$script` syntax check) and `ECP_HOST_RESTARTED`.
 - **Dropped with policies and environments:** `ECP_POLICY_DENIED`, `ECP_RUN_PAUSED`,
@@ -765,9 +765,8 @@ from the reset's design and `packages/core/src/types/errors.ts`:
 - Unknown capability or topic → name the plugin that provides it and the install command
   (`ECP_PLUGINS_MISSING`).
 - `plugins link` is the documented plugin-author loop.
-- A plugin **trust check** before install (allowed sources, third-party plugins on or off),
-  reported as `ECP_PLUGIN_DENIED`. In the MVP this is a simple allowlist; richer trust policy
-  comes back with policies.
+- No plugin trust check or allowlist in the MVP (decided 2026-11-14): any package oclif can
+  install or link is accepted. Trust policy can return later with policies.
 - The plugin authoring package is a **peer dependency** of plugins, so a plugin's install folder
   never gets its own copy of core and the registry never splits.
 
@@ -836,7 +835,7 @@ The spec in [`realignment/spec/`](realignment/spec/README.md) fixes every contra
 | 2 | [Plugins](realignment/phase-2-plugins.md): SDK, manifests, loading, `plugin-test` | 1 |
 | 3 | [Local host](realignment/phase-3-local-host.md): storage, secrets, formatters, in-process host | 1, 2 |
 | 4 | [Host server](realignment/phase-4-host-server.md): HTTP API, auth, supervisor | 3 |
-| 5 | [CLI](realignment/phase-5-cli.md): commands, discovery, trust, benchmark decision | 3, 4 |
+| 5 | [CLI](realignment/phase-5-cli.md): commands, discovery, plugin hooks, benchmark decision | 3, 4 |
 | 6 | [MCP relay](realignment/phase-6-mcp-relay.md) | 4, 5 |
 | 7 | [App](realignment/phase-7-app.md) | 4 (5 for `ecp app`) |
 | 8 | [Plugins and dogfood](realignment/phase-8-plugins-and-dogfood.md): Anthropic, Azure, Firefly, examples, live `localize-banner` | 2 (3 for end-to-end) |

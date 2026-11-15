@@ -4,7 +4,7 @@
 register it from the manifest and call it on first use. `plugin-test` exists and exercises every
 handler-context feature.
 
-**Depends on:** Phase 1. **Spec:** 08, 07 (`PluginAdapter`), 05 (trust, layout).
+**Depends on:** Phase 1. **Spec:** 08, 07 (`PluginAdapter`), 05 (layout).
 
 ## Tasks
 

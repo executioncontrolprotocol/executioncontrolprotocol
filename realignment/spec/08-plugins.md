@@ -125,14 +125,12 @@ script after `tsc`:
    capability, call its `handler()` thunk (cached), invoke the default export. Failures →
    `ECP_PLUGIN_LOAD_FAILED`.
 
-## Trust check (CLI, on install/link)
+## After install, link, uninstall or update (CLI hook)
 
-`ecp plugins install` and `link` run an oclif `preinstall`-style hook (and a link check) that
-reads `trust.json` (05): the package scope must be in `trustedScopes`, or the user passes
-`--trust` (which adds the scope after confirmation in interactive mode). Unscoped packages need
-`allowUnscoped: true`. Links need `allowLinks`. Refusal → `ECP_PLUGIN_DENIED`. After a
-successful install: verify `ecp.manifest.json` exists and validates (warn, don't uninstall, if
-not), then touch the marker.
+No trust check or allowlist in the MVP: any package oclif can install or link is accepted.
+After a successful install or link, the CLI verifies that `ecp.manifest.json` exists and
+validates (it warns, and doesn't uninstall, if not), then touches the marker so a running host
+restarts. Uninstall and update touch the marker too.
 
 ## First-party plugins in the MVP
 

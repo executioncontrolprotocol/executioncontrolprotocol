@@ -64,8 +64,9 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
 | `POST /v1/retrieve` | token | `RetrieveInput` → envelope |
 | `POST /v1/execute` | token | `ExecuteInput` → envelope |
 | `POST /v1/commit` | token | `CommitInput` → envelope |
-| `GET /v1/watch?types=run,execution,config&runId=…&path=…` | token | Server-sent events stream: storage changes, run events (04), and changes to one execution file (`path`, App); heartbeat comment every 15 s |
+| `GET /v1/watch?types=run,execution,config&runId=…&path=…` | token | Server-sent events stream: storage changes, run events (04), and changes to an execution file and its `$script.path` files (`path`, App hot reload); heartbeat comment every 15 s |
 | `GET /v1/file?path=<absolute>` | token | Read-only text of a `.ecp.json` file or a `$script.path` it references (App); max 2 MB |
+| `GET /v1/files?dir=<absolute>` | token | `*.ecp.json` files under `dir`, depth 3, max 200, skipping `node_modules` and dot-folders (App home) |
 | `POST /v1/admin/drain` | token | `{ timeoutMs }` → `{ interrupted: [runIds] }` |
 | `POST /v1/admin/shutdown` | token | `{}` → `{}` then exit |
 | `GET /app/*` | none for the static bundle; the App's API calls need the token | Prebuilt App |

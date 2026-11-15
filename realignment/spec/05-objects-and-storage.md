@@ -28,7 +28,6 @@ $ECP_HOME/
 │   ├── steps/<nodeId>[#<round>].json
 │   ├── events.ndjson
 │   └── artifacts/                  files written by capabilities (08)
-└── trust.json                      plugin trust settings (10)
 ```
 
 Note on `state.json`: it holds the real state needed for resume. Secret values are never in
@@ -124,12 +123,3 @@ Summaries (search results) contain `id`, `plugin`, `summary` only.
 ## Plugin manifest
 
 Defined in 08 (`ecp.manifest.json`).
-
-## `trust.json`
-
-```json
-{ "schema": "@executioncontrolprotocol.trust", "version": "1.0",
-  "trustedScopes": ["@executioncontrolprotocol"], "allowUnscoped": false, "allowLinks": true }
-```
-
-Missing file = these defaults.

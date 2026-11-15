@@ -18,7 +18,7 @@ against fixed contracts.
 2. **Scaffold all MVP packages** (01 table) with `package.json`, `tsconfig.json`, `src/index.ts` exporting nothing but a version constant, one smoke test each. Wire project references. `pnpm run build` and `pnpm run test:unit` pass.
 3. **`protocol` package:**
    - Types for everything in spec 02, 03, 04 (events), 05, 06, 07 (service interfaces and token ids), 08 (handler context, plugin manifest), 09 (`host.json`).
-   - JSON Schemas (draft 2020-12) in `packages/protocol/schemas/`: `execution.base.schema.json` (manifest without plugin-specific inputs, with the dispatch rules of 03), `config`, `run`, `step-record`, `run-event`, `plugin-manifest`, `host`, `trust`, `retrieve.input`, `execute.input`, `commit.input`, `validation-result`, `envelope`.
+   - JSON Schemas (draft 2020-12) in `packages/protocol/schemas/`: `execution.base.schema.json` (manifest without plugin-specific inputs, with the dispatch rules of 03), `config`, `run`, `step-record`, `run-event`, `plugin-manifest`, `host`, `retrieve.input`, `execute.input`, `commit.input`, `validation-result`, `envelope`.
    - `errors.ts`: the catalogue (06) as a const map `{ code: { httpStatus, exitCode, kind: "validation" | "runtime" | "request" | "host" | "internal" } }`, plus `ECP_SERVICE_*` internal codes.
    - `first-party.ts`: plugin id → package map for `ECP_PLUGINS_MISSING`.
    - Tests: every schema compiles under Ajv 2020; type/schema agreement checks (sample objects type-check and validate).

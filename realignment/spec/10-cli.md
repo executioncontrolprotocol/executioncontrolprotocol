@@ -15,11 +15,11 @@ oclif command classes (no generation). Core oclif plugins bundled: `@oclif/plugi
 | `ecp host restart` | `--force` | Control `POST /restart` |
 | `ecp host logs` | `--lines <n>` (default 50), `--supervisor` | Tail the log file |
 | `ecp mcp start` | — | Run the MCP relay on stdio (09). Never prints to stdout except MCP frames; logs go to `logs/relay.log` |
-| `ecp app` | `[path \| id]`, `--no-open` | Ensure a host; open `http://127.0.0.1:<port>/app/#token=<token>&open=<path or id>` in the default browser (print the URL with `--no-open`) |
+| `ecp app` | `[path]`, `--id <id>`, `--no-open` | Ensure a host; open `http://127.0.0.1:<port>/app/#token=<token>&open=<absolute path>` (or `&dir=<cwd>` with no path, or `&id=<id>`) in the default browser; hot reload is always on (11). `--no-open` prints the URL |
 | `ecp retrieve` | `--type`, `--id`, `--query`, `--limit`, `--include a,b`, `--filter key=value` (repeatable), `--format <id>`, `--out <file>`, `--json` | Operation 06 |
 | `ecp execute` | `[path \| id]`, `--input <json \| @file \| ->`, `--validate`, `--no-wait`, `--resume <runId>`, `--cancel <runId>`, `--out <file>`, `--start-host`, `--json` | Operation 06. Positional: ends in `.ecp.json` or contains a path separator → `path`, else `id` |
 | `ecp commit` | `--type`, `--action`, `--id`, `--object <@file \| ->`, `--patch <@file \| ->`, `--if-version <n>`, `--json` | Operation 06 |
-| `ecp plugins install \| uninstall \| link \| update \| list` | oclif's, plus `--trust` on install/link | Trust check and marker (08). `list` adds manifest status per plugin |
+| `ecp plugins install \| uninstall \| link \| update \| list` | oclif's flags only | Manifest check and marker after changes (08). `list` adds manifest status per plugin |
 | `ecp secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
 | `ecp secrets unset` | `<key>` | Delete; exit 2 if missing |
 | `ecp secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
@@ -62,5 +62,4 @@ benchmark in Phase 5 (12). The spec above is the starting behaviour.
 
 - `init`: set `ECP_DATA_DIR` default; ensure `$ECP_HOME` exists.
 - `command_not_found` (plugin-not-found): suggest the closest command.
-- Plugin install/link/uninstall/update: trust check before, manifest check and marker touch
-  after.
+- Plugin install/link/uninstall/update: manifest check and marker touch after.
