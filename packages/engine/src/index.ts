@@ -31,4 +31,6 @@ export { HostSchemaSet, loadExecutionText, validateExecution } from "./validate/
 export { runExecution } from "./execute/run.js"
 export type { RunDependencies, RunOutcome, StateStore, StepSummary } from "./execute/run.js"
 export { resolveValue } from "./execute/resolve.js"
+export { matchCandidates, tokensOf } from "./operations/match.js"
+export type { MatchCandidate, MatchHit } from "./operations/match.js"
 export type { ValidateOptions } from "./validate/validate.js"
