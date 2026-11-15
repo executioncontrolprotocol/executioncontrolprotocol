@@ -2,7 +2,7 @@
   "name": "@executioncontrolprotocol/quickjs",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP quickjs package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "QuickJS expression engine for ECP. Evaluates expr and $expr inside a WASM sandbox.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -19,5 +19,9 @@
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "quickjs-emscripten": "0.31.0"
   }
 }

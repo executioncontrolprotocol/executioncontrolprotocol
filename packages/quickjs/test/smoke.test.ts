@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { VERSION } from "../src/index.js"
+import { QuickJsExpressionEngine } from "../src/index.js"
 
 describe("quickjs", () => {
-  it("exports its version", () => {
-    expect(VERSION).toBe("2.0.0")
+  it("exports the expression engine id", () => {
+    expect(QuickJsExpressionEngine.id).toBe("@executioncontrolprotocol/quickjs")
   })
 })

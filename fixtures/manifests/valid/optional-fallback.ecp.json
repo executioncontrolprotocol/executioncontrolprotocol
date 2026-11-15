@@ -3,11 +3,20 @@
   "version": "2.0",
   "steps": [
     {
+      "id": "gated",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "expr": "(state) => false",
+      "input": {
+        "value": "x"
+      },
+      "as": "maybe"
+    },
+    {
       "id": "echo",
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.missing",
+          "$ref": "state.maybe",
           "optional": true,
           "fallback": "fallback"
         }

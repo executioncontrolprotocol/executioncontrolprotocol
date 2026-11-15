@@ -1,5 +1,6 @@
 /**
- * Package version. The implementation arrives in a later phase.
- * @category Definitions
+ * QuickJS expression engine.
+ * @category Environment
  */
-export const VERSION = "2.0.0"
+export { ExpressionEvaluationError, QuickJsExpressionEngine } from "./engine.js"
+export type { ExpressionLimits, QuickJsEngineContext } from "./engine.js"

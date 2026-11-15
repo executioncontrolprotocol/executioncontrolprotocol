@@ -26,7 +26,8 @@
                         "input": {
                           "value": "nested"
                         },
-                        "as": "nested"
+                        "as": "nested",
+                        "mode": "replace"
                       }
                     ]
                   }

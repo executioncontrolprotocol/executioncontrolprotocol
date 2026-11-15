@@ -1,6 +1,6 @@
 [
   {
-    "code": "ECP_MANIFEST_INVALID",
+    "code": "ECP_EXECUTION_LOAD",
     "path": "/version",
     "severity": "error"
   }

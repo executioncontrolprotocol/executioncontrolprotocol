@@ -22,7 +22,7 @@
     "returns": {
       "type": "object",
       "properties": {
-        "headline": {
+        "localized": {
           "type": "string"
         },
         "banner": {
@@ -30,7 +30,7 @@
         }
       },
       "required": [
-        "headline",
+        "localized",
         "banner"
       ]
     }
@@ -171,14 +171,14 @@
       "as": "staged"
     },
     {
-      "id": "headline",
+      "id": "localized",
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
           "$ref": "state.doc.echo.headline"
         }
       },
-      "as": "headline",
+      "as": "localized",
       "mode": "replace"
     },
     {

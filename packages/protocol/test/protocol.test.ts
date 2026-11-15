@@ -206,7 +206,7 @@ describe("execution fixtures", () => {
       const paths = errorPaths(validate)
       for (const issue of expected) {
         expect(issue.severity).toBe("error")
-        expect(issue.code).toBe("ECP_MANIFEST_INVALID")
+        expect(["ECP_MANIFEST_INVALID", "ECP_EXECUTION_LOAD"]).toContain(issue.code)
         const hit = paths.some((pointer) => pointer === issue.path || pointer.startsWith(`${issue.path}/`) || issue.path.startsWith(pointer))
         expect(hit, `${name} expected ${issue.path} in ${paths.join(", ")}`).toBe(true)
       }

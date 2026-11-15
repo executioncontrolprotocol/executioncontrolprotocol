@@ -2,7 +2,7 @@
   "name": "@executioncontrolprotocol/engine",
   "version": "2.0.0",
   "private": true,
-  "description": "ECP engine package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "description": "ECP engine: service container, validation, and the executor.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -21,6 +25,9 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@executioncontrolprotocol/protocol": "workspace:*"
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "acorn": "^8.16.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
   }
 }

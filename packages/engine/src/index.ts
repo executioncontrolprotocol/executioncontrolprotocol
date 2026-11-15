@@ -23,3 +23,9 @@ export type {
   ServiceLookup,
   UseOptions,
 } from "./container/environment.js"
+export { generateExecutionSchema } from "./schema/generate.js"
+export type { JsonSchema } from "./schema/generate.js"
+export { canonicalJson, sha256Hex } from "./schema/canonical.js"
+export { closeMatches, damerauLevenshtein } from "./schema/suggest.js"
+export { HostSchemaSet, loadExecutionText, validateExecution } from "./validate/validate.js"
+export type { ValidateOptions } from "./validate/validate.js"
