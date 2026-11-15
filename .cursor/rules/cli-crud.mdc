@@ -52,11 +52,12 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
 
 - **`--json`** on every command prints `{ ok: true, data }` or
   `{ ok: false, error: { code, message, path, suggestions } }`. Error codes are `ECP_*`
-  (catalogue in `realignment/spec/operations.md`, Phase 0).
+  (catalogue in `realignment/spec/06-operations.md`).
 - `--out <file>` writes large results to a file and prints a summary, so agents choose what
   enters their context.
 - **Exit codes:** `0` success, `1` execution failed, `2` validation or usage error, `3` missing
-  plugins (final list in `realignment/spec/operations.md`).
+  plugins, `4` host unavailable or unauthorized (`realignment/spec/06-operations.md`). Full command
+  list and flags: `realignment/spec/10-cli.md`.
 - Missing capability or plugin: name the plugin and the exact install command
   (`ECP_PLUGINS_MISSING`).
 

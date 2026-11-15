@@ -1,8 +1,8 @@
 # Examples (realignment)
 
-`examples/*` are legacy single-file `*.ecp.ts` workflows (v1). In Phase 0 they're converted to
+`examples/*` are legacy single-file `*.ecp.ts` workflows (v1); Phase 0 moves them to `legacy/examples/`. In Phase 0 they're converted to
 v2 execution manifests (`*.ecp.json`) and become conformance fixtures: each must produce the
-same state outcome on the legacy executor (through a v1 adapter) and on the new one.
+expected state outcome on the new engine (written by hand; legacy code is not run after Phase 0).
 
 | Folder | Teaches | Phase 0 fixture covers |
 | --- | --- | --- |

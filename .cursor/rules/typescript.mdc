@@ -27,7 +27,7 @@ alwaysApply: true
 - **CLI tokens** (flags, subcommands, `key=value` keys): kebab-case. See `cli-crud.mdc`.
 - **Types and interfaces:** PascalCase.
 - **Error codes:** `ECP_*` in SCREAMING_SNAKE_CASE (`ECP_PLUGINS_MISSING`). The catalogue is
-  `realignment/spec/operations.md` (Phase 0).
+  `realignment/spec/06-operations.md`.
 
 ## Documentation
 

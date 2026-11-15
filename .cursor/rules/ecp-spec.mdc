@@ -5,13 +5,13 @@ alwaysApply: true
 
 # ECP specification
 
-- **Source of truth:** `REALIGNMENT-PLAN.md`, then the build spec in `realignment/spec/` once
-  Phase 0 writes it (see `realignment-milestone.mdc`). `SPEC.md` describes the previous
+- **Source of truth:** the MVP build spec in `realignment/spec/` (exact contracts), then
+  `REALIGNMENT-PLAN.md` (see `realignment-milestone.mdc`). `SPEC.md` describes the previous
   design and is history; the CLI reset plan is retired.
 - **Executions** (formerly workflows) are JSON manifests:
-  `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The exact schema is
-  `realignment/spec/execution.schema.json` (Phase 0). Until it exists, the plan's
-  "Execution manifest v2" section is the reference.
+  `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The shape is
+  `realignment/spec/02-execution-manifest.md`; the JSON Schema is
+  `packages/protocol/schemas/execution.base.schema.json` (written in Phase 0).
 - **Portability:** an execution never contains secrets, `$secret`/`$env` references, bindings
   or host config. It references capabilities by id; steps may name a `config` object.
 - **Expressions:** one `expr` field on steps, branch arms and loops; `true` means go. Computed
@@ -21,9 +21,8 @@ alwaysApply: true
   plugin manifests, and the execution schema). Plugins author schemas with zod and export JSON
   Schema.
 - **Validation issues** carry `code`, `message`, `path`, `suggestions` and `severity`. Error
-  codes are `ECP_*`; the catalogue is `realignment/spec/operations.md` (Phase 0). Until then the
-  baseline is the plan's "Carried over from the CLI reset" section (codes to keep, rename and
-  drop; exit codes).
+  codes are `ECP_*`; the catalogue is `realignment/spec/06-operations.md` (with HTTP statuses
+  and CLI exit codes). Validation layers and the issue shape are in `03-validation.md`.
 - Legacy code in `packages/core/src/types` uses `@executioncontrolprotocol.workflow` v1.0 and
   `$fn` expressions. Treat it as reference, not as the target.
 - Do not reintroduce the v0.5 YAML `ECPContext` / `spec.yaml` model.

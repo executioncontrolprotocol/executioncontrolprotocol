@@ -2,7 +2,7 @@
 
 Three agent-repair tasks from the CLI reset, each with a working workflow and, for two of
 them, a version with an injected failure. They're legacy `*.ecp.ts` files (v1). In Phase 0
-they become v2 execution fixtures (`realignment/phase-0-build-spec.md`, deliverable 11), and
+they become v2 execution fixtures (`realignment/phase-0-groundwork.md`, task 5; `realignment/spec/12-testing-and-acceptance.md`), and
 the failure versions become fixtures for error codes and repair loops.
 
 | Task | Workflow | Injected failure | Expected error |

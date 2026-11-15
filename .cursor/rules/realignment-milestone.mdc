@@ -7,12 +7,14 @@ alwaysApply: true
 
 This repo is executing the ECP realignment on `milestone/realignment`.
 
-- **Source of truth:** [`REALIGNMENT-PLAN.md`](../../REALIGNMENT-PLAN.md) for decisions and
-  target architecture, and [`realignment/`](../../realignment/README.md) for each phase's doc.
+- **Source of truth:** [`realignment/spec/`](../../realignment/spec/README.md) for exact MVP
+  contracts, [`REALIGNMENT-PLAN.md`](../../REALIGNMENT-PLAN.md) for decisions and rationale, and
+  [`realignment/`](../../realignment/README.md) for each phase's doc.
   When another rule or `AGENTS.md` disagrees with them, follow the plan, say so in the PR, and
   propose a fix to the rule.
-- **No implementation code before Phase 0 (the build spec) is done.** Phase 0 writes
-  `realignment/spec/`. Spikes and benchmarks are throwaway and live in `realignment/spikes/`.
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
+  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
+  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
 - **Executing a phase:** read the plan, then `realignment/README.md`, then the phase doc. Work
   its tasks in order. Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment` and
   open the PR into `milestone/realignment`.
@@ -23,7 +25,8 @@ This repo is executing the ECP realignment on `milestone/realignment`.
   applies is in the plan's "Carried over from the CLI reset" section; don't recover the old
   files as instructions. `SPEC.md` describes the v1 workflow model and is history.
 - **Out of scope until the plan says otherwise:** policies, remote plugin hosts, caller auth
-  beyond the local token, the browser environment, per-capability CLI commands or MCP tools.
+  beyond the local token, the browser environment, per-capability CLI commands or MCP tools,
+  and anything Fluent (post-MVP phase).
 - **If the plan or a phase doc is wrong or impossible,** stop and report it instead of
   improvising.
 - **Honesty:** label stubs, mocks and deferred work in code and in the PR.

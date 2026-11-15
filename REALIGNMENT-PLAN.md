@@ -1,11 +1,13 @@
 # ECP Realignment Plan
 
-> **Status:** planning, 2026-11-14. Milestone branch: `milestone/realignment`.
+> **Status:** MVP decided, 2026-11-14. Milestone branch: `milestone/realignment`.
+> **Build from the spec:** [`realignment/spec/`](realignment/spec/README.md) holds the exact MVP contracts and
+> [`realignment/`](realignment/README.md) the phase docs. Where this plan and the spec differ, the spec wins.
 > This plan is the source of truth for the realignment. It replaces the CLI reset plan
 > (`RESET-PLAN.md` and `reset/`, retired 2026-11-14; what still applies is in "Carried over from
 > the CLI reset", and the originals are in git history at `27238c96`). Phase docs live in
 > [`realignment/`](realignment/README.md).
-> **No implementation code until Phase 0 (the build spec) is done**; see "Implementation readiness".
+> Implementation starts with Phase 0 (groundwork); see "MVP build".
 > Grounded in `development` @ `5a523783` (2026-11-04).
 
 ECP becomes an **ECP host**: one restartable process that holds the engine (executor, validation, registry), a service container, and an **HTTP API** with three operations (`retrieve`, `execute`, `commit`). It runs **execution manifests** (formerly workflow manifests) and validates every capability call against accepts/returns schemas. **Plugins load inside the host**, deferred the way oclif does it: the registry comes from per-plugin manifests and plugin code is imported on first call. A small **host supervisor** (`ecp host start`) keeps a warm host running and restarts it on plugin changes or crashes. The **MCP relay** (`ecp mcp start`) is a thin stdio MCP server that forwards the three tools to the host API, so MCP clients stay connected across host restarts. CLI commands, the App and scripts are clients of the same API. Every key component is a **service**: an interface with swappable implementations registered at environment setup (`environment.use(Impl, Interface.service)`), OSGi-style but without runtime lifecycles or ranking. The MVP ships local implementations only. The Fluent TS API becomes an SDK that generates manifests.
@@ -18,13 +20,27 @@ ECP becomes an **ECP host**: one restartable process that holds the engine (exec
 
 **Out for now:** policies (budget, approval, state-control, registry-control), editing in the App canvas, the browser environment, harnesses/evals, Reflex. The executor keeps a before/after-call hook where policies can attach later, nothing more.
 
+## MVP decisions (final, 2026-11-14)
+
+These override anything below that reads otherwise. Details are in the spec.
+
+- **JSON is the only execution format in the MVP.** The host accepts manifests inline, by `id`, by `path`, or by `id` + patch. No Fluent parsing in the host.
+- **The Fluent SDK is a separate post-MVP phase** ([`realignment/post-mvp-fluent-sdk.md`](realignment/post-mvp-fluent-sdk.md)). It produces JSON at build time; no MVP phase depends on it. Sections below that discuss Fluent as an authoring format describe that later phase.
+- **The host is the validation authority.** Four layers (load, schema, semantics, data flow, plus run input); one `ValidationResult` with codes, JSON Pointers, suggestions and available refs on every surface; `execute { mode: "validate" }` for the fix loop (spec 03, 06).
+- **Plugin manifests carry `accepts`, `returns` and the config schema.** The host generates a plugin-aware schema (dispatching by `uses`, node `type` and marker key) and checks every `$ref` against `returns`: order, maybe-missing outputs after gates/branches/loops, path existence, type fit, parallel isolation, write conflicts (spec 03).
+- **`$script` can reference a file** (`path`) as well as inline `source` (spec 02).
+- **Commit modes:** `create`, `replace`, `merge`, `append`. The legacy `version` mode behaved exactly like `replace` and is dropped.
+- **Layout:** Phase 0 moves all legacy code to `legacy/` outside the workspace, build, lint, tests and CI; new packages live in `packages/` and `plugins/`; Phase 9 deletes `legacy/` (spec 01).
+- **Packages:** `protocol`, `engine`, `quickjs`, `formatters`, `local`, `plugin-sdk`, `host`, `mcp-relay`, `cli`, `app`, and plugins `plugin-test`, `plugin-anthropic`, `plugin-azure-blob-storage`, `plugin-adobe-firefly-services` (spec 01, 08).
+- **Done means** the 12 acceptance scenarios in spec 12 pass in CI on Ubuntu and Windows.
+
 ## Repo and branch
 
 Decided 2026-11-14: the realignment happens in **this repo on `milestone/realignment`**, cut from `development`.
 
 - The existing packages stay as **legacy reference code** until each one is replaced. Read them for what to carry over (see "What carries over"); don't extend them.
 - Agent rules (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `skills/ecp-core/`) were rewritten for this plan before any code, so agents don't follow the reset-era rules. `RESET-PLAN.md` and `reset/` are history.
-- **Layout of new code** (proposed, confirm in Phase 1): build the new packages in new directories next to the legacy ones, and delete each legacy package in the same PR that replaces it. This keeps CI green on the milestone and makes "legacy vs new" obvious from the path.
+- **Layout of new code** (decided): Phase 0 moves legacy code to `legacy/` (out of the workspace and CI); new code goes in `packages/` and `plugins/`; Phase 9 deletes `legacy/`.
 - The npm scope `@executioncontrolprotocol/*` is published up to 0.52.x. Releases from this milestone are a new major version; decide package names before the first publish.
 - Pushes to `main` publish to npm. Work merges into `milestone/realignment` through PRs; nothing goes to `development` or `main` until the milestone is released.
 
@@ -356,7 +372,7 @@ In local mode the agent manages executions as files and never passes them back a
 - **Round trips:** patching never costs more calls than resending. If the object is in context, it's one small call. If not, a `retrieve` is needed either way, and it can be narrowed (`select: "steps[translate]"`).
 - Patching (cheaper edits) and the Fluent formatter (cheaper reading and writing) are separate savings.
 
-### Fluent as an authoring format (proposed, 2026-11-12)
+### Fluent as an authoring format (post-MVP; see `realignment/post-mvp-fluent-sdk.md`)
 
 - JSON stays canonical (storage, validation, wire). Measured on the banner example: JSON ≈ 1,470 word/symbol pieces vs Fluent ≈ 1,004 (about 1.5×). Bigger issue than size: JS inside JSON strings needs escaping, which is error-prone for models.
 - A `@executioncontrolprotocol/fluent` `Formatter` with both directions: `format()` renders JSON as Fluent for `retrieve`; `parse()` turns Fluent text into JSON for `execute`/`commit` (`format: "@executioncontrolprotocol/fluent"`).
@@ -669,7 +685,7 @@ Smallest valid execution (one capability call):
 ### Validating the schema
 
 - One fixture per row of the "what exists today" table plus each proposed change, valid and invalid, with the expected validation result.
-- Parity check: convert the repo's examples (`examples/01`–`08`) and dogfood executions (Firefly) to v2. Each must run with the same state outcome on the old executor (via a v1 adapter) and the new one.
+- Parity check (as decided in the spec): the legacy examples and dogfood workflows are converted to v2 by hand in Phase 0 and must run on the new engine with the expected state outcome (Phase 8). Legacy code is not built or run after Phase 0.
 - JSON Schema for the manifest generated from zod, as the single source. The same schema is the `execute` tool's `input_schema`.
 - Model check: given `retrieve` output, can a frontier model and a small model write valid v2 executions for the fixture tasks?
 
@@ -715,7 +731,7 @@ apply, adapted to this plan. Where they conflict with anything above, the sectio
 
 ### Baseline for run records, error codes and exit codes (input to Phase 0)
 
-Phase 0 writes the final versions in `realignment/spec/objects.md` and `operations.md`. Start
+The final versions are in `realignment/spec/05-objects-and-storage.md` and `06-operations.md`; they started
 from the reset's design and `packages/core/src/types/errors.ts`:
 
 - **Run record:** per run, the execution (path or id, and a hash), resolved graph, plugin
@@ -808,44 +824,26 @@ and the design tokens in `packages/app/DESIGN.md`. The App is not a chat client.
 - At release, `npm deprecate` the 0.x packages that were renamed or removed, with pointers to
   their replacements.
 
-## Implementation readiness
+## MVP build
 
-**What's settled** (enough for coding agents to plan Phase 0 and the build order):
+The spec in [`realignment/spec/`](realignment/spec/README.md) fixes every contract; the phase docs in
+[`realignment/`](realignment/README.md) give ordered tasks, tests and exit criteria.
 
-- Architecture: restartable ECP host with a localhost HTTP API; plugins loaded in-process, deferred, from per-plugin manifests; host supervisor; thin MCP relay; the App on the host API.
-- MCP surface: exactly `retrieve`, `execute`, `commit`, mirrored by the CLI and the HTTP API.
-- Service model: `environment.use(Impl, Interface.service)`, lookup by id, no ranking, no declared dependencies, npm-style ids.
-- Execution manifest v2 direction: rename, `$expr` (QuickJS) and `$script` (value), one `expr` field (true = go), no secrets in executions, config objects with `$secret` references.
-- Local mode: files on disk, `path` references, `output.path`, patches through `commit`, `ifVersion`.
-- Scope cuts: no policies, no remote plugin hosts, no caller auth beyond the local token in the MVP.
+| Phase | Doc | Depends on |
+| --- | --- | --- |
+| 0 | [Groundwork](realignment/phase-0-groundwork.md): legacy move, scaffolding, `protocol`, fixtures, early benchmarks | — |
+| 1 | [Engine](realignment/phase-1-engine.md): container, validation, executor, QuickJS, operations | 0 |
+| 2 | [Plugins](realignment/phase-2-plugins.md): SDK, manifests, loading, `plugin-test` | 1 |
+| 3 | [Local host](realignment/phase-3-local-host.md): storage, secrets, formatters, in-process host | 1, 2 |
+| 4 | [Host server](realignment/phase-4-host-server.md): HTTP API, auth, supervisor | 3 |
+| 5 | [CLI](realignment/phase-5-cli.md): commands, discovery, trust, benchmark decision | 3, 4 |
+| 6 | [MCP relay](realignment/phase-6-mcp-relay.md) | 4, 5 |
+| 7 | [App](realignment/phase-7-app.md) | 4 (5 for `ecp app`) |
+| 8 | [Plugins and dogfood](realignment/phase-8-plugins-and-dogfood.md): Anthropic, Azure, Firefly, examples, live `localize-banner` | 2 (3 for end-to-end) |
+| 9 | [Acceptance and cleanup](realignment/phase-9-acceptance.md): A1–A12, delete `legacy/`, docs, release readiness | 0–8 |
+| Post-MVP | [Fluent SDK](realignment/post-mvp-fluent-sdk.md) | MVP done |
 
-**What isn't settled yet, and must be written down before code (Phase 0 build spec).** Each item becomes a document in `realignment/spec/` with exact schemas, signatures and behaviour rules; see [`realignment/phase-0-build-spec.md`](realignment/phase-0-build-spec.md).
-
-1. Execution manifest v2 JSON Schema (from the examples and rules above) and the conformance fixtures.
-2. Executor semantics: parallel branches writing the same state key, step failure and how a run fails, retries, timeouts, cancellation, what "resume" reruns, what a skipped step leaves in state.
-3. Object schemas: config, run record and run events, capability entry, `ecp.manifest.json`.
-4. The three operations: exact inputs, outputs and error codes, shared by MCP, CLI and HTTP. Error code catalogue (`ECP_*`), carrying over what fits from `packages/core/src/types/errors.ts`.
-5. Service interfaces: method signatures for every MVP service, and the `defineService` / `use` / `get` API.
-6. Plugin authoring API and manifest generation (starting from `defineExtension`).
-7. `localstorage` layout: folders, file names, ids vs paths, versions for `ifVersion`, atomic writes.
-8. Host API routes, `host.json`, the supervisor's drain/restart protocol, and the relay's retry rules.
-9. `retrieve` matching (substring/fuzzy in the MVP).
-10. Stack choices: Node 22 LTS, TypeScript, ESM, pnpm, vitest, oclif v4, `@modelcontextprotocol/sdk`, Ajv for JSON Schema in the host, zod in plugin authoring, `quickjs-emscripten`, acorn (Fluent parsing, if adopted), a maintained keychain library, React 19 + React Flow + Vite for the App.
-11. Startup spike and CLI benchmark early proxy (see "Measurements").
-
-Coding agents start by planning and writing Phase 0. Implementation phases are planned from the finished spec, not from this document alone.
-
-## Phases
-
-0. **Code dive, schema lock-in, startup spike.** Confirm the v1 table covers everything (including run-time behaviour of `parallel` concurrency, `optional`/`fallback` and `mode`, and today's patch op). Set QuickJS limits and the `$script` ECMAScript target. Write the v2 JSON Schema and fixtures. Run the startup spike and the CLI benchmark's early proxy on today's CLI, and set budgets (see "Measurements"). Compare model validity and tokens for JSON vs Fluent. Exit: schema plus a fixture suite that passes on the old executor through the v1 adapter, and startup budgets recorded in this plan.
-1. **Milestone setup.** Confirm the layout of new code (new directories next to legacy packages), package names, and CI on `milestone/**`. Agent rules were already rewritten for this plan (2026-11-14).
-2. **Core:** service container (`defineService`, `use`, `get`, the three rules), manifest types + validator + executor (ported), `ExpressionEngine` (QuickJS) and `$script` resolution.
-3. **Plugins:** capability + config-schema definition API, `ecp.manifest.json` generation and install-time checks, `LocalPluginRegistration` (registry from manifests, oclif-style folder loading, in-process import on first call, per-capability modules where possible).
-4. **ECP host:** registry, accepts/returns enforcement, the HTTP API `Endpoint` (`/retrieve`, `/execute`, `/commit`, `/watch`, `/health`, admin drain; inline / id / path / id + patch, `output.path`, `ifVersion`), localhost token + `Host` check, `json` and `toon` formatters, `localstorage` with atomic writes, env/keychain `SecretsProvider`, config objects, run persistence for resume, `ECP_TIMING` breakdown.
-5. **Supervisor, relay, CLI:** run the full CLI benchmark and decide the background-host option first (see "Measurements"); then the host supervisor (`ecp host` commands as decided, `host.json`, marker watch, drain, crash backoff, same-port restarts); the MCP relay (`ecp mcp start`, health wait and retry); one-off `ecp retrieve/execute/commit` (use running host, else in-process, `--start-host`); `ecp plugins …`, `ecp secrets …`; `bench/` startup benchmarks in CI.
-6. **App:** port the graph and run overlay from `packages/app` onto the host API; `ecp app`; view, live updates, run status, run form.
-7. **Fluent SDK and formatter:** port the builder to emit v2; v1 → v2 migration command; the parse-only `@executioncontrolprotocol/fluent` formatter with round-trip tests (if Phase 0 confirms it's worth it).
-8. **First plugins:** port a small set (test/echo, one model provider, blob storage, Firefly as the real dogfood case). Exit: the agent dev loop works end to end (write plugin → link → supervisor restarts the host → `retrieve` shows it → `execute` → watch it in the App → fix → repeat), with the MCP session staying connected throughout.
+Phases 6, 7 and 8 can run in parallel once their dependencies land.
 
 ## Measurements
 
@@ -921,15 +919,9 @@ Designed for, not built in the MVP. Each one is a new service implementation, no
 
 ## Open questions
 
-- Package names / npm scope for the new major version.
-- QuickJS limits (time/memory per evaluation) and the ECMAScript target for `$script` syntax checks; whether `$script` takes a function or a script body.
-- Host restart: drain cap length, and whether some capabilities can declare themselves safe to retry.
-- How a branch fails: write an `error` key and continue (as in the example), or add a `fail` node that ends the run.
-- Object types in the MVP host: capability (read-only), execution, config, run, formatter (read-only) — anything else?
-- Are step outputs validated against `returns` always, or only at execution boundaries? (Leaning: always.)
-- Where large outputs go (artifact refs through `StorageProvider`?).
-- Background host for one-off CLI commands: none, explicit `ecp host start`, or automatic start with idle shutdown? Decided by the CLI benchmark; opt-out only if it's adopted.
-- Should the host serve MCP over HTTP directly as well (for remote clients), or always go through a relay?
-- Is the Fluent authoring format worth a second syntax? Decided by the Phase 0 validity/token comparison.
-- Exact patch format: JSON Patch ops with step-id paths, or carry over today's patch document as is?
-- Does `localstorage` keep executions as `*.ecp.json` anywhere in the workspace (referenced by path), in a fixed folder (referenced by id), or both?
+Resolved by the MVP spec (2026-11-14): package names, QuickJS limits and the `$script` target, host restart drain cap, branch failure (no fail node; a step failure fails the run), MVP object types, `returns` validation (always), large outputs (artifacts and `output.path`), patch format, `localstorage` layout, MCP over HTTP (relay only in the MVP).
+
+Still open, decided inside their phases:
+
+- Background host for one-off CLI commands (Phase 5 benchmark decision).
+- Release tag naming and the 0.x deprecation list (Phase 9).

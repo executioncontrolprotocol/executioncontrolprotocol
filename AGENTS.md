@@ -5,11 +5,12 @@
 This branch line (`milestone/realignment` and `feat/realignment-*` branches cut from it) is
 executing the ECP realignment.
 
-1. **[`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md)** holds the decisions and the target
-   architecture. It is the source of truth.
-2. **[`realignment/`](realignment/README.md)** holds the phase docs. If you were asked to
+1. **[`realignment/spec/`](realignment/spec/README.md)** is the MVP build spec: exact contracts. It wins
+   over everything else.
+2. **[`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md)** holds the decisions, architecture and rationale.
+3. **[`realignment/`](realignment/README.md)** holds the phase docs. If you were asked to
    execute a phase, its doc is your task list.
-3. **This file and `.cursor/rules/`** hold the rules for working in the repo. Where anything
+4. **This file and `.cursor/rules/`** hold the rules for working in the repo. Where anything
    here disagrees with the plan or a phase doc, the plan wins: say so in your PR and propose a
    fix to this file.
 
@@ -20,8 +21,9 @@ instructions.
 
 Ground rules:
 
-- **No implementation code before Phase 0 (the build spec) is done.** Phase 0 writes
-  `realignment/spec/`. Throwaway spikes and benchmarks go in `realignment/spikes/`.
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
+  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
+  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
 - Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment`; open PRs into
   `milestone/realignment`.
 - **Never push to `main` or `development`.** Pushes to `main` publish to npm.
@@ -73,9 +75,12 @@ Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
 | `plugins/plugin-openai/`, `plugin-ollama/`, `plugin-fal/`, `plugin-image-sharp/`, `plugin-jsonata/` | Capability plugins | Ported later, as needed |
 | `plugins/plugin-format-toon/`, `plugin-format-mermaid/` | Format capabilities | Become `Formatter` service implementations, not plugins |
 | `plugins/plugin-budget/`, `plugin-approval/`, `plugin-state-control/` | Policies | Out of scope until policies return |
-| `examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Converted to v2 execution fixtures in Phase 0 |
+| `examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Moved to `legacy/` and converted to v2 fixtures in Phase 0; v2 examples return in Phase 8 |
 | `skills/ecp-core/` | Contributor skill for this repo | Rewritten for the realignment; keep it in step with this file |
-| `REALIGNMENT-PLAN.md`, `realignment/` | The plan and phase docs | Source of truth |
+| `REALIGNMENT-PLAN.md`, `realignment/`, `realignment/spec/` | The plan, phase docs and MVP build spec | Source of truth |
+
+Phase 0 moves every legacy path above to `legacy/` (outside the workspace and CI); Phase 9 deletes it.
+The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`): no MVP work adds Fluent.
 
 ## Rules that hold throughout
 

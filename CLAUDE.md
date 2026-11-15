@@ -5,9 +5,9 @@ Instructions for Claude Code in this repository. The shared agent instructions l
 
 @AGENTS.md
 
-During the realignment milestone, read `REALIGNMENT-PLAN.md` and `realignment/README.md`
-before changing anything. When asked to execute a phase, `realignment/phase-<n>-*.md` is the
-task list. No implementation code until Phase 0 (the build spec) is done.
+During the realignment milestone, read `realignment/spec/README.md`, `REALIGNMENT-PLAN.md` and
+`realignment/README.md` before changing anything. When asked to execute a phase,
+`realignment/phase-<n>-*.md` is the task list and `realignment/spec/` the contract to implement.
 
 `.cursor/rules/` holds the detailed conventions (CLI naming, plugins, testing, TypeScript);
 they apply to Claude Code too. The CLI reset plan (`RESET-PLAN.md`, `reset/`) is retired; what

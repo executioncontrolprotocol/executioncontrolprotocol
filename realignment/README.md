@@ -1,39 +1,56 @@
-# ECP realignment — phase docs
+# ECP realignment — MVP phases
 
-Working docs for the `milestone/realignment` milestone. [`REALIGNMENT-PLAN.md`](../REALIGNMENT-PLAN.md)
-at the repo root holds the decisions and the target architecture. Each phase gets a doc here
-with scope, tasks, tests and exit criteria **before** work on it starts.
+Working docs for the `milestone/realignment` milestone.
+
+- **[`spec/`](spec/README.md)** — the MVP build spec: exact contracts. Implement it as written.
+- **[`../REALIGNMENT-PLAN.md`](../REALIGNMENT-PLAN.md)** — decisions, architecture, rationale.
+- **Phase docs below** — ordered tasks, tests and exit criteria per phase.
 
 The previous milestone's plan (the CLI reset) is retired. What still applies is in the plan's
 "Carried over from the CLI reset" section.
 
+## MVP phases
+
 | Phase | Doc | Status | Depends on |
 | --- | --- | --- | --- |
 | — | [Docs and rules index](doc-index.md) | Done 2026-11-14 | — |
-| 0 | [Build spec](phase-0-build-spec.md) | Not started | — |
-| 1 | Milestone setup | Not planned | 0 |
-| 2 | Core: service container, manifest v2, executor, expressions | Not planned | 0, 1 |
-| 3 | Plugins: authoring API, manifests, in-process loading | Not planned | 2 |
-| 4 | ECP host: HTTP API, storage, secrets, formatters, runs | Not planned | 2, 3 |
-| 5 | Supervisor, MCP relay, CLI (after the CLI benchmark) | Not planned | 4 |
-| 6 | App on the host API | Not planned | 4 |
-| 7 | Fluent SDK (and formatter, if adopted) | Not planned | 2 |
-| 8 | First plugins and the end-to-end dev loop | Not planned | 3, 4, 5 |
+| — | [MVP build spec](spec/README.md) | Decided 2026-11-14 | — |
+| 0 | [Groundwork](phase-0-groundwork.md) | Not started | — |
+| 1 | [Engine](phase-1-engine.md) | Not started | 0 |
+| 2 | [Plugins: SDK, manifests, loading](phase-2-plugins.md) | Not started | 1 |
+| 3 | [Local services and in-process host](phase-3-local-host.md) | Not started | 1, 2 |
+| 4 | [Host server and supervisor](phase-4-host-server.md) | Not started | 3 |
+| 5 | [CLI and the background-host decision](phase-5-cli.md) | Not started | 3, 4 |
+| 6 | [MCP relay](phase-6-mcp-relay.md) | Not started | 4, 5 |
+| 7 | [App](phase-7-app.md) | Not started | 4 (5 for `ecp app`) |
+| 8 | [First-party plugins and dogfood](phase-8-plugins-and-dogfood.md) | Not started | 2 (3 for end-to-end) |
+| 9 | [MVP acceptance and cleanup](phase-9-acceptance.md) | Not started | 0–8 |
 
-Phase numbers follow "Phases" in the plan. A phase is "Not planned" until its doc exists.
+Critical path: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 9. Phases 7 and 8 can run in parallel with 5–6
+once their dependencies land.
+
+**The MVP is done** when acceptance scenarios A1–A12 (`spec/12-testing-and-acceptance.md`)
+pass in CI on Ubuntu and Windows.
+
+## Post-MVP
+
+| Phase | Doc | Status |
+| --- | --- | --- |
+| F | [Fluent SDK](post-mvp-fluent-sdk.md) | Not planned (starts after Phase 9) |
+
+No MVP phase depends on it, and MVP work must not add Fluent parsing or Fluent-specific APIs.
 
 ## How every phase works
 
-- **No implementation code before Phase 0 is done.** Phase 0 turns the plan into exact
-  schemas, signatures and behaviour rules in `realignment/spec/`. Spikes and benchmarks in
-  Phase 0 are throwaway and live in `realignment/spikes/`.
-- **Plan from the spec, not from memory.** Each phase doc is written from the finished spec and
-  the plan, and lists file-level tasks, tests (positive, negative, edge) and exit criteria.
+- **Build from the spec.** Each phase doc says which spec sections it implements. If a contract
+  has to change, change the spec first, in the same PR, and say why.
 - **Branches:** `feat/realignment-<phase>-<slug>` from `milestone/realignment`; PRs into
-  `milestone/realignment`. Never push to `main` (publishes to npm) or `development`.
-- **Legacy packages are reference code.** Read them for what to carry over (plan: "What carries
-  over"); don't extend them. Delete a legacy package in the PR that replaces it.
-- **If the plan or a phase doc is wrong,** stop and say so in the PR rather than improvising.
-  Fix the doc in the same PR once agreed.
-- **Done means:** every exit criterion checked off with evidence in the PR, CI green, and the
-  status updated in this table.
+  `milestone/realignment`. Large phases split into several PRs, each green on its own. Never push
+  to `main` (publishes to npm) or `development`.
+- **Tests with every change:** positive, negative and edge cases; coverage floors (90 % lines,
+  functions, statements; 85 % branches) never lowered.
+- **Legacy code is reference only** (under `legacy/` after Phase 0). Copy and adapt what the
+  phase doc names; never import from `legacy/`.
+- **If the spec or a phase doc is wrong,** stop and say so in the PR rather than improvising.
+- **Done means:** every exit criterion checked off with evidence in the PR (test names, CI
+  links, numbers), CI green, and the status updated in this table.

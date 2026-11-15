@@ -10,7 +10,7 @@ A **plugin provides capabilities and nothing else.** Formatters, validators, sto
 and auth are host **services** (`environment.use(...)`), not plugins, and never run inside an
 execution. Policies are out of scope for now.
 
-The exact authoring API is written in Phase 0 (`realignment/spec/plugins.md`). Until then, the
+The exact authoring API is `realignment/spec/08-plugins.md`. The
 legacy `defineExtension(...)` / `capabilityFor(...)` code in `packages/core` and `plugins/*` is
 the reference for what carries over. Don't add new legacy-style plugins or features.
 

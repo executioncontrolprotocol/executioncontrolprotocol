@@ -1,7 +1,6 @@
 # Plugin authoring (realignment)
 
-Full contract: `.cursor/rules/extensions.mdc`. Exact API: `realignment/spec/plugins.md`
-(written in Phase 0). Legacy `defineExtension` / `capabilityFor` code is the reference for what
+Full contract: `.cursor/rules/extensions.mdc`. Exact API: `realignment/spec/08-plugins.md`. Legacy `defineExtension` / `capabilityFor` code is the reference for what
 carries over.
 
 ## The contract
