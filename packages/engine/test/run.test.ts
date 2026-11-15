@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { beforeAll, describe, expect, it } from "vitest"
 import type { CapabilityCall, CapabilityEntry, ConfigObject, ExecutionManifest, PluginManifest } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
-import { resolveValue, runExecution, startExecution, type StateStore } from "../src/index.js"
+import { resolveValue, runExecution, startExecution, VERSION, type StateStore } from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
 import type { RunRecord } from "@executioncontrolprotocol/protocol"
 
@@ -391,7 +391,7 @@ describe("run fixtures", () => {
         error: null,
         startedAt: "2026-11-14T00:00:00.000Z",
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
         warnings: [],
       } satisfies RunRecord,
       {

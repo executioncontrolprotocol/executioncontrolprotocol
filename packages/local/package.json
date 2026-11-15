@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/local",
-  "version": "2.0.0",
+  "version": "0.60.0",
   "private": true,
   "description": "Local PluginAdapter, storage and secrets for the Node host.",
   "type": "module",

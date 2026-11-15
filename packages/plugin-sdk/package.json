@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/plugin-sdk",
-  "version": "2.0.0",
+  "version": "0.60.0",
   "description": "Authoring API and ecp-plugin-manifest bin for ECP capability plugins.",
   "private": true,
   "type": "module",

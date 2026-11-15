@@ -5,7 +5,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createEnvironment } from "@executioncontrolprotocol/engine"
 import { StorageProvider, type ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { LocalStorage, setRenameImplForTests, StorageError } from "../src/index.js"
+import { LocalStorage, setRenameImplForTests, StorageError, VERSION } from "../src/index.js"
 import { renameSync } from "node:fs"
 
 const tiny: ExecutionManifest = {
@@ -106,7 +106,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: "2026-11-14T00:00:02.000Z",
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
         clientRequestId: "c1",
       },
       tiny,
@@ -123,7 +123,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: "2026-11-14T00:00:01.000Z",
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
       },
       tiny,
     )
@@ -208,7 +208,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: new Date().toISOString(),
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
       },
       tiny,
     )

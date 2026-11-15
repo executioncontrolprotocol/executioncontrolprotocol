@@ -1,8 +1,12 @@
+import { createRequire } from "node:module"
+
 /**
- * Package version of `@executioncontrolprotocol/protocol`.
+ * Package version of `@executioncontrolprotocol/protocol` from its `package.json`.
  * @category Definitions
  */
-export const PROTOCOL_VERSION = "2.0.0"
+export const PROTOCOL_VERSION: string = (
+  createRequire(import.meta.url)("../package.json") as { version: string }
+).version
 
 /** Document `schema` value for an execution manifest. @category Definitions */
 export const EXECUTION_SCHEMA = "@executioncontrolprotocol.execution"

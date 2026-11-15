@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "2.0.0",
+  "version": "0.60.0",
   "private": true,
   "description": "ECP command-line interface.",
   "type": "module",
@@ -17,7 +17,6 @@
     },
     "./bin/ecp.js": "./bin/ecp.js"
   },
-
   "types": "./dist/index.d.ts",
   "files": [
     "bin",
@@ -37,7 +36,6 @@
     "@oclif/plugin-not-found": "^3.2.68",
     "@oclif/plugin-plugins": "^5.4.46"
   },
-
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"

@@ -4,7 +4,7 @@
   "plugin": {
     "id": "@executioncontrolprotocol/fixture-creative",
     "package": "@executioncontrolprotocol/fixture-creative",
-    "version": "2.0.0",
+    "version": "0.60.0",
     "summary": "Stand-in shapes for Anthropic and Firefly steps in fixtures.",
     "description": "Not a runtime plugin. Declares the capability shapes localize-banner references."
   },

@@ -10,6 +10,7 @@ import {
   generateHostToken,
   hostHeaderFor,
   readHostJson,
+  VERSION,
 } from "../src/index.js"
 import { refuse, statusForEnvelope } from "../src/http/envelope.js"
 import { listExecutionFiles, readAllowedFile, scriptPathsOf } from "../src/http/files.js"
@@ -33,7 +34,7 @@ describe("host helpers", () => {
       port: 3,
       controlPort: 4,
       token: generateHostToken(),
-      hostVersion: "2.0.0",
+      hostVersion: VERSION,
       startedAt: new Date().toISOString(),
       home,
     }

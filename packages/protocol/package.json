@@ -1,6 +1,6 @@
 {
   "name": "@executioncontrolprotocol/protocol",
-  "version": "2.0.0",
+  "version": "0.60.0",
   "description": "ECP protocol types, JSON Schemas and the error catalogue. No I/O.",
   "private": true,
   "type": "module",
@@ -15,7 +15,10 @@
     "./schemas/*": "./schemas/*"
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist", "schemas"],
+  "files": [
+    "dist",
+    "schemas"
+  ],
   "scripts": {
     "build": "tsc -b"
   }

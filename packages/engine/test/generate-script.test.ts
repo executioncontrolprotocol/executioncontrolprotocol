@@ -6,7 +6,7 @@ const openEcho: CapabilityEntry = {
   id: "@executioncontrolprotocol/test.echo",
   plugin: "@executioncontrolprotocol/test",
   package: "@executioncontrolprotocol/plugin-test",
-  pluginVersion: "2.0.0",
+  pluginVersion: "fixture.1",
   summary: "Echo",
   description: "Echo",
   useCases: [],

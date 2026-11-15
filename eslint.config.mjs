@@ -40,6 +40,13 @@ export default tseslint.config(
     },
   },
   {
+    // VERSION is read from package.json at load; the only allowed node: import in engine.
+    files: ["packages/engine/src/version.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+  {
     files: ["plugins/**/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [

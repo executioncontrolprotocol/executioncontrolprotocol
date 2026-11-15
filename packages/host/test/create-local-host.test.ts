@@ -5,7 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import { StorageProvider, type ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { checkHealth, createLocalHost } from "../src/index.js"
+import { checkHealth, createLocalHost, VERSION } from "../src/index.js"
 
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -38,7 +38,7 @@ describe("createLocalHost", () => {
         error: null,
         startedAt: new Date(Date.now() - 1000).toISOString(),
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
       },
       tiny,
     )

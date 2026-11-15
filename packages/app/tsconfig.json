@@ -6,6 +6,7 @@
   },
   "include": [
     "src/index.ts",
+    "src/version.ts",
     "src/graph/**/*.ts",
     "src/client/**/*.ts",
     "src/form/**/*.ts"

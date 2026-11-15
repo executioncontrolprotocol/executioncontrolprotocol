@@ -6,9 +6,4 @@
 export * from "./graph/index.js"
 export * from "./form/run-input-fields.js"
 export * from "./client/index.js"
-
-/**
- * Package version.
- * @category App
- */
-export const VERSION = "2.0.0"
+export { VERSION } from "./version.js"

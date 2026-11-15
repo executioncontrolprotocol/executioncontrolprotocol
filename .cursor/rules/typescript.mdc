@@ -18,6 +18,11 @@ alwaysApply: true
   `ValidationSeverity`. Primitives are for generic fields (`name`, `description`) and free-form
   content.
 - Run `pnpm run build` (`tsc -b`) and `pnpm run lint:ts` before committing.
+- **Package versions:** never hard-code `VERSION` / `PROTOCOL_VERSION` string literals.
+  Read them from that package's `package.json` via `createRequire(import.meta.url)`. Tests
+  assert against `package.json` (or import `VERSION`) — not a pasted semver. Document schema
+  versions (`EXECUTION_VERSION` `"2.0"`, `CONFIG_VERSION` `"1.0"`, …) stay as protocol
+  constants; they are not npm package versions.
 
 ## Naming
 

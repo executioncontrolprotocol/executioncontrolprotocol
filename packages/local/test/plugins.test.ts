@@ -160,7 +160,7 @@ describe("LocalPluginRegistration", () => {
           summary: "Bad.",
           description: "Version mismatch.",
         },
-        sdkVersion: "2.0.0",
+        sdkVersion: "fixture.sdk",
         capabilities: [
           {
             id: "@executioncontrolprotocol/bad.ping",
@@ -210,7 +210,7 @@ describe("LocalPluginRegistration", () => {
           summary: "Dup.",
           description: "Duplicates echo.",
         },
-        sdkVersion: "2.0.0",
+        sdkVersion: "fixture.sdk",
         capabilities: [
           {
             id: "@executioncontrolprotocol/test.echo",

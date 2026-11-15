@@ -299,15 +299,15 @@
     ]
   },
   "entry": "./dist/index.js",
-  "hash": "2e315d85df5892e90e3b381130c07292196067c7edbee898734af1abd4ee4ad5",
+  "hash": "59b26ed25ff69a20b0b210984a93f4a2312bb56abf5076ce79c896a771dbca8c",
   "plugin": {
     "description": "Blob storage for executions that persist media, share time-limited links or bring stored objects into a run as artifacts. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
     "package": "@executioncontrolprotocol/plugin-azure-blob-storage",
     "summary": "Upload, download and mint SAS URLs for Azure Blob Storage.",
-    "version": "2.0.0"
+    "version": "0.60.0"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",
-  "sdkVersion": "2.0.0",
+  "sdkVersion": "0.60.0",
   "version": "1.0"
 }

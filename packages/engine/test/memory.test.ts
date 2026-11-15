@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ConfigObject, ExecutionManifest, RunRecord } from "@executioncontrolprotocol/protocol"
+import { VERSION } from "../src/version.js"
 import { FixturePluginAdapter, MemorySecrets, MemoryStorage, StorageError } from "../src/testing/index.js"
 
 const manifest: ExecutionManifest = {
@@ -31,7 +32,7 @@ function runRecord(id: string, status: RunRecord["status"] = "running"): RunReco
     error: null,
     startedAt: `2026-11-14T00:00:0${id.at(-1)}Z`,
     plugins: {},
-    host: { version: "2.0.0", pid: 1 },
+    host: { version: VERSION, pid: 1 },
     warnings: [],
   }
 }
@@ -180,11 +181,11 @@ describe("FixturePluginAdapter", () => {
       plugin: {
         id: "@executioncontrolprotocol/test",
         package: "@executioncontrolprotocol/plugin-test",
-        version: "2.0.0",
+        version: "fixture.1",
         summary: "Test",
         description: "Test plugin",
       },
-      sdkVersion: "2.0.0",
+      sdkVersion: "fixture.sdk",
       configSchema: { type: "object" },
       capabilities: [
         {

@@ -4,7 +4,7 @@
   "plugin": {
     "id": "@executioncontrolprotocol/test",
     "package": "@executioncontrolprotocol/plugin-test",
-    "version": "2.0.0",
+    "version": "0.60.0",
     "summary": "Fixture capabilities for engine tests.",
     "description": "Echo, fail, delay, stage, config echo, file round-trip, call and a length-limited string."
   },

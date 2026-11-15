@@ -1,8 +1,11 @@
+import { createRequire } from "node:module"
 import { describe, expect, it } from "vitest"
 import { VERSION } from "../src/index.js"
 
-describe("@executioncontrolprotocol/plugin-sdk", () => {
-  it("exports VERSION", () => {
-    expect(VERSION).toBe("2.0.0")
+const pkgVersion = (createRequire(import.meta.url)("../package.json") as { version: string }).version
+
+describe("plugin-sdk", () => {
+  it("exports its package.json version", () => {
+    expect(VERSION).toBe(pkgVersion)
   })
 })

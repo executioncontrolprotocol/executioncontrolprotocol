@@ -35,16 +35,17 @@ const plugin = definePlugin({
 
 describe("buildPluginManifest", () => {
   it("is deterministic and stamps package version", async () => {
+    const packageVersion = "3.1.4"
     const first = await buildPluginManifest({
       definition: plugin,
-      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: "2.0.0" },
+      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: packageVersion },
     })
     const second = await buildPluginManifest({
       definition: plugin,
-      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: "2.0.0" },
+      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: packageVersion },
     })
     expect(serializeManifest(first)).toBe(serializeManifest(second))
-    expect(first.plugin.version).toBe("2.0.0")
+    expect(first.plugin.version).toBe(packageVersion)
     expect(first.plugin.package).toBe("@executioncontrolprotocol/plugin-test")
     expect(first.hash).toMatch(/^[a-f0-9]{64}$/)
     expect(first.capabilities[0]?.id).toBe("@executioncontrolprotocol/test.echo")

@@ -1,5 +1,6 @@
 import type { RunDetail, RunEvent } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it, vi } from "vitest"
+import { VERSION } from "../../src/index.js"
 import { AppHostClient, HostRequestError, type FetchLike } from "../../src/client/api.js"
 import { followRun } from "../../src/client/run-follow.js"
 
@@ -22,7 +23,7 @@ function detail(status: RunDetail["status"], events: RunEvent[]): RunDetail {
     error: null,
     startedAt: "t",
     plugins: {},
-    host: { version: "2.0.0", pid: 1 },
+    host: { version: VERSION, pid: 1 },
     warnings: [],
     events,
   }

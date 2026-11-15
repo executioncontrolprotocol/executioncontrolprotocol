@@ -11,6 +11,7 @@ import {
   renameWithRetry,
   setRenameImplForTests,
   StorageError,
+  VERSION,
 } from "../src/index.js"
 import { renameSync } from "node:fs"
 
@@ -81,7 +82,7 @@ describe("LocalStorage", () => {
         error: null,
         startedAt: new Date().toISOString(),
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
       },
       tiny,
     )
@@ -196,7 +197,7 @@ describe("LocalStorage", () => {
         error: null,
         startedAt: new Date().toISOString(),
         plugins: {},
-        host: { version: "2.0.0", pid: 1 },
+        host: { version: VERSION, pid: 1 },
       },
       tiny,
     )
