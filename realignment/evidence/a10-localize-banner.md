@@ -1,24 +1,21 @@
 # A10 — localize-banner live evidence
 
-**Status:** option-3 smoke green 2026-11-15 (Anthropic generate + Firefly generate-images). Full localize-banner PSD path still blocked on signed source/output URLs.
+**Status:** green 2026-11-15 — full PSD localize-banner against Anthropic + Firefly Photoshop Actions + Azure Blob.
 
 ## What ran
 
-| Probe | Result |
+| Step | Result |
 | --- | --- |
-| Anthropic `generate` via `ecp execute` | **completed** — `text: "ready"` (`run-20261115T190335Z-38d8e4`) |
-| Firefly `firefly-generate-images-v3-async` via `ecp execute` | **completed** — 2048×2048 image (`run-20261115T190345Z-1eaf25`) |
+| Azure upload of `fixtures/banner-with-text.psd` | Blob `localize-banner/banner-with-text.psd` in container `ecp-test` |
+| Anthropic translate (`locale: es`) | JSON `{ texts }` (parsed in `$script` params via `$expr`; no `test.echo`) |
+| Photoshop Actions + UXP `relabel-text-layers.uxp.js` | **completed**; wrote `localize-banner/banner-out.png` |
 
-Configs `anthropic/default` and `adobe-firefly-services/default` are committed; secrets resolve from the OS keychain. Plugins linked: test, anthropic, azure-blob-storage, adobe-firefly-services.
+Run summary: `a10-localize-banner.json` (SAS query strings redacted). Capability smoke still in `a10-smoke-runs.json`.
 
-Raw run summaries: `a10-smoke-runs.json`.
+## How to re-run
 
-## Full A10 (localize-banner PSD) still needs
+1. Secrets: Anthropic, Adobe Firefly, Azure connection string (see `examples/localize-banner/configs/`).
+2. Host up; plugins linked (test, anthropic, adobe-firefly-services, azure-blob-storage).
+3. `ECP_LIVE_A10=1 pnpm exec vitest run packages/host/test/integration/localize-banner.live.test.ts` — the test uploads the fixture PSD, mints read/`cw` SAS URLs, and runs the example.
 
-- `ECP_LIVE_A10=1` plus readable `sourceImageUrl` and writable `outputUrl` (Azure SAS typically), or an Azure connection string to generate them in-run.
-- Then: `ecp execute examples/localize-banner/localize-banner.ecp.json` with locale/headline/source/output input, or the host live test.
-
-## Fixes landed while probing
-
-- `$secret` / `$env` config masking placeholder is `"*"` (empty string failed Firefly `minLength`).
-- Provider failures keep upstream text on the run (`error.message` + `error.details.body`). Rule: `.cursor/rules/extensions.mdc`.
+Output destinations must set `storageType: "azure"` (Adobe PUT otherwise returns `upload_error` 400).

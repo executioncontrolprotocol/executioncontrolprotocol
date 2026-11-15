@@ -1,12 +1,21 @@
 # Localize banner (A10)
 
-Dogfood execution for Adobe Firefly Services + Anthropic:
+Dogfood execution for Adobe Firefly Services + Anthropic (no `test.echo` steps):
 
-1. Echo the headline and locale into state.
-2. Optionally translate with `anthropic.generate` when `locale` is not `en`.
-3. Run `adobe-firefly-services.photoshop-actions` with a UXP script from
-   `scripts/relabel-headline.uxp.js` (`$script.path`).
-4. Return the localized headline.
+1. Optionally translate every string with `anthropic.generate` when `locale` is not `en`
+   (model returns JSON `{ texts, headline }`).
+2. Run `adobe-firefly-services.photoshop-actions` with
+   `scripts/relabel-text-layers.uxp.js` (`$script.path`). `$expr` on the script params
+   parses the model JSON (or falls back to input `texts` / `headline`) and the UXP walks
+   the document (including groups) rewriting **every** text layer by name.
+3. Return `translation` and `banner`.
+
+## Source PSD
+
+| Asset | Usable? | Notes |
+| --- | --- | --- |
+| [filesamples 640×426 PSD](https://filesamples.com/samples/image/psd/sample_640%C3%97426.psd) | No | Single raster layer `L1` only — **no text layers** (`TySh` absent). Also not on Adobe’s input URL allowlist (needs S3/Azure/GCS/Dropbox/… HTTPS). |
+| `fixtures/banner-with-text.psd` | Yes | 640×426 with text layers `Headline` = `Summer sale` and `Subhead` = `Limited time offer`. The live A10 test uploads it to Azure (`ecp-test` / `localize-banner/…`) and mints SAS URLs. |
 
 ## Configs
 
@@ -42,18 +51,18 @@ Create these before the first run (values via secrets):
 ecp secrets set anthropic/api-key
 ecp secrets set adobe-firefly-services/client-id
 ecp secrets set adobe-firefly-services/client-secret
-ecp plugins link ../../plugins/plugin-test
 ecp plugins link ../../plugins/plugin-anthropic
 ecp plugins link ../../plugins/plugin-adobe-firefly-services
-ecp execute --path localize-banner.ecp.json --wait --input '{
+ecp plugins link ../../plugins/plugin-azure-blob-storage
+ecp execute localize-banner.ecp.json --input '{
   "locale": "fr",
-  "headline": "Summer sale",
-  "sourceImageUrl": "https://…/banner.psd",
+  "texts": { "Headline": "Summer sale", "Subhead": "Limited time offer" },
+  "sourceImageUrl": "https://…/banner-with-text.psd",
   "outputUrl": "https://…/out.png"
 }'
 ```
 
-Live acceptance (A10) needs `ECP_LIVE_A10=1` plus Firefly + Anthropic secrets and signed
-source/output URLs (`packages/host/test/integration/localize-banner.live.test.ts`).
+Live acceptance (A10) needs `ECP_LIVE_A10=1`, Firefly + Anthropic secrets, and signed
+allowlisted `sourceImageUrl` / `outputUrl` (`packages/host/test/integration/localize-banner.live.test.ts`).
 Capability-only Firefly smoke uses `ECP_LIVE_FIREFLY=1` under
 `plugins/plugin-adobe-firefly-services/test/live/`.

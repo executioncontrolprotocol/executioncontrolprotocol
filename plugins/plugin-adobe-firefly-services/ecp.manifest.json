@@ -3035,9 +3035,13 @@
             "type": "object"
           },
           "outputs": {
-            "additionalProperties": {},
-            "properties": {},
-            "type": "object"
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "additionalProperties": {},
+              "properties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -3195,9 +3199,13 @@
             "type": "object"
           },
           "outputs": {
-            "additionalProperties": {},
-            "properties": {},
-            "type": "object"
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "additionalProperties": {},
+              "properties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -3537,9 +3545,13 @@
             "type": "object"
           },
           "outputs": {
-            "additionalProperties": {},
-            "properties": {},
-            "type": "object"
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "additionalProperties": {},
+              "properties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -5224,9 +5236,13 @@
             "type": "object"
           },
           "outputs": {
-            "additionalProperties": {},
-            "properties": {},
-            "type": "object"
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "additionalProperties": {},
+              "properties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -5732,9 +5748,13 @@
             "type": "object"
           },
           "outputs": {
-            "additionalProperties": {},
-            "properties": {},
-            "type": "object"
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "additionalProperties": {},
+              "properties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -5998,7 +6018,7 @@
     "type": "object"
   },
   "entry": "./dist/index.js",
-  "hash": "8185c3e6fbea3d14190542f7fe9a80e8405b6f61eaaa83c691745ecca4a499d0",
+  "hash": "1f39532ec690e4439e30da3f65dbb8129ec15293e4eef4d7a04bbf461ec6d2e4",
   "plugin": {
     "description": "One capability per Firefly Services API operation, generated from Adobe's OpenAPI specs: Firefly image generation, expand, fill, composites, upscaling and video, and Photoshop document edits, actions, UXP scripts, artboards and layer manifests. The config object holds OAuth server-to-server credentials (client id and secret as secret references). Async jobs are polled inside the step, which returns the job result. Request fields are top-level parameters; an optional body carries the rest of the JSON document. Files move by URL: pass presigned storage URLs as sources and output destinations.",
     "id": "@executioncontrolprotocol/adobe-firefly-services",

@@ -5,12 +5,20 @@
   "execution": {
     "id": "localize-banner",
     "label": "Localize campaign banner",
-    "description": "Translate a headline with Anthropic, then run a Photoshop Actions job with a UXP script from disk.",
+    "description": "Translate text-layer strings with Anthropic when needed, then run a Photoshop Actions UXP script that rewrites matching text layers in the PSD.",
     "accepts": {
       "type": "object",
       "properties": {
         "locale": { "type": "string" },
-        "headline": { "type": "string" },
+        "texts": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Map of PSD text-layer name to source string to translate."
+        },
+        "headline": {
+          "type": "string",
+          "description": "Optional single string applied to every text layer not listed in texts."
+        },
         "sourceImageUrl": { "type": "string" },
         "outputUrl": { "type": "string" }
       },
@@ -19,38 +27,23 @@
     "returns": {
       "type": "object",
       "properties": {
-        "localized": { "type": "string" },
+        "translation": { "type": "object" },
         "banner": { "type": "object" }
       }
     }
   },
   "steps": [
     {
-      "id": "doc",
-      "uses": "@executioncontrolprotocol/test.echo",
-      "input": {
-        "value": {
-          "headline": {
-            "$ref": "state.headline",
-            "optional": true,
-            "fallback": "Hello"
-          },
-          "locale": { "$ref": "state.locale" }
-        }
-      },
-      "as": "doc"
-    },
-    {
       "id": "translate",
-      "label": "Translate headline",
+      "label": "Translate text layers",
       "uses": "@executioncontrolprotocol/anthropic.generate",
       "config": "anthropic/default",
       "expr": "(state) => state.locale !== 'en'",
       "input": {
         "prompt": {
-          "$expr": "(state) => `Translate the campaign headline into ${state.locale}: ${state.doc.echo.headline}`"
+          "$expr": "(state) => `Translate every string value in this JSON into locale \"${state.locale}\". Keep the same JSON shape and keys. Return only JSON, no markdown.\\n${JSON.stringify({ texts: state.texts || {}, headline: state.headline ?? null })}`"
         },
-        "system": "Return only the translated headline text."
+        "system": "You translate PSD text-layer copy. Reply with a single raw JSON object only. No markdown fences, no commentary."
       },
       "as": "translation",
       "mode": "replace"
@@ -71,10 +64,13 @@
               "content": {
                 "$script": {
                   "lang": "js",
-                  "path": "scripts/relabel-headline.uxp.js",
+                  "path": "scripts/relabel-text-layers.uxp.js",
                   "params": {
+                    "texts": {
+                      "$expr": "(state) => { if (state.locale === 'en' || !(state.translation && state.translation.text)) return state.texts || {}; const raw = String(state.translation.text); const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i); const candidate = ((fenced && fenced[1]) || raw).trim(); try { const parsed = JSON.parse(candidate || '{}'); return parsed.texts && typeof parsed.texts === 'object' ? parsed.texts : (state.texts || {}); } catch { return state.texts || {}; } }"
+                    },
                     "headline": {
-                      "$expr": "(state) => state.translation?.text ?? state.doc.echo.headline"
+                      "$expr": "(state) => { if (state.locale === 'en' || !(state.translation && state.translation.text)) return state.headline ?? null; const raw = String(state.translation.text); const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i); const candidate = ((fenced && fenced[1]) || raw).trim(); try { const parsed = JSON.parse(candidate || '{}'); return parsed.headline !== undefined ? parsed.headline : (state.headline ?? null); } catch { return state.headline ?? null; } }"
                     }
                   }
                 }
@@ -84,23 +80,15 @@
         },
         "outputs": [
           {
-            "href": { "$ref": "state.outputUrl" },
-            "storage": "external",
-            "type": "image/png"
+            "destination": {
+              "url": { "$ref": "state.outputUrl" },
+              "storageType": "azure"
+            },
+            "mediaType": "image/png"
           }
         ]
       },
       "as": "banner"
-    },
-    {
-      "id": "localized",
-      "uses": "@executioncontrolprotocol/test.echo",
-      "input": {
-        "value": {
-          "$expr": "(state) => state.translation?.text ?? state.doc.echo.headline"
-        }
-      },
-      "as": "localized"
     }
   ]
 }

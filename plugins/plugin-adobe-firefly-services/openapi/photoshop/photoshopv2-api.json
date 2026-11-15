@@ -4911,7 +4911,12 @@
             }
           },
           "outputs": {
-            "type": "object"
+            "type": "array",
+            "description": "Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
           }
         }
       },

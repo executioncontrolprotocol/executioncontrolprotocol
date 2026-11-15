@@ -76,7 +76,7 @@ describe("pollAdobeJob", () => {
     })
     await expect(pollAdobeJob({ statusUrl: STATUS_URL, client })).rejects.toMatchObject({
       code: "ECP_PROVIDER_ERROR",
-      message: "Adobe job ended with status failed.",
+      message: "Adobe job ended with status failed: Bad PSD",
       details: {
         status: "failed",
         statusUrl: "https://firefly-api.adobe.io/v3/status/job-1",
@@ -86,6 +86,7 @@ describe("pollAdobeJob", () => {
     })
     const error = await pollAdobeJob({ statusUrl: STATUS_URL, client }).catch((e: { details: object }) => e)
     expect(JSON.stringify(error.details)).not.toContain("presigned")
+    expect(JSON.stringify(error.details)).toContain("[redacted]")
   })
 
   it("times out with the last seen status", async () => {

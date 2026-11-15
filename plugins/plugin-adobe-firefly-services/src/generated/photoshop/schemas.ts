@@ -902,5 +902,5 @@ export const In_XmpInput: z.ZodType = z.lazy(() => z.strictObject({
  */
 export const Out_Result: z.ZodType = z.lazy(() => z.looseObject({
   additionalFields: z.record(z.string(), z.looseObject({})).optional(),
-  outputs: z.looseObject({}).optional()
+  outputs: z.array(z.looseObject({})).optional().describe("Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).")
 }))

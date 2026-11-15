@@ -16,7 +16,7 @@ export const DEFAULT_POLL_TIMEOUT_MS = 570_000
 
 const SUCCESS_STATUSES = new Set(["succeeded", "success", "completed", "done", "partially_succeeded", "partialsuccess"])
 const FAILURE_STATUSES = new Set(["failed", "error", "cancelled", "canceled"])
-const ERROR_FIELDS = ["error", "errors", "message", "reason", "details"] as const
+const ERROR_FIELDS = ["error", "errors", "errorDetails", "message", "reason", "details"] as const
 
 /**
  * Options for {@link pollAdobeJob}.
@@ -96,10 +96,12 @@ export async function pollAdobeJob(options: PollAdobeJobOptions): Promise<unknow
     const status = typeof raw === "string" ? raw.toLowerCase() : ""
     if (SUCCESS_STATUSES.has(status)) return body
     if (FAILURE_STATUSES.has(status)) {
-      throw new AdobeServiceError(PROVIDER_ERROR, `Adobe job ended with status ${String(raw)}.`, {
+      const fields = pickErrorFields(record)
+      throw new AdobeServiceError(PROVIDER_ERROR, adobeJobFailureMessage(String(raw), fields), {
         status: raw,
         statusUrl: redactUrl(options.statusUrl),
-        ...pickErrorFields(record),
+        body: redactJobBody(record),
+        ...fields,
       })
     }
     lastStatus = typeof raw === "string" ? raw : lastStatus
@@ -125,4 +127,49 @@ function pickErrorFields(record: Record<string, unknown>): Record<string, unknow
     if (nested !== undefined) out.resultErrors = nested
   }
   return out
+}
+
+function adobeJobFailureMessage(status: string, fields: Record<string, unknown>): string {
+  const detail =
+    firstString(fields.message) ??
+    firstString(fields.reason) ??
+    firstString(fields.error) ??
+    firstErrorArray(fields.errors) ??
+    firstErrorArray(fields.resultErrors)
+  return detail
+    ? `Adobe job ended with status ${status}: ${detail}`
+    : `Adobe job ended with status ${status}.`
+}
+
+function firstString(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim().length > 0) return value.trim()
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    return firstString(record.message) ?? firstString(record.description) ?? firstString(record.title)
+  }
+  return undefined
+}
+
+function firstErrorArray(value: unknown): string | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined
+  return firstString(value[0]) ?? (typeof value[0] === "object" ? JSON.stringify(value[0]).slice(0, 500) : undefined)
+}
+
+function redactJobBody(value: unknown): unknown {
+  if (typeof value === "string") {
+    if (/^https?:\/\//i.test(value)) {
+      try {
+        const parsed = new URL(value)
+        return parsed.search ? `${parsed.origin}${parsed.pathname.split("/").slice(0, -1).join("/")}/[redacted]` : value
+      } catch {
+        return "[redacted-url]"
+      }
+    }
+    return value
+  }
+  if (Array.isArray(value)) return value.map(redactJobBody)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactJobBody(child)]))
+  }
+  return value
 }
