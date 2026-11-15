@@ -14,8 +14,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./bin/ecp.js": "./bin/ecp.js"
   },
+
   "types": "./dist/index.d.ts",
   "files": [
     "bin",
@@ -28,6 +30,7 @@
     "@executioncontrolprotocol/engine": "workspace:*",
     "@executioncontrolprotocol/host": "workspace:*",
     "@executioncontrolprotocol/local": "workspace:*",
+    "@executioncontrolprotocol/mcp-relay": "workspace:*",
     "@executioncontrolprotocol/protocol": "workspace:*",
     "@oclif/core": "^5.1.8",
     "@oclif/plugin-help": "^6.2.33",

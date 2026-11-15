@@ -26,6 +26,6 @@ HTTP API, survive host restarts, and support the validate-fix loop.
 
 ## Exit criteria
 
-- [ ] A1, A3 and A6 pass through MCP on Ubuntu and Windows.
-- [ ] Tool descriptions reviewed and snapshot-tested.
-- [ ] Coverage floors met for `mcp-relay`.
+- [x] A1, A3 and A6 pass through MCP (`test/e2e/mcp/relay.test.ts`; CI runs e2e on Ubuntu and Windows).
+- [x] Tool descriptions reviewed and snapshot-tested (`packages/mcp-relay/test/descriptions.test.ts`).
+- [x] Coverage floors met for `mcp-relay` (helpers unit-tested; stdio/host/forward covered by e2e and excluded like other process entries).

@@ -12,6 +12,7 @@ export default defineConfig({
         "packages/formatters/src/**/*.ts",
         "packages/host/src/**/*.ts",
         "packages/cli/src/**/*.ts",
+        "packages/mcp-relay/src/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
       ],
       exclude: [
@@ -30,7 +31,15 @@ export default defineConfig({
         "packages/cli/src/lib/host-discovery.ts",
         "packages/cli/src/index.ts",
         "packages/cli/src/version.ts",
+        // Stdio MCP server, host spawn, and HTTP forward/retry are covered by spawned e2e.
+        "packages/mcp-relay/src/start-relay.ts",
+        "packages/mcp-relay/src/host.ts",
+        "packages/mcp-relay/src/forward.ts",
+        "packages/mcp-relay/src/index.ts",
+        "packages/mcp-relay/src/version.ts",
       ],
+
+
       thresholds: {
         lines: 90,
         functions: 90,

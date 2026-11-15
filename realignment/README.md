@@ -21,7 +21,7 @@ The previous milestone's plan (the CLI reset) is retired. What still applies is 
 | 3 | [Local services and in-process host](phase-3-local-host.md) | Done 2026-11-14 | 1, 2 |
 | 4 | [Host server and supervisor](phase-4-host-server.md) | Done 2026-11-15 | 3 |
 | 5 | [CLI and the background-host decision](phase-5-cli.md) | Done 2026-11-15 | 3, 4 |
-| 6 | [MCP relay](phase-6-mcp-relay.md) | Not started | 4, 5 |
+| 6 | [MCP relay](phase-6-mcp-relay.md) | Done 2026-11-15 | 4, 5 |
 | 7 | [App](phase-7-app.md) | Not started | 4 (5 for `ecp app`) |
 | 8 | [First-party plugins and dogfood](phase-8-plugins-and-dogfood.md) | Not started | 2 (3 for end-to-end) |
 | 9 | [MVP acceptance and cleanup](phase-9-acceptance.md) | Not started | 0–8 |

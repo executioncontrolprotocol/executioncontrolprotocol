@@ -19,12 +19,12 @@ describe("cli e2e commands", () => {
     while (stoppers.length > 0) await stoppers.pop()?.()
   })
 
-  it("mcp start fails with Phase 6 message", async () => {
+  it("mcp start help is available", async () => {
     assertCliBuilt()
     const { env } = await createCliHome({ linkPluginTest: false })
-    const result = await runEcp(["mcp", "start"], { env })
-    expect(result.code).toBe(1)
-    expect(result.stderr).toMatch(/Phase 6/i)
+    const result = await runEcp(["mcp", "start", "--help"], { env })
+    expect(result.code).toBe(0)
+    expect(result.stdout + result.stderr).toMatch(/MCP relay/i)
   })
 
   it("host status exits 4 when down; start/status/stop/logs round-trip", async () => {

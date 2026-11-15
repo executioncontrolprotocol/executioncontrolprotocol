@@ -10,6 +10,8 @@
     { "path": "../protocol" },
     { "path": "../engine" },
     { "path": "../host" },
-    { "path": "../local" }
+    { "path": "../local" },
+    { "path": "../mcp-relay" }
   ]
 }
+
