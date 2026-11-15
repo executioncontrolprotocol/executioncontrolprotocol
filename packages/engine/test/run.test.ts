@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url"
 import { beforeAll, describe, expect, it } from "vitest"
 import type { CapabilityCall, CapabilityEntry, ConfigObject, ExecutionManifest, PluginManifest } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
-import { resolveValue, runExecution, type StateStore } from "../src/index.js"
+import { resolveValue, runExecution, startExecution, type StateStore } from "../src/index.js"
+import { MemoryStorage } from "../src/testing/index.js"
+import type { RunRecord } from "@executioncontrolprotocol/protocol"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const runsDir = path.join(root, "fixtures/manifests/runs")
@@ -68,7 +70,12 @@ async function invoke(request: CapabilityCall, signal: AbortSignal, store: State
   }
   if (request.capabilityId.endsWith(".bounded")) return { text: input.text }
   if (request.capabilityId.endsWith(".config-echo")) {
-    return { echoed: request.config?.secret, keys: Object.keys(request.config ?? {}) }
+    const secret = typeof request.config?.secret === "string" ? request.config.secret : ""
+    return {
+      keys: Object.keys(request.config ?? {}),
+      secretLength: secret.length,
+      echoed: request.config?.secret ?? request.config?.name,
+    }
   }
   throw new Error(`no handler for ${request.capabilityId}`)
 }
@@ -87,8 +94,14 @@ describe("run fixtures", () => {
       const outcome = await runExecution(execution, expected.input, { capabilities, call: invoke, expression: engine })
       expect(outcome.status, name).toBe(expected.status)
       expect(outcome.result, name).toEqual(expected.result)
-      expect(outcome.steps, name).toEqual(expected.steps)
+      expect(
+        outcome.steps.map(({ durationMs: _durationMs, ...step }) => step),
+        name,
+      ).toEqual(expected.steps)
       expect(outcome.events, name).toEqual(expected.events)
+      for (const step of outcome.steps) {
+        if (step.status === "completed") expect(step.durationMs, name).toBeTypeOf("number")
+      }
     }
   })
 
@@ -136,7 +149,7 @@ describe("run fixtures", () => {
           {
             id: "stage",
             uses: "@executioncontrolprotocol/test.stage",
-            input: { handle: { $state: "history" }, value: "note", fail: true },
+            input: { handle: { $state: "history" }, op: "append", value: "note", fail: true },
             as: "staged",
           },
         ],
@@ -168,7 +181,7 @@ describe("run fixtures", () => {
         ],
       },
       {},
-      { capabilities, call: invoke, expression: engine, force: true },
+      { capabilities, call: invoke, expression: engine },
     )
     expect(conflict.error?.code).toBe("ECP_COMMIT_CONFLICT")
 
@@ -182,7 +195,7 @@ describe("run fixtures", () => {
           { id: "expr", uses: "@executioncontrolprotocol/test.echo", input: { value: { $expr: "(state) => state.seed.echo + '!'" } }, as: "expr" },
           { id: "opt", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.missing", optional: true, fallback: "fb" } }, as: "opt" },
           { id: "script", uses: "@executioncontrolprotocol/test.bounded", input: { text: { $script: { lang: "js", source: "1" } } }, as: "script" },
-          { id: "stage", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "doc.history" }, value: "note" }, as: "staged" },
+          { id: "stage", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "doc.history" }, op: "append", value: "note" }, as: "staged" },
         ],
       },
       {},
@@ -307,7 +320,7 @@ describe("run fixtures", () => {
     )
     expect(shaped.result.yes).toEqual({ echo: "yes" })
     expect(shaped.result.body).toBeUndefined()
-    expect(shaped.error?.code).toBe("ECP_COMMIT_CONFLICT")
+    expect(shaped.error?.code).toBe("ECP_OUTPUT_INVALID")
 
     const badGate = await runExecution(
       {
@@ -361,5 +374,283 @@ describe("run fixtures", () => {
       },
     )
     expect(fromEnv.status).toBe("completed")
+  })
+
+  it("cancels mid-step, interrupts, resumes from cursor, and persists state", async () => {
+    const storage = new MemoryStorage()
+    const runId = "run-persist"
+    await storage.runs.create(
+      {
+        schema: "@executioncontrolprotocol.run",
+        version: "1.0",
+        id: runId,
+        execution: { path: null, manifestHash: "abc" },
+        status: "running",
+        input: {},
+        result: null,
+        error: null,
+        startedAt: "2026-11-14T00:00:00.000Z",
+        plugins: {},
+        host: { version: "2.0.0", pid: 1 },
+        warnings: [],
+      } satisfies RunRecord,
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "a" }],
+      },
+    )
+
+    const secretConfig: ConfigObject = {
+      schema: "@executioncontrolprotocol.config",
+      version: "1.0",
+      id: "test/default",
+      plugin: "@executioncontrolprotocol/test",
+      values: { secret: { $secret: "test.secret" } },
+      objectVersion: 1,
+      updatedAt: "2026-11-14T00:00:00.000Z",
+    }
+    const persisted = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            id: "show",
+            uses: "@executioncontrolprotocol/test.config-echo",
+            config: "test/default",
+            input: {},
+            as: "shown",
+          },
+        ],
+      },
+      {},
+      {
+        capabilities,
+        call: invoke,
+        expression: engine,
+        configs: [secretConfig],
+        getSecret: async () => "super-secret",
+        runId,
+        store: storage.runs,
+      },
+    )
+    expect(persisted.status).toBe("completed")
+    const detail = await storage.runs.get(runId, ["steps", "state", "events"])
+    expect(JSON.stringify(detail?.steps)).not.toContain("super-secret")
+    expect(JSON.stringify(detail?.state)).toContain("[redacted]")
+    expect(detail?.events?.some((event) => event.type === "step.end")).toBe(true)
+
+    const cancelHandle = startExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" },
+          { id: "after", uses: "@executioncontrolprotocol/test.echo", input: { value: "after" }, as: "after" },
+        ],
+      },
+      {},
+      { capabilities, call: invoke, expression: engine },
+    )
+    setTimeout(() => cancelHandle.cancel(), 20)
+    const cancelled = await cancelHandle.outcome
+    expect(cancelled.status).toBe("cancelled")
+    expect(cancelled.steps.find((step) => step.nodeId === "wait")?.status).toBe("cancelled")
+    expect(cancelled.steps.find((step) => step.nodeId === "after")).toBeUndefined()
+
+    const interruptHandle = startExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" },
+          { id: "after", uses: "@executioncontrolprotocol/test.echo", input: { value: "after" }, as: "after" },
+        ],
+      },
+      {},
+      { capabilities, call: invoke, expression: engine },
+    )
+    setTimeout(() => interruptHandle.interrupt("host-restart"), 20)
+    const interrupted = await interruptHandle.outcome
+    expect(interrupted.status).toBe("interrupted")
+    expect(interrupted.events).toContain("run.interrupted")
+    expect(interrupted.cursor?.inProgress).toBe("wait")
+
+    const resumeManifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "first", uses: "@executioncontrolprotocol/test.echo", input: { value: "first" }, as: "first" },
+        {
+          type: "branch",
+          id: "route",
+          branches: [
+            { expr: "(state) => false", steps: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "no" }, as: "no" }] },
+            { steps: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }] },
+          ],
+        },
+        {
+          type: "loop",
+          id: "refine",
+          expr: "(state) => true",
+          maxRounds: 3,
+          steps: [
+            { id: "bump", uses: "@executioncontrolprotocol/test.echo", input: { value: "bump" }, as: "bump", mode: "replace" },
+            { id: "banner", uses: "@executioncontrolprotocol/test.echo", input: { value: "banner" }, as: "banner", mode: "replace" },
+          ],
+        },
+      ],
+    }
+    const resumed = await runExecution(resumeManifest, { first: { echo: "first" }, yes: { echo: "yes" }, bump: { echo: "bump" } }, {
+      capabilities,
+      call: invoke,
+      expression: engine,
+      cursor: {
+        completed: ["first", "route", "yes", "bump"],
+        inProgress: "banner",
+        loops: { refine: 1 },
+        branches: { route: 1 },
+      },
+    })
+    expect(resumed.status).toBe("completed")
+    expect(resumed.events[0]).toBe("run.start")
+    expect(resumed.events).toContain("run.resume")
+    expect(resumed.steps.map((step) => step.nodeId)).toEqual(["banner", "bump", "banner"])
+    expect(resumed.result.banner).toEqual({ echo: "banner" })
+    expect(resumed.result.bump).toEqual({ echo: "bump" })
+
+    const invalidInput = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "bad", uses: "@executioncontrolprotocol/test.delay", input: { ms: "nope" }, as: "bad" }],
+      },
+      {},
+      { capabilities, call: invoke, expression: engine },
+    )
+    expect(invalidInput.error?.code).toBe("ECP_INPUT_INVALID")
+
+    const custom: CapabilityEntry[] = [
+      {
+        id: "custom.string",
+        plugin: "custom",
+        package: "custom",
+        pluginVersion: "1.0.0",
+        summary: "s",
+        description: "d",
+        useCases: [],
+        projections: [],
+        accepts: { type: "string" },
+        returns: { type: "boolean" },
+      },
+      {
+        id: "custom.array",
+        plugin: "custom",
+        package: "custom",
+        pluginVersion: "1.0.0",
+        summary: "s",
+        description: "d",
+        useCases: [],
+        projections: [],
+        accepts: { type: "array" },
+        returns: { type: "number" },
+      },
+      {
+        id: "custom.bool",
+        plugin: "custom",
+        package: "custom",
+        pluginVersion: "1.0.0",
+        summary: "s",
+        description: "d",
+        useCases: [],
+        projections: [],
+        accepts: { type: "boolean" },
+        returns: { type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+      },
+      {
+        id: "custom.int",
+        plugin: "custom",
+        package: "custom",
+        pluginVersion: "1.0.0",
+        summary: "s",
+        description: "d",
+        useCases: [],
+        projections: [],
+        accepts: { type: "integer" },
+        returns: { type: "string" },
+      },
+    ]
+    const badString = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "custom.string", input: { nope: true }, as: "a" }],
+      },
+      {},
+      {
+        capabilities: custom,
+        expression: engine,
+        call: async () => true,
+      },
+    )
+    expect(badString.error?.code).toBe("ECP_INPUT_INVALID")
+    const badReturn = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "custom.array", input: [], as: "a" }],
+      },
+      {},
+      {
+        capabilities: custom,
+        expression: engine,
+        call: async () => "nope",
+      },
+    )
+    expect(badReturn.error?.code).toBe("ECP_OUTPUT_INVALID")
+    const badBool = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "custom.bool", input: "no", as: "a" }],
+      },
+      {},
+      { capabilities: custom, expression: engine, call: async () => ({ ok: true }) },
+    )
+    expect(badBool.error?.code).toBe("ECP_INPUT_INVALID")
+    const badRequired = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "custom.bool", input: true, as: "a" }],
+      },
+      {},
+      { capabilities: custom, expression: engine, call: async () => ({}) },
+    )
+    expect(badRequired.error?.code).toBe("ECP_OUTPUT_INVALID")
+    const badInt = await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "a", uses: "custom.int", input: "1", as: "a" }],
+      },
+      {},
+      { capabilities: custom, expression: engine, call: async () => "ok" },
+    )
+    expect(badInt.error?.code).toBe("ECP_INPUT_INVALID")
+
+    const external = new AbortController()
+    const externalRun = startExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" }],
+      },
+      {},
+      { capabilities, call: invoke, expression: engine, signal: external.signal },
+    )
+    setTimeout(() => external.abort(), 20)
+    expect((await externalRun.outcome).status).toBe("cancelled")
   })
 })

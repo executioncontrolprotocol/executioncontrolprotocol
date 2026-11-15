@@ -29,7 +29,7 @@ against the fixtures with in-memory test services.
 
 ## Exit criteria
 
-- [ ] All conformance fixtures pass; coverage floors met for `engine` and `quickjs`.
-- [ ] No Node I/O imports in `engine` (ESLint rule enforcing it, as legacy core had).
-- [ ] Generated editor schema for the fixture plugins validates `localize-banner` and reproduces the prototype's precise errors.
-- [ ] Spec unchanged, or updated in the same PR with reasons.
+- [x] All conformance fixtures pass; coverage floors met for `engine` and `quickjs`.
+- [x] No Node I/O imports in `engine` (ESLint rule enforcing it, as legacy core had).
+- [x] Generated editor schema for the fixture plugins validates `localize-banner` and reproduces the prototype's precise errors.
+- [x] Spec unchanged, or updated in the same PR with reasons.

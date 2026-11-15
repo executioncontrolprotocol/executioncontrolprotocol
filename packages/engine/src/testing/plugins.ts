@@ -1,6 +1,7 @@
 import type {
   CapabilityCall,
   CapabilityEntry,
+  HandlerStore,
   JsonSchema,
   PluginAdapter,
   PluginInfo,
@@ -13,7 +14,7 @@ import type {
  */
 export type FixtureHandler = (
   input: unknown,
-  ctx: { signal: AbortSignal; config: Record<string, unknown> | undefined },
+  ctx: { signal: AbortSignal; config: Record<string, unknown> | undefined; store?: HandlerStore },
 ) => Promise<unknown>
 
 /**
@@ -23,6 +24,12 @@ export type FixtureHandler = (
 export class FixturePluginAdapter implements PluginAdapter {
   /** Implementation id. */
   static readonly id = "@executioncontrolprotocol/testing.plugins"
+
+  /**
+   * Staged writes for the in-flight capability call. The operations bridge sets this.
+   * @category Environment
+   */
+  currentStore?: HandlerStore
 
   /**
    * @param manifest A fixture `ecp.manifest.json`, already parsed.
@@ -79,6 +86,6 @@ export class FixturePluginAdapter implements PluginAdapter {
     if (!handler) {
       throw new Error(`ECP_PLUGIN_LOAD_FAILED: no handler for ${request.capabilityId}`)
     }
-    return handler(request.input, { signal, config: request.config })
+    return handler(request.input, { signal, config: request.config, store: this.currentStore })
   }
 }

@@ -17,6 +17,7 @@ import {
   DEFAULT_STEP_TIMEOUT_MS,
   ServiceError,
 } from "./constants.js"
+import { createOperations } from "../operations/operations.js"
 
 /**
  * Structured log used by services. The host supplies the implementation.
@@ -103,6 +104,8 @@ export interface ResolvedHostSettings {
   extraPlugins: string[]
   /** Log level. */
   logLevel: "debug" | "info" | "warn" | "error"
+  /** Write `output.path` files. Injected by the host. */
+  writeTextFile?: (path: string, text: string) => Promise<void>
 }
 
 /**
@@ -162,7 +165,7 @@ const silentLogger: Logger = {
  * Fill the MVP defaults for omitted host settings.
  * @category Services
  */
-export function resolveHostSettings(settings: HostSettings): ResolvedHostSettings {
+export function resolveHostSettings(settings: HostSettings & { writeTextFile?: (path: string, text: string) => Promise<void> }): ResolvedHostSettings {
   return {
     home: settings.home,
     mode: settings.mode ?? "in-process",
@@ -175,6 +178,7 @@ export function resolveHostSettings(settings: HostSettings): ResolvedHostSetting
     },
     extraPlugins: settings.extraPlugins ?? [],
     logLevel: settings.logLevel ?? "info",
+    writeTextFile: settings.writeTextFile,
   }
 }
 
@@ -255,7 +259,10 @@ export function createEnvironment(): Environment {
       phase = "ready"
       return {
         services: lookup,
-        operations: unimplementedOperations(),
+        operations: createOperations(lookup, {
+          settings: resolved,
+          writeTextFile: resolved.writeTextFile,
+        }),
         settings: resolved,
         async stop() {
           const errors: unknown[] = []

@@ -4,12 +4,16 @@ import type {
   ConfigObject,
   ExecutionManifest,
   ExpressionEngine,
+  RunCursor,
   RunEvent,
   RunEventType,
+  RunStore,
+  StepRecord,
   StepStatus,
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
+import { HostSchemaSet } from "../validate/validate.js"
 import { resolveValue, type ScriptReader } from "./resolve.js"
 
 /**
@@ -23,6 +27,8 @@ export interface StepSummary {
   round?: number
   /** Step status. */
   status: StepStatus
+  /** Wall time in milliseconds. */
+  durationMs?: number
 }
 
 /**
@@ -31,7 +37,7 @@ export interface StepSummary {
  */
 export interface RunOutcome {
   /** Final status. */
-  status: "completed" | "failed" | "cancelled"
+  status: "completed" | "failed" | "cancelled" | "interrupted"
   /** Redacted result. */
   result: Record<string, unknown>
   /** Steps in start order. */
@@ -42,6 +48,10 @@ export interface RunOutcome {
   records: RunEvent[]
   /** Failure issue, when the run failed. */
   error?: ValidationIssue
+  /** Cursor for resume, when the run was interrupted. */
+  cursor?: RunCursor
+  /** Final state. */
+  state: Record<string, unknown>
 }
 
 /**
@@ -52,11 +62,7 @@ export interface RunDependencies {
   /** Installed capabilities. */
   capabilities: readonly CapabilityEntry[]
   /** Invoke a capability. `store` receives staged writes. */
-  call: (
-    request: CapabilityCall,
-    signal: AbortSignal,
-    store: StateStore,
-  ) => Promise<unknown>
+  call: (request: CapabilityCall, signal: AbortSignal, store: StateStore) => Promise<unknown>
   /** Expression sandbox. */
   expression: ExpressionEngine
   /** Resolve `$secret` keys. */
@@ -73,8 +79,16 @@ export interface RunDependencies {
   maxConcurrency?: number
   /** Step timeout when the capability sets none. */
   defaultStepTimeoutMs?: number
-  /** Skip L0–L4. Used to exercise a run-time create conflict. */
-  force?: boolean
+  /** External cancel or interrupt signal. */
+  signal?: AbortSignal
+  /** Resume cursor. Skip completed nodes and restore loop and branch state. */
+  cursor?: RunCursor
+  /** Run id used when writing to {@link RunDependencies.store}. */
+  runId?: string
+  /** Persist steps, state and events. */
+  store?: Pick<RunStore, "writeStep" | "writeState" | "appendEvent">
+  /** Compiled schemas for run-time input and output checks. */
+  schemas?: HostSchemaSet
 }
 
 /**
@@ -88,6 +102,19 @@ export interface StateStore {
   merge(handle: { path: string }, value: Record<string, unknown>): void
   /** Append a value at the handle path. */
   append(handle: { path: string }, value: unknown): void
+}
+
+/**
+ * A started run that can be cancelled or interrupted.
+ * @category Environment
+ */
+export interface ActiveRun {
+  /** Settles when the run ends. */
+  readonly outcome: Promise<RunOutcome>
+  /** Abort in-flight steps. The outcome status is `cancelled`. */
+  cancel(): void
+  /** Mark the run interrupted. The outcome status is `interrupted`. */
+  interrupt(reason?: string): void
 }
 
 interface StagedWrite {
@@ -111,8 +138,24 @@ interface NodeLike {
   maxConcurrency?: number
 }
 
+interface Runtime {
+  deps: RunDependencies
+  secrets: Set<string>
+  steps: StepSummary[]
+  records: RunEvent[]
+  events: RunEventType[]
+  seq: number
+  controller: AbortController
+  interrupted: boolean
+  interruptReason?: string
+  cursor: RunCursor
+  completed: Set<string>
+  schemas?: HostSchemaSet
+  runId: string
+}
+
 /**
- * Run an execution. Validation failures return `failed` without running steps.
+ * Run an execution to completion.
  * @category Environment
  */
 export async function runExecution(
@@ -120,131 +163,242 @@ export async function runExecution(
   input: Record<string, unknown>,
   deps: RunDependencies,
 ): Promise<RunOutcome> {
-  const state: Record<string, unknown> = { ...input }
-  const secrets = new Set<string>()
-  const steps: StepSummary[] = []
-  const records: RunEvent[] = []
-  const events: RunEventType[] = []
-  let seq = 0
-  const emit = (type: RunEventType, data: Record<string, unknown>): void => {
-    seq += 1
-    records.push({ seq, at: new Date().toISOString(), type, data: redact(data, secrets) as Record<string, unknown> })
-    events.push(type)
-  }
+  return startExecution(manifest, input, deps).outcome
+}
+
+/**
+ * Start a run and return a handle that can cancel or interrupt it.
+ * @category Environment
+ */
+export function startExecution(
+  manifest: ExecutionManifest,
+  input: Record<string, unknown>,
+  deps: RunDependencies,
+): ActiveRun {
   const controller = new AbortController()
-  emit("run.start", { manifestHash: "", input: redact(input, secrets) })
-  try {
-    await runNodes(asNodes(manifest.steps), state, deps, secrets, steps, emit, controller, undefined)
-    emit("run.end", { status: "completed" })
-    return { status: "completed", result: redact(selectResult(manifest, state), secrets) as Record<string, unknown>, steps, events, records }
-  } catch (error) {
-    const issue = toIssue(error)
-    const cancelled = issue.code === "ECP_RUN_CANCELLED"
-    emit("run.end", { status: cancelled ? "cancelled" : "failed", error: issue })
-    return {
-      status: cancelled ? "cancelled" : "failed",
-      result: redact(selectResult(manifest, state), secrets) as Record<string, unknown>,
-      steps,
-      events,
-      records,
-      error: issue,
+  if (deps.signal) {
+    if (deps.signal.aborted) controller.abort()
+    else deps.signal.addEventListener("abort", () => controller.abort(), { once: true })
+  }
+  const runtime: Runtime = {
+    deps,
+    secrets: new Set(),
+    steps: [],
+    records: [],
+    events: [],
+    seq: 0,
+    controller,
+    interrupted: false,
+    cursor: {
+      completed: [...(deps.cursor?.completed ?? [])],
+      inProgress: deps.cursor?.inProgress,
+      loops: { ...(deps.cursor?.loops ?? {}) },
+      branches: { ...(deps.cursor?.branches ?? {}) },
+    },
+    completed: new Set(deps.cursor?.completed ?? []),
+    schemas: deps.schemas,
+    runId: deps.runId ?? "run",
+  }
+  const state: Record<string, unknown> = { ...input }
+  const emit = (type: RunEventType, data: Record<string, unknown>): void => {
+    runtime.seq += 1
+    const event: RunEvent = {
+      seq: runtime.seq,
+      at: new Date().toISOString(),
+      type,
+      data: redact(data, runtime.secrets) as Record<string, unknown>,
     }
+    runtime.records.push(event)
+    runtime.events.push(type)
+    void runtime.deps.store?.appendEvent(runtime.runId, event)
+  }
+  const outcome = (async (): Promise<RunOutcome> => {
+    emit("run.start", { manifestHash: "", input: redact(input, runtime.secrets) })
+    if (deps.cursor?.inProgress) emit("run.resume", { rerunNodeId: deps.cursor.inProgress })
+    try {
+      await runNodes(asNodes(manifest.steps), state, runtime, emit, undefined)
+      if (runtime.interrupted) {
+        emit("run.interrupted", { reason: runtime.interruptReason ?? "host-restart" })
+        emit("run.end", { status: "interrupted" })
+        return finish("interrupted", manifest, state, runtime)
+      }
+      if (runtime.controller.signal.aborted) {
+        emit("run.end", { status: "cancelled" })
+        return finish("cancelled", manifest, state, runtime, {
+          code: "ECP_RUN_CANCELLED",
+          severity: "error",
+          message: "The run was cancelled.",
+          path: "",
+        })
+      }
+      emit("run.end", { status: "completed" })
+      return finish("completed", manifest, state, runtime)
+    } catch (error) {
+      if (runtime.interrupted) {
+        emit("run.interrupted", { reason: runtime.interruptReason ?? "host-restart" })
+        emit("run.end", { status: "interrupted" })
+        return finish("interrupted", manifest, state, runtime)
+      }
+      const issue = toIssue(error)
+      const cancelled = issue.code === "ECP_RUN_CANCELLED" || runtime.controller.signal.aborted
+      emit("run.end", { status: cancelled ? "cancelled" : "failed", error: issue })
+      return finish(cancelled ? "cancelled" : "failed", manifest, state, runtime, issue)
+    }
+  })()
+  return {
+    outcome,
+    cancel() {
+      controller.abort()
+    },
+    interrupt(reason = "host-restart") {
+      runtime.interrupted = true
+      runtime.interruptReason = reason
+      controller.abort()
+    },
+  }
+}
+
+function finish(
+  status: RunOutcome["status"],
+  manifest: ExecutionManifest,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  error?: ValidationIssue,
+): RunOutcome {
+  return {
+    status,
+    result: redact(selectResult(manifest, state), runtime.secrets) as Record<string, unknown>,
+    steps: runtime.steps,
+    events: runtime.events,
+    records: runtime.records,
+    error,
+    cursor: {
+      completed: [...runtime.completed],
+      inProgress: runtime.cursor.inProgress,
+      loops: { ...runtime.cursor.loops },
+      branches: { ...runtime.cursor.branches },
+    },
+    state: redact(state, runtime.secrets) as Record<string, unknown>,
   }
 }
 
 async function runNodes(
   nodes: NodeLike[],
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  controller: AbortController,
   round: number | undefined,
 ): Promise<void> {
   for (const node of nodes) {
-    if (controller.signal.aborted) return
-    await runNode(node, state, deps, secrets, steps, emit, controller, round)
+    if (runtime.controller.signal.aborted || runtime.interrupted) return
+    await runNode(node, state, runtime, emit, round)
   }
 }
 
 async function runNode(
   node: NodeLike,
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  controller: AbortController,
   round: number | undefined,
 ): Promise<void> {
-  if (node.type === "branch") return runBranch(node, state, deps, secrets, steps, emit, controller, round)
-  if (node.type === "loop") return runLoop(node, state, deps, secrets, steps, emit, controller)
-  if (node.type === "parallel") return runParallel(node, state, deps, secrets, steps, emit, controller, round)
-  await runStep(node, state, deps, secrets, steps, emit, controller, round)
+  if (runtime.completed.has(node.id) && runtime.cursor.inProgress !== node.id) return
+  runtime.cursor.inProgress = node.id
+  if (node.type === "branch") {
+    await runBranch(node, state, runtime, emit, round)
+  } else if (node.type === "loop") {
+    await runLoop(node, state, runtime, emit)
+  } else if (node.type === "parallel") {
+    await runParallel(node, state, runtime, emit, round)
+  } else {
+    await runStep(node, state, runtime, emit, round)
+  }
+  if (!runtime.interrupted && !runtime.controller.signal.aborted) {
+    runtime.completed.add(node.id)
+    runtime.cursor.completed = [...runtime.completed]
+    runtime.cursor.inProgress = undefined
+  }
 }
 
 async function runStep(
   node: NodeLike,
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  controller: AbortController,
   round: number | undefined,
 ): Promise<void> {
   const summary: StepSummary = { nodeId: node.id, status: "completed", ...(round === undefined ? {} : { round }) }
   if (node.expr) {
-    const gate = await deps.expression.evaluate(node.expr, state, "control")
+    const gate = await runtime.deps.expression.evaluate(node.expr, state, "control")
     if (gate !== true) {
       summary.status = "skipped"
-      steps.push(summary)
+      runtime.steps.push(summary)
       emit("step.skip", { nodeId: node.id, round })
+      await persistStep(runtime, node, summary, {}, null, null)
       return
     }
   }
-  steps.push(summary)
-  const capability = deps.capabilities.find((item) => item.id === node.uses)
+  runtime.steps.push(summary)
+  const capability = runtime.deps.capabilities.find((item) => item.id === node.uses)
   emit("step.start", { nodeId: node.id, round, capabilityId: node.uses })
   const staged: StagedWrite[] = []
   const store = createStore(staged)
-  const timeoutMs = capability?.timeoutMs ?? deps.defaultStepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS
+  const timeoutMs = capability?.timeoutMs ?? runtime.deps.defaultStepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS
   const timeout = new AbortController()
+  const started = Date.now()
   const timer = setTimeout(() => timeout.abort(), timeoutMs)
-  const signal = AbortSignal.any([controller.signal, timeout.signal])
+  const signal = AbortSignal.any([runtime.controller.signal, timeout.signal])
+  let resolvedInput: unknown = {}
   try {
-    const resolved = await resolveValue(node.input ?? {}, state, deps.expression, deps.readText, deps.executionDir)
-    const config = await resolveConfig(node, deps, secrets)
-    const output = await deps.call(
+    resolvedInput = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
+    if (capability && runtime.schemas) {
+      const inputErrors = runtime.schemas.validateInput(capability, resolvedInput)
+      if (inputErrors.length > 0) {
+        throw Object.assign(new Error(inputErrors[0]?.message ?? "Input is invalid."), { code: "ECP_INPUT_INVALID" })
+      }
+    } else if (capability) {
+      assertSchema(capability.accepts, resolvedInput, "ECP_INPUT_INVALID")
+    }
+    const config = await resolveConfig(node, runtime.deps, runtime.secrets)
+    const output = await runtime.deps.call(
       {
         capabilityId: node.uses ?? "",
-        input: resolved,
+        input: resolvedInput,
         config,
-        context: { runId: "run", stepId: node.id, round, state },
+        context: { runId: runtime.runId, stepId: node.id, round, state },
       },
       signal,
       store,
     )
     if (!isJson(output)) throw Object.assign(new Error("Capability output is not JSON."), { code: "ECP_OUTPUT_INVALID" })
-    const redacted = redact(output, secrets)
-    applyStaged(state, staged, secrets)
+    if (capability) assertSchema(capability.returns, output, "ECP_OUTPUT_INVALID")
+    const redacted = redact(output, runtime.secrets)
+    applyStaged(state, staged, runtime.secrets)
     commitAs(state, node, redacted)
     summary.status = "completed"
-    emit("step.end", { nodeId: node.id, round, as: node.as })
+    summary.durationMs = Date.now() - started
+    emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
+    await persistStep(runtime, node, summary, resolvedInput, redacted, null)
+    await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
-    if (timeout.signal.aborted && !controller.signal.aborted) {
+    summary.durationMs = Date.now() - started
+    if (timeout.signal.aborted && !runtime.controller.signal.aborted) {
       summary.status = "failed"
-      emit("step.error", { nodeId: node.id, round, error: { code: "ECP_STEP_TIMEOUT", message: "Step timed out." } })
+      const issue = { code: "ECP_STEP_TIMEOUT" as const, severity: "error" as const, message: "Step timed out.", path: "" }
+      emit("step.error", { nodeId: node.id, round, error: issue })
+      await persistStep(runtime, node, summary, resolvedInput, null, issue)
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
     }
-    if (controller.signal.aborted || signal.aborted) {
+    if (runtime.interrupted || runtime.controller.signal.aborted || signal.aborted) {
       summary.status = "cancelled"
-      return
+      await persistStep(runtime, node, summary, resolvedInput, null, null)
+      if (runtime.interrupted) return
+      throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
     const issue = toIssue(error)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
+    await persistStep(runtime, node, summary, resolvedInput, null, issue)
     throw Object.assign(new Error(issue.message), { code: issue.code })
   } finally {
     clearTimeout(timer)
@@ -254,69 +408,89 @@ async function runStep(
 async function runBranch(
   node: NodeLike,
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  controller: AbortController,
   round: number | undefined,
 ): Promise<void> {
   const arms = Array.isArray(node.branches) ? (node.branches as Array<{ expr?: string; steps?: NodeLike[] }>) : []
-  let selected: number | null = null
-  for (let index = 0; index < arms.length; index += 1) {
-    const arm = arms[index]
-    if (!arm) continue
-    if (arm.expr === undefined) {
-      selected = index
-      break
-    }
-    const gate = await deps.expression.evaluate(arm.expr, state, "control")
-    if (gate === true) {
-      selected = index
-      break
+  const restored = runtime.cursor.branches[node.id]
+  let selected: number | null = restored ?? null
+  if (restored === undefined) {
+    for (let index = 0; index < arms.length; index += 1) {
+      const arm = arms[index]
+      if (!arm) continue
+      if (arm.expr === undefined) {
+        selected = index
+        break
+      }
+      const gate = await runtime.deps.expression.evaluate(arm.expr, state, "control")
+      if (gate === true) {
+        selected = index
+        break
+      }
     }
   }
+  if (selected !== null) runtime.cursor.branches[node.id] = selected
   emit("branch.select", { nodeId: node.id, arm: selected })
   const chosen = selected === null ? undefined : arms[selected]
-  if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, deps, secrets, steps, emit, controller, round)
+  if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, runtime, emit, round)
 }
 
 async function runLoop(
   node: NodeLike,
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  controller: AbortController,
 ): Promise<void> {
   const maxRounds = node.maxRounds ?? 1
-  let round = 0
+  const resumeRound = runtime.deps.cursor?.loops[node.id]
+  const resumeNode = runtime.deps.cursor?.inProgress
+  let round = resumeRound ?? 0
   while (round < maxRounds) {
-    const gate = await deps.expression.evaluate(node.expr ?? "(state) => false", state, "control")
+    if (runtime.controller.signal.aborted || runtime.interrupted) return
+    const gate = await runtime.deps.expression.evaluate(node.expr ?? "(state) => false", state, "control")
     if (gate !== true) break
+    const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
+    if (!isResumeRound) {
+      for (const id of collectIds(node.steps ?? [])) {
+        runtime.completed.delete(id)
+      }
+    }
+    runtime.cursor.loops[node.id] = round
     emit("loop.round", { nodeId: node.id, round })
-    await runNodes(node.steps ?? [], state, deps, secrets, steps, emit, controller, round)
+    await runNodes(node.steps ?? [], state, runtime, emit, round)
     round += 1
   }
   if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: round })
 }
 
+function collectIds(nodes: NodeLike[]): string[] {
+  const ids: string[] = []
+  for (const node of nodes) {
+    ids.push(node.id)
+    if (node.steps) ids.push(...collectIds(node.steps))
+    if (Array.isArray(node.branches)) {
+      for (const arm of node.branches) {
+        if (Array.isArray(arm)) ids.push(...collectIds(arm as NodeLike[]))
+        else if (isRecord(arm) && Array.isArray(arm.steps)) ids.push(...collectIds(arm.steps as NodeLike[]))
+      }
+    }
+  }
+  return ids
+}
+
 async function runParallel(
   node: NodeLike,
   state: Record<string, unknown>,
-  deps: RunDependencies,
-  secrets: Set<string>,
-  steps: StepSummary[],
+  runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  parent: AbortController,
   round: number | undefined,
 ): Promise<void> {
   const lines = Array.isArray(node.branches) ? (node.branches as NodeLike[][]) : []
-  const limit = node.maxConcurrency ?? deps.maxConcurrency ?? 4
+  const limit = node.maxConcurrency ?? runtime.deps.maxConcurrency ?? 4
   const local = new AbortController()
   const onParent = (): void => local.abort()
-  parent.signal.addEventListener("abort", onParent)
+  runtime.controller.signal.addEventListener("abort", onParent)
   let failure: unknown
   let cursor = 0
   const workers = Array.from({ length: Math.min(limit, lines.length) }, async () => {
@@ -325,8 +499,9 @@ async function runParallel(
       cursor += 1
       const line = lines[index]
       if (!line || local.signal.aborted) return
+      const child: Runtime = { ...runtime, controller: local }
       try {
-        await runNodes(asNodes(line as never), state, deps, secrets, steps, emit, local, round)
+        await runNodes(asNodes(line as never), state, child, emit, round)
       } catch (error) {
         if (!failure) {
           failure = error
@@ -336,8 +511,31 @@ async function runParallel(
     }
   })
   await Promise.all(workers)
-  parent.signal.removeEventListener("abort", onParent)
+  runtime.controller.signal.removeEventListener("abort", onParent)
   if (failure) throw failure
+}
+
+async function persistStep(
+  runtime: Runtime,
+  node: NodeLike,
+  summary: StepSummary,
+  input: unknown,
+  output: unknown,
+  error: ValidationIssue | null,
+): Promise<void> {
+  if (!runtime.deps.store) return
+  const record: StepRecord = {
+    nodeId: node.id,
+    round: summary.round ?? null,
+    capabilityId: node.uses ?? "",
+    status: summary.status,
+    input: redact(input, runtime.secrets),
+    output: redact(output, runtime.secrets),
+    error,
+    startedAt: new Date().toISOString(),
+    durationMs: summary.durationMs,
+  }
+  await runtime.deps.store.writeStep(runtime.runId, record)
 }
 
 function createStore(staged: StagedWrite[]): StateStore {
@@ -445,6 +643,37 @@ function toIssue(error: unknown): ValidationIssue {
   const code = isRecord(error) && typeof error.code === "string" ? error.code : "ECP_STEP_FAILED"
   const message = error instanceof Error ? error.message : "Step failed."
   return { code: code as ValidationIssue["code"], severity: "error", message, path: "" }
+}
+
+function assertSchema(schema: Record<string, unknown> | undefined, value: unknown, code: "ECP_INPUT_INVALID" | "ECP_OUTPUT_INVALID"): void {
+  if (!schema) return
+  const type = schema.type
+  if (type === "object") {
+    if (!isRecord(value)) throw Object.assign(new Error(`Value must be an object.`), { code })
+    const required = Array.isArray(schema.required) ? (schema.required as string[]) : []
+    for (const key of required) {
+      if (value[key] === undefined) throw Object.assign(new Error(`Missing required property ${key}.`), { code })
+    }
+    if (isRecord(schema.properties)) {
+      for (const [key, childSchema] of Object.entries(schema.properties)) {
+        if (value[key] === undefined || !isRecord(childSchema)) continue
+        assertSchema(childSchema, value[key], code)
+      }
+    }
+    return
+  }
+  if (type === "array" && !Array.isArray(value)) {
+    throw Object.assign(new Error(`Value must be an array.`), { code })
+  }
+  if (type === "string" && typeof value !== "string") {
+    throw Object.assign(new Error(`Value must be a string.`), { code })
+  }
+  if ((type === "number" || type === "integer") && typeof value !== "number") {
+    throw Object.assign(new Error(`Value must be a number.`), { code })
+  }
+  if (type === "boolean" && typeof value !== "boolean") {
+    throw Object.assign(new Error(`Value must be a boolean.`), { code })
+  }
 }
 
 function setPath(state: Record<string, unknown>, path: string, value: unknown): void {

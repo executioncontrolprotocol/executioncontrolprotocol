@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      include: ["packages/**/src/**/*.ts", "plugins/**/src/**/*.ts"],
+      include: ["packages/engine/src/**/*.ts", "packages/quickjs/src/**/*.ts"],
       exclude: ["legacy/**", "**/dist/**", "**/*.d.ts"],
       thresholds: {
         lines: 90,

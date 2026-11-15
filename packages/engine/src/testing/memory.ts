@@ -60,6 +60,9 @@ interface SavedRun {
  * @category Environment
  */
 export class MemoryStorage implements StorageProvider {
+  /** Implementation id. */
+  static readonly id = "@executioncontrolprotocol/memory.storage"
+
   private readonly executions = new Map<string, SavedExecution>()
   private readonly configs = new Map<string, ConfigObject>()
   private readonly runRecords = new Map<string, SavedRun>()
