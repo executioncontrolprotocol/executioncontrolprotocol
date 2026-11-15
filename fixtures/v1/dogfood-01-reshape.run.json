@@ -1,10 +1,17 @@
 {
-  "input": {},
+  "input": {
+    "items": [
+      { "title": "Widget" },
+      { "title": "Gadget" }
+    ]
+  },
   "status": "completed",
   "result": {
     "summary": {
-      "title": "Widget",
-      "count": 2
+      "echo": {
+        "title": "Widget",
+        "count": 2
+      }
     }
   },
   "steps": [
@@ -18,5 +25,6 @@
     "step.start",
     "step.end",
     "run.end"
-  ]
+  ],
+  "note": "Phase 8 retarget: jsonata.transform replaced by test.echo + $expr."
 }

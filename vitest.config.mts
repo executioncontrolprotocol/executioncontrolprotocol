@@ -17,6 +17,9 @@ export default defineConfig({
         "packages/app/src/form/**/*.ts",
         "packages/app/src/client/**/*.ts",
         "plugins/plugin-test/src/**/*.ts",
+        "plugins/plugin-anthropic/src/**/*.ts",
+        "plugins/plugin-azure-blob-storage/src/**/*.ts",
+        "plugins/plugin-adobe-firefly-services/src/**/*.ts",
       ],
       exclude: [
         "legacy/**",

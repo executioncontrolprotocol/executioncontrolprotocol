@@ -1,13 +1,15 @@
 {
   "input": {
-    "signals": [
-      "a"
-    ]
+    "signals": ["a"]
   },
   "status": "completed",
   "result": {
     "brief": {
-      "text": "brief"
+      "text": "brief",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5
+      }
     }
   },
   "steps": [
@@ -22,5 +24,5 @@
     "step.end",
     "run.end"
   ],
-  "note": "OpenAI is not an MVP plugin. Phase 8 records the live result or keeps this as a shape fixture."
+  "note": "Phase 8 retarget: openai.generate replaced by anthropic.generate (mocked fetch in tests)."
 }

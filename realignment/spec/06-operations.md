@@ -159,6 +159,7 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_EXPR_TIMEOUT` | Expression exceeded 50 ms | — (in run) | 1 |
 | `ECP_EXPR_RESULT_INVALID` | Non-boolean in a control position, or non-JSON value | — (in run) | 1 |
 | `ECP_PLUGIN_LOAD_FAILED` | Plugin module failed to import or has no handler | — (in run) | 1 |
+| `ECP_PROVIDER_ERROR` | Upstream provider (HTTP / cloud SDK) returned an error | — (in run) | 1 |
 | `ECP_RUN_CANCELLED` | Run ended by cancel | — (in run) | 1 |
 | `ECP_HOST_RESTARTING` | Host draining; retry after `retryAfterMs` | 503 | 4 |
 | `ECP_HOST_UNAVAILABLE` | No host reachable and starting one failed | — | 4 |

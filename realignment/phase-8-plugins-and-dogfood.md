@@ -23,6 +23,8 @@ Phase 2 in parallel with Phases 4–7. **Spec:** 08, 12 (A10).
 
 ## Exit criteria
 
-- [ ] Four plugins built with checked manifests and passing tests.
-- [ ] All v1 conversions run on the new engine with expected outcomes.
+- [x] Four plugins built with checked manifests and passing tests.
+- [x] All v1 conversions run on the new engine with expected outcomes.
 - [ ] A10 run live once; its output (run record summary, produced PSD link or artifact) attached to the PR.
+  - Suite ready: `packages/host/test/integration/localize-banner.live.test.ts` (skips without Firefly + Anthropic + signed URLs).
+  - Skip evidence: `realignment/evidence/a10-localize-banner.md`. Re-run with secrets to write `a10-localize-banner.json` for the PR.

@@ -1,21 +1,36 @@
 {
   "schema": "@executioncontrolprotocol.execution",
   "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["items"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "object" }
+      }
+    }
+  },
   "steps": [
     {
       "id": "Reshape",
-      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "uses": "@executioncontrolprotocol/test.echo",
       "input": {
-        "expression": "{ \"title\": items[0].title, \"count\": $count(items) }",
-        "payload": {
-          "items": [
-            {
-              "title": "Widget"
-            },
-            {
-              "title": "Gadget"
-            }
-          ]
+        "value": {
+          "$expr": "(state) => ({ title: state.items[0].title, count: state.items.length })"
         }
       },
       "as": "summary"

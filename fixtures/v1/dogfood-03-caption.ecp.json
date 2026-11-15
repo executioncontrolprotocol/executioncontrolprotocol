@@ -1,14 +1,21 @@
 {
   "schema": "@executioncontrolprotocol.execution",
   "version": "2.0",
+  "execution": {
+    "returns": {
+      "type": "object",
+      "properties": {
+        "caption": { "type": "object" }
+      }
+    }
+  },
   "steps": [
     {
       "id": "Caption",
-      "uses": "@executioncontrolprotocol/ollama.generate",
-      "config": "ollama/default",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
       "input": {
-        "prompt": "Write a one-sentence product caption for a 64px thumbnail of a widget.",
-        "model": "llama3.2"
+        "prompt": "Write a one-sentence product caption for a 64px thumbnail of a widget."
       },
       "as": "caption"
     }

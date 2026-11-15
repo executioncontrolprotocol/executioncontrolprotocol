@@ -2,23 +2,37 @@
   "name": "@executioncontrolprotocol/plugin-azure-blob-storage",
   "version": "2.0.0",
   "private": true,
-  "description": "Scaffold for azure-blob-storage. The capability implementation arrives in Phase 8.",
+  "description": "Upload, download and mint SAS URLs for Azure Blob Storage.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./ecp.manifest.json": "./ecp.manifest.json"
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "ecp.manifest.json"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.27.0"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",
@@ -26,6 +40,7 @@
   },
   "devDependencies": {
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "@types/node": "catalog:",
     "zod": "catalog:"
   }
 }

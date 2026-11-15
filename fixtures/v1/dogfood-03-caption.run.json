@@ -3,7 +3,11 @@
   "status": "completed",
   "result": {
     "caption": {
-      "text": "A small widget."
+      "text": "A small widget.",
+      "usage": {
+        "inputTokens": 8,
+        "outputTokens": 4
+      }
     }
   },
   "steps": [
@@ -18,5 +22,5 @@
     "step.end",
     "run.end"
   ],
-  "note": "Ollama is not an MVP plugin. Phase 8 records a live caption or keeps this as a shape fixture."
+  "note": "Phase 8 retarget: ollama.generate replaced by anthropic.generate (mocked fetch in tests)."
 }

@@ -1,0 +1,1329 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Illustrator API (public beta) - Firefly Services",
+        "description": "This is the Illustrator API public beta reference documentation for the Custom Scripts endpoints. APIs in this document are subject to change.",
+        "version": "1.0.0-beta",
+        "license": {
+            "name": "Adobe Creative API License",
+            "url": "https://www.adobe.com/content/dam/cc/en/legal/terms/enterprise/pdfs/PSLT-AdobeCreativeAPI-WW-2024v2.pdf"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://illustrator.adobe.io",
+            "description": "Public beta server"
+        }
+    ],
+    "security": [
+        {
+            "AccessToken": [],
+            "X-Api-Key": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Custom Scripts",
+            "description": "Submit and execute Custom Scripts for Illustrator automation. These services support comprehensive scripting capabilities for document manipulation and processing."
+        }
+    ],
+    "paths": {
+        "/run-scripts": {
+            "post": {
+                "tags": [
+                    "Custom Scripts"
+                ],
+                "operationId": "registerCustomScriptCapability",
+                "summary": "Submit a Custom Script",
+                "x-ffs-cxp-ui-group": "customScriptRegisterAndExecute",
+                "description": "Submits Custom Script bundles for registration. Returns a URL for posting execution requests for the registered script.",
+                "servers": [
+                    {
+                        "url": "https://illustrator.adobe.io/beta",
+                        "description": "Beta production"
+                    }
+                ],
+                "security": [
+                    {
+                        "AccessToken": [],
+                        "X-Api-Key": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "The custom script bundle, in `multipart/form-data`.",
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "description": "The custom script bundle, in ZIP format.",
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "The custom script bundle, in ZIP format. Required contents: `script.jsx` (ExtendScript with `main()` entry point) and `manifest.json` (capability metadata)."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CapabilityRegistrationResponse"
+                                },
+                                "example": {
+                                    "url": "https://illustrator.adobe.io/beta/v3/<org-id>/<capability-name>",
+                                    "capability": "<capability-name>",
+                                    "version": "<version>"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested Resource Was Not Found",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v3/{orgId}/{capabilityName}": {
+            "post": {
+                "tags": [
+                    "Custom Scripts"
+                ],
+                "operationId": "executeCustomScriptCapability",
+                "summary": "Submit a custom script execution request",
+                "x-ffs-cxp-ui-group": "customScriptRegisterAndExecute",
+                "description": "Submits execution requests for custom scripts. Defines input assets and parameters that the custom script will use during execution.",
+                "x-ffs-async-job": true,
+                "x-ffs-job-status-fetcher": "customScriptsJobStatus",
+                "servers": [
+                    {
+                        "url": "https://illustrator.adobe.io/beta",
+                        "description": "Beta production"
+                    }
+                ],
+                "security": [
+                    {
+                        "AccessToken": [],
+                        "X-Api-Key": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Path segment for the org or scope, as in the `url` returned in the custom script **Submit a Custom Script** response (same role as a script scope identifier in other Custom Scripts products).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "capabilityName",
+                        "in": "path",
+                        "required": true,
+                        "description": "The name of the custom script, specified in the custom script `manifest.json` and registration response (same idea as a script name in custom script manifest-based APIs).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "This job request object specifies parameters for the execution of the custom script.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CustomScriptExecuteRequest"
+                            },
+                            "example": {
+                                "assets": [
+                                    {
+                                        "source": {
+                                            "url": "<presigned-url>"
+                                        },
+                                        "destination": "template.ai"
+                                    }
+                                ],
+                                "params": {
+                                    "targetDocument": "template.ai",
+                                    "outputFolderPath": "<output-folder>"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "headers": {
+                            "link": {
+                                "description": "The status URL for a retry.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "retry-after": {
+                                "description": "The number of seconds until the user should try again.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Content-Type": {
+                                "description": "The type of content that is returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptExecuteResponse"
+                                },
+                                "example": {
+                                    "jobId": "<jobId>",
+                                    "statusUrl": "https://illustrator.adobe.io/beta/v3/status/<jobId>"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested Resource Was Not Found",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "The type of content returned (e.g., application/json).",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Content-Length": {
+                                "description": "The length of the response content.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "description": "The Cross Origin Resource Sharing (CORS) header.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "description": "This header indicates what HTTP methods are allowed.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Headers": {
+                                "description": "This indicates which HTTP headers can be used during the actual request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Allow-Credentials": {
+                                "description": "Indicates whether the browser may send credentials with cross-origin requests.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "Access-Control-Max-Age": {
+                                "description": "This indicates how long the results of a preflight request can be cached.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v3/status/{jobId}": {
+            "get": {
+                "tags": [
+                    "Custom Scripts"
+                ],
+                "operationId": "customScriptsJobStatus",
+                "summary": "Retrieve job status",
+                "description": "Poll execution status for a Custom Scripts job. Use this after calling custom script execute. When the job succeeds, each entry in `outputs` includes a presigned URL to download an output file.",
+                "x-ffs-status-fetcher": true,
+                "x-ffs-job-name": "CxpCustomScriptAsyncJob",
+                "servers": [
+                    {
+                        "url": "https://illustrator.adobe.io/beta",
+                        "description": "Beta production"
+                    }
+                ],
+                "security": [
+                    {
+                        "AccessToken": [],
+                        "X-Api-Key": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Job ID returned from execute capability.",
+                        "schema": {
+                            "type": "string",
+                            "example": "ee45451e-3a84-4a81-aa21-7f00aa3302a4"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "headers": {
+                            "Content-Type": {
+                                "description": "Media type of the response.",
+                                "schema": {
+                                    "type": "string",
+                                    "example": "application/json"
+                                }
+                            },
+                            "x-request-id": {
+                                "description": "Unique identifier for the request.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "x-cxp-version": {
+                                "description": "Platform version.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "x-cxp-environment": {
+                                "description": "Deployment environment.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/CustomScriptJobSucceededResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/CustomScriptJobRunningResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/CustomScriptJobFailedResponse"
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "succeeded": {
+                                        "summary": "Execution Success",
+                                        "value": {
+                                            "jobId": "<jobId>",
+                                            "timestamp": "<date-time>",
+                                            "status": "succeeded",
+                                            "data": {
+                                                "conversionDetails": {
+                                                    "inputFile": "<input-illustrator-file>",
+                                                    "outputFolderPath": "<output-folder>",
+                                                    "success": true
+                                                }
+                                            },
+                                            "outputs": [
+                                                {
+                                                    "destination": {
+                                                        "url": "<presigned-url>"
+                                                    },
+                                                    "source": "<directory-path>"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "running": {
+                                        "summary": "Execution Running",
+                                        "value": {
+                                            "jobId": "<jobId>",
+                                            "timestamp": "<date-time>",
+                                            "status": "running"
+                                        }
+                                    },
+                                    "failed": {
+                                        "summary": "Execution Failed",
+                                        "value": {
+                                            "jobId": "<jobId>",
+                                            "timestamp": "<date-time>",
+                                            "status": "failed",
+                                            "errors": [
+                                                {
+                                                    "message": "<error-message>"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Requested Resource Was Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptJobNotFoundResponse"
+                                },
+                                "example": {
+                                    "message": "JobId ee45451e-3a84-4a81-aa21-7f00aa3302a4 not found",
+                                    "errorCode": "not_found"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomScriptApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "AccessToken": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "The Adobe-generated access token, S2S format."
+            },
+            "X-Api-Key": {
+                "type": "apiKey",
+                "name": "x-api-key",
+                "in": "header",
+                "description": "The client ID for authentication."
+            }
+        },
+        "schemas": {
+            "CapabilityRegistrationResponse": {
+                "type": "object",
+                "description": "Response after a successful custom script submit. The `url` is the base URL to use for **Submit a custom script execution request** (append path segments or use it as the execute endpoint, depending on the value returned).",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "Base URL for posting custom script execution requests.",
+                        "example": "https://illustrator.adobe.io/beta/v3/<org-id>/<capability-name>"
+                    },
+                    "capability": {
+                        "type": "string",
+                        "description": "Registered custom script or capability name (from `manifest.json`).",
+                        "example": "string"
+                    },
+                    "version": {
+                        "type": "string",
+                        "description": "Registered capability version string.",
+                        "example": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "capability",
+                    "version"
+                ]
+            },
+            "CustomScriptExecuteRequest": {
+                "type": "object",
+                "description": "This job request object specifies parameters for the execution of the custom script.",
+                "properties": {
+                    "assets": {
+                        "type": "array",
+                        "description": "Array of **Input assets**. Information about the assets, which will be used to process the job (for example AI documents, font archives, packaged assets, and so on).",
+                        "items": {
+                            "type": "object",
+                            "description": "Information about an input asset the job will use (file reference and local destination name in the job workspace).",
+                            "properties": {
+                                "source": {
+                                    "type": "object",
+                                    "description": "Presigned URL for the asset.",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string",
+                                            "description": "Presigned URL pointing to the asset.",
+                                            "example": "<presigned-url>"
+                                        }
+                                    },
+                                    "required": [
+                                        "url"
+                                    ]
+                                },
+                                "destination": {
+                                    "type": "string",
+                                    "description": "Local filename for the asset in the job workspace (referenced by `targetDocument` and other params). Path relative to the job workspace. Cannot contain `..`, a leading `/`, or `./`. Must be a valid filename."
+                                }
+                            },
+                            "required": [
+                                "source",
+                                "destination"
+                            ]
+                        }
+                    },
+                    "params": {
+                        "type": "object",
+                        "properties": {
+                            "targetDocument": {
+                                "type": "string",
+                                "description": "Filename of the Illustrator document to process."
+                            },
+                            "outputFolderPath": {
+                                "type": "string",
+                                "description": "Output folder path for generated files."
+                            },
+                            "zip": {
+                                "type": "string",
+                                "description": "Optional. Destination filename of a zipped asset when inputs are packaged as a ZIP."
+                            },
+                            "fontFolderPath": {
+                                "type": "string",
+                                "description": "Optional. Relative path to a font folder when required by the script. Path relative to the job workspace. Cannot contain `..`, a leading `/`, or `./`. Must be a valid filename. To use this parameter, the `zip` parameter must also be provided."
+                            }
+                        },
+                        "required": [
+                            "targetDocument",
+                            "outputFolderPath"
+                        ]
+                    }
+                },
+                "required": [
+                    "assets"
+                ]
+            },
+            "CustomScriptExecuteResponse": {
+                "type": "object",
+                "description": "Returned when a Custom Scripts execution request is accepted (HTTP 202).",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "description": "Job identifier. Use with **Retrieve job status** on `GET /v3/status/{jobId}` for Custom Scripts jobs.",
+                        "example": "string"
+                    },
+                    "statusUrl": {
+                        "type": "string",
+                        "description": "URL to poll for job status.",
+                        "example": "string"
+                    }
+                },
+                "required": [
+                    "jobId",
+                    "statusUrl"
+                ]
+            },
+            "CustomScriptJobConversionDetails": {
+                "type": "object",
+                "description": "Details of the conversion performed during execution.",
+                "properties": {
+                    "inputFile": {
+                        "type": "string",
+                        "description": "Name of the input Illustrator file.",
+                        "example": "<input-illustrator-file>"
+                    },
+                    "outputFolderPath": {
+                        "type": "string",
+                        "description": "Name of the output folder.",
+                        "example": "<output-folder>"
+                    },
+                    "success": {
+                        "type": "boolean",
+                        "description": "Whether conversion succeeded.",
+                        "example": true
+                    }
+                }
+            },
+            "CustomScriptOutputItem": {
+                "type": "object",
+                "properties": {
+                    "destination": {
+                        "type": "object",
+                        "description": "Presigned URL to download the output file.",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "Presigned download URL.",
+                                "example": "<presigned-url>"
+                            }
+                        },
+                        "required": [
+                            "url"
+                        ]
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Relative path of the output file within the output folder.",
+                        "example": "<directory-path>"
+                    }
+                },
+                "required": [
+                    "destination",
+                    "source"
+                ]
+            },
+            "CustomScriptJobSucceededResponse": {
+                "type": "object",
+                "title": "Execution Success",
+                "description": "Returned when the Custom Scripts job completes successfully.",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "description": "The job ID.",
+                        "example": "<jobId>"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp of when the status was recorded.",
+                        "example": "<date-time>"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "succeeded"
+                        ]
+                    },
+                    "data": {
+                        "type": "object",
+                        "properties": {
+                            "conversionDetails": {
+                                "$ref": "#/components/schemas/CustomScriptJobConversionDetails"
+                            }
+                        }
+                    },
+                    "outputs": {
+                        "type": "array",
+                        "description": "Presigned download URLs for each output file.",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomScriptOutputItem"
+                        }
+                    }
+                },
+                "required": [
+                    "jobId",
+                    "timestamp",
+                    "status",
+                    "outputs"
+                ]
+            },
+            "CustomScriptJobRunningResponse": {
+                "type": "object",
+                "title": "Execution Running",
+                "description": "Returned while the Custom Scripts job is still executing. Poll again after a short interval.",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "description": "The job ID.",
+                        "example": "<jobId>"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp.",
+                        "example": "<date-time>"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "running"
+                        ]
+                    }
+                },
+                "required": [
+                    "jobId",
+                    "timestamp",
+                    "status"
+                ]
+            },
+            "CustomScriptJobFailedResponse": {
+                "type": "object",
+                "title": "Execution Failed",
+                "description": "Returned when the Custom Scripts job has failed.",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "description": "The job ID.",
+                        "example": "<jobId>"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp.",
+                        "example": "<date-time>"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "failed"
+                        ]
+                    },
+                    "errors": {
+                        "type": "array",
+                        "description": "List of errors describing what went wrong.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "<error-message>"
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "jobId",
+                    "timestamp",
+                    "status",
+                    "errors"
+                ]
+            },
+            "CustomScriptJobNotFoundResponse": {
+                "type": "object",
+                "description": "Returned when the job ID does not exist.",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "JobId <jobId> not found"
+                    },
+                    "errorCode": {
+                        "type": "string",
+                        "example": "<string>"
+                    }
+                }
+            },
+            "CustomScriptApiError": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "error_code": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "message",
+                    "error_code"
+                ]
+            }
+        }
+    }
+}

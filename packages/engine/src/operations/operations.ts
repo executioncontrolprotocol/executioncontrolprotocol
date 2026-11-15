@@ -306,9 +306,11 @@ async function execute(
     const plugins = services.get(PluginAdapter)
     const capabilities = plugins.capabilities()
     const storage = services.get(StorageProvider)
+    const configs = await storage.listConfigs()
     const executionDir = dirnameOf(loaded.ref.path)
     const validation = await validateExecution(manifest, {
       capabilities,
+      configs,
       input: input.mode === "validate" || input.mode === undefined ? input.input : input.input,
       ...(executionDir ? { executionDir } : {}),
       readText: (absolutePath) => storage.readTextFile(absolutePath),
@@ -393,6 +395,7 @@ async function resumeRun(
   if (!manifest) return fail("ECP_NOT_FOUND", `Manifest for run ${runId} was not found.`)
   const validation = await validateExecution(manifest, {
     capabilities: services.get(PluginAdapter).capabilities(),
+    configs: await storage.listConfigs(),
     input: detail.input,
   })
   return startAndAwait(
@@ -629,7 +632,10 @@ async function commitExecution(
     }
   }
 
-  const validation = await validateExecution(manifest, { capabilities: services.get(PluginAdapter).capabilities() })
+  const validation = await validateExecution(manifest, {
+    capabilities: services.get(PluginAdapter).capabilities(),
+    configs: await storage.listConfigs(),
+  })
   if (validation.issues.some((issue) => issue.severity === "error")) {
     return {
       ok: false,

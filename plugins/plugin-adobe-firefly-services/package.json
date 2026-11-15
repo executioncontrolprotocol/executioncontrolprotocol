@@ -2,23 +2,36 @@
   "name": "@executioncontrolprotocol/plugin-adobe-firefly-services",
   "version": "2.0.0",
   "private": true,
-  "description": "Scaffold for adobe-firefly-services. The capability implementation arrives in Phase 8.",
+  "description": "Adobe Firefly Services APIs (Firefly, Photoshop, Express, InDesign, Illustrator, Substance 3D) as ECP capabilities generated from OpenAPI.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./ecp.manifest.json": "./ecp.manifest.json"
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "ecp.manifest.json"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "generate": "node scripts/generate-capabilities.mjs",
+    "check:generated": "node scripts/generate-capabilities.mjs --check",
+    "build": "node scripts/generate-capabilities.mjs && tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
   },
   "peerDependencies": {
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",
@@ -26,6 +39,7 @@
   },
   "devDependencies": {
     "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "yaml": "catalog:",
     "zod": "catalog:"
   }
 }

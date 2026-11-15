@@ -21,7 +21,7 @@
     "returns": {
       "type": "object",
       "properties": {
-        "seed": {
+        "Seed": {
           "type": "object"
         }
       }

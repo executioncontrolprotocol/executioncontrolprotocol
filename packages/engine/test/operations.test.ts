@@ -620,4 +620,82 @@ describe("operations", () => {
 
     await host.stop()
   })
+
+  it("loads stored configs when validating execute and commit", async () => {
+    const { host, storage } = await startHost()
+    await storage.putConfig(
+      {
+        schema: "@executioncontrolprotocol.config",
+        version: "1.0",
+        id: "test/default",
+        plugin: "@executioncontrolprotocol/test",
+        values: { label: "lab" },
+        objectVersion: 1,
+        updatedAt: "2026-11-14T00:00:00.000Z",
+      },
+      { create: true },
+    )
+
+    const missing = await host.operations.execute({
+      execution: {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            id: "cfg",
+            uses: "@executioncontrolprotocol/test.echo",
+            config: "test/missing",
+            input: { value: "x" },
+            as: "out",
+          },
+        ],
+      },
+      mode: "validate",
+      input: {},
+    })
+    expect(missing.ok).toBe(false)
+    if (!missing.ok) expect(missing.error.issues?.some((issue) => issue.code === "ECP_CONFIG_UNKNOWN")).toBe(true)
+
+    const known = await host.operations.execute({
+      execution: {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            id: "cfg",
+            uses: "@executioncontrolprotocol/test.echo",
+            config: "test/default",
+            input: { value: "x" },
+            as: "out",
+          },
+        ],
+      },
+      mode: "validate",
+      input: {},
+    })
+    expect(known.ok).toBe(true)
+
+    const committed = await host.operations.commit({
+      type: "execution",
+      action: "create",
+      id: "with-config",
+      object: {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        execution: { id: "with-config" },
+        steps: [
+          {
+            id: "cfg",
+            uses: "@executioncontrolprotocol/test.echo",
+            config: "test/default",
+            input: { value: "x" },
+            as: "out",
+          },
+        ],
+      },
+    })
+    expect(committed.ok).toBe(true)
+
+    await host.stop()
+  })
 })

@@ -1,0 +1,147 @@
+{
+  "pluginId": "@executioncontrolprotocol/adobe-firefly-services",
+  "families": [
+    "firefly",
+    "photoshop"
+  ],
+  "pendingFamilies": [
+    "audio-video",
+    "creative-production",
+    "express",
+    "illustrator",
+    "indesign",
+    "substance3d"
+  ],
+  "specFiles": [
+    "firefly/firefly-api.json",
+    "photoshop/photoshopv2-api.json"
+  ],
+  "capabilityCount": 17,
+  "capabilities": [
+    {
+      "name": "firefly-adaptive-composite",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/adaptive-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-expand-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/expand-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-fill-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/fill-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-images-v5-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v4/images/generate-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-object-composite-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-object-composite-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-similar-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-similar-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-video-v3",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/videos/generate",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-get-custom-models",
+      "family": "firefly",
+      "method": "GET",
+      "path": "/v3/custom-models",
+      "asyncMode": "none"
+    },
+    {
+      "name": "firefly-precise-composite",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/precise-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-precise-upsampler-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/upscale",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-actions",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/execute-actions",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-auto-crop",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v1/auto-crop",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-create-artboard",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/create-artboard",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-create-composite",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/create-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-edit",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/edit",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-generate-manifest",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/generate-manifest",
+      "asyncMode": "submit"
+    }
+  ],
+  "skipped": [
+    {
+      "name": "firefly-storage-image-v2",
+      "reason": "non-JSON request body (image/jpeg, image/png, image/webp, image/tiff, image/jxl); needs file-reference upload support"
+    }
+  ]
+}

@@ -2,10 +2,17 @@
   "input": {},
   "status": "failed",
   "result": {},
-  "steps": [],
+  "steps": [
+    {
+      "nodeId": "Upload",
+      "status": "failed"
+    }
+  ],
   "events": [
     "run.start",
+    "step.start",
+    "step.error",
     "run.end"
   ],
-  "note": "Expected to fail validation: filePath is a string and thumb is an object (ECP_TYPE_MISMATCH)."
+  "note": "Phase 8 retarget: missing file path fails azure upload at runtime."
 }

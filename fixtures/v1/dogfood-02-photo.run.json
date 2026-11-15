@@ -2,18 +2,12 @@
   "input": {},
   "status": "completed",
   "result": {
-    "thumb": {
-      "mediaType": "image/webp"
-    },
     "upload": {
-      "blobName": "product.webp"
+      "blobName": "product.png",
+      "container": "ecp"
     }
   },
   "steps": [
-    {
-      "nodeId": "Resize",
-      "status": "completed"
-    },
     {
       "nodeId": "Upload",
       "status": "completed"
@@ -23,9 +17,7 @@
     "run.start",
     "step.start",
     "step.end",
-    "step.start",
-    "step.end",
     "run.end"
   ],
-  "note": "Policy step removed. Connection string moved to config azure-blob-storage/default. Buffer refs became contentBase64."
+  "note": "Phase 8 retarget: image-sharp.resize dropped; azure upload uses file refs (mocked in tests)."
 }

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "localize-banner",
+    "label": "Localize campaign banner",
+    "description": "Translate a headline with Anthropic, then run a Photoshop Actions job with a UXP script from disk.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "locale": { "type": "string" },
+        "headline": { "type": "string" },
+        "sourceImageUrl": { "type": "string" },
+        "outputUrl": { "type": "string" }
+      },
+      "required": ["locale", "sourceImageUrl", "outputUrl"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "localized": { "type": "string" },
+        "banner": { "type": "object" }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "doc",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "headline": {
+            "$ref": "state.headline",
+            "optional": true,
+            "fallback": "Hello"
+          },
+          "locale": { "$ref": "state.locale" }
+        }
+      },
+      "as": "doc"
+    },
+    {
+      "id": "translate",
+      "label": "Translate headline",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
+      "expr": "(state) => state.locale !== 'en'",
+      "input": {
+        "prompt": {
+          "$expr": "(state) => `Translate the campaign headline into ${state.locale}: ${state.doc.echo.headline}`"
+        },
+        "system": "Return only the translated headline text."
+      },
+      "as": "translation",
+      "mode": "replace"
+    },
+    {
+      "id": "actions",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "source": {
+            "url": { "$ref": "state.sourceImageUrl" }
+          }
+        },
+        "options": {
+          "uxp": {
+            "source": {
+              "content": {
+                "$script": {
+                  "lang": "js",
+                  "path": "scripts/relabel-headline.uxp.js",
+                  "params": {
+                    "headline": {
+                      "$expr": "(state) => state.translation?.text ?? state.doc.echo.headline"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "outputs": [
+          {
+            "href": { "$ref": "state.outputUrl" },
+            "storage": "external",
+            "type": "image/png"
+          }
+        ]
+      },
+      "as": "banner"
+    },
+    {
+      "id": "localized",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$expr": "(state) => state.translation?.text ?? state.doc.echo.headline"
+        }
+      },
+      "as": "localized"
+    }
+  ]
+}

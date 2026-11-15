@@ -1,19 +1,24 @@
 {
   "schema": "@executioncontrolprotocol.execution",
   "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array"
+        }
+      },
+      "required": ["items"]
+    }
+  },
   "steps": [
     {
       "id": "Reshape",
-      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "uses": "@executioncontrolprotocol/test.fail",
       "input": {
-        "expression": "$assert($exists(payload.export.summary), \"wrong path\")",
-        "payload": {
-          "items": [
-            {
-              "title": "Widget"
-            }
-          ]
-        }
+        "code": "ECP_STEP_FAILED",
+        "message": "wrong path"
       },
       "as": "summary"
     }

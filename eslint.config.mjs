@@ -9,8 +9,11 @@ export default tseslint.config(
       "**/coverage/",
       "legacy/**",
       "fixtures/**/*.js",
+      "examples/**/*.uxp.js",
       "pnpm-lock.yaml",
       "bench/results/**",
+      // Vendored third-party OpenAPI specs (refreshed by the plugin's fetch-specs script).
+      "plugins/*/openapi/**",
     ],
   },
   ...tseslint.configs.recommended,

@@ -11,22 +11,24 @@
           "type": "array"
         }
       },
-      "required": [
-        "signals"
-      ]
+      "required": ["signals"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "brief": { "type": "object" }
+      }
     }
   },
   "steps": [
     {
       "id": "Generate",
       "label": "Generate Executive Brief",
-      "uses": "@executioncontrolprotocol/openai.generate",
-      "config": "openai/default",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
       "input": {
         "prompt": "Create a concise leadership brief.",
-        "context": {
-          "$ref": "state.signals"
-        }
+        "system": "You write short executive briefs."
       },
       "as": "brief"
     }
