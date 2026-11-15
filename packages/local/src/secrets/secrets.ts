@@ -1,8 +1,12 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
 import type { ServiceContext } from "@executioncontrolprotocol/engine"
 import { IMPLEMENTATION_IDS, SECRET_KEY_PATTERN, type SecretsProvider } from "@executioncontrolprotocol/protocol"
 
 const KEY_RE = new RegExp(SECRET_KEY_PATTERN)
 const ECP_KEYRING_SERVICE = "ecp"
+/** Name-only index so `list` works when Secret Service cannot enumerate (headless CI). */
+const KEYS_INDEX_FILE = "secrets.keys.json"
 
 /**
  * OS keychain + `ECP_SECRET_*` env fallback.
@@ -13,11 +17,14 @@ export class LocalSecrets implements SecretsProvider {
   static readonly id = IMPLEMENTATION_IDS.localSecrets
 
   private keychainAvailable: boolean | undefined
+  private readonly home: string
 
   /**
-   * @param _ctx Service context (home unused; secrets are global to the machine/env).
+   * @param ctx Service context; `settings.home` holds the name-only key index.
    */
-  constructor(_ctx: ServiceContext) {}
+  constructor(ctx: ServiceContext) {
+    this.home = ctx.settings.home
+  }
 
   /** Resolve one key. Non-empty keychain values beat env. */
   async get(key: string): Promise<string | undefined> {
@@ -35,18 +42,21 @@ export class LocalSecrets implements SecretsProvider {
     const { Entry } = await import("@napi-rs/keyring")
     new Entry(ECP_KEYRING_SERVICE, canonicalSecretKey(key)).setPassword(value)
     this.keychainAvailable = true
+    this.addIndexedKey(canonicalSecretKey(key))
   }
 
   /** Delete one key from the keychain (env is not mutated). */
   async delete(key: string): Promise<boolean> {
     assertValidKey(key)
-    const existed = Boolean(await this.getKeychain(key))
+    const canonical = canonicalSecretKey(key)
+    const existed = Boolean(await this.getKeychain(canonical))
     try {
       const { Entry } = await import("@napi-rs/keyring")
-      new Entry(ECP_KEYRING_SERVICE, canonicalSecretKey(key)).deletePassword()
+      new Entry(ECP_KEYRING_SERVICE, canonical).deletePassword()
     } catch {
       // missing is fine
     }
+    this.removeIndexedKey(canonical)
     return existed
   }
 
@@ -102,12 +112,55 @@ export class LocalSecrets implements SecretsProvider {
   }
 
   private async listKeychain(): Promise<string[]> {
+    const fromOs = new Set<string>()
     try {
       const { findCredentials } = await import("@napi-rs/keyring")
-      return [...new Set(findCredentials(ECP_KEYRING_SERVICE).map((cred) => canonicalSecretKey(cred.account)))].sort()
+      for (const cred of findCredentials(ECP_KEYRING_SERVICE)) {
+        fromOs.add(canonicalSecretKey(cred.account))
+      }
+    } catch {
+      // Secret Service may refuse enumeration on headless runners.
+    }
+    for (const key of this.readIndexedKeys()) {
+      if (fromOs.has(key)) continue
+      // Index is name-only; confirm the value is still in the keychain.
+      if (await this.getKeychain(key)) fromOs.add(key)
+      else this.removeIndexedKey(key)
+    }
+    return [...fromOs].sort()
+  }
+
+  private indexPath(): string {
+    return path.join(this.home, KEYS_INDEX_FILE)
+  }
+
+  private readIndexedKeys(): string[] {
+    const file = this.indexPath()
+    if (!existsSync(file)) return []
+    try {
+      const raw = JSON.parse(readFileSync(file, "utf8")) as unknown
+      if (!Array.isArray(raw)) return []
+      return raw.filter((item): item is string => typeof item === "string" && KEY_RE.test(item))
     } catch {
       return []
     }
+  }
+
+  private writeIndexedKeys(keys: string[]): void {
+    mkdirSync(this.home, { recursive: true })
+    writeFileSync(this.indexPath(), `${JSON.stringify([...new Set(keys)].sort(), null, 2)}\n`, "utf8")
+  }
+
+  private addIndexedKey(key: string): void {
+    const keys = this.readIndexedKeys()
+    if (keys.includes(key)) return
+    keys.push(key)
+    this.writeIndexedKeys(keys)
+  }
+
+  private removeIndexedKey(key: string): void {
+    const keys = this.readIndexedKeys().filter((item) => item !== key)
+    this.writeIndexedKeys(keys)
   }
 }
 

@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync } from "node:fs"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import { setTimeout as delay } from "node:timers/promises"
 import {
   assertCliBuilt,
   createCliHome,
+  fileUrlForLocalPath,
   parseJsonStdout,
   pluginTestRoot,
   runEcp,
@@ -71,8 +72,8 @@ describe("cli plugins e2e", () => {
     mkdirSync(packDir, { recursive: true })
     const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/minimal-plugin")
     const tarball = await packDirectory(fixtureRoot, packDir)
-    // oclif parsePlugin treats absolute Windows paths as npm names; use a file URL.
-    const install = await runEcp(["plugins", "install", pathToFileURL(tarball).href], {
+    // oclif parsePlugin treats absolute Windows paths as npm names; use a long-path file URL.
+    const install = await runEcp(["plugins", "install", fileUrlForLocalPath(tarball)], {
       env,
       timeoutMs: 120_000,
     })

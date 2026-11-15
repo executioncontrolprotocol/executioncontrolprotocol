@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process"
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs"
 import { mkdtemp } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
@@ -146,5 +146,19 @@ export function assertCliBuilt(): void {
   if (!existsSync(ecpBin)) throw new Error(`missing ${ecpBin}`)
   if (!existsSync(path.join(repoRoot, "packages/cli/dist/commands/retrieve.js"))) {
     throw new Error("CLI dist commands missing; run pnpm run build")
+  }
+}
+
+/**
+ * `file://` URL for a local path, using the long Windows path when available.
+ * Avoids `RUNNER~1` short paths that break `npm install` of tarballs.
+ * @category Test
+ */
+export function fileUrlForLocalPath(filePath: string): string {
+  const resolved = path.resolve(filePath)
+  try {
+    return pathToFileURL(realpathSync.native(resolved)).href
+  } catch {
+    return pathToFileURL(resolved).href
   }
 }

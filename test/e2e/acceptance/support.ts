@@ -6,6 +6,7 @@ export {
   assertCliBuilt,
   createCliHome,
   ecpBin,
+  fileUrlForLocalPath,
   fixturesRoot,
   parseJsonStdout,
   pluginTestRoot,

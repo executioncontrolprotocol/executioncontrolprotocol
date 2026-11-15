@@ -1,13 +1,13 @@
 import { spawn } from "node:child_process"
 import { mkdirSync, readdirSync } from "node:fs"
 import path from "node:path"
-import { pathToFileURL } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   assertCliBuilt,
   callTool,
   createCliHome,
+  fileUrlForLocalPath,
   minimalPluginRoot,
   openMcpSession,
   pluginTestRoot,
@@ -62,7 +62,7 @@ describe("A6 supervisor drain, force interrupt, resume", () => {
     const packDir = path.join(home, "pack")
     mkdirSync(packDir, { recursive: true })
     const tarball = await packDirectory(minimalPluginRoot, packDir)
-    const install = await runEcp(["plugins", "install", pathToFileURL(tarball).href], {
+    const install = await runEcp(["plugins", "install", fileUrlForLocalPath(tarball)], {
       env,
       timeoutMs: 180_000,
     })
