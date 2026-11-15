@@ -7,6 +7,7 @@ import {
   parseJsonStdout,
   pluginTestRoot,
   runEcp,
+  waitForHost,
 } from "./support.js"
 
 describe("A1 retrieve via CLI and MCP", () => {
@@ -18,7 +19,7 @@ describe("A1 retrieve via CLI and MCP", () => {
 
   it("plugins link + retrieve --query/--id find test.echo; same via MCP", async () => {
     assertCliBuilt()
-    const { env } = await createCliHome({ linkPluginTest: false })
+    const { home, env } = await createCliHome({ linkPluginTest: false })
 
     const link = await runEcp(["plugins", "link", pluginTestRoot, "--no-install"], {
       env,
@@ -46,18 +47,21 @@ describe("A1 retrieve via CLI and MCP", () => {
     expect(blob).toMatch(/accepts/)
     expect(blob).toMatch(/returns/)
 
+    // CLI retrieve may have started the host; wait out any plugins-link restart before MCP.
+    await waitForHost(home)
+
     const session = await openMcpSession({ env })
     cleanups.push(session.close)
     const search = await callTool(session.client, "retrieve", {
       type: "capability",
       query: "echo",
     })
-    expect(search.isError).toBeUndefined()
+    expect(search.isError, search.text || JSON.stringify(search.structuredContent)).toBeUndefined()
     const items = (search.structuredContent as { items: Array<{ id: string }> }).items
     expect(items.some((item) => item.id.includes("test.echo"))).toBe(true)
 
     const mcpOne = await callTool(session.client, "retrieve", { type: "capability", id })
-    expect(mcpOne.isError).toBeUndefined()
+    expect(mcpOne.isError, mcpOne.text || JSON.stringify(mcpOne.structuredContent)).toBeUndefined()
     const mcpBlob = JSON.stringify(mcpOne.structuredContent)
     expect(mcpBlob).toMatch(/accepts/)
     expect(mcpBlob).toMatch(/returns/)

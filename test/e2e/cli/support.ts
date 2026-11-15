@@ -124,7 +124,7 @@ export function parseJsonStdout<T>(stdout: string): T {
  * Wait until host.json exists and health is ok.
  * @category Test
  */
-export async function waitForHost(home: string, timeoutMs = 20_000): Promise<void> {
+export async function waitForHost(home: string, timeoutMs = 45_000): Promise<void> {
   const { readHostJson, checkHealth } = await import("../../../packages/host/src/index.js")
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {

@@ -40,12 +40,20 @@ export interface EnsureHostOptions {
  * @category MCP
  */
 export async function ensureHost(options: EnsureHostOptions): Promise<EnsuredHost> {
-  const existing = await tryHealthy(options.home)
+  // If a supervisor already wrote host.json, wait through restart gaps before starting another.
+  const hasHostFile = Boolean(readHostJson(options.home))
+  const existing = await tryHealthy(options.home, hasHostFile ? Math.max(START_WAIT_MS, RESTART_WAIT_MS) : HEALTH_POLL_MS)
   if (existing) return existing
 
   const failed = await readSupervisorFailed(options.home)
   if (failed) {
     throw unavailable(options.home, "Supervisor hostStatus is failed.")
+  }
+
+  // Live supervisor that never became healthy — do not double-spawn.
+  const leftover = readHostJson(options.home)
+  if (leftover && (await controlAlive(leftover))) {
+    throw unavailable(options.home, "Host did not become healthy (existing supervisor).")
   }
 
   await startHostViaCli(options)
@@ -58,6 +66,17 @@ export async function ensureHost(options: EnsureHostOptions): Promise<EnsuredHos
     )
   }
   return after
+}
+
+async function controlAlive(file: { controlPort: number; token: string }): Promise<boolean> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${file.controlPort}/status`, {
+      headers: { Authorization: `Bearer ${file.token}` },
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 /**

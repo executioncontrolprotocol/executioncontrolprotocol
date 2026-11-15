@@ -168,14 +168,20 @@ function wrapInProcess(host: LocalHost): OpsHandle {
 
 /**
  * Spawn the supervisor entry detached and wait briefly for `host.json`.
+ * If a live supervisor already owns `host.json`, wait through restart gaps instead of
+ * starting a second supervisor. Stale `host.json` (control port dead) is replaced.
  * @category CLI
  */
 export async function startSupervisorDetached(home: string): Promise<void> {
-  const existing = readHostJson(home)
-  if (existing) {
-    const health = await checkHealth(`http://127.0.0.1:${existing.port}`)
-    if (health?.status === "ok" || health?.status === "draining") return
+  const existing = await waitForExistingSupervisor(home, START_WAIT_MS)
+  if (existing === "ok") return
+  if (existing === "alive-unhealthy") {
+    throw Object.assign(
+      new Error("ECP_HOST_UNAVAILABLE: existing host did not become healthy."),
+      { code: "ECP_HOST_UNAVAILABLE" },
+    )
   }
+
   const supervisorEntry = resolveSupervisorEntry()
   const child = spawn(process.execPath, [supervisorEntry], {
     env: { ...process.env, ECP_HOME: home },
@@ -184,18 +190,69 @@ export async function startSupervisorDetached(home: string): Promise<void> {
     windowsHide: true,
   })
   child.unref()
-  const deadline = Date.now() + START_WAIT_MS
+  const ready = await waitForHostOk(home, START_WAIT_MS)
+  if (ready) return
+  throw Object.assign(new Error("ECP_HOST_UNAVAILABLE: supervisor did not become healthy."), {
+    code: "ECP_HOST_UNAVAILABLE",
+  })
+}
+
+/** Outcome of waiting on an existing supervisor before deciding whether to spawn. */
+type ExistingSupervisorWait = "ok" | "alive-unhealthy" | "absent"
+
+async function waitForExistingSupervisor(home: string, timeoutMs: number): Promise<ExistingSupervisorWait> {
+  const file = readHostJson(home)
+  if (!file) return "absent"
+
+  const deadline = Date.now() + timeoutMs
+  const graceUntil = Date.now() + 2_000
+  let sawLiveControl = false
+  while (Date.now() < deadline) {
+    const current = readHostJson(home)
+    if (!current) return "absent"
+    const health = await checkHealth(`http://127.0.0.1:${current.port}`)
+    if (health?.status === "ok") return "ok"
+    if (await controlResponds(current)) {
+      sawLiveControl = true
+      await delay(100)
+      continue
+    }
+    // Restart gap can briefly drop HTTP and control; keep waiting if we saw life or still in grace.
+    if (sawLiveControl || Date.now() < graceUntil) {
+      await delay(100)
+      continue
+    }
+    return "absent"
+  }
+  const last = readHostJson(home)
+  if (!last) return "absent"
+  if ((await checkHealth(`http://127.0.0.1:${last.port}`))?.status === "ok") return "ok"
+  if (await controlResponds(last)) return "alive-unhealthy"
+  return "absent"
+}
+
+async function waitForHostOk(home: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const file = readHostJson(home)
     if (file) {
       const health = await checkHealth(`http://127.0.0.1:${file.port}`)
-      if (health?.status === "ok") return
+      if (health?.status === "ok") return true
     }
     await delay(100)
   }
-  throw Object.assign(new Error("ECP_HOST_UNAVAILABLE: supervisor did not become healthy."), {
-    code: "ECP_HOST_UNAVAILABLE",
-  })
+  return false
+}
+
+async function controlResponds(file: { controlPort: number; token: string }): Promise<boolean> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${file.controlPort}/status`, {
+      headers: { Authorization: `Bearer ${file.token}` },
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 function resolveSupervisorEntry(): string {

@@ -210,7 +210,7 @@ describe("mcp relay e2e", () => {
 
     const restart = await runEcp(["host", "restart", "--force", "--json"], { env })
     expect(restart.code).toBe(0)
-    await waitForHost(home)
+    await waitForHost(home, 60_000)
 
     const interrupted = await callTool(session.client, "retrieve", { type: "run", id: runId! })
     const status = (interrupted.structuredContent as { item?: { status?: string } })?.item?.status
