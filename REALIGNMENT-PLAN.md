@@ -854,14 +854,14 @@ Startup and restart speed decide how often agents and CLI commands wait. Measure
 
 | Measurement | Result | Budget |
 | --- | --- | --- |
-| Node + oclif cold start | (Phase 0) | (Phase 0) |
-| QuickJS-WASM start | (Phase 0) | (Phase 0) |
-| JSON Schema compile (per capability) | (Phase 0) | (Phase 0) |
-| Firefly plugin import | (Phase 0) | (Phase 0) |
+| Node + oclif cold start | 2026-11-14, Windows, published CLI `0.51.0` (`0.52` is not on npm). `node bin/ecp.js --help`, 5 runs: 1518, 1089, 1081, 1106, 1129 ms. Median 1106 ms. The process also stat'd linked plugin paths that Phase 0 had already moved, so this is an upper bound on oclif startup, not a clean echo run. | New CLI cold help under 1.5 s. Warm commands stay well under 1 s (decided with B1–B7 in Phase 5). |
+| QuickJS-WASM start | 2026-11-14, Windows, `quickjs-emscripten@0.31.0`. Runtime start 11.9 ms; one eval 9.2 ms. Script: `realignment/spikes/phase0-measure.mjs`. | Start under 50 ms. A single eval stays inside the 50 ms expression budget. |
+| JSON Schema compile (per capability) | Same script. Ajv 2020 compiled a generated schema of 84 capabilities × 40 string fields in 511 ms (about 6.1 ms per capability). One validation 61 ms. | Full generation under 1 s. Lazy per-capability compile under 20 ms. |
+| Firefly plugin import | 2026-11-14, Windows, `@executioncontrolprotocol/plugin-adobe-firefly-services@0.51.0`. Dynamic `import()` 239 ms, one sample. | Under 500 ms. |
 | `ecp retrieve`, warm host | (once built) | target: well under 1 s |
-| `ecp retrieve`, no host (in-process) | (once built) | (Phase 0) |
-| `ecp execute` overhead beyond the capabilities called, warm host | (once built) | (Phase 0) |
-| Host start / restart until healthy | (once built) | (Phase 0) |
+| `ecp retrieve`, no host (in-process) | (once built) | under 1.5 s, from the cold-help upper bound above |
+| `ecp execute` overhead beyond the capabilities called, warm host | (once built) | (Phase 5) |
+| Host start / restart until healthy | (once built) | (Phase 5) |
 
 ### CLI benchmark: decides the background-host option
 

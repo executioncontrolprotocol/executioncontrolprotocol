@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/validation-result.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["valid", "issues", "manifestHash", "schemaHash"],
+  "properties": {
+    "valid": { "type": "boolean" },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message", "path"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^ECP_[A-Z0-9_]+$" },
+          "severity": { "enum": ["error", "warning"] },
+          "message": { "type": "string" },
+          "path": { "type": "string" },
+          "nodeId": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 },
+          "expected": {},
+          "actual": {},
+          "suggestions": { "type": "array", "items": { "type": "string" } },
+          "available": { "type": "array", "items": { "type": "string" }, "maxItems": 50 }
+        }
+      }
+    },
+    "manifestHash": { "type": "string" },
+    "schemaHash": { "type": "string" }
+  }
+}

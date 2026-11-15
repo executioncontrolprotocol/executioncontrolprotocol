@@ -1,0 +1,44 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "created",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "a"
+      },
+      "as": "created",
+      "mode": "create"
+    },
+    {
+      "id": "replaced",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "b"
+      },
+      "as": "created",
+      "mode": "replace"
+    },
+    {
+      "id": "merged",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "extra": 1
+        }
+      },
+      "as": "created",
+      "mode": "merge"
+    },
+    {
+      "id": "appended",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "c"
+      },
+      "as": "created",
+      "mode": "append"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Resize",
+      "uses": "@executioncontrolprotocol/image-sharp.resize",
+      "input": {
+        "contentBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "mediaType": "image/png",
+        "width": 64,
+        "height": 64,
+        "fit": "cover",
+        "output": {
+          "format": "webp",
+          "quality": 80
+        }
+      },
+      "as": "thumb"
+    },
+    {
+      "id": "Upload",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "contentBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "contentType": "image/png",
+        "blobName": "product.webp",
+        "createReadSas": true
+      },
+      "as": "upload"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Every markdown file and agent rule in the repo, and its status in the realignment (updated 2026-11-14). Regenerate when docs are added or removed.
 
+Phase 0 moved the legacy trees. Paths in the table below that start with `packages/`, `plugins/`, `examples/` or `fixtures/consumer-cli/` now live under `legacy/` with the same remainder (`packages/core/README.md` is `legacy/packages/core/README.md`). New MVP packages under `packages/` and `plugins/` are scaffolds and are not listed here yet.
+
 ## How agents load rules
 
 - **Claude Code:** `CLAUDE.md` → `@AGENTS.md`; `CLAUDE.md` also points to `.cursor/rules/`, the spec and the plan.

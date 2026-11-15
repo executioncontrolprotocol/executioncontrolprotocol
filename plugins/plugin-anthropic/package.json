@@ -1,62 +1,31 @@
 {
   "name": "@executioncontrolprotocol/plugin-anthropic",
-  "version": "0.52.0",
-  "description": "Anthropic Claude model provider plugin for ECP",
-  "license": "Apache-2.0",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Scaffold for anthropic. The capability implementation arrives in Phase 8.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
     }
   },
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "oclif.manifest.json",
-    "README.md"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc -b && ecp plugins build"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+    "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "anthropic": {
-        "description": "Anthropic Messages API for browser and Node hosts."
-      }
-    }
-  },
-  "keywords": [
-    "ecosystem:ecp-plugin",
-    "oclif-plugin"
-  ]
+  }
 }

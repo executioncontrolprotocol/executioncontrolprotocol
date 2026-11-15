@@ -36,7 +36,27 @@
             "integration_id": 15368
           },
           {
+            "context": "pipeline / lint",
+            "integration_id": 15368
+          },
+          {
             "context": "pipeline / integration",
+            "integration_id": 15368
+          },
+          {
+            "context": "pipeline / e2e-ubuntu",
+            "integration_id": 15368
+          },
+          {
+            "context": "pipeline / e2e-windows",
+            "integration_id": 15368
+          },
+          {
+            "context": "pipeline / app",
+            "integration_id": 15368
+          },
+          {
+            "context": "pipeline / bench",
             "integration_id": 15368
           },
           {

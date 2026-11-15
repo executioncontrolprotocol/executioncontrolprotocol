@@ -3,8 +3,6 @@ globs:
   - "**/*.md"
 ignores:
   - "**/node_modules/**"
-  - "plugins/plugin-adobe-firefly-services/openapi/**"
+  - "legacy/**"
   - ".changeset/**"
   - ".git/**"
-  - "packages/app/DESIGN.md"
-  - "CLI-TOPIC-RESTRUCTURE.md"

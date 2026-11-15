@@ -1,0 +1,24 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Reshape",
+      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "input": {
+        "expression": "{ \"title\": items[0].title, \"count\": $count(items) }",
+        "payload": {
+          "items": [
+            {
+              "title": "Widget"
+            },
+            {
+              "title": "Gadget"
+            }
+          ]
+        }
+      },
+      "as": "summary"
+    }
+  ]
+}

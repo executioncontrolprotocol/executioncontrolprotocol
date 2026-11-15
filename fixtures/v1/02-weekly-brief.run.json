@@ -1,0 +1,26 @@
+{
+  "input": {
+    "signals": [
+      "a"
+    ]
+  },
+  "status": "completed",
+  "result": {
+    "brief": {
+      "text": "brief"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Generate",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "OpenAI is not an MVP plugin. Phase 8 records the live result or keeps this as a shape fixture."
+}

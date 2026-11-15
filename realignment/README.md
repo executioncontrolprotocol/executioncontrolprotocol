@@ -15,8 +15,8 @@ The previous milestone's plan (the CLI reset) is retired. What still applies is 
 | --- | --- | --- | --- |
 | — | [Docs and rules index](doc-index.md) | Done 2026-11-14 | — |
 | — | [MVP build spec](spec/README.md) | Decided 2026-11-14 | — |
-| 0 | [Groundwork](phase-0-groundwork.md) | Not started | — |
-| 1 | [Engine](phase-1-engine.md) | Not started | 0 |
+| 0 | [Groundwork](phase-0-groundwork.md) | Local check green 2026-11-14; CI not run | — |
+| 1 | [Engine](phase-1-engine.md) | In progress: service container | 0 |
 | 2 | [Plugins: SDK, manifests, loading](phase-2-plugins.md) | Not started | 1 |
 | 3 | [Local services and in-process host](phase-3-local-host.md) | Not started | 1, 2 |
 | 4 | [Host server and supervisor](phase-4-host-server.md) | Not started | 3 |

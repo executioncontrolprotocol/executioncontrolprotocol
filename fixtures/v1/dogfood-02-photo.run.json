@@ -1,0 +1,31 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "thumb": {
+      "mediaType": "image/webp"
+    },
+    "upload": {
+      "blobName": "product.webp"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Resize",
+      "status": "completed"
+    },
+    {
+      "nodeId": "Upload",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Policy step removed. Connection string moved to config azure-blob-storage/default. Buffer refs became contentBase64."
+}

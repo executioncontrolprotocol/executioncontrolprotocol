@@ -1,0 +1,27 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "slot": {
+      "echo": "b"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "slot",
+      "status": "completed"
+    },
+    {
+      "nodeId": "second",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "step.start",
+    "step.end",
+    "run.end"
+  ]
+}

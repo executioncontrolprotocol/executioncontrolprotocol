@@ -1,0 +1,18 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.missing",
+          "optional": true,
+          "fallback": "fallback"
+        }
+      },
+      "as": "echo"
+    }
+  ]
+}

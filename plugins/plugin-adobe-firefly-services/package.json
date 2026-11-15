@@ -1,72 +1,31 @@
 {
   "name": "@executioncontrolprotocol/plugin-adobe-firefly-services",
-  "version": "0.52.0",
-  "description": "Adobe Firefly Services plugin for ECP (family-prefixed kebab capability ids)",
-  "license": "Apache-2.0",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Scaffold for adobe-firefly-services. The capability implementation arrives in Phase 8.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "browser": "./dist/index.browser.js",
-      "node": "./dist/index.js",
       "import": "./dist/index.js"
-    },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
     }
   },
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "README.md",
-    "openapi",
-    "oclif.manifest.json"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc -b && ecp plugins build",
-    "fetch:specs": "node ./scripts/fetch-specs.mjs",
-    "generate": "node ./scripts/generate-capabilities.mjs",
-    "codegen": "npm run fetch:specs && npm run generate"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+    "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
-    "yaml": "^2.9.0",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "adobe-firefly-services": {
-        "description": "Call Adobe Firefly Services APIs across creative product families"
-      },
-      "firefly": {
-        "description": "Call Adobe Firefly Services APIs across creative product families"
-      }
-    }
-  },
-  "keywords": [
-    "ecosystem:ecp-plugin",
-    "oclif-plugin"
-  ]
+  }
 }

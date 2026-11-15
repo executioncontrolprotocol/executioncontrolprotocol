@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/step-record.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodeId", "round", "capabilityId", "status", "input", "output", "error", "startedAt"],
+  "properties": {
+    "nodeId": { "type": "string" },
+    "round": { "type": ["integer", "null"], "minimum": 0 },
+    "capabilityId": { "type": "string" },
+    "status": { "enum": ["completed", "failed", "skipped", "cancelled"] },
+    "input": {},
+    "output": {},
+    "error": { "type": ["object", "null"] },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "startedAt": { "type": "string" },
+    "endedAt": { "type": "string" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "staged": { "type": "array" }
+  }
+}

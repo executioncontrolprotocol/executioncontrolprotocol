@@ -1,0 +1,38 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "seed",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "seed"
+      },
+      "as": "seed"
+    },
+    {
+      "id": "marked",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "fromRef": {
+          "$ref": "state.seed.echo",
+          "optional": true,
+          "fallback": "missing"
+        },
+        "fromExpr": {
+          "$expr": "(state) => state.seed.echo"
+        },
+        "handle": {
+          "$state": "bucket"
+        },
+        "script": {
+          "$script": {
+            "lang": "js",
+            "source": "1"
+          }
+        }
+      },
+      "as": "marked"
+    }
+  ]
+}

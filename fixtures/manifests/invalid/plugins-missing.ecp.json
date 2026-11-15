@@ -1,0 +1,14 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "gen",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "input": {
+        "prompt": "hi"
+      },
+      "as": "out"
+    }
+  ]
+}

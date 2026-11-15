@@ -34,9 +34,9 @@ against fixed contracts.
 
 ## Exit criteria
 
-- [ ] `legacy/` is outside workspace, build, lint, tests and CI; CI is green on the milestone branch.
-- [ ] All packages scaffolded; `pnpm run check` green.
-- [ ] `protocol` complete for spec 02–09 types and schemas, with tests.
-- [ ] Fixture suite complete (spec 12 minimum set) including v1 conversions and expected files.
-- [ ] Early benchmark numbers recorded in the plan.
-- [ ] `realignment/README.md` status updated.
+- [x] `legacy/` is outside the workspace, build, lint, tests and coverage. CI workflow matches spec 01; it has not been run on a pull request yet.
+- [x] All packages scaffolded. Local `pnpm run build`, `lint`, `secrets:scan`, `check:no-file-deps`, `test:coverage` (100% on the new sources), `test:integration`, `test:e2e` and `test:app` pass.
+- [x] `protocol` covers spec 02–09 types and the JSON Schemas, with schema and catalogue tests.
+- [x] Fixture suite includes the spec 12 minimum set, v1 copies and hand-written v2 files with expected run files.
+- [x] Early benchmark numbers are in `REALIGNMENT-PLAN.md` "Measurements" (CLI 0.51.0, the latest on npm; 0.52 is not published).
+- [x] Status updated in `realignment/README.md`.

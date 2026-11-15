@@ -1,65 +1,31 @@
 {
   "name": "@executioncontrolprotocol/plugin-azure-blob-storage",
-  "version": "0.52.0",
-  "description": "Azure Blob Storage plugin for ECP (upload, SAS URLs, download)",
-  "license": "Apache-2.0",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Scaffold for azure-blob-storage. The capability implementation arrives in Phase 8.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "browser": "./dist/index.browser.js",
-      "node": "./dist/index.js",
       "import": "./dist/index.js"
-    },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
     }
   },
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "oclif.manifest.json",
-    "README.md"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc -b && ecp plugins build"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
-    "@azure/storage-blob": "^12.27.0"
+    "build": "tsc -b"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "azure-blob-storage": {
-        "description": "Upload, download, and mint SAS URLs for Azure Blob Storage"
-      }
-    }
-  },
-  "keywords": [
-    "ecosystem:ecp-plugin",
-    "oclif-plugin"
-  ]
+  }
 }

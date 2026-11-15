@@ -1,0 +1,21 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Reshape",
+      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "input": {
+        "expression": "$assert($exists(payload.export.summary), \"wrong path\")",
+        "payload": {
+          "items": [
+            {
+              "title": "Widget"
+            }
+          ]
+        }
+      },
+      "as": "summary"
+    }
+  ]
+}

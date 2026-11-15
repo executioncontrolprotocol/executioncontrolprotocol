@@ -36,6 +36,7 @@ jobs:
 
   version:
     name: version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

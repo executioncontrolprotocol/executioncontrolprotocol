@@ -1,0 +1,23 @@
+{
+  "name": "@executioncontrolprotocol/formatters",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ECP formatters package. Scaffolded in Phase 0; behaviour lands in its phase.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

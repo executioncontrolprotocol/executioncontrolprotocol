@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/execution.base.schema.json",
+  "title": "ECP execution manifest (base)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "steps"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": { "const": "@executioncontrolprotocol.execution" },
+    "version": { "const": "2.0" },
+    "execution": { "$ref": "#/$defs/executionBlock" },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    }
+  },
+  "$defs": {
+    "executionBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "accepts": { "$ref": "#/$defs/objectSchema" },
+        "returns": { "$ref": "#/$defs/objectSchema" }
+      }
+    },
+    "objectSchema": {
+      "type": "object",
+      "required": ["type", "properties"],
+      "properties": {
+        "type": { "const": "object" },
+        "properties": { "type": "object" },
+        "required": { "type": "array", "items": { "type": "string" } },
+        "additionalProperties": {}
+      }
+    },
+    "nodeId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" },
+    "node": {
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "branch" } }
+          },
+          "then": { "$ref": "#/$defs/branch" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "loop" } }
+          },
+          "then": { "$ref": "#/$defs/loop" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "parallel" } }
+          },
+          "then": { "$ref": "#/$defs/parallel" }
+        },
+        {
+          "if": {
+            "not": {
+              "type": "object",
+              "required": ["type"],
+              "properties": { "type": { "enum": ["branch", "loop", "parallel"] } }
+            }
+          },
+          "then": { "$ref": "#/$defs/step" }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "uses"],
+      "properties": {
+        "type": { "const": "step" },
+        "id": { "$ref": "#/$defs/nodeId" },
+        "label": { "type": "string" },
+        "uses": { "type": "string", "pattern": "^@[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*\\.[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "config": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]{0,63}$" },
+        "expr": { "type": "string", "minLength": 1 },
+        "input": { "$ref": "#/$defs/inputObject" },
+        "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "mode": { "enum": ["create", "replace", "merge", "append"] }
+      }
+    },
+    "branch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "branches"],
+      "properties": {
+        "type": { "const": "branch" },
+        "id": { "$ref": "#/$defs/nodeId" },
+        "label": { "type": "string" },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/arm" }
+        }
+      }
+    },
+    "arm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "label": { "type": "string" },
+        "expr": { "type": "string", "minLength": 1 },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/node" }
+        }
+      }
+    },
+    "loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "expr", "maxRounds", "steps"],
+      "properties": {
+        "type": { "const": "loop" },
+        "id": { "$ref": "#/$defs/nodeId" },
+        "label": { "type": "string" },
+        "expr": { "type": "string", "minLength": 1 },
+        "maxRounds": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/node" }
+        }
+      }
+    },
+    "parallel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "branches"],
+      "properties": {
+        "type": { "const": "parallel" },
+        "id": { "$ref": "#/$defs/nodeId" },
+        "label": { "type": "string" },
+        "maxConcurrency": { "type": "integer", "minimum": 1 },
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/node" }
+          }
+        }
+      }
+    },
+    "inputObject": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    },
+    "value": {
+      "if": {
+        "type": "object",
+        "required": ["$ref"]
+      },
+      "then": { "$ref": "#/$defs/refValue" },
+      "else": {
+        "if": { "type": "object", "required": ["$expr"] },
+        "then": { "$ref": "#/$defs/exprValue" },
+        "else": {
+          "if": { "type": "object", "required": ["$state"] },
+          "then": { "$ref": "#/$defs/stateValue" },
+          "else": {
+            "if": { "type": "object", "required": ["$script"] },
+            "then": { "$ref": "#/$defs/scriptValue" },
+            "else": {
+              "if": { "type": "object", "required": ["$secret"] },
+              "then": false,
+              "else": {
+                "if": { "type": "object", "required": ["$env"] },
+                "then": false,
+                "else": { "$ref": "#/$defs/plain" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "refValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$ref"],
+      "properties": {
+        "$ref": { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" },
+        "optional": { "type": "boolean" },
+        "fallback": {}
+      }
+    },
+    "exprValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$expr"],
+      "properties": { "$expr": { "type": "string", "minLength": 1 } }
+    },
+    "stateValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$state"],
+      "properties": {
+        "$state": { "type": "string", "pattern": "^(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+)(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))*$" }
+      }
+    },
+    "scriptValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$script"],
+      "properties": {
+        "$script": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lang"],
+          "properties": {
+            "lang": { "const": "js" },
+            "source": { "type": "string" },
+            "path": { "type": "string", "minLength": 1 },
+            "params": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/value" }
+            },
+            "ecmaVersion": { "type": "integer", "minimum": 3 }
+          },
+          "oneOf": [
+            { "required": ["source"], "not": { "required": ["path"] } },
+            { "required": ["path"], "not": { "required": ["source"] } }
+          ]
+        }
+      }
+    },
+    "plain": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/value" }
+        }
+      ]
+    }
+  }
+}

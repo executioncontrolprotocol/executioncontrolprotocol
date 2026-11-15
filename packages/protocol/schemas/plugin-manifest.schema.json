@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/plugin-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "plugin", "sdkVersion", "capabilities", "entry", "hash"],
+  "properties": {
+    "schema": { "const": "@executioncontrolprotocol.plugin-manifest" },
+    "version": { "const": "1.0" },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "package", "version", "summary", "description"],
+      "properties": {
+        "id": { "type": "string" },
+        "package": { "type": "string" },
+        "version": { "type": "string" },
+        "summary": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "sdkVersion": { "type": "string" },
+    "configSchema": { "type": "object" },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "summary", "description", "useCases", "projections", "accepts", "returns"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "description": { "type": "string" },
+          "useCases": { "type": "array", "items": { "type": "string" } },
+          "projections": { "type": "array", "items": { "type": "string" } },
+          "accepts": { "type": "object" },
+          "returns": { "type": "object" },
+          "timeoutMs": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "entry": { "type": "string" },
+    "hash": { "type": "string" }
+  }
+}

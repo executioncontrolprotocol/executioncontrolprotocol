@@ -1,0 +1,22 @@
+{
+  "input": {},
+  "status": "failed",
+  "result": {},
+  "steps": [
+    {
+      "nodeId": "slow",
+      "status": "cancelled"
+    },
+    {
+      "nodeId": "bad",
+      "status": "failed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.start",
+    "step.error",
+    "run.end"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "caption": {
+      "text": "A small widget."
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Caption",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Ollama is not an MVP plugin. Phase 8 records a live caption or keeps this as a shape fixture."
+}

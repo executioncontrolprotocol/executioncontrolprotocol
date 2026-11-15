@@ -1,0 +1,16 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Caption",
+      "uses": "@executioncontrolprotocol/ollama.generate",
+      "config": "ollama/default",
+      "input": {
+        "prompt": "Write a one-sentence product caption for a 64px thumbnail of a widget.",
+        "model": "llama3.2"
+      },
+      "as": "caption"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "input": {},
+  "status": "failed",
+  "result": {},
+  "steps": [],
+  "events": [
+    "run.start",
+    "run.end"
+  ],
+  "note": "Expected to fail validation: filePath is a string and thumb is an object (ECP_TYPE_MISMATCH)."
+}

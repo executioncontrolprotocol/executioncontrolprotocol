@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_RETURNS_UNRESOLVED",
+    "path": "/execution/returns/properties/missing",
+    "severity": "error"
+  }
+]

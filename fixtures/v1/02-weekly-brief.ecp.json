@@ -1,0 +1,34 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "weekly-brief",
+    "label": "Weekly leadership brief",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "signals"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "Generate",
+      "label": "Generate Executive Brief",
+      "uses": "@executioncontrolprotocol/openai.generate",
+      "config": "openai/default",
+      "input": {
+        "prompt": "Create a concise leadership brief.",
+        "context": {
+          "$ref": "state.signals"
+        }
+      },
+      "as": "brief"
+    }
+  ]
+}

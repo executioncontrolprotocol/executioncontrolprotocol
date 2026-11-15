@@ -1,0 +1,23 @@
+{
+  "input": {
+    "value": "from-input"
+  },
+  "status": "completed",
+  "result": {
+    "echo": {
+      "echo": "from-input"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Echo",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ]
+}

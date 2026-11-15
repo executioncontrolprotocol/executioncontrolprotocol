@@ -64,18 +64,18 @@ Full picture, vocabulary and diagrams: `REALIGNMENT-PLAN.md`.
 
 | Path | What it is today | In the realignment |
 | --- | --- | --- |
-| `packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types | Reference. Manifest types, executor routing, input resolution, commit modes, validation and the Fluent builder carry over (adapted). The policy engine and requirements/bindings don't |
-| `packages/environments/node/` | Node host: compile, loaders, OS secrets, process-env, run journal | Reference. OS keychain naming and the journal shape carry over |
-| `packages/environments/browser/` | Browser host | Out of scope |
-| `packages/cli/` | `ecp` CLI (oclif, generated operations) | Reference. oclif plugin management and `plugins link` carry over; generated per-capability commands don't |
-| `packages/plugin-sdk/` | `toCommands`, `defineOperation`, plugin build | Reference. Per-capability command generation is dropped |
-| `packages/mcp/` | MCP server exposing tools per capability | Replaced by the MCP relay (three tools) |
-| `packages/app/`, `plugins/plugin-app/` | Visual App and its CLI plugin | Reference. Graph mapping and run overlay carry over onto the host API |
-| `plugins/plugin-test/`, `plugin-anthropic/`, `plugin-adobe-firefly-services/`, `plugin-azure-blob-storage/` | Capability plugins | First to be ported to the new plugin API |
-| `plugins/plugin-openai/`, `plugin-ollama/`, `plugin-fal/`, `plugin-image-sharp/`, `plugin-jsonata/` | Capability plugins | Ported later, as needed |
-| `plugins/plugin-format-toon/`, `plugin-format-mermaid/` | Format capabilities | Become `Formatter` service implementations, not plugins |
-| `plugins/plugin-budget/`, `plugin-approval/`, `plugin-state-control/` | Policies | Out of scope until policies return |
-| `examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Moved to `legacy/` and converted to v2 fixtures in Phase 0; v2 examples return in Phase 8 |
+| `legacy/packages/core/` | Fluent API, registry, validation, executor, encoding, protocol types | Reference. Manifest types, executor routing, input resolution, commit modes, validation and the Fluent builder carry over (adapted). The policy engine and requirements/bindings don't |
+| `legacy/packages/environments/node/` | Node host: compile, loaders, OS secrets, process-env, run journal | Reference. OS keychain naming and the journal shape carry over |
+| `legacy/packages/environments/browser/` | Browser host | Out of scope |
+| `legacy/packages/cli/` | `ecp` CLI (oclif, generated operations) | Reference. oclif plugin management and `plugins link` carry over; generated per-capability commands don't |
+| `legacy/packages/plugin-sdk/` | `toCommands`, `defineOperation`, plugin build | Reference. Per-capability command generation is dropped |
+| `legacy/packages/mcp/` | MCP server exposing tools per capability | Replaced by the MCP relay (three tools) |
+| `legacy/packages/app/`, `legacy/plugins/plugin-app/` | Visual App and its CLI plugin | Reference. Graph mapping and run overlay carry over onto the host API |
+| `legacy/plugins/plugin-test/`, `plugin-anthropic/`, `plugin-adobe-firefly-services/`, `plugin-azure-blob-storage/` | Capability plugins | First to be ported to the new plugin API |
+| `legacy/plugins/plugin-openai/`, `plugin-ollama/`, `plugin-fal/`, `plugin-image-sharp/`, `plugin-jsonata/` | Capability plugins | Ported later, as needed |
+| `legacy/plugins/plugin-format-toon/`, `plugin-format-mermaid/` | Format capabilities | Become `Formatter` service implementations, not plugins |
+| `legacy/plugins/plugin-budget/`, `plugin-approval/`, `plugin-state-control/` | Policies | Out of scope until policies return |
+| `legacy/examples/` | `*.ecp.ts` workflow files, including `examples/dogfood/` (agent-repair tasks with injected failures) | Converted to v2 fixtures in `fixtures/v1/`; v2 examples return in Phase 8 |
 | `skills/ecp-core/` | Contributor skill for this repo | Rewritten for the realignment; keep it in step with this file |
 | `REALIGNMENT-PLAN.md`, `realignment/`, `realignment/spec/` | The plan, phase docs and MVP build spec | Source of truth |
 

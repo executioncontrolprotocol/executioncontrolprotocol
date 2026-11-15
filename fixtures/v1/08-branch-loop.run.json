@@ -1,0 +1,44 @@
+{
+  "input": {
+    "expand": true
+  },
+  "status": "completed",
+  "result": {
+    "seed": {
+      "echo": "seed"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Seed",
+      "status": "completed"
+    },
+    {
+      "nodeId": "expanded",
+      "status": "completed"
+    },
+    {
+      "nodeId": "gated",
+      "status": "completed"
+    },
+    {
+      "nodeId": "tick",
+      "status": "completed",
+      "round": 0
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "branch.select",
+    "step.start",
+    "step.end",
+    "step.start",
+    "step.end",
+    "loop.round",
+    "step.start",
+    "step.end",
+    "run.end"
+  ]
+}

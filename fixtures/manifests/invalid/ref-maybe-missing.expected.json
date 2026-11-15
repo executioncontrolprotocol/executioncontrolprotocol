@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_REF_MAYBE_MISSING",
+    "path": "/steps/1/input/value/$ref",
+    "severity": "error"
+  }
+]

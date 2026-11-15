@@ -1,0 +1,233 @@
+import { readdirSync, readFileSync } from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import Ajv from "ajv/dist/2020.js"
+import addFormats from "ajv-formats"
+import { describe, expect, it } from "vitest"
+import {
+  ERROR_CATALOGUE,
+  EXECUTION_SCHEMA,
+  EXECUTION_VERSION,
+  catalogueEntry,
+  firstPartyInstallCommand,
+  firstPartyPlugin,
+  isEcpErrorCode,
+  pluginIdFromCapability,
+  type ExecutionManifest,
+} from "../src/index.js"
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const schemaDir = path.resolve(here, "../schemas")
+const repoRoot = path.resolve(here, "../../..")
+const fixtureRoot = path.join(repoRoot, "fixtures")
+
+const SCHEMA_FILES = [
+  "execution.base.schema.json",
+  "config.schema.json",
+  "run.schema.json",
+  "step-record.schema.json",
+  "run-event.schema.json",
+  "plugin-manifest.schema.json",
+  "host.schema.json",
+  "retrieve.input.schema.json",
+  "execute.input.schema.json",
+  "commit.input.schema.json",
+  "validation-result.schema.json",
+  "envelope.schema.json",
+] as const
+
+function ajv(): Ajv {
+  const instance = new Ajv({ allErrors: true, strict: false })
+  addFormats(instance)
+  return instance
+}
+
+function readJson(file: string): unknown {
+  return JSON.parse(readFileSync(file, "utf8")) as unknown
+}
+
+function errorPaths(validate: { errors?: Array<{ instancePath?: string; params?: Record<string, unknown> }> | null }): string[] {
+  const paths: string[] = []
+  for (const error of validate.errors ?? []) {
+    const instancePath = error.instancePath ?? ""
+    const missing = error.params?.missingProperty ?? error.params?.additionalProperty
+    const pointer = missing === undefined ? instancePath : `${instancePath}/${String(missing)}`
+    paths.push(pointer.length === 0 ? "/" : pointer)
+  }
+  return paths
+}
+
+describe("error catalogue", () => {
+  it("returns the entry for every code", () => {
+    for (const code of Object.keys(ERROR_CATALOGUE)) {
+      expect(isEcpErrorCode(code)).toBe(true)
+      expect(catalogueEntry(code as keyof typeof ERROR_CATALOGUE).exitCode).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it("rejects an unknown code", () => {
+    expect(isEcpErrorCode("ECP_NOT_A_CODE")).toBe(false)
+  })
+
+  it("maps first-party plugins and ignores unknown ids", () => {
+    expect(pluginIdFromCapability("@executioncontrolprotocol/test.echo")).toBe("@executioncontrolprotocol/test")
+    expect(pluginIdFromCapability("echo")).toBeUndefined()
+    expect(pluginIdFromCapability("@executioncontrolprotocol/test")).toBeUndefined()
+    expect(pluginIdFromCapability("@scope.echo")).toBeUndefined()
+    expect(firstPartyPlugin("@executioncontrolprotocol/anthropic")?.short).toBe("anthropic")
+    expect(firstPartyPlugin("@other/plugin")).toBeUndefined()
+    expect(firstPartyInstallCommand("@executioncontrolprotocol/test")).toBe("ecp plugins install test")
+    expect(firstPartyInstallCommand("@other/plugin")).toBeUndefined()
+  })
+})
+
+describe("JSON Schemas", () => {
+  it("compiles every schema under Ajv 2020", () => {
+    const compiler = ajv()
+    for (const name of SCHEMA_FILES) {
+      const schema = readJson(path.join(schemaDir, name))
+      expect(() => compiler.compile(schema as object), name).not.toThrow()
+    }
+  })
+
+  it("accepts a sample object that matches the TypeScript manifest type", () => {
+    const manifest = {
+      schema: EXECUTION_SCHEMA,
+      version: EXECUTION_VERSION,
+      execution: {
+        id: "sample",
+        accepts: { type: "object", properties: { value: { type: "string" } }, required: ["value"] },
+      },
+      steps: [
+        {
+          id: "echo",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: { $ref: "state.value" } },
+          as: "echo",
+          mode: "replace",
+        },
+      ],
+    } satisfies ExecutionManifest
+    const compiler = ajv()
+    const validate = compiler.compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
+    expect(validate(manifest)).toBe(true)
+  })
+
+  it("accepts sample objects for the other document schemas", () => {
+    const samples: Record<string, unknown> = {
+      "config.schema.json": {
+        schema: "@executioncontrolprotocol.config",
+        version: "1.0",
+        id: "test/default",
+        plugin: "@executioncontrolprotocol/test",
+        values: { secret: { $secret: "test.secret" } },
+        objectVersion: 1,
+        updatedAt: "2026-11-14T00:00:00.000Z",
+      },
+      "run.schema.json": {
+        schema: "@executioncontrolprotocol.run",
+        version: "1.0",
+        id: "run-20261114T000000Z-abcdef",
+        execution: { path: null, manifestHash: "abc" },
+        status: "completed",
+        input: {},
+        result: {},
+        error: null,
+        startedAt: "2026-11-14T00:00:00.000Z",
+        plugins: {},
+        host: { version: "2.0.0", pid: 1 },
+        warnings: [],
+      },
+      "step-record.schema.json": {
+        nodeId: "echo",
+        round: null,
+        capabilityId: "@executioncontrolprotocol/test.echo",
+        status: "completed",
+        input: { value: "hi" },
+        output: { echo: "hi" },
+        error: null,
+        startedAt: "2026-11-14T00:00:00.000Z",
+      },
+      "run-event.schema.json": { seq: 1, at: "2026-11-14T00:00:00.000Z", type: "run.start", data: {} },
+      "host.schema.json": {
+        schema: "@executioncontrolprotocol.host",
+        version: "1.0",
+        supervisorPid: 1,
+        hostPid: 2,
+        port: 51234,
+        controlPort: 51235,
+        token: "a".repeat(43),
+        hostVersion: "2.0.0",
+        startedAt: "2026-11-14T00:00:00.000Z",
+        home: "/tmp/ecp",
+      },
+      "retrieve.input.schema.json": { type: "capability", query: "echo" },
+      "execute.input.schema.json": { execution: { path: "/tmp/echo.ecp.json" }, mode: "validate" },
+      "commit.input.schema.json": { type: "execution", action: "create", object: {} },
+      "validation-result.schema.json": {
+        valid: true,
+        issues: [],
+        manifestHash: "abc",
+        schemaHash: "def",
+      },
+      "envelope.schema.json": { ok: false, error: { code: "ECP_NOT_FOUND", message: "Missing." } },
+    }
+    const compiler = ajv()
+    for (const [name, sample] of Object.entries(samples)) {
+      const validate = compiler.compile(readJson(path.join(schemaDir, name)) as object)
+      expect(validate(sample), name).toBe(true)
+    }
+  })
+})
+
+describe("execution fixtures", () => {
+  const compiler = ajv()
+  const validate = compiler.compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
+  const validDir = path.join(fixtureRoot, "manifests", "valid")
+  const invalidDir = path.join(fixtureRoot, "manifests", "invalid")
+
+  it("accepts every structurally valid fixture", () => {
+    for (const name of readdirSync(validDir).filter((file) => file.endsWith(".ecp.json"))) {
+      expect(validate(readJson(path.join(validDir, name))), name).toBe(true)
+    }
+  })
+
+  it("rejects every schema-level invalid fixture at the expected path", () => {
+    const names = readdirSync(invalidDir).filter((file) => file.startsWith("schema-") && file.endsWith(".ecp.json"))
+    expect(names.length).toBeGreaterThan(0)
+    for (const name of names) {
+      const manifest = readJson(path.join(invalidDir, name))
+      const expected = readJson(path.join(invalidDir, name.replace(/\.ecp\.json$/, ".expected.json"))) as Array<{
+        code: string
+        path: string
+        severity: string
+      }>
+      expect(validate(manifest), name).toBe(false)
+      const paths = errorPaths(validate)
+      for (const issue of expected) {
+        expect(issue.severity).toBe("error")
+        expect(issue.code).toBe("ECP_MANIFEST_INVALID")
+        const hit = paths.some((pointer) => pointer === issue.path || pointer.startsWith(`${issue.path}/`) || issue.path.startsWith(pointer))
+        expect(hit, `${name} expected ${issue.path} in ${paths.join(", ")}`).toBe(true)
+      }
+    }
+  })
+
+  it("pairs every run fixture with an expected result file", () => {
+    const runDir = path.join(fixtureRoot, "manifests", "runs")
+    const names = readdirSync(runDir).filter((file) => file.endsWith(".ecp.json"))
+    expect(names.length).toBeGreaterThan(0)
+    for (const name of names) {
+      expect(validate(readJson(path.join(runDir, name))), name).toBe(true)
+      const expected = readJson(path.join(runDir, name.replace(/\.ecp\.json$/, ".run.json"))) as {
+        status: string
+        steps: unknown[]
+        events: string[]
+      }
+      expect(expected.status).toBeTruthy()
+      expect(Array.isArray(expected.steps)).toBe(true)
+      expect(expected.events[0]).toBe("run.start")
+      expect(expected.events.at(-1)).toBe("run.end")
+    }
+  })
+})
