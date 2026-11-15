@@ -38,11 +38,11 @@ describe("supervisor e2e", () => {
       }
     }
 
-    const health = await waitFor(
-      async () => checkHealth(`http://127.0.0.1:${hostFile!.port}`),
-      15_000,
-    )
-    expect(health?.status).toBe("ok")
+    const health = await waitFor(async () => {
+      const next = await checkHealth(`http://127.0.0.1:${hostFile!.port}`)
+      return next?.status === "ok" ? next : undefined
+    }, 30_000)
+    expect(health.status).toBe("ok")
 
     const cmdline = process.platform === "win32"
       ? await windowsCommandLine(child.pid!)

@@ -62,7 +62,7 @@ export class LocalRunStore implements RunStore {
     await atomicWriteText(this.paths.runState(runId), stableStringify(state))
   }
 
-  /** Append one event; fsync batched within 50 ms. */
+  /** Append one event; fsync batched within 50 ms. Terminal `run.end` flushes immediately. */
   async appendEvent(runId: string, event: RunEvent): Promise<void> {
     mkdirSync(this.paths.runDir(runId), { recursive: true })
     const line = `${JSON.stringify(event)}\n`
@@ -72,6 +72,11 @@ export class LocalRunStore implements RunStore {
       this.pendingEvents.set(runId, batch)
     }
     batch.lines.push(line)
+    // Always flush the terminal event so callers that await execute see a complete ndjson.
+    if (event.type === "run.end") {
+      await this.flushEvents(runId)
+      return
+    }
     if (batch.timer) return
     batch.timer = setTimeout(() => {
       void this.flushEvents(runId)

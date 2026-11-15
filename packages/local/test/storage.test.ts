@@ -218,4 +218,44 @@ describe("LocalStorage", () => {
     expect(detail?.events?.map((event) => event.type)).toEqual(["run.start", "step.start"])
     await host.stop()
   })
+
+  it("flushes events.ndjson immediately on run.end", async () => {
+    const host = await start()
+    const storage = host.services.get(StorageProvider)
+    await storage.runs.create(
+      {
+        schema: "@executioncontrolprotocol.run",
+        version: "1.0",
+        id: "run-end-flush",
+        execution: { path: null, manifestHash: "h" },
+        status: "running",
+        input: {},
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        plugins: {},
+        host: { version: VERSION, pid: 1 },
+      },
+      tiny,
+    )
+    await storage.runs.appendEvent("run-end-flush", {
+      seq: 1,
+      at: new Date().toISOString(),
+      type: "run.start",
+      data: {},
+    })
+    await storage.runs.appendEvent("run-end-flush", {
+      seq: 2,
+      at: new Date().toISOString(),
+      type: "run.end",
+      data: { status: "completed" },
+    })
+    const text = readFileSync(path.join(home, "runs", "run-end-flush", "events.ndjson"), "utf8")
+    const types = text
+      .trim()
+      .split("\n")
+      .map((line) => (JSON.parse(line) as { type: string }).type)
+    expect(types).toEqual(["run.start", "run.end"])
+    await host.stop()
+  })
 })
