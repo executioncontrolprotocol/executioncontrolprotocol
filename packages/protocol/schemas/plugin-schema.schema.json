@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/plugin-schema.schema.json",
+  "type": "object",
+  "required": ["$id", "$defs"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "$id": {
+      "type": "string",
+      "pattern": "^ecp://plugins/.+/[^/]+/schema\\.json$"
+    },
+    "$defs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "object" }
+    }
+  },
+  "additionalProperties": true
+}

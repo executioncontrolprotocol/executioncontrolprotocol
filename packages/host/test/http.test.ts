@@ -346,7 +346,7 @@ describe("HttpApiEndpoint", () => {
     expect(result.ok).toBe(true)
     await shutdown
     host = undefined
-  })
+  }, 30_000) // commit + two validates each rebuild the combined schema today (F7); S3 caches it
 
   it("force-drains a run to interrupted and resumes after host restart", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-http-resume-"))

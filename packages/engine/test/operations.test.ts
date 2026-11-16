@@ -6,6 +6,7 @@ import type {
   ExecutionManifest,
   Formatter,
   PluginManifest,
+  PluginSchemaDocument,
   ServiceToken,
 } from "@executioncontrolprotocol/protocol"
 import {
@@ -23,6 +24,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const pluginManifest = JSON.parse(
   readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.manifest.json"), "utf8"),
 ) as PluginManifest
+const pluginSchema = JSON.parse(
+  readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.schema.json"), "utf8"),
+) as PluginSchemaDocument
 
 const echo: ExecutionManifest = {
   schema: "@executioncontrolprotocol.execution",
@@ -84,7 +88,7 @@ function bind<T>(id: string, instance: T): ServiceClass<T> {
 async function startHost(files?: { read: (path: string) => Promise<string> }) {
   const storage = new MemoryStorage("/tmp/ecp", files)
   const secrets = new MemorySecrets()
-  const plugins = new FixturePluginAdapter(pluginManifest, handlers())
+  const plugins = new FixturePluginAdapter(pluginManifest, handlers(), pluginSchema)
   const expression = new QuickJsExpressionEngine()
   await expression.start()
   const written = new Map<string, string>()
@@ -349,7 +353,7 @@ describe("operations", () => {
 
   it("createOperations works against a manual service lookup", () => {
     const storage = new MemoryStorage()
-    const plugins = new FixturePluginAdapter(pluginManifest, handlers())
+    const plugins = new FixturePluginAdapter(pluginManifest, handlers(), pluginSchema)
     const services: ServiceLookup = {
       get<T>(token: ServiceToken<T>) {
         if (token.id === StorageProvider.id) return storage as T
@@ -516,7 +520,7 @@ describe("operations", () => {
     const noWriter = await createEnvironment()
       .use(bind(MemoryStorage.id, storage), StorageProvider)
       .use(bind(MemorySecrets.id, new MemorySecrets()), SecretsProvider)
-      .use(bind(FixturePluginAdapter.id, new FixturePluginAdapter(pluginManifest, handlers())), PluginAdapter)
+      .use(bind(FixturePluginAdapter.id, new FixturePluginAdapter(pluginManifest, handlers(), pluginSchema)), PluginAdapter)
       .use(bind(QuickJsExpressionEngine.id, expression), ExpressionEngine)
       .use(bind(jsonFormatter.id, jsonFormatter), FormatterToken, { default: true })
       .start({ home: "/tmp/ecp" })
@@ -572,7 +576,7 @@ describe("operations", () => {
     })
     expect(badConfigType.ok).toBe(false)
 
-    const requiredPlugins = new FixturePluginAdapter(pluginManifest, handlers())
+    const requiredPlugins = new FixturePluginAdapter(pluginManifest, handlers(), pluginSchema)
     requiredPlugins.configSchema = () => ({
       type: "object",
       required: ["secret"],

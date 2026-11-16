@@ -1,94 +1,44 @@
 {
-  "schema": "@executioncontrolprotocol.plugin-manifest",
-  "version": "1.0",
-  "plugin": {
-    "id": "@executioncontrolprotocol/fixture-creative",
-    "package": "@executioncontrolprotocol/fixture-creative",
-    "version": "0.60.0",
-    "summary": "Stand-in shapes for Anthropic and Firefly steps in fixtures.",
-    "description": "Not a runtime plugin. Declares the capability shapes localize-banner references."
-  },
-  "sdkVersion": "2.0.0",
   "capabilities": [
     {
+      "description": "Fixture shape for an Anthropic generate call.",
       "id": "@executioncontrolprotocol/anthropic.generate",
       "name": "generate",
-      "summary": "Generate text.",
-      "description": "Fixture shape for an Anthropic generate call.",
-      "useCases": [
-        "Translate a headline."
-      ],
       "projections": [
         "Take the text field."
       ],
-      "accepts": {
-        "type": "object",
-        "required": [
-          "prompt"
-        ],
-        "properties": {
-          "prompt": {
-            "type": "string"
-          }
-        }
-      },
-      "returns": {
-        "type": "object",
-        "required": [
-          "text"
-        ],
-        "properties": {
-          "text": {
-            "type": "string"
-          }
-        }
-      }
+      "summary": "Generate text.",
+      "useCases": [
+        "Translate a headline."
+      ]
     },
     {
+      "description": "Fixture shape. options.uxp.source.content is a string so executions can pass $script.",
       "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
       "name": "photoshop-actions",
-      "summary": "Run a Photoshop action.",
-      "description": "Fixture shape. options.uxp.source.content is a string so executions can pass $script.",
-      "useCases": [
-        "Apply a banner action."
-      ],
       "projections": [
         "Take the document ref."
       ],
-      "accepts": {
-        "type": "object",
-        "properties": {
-          "options": {
-            "type": "object",
-            "properties": {
-              "uxp": {
-                "type": "object",
-                "properties": {
-                  "source": {
-                    "type": "object",
-                    "properties": {
-                      "content": {
-                        "type": "string",
-                        "maxLength": 200000
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "returns": {
-        "type": "object",
-        "properties": {
-          "document": {
-            "type": "object"
-          }
-        }
-      }
+      "summary": "Run a Photoshop action.",
+      "useCases": [
+        "Apply a banner action."
+      ]
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "fixture-creative"
+  "hash": "b41de8a0344d14b16f2959b8a5b413ced4732db85671283a47e9fc772a34add6",
+  "plugin": {
+    "description": "Not a runtime plugin. Declares the capability shapes localize-banner references.",
+    "id": "@executioncontrolprotocol/fixture-creative",
+    "package": "@executioncontrolprotocol/fixture-creative",
+    "summary": "Stand-in shapes for Anthropic and Firefly steps in fixtures.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "da3e367a030306ddc15a965e4d788419f196c35270d3f315580bf523f7f314b9",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "2.0.0",
+  "version": "2.0"
 }

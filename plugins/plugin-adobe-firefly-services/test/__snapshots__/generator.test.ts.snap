@@ -1,5 +1,294 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`generated output snapshot: audio-video > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [],
+    "asyncMode": "none",
+    "family": "audio-video",
+    "method": "GET",
+    "name": "audio-video-avatars",
+    "path": "/v1/avatars",
+  },
+  {
+    "accepts": [
+      "targetLocaleCodes",
+      "transcripts",
+      "audio",
+      "video",
+      "lipSync",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-dub",
+    "path": "/v1/dub",
+  },
+  {
+    "accepts": [
+      "targetLocaleCodes",
+      "transcripts",
+      "audio",
+      "video",
+      "lipSync",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-dub-translate-lipsync",
+    "path": "/v1/dub",
+  },
+  {
+    "accepts": [
+      "script",
+      "voiceId",
+      "avatarId",
+      "output",
+      "audio",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-generate-avatar",
+    "path": "/v1/generate-avatar",
+  },
+  {
+    "accepts": [
+      "video",
+      "sceneEditDetection",
+      "overlays",
+      "outputConfig",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-generate-reframed-video",
+    "path": "/v1/reframe",
+  },
+  {
+    "accepts": [
+      "video",
+      "analysis",
+      "composition",
+      "output",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-generate-reframed-video-v2",
+    "path": "/v2/reframe",
+  },
+  {
+    "accepts": [
+      "script",
+      "voiceId",
+      "output",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-generate-speech",
+    "path": "/v1/generate-speech",
+  },
+  {
+    "accepts": [],
+    "asyncMode": "none",
+    "family": "audio-video",
+    "method": "GET",
+    "name": "audio-video-get-presets",
+    "path": "/v1/presets",
+  },
+  {
+    "accepts": [
+      "filter",
+      "limit",
+      "cursor",
+      "x-request-id",
+    ],
+    "asyncMode": "none",
+    "family": "audio-video",
+    "method": "GET",
+    "name": "audio-video-list-render-jobs",
+    "path": "/v1/templates/render-jobs",
+  },
+  {
+    "accepts": [
+      "type",
+      "source",
+      "compName",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-template-describe",
+    "path": "/v1/templates/describe",
+  },
+  {
+    "accepts": [
+      "type",
+      "source",
+      "compName",
+      "fonts",
+      "config",
+      "assets",
+      "presets",
+      "variations",
+      "layerOperations",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-template-render",
+    "path": "/v1/templates/render",
+  },
+  {
+    "accepts": [
+      "targetLocaleCodes",
+      "captions",
+      "audio",
+      "video",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-transcribe",
+    "path": "/v1/transcribe",
+  },
+  {
+    "accepts": [
+      "targetLocaleCodes",
+      "captions",
+      "audio",
+      "video",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "audio-video",
+    "method": "POST",
+    "name": "audio-video-transcribe-translate-lipsync",
+    "path": "/v1/transcribe",
+  },
+  {
+    "accepts": [],
+    "asyncMode": "none",
+    "family": "audio-video",
+    "method": "GET",
+    "name": "audio-video-voices",
+    "path": "/v1/voices",
+  },
+]
+`;
+
+exports[`generated output snapshot: creative-production > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [
+      "api-version",
+      "workflow",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "creative-production",
+    "method": "POST",
+    "name": "creative-production-batch-execute",
+    "path": "/batch/execute",
+  },
+  {
+    "accepts": [
+      "api-version",
+      "batchId",
+      "status",
+      "limit",
+      "offset",
+    ],
+    "asyncMode": "none",
+    "family": "creative-production",
+    "method": "GET",
+    "name": "creative-production-list-batch-executions",
+    "path": "/batch/{batchId}/executions",
+  },
+  {
+    "accepts": [
+      "api-version",
+      "status",
+      "workflowId",
+      "createdAfter",
+      "createdBefore",
+      "limit",
+      "offset",
+    ],
+    "asyncMode": "none",
+    "family": "creative-production",
+    "method": "GET",
+    "name": "creative-production-list-batches",
+    "path": "/batches",
+  },
+]
+`;
+
+exports[`generated output snapshot: express > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [
+      "id",
+      "pages",
+      "options",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "express",
+    "method": "POST",
+    "name": "express-export-rendition",
+    "path": "/beta/export-rendition",
+  },
+  {
+    "accepts": [
+      "id",
+      "variationDetails",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "express",
+    "method": "POST",
+    "name": "express-generate-variation",
+    "path": "/beta/generate-variation",
+  },
+  {
+    "accepts": [
+      "documentId",
+      "start",
+    ],
+    "asyncMode": "none",
+    "family": "express",
+    "method": "GET",
+    "name": "express-tagged-document-details",
+    "path": "/beta/tagged-documents/{documentId}",
+  },
+  {
+    "accepts": [
+      "start",
+      "limit",
+      "sortBy",
+    ],
+    "asyncMode": "none",
+    "family": "express",
+    "method": "GET",
+    "name": "express-tagged-documents",
+    "path": "/beta/tagged-documents",
+  },
+]
+`;
+
 exports[`generated output snapshot: firefly > keeps the operation table stable 1`] = `
 [
   {
@@ -203,6 +492,214 @@ exports[`generated output snapshot: firefly > keeps the operation table stable 1
 ]
 `;
 
+exports[`generated output snapshot: illustrator > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [
+      "input",
+      "output",
+      "settings",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "illustrator",
+    "method": "POST",
+    "name": "illustrator-create-rendition",
+    "path": "/v1/create-rendition",
+  },
+  {
+    "accepts": [
+      "data",
+      "template",
+      "fontFiles",
+      "settings",
+      "output",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "illustrator",
+    "method": "POST",
+    "name": "illustrator-data-merge",
+    "path": "/v1/merge-data",
+  },
+  {
+    "accepts": [
+      "orgId",
+      "capabilityName",
+      "assets",
+      "params",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "illustrator",
+    "method": "POST",
+    "name": "illustrator-execute-custom-script-capability",
+    "path": "/v3/{orgId}/{capabilityName}",
+  },
+  {
+    "accepts": [
+      "input",
+      "settings",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "illustrator",
+    "method": "POST",
+    "name": "illustrator-trace-image",
+    "path": "/v1/trace-image",
+  },
+]
+`;
+
+exports[`generated output snapshot: indesign > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [
+      "assets",
+      "params",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-convert-pdfto-in-design",
+    "path": "/v3/convert-pdf-to-indesign",
+  },
+  {
+    "accepts": [
+      "assets",
+      "params",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-data-merge",
+    "path": "/v3/merge-data",
+  },
+  {
+    "accepts": [
+      "assets",
+      "params",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-data-merge-tags",
+    "path": "/v3/merge-data-tags",
+  },
+  {
+    "accepts": [
+      "script_name",
+    ],
+    "asyncMode": "none",
+    "family": "indesign",
+    "method": "DELETE",
+    "name": "indesign-delete-custom-script",
+    "path": "/v3/scripts/{script_name}",
+  },
+  {
+    "accepts": [
+      "script_id",
+      "script_name",
+      "assets",
+      "params",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-execute-custom-script",
+    "path": "/v3/{script_id}/{script_name}",
+  },
+  {
+    "accepts": [
+      "script_name",
+    ],
+    "asyncMode": "none",
+    "family": "indesign",
+    "method": "GET",
+    "name": "indesign-get-custom-script-details",
+    "path": "/v3/scripts/{script_name}",
+  },
+  {
+    "accepts": [
+      "assets",
+      "params",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-get-document-info",
+    "path": "/v3/document-info",
+  },
+  {
+    "accepts": [],
+    "asyncMode": "none",
+    "family": "indesign",
+    "method": "GET",
+    "name": "indesign-list-app-versions",
+    "path": "/v3/app-versions",
+  },
+  {
+    "accepts": [
+      "page",
+    ],
+    "asyncMode": "none",
+    "family": "indesign",
+    "method": "GET",
+    "name": "indesign-list-custom-scripts",
+    "path": "/v3/scripts",
+  },
+  {
+    "accepts": [
+      "x-aem-token",
+      "assets",
+      "params",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-remap-links",
+    "path": "/v3/remap-links",
+  },
+  {
+    "accepts": [
+      "assets",
+      "params",
+      "outputs",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "indesign",
+    "method": "POST",
+    "name": "indesign-rendition-job",
+    "path": "/v3/create-rendition",
+  },
+  {
+    "accepts": [
+      "script_name",
+      "appVersionStrategy",
+      "majorAppVersion",
+      "minorAppVersion",
+      "body",
+    ],
+    "asyncMode": "none",
+    "family": "indesign",
+    "method": "PUT",
+    "name": "indesign-update-script-app-version",
+    "path": "/v3/scripts/{script_name}/app-version",
+  },
+]
+`;
+
 exports[`generated output snapshot: photoshop > keeps the operation table stable 1`] = `
 [
   {
@@ -291,6 +788,163 @@ exports[`generated output snapshot: photoshop > keeps the operation table stable
     "method": "POST",
     "name": "photoshop-generate-manifest",
     "path": "/v2/generate-manifest",
+  },
+]
+`;
+
+exports[`generated output snapshot: substance3d > keeps the operation table stable 1`] = `
+[
+  {
+    "accepts": [
+      "$schema",
+      "accessToken",
+      "folderId",
+      "body",
+    ],
+    "asyncMode": "none",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-create-space-from-frame-io-v2",
+    "path": "/v2/spacesFrameIO",
+  },
+  {
+    "accepts": [
+      "$schema",
+      "accessToken",
+      "accountId",
+      "folderId",
+      "body",
+    ],
+    "asyncMode": "none",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-create-space-from-next-frame-io-v2",
+    "path": "/v2/spacesNextFrameIO",
+  },
+  {
+    "accepts": [
+      "body",
+    ],
+    "asyncMode": "none",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-create-space-url-v2",
+    "path": "/v2/spacesURL",
+  },
+  {
+    "accepts": [
+      "X-User-Token",
+      "wait",
+      "$schema",
+      "cameraName",
+      "contentClass",
+      "customModelId",
+      "enableGroundPlane",
+      "environment",
+      "environmentExposure",
+      "heroAsset",
+      "lightingSeeds",
+      "modelVersion",
+      "numVariations",
+      "prompt",
+      "scene",
+      "sceneFile",
+      "seeds",
+      "size",
+      "sources",
+      "styleImage",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-composites-compose",
+    "path": "/v1/composites/compose",
+  },
+  {
+    "accepts": [
+      "wait",
+      "$schema",
+      "encoding",
+      "fileBaseName",
+      "scene",
+      "sources",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-scenes-assemble",
+    "path": "/v1/scenes/assemble",
+  },
+  {
+    "accepts": [
+      "wait",
+      "$schema",
+      "format",
+      "modelEntrypoint",
+      "sources",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-scenes-convert",
+    "path": "/v1/scenes/convert",
+  },
+  {
+    "accepts": [
+      "wait",
+      "$schema",
+      "sceneFile",
+      "sources",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-scenes-describe",
+    "path": "/v1/scenes/describe",
+  },
+  {
+    "accepts": [
+      "wait",
+      "$schema",
+      "autoFraming",
+      "background",
+      "cameraName",
+      "extraOutputs",
+      "groundPlane",
+      "scene",
+      "size",
+      "sources",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-scenes-render",
+    "path": "/v1/scenes/render",
+  },
+  {
+    "accepts": [
+      "wait",
+      "$schema",
+      "autoFraming",
+      "background",
+      "cameraName",
+      "extraOutputs",
+      "groundPlane",
+      "scene",
+      "size",
+      "sources",
+      "body",
+    ],
+    "asyncMode": "submit",
+    "family": "substance3d",
+    "method": "POST",
+    "name": "substance3d-v1-scenes-render-basic",
+    "path": "/v1/scenes/render-basic",
   },
 ]
 `;

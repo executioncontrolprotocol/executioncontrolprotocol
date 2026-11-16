@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "config": {
+      "properties": {
+        "apiKey": {
+          "type": "string"
+        },
+        "baseUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "model": {
+          "default": "claude-sonnet-4-5",
+          "type": "string"
+        }
+      },
+      "required": [
+        "apiKey"
+      ],
+      "type": "object"
+    },
+    "generate.accepts": {
+      "properties": {
+        "maxTokens": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "system": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "generate.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "usage": {
+          "additionalProperties": false,
+          "properties": {
+            "inputTokens": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            "outputTokens": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "inputTokens",
+            "outputTokens"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "text",
+        "usage"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/anthropic/0.60.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -126,7 +126,8 @@ Path syntax: `state` followed by one or more segments; a segment is a property n
   `allowReturnOutsideFunction: false`); failure → `ECP_SCRIPT_INVALID` with line and column
   relative to the script text.
 - `$script` is only valid where the capability's `accepts` expects a string at that position
-  (validated by the generated schema; see 03).
+  (validated by resolving the capability's raw accepts subschema at that path — must accept a
+  string, or an open object property; see 03).
 - The resolved string is validated against the `accepts` string schema (for example
   `maxLength`), so size limits apply to the final text.
 

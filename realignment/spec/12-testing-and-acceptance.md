@@ -62,10 +62,15 @@ table. Each scenario 20 runs; median and p95.
 | B5 | `ecp execute` `$expr`-heavy fixture | same |
 | B6 | `ecp host start` until healthy; restart until healthy | — |
 | B7 | Host schema generation + validator compile with all MVP plugins installed | — |
+| B8 | Schema scale: host start (incl. registry load of light manifests), first-use compile, cached validate, heap at 1,000 and 5,000 synthetic capabilities; warm `ecp execute` with all real plugins | synthetic + warm |
+
+Default `pnpm run bench` measures B8 at 1,000 synthetic capabilities. Set `ECP_BENCH_SCALE=5000`
+to also run the 5,000-capability scale (kept off CI by default so the bench job stays within a
+few minutes).
 
 **Phase 0** runs the early proxies with legacy code (`legacy/` CLI cold runs, QuickJS start,
 Ajv compile of Firefly-sized schemas, Firefly import time) and records them in the plan's
-"Measurements". **Phase 5** runs B1–B7 on the new CLI and applies the plan's decision rule:
+"Measurements". **Phase 5** runs B1–B8 on the new CLI and applies the plan's decision rule:
 warm host saves less than ~300 ms median per call on B3/B4 → the CLI stays in-process when no
 host is running (current spec); otherwise implement auto-start with idle shutdown (15 min idle,
 no active runs) and record the decision in the plan. Budgets are then set and enforced in CI.
@@ -87,5 +92,5 @@ Ubuntu and Windows CI, and A10 has been run live once with the result recorded.
 | A8 | App (Playwright): `ecp app <path>` opens the file; validation issues show; saving fixes to the file (and to a `$script.path` file) hot-reloads the graph and issues within 1 s with no action in the App; run → live statuses and result; runs list replays | App, hot reload by path |
 | A9 | Every A1–A5 command run once with a warm host and once in-process gives identical `data` (except timing and run ids) | Mode parity |
 | A10 | Live (manual or CI with secrets): the Firefly `localize-banner` execution (converted dogfood) validates and runs against real Firefly and Anthropic, producing a PSD; output recorded in the Phase 8 PR | Real dogfood |
-| A11 | Benchmarks B1–B7 recorded; the background-host decision written in the plan; budgets enforced in CI | Performance decision |
+| A11 | Benchmarks B1–B8 recorded; the background-host decision written in the plan; budgets enforced in CI | Performance decision |
 | A12 | `legacy/` deleted; `pnpm run check` green; coverage floors met; docs and agent rules match the code | Clean finish |

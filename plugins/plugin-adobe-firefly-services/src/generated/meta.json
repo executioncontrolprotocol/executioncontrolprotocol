@@ -1,23 +1,177 @@
 {
   "pluginId": "@executioncontrolprotocol/adobe-firefly-services",
   "families": [
-    "firefly",
-    "photoshop"
-  ],
-  "pendingFamilies": [
     "audio-video",
     "creative-production",
     "express",
+    "firefly",
     "illustrator",
     "indesign",
+    "photoshop",
     "substance3d"
   ],
+  "pendingFamilies": [],
   "specFiles": [
+    "audio-video/audio-video-api.json",
+    "audio-video/translate-lipsync-openapi.json",
+    "creative-production/workflow-builder-api.yaml",
+    "express/ffs-express-api.json",
     "firefly/firefly-api.json",
-    "photoshop/photoshopv2-api.json"
+    "illustrator/illustrator-api-beta.json",
+    "illustrator/illustrator-api.json",
+    "indesign/indesignapi.json",
+    "photoshop/photoshopv2-api.json",
+    "substance3d/openapi.yaml"
   ],
-  "capabilityCount": 17,
+  "capabilityCount": 63,
   "capabilities": [
+    {
+      "name": "audio-video-avatars",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/avatars",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-dub",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/dub",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-dub-translate-lipsync",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/dub",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-avatar",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/generate-avatar",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-reframed-video",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/reframe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-reframed-video-v2",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v2/reframe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-speech",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/generate-speech",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-get-presets",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/presets",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-list-render-jobs",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/templates/render-jobs",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-template-describe",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/templates/describe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-template-render",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/templates/render",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-transcribe",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/transcribe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-transcribe-translate-lipsync",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/transcribe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-voices",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/voices",
+      "asyncMode": "none"
+    },
+    {
+      "name": "creative-production-batch-execute",
+      "family": "creative-production",
+      "method": "POST",
+      "path": "/batch/execute",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "creative-production-list-batch-executions",
+      "family": "creative-production",
+      "method": "GET",
+      "path": "/batch/{batchId}/executions",
+      "asyncMode": "none"
+    },
+    {
+      "name": "creative-production-list-batches",
+      "family": "creative-production",
+      "method": "GET",
+      "path": "/batches",
+      "asyncMode": "none"
+    },
+    {
+      "name": "express-export-rendition",
+      "family": "express",
+      "method": "POST",
+      "path": "/beta/export-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "express-generate-variation",
+      "family": "express",
+      "method": "POST",
+      "path": "/beta/generate-variation",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "express-tagged-document-details",
+      "family": "express",
+      "method": "GET",
+      "path": "/beta/tagged-documents/{documentId}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "express-tagged-documents",
+      "family": "express",
+      "method": "GET",
+      "path": "/beta/tagged-documents",
+      "asyncMode": "none"
+    },
     {
       "name": "firefly-adaptive-composite",
       "family": "firefly",
@@ -96,6 +250,118 @@
       "asyncMode": "submit"
     },
     {
+      "name": "illustrator-create-rendition",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/create-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-data-merge",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/merge-data",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-execute-custom-script-capability",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v3/{orgId}/{capabilityName}",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-trace-image",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/trace-image",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-convert-pdfto-in-design",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/convert-pdf-to-indesign",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-data-merge",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/merge-data",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-data-merge-tags",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/merge-data-tags",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-delete-custom-script",
+      "family": "indesign",
+      "method": "DELETE",
+      "path": "/v3/scripts/{script_name}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-execute-custom-script",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/{script_id}/{script_name}",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-get-custom-script-details",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/scripts/{script_name}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-get-document-info",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/document-info",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-list-app-versions",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/app-versions",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-list-custom-scripts",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/scripts",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-remap-links",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/remap-links",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-rendition-job",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/create-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-update-script-app-version",
+      "family": "indesign",
+      "method": "PUT",
+      "path": "/v3/scripts/{script_name}/app-version",
+      "asyncMode": "none"
+    },
+    {
       "name": "photoshop-actions",
       "family": "photoshop",
       "method": "POST",
@@ -136,12 +402,91 @@
       "method": "POST",
       "path": "/v2/generate-manifest",
       "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-create-space-from-frame-io-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesFrameIO",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-create-space-from-next-frame-io-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesNextFrameIO",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-create-space-url-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesURL",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-v1-composites-compose",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/composites/compose",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-assemble",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/assemble",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-convert",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/convert",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-describe",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/describe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-render",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/render",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-render-basic",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/render-basic",
+      "asyncMode": "submit"
     }
   ],
   "skipped": [
     {
       "name": "firefly-storage-image-v2",
       "reason": "non-JSON request body (image/jpeg, image/png, image/webp, image/tiff, image/jxl); needs file-reference upload support"
+    },
+    {
+      "name": "illustrator-register-custom-script-capability",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "indesign-submit-custom-script",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "substance3d-create-space-v1",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "substance3d-create-space-v2",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
     }
   ]
 }

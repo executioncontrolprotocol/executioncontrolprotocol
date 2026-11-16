@@ -3,10 +3,10 @@
   "$id": "ecp://protocol/plugin-manifest.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "version", "plugin", "sdkVersion", "capabilities", "entry", "hash"],
+  "required": ["schema", "version", "plugin", "sdkVersion", "pluginSchema", "capabilities", "entry", "hash"],
   "properties": {
     "schema": { "const": "@executioncontrolprotocol.plugin-manifest" },
-    "version": { "const": "1.0" },
+    "version": { "const": "2.0" },
     "plugin": {
       "type": "object",
       "additionalProperties": false,
@@ -20,13 +20,21 @@
       }
     },
     "sdkVersion": { "type": "string" },
-    "configSchema": { "type": "object" },
+    "pluginSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "hash"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
     "capabilities": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "summary", "description", "useCases", "projections", "accepts", "returns"],
+        "required": ["id", "name", "summary", "description", "useCases", "projections"],
         "properties": {
           "id": { "type": "string" },
           "name": { "type": "string" },
@@ -34,8 +42,6 @@
           "description": { "type": "string" },
           "useCases": { "type": "array", "items": { "type": "string" } },
           "projections": { "type": "array", "items": { "type": "string" } },
-          "accepts": { "type": "object" },
-          "returns": { "type": "object" },
           "timeoutMs": { "type": "integer", "minimum": 1 }
         }
       }

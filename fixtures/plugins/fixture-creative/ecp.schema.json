@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "generate.accepts": {
+      "properties": {
+        "prompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "generate.returns": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "photoshop-actions.accepts": {
+      "properties": {
+        "options": {
+          "properties": {
+            "uxp": {
+              "properties": {
+                "source": {
+                  "properties": {
+                    "content": {
+                      "maxLength": 200000,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "photoshop-actions.returns": {
+      "properties": {
+        "document": {
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/fixture-creative/0.60.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

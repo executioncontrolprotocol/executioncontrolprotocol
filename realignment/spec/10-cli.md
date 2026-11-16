@@ -28,7 +28,7 @@ lists via host `retrieve --type plugin`.
 | `ecp secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
 | `ecp secrets unset` | `<key>` | Delete; exit 2 if missing |
 | `ecp secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
-| `ecp schema` | `--print` | Print the path of the generated `execution.schema.json` (or its contents with `--print`); ensures it's current by asking the host or generating in-process |
+| `ecp schema` | `--print` | Prints the **root** `execution.schema.json` path (or contents with `--print`); ensures root **and** `schema/plugins/*` editor files are current (host start or in-process write). No new flags |
 
 No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others are post-MVP.
 

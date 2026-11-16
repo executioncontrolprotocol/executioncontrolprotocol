@@ -94,13 +94,12 @@ F2–F5).
 
 ### Editor / plugins today
 
-- Host writes one file: [`writeExecutionSchema`](../packages/host/src/create-local-host.ts)
-  209–217 via `generateExecutionSchema`.
+- Host writes editor files via [`writeEditorSchemaFiles`](../packages/host/src/editor-schema.ts)
+  (server mode: after `markReady`, in-process: before return).
 - [`ecp-plugin-manifest`](../packages/plugin-sdk/src/bin/ecp-plugin-manifest.ts) writes only
   `ecp.manifest.json` (accepts/returns embedded). No `ecp.schema.json`.
-- Firefly: `GENERATED_FAMILIES = ["firefly","photoshop"]` (17 caps); six `PENDING_FAMILIES`
-  blocked by Ajv stack on the combined schema
-  ([`generate.mjs`](../plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs) ~46–65).
+- Firefly: all vendored families in `GENERATED_FAMILIES` except skipped `content-tagging`
+  (**63** capabilities; S6).
 
 ### Spike numbers (accepted)
 
@@ -452,10 +451,10 @@ Each PR green alone (`pnpm run check` / CI).
 | --- | --- |
 | **S1 — Spec + light manifests + SDK emit** | Spec amendments (03/08/02/09/10/12 stubs for B8); protocol `plugin-manifest` **2.0** (light index + `schema: { path, hash }`). `buildPluginSchemaDocument` + bin writes light `ecp.manifest.json` and `ecp.schema.json`. Regenerate all first-party plugins. Load-manifest checks schema file (link: both in memory). No engine behaviour change yet. |
 | **S2 — Engine new path + equivalence** | `markers.ts`, new `HostSchemaSet` base+lazy raw path via `loadPluginSchema`, dual-path equivalence test over `fixtures/` + `examples/` with all real + fixture plugins. Default can remain old path if needed for safety; test runs both. |
-| **S3 — Switch-over + cache + delete legacy** | New path default; operations/host cache `HostSchemaSet`; delete runtime combined compile; conformance-only. **Requires Group C exact fixtures** (merge C first or include fixture re-baseline here). |
-| **S4 — Editor schema files** | Host writes root + `schema/plugins/*`; `wrapValue` editor-only; CLI `ecp schema` still root. |
-| **S5 — B8** | `bench/run.mjs` + budgets (incl. registry load at 1k/5k in host-start); commit baseline JSON under `bench/baseline/` if that is the F6 convention; update A11 when budgets land. |
-| **S6 — Firefly families** | Move six pending families into `GENERATED_FAMILIES`; regenerate; per-family tests + README; tick F7 checkboxes / decision recorded. |
+| **S3 — Switch-over + cache + delete legacy** | **Done (this PR):** new path default; operations host-lifetime `HostSchemaSet` cache; runtime combined wrap deleted; fixture re-baseline + exact conformance (Group C not merged). |
+| **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite, atomic files, stamp last); server mode writes after ready; `wrapValue` editor-only; CLI `ecp schema` still root (`retrieve` `plugin` awaits in-flight write on HTTP). |
+| **S5 — B8** | **Done:** `bench/run.mjs` + `bench/b8.mjs` + budgets (registry load at 1k; 5k via `ECP_BENCH_SCALE=5000`); baseline under `bench/baseline/`; A11 + spec 12 updated. |
+| **S6 — Firefly families** | **Done:** six pending families moved into `GENERATED_FAMILIES`; 63 capabilities regenerated; per-family mocked tests + README; F7 checkboxes ticked. |
 
 **Relative to C and E:** S1–S2 ∥ C; S3 after C; S5 informs E's warm-execute re-budget; S6
 (Firefly ship) after S3.
@@ -476,19 +475,21 @@ Each PR green alone (`pnpm run check` / CI).
 ## 10. Exit criteria (measurable)
 
 - [ ] Spec 03/08/02/09/10/12 updated as above (incl. plugin-manifest 2.0 light manifests); F7
-  design checkboxes in `mvp-audit-fixes.md` ticked with PR links.
-- [ ] Every first-party plugin ships/checks light `ecp.manifest.json` + `ecp.schema.json`;
-  missing schema file → `manifestOk: false` (non-link).
-- [ ] Runtime never calls `ajv.compile` on a combined marker-wrapped all-capabilities schema.
-- [ ] `validate-scale-equivalence.test.ts` green over `fixtures/` + `examples/` with all real +
-  fixture plugins, then legacy path removed; conformance exact-match green.
-- [ ] Marker-filter, `$script` position, cache, lazy-load, missing-schema tests green.
-- [ ] **B8 budgets:** host start (incl. registry load of light manifests) median independent of N
+  design checkboxes in `mvp-audit-fixes.md` ticked with PR links. *(S1: spec 08 only.)*
+- [x] Every first-party plugin ships/checks light `ecp.manifest.json` + `ecp.schema.json`;
+  missing schema file → `manifestOk: false` (non-link). *(S1)*
+- [x] Runtime never calls `ajv.compile` on a combined marker-wrapped all-capabilities schema. *(S3)*
+- [x] `validate-scale-equivalence.test.ts` green over `fixtures/` + `examples/` with all real +
+  fixture plugins, then legacy path removed; conformance exact-match green. *(S3)*
+- [x] Marker-filter, `$script` position, cache, lazy-load, missing-schema tests green. *(S3; B8 still open)*
+- [x] **B8 budgets:** host start (incl. registry load of light manifests) median independent of N
   (≈ flat; target ≤ ~100 ms overhead beyond empty at 5k synthetic); first-use compile median ≤
   **50 ms**/capability; cached validate ≤ **1 ms**; heap recorded at 1k and 5k (expectation
-  order-of-magnitude ≤ ~100 MB unused lazy, per spike).
-- [ ] Warm `ecp execute` (echo) measured before/after schema cache; contribution of schema
-  rebuild documented for F6.
-- [ ] All six pending Firefly families shipped (or explicitly deferred in spec 08 + README with
-  reason); generator/README/tests updated.
+  order-of-magnitude ≤ ~100 MB unused lazy, per spike). *(S5; see `bench/budgets.json` +
+  `bench/baseline/`)*
+- [x] Warm `ecp execute` (echo) measured before/after schema cache; contribution of schema
+  rebuild documented for F6. *(S5 sub-metric `B8-execute-echo-warm-all-plugins`; Group E still
+  owns B1–B7 re-budget.)*
+- [x] All six pending Firefly families shipped (63 capabilities; `content-tagging` skipped);
+  generator/README/tests updated.
 - [ ] `pnpm run check` + CI Ubuntu/Windows green.

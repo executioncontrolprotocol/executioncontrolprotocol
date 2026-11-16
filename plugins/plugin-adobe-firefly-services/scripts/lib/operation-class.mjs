@@ -86,8 +86,8 @@ export const ASYNC_FINAL_OUTPUT_BY_OP = {
   "audio-video-generate-reframed-video-v2": "StatusAPIResponse",
   "audio-video-transcribe": "FireflyJobResponse",
   "audio-video-dub": "FireflyJobResponse",
-  "audio-video-transcribe-transcribe": "FireflyJobResponse",
-  "audio-video-dub-dub": "FireflyJobResponse",
+  "audio-video-transcribe-translate-lipsync": "FireflyJobResponse",
+  "audio-video-dub-translate-lipsync": "FireflyJobResponse",
 
   // creative-production
   "creative-production-batch-execute": "BatchStatusResponse",

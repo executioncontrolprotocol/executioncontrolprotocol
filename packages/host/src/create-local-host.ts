@@ -1,12 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
-import {
-  createEnvironment,
-  generateExecutionSchema,
-  type Host,
-  type ResolvedHostSettings,
-  type ServiceClass,
-} from "@executioncontrolprotocol/engine"
+import { setTimeout as delay } from "node:timers/promises"
+import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
 import {
   LocalPluginRegistration,
@@ -33,6 +28,12 @@ import {
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "@executioncontrolprotocol/quickjs"
 import { LocalTokenAuth } from "./auth/local-token-auth.js"
+import {
+  computeEditorSchemaHash,
+  EDITOR_SCHEMA_SHUTDOWN_WAIT_MS,
+  writeEditorSchemaFiles,
+  type EditorSchemaWriteResult,
+} from "./editor-schema.js"
 import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 import { generateHostToken } from "./token.js"
 
@@ -72,7 +73,7 @@ export interface LocalHostTiming {
   startMs: number
   /** Milliseconds spent marking leftover runs interrupted. */
   interruptMs: number
-  /** Milliseconds spent writing the editor schema. */
+  /** Milliseconds spent on editor schema work at start (in-process: full write; server: hash only). */
   schemaMs: number
 }
 
@@ -85,6 +86,11 @@ export interface LocalHost extends Host {
   readonly timing: LocalHostTiming
   /** Stable schema hash written at startup. */
   readonly schemaHash: string
+  /**
+   * Resolves when editor files are written (server: may finish after ready; in-process: before return).
+   * @category Host
+   */
+  readonly editorSchemas: Promise<EditorSchemaWriteResult>
   /** Bound HTTP URL when `mode` is `server`. */
   readonly url?: string
   /** Token used by the HTTP API when `mode` is `server`. */
@@ -156,28 +162,59 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   const interruptMs = Date.now() - interruptStarted
 
   const schemaStarted = Date.now()
-  const schemaHash = await writeExecutionSchema(host)
-  const schemaMs = Date.now() - schemaStarted
+  const schemaHash = await computeEditorSchemaHash(host)
+  const hashMs = Date.now() - schemaStarted
+
+  const logEditorError = (error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`editor schema write failed: ${message}`)
+  }
+
+  let editorSchemas: Promise<EditorSchemaWriteResult>
+  let schemaMs: number
+
+  if (mode === "server") {
+    schemaMs = hashMs
+    editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+  } else {
+    const writeStarted = Date.now()
+    editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+    await editorSchemas
+    schemaMs = Date.now() - writeStarted
+  }
 
   let url: string | undefined
   let whenShutdown = async (): Promise<void> => undefined
+  let endpoint: HttpApiEndpoint | undefined
   if (mode === "server") {
-    const endpoint = host.services.get(Endpoint, HttpApiEndpoint.id) as HttpApiEndpoint
+    endpoint = host.services.get(Endpoint, HttpApiEndpoint.id) as HttpApiEndpoint
     const auth = host.services.get(Auth) as LocalTokenAuth
     auth.setPort(endpoint.port)
     endpoint.bindOperations(host.operations)
+    endpoint.setEditorSchemaGate(() => editorSchemas)
     endpoint.markReady()
     url = endpoint.url
-    whenShutdown = () => endpoint.whenShutdown()
+    whenShutdown = () => endpoint!.whenShutdown()
+  }
+
+  const baseStop = host.stop.bind(host)
+  const stop = async (): Promise<void> => {
+    try {
+      await Promise.race([editorSchemas, delay(EDITOR_SCHEMA_SHUTDOWN_WAIT_MS)])
+    } catch {
+      // write errors are already logged
+    }
+    await baseStop()
   }
 
   return {
     services: host.services,
     operations: host.operations,
     settings: host.settings,
-    stop: () => host.stop(),
+    stop,
     timing: { startMs, interruptMs, schemaMs },
     schemaHash,
+    editorSchemas,
     url,
     token,
     whenShutdown,
@@ -204,15 +241,4 @@ async function markInterruptedRuns(
       data: { reason: "host-restart" },
     })
   }
-}
-
-async function writeExecutionSchema(host: Host): Promise<string> {
-  const plugins = host.services.get(PluginAdapter)
-  const schema = generateExecutionSchema(plugins.capabilities())
-  const { sha256Hex, canonicalJson } = await import("@executioncontrolprotocol/engine")
-  const schemaHash = await sha256Hex(canonicalJson(schema))
-  const target = path.join(host.settings.home, "schema", "execution.schema.json")
-  await mkdir(path.dirname(target), { recursive: true })
-  await writeFile(target, `${JSON.stringify(schema, null, 2)}\n`, "utf8")
-  return schemaHash
 }

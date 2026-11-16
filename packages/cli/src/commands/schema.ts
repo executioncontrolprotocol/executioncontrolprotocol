@@ -10,7 +10,8 @@ import { exitWith } from "../lib/exit.js"
  * @category CLI
  */
 export default class Schema extends Command {
-  static override description = "Show the generated execution JSON Schema path or contents."
+  static override description =
+    "Show the root editor execution JSON Schema path or contents (ensures root and per-plugin editor files are current)."
 
   static override flags = {
     print: Flags.boolean({ default: false }),

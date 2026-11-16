@@ -13,19 +13,22 @@
   ],
   "oclif": {},
   "ecp": {
-    "manifest": "./ecp.manifest.json"
+    "manifest": "./ecp.manifest.json",
+    "schema": "./ecp.schema.json"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./ecp.manifest.json": "./ecp.manifest.json"
+    "./ecp.manifest.json": "./ecp.manifest.json",
+    "./ecp.schema.json": "./ecp.schema.json"
   },
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "ecp.manifest.json"
+    "ecp.manifest.json",
+    "ecp.schema.json"
   ],
   "scripts": {
     "generate": "node scripts/generate-capabilities.mjs",

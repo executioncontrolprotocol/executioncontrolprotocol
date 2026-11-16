@@ -18,6 +18,7 @@ node realignment/spikes/schema-scale/scale.mjs 5000 20 B   # B: per-plugin schem
 node realignment/spikes/schema-scale/scale2.mjs 5000       # C: lazy plugin loading; D: wrapped vs raw compile cost
 node realignment/spikes/schema-scale/scale3.mjs            # F: raw schema + marker error filtering; G: standalone code
 node realignment/spikes/schema-scale/validate-real.mjs     # real plugins and fixtures: today vs proposed (needs pnpm run build)
+node realignment/spikes/schema-scale/measure-editor-1k.mjs # S4: editor root + per-plugin write at 1,000 caps
 ```
 
 `scale3.mjs` part G imports Ajv's runtime helpers from the generated file; if it can't resolve

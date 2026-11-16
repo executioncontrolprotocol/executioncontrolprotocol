@@ -267,8 +267,18 @@ Implementation plan:
 - **Or document:** if a family is deliberately deferred after the validation fix, list it in
   spec 08, the plugin README, Phase 8 and the plan retrospective with the reason.
 
-- [ ] Decision recorded
-- [ ] Families shipped or documented
+Progress: **S1–S5 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
+base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy registry, root +
+per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets;
+S4b: server-mode editor writes off the start path — ready before background write, atomic
+files, `ecp schema` gated on HTTP `retrieve` `plugin`).
+S6 Firefly family ship lands on branch `fix/mvp-audit-group-a` (63 capabilities; `content-tagging`
+still skipped).
+
+- [x] Decision recorded (validation-at-scale S1–S5; ship all vendored families that generate
+  cleanly)
+- [x] Families shipped (audio-video, creative-production, express, illustrator, indesign,
+  substance3d + existing firefly, photoshop)
 
 ### F8 — Missing invalid fixtures from the spec 12 minimum set (Medium)
 
@@ -462,6 +472,14 @@ No fixed sleeps for ordering.
 **Tests:** run the file 50 times in a loop under parallel load (CI job or local script) with zero
 failures.
 
+**More evidence (2026-11-16, F7 work):** done so far: the drain test is deterministic (polls health
+for `draining`), and the conformance, Azure smoke, host shutdown and scale-equivalence tests got
+sized timeouts. Still flaky in the pre-commit coverage run, passing alone and in two full runs:
+`packages/engine/test/operations.test.ts` "covers retrieve and execute edge paths" and
+`packages/host/test/editor-schema-async.test.ts` "marks server ready before a slow editor write
+finishes" (timing-based by design; make it signal-based). Both failed together once, then passed on
+retry.
+
 **More evidence (2026-11-16, group B commits):** the same load-sensitive pattern failed other tests in
 the pre-commit coverage gate, each passing when run alone: `plugins/plugin-azure-blob-storage/test/smoke.test.ts`
 "loads every handler through its lazy thunk" (~15 s), `packages/host/test/http.test.ts` "shuts down via admin
@@ -499,6 +517,9 @@ supervisors that never notice their home disappeared; failed or interrupted test
 teardown enforces it). Supervisor unit/e2e: deleting `ECP_HOME` stops it within a few seconds.
 
 **Cleanup done during the audit:** the 68 leaked processes were stopped manually on 2026-11-16.
+
+**Clean runs leak too (2026-11-16, F7 work):** a full e2e run that passed (17 files) left 5 supervisor/host
+pairs running, all started during that run; they were stopped manually. So this isn't only interrupted runs.
 
 - [ ] Fixed
 

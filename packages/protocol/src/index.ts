@@ -110,6 +110,7 @@ export type {
   Lifecycle,
   PluginAdapter as PluginAdapterService,
   PluginInfo,
+  PluginSchemaFingerprint,
   RunStore,
   SecretsProvider as SecretsProviderService,
   ServiceToken,
@@ -127,6 +128,8 @@ export type {
   HandlerStore,
   PluginCapabilityManifest,
   PluginManifest,
+  PluginSchemaDocument,
+  PluginSchemaRef,
   StateHandle,
 } from "./plugins.js"
 export type { HostFile, SupervisorStatus } from "./host.js"

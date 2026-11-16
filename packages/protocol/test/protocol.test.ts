@@ -8,6 +8,7 @@ import {
   ERROR_CATALOGUE,
   EXECUTION_SCHEMA,
   EXECUTION_VERSION,
+  PLUGIN_MANIFEST_VERSION,
   PROTOCOL_VERSION,
   catalogueEntry,
   firstPartyInstallCommand,
@@ -29,6 +30,7 @@ const SCHEMA_FILES = [
   "step-record.schema.json",
   "run-event.schema.json",
   "plugin-manifest.schema.json",
+  "plugin-schema.schema.json",
   "host.schema.json",
   "retrieve.input.schema.json",
   "execute.input.schema.json",
@@ -83,6 +85,10 @@ describe("error catalogue", () => {
 })
 
 describe("JSON Schemas", () => {
+  it("stamps plugin-manifest version 2.0", () => {
+    expect(PLUGIN_MANIFEST_VERSION).toBe("2.0")
+  })
+
   it("compiles every schema under Ajv 2020", () => {
     const compiler = ajv()
     for (const name of SCHEMA_FILES) {
@@ -172,6 +178,42 @@ describe("JSON Schemas", () => {
         schemaHash: "def",
       },
       "envelope.schema.json": { ok: false, error: { code: "ECP_NOT_FOUND", message: "Missing." } },
+      "plugin-manifest.schema.json": {
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/test",
+          package: "@executioncontrolprotocol/plugin-test",
+          version: "1.0.0",
+          summary: "Test.",
+          description: "Test plugin.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: {
+          path: "./ecp.schema.json",
+          hash: "a".repeat(64),
+        },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/test.echo",
+            name: "echo",
+            summary: "Echo.",
+            description: "Echoes.",
+            useCases: ["Echo"],
+            projections: ["Take echo"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      },
+      "plugin-schema.schema.json": {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        $id: "ecp://plugins/@executioncontrolprotocol/test/1.0.0/schema.json",
+        $defs: {
+          "echo.accepts": { type: "object" },
+          "echo.returns": { type: "object" },
+        },
+      },
     }
     const compiler = ajv()
     for (const [name, sample] of Object.entries(samples)) {
@@ -205,9 +247,12 @@ describe("execution fixtures", () => {
       }>
       expect(validate(manifest), name).toBe(false)
       const paths = errorPaths(validate)
-      for (const issue of expected) {
+      const schemaIssues = expected.filter((issue) =>
+        issue.code === "ECP_MANIFEST_INVALID" || issue.code === "ECP_EXECUTION_LOAD",
+      )
+      expect(schemaIssues.length, name).toBeGreaterThan(0)
+      for (const issue of schemaIssues) {
         expect(issue.severity).toBe("error")
-        expect(["ECP_MANIFEST_INVALID", "ECP_EXECUTION_LOAD"]).toContain(issue.code)
         const hit = paths.some((pointer) => pointer === issue.path || pointer.startsWith(`${issue.path}/`) || issue.path.startsWith(pointer))
         expect(hit, `${name} expected ${issue.path} in ${paths.join(", ")}`).toBe(true)
       }

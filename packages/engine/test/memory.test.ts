@@ -177,7 +177,7 @@ describe("FixturePluginAdapter", () => {
   const adapter = new FixturePluginAdapter(
     {
       schema: "@executioncontrolprotocol.plugin-manifest",
-      version: "1.0",
+      version: "2.0",
       plugin: {
         id: "@executioncontrolprotocol/test",
         package: "@executioncontrolprotocol/plugin-test",
@@ -186,7 +186,10 @@ describe("FixturePluginAdapter", () => {
         description: "Test plugin",
       },
       sdkVersion: "fixture.sdk",
-      configSchema: { type: "object" },
+      pluginSchema: {
+        path: "./ecp.schema.json",
+        hash: "a".repeat(64),
+      },
       capabilities: [
         {
           id: "@executioncontrolprotocol/test.echo",
@@ -195,8 +198,6 @@ describe("FixturePluginAdapter", () => {
           description: "Echoes",
           useCases: ["tests"],
           projections: ["echo"],
-          accepts: { type: "object" },
-          returns: { type: "object" },
         },
       ],
       entry: "./dist/index.js",
@@ -204,6 +205,14 @@ describe("FixturePluginAdapter", () => {
     },
     {
       "@executioncontrolprotocol/test.echo": async (input) => ({ echo: input }),
+    },
+    {
+      $id: "ecp://plugins/@executioncontrolprotocol/test/fixture.1/schema.json",
+      $defs: {
+        "echo.accepts": { type: "object" },
+        "echo.returns": { type: "object" },
+        config: { type: "object" },
+      },
     },
   )
 

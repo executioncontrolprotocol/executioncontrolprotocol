@@ -14,11 +14,23 @@ const Ajv2020 = require("ajv/dist/2020.js").default
 const addFormats = require("ajv-formats").default
 const engine = await import(pathToFileURL(path.join(root, "packages/engine/dist/index.js")).href)
 
-// --- capabilities from every real manifest
+// --- capabilities from every real light manifest + ecp.schema.json
 const manifests = ["plugins", "fixtures/plugins"].flatMap(d => readdirSync(path.join(root, d)).map(p => path.join(root, d, p, "ecp.manifest.json")))
   .filter(f => { try { return statSync(f).isFile() } catch { return false } })
 const caps = new Map()
-for (const f of manifests) for (const c of JSON.parse(readFileSync(f, "utf8")).capabilities) caps.set(c.id, c)
+for (const f of manifests) {
+  const manifest = JSON.parse(readFileSync(f, "utf8"))
+  const schemaPath = path.join(path.dirname(f), manifest.pluginSchema?.path ?? "ecp.schema.json")
+  const schemaDoc = JSON.parse(readFileSync(schemaPath, "utf8"))
+  for (const c of manifest.capabilities) {
+    caps.set(c.id, {
+      ...c,
+      accepts: schemaDoc.$defs[`${c.name}.accepts`],
+      returns: schemaDoc.$defs[`${c.name}.returns`],
+      configSchema: schemaDoc.$defs.config,
+    })
+  }
+}
 console.log(`capabilities: ${caps.size} from ${manifests.length} manifests`)
 
 // --- today's per-operation cost: HostSchemaSet.create with all real capabilities

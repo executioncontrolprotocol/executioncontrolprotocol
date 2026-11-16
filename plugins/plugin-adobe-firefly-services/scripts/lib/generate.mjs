@@ -27,6 +27,13 @@ import {
   classifyOperation,
   resolveOutputForOperation,
 } from "./operation-class.mjs"
+import {
+  assertAgentMetadata,
+  deriveDefaultUseCases,
+  formatSummaryPhrase,
+  METADATA_OVERRIDES,
+  OPERATION_SPEC_ID_REMAP,
+} from "./metadata-prose.mjs"
 
 /** Plugin id; capability ids are `${PLUGIN_ID}.${name}`. */
 export const PLUGIN_ID = "@executioncontrolprotocol/adobe-firefly-services"
@@ -46,21 +53,15 @@ export const OPERATION_ID_REMAP = {
 /** Families whose specs are skipped (no Firefly Services OpenAPI published). */
 const SKIPPED_FAMILIES = new Set(["content-tagging"])
 
-/**
- * Families generated into src/generated/. The other vendored specs generate cleanly but are
- * held back: with all 63 capabilities the host's combined execution schema overflows the call
- * stack in Ajv (about 50+ capabilities of this size), so only the families localize-banner needs
- * ship until the host compiles capability schemas separately.
- */
-export const GENERATED_FAMILIES = ["firefly", "photoshop"]
-
-/** Vendored families that generate cleanly but are not shipped yet (see GENERATED_FAMILIES). */
-export const PENDING_FAMILIES = [
+/** Families generated into src/generated/ and shipped in the plugin manifest. */
+export const GENERATED_FAMILIES = [
   "audio-video",
   "creative-production",
   "express",
+  "firefly",
   "illustrator",
   "indesign",
+  "photoshop",
   "substance3d",
 ]
 
@@ -73,22 +74,6 @@ const FAMILY_LABELS = {
   indesign: "InDesign",
   photoshop: "Photoshop",
   substance3d: "Substance 3D",
-}
-
-/**
- * Hand-written prose for capabilities where the generated text is not enough for an agent.
- * Merged over the derived metadata.
- */
-const METADATA_OVERRIDES = {
-  "photoshop-actions": {
-    summary: "Run Photoshop actions or a UXP script on a document.",
-    description:
-      "Runs Photoshop actions (.atn files or inline actionJSON) or a UXP script against an input image or PSD and writes the requested outputs. Pass a UXP script inline as the string field options.uxp.source.content (executions supply it with $script; Adobe caps inline content at 50 KB) or reference a hosted script by URL. Outputs go to the destinations you list, such as presigned storage URLs. The step submits the job, waits for it to finish and returns the job result.",
-    useCases: [
-      "Edit text layers, swap images or apply adjustments in a PSD with a UXP script",
-      "Replay a recorded Photoshop action set over an image",
-    ],
-  },
 }
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"]
@@ -221,10 +206,14 @@ function isJsonMediaType(contentType) {
  * @param {string} operationId
  * @param {string} method
  * @param {string} path
+ * @param {string} [specRel] OpenAPI path relative to openapi/ (for spec-scoped id remaps).
  */
-export function capabilityName(family, operationId, method, path) {
+export function capabilityName(family, operationId, method, path, specRel) {
   let suffix
-  if (operationId) {
+  const specKey = specRel && operationId ? `${specRel}:${operationId}` : ""
+  if (specKey && OPERATION_SPEC_ID_REMAP[specKey]) {
+    suffix = OPERATION_SPEC_ID_REMAP[specKey]
+  } else if (operationId) {
     suffix = OPERATION_ID_REMAP[operationId] ?? toKebab(operationId)
   } else {
     const fromPath = path
@@ -440,29 +429,31 @@ export function deriveProjections(name, opClass) {
  * @param {"async-submit" | "sync"} opClass
  */
 export function deriveMetadata(operation, family, name, opClass) {
-  const suffix = name.startsWith(`${family}-`) ? name.slice(family.length + 1) : name
-  const summaryRaw = cleanDescription(operation.summary ?? "", 160)
   const label = familyLabel(family)
-  const summary = summaryRaw ? `${summaryRaw.replace(/\.$/, "")} (Adobe ${label}).` : `${humanizeKebab(suffix)} (Adobe ${label}).`
-  let description = cleanDescription(operation.description ?? "", 1200) || summary
-  if (opClass === "async-submit") {
+  const override = METADATA_OVERRIDES[name] ?? {}
+  const phrase =
+    override.summary ??
+    (name === "photoshop-actions"
+      ? "Run Photoshop actions or a UXP script on a document"
+      : formatSummaryPhrase(operation, name, cleanDescription))
+  const summary = phrase.includes("(Adobe ")
+    ? phrase
+    : phrase.endsWith(".")
+      ? phrase
+      : name === "photoshop-actions"
+        ? phrase.endsWith(".")
+          ? phrase
+          : `${phrase}.`
+        : `${phrase.replace(/\.$/, "")} (Adobe ${label}).`
+  let description = override.description ?? (cleanDescription(operation.description ?? "", 1200) || summary)
+  if (opClass === "async-submit" && !override.description) {
     description = `${description} The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.`
   }
 
-  /** @type {string[]} */
-  const useCases = []
-  if (summaryRaw) {
-    useCases.push(`When the goal is to ${summaryRaw.charAt(0).toLowerCase()}${summaryRaw.slice(1).replace(/\.$/, "")} with Adobe ${label}`)
-  }
-  for (const tag of operation.tags ?? []) {
-    const text = String(tag).trim()
-    if (text && useCases.length < 3) useCases.push(`Adobe ${label} ${text} tasks`)
-  }
-  if (useCases.length === 0) useCases.push(`When you need ${humanizeKebab(suffix).toLowerCase()} through Adobe ${label}`)
+  const useCases = override.useCases ?? deriveDefaultUseCases(operation, name, label, phrase.replace(/\.$/, ""))
 
-  const base = { summary, description, useCases, projections: deriveProjections(name, opClass) }
-  const override = METADATA_OVERRIDES[name]
-  return override ? { ...base, ...override } : base
+  const base = { summary, description, useCases, projections: override.projections ?? deriveProjections(name, opClass) }
+  return base
 }
 
 /**
@@ -494,7 +485,7 @@ export function generateFamily(family, specs) {
         const operation = /** @type {any} */ (item)?.[method]
         if (!operation) continue
         const operationId = operation.operationId || ""
-        let name = capabilityName(family, operationId, method, path)
+        let name = capabilityName(family, operationId, method, path, rel)
         const context = `${rel}:${method.toUpperCase()} ${path}`
         const opClass = classifyOperation({
           path,
@@ -669,10 +660,17 @@ export function generateFamily(family, specs) {
     accepts: op.built.keys,
   }))
 
+  const agentMetadata = ops.map((op) => ({
+    name: op.name,
+    summary: op.metadata.summary,
+    useCases: op.metadata.useCases,
+  }))
+
   return {
     exportName,
     files: { "schemas.ts": schemasTs, "capabilities.ts": capabilitiesTs, "operations.ts": operationsTs },
     operations,
+    agentMetadata,
     skipped,
     errors: errors.map((e) => `[${family}] ${e}`),
   }
@@ -695,12 +693,15 @@ export function generateAll(families) {
   /** @type {{ name: string, reason: string }[]} */
   const skipped = []
   const specFiles = []
+  /** @type {{ name: string, summary: string, useCases: string[] }[]} */
+  const agentMetadata = []
 
   for (const [family, specs] of families) {
     const result = generateFamily(family, specs)
     for (const [file, content] of Object.entries(result.files)) files[`${family}/${file}`] = content
     errors.push(...result.errors)
     operations.push(...result.operations)
+    agentMetadata.push(...result.agentMetadata)
     skipped.push(...result.skipped)
     specFiles.push(...specs.map((s) => s.rel))
     if (result.operations.length > 0) {
@@ -732,7 +733,7 @@ export function generateAll(families) {
   const meta = {
     pluginId: PLUGIN_ID,
     families: [...families.keys()],
-    pendingFamilies: PENDING_FAMILIES.filter((family) => !families.has(family)),
+    pendingFamilies: [],
     specFiles: specFiles.sort(),
     capabilityCount: operations.length,
     capabilities: operations.map((op) => ({
@@ -745,5 +746,9 @@ export function generateAll(families) {
     skipped: skipped.sort((a, b) => (a.name < b.name ? -1 : 1)),
   }
   files["meta.json"] = `${JSON.stringify(meta, null, 2)}\n`
+
+  agentMetadata.sort((a, b) => (a.name < b.name ? -1 : 1))
+  assertAgentMetadata(agentMetadata)
+
   return { files, errors, meta }
 }

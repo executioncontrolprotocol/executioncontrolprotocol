@@ -6,6 +6,8 @@ import type {
   PluginAdapter,
   PluginInfo,
   PluginManifest,
+  PluginSchemaDocument,
+  PluginSchemaFingerprint,
 } from "@executioncontrolprotocol/protocol"
 
 /**
@@ -18,7 +20,8 @@ export type FixtureHandler = (
 ) => Promise<unknown>
 
 /**
- * Plugin adapter that serves one manifest and in-test handlers. It does not import plugin code.
+ * Plugin adapter that serves one light manifest, schema document, and in-test handlers.
+ * It does not import plugin code.
  * @category Environment
  */
 export class FixturePluginAdapter implements PluginAdapter {
@@ -32,15 +35,20 @@ export class FixturePluginAdapter implements PluginAdapter {
   currentStore?: HandlerStore
 
   /**
-   * @param manifest A fixture `ecp.manifest.json`, already parsed.
+   * @param manifest A light fixture `ecp.manifest.json`, already parsed.
    * @param handlers Capability id to handler. A missing handler fails the call.
+   * @param schemaDocument Matching `ecp.schema.json` used to assemble accepts/returns.
    */
   constructor(
     private readonly manifest: PluginManifest,
     private readonly handlers: Record<string, FixtureHandler>,
+    private readonly schemaDocument: PluginSchemaDocument,
   ) {}
 
-  /** Capability entries from the manifest. */
+  /**
+   * Light capability rows (no accepts/returns). Tests that need schemas should call
+   * {@link FixturePluginAdapter.loadPluginSchema} or assemble full entries.
+   */
   capabilities(): CapabilityEntry[] {
     return this.manifest.capabilities.map((capability) => ({
       id: capability.id,
@@ -51,9 +59,6 @@ export class FixturePluginAdapter implements PluginAdapter {
       description: capability.description,
       useCases: capability.useCases,
       projections: capability.projections,
-      accepts: capability.accepts,
-      returns: capability.returns,
-      configSchema: this.manifest.configSchema,
       timeoutMs: capability.timeoutMs,
     }))
   }
@@ -73,10 +78,29 @@ export class FixturePluginAdapter implements PluginAdapter {
     ]
   }
 
+  /** Schema fingerprints from the light manifest. */
+  schemaFingerprints(): readonly PluginSchemaFingerprint[] {
+    return [
+      {
+        pluginId: this.manifest.plugin.id,
+        version: this.manifest.plugin.version,
+        hash: this.manifest.pluginSchema.hash,
+      },
+    ]
+  }
+
   /** Config schema when the id matches this manifest. */
   configSchema(pluginId: string): JsonSchema | undefined {
     if (pluginId !== this.manifest.plugin.id) return undefined
-    return this.manifest.configSchema
+    return this.schemaDocument.$defs.config
+  }
+
+  /** Return the fixture schema document when the id matches. */
+  async loadPluginSchema(pluginId: string): Promise<PluginSchemaDocument | undefined> {
+    if (pluginId !== this.manifest.plugin.id && pluginId !== this.manifest.plugin.package) {
+      return undefined
+    }
+    return this.schemaDocument
   }
 
   /** Invoke the in-test handler. */

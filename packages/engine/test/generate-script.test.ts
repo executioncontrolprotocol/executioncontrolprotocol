@@ -23,7 +23,7 @@ const openEcho: CapabilityEntry = {
   },
 }
 
-describe("generateExecutionSchema $script on open fields", () => {
+describe("validation $script on open fields", () => {
   it("allows $script when the accepts property is an open schema", async () => {
     const result = await validateExecution(
       {
