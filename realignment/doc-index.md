@@ -16,7 +16,7 @@ Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 29 |
+| Plan / phases / spec | 30 |
 | Package READMEs | 10 |
 | Plugin READMEs | 4 |
 | Contributor skill | 4 |
@@ -64,6 +64,7 @@ Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate
 | `realignment/phase-8-plugins-and-dogfood.md` | Plan / phases / spec | current |
 | `realignment/phase-9-acceptance.md` | Plan / phases / spec | current |
 | `realignment/post-mvp-fluent-sdk.md` | Plan / phases / spec | current |
+| `realignment/schema-scaling-plan.md` | Plan / phases / spec | current |
 | `realignment/spec/01-layout-and-stack.md` | Plan / phases / spec | current |
 | `realignment/spec/02-execution-manifest.md` | Plan / phases / spec | current |
 | `realignment/spec/03-validation.md` | Plan / phases / spec | current |

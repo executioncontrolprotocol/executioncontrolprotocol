@@ -17,6 +17,7 @@ node realignment/spikes/schema-scale/scale.mjs 63 20 A     # A: one combined sch
 node realignment/spikes/schema-scale/scale.mjs 5000 20 B   # B: per-plugin schemas, lazy per-capability compile
 node realignment/spikes/schema-scale/scale2.mjs 5000       # C: lazy plugin loading; D: wrapped vs raw compile cost
 node realignment/spikes/schema-scale/scale3.mjs            # F: raw schema + marker error filtering; G: standalone code
+node realignment/spikes/schema-scale/validate-real.mjs     # real plugins and fixtures: today vs proposed (needs pnpm run build)
 ```
 
 `scale3.mjs` part G imports Ajv's runtime helpers from the generated file; if it can't resolve
@@ -38,6 +39,28 @@ node realignment/spikes/schema-scale/scale3.mjs            # F: raw schema + mar
 | F | Raw `accepts` + drop only the errors a marker position explains (incl. `anyOf`/`oneOf` branch rule) | 8 cases | 8/8 correct: markers at string/object/array/inside `anyOf` pass; typo field, bad enum beside a marker, no matching `anyOf` branch, wrong literal type all fail |
 | G | Ajv standalone code generated at plugin build time (raw schemas) | 20 | 921 KB for 20 capabilities, generated in 169 ms, loaded in 171 ms; runtime compile is 7-16 ms per capability, so precompiling buys nothing |
 | E | Standalone code for marker-wrapped schemas | 20 | 10 MB of generated code; not viable |
+
+## Real data (`validate-real.mjs`)
+
+Run from the repo root after `pnpm run build`. Uses the built engine and every real plugin and
+fixture manifest (29 unique capabilities), and every step in every `fixtures/` and `examples/`
+execution (96 steps in 62 files).
+
+| Check | Result |
+| --- | --- |
+| Today's `HostSchemaSet.create` with all 29 capabilities | 3.1–3.5 s **per call**; it runs on every `execute`, validate and `commit` (no cache). Likely the main cause of F6's slow warm commands |
+| Compile all 29 capabilities one by one | raw `accepts` 0.47 s total (max 47 ms); marker-wrapped 3.6 s total (max 1.3 s) |
+| Today vs proposed, same verdict and same error locations | **96/96** steps |
+
+The first run gave 94/96 and exposed two rules the implementation must follow (both now in the
+script and in the plan):
+
+1. **Open objects:** when an object schema doesn't set `additionalProperties: false`, an
+   undeclared property accepts any value, so a `$script` there is allowed (`test.echo` in
+   `fixtures/manifests/valid/markers.ecp.json`).
+2. **Marker syntax is still validated:** `$script` needs `lang: "js"` and exactly one of
+   `source`/`path` (`fixtures/manifests/invalid/schema-script-both.ecp.json`), checked against the
+   protocol's marker schema, separately from the capability's `accepts`.
 
 ## Conclusions
 

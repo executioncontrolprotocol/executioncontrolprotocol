@@ -250,6 +250,9 @@ capabilities):**
    5,000 synthetic capabilities; budgets: start independent of N, first-use compile ≤ 50 ms per
    capability, cached ≤ 1 ms.
 
+Implementation plan:
+[`schema-scaling-plan.md`](schema-scaling-plan.md) (rollout S1–S6).
+
 **Fix (default = ship):**
 
 - **Validation first:** implement the design above (spec 03 and 08 updated first, in the same
