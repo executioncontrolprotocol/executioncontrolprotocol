@@ -3,6 +3,7 @@ import type {
   CapabilityEntry,
   ConfigObject,
   ExecutionManifest,
+  PluginSchemaDocument,
   ValidationIssue,
   ValidationResult,
 } from "@executioncontrolprotocol/protocol"
@@ -29,6 +30,11 @@ export interface ValidateOptions {
   readText?: (absolutePath: string) => Promise<string>
   /** Run input. When set, L4 checks it against `execution.accepts`. */
   input?: Record<string, unknown>
+  /**
+   * Optional loader for a plugin's schema document.
+   * Unused in S1; reserved for lazy schema loading in later ships.
+   */
+  loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
 }
 
 interface AjvError {

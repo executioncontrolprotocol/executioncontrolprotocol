@@ -373,9 +373,9 @@ Spot-check: `ecp retrieve --type capability --id <id>` returns accepts/returns; 
 
 ### Todos
 
-- **specs** — Amend spec 08 only (manifest 2.0 with `pluginSchema`, `ecp.schema.json`, loading)
-- **protocol** — Bump PLUGIN_MANIFEST_VERSION to 2.0; light types; PluginSchemaDocument; plugin-manifest + plugin-schema JSON Schemas; PluginAdapter.loadPluginSchema
-- **sdk-emit** — buildPluginSchemaDocument + light buildPluginManifest; bin write/--check both files; unit + bin tests
-- **local-load** — Load/validate ecp.schema.json; link builds both in memory; assemble CapabilityEntry; reject 1.0 / missing schema
-- **regenerate** — Regenerate all first-party plugins + update fixtures/e2e/minimal + local test fixtures
-- **verify** — Run build, plugins:check-manifests, coverage, check; confirm engine behaviour unchanged
+- [x] **specs** — Amend spec 08 only (manifest 2.0 with `pluginSchema`, `ecp.schema.json`, loading)
+- [x] **protocol** — Bump PLUGIN_MANIFEST_VERSION to 2.0; light types; PluginSchemaDocument; plugin-manifest + plugin-schema JSON Schemas; PluginAdapter.loadPluginSchema
+- [x] **sdk-emit** — buildPluginSchemaDocument + light buildPluginManifest; bin write/--check both files; unit + bin tests
+- [x] **local-load** — Load/validate ecp.schema.json; link builds both in memory; assemble CapabilityEntry; reject 1.0 / missing schema
+- [x] **regenerate** — Regenerate all first-party plugins + update fixtures/e2e/minimal + local test fixtures
+- [x] **verify** — Run build, plugins:check-manifests, coverage, check; confirm engine behaviour unchanged

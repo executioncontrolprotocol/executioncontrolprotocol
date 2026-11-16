@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import {
   buildPluginManifest,
+  buildPluginSchemaDocument,
   capability,
   definePlugin,
   serializeManifest,
+  serializePluginSchema,
   zodToJsonSchema,
 } from "../src/index.js"
+import { canonicalJson, sha256Hex } from "../src/canonical.js"
 
 const echo = capability({
   summary: "Echo.",
@@ -34,21 +37,23 @@ const plugin = definePlugin({
 })
 
 describe("buildPluginManifest", () => {
-  it("is deterministic and stamps package version", async () => {
+  it("emits a light 2.0 manifest linked to the schema document", async () => {
     const packageVersion = "3.1.4"
-    const first = await buildPluginManifest({
-      definition: plugin,
-      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: packageVersion },
-    })
-    const second = await buildPluginManifest({
-      definition: plugin,
-      packageJson: { name: "@executioncontrolprotocol/plugin-test", version: packageVersion },
-    })
+    const packageJson = { name: "@executioncontrolprotocol/plugin-test", version: packageVersion }
+    const schemaDocument = await buildPluginSchemaDocument({ definition: plugin, packageJson })
+    const first = await buildPluginManifest({ definition: plugin, packageJson, schemaDocument })
+    const second = await buildPluginManifest({ definition: plugin, packageJson, schemaDocument })
     expect(serializeManifest(first)).toBe(serializeManifest(second))
+    expect(first.version).toBe("2.0")
     expect(first.plugin.version).toBe(packageVersion)
     expect(first.plugin.package).toBe("@executioncontrolprotocol/plugin-test")
     expect(first.hash).toMatch(/^[a-f0-9]{64}$/)
     expect(first.capabilities[0]?.id).toBe("@executioncontrolprotocol/test.echo")
+    expect(first.capabilities[0]).not.toHaveProperty("accepts")
+    expect(first.capabilities[0]).not.toHaveProperty("returns")
+    expect(first).not.toHaveProperty("configSchema")
+    expect(first.pluginSchema.path).toBe("./ecp.schema.json")
+    expect(first.pluginSchema.hash).toBe(await sha256Hex(canonicalJson(schemaDocument)))
     expect(JSON.stringify(first)).not.toContain("$schema")
   })
 
@@ -80,21 +85,35 @@ describe("buildPluginManifest", () => {
     ).rejects.toThrow(/missing version/)
   })
 
-  it("omits configSchema when the plugin has no config", async () => {
+  it("omits $defs.config when the plugin has no config and honours entry/sdkVersion", async () => {
     const bare = definePlugin({
       id: "@executioncontrolprotocol/bare",
       summary: "Bare.",
       description: "No config.",
       capabilities: { echo },
     })
+    const packageJson = { name: "@executioncontrolprotocol/plugin-bare", version: "1.0.0" }
+    const schemaDocument = await buildPluginSchemaDocument({ definition: bare, packageJson })
+    expect(schemaDocument.$defs.config).toBeUndefined()
+    expect(schemaDocument.$id).toBe("ecp://plugins/@executioncontrolprotocol/bare/1.0.0/schema.json")
+    expect(schemaDocument.$defs["echo.accepts"]).toBeTruthy()
+    expect(schemaDocument.$defs["echo.returns"]).toBeTruthy()
     const manifest = await buildPluginManifest({
       definition: bare,
-      packageJson: { name: "@executioncontrolprotocol/plugin-bare", version: "1.0.0" },
+      packageJson,
+      schemaDocument,
       entry: "./dist/custom.js",
       sdkVersion: "9.9.9",
     })
-    expect(manifest.configSchema).toBeUndefined()
+    expect(manifest).not.toHaveProperty("configSchema")
     expect(manifest.entry).toBe("./dist/custom.js")
     expect(manifest.sdkVersion).toBe("9.9.9")
+  })
+
+  it("puts config into $defs.config only", async () => {
+    const packageJson = { name: "@executioncontrolprotocol/plugin-test", version: "1.0.0" }
+    const schemaDocument = await buildPluginSchemaDocument({ definition: plugin, packageJson })
+    expect(schemaDocument.$defs.config).toMatchObject({ type: "object" })
+    expect(serializePluginSchema(schemaDocument)).toContain("$schema")
   })
 })

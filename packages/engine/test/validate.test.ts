@@ -6,12 +6,13 @@ import type { CapabilityEntry, ExecutionManifest } from "@executioncontrolprotoc
 import { damerauLevenshtein, HostSchemaSet, loadExecutionText, validateExecution } from "../src/index.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const plugin = JSON.parse(
-  readFileSync(path.resolve(here, "../../../fixtures/plugins/fixture-plugin/ecp.manifest.json"), "utf8"),
-) as {
+const fixtureDir = path.resolve(here, "../../../fixtures/plugins/fixture-plugin")
+const plugin = JSON.parse(readFileSync(path.join(fixtureDir, "ecp.manifest.json"), "utf8")) as {
   plugin: { id: string; package: string; version: string }
-  configSchema?: Record<string, unknown>
   capabilities: Array<Record<string, unknown>>
+}
+const schemaDocument = JSON.parse(readFileSync(path.join(fixtureDir, "ecp.schema.json"), "utf8")) as {
+  $defs: Record<string, Record<string, unknown>>
 }
 
 const capabilities: CapabilityEntry[] = plugin.capabilities.map((capability) => ({
@@ -23,9 +24,9 @@ const capabilities: CapabilityEntry[] = plugin.capabilities.map((capability) => 
   description: String(capability.description),
   useCases: capability.useCases as string[],
   projections: capability.projections as string[],
-  accepts: capability.accepts as Record<string, unknown>,
-  returns: capability.returns as Record<string, unknown>,
-  configSchema: plugin.configSchema,
+  accepts: schemaDocument.$defs[`${String(capability.name)}.accepts`]!,
+  returns: schemaDocument.$defs[`${String(capability.name)}.returns`]!,
+  configSchema: schemaDocument.$defs.config,
   timeoutMs: capability.timeoutMs as number | undefined,
 }))
 

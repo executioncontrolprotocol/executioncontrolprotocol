@@ -153,7 +153,18 @@ export type Handler<Input = unknown, Output = unknown, Config = Record<string, u
 ) => Promise<Output>
 
 /**
- * One capability inside `ecp.manifest.json`.
+ * Pointer from a light plugin manifest to its {@link PluginSchemaDocument} file.
+ * @category Plugins
+ */
+export interface PluginSchemaRef {
+  /** Relative path to `ecp.schema.json` (usually `./ecp.schema.json`). */
+  path: string
+  /** SHA-256 hex of the canonical JSON of `ecp.schema.json`. */
+  hash: string
+}
+
+/**
+ * One capability inside the light `ecp.manifest.json` (no embedded schemas).
  * @category Plugins
  */
 export interface PluginCapabilityManifest {
@@ -169,23 +180,33 @@ export interface PluginCapabilityManifest {
   useCases: string[]
   /** What to take from the output. */
   projections: string[]
-  /** JSON Schema for the input. */
-  accepts: Record<string, unknown>
-  /** JSON Schema for the output. */
-  returns: Record<string, unknown>
   /** Step timeout in milliseconds. */
   timeoutMs?: number
 }
 
 /**
- * `ecp.manifest.json`.
+ * Per-plugin schema document (`ecp.schema.json`).
+ * `$defs` keys are `<capabilityName>.accepts`, `<capabilityName>.returns`, and optional `config`.
+ * @category Plugins
+ */
+export interface PluginSchemaDocument {
+  /** Draft id kept on the written file. */
+  $schema?: string
+  /** `ecp://plugins/<plugin-id>/<version>/schema.json`. */
+  $id: string
+  /** Raw accepts/returns/config JSON Schemas. */
+  $defs: Record<string, Record<string, unknown>>
+}
+
+/**
+ * Light `ecp.manifest.json` (plugin-manifest version 2.0).
  * @category Plugins
  */
 export interface PluginManifest {
   /** Always `@executioncontrolprotocol.plugin-manifest`. */
   schema: "@executioncontrolprotocol.plugin-manifest"
-  /** Always `1.0`. */
-  version: "1.0"
+  /** Always `2.0`. */
+  version: "2.0"
   /** Plugin identity. */
   plugin: {
     /** Plugin id. */
@@ -201,9 +222,9 @@ export interface PluginManifest {
   }
   /** plugin-sdk version that generated the manifest. */
   sdkVersion: string
-  /** Config schema, when the plugin declares config. */
-  configSchema?: Record<string, unknown>
-  /** Capabilities. */
+  /** Path and content hash of `ecp.schema.json`. */
+  pluginSchema: PluginSchemaRef
+  /** Capabilities (metadata only; schemas live in {@link PluginSchemaDocument}). */
   capabilities: PluginCapabilityManifest[]
   /** Module the host imports on first call. */
   entry: string

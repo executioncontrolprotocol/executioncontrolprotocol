@@ -47,7 +47,11 @@ export interface ValidationResult {
   issues: ValidationIssue[]
   /** SHA-256 of the canonical (sorted-keys) manifest JSON. */
   manifestHash: string
-  /** Hash of the generated schema. Changes when plugins change. */
+  /**
+   * Hash of the generated schema. Changes when plugins change.
+   * Post-S3 meaning: hash of the base execution schema plus sorted plugin schema document
+   * hashes. S1 still hashes the generated combined execution schema (unchanged computation).
+   */
   schemaHash: string
 }
 

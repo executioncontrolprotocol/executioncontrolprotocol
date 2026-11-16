@@ -2,7 +2,14 @@ import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { beforeAll, describe, expect, it } from "vitest"
-import type { CapabilityCall, CapabilityEntry, ConfigObject, ExecutionManifest, PluginManifest } from "@executioncontrolprotocol/protocol"
+import type {
+  CapabilityCall,
+  CapabilityEntry,
+  ConfigObject,
+  ExecutionManifest,
+  PluginManifest,
+  PluginSchemaDocument,
+} from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
 import { resolveValue, runExecution, startExecution, VERSION, type StateStore } from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
@@ -13,6 +20,9 @@ const runsDir = path.join(root, "fixtures/manifests/runs")
 const manifest = JSON.parse(
   readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.manifest.json"), "utf8"),
 ) as PluginManifest
+const schemaDocument = JSON.parse(
+  readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.schema.json"), "utf8"),
+) as PluginSchemaDocument
 
 const capabilities: CapabilityEntry[] = manifest.capabilities.map((capability) => ({
   id: capability.id,
@@ -23,8 +33,9 @@ const capabilities: CapabilityEntry[] = manifest.capabilities.map((capability) =
   description: capability.description,
   useCases: capability.useCases,
   projections: capability.projections,
-  accepts: capability.accepts,
-  returns: capability.returns,
+  accepts: schemaDocument.$defs[`${capability.name}.accepts`]!,
+  returns: schemaDocument.$defs[`${capability.name}.returns`]!,
+  configSchema: schemaDocument.$defs.config,
   timeoutMs: capability.timeoutMs,
 }))
 

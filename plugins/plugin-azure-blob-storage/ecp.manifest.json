@@ -1,116 +1,24 @@
 {
   "capabilities": [
     {
-      "accepts": {
-        "properties": {
-          "blobName": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "container": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "blobName"
-        ],
-        "type": "object"
-      },
       "description": "Fetches one blob into memory and writes it as a run artifact named after the last segment of the blob name, with the blob's Content-Type. Missing blobs fail the step with ECP_PROVIDER_ERROR and status 404.",
       "id": "@executioncontrolprotocol/azure-blob-storage.download",
       "name": "download",
       "projections": [
         "Take `file` (an artifact ref) and pass it to the next step's file input"
       ],
-      "returns": {
-        "additionalProperties": false,
-        "properties": {
-          "file": {
-            "additionalProperties": false,
-            "properties": {
-              "kind": {
-                "const": "artifact",
-                "type": "string"
-              },
-              "mediaType": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "sizeBytes": {
-                "type": "number"
-              },
-              "uri": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "uri"
-            ],
-            "type": "object"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "type": "object"
-      },
       "summary": "Download a blob into a run artifact.",
       "useCases": [
         "Bring a stored blob into the run so later steps can read it as a file ref"
       ]
     },
     {
-      "accepts": {
-        "properties": {
-          "blobName": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "container": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "expiresInSeconds": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "permissions": {
-            "pattern": "^[racwd]+$",
-            "type": "string"
-          }
-        },
-        "required": [
-          "blobName"
-        ],
-        "type": "object"
-      },
       "description": "Creates a service SAS URL for an existing or future blob. Defaults to read-only for one hour; `permissions` takes the letters r, a, c, w and d. Needs an account key in the config (a connection string with AccountKey, or accountName and accountKey). The blob is not checked for existence.",
       "id": "@executioncontrolprotocol/azure-blob-storage.sas",
       "name": "sas",
       "projections": [
         "Take `sasUrl` as the link; `expiresOn` says when it stops working"
       ],
-      "returns": {
-        "additionalProperties": false,
-        "properties": {
-          "expiresOn": {
-            "type": "string"
-          },
-          "sasUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sasUrl",
-          "expiresOn"
-        ],
-        "type": "object"
-      },
       "summary": "Mint a signed URL for one blob.",
       "useCases": [
         "Share a stored blob with a person or service for a limited time",
@@ -118,138 +26,12 @@
       ]
     },
     {
-      "accepts": {
-        "properties": {
-          "blobName": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "container": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "contentType": {
-            "type": "string"
-          },
-          "createReadSas": {
-            "type": "boolean"
-          },
-          "file": {
-            "oneOf": [
-              {
-                "properties": {
-                  "kind": {
-                    "const": "file",
-                    "type": "string"
-                  },
-                  "mediaType": {
-                    "type": "string"
-                  },
-                  "path": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "path"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "headers": {
-                    "additionalProperties": {
-                      "type": "string"
-                    },
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "type": "object"
-                  },
-                  "kind": {
-                    "const": "url",
-                    "type": "string"
-                  },
-                  "mediaType": {
-                    "type": "string"
-                  },
-                  "url": {
-                    "format": "uri",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "url"
-                ],
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "kind": {
-                    "const": "artifact",
-                    "type": "string"
-                  },
-                  "mediaType": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "sizeBytes": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "uri": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "uri"
-                ],
-                "type": "object"
-              }
-            ]
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "type": "object"
-      },
       "description": "Reads a file ref (local path, URL or run artifact) and stores it as a block blob, overwriting any blob with the same name. Without `blobName` a random UUID is used; without `container` the config's defaultContainer is used. Set `createReadSas` to also get a one-hour read-only signed URL, which needs an account key in the config. Use `sas` for other permissions or lifetimes.",
       "id": "@executioncontrolprotocol/azure-blob-storage.upload",
       "name": "upload",
       "projections": [
         "Take `blobName` and `container` to address the blob later; `sasUrl` is the shareable link when requested; `blobUrl` works only for public containers"
       ],
-      "returns": {
-        "additionalProperties": false,
-        "properties": {
-          "blobName": {
-            "type": "string"
-          },
-          "blobUrl": {
-            "type": "string"
-          },
-          "container": {
-            "type": "string"
-          },
-          "sasUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "blobName",
-          "container",
-          "blobUrl"
-        ],
-        "type": "object"
-      },
       "summary": "Upload a file to Azure Blob Storage.",
       "useCases": [
         "Persist generated media or reports so later steps or people can fetch them",
@@ -257,49 +39,8 @@
       ]
     }
   ],
-  "configSchema": {
-    "anyOf": [
-      {
-        "properties": {
-          "connectionString": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "defaultContainer": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "connectionString"
-        ],
-        "type": "object"
-      },
-      {
-        "properties": {
-          "accountKey": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "accountName": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "defaultContainer": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "accountName",
-          "accountKey"
-        ],
-        "type": "object"
-      }
-    ]
-  },
   "entry": "./dist/index.js",
-  "hash": "59b26ed25ff69a20b0b210984a93f4a2312bb56abf5076ce79c896a771dbca8c",
+  "hash": "18fdf8e45ad487ceac22fff58b9529056277eb7a1e039689db899387d93b9414",
   "plugin": {
     "description": "Blob storage for executions that persist media, share time-limited links or bring stored objects into a run as artifacts. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
@@ -307,7 +48,11 @@
     "summary": "Upload, download and mint SAS URLs for Azure Blob Storage.",
     "version": "0.60.0"
   },
+  "pluginSchema": {
+    "hash": "0b4be5eed0ff182a11e515c5fa4a1a852b9f2817b73fdadb31744f74b9ba7214",
+    "path": "./ecp.schema.json"
+  },
   "schema": "@executioncontrolprotocol.plugin-manifest",
   "sdkVersion": "0.60.0",
-  "version": "1.0"
+  "version": "2.0"
 }

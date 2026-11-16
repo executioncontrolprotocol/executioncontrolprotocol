@@ -2,7 +2,13 @@ import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { beforeAll, describe, expect, it } from "vitest"
-import type { CapabilityEntry, ConfigObject, ExecutionManifest, PluginManifest } from "@executioncontrolprotocol/protocol"
+import type {
+  CapabilityEntry,
+  ConfigObject,
+  ExecutionManifest,
+  PluginManifest,
+  PluginSchemaDocument,
+} from "@executioncontrolprotocol/protocol"
 import {
   ExpressionEngine,
   PluginAdapter,
@@ -23,8 +29,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const manifests = path.join(root, "fixtures", "manifests")
 const runsDir = path.join(manifests, "runs")
 
-function capabilitiesOf(file: string): CapabilityEntry[] {
-  const manifest = JSON.parse(readFileSync(file, "utf8")) as PluginManifest
+function capabilitiesOf(manifestFile: string): CapabilityEntry[] {
+  const manifest = JSON.parse(readFileSync(manifestFile, "utf8")) as PluginManifest
+  const schemaFile = path.join(path.dirname(manifestFile), "ecp.schema.json")
+  const schemaDocument = JSON.parse(readFileSync(schemaFile, "utf8")) as PluginSchemaDocument
+  const configSchema = schemaDocument.$defs.config
   return manifest.capabilities.map((capability) => ({
     id: capability.id,
     plugin: manifest.plugin.id,
@@ -34,9 +43,9 @@ function capabilitiesOf(file: string): CapabilityEntry[] {
     description: capability.description,
     useCases: capability.useCases,
     projections: capability.projections,
-    accepts: capability.accepts,
-    returns: capability.returns,
-    configSchema: manifest.configSchema,
+    accepts: schemaDocument.$defs[`${capability.name}.accepts`]!,
+    returns: schemaDocument.$defs[`${capability.name}.returns`]!,
+    configSchema,
     timeoutMs: capability.timeoutMs,
   }))
 }
@@ -44,6 +53,9 @@ function capabilitiesOf(file: string): CapabilityEntry[] {
 const testPlugin = JSON.parse(
   readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.manifest.json"), "utf8"),
 ) as PluginManifest
+const testPluginSchema = JSON.parse(
+  readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.schema.json"), "utf8"),
+) as PluginSchemaDocument
 const testCapabilities = capabilitiesOf(path.join(root, "fixtures/plugins/fixture-plugin/ecp.manifest.json"))
 const creativeCapabilities = capabilitiesOf(path.join(root, "fixtures/plugins/fixture-creative/ecp.manifest.json"))
 
@@ -181,7 +193,7 @@ describe("run conformance through execute", () => {
   it("matches status, result, step statuses and event type order", async () => {
     const storage = new MemoryStorage()
     const secrets = new MemorySecrets()
-    const plugins = new FixturePluginAdapter(testPlugin, fixtureHandlers())
+    const plugins = new FixturePluginAdapter(testPlugin, fixtureHandlers(), testPluginSchema)
     const host = await createEnvironment()
       .use(bind(MemoryStorage.id, storage), StorageProvider)
       .use(bind(MemorySecrets.id, secrets), SecretsProvider)

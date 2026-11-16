@@ -476,9 +476,9 @@ Each PR green alone (`pnpm run check` / CI).
 ## 10. Exit criteria (measurable)
 
 - [ ] Spec 03/08/02/09/10/12 updated as above (incl. plugin-manifest 2.0 light manifests); F7
-  design checkboxes in `mvp-audit-fixes.md` ticked with PR links.
-- [ ] Every first-party plugin ships/checks light `ecp.manifest.json` + `ecp.schema.json`;
-  missing schema file → `manifestOk: false` (non-link).
+  design checkboxes in `mvp-audit-fixes.md` ticked with PR links. *(S1: spec 08 only.)*
+- [x] Every first-party plugin ships/checks light `ecp.manifest.json` + `ecp.schema.json`;
+  missing schema file → `manifestOk: false` (non-link). *(S1)*
 - [ ] Runtime never calls `ajv.compile` on a combined marker-wrapped all-capabilities schema.
 - [ ] `validate-scale-equivalence.test.ts` green over `fixtures/` + `examples/` with all real +
   fixture plugins, then legacy path removed; conformance exact-match green.

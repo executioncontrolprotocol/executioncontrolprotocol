@@ -11,6 +11,7 @@ import type {
   JsonSchema,
   PluginAdapter,
   PluginInfo,
+  PluginSchemaDocument,
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { IMPLEMENTATION_IDS, StorageProvider } from "@executioncontrolprotocol/protocol"
@@ -147,12 +148,17 @@ export class LocalPluginRegistration implements PluginAdapter {
     }
   }
 
-  /** Capability entries from good manifests. */
+  /** Capability entries assembled from light manifests and schema documents. */
   capabilities(): CapabilityEntry[] {
     const entries: CapabilityEntry[] = []
     for (const registration of this.registrations) {
       if (!registration.info.manifestOk || !registration.loaded) continue
+      const schemaDocument = registration.loaded.schemaDocument
+      const configSchema = schemaDocument.$defs.config
       for (const capability of registration.loaded.manifest.capabilities) {
+        const accepts = schemaDocument.$defs[`${capability.name}.accepts`]
+        const returns = schemaDocument.$defs[`${capability.name}.returns`]
+        if (!accepts || !returns) continue
         entries.push({
           id: capability.id,
           plugin: registration.info.id,
@@ -162,9 +168,9 @@ export class LocalPluginRegistration implements PluginAdapter {
           description: capability.description,
           useCases: capability.useCases,
           projections: capability.projections,
-          accepts: capability.accepts,
-          returns: capability.returns,
-          configSchema: registration.loaded.manifest.configSchema,
+          accepts,
+          returns,
+          configSchema,
           timeoutMs: capability.timeoutMs,
         })
       }
@@ -179,10 +185,15 @@ export class LocalPluginRegistration implements PluginAdapter {
 
   /** Config schema for a plugin id. */
   configSchema(pluginId: string): JsonSchema | undefined {
-    const registration = this.registrations.find(
-      (item) => item.info.id === pluginId || item.info.package === pluginId,
-    )
-    return registration?.loaded?.manifest.configSchema
+    const registration = this.findRegistration(pluginId)
+    return registration?.loaded?.schemaDocument.$defs.config
+  }
+
+  /** Return the in-memory schema document for a good registration. */
+  async loadPluginSchema(pluginId: string): Promise<PluginSchemaDocument | undefined> {
+    const registration = this.findRegistration(pluginId)
+    if (!registration?.info.manifestOk || !registration.loaded) return undefined
+    return registration.loaded.schemaDocument
   }
 
   /** Import on first call and invoke the handler with a full context. */
@@ -193,10 +204,9 @@ export class LocalPluginRegistration implements PluginAdapter {
         code: "ECP_CAPABILITY_UNKNOWN",
       })
     }
-    const entry = indexed.plugin.loaded?.manifest.capabilities.find(
-      (capability) => capability.name === indexed.name,
-    )
-    if (entry) validateCapabilityInput(entry.accepts, request.input)
+    const accepts =
+      indexed.plugin.loaded?.schemaDocument.$defs[`${indexed.name}.accepts`]
+    if (accepts) validateCapabilityInput(accepts, request.input)
     const handler = await this.resolveHandler(indexed.plugin, indexed.name)
     const store: HandlerStore = request.store ?? {
       set() {},
@@ -257,6 +267,12 @@ export class LocalPluginRegistration implements PluginAdapter {
       },
     })
     return handler(request.input, ctx)
+  }
+
+  private findRegistration(pluginId: string): RegisteredPlugin | undefined {
+    return this.registrations.find(
+      (item) => item.info.id === pluginId || item.info.package === pluginId,
+    )
   }
 
   private async resolveHandler(

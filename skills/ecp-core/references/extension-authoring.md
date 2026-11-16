@@ -24,8 +24,9 @@ export default definePlugin({
 })
 ```
 
-Build writes `ecp.manifest.json` via `ecp-plugin-manifest`. Peer-depend on `plugin-sdk` and
-`zod`. Never import `@executioncontrolprotocol/host`, `cli`, `mcp-relay`, or `app`.
+Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
+Peer-depend on `plugin-sdk` and `zod`. Never import `@executioncontrolprotocol/host`, `cli`,
+`mcp-relay`, or `app`.
 
 **Reference implementation:** `plugins/plugin-test` (echo, fail, delay, stage, config-echo,
 file-roundtrip, call, bounded).

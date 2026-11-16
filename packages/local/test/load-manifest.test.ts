@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url"
 import { beforeAll, describe, expect, it } from "vitest"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
+import { canonicalJson, sha256Hex } from "@executioncontrolprotocol/plugin-sdk"
 import { loadPluginPackage } from "../src/index.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
@@ -64,7 +65,7 @@ describe("loadPluginPackage", () => {
     if (!result.ok) expect(result.issues[0]?.message).toMatch(/boom/)
   })
 
-  it("regenerates a linked manifest from a valid definition", async () => {
+  it("regenerates linked manifest and schema in memory without disk schema", async () => {
     const root = path.join(tempRoot, "ok-link")
     await mkdir(path.join(root, "dist"), { recursive: true })
     await writeFile(
@@ -102,7 +103,245 @@ export default definePlugin({
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.loaded.manifest.plugin.version).toBe("1.2.3")
+      expect(result.loaded.manifest.version).toBe("2.0")
+      expect(result.loaded.schemaDocument.$defs["ping.accepts"]).toBeTruthy()
       expect(result.loaded.definition).toBeTruthy()
+    }
+  })
+
+  it("rejects an installed package missing ecp.schema.json", async () => {
+    const root = path.join(tempRoot, "missing-schema")
+    await mkdir(root, { recursive: true })
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-missing-schema", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/missing-schema",
+          package: "@executioncontrolprotocol/plugin-missing-schema",
+          version: "1.0.0",
+          summary: "Missing schema.",
+          description: "Missing schema.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: { path: "./ecp.schema.json", hash: "a".repeat(64) },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/missing-schema.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
+      expect(result.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
+    }
+  })
+
+  it("rejects corrupt schema JSON", async () => {
+    const root = path.join(tempRoot, "corrupt-schema")
+    await mkdir(root, { recursive: true })
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-corrupt", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/corrupt",
+          package: "@executioncontrolprotocol/plugin-corrupt",
+          version: "1.0.0",
+          summary: "Corrupt.",
+          description: "Corrupt.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: { path: "./ecp.schema.json", hash: "a".repeat(64) },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/corrupt.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    await writeFile(path.join(root, "ecp.schema.json"), "{ not json")
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
+  })
+
+  it("rejects a schema hash mismatch", async () => {
+    const root = path.join(tempRoot, "hash-mismatch")
+    await mkdir(root, { recursive: true })
+    const schemaDocument = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "ecp://plugins/@executioncontrolprotocol/hash/1.0.0/schema.json",
+      $defs: {
+        "ping.accepts": { type: "object" },
+        "ping.returns": { type: "object" },
+      },
+    }
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-hash", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/hash",
+          package: "@executioncontrolprotocol/plugin-hash",
+          version: "1.0.0",
+          summary: "Hash.",
+          description: "Hash.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: { path: "./ecp.schema.json", hash: "0".repeat(64) },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/hash.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    await writeFile(path.join(root, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.issues[0]?.message).toMatch(/hash mismatch/)
+      expect(result.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
+    }
+  })
+
+  it("rejects a 1.0 fat manifest", async () => {
+    const root = path.join(tempRoot, "legacy-1")
+    await mkdir(root, { recursive: true })
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-legacy", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "1.0",
+        plugin: {
+          id: "@executioncontrolprotocol/legacy",
+          package: "@executioncontrolprotocol/plugin-legacy",
+          version: "1.0.0",
+          summary: "Legacy.",
+          description: "Legacy.",
+        },
+        sdkVersion: "1.0.0",
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/legacy.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+            accepts: { type: "object" },
+            returns: { type: "object" },
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "abc",
+      }),
+    )
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.issues[0]?.message).toMatch(/version 2\.0/)
+      expect(result.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
+    }
+  })
+
+  it("honours pluginSchema.path override", async () => {
+    const root = path.join(tempRoot, "path-override")
+    await mkdir(root, { recursive: true })
+    const schemaDocument = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "ecp://plugins/@executioncontrolprotocol/override/1.0.0/schema.json",
+      $defs: {
+        "ping.accepts": { type: "object" },
+        "ping.returns": { type: "object", properties: { ok: { type: "boolean" } } },
+      },
+    }
+    const hash = await sha256Hex(canonicalJson(schemaDocument))
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-override", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/override",
+          package: "@executioncontrolprotocol/plugin-override",
+          version: "1.0.0",
+          summary: "Override.",
+          description: "Override.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: { path: "./schemas/custom.schema.json", hash },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/override.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    await mkdir(path.join(root, "schemas"), { recursive: true })
+    await writeFile(
+      path.join(root, "schemas/custom.schema.json"),
+      `${JSON.stringify(schemaDocument, null, 2)}\n`,
+    )
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.loaded.schemaDocument.$defs["ping.accepts"]).toEqual({ type: "object" })
     }
   })
 })

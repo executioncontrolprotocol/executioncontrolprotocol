@@ -127,6 +127,8 @@ export type {
   HandlerStore,
   PluginCapabilityManifest,
   PluginManifest,
+  PluginSchemaDocument,
+  PluginSchemaRef,
   StateHandle,
 } from "./plugins.js"
 export type { HostFile, SupervisorStatus } from "./host.js"

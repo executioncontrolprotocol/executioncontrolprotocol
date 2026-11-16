@@ -12,7 +12,7 @@ import type {
 } from "./objects.js"
 import type { RunEvent } from "./objects.js"
 import type { ValidationIssue } from "./validation.js"
-import type { HandlerContextInit, HandlerStore } from "./plugins.js"
+import type { HandlerContextInit, HandlerStore, PluginSchemaDocument } from "./plugins.js"
 
 /**
  * Token for one service interface. `multiple` allows more than one implementation.
@@ -59,6 +59,11 @@ export interface PluginAdapter extends Lifecycle {
   plugins(): PluginInfo[]
   /** Config schema for a plugin, when it declares one. */
   configSchema(pluginId: string): JsonSchema | undefined
+  /**
+   * Load the plugin's {@link PluginSchemaDocument} when available.
+   * Returns `undefined` when the plugin is missing or its manifest failed.
+   */
+  loadPluginSchema(pluginId: string): Promise<PluginSchemaDocument | undefined>
   /** Import the plugin if needed and invoke the capability. */
   call(request: CapabilityCall, signal: AbortSignal): Promise<unknown>
 }

@@ -30,7 +30,7 @@ export const RUN_VERSION = "1.0"
 export const PLUGIN_MANIFEST_SCHEMA = "@executioncontrolprotocol.plugin-manifest"
 
 /** Document `version` value for a plugin manifest. @category Definitions */
-export const PLUGIN_MANIFEST_VERSION = "1.0"
+export const PLUGIN_MANIFEST_VERSION = "2.0"
 
 /** Document `schema` value for `host.json`. @category Definitions */
 export const HOST_SCHEMA = "@executioncontrolprotocol.host"
