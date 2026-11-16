@@ -1,12 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
-import {
-  createEnvironment,
-  generateExecutionSchema,
-  type Host,
-  type ResolvedHostSettings,
-  type ServiceClass,
-} from "@executioncontrolprotocol/engine"
+import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
 import {
   LocalPluginRegistration,
@@ -208,8 +202,16 @@ async function markInterruptedRuns(
 
 async function writeExecutionSchema(host: Host): Promise<string> {
   const plugins = host.services.get(PluginAdapter)
-  const schema = generateExecutionSchema(plugins.capabilities())
-  const { sha256Hex, canonicalJson } = await import("@executioncontrolprotocol/engine")
+  const { assembleCapabilityEntry, generateExecutionSchema, sha256Hex, canonicalJson } = await import(
+    "@executioncontrolprotocol/engine"
+  )
+  const light = plugins.capabilities()
+  const byPlugin = new Map<string, Awaited<ReturnType<typeof plugins.loadPluginSchema>>>()
+  for (const pluginId of new Set(light.map((entry) => entry.plugin))) {
+    byPlugin.set(pluginId, await plugins.loadPluginSchema(pluginId))
+  }
+  const full = light.map((entry) => assembleCapabilityEntry(entry, byPlugin.get(entry.plugin)))
+  const schema = generateExecutionSchema(full)
   const schemaHash = await sha256Hex(canonicalJson(schema))
   const target = path.join(host.settings.home, "schema", "execution.schema.json")
   await mkdir(path.dirname(target), { recursive: true })

@@ -320,10 +320,16 @@ export interface CapabilityEntry {
   useCases: string[]
   /** What to take from the output. */
   projections: string[]
-  /** JSON Schema for the input. */
-  accepts: Record<string, unknown>
-  /** JSON Schema for the output. */
-  returns: Record<string, unknown>
+  /**
+   * JSON Schema for the input. Present on full entries (`retrieve --id`, validation);
+   * omitted from light listing / query hits.
+   */
+  accepts?: Record<string, unknown>
+  /**
+   * JSON Schema for the output. Present on full entries (`retrieve --id`, validation);
+   * omitted from light listing / query hits.
+   */
+  returns?: Record<string, unknown>
   /** Plugin config schema, when the plugin has one. */
   configSchema?: Record<string, unknown>
   /** Step timeout in milliseconds. */

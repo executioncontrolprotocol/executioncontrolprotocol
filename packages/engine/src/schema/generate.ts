@@ -14,7 +14,8 @@ const STATE_VALUE: JsonSchema = { $ref: "#/$defs/stateValue" }
 const SCRIPT_VALUE: JsonSchema = { $ref: "#/$defs/scriptValue" }
 
 /**
- * Build the host execution schema: the base manifest plus one input branch per capability.
+ * Build an editor-oriented execution schema: the base manifest plus one input branch per capability.
+ * Runtime validation does not compile this schema (see {@link HostSchemaSet}).
  * `$id` is `ecp://host/execution.schema.json`.
  * @category Validation
  */
@@ -24,9 +25,10 @@ export function generateExecutionSchema(capabilities: readonly CapabilityEntry[]
   const defs = schema.$defs as JsonSchema
   const step = defs.step as JsonSchema
   const properties = step.properties as JsonSchema
-  const ids = capabilities.map((capability) => capability.id)
+  const withSchemas = capabilities.filter((capability) => capability.accepts && capability.returns)
+  const ids = withSchemas.map((capability) => capability.id)
   properties.uses = ids.length > 0 ? { type: "string", enum: ids } : { type: "string", enum: [] }
-  step.allOf = capabilities.map((capability) => ({
+  step.allOf = withSchemas.map((capability) => ({
     if: {
       type: "object",
       required: ["uses"],
@@ -42,7 +44,7 @@ export function generateExecutionSchema(capabilities: readonly CapabilityEntry[]
 
 /**
  * Wrap a value schema so markers are accepted where the protocol allows them.
- * Used by the legacy combined host schema and by editor schema generation.
+ * Editor schema generation only; runtime validation uses raw accepts + marker filtering.
  * @category Validation
  */
 export function wrapValue(schema: JsonSchema): JsonSchema {

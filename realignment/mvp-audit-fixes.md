@@ -267,6 +267,10 @@ Implementation plan:
 - **Or document:** if a family is deliberately deferred after the validation fix, list it in
   spec 08, the plugin README, Phase 8 and the plan retrospective with the reason.
 
+Progress: **S1–S3 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
+base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy registry). S4
+editor files, S5 B8, and S6 Firefly family ship remain.
+
 - [ ] Decision recorded
 - [ ] Families shipped or documented
 

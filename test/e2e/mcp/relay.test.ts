@@ -81,12 +81,10 @@ describe("mcp relay e2e", () => {
       expect(result.isError, name).toBe(true)
       const issues =
         (result.structuredContent?.error as { issues?: Array<{ code: string; path: string }> })?.issues ?? []
-      for (const issue of expected) {
-        expect(
-          issues.some((row) => row.code === issue.code && row.path === issue.path),
-          `${name} missing ${issue.code} ${issue.path}`,
-        ).toBe(true)
-      }
+      expect(
+        issues.map((row) => ({ code: row.code, path: row.path })),
+        name,
+      ).toEqual(expected.map((issue) => ({ code: issue.code, path: issue.path })))
     }
   }, 180_000)
 

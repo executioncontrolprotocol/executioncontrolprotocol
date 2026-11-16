@@ -145,13 +145,8 @@ describe("cli e2e commands", () => {
         error: { issues?: Array<{ code: string; path: string }> }
       }>(result.stdout)
       expect(envelope.ok).toBe(false)
-      const actual = envelope.error.issues ?? []
-      for (const issue of expected) {
-        expect(
-          actual.some((row) => row.code === issue.code && row.path === issue.path),
-          `${name} missing ${issue.code} ${issue.path}`,
-        ).toBe(true)
-      }
+      const actual = (envelope.error.issues ?? []).map((row) => ({ code: row.code, path: row.path }))
+      expect(actual, name).toEqual(expected.map((issue) => ({ code: issue.code, path: issue.path })))
     }
   }, 120_000)
 

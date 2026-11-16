@@ -7,7 +7,7 @@ import type {
   PluginManifest,
   PluginSchemaDocument,
 } from "@executioncontrolprotocol/protocol"
-import { HostSchemaSet, validateExecution, validateExecutionNext } from "../src/index.js"
+import { HostSchemaSet, validateExecution } from "../src/index.js"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 
@@ -23,7 +23,7 @@ function walkEcpFiles(dir: string, out: string[] = []): string[] {
 function loadCapabilities(): {
   capabilities: CapabilityEntry[]
   loadPluginSchema: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
-  schemasByPlugin: Map<string, PluginSchemaDocument>
+  schemaFingerprints: Array<{ pluginId: string; version: string; hash: string }>
 } {
   const manifests = ["plugins", "fixtures/plugins"]
     .flatMap((dir) => readdirSync(path.join(root, dir)).map((name) => path.join(root, dir, name, "ecp.manifest.json")))
@@ -36,17 +36,19 @@ function loadCapabilities(): {
     })
   const capabilities: CapabilityEntry[] = []
   const schemasByPlugin = new Map<string, PluginSchemaDocument>()
+  const schemaFingerprints: Array<{ pluginId: string; version: string; hash: string }> = []
   for (const file of manifests) {
     const manifest = JSON.parse(readFileSync(file, "utf8")) as PluginManifest
     const schemaPath = path.join(path.dirname(file), manifest.pluginSchema?.path ?? "ecp.schema.json")
     const schemaDocument = JSON.parse(readFileSync(schemaPath, "utf8")) as PluginSchemaDocument
     schemasByPlugin.set(manifest.plugin.id, schemaDocument)
     schemasByPlugin.set(manifest.plugin.package, schemaDocument)
-    const configSchema = schemaDocument.$defs.config
+    schemaFingerprints.push({
+      pluginId: manifest.plugin.id,
+      version: manifest.plugin.version,
+      hash: manifest.pluginSchema.hash,
+    })
     for (const capability of manifest.capabilities) {
-      const accepts = schemaDocument.$defs[`${capability.name}.accepts`]
-      const returns = schemaDocument.$defs[`${capability.name}.returns`]
-      if (!accepts || !returns) continue
       capabilities.push({
         id: capability.id,
         plugin: manifest.plugin.id,
@@ -56,25 +58,15 @@ function loadCapabilities(): {
         description: capability.description,
         useCases: capability.useCases,
         projections: capability.projections,
-        accepts,
-        returns,
-        configSchema,
         timeoutMs: capability.timeoutMs,
       })
     }
   }
   return {
     capabilities,
-    schemasByPlugin,
+    schemaFingerprints,
     loadPluginSchema: async (pluginId) => schemasByPlugin.get(pluginId),
   }
-}
-
-function project(issues: Array<{ code: string; path: string; severity: string }>): string[] {
-  const unique = [
-    ...new Set(issues.map((issue) => `${issue.code}|${issue.path}|${issue.severity}`)),
-  ]
-  return unique.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
 }
 
 function countSteps(nodes: unknown[] | undefined): number {
@@ -97,11 +89,10 @@ function countSteps(nodes: unknown[] | undefined): number {
   return total
 }
 
-describe("scale path equivalence", () => {
-  it("matches legacy {code,path,severity} for every fixture and example execution", async () => {
-    const { capabilities, loadPluginSchema } = loadCapabilities()
-    const legacySchemas = await HostSchemaSet.create(capabilities)
-    const scaleSchemas = await HostSchemaSet.createBase(capabilities, loadPluginSchema)
+describe("scale path regression", () => {
+  it("validates every fixture and example execution without boolean-schema noise", async () => {
+    const { capabilities, loadPluginSchema, schemaFingerprints } = loadCapabilities()
+    const schemaSet = await HostSchemaSet.create(capabilities, { loadPluginSchema, schemaFingerprints })
     const files = [...walkEcpFiles(path.join(root, "fixtures")), ...walkEcpFiles(path.join(root, "examples"))]
     let steps = 0
     let compared = 0
@@ -115,20 +106,19 @@ describe("scale path equivalence", () => {
       if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) continue
       const record = manifest as { steps?: unknown[] }
       steps += countSteps(record.steps)
-      const shared = {
+      const result = await validateExecution(manifest, {
         capabilities,
         loadPluginSchema,
+        schemaFingerprints,
+        schemaSet,
         executionDir: path.dirname(file),
         readText: async (absolutePath: string) => readFileSync(absolutePath, "utf8"),
+      })
+      for (const issue of result.issues) {
+        expect(issue.message, path.relative(root, file)).not.toMatch(/boolean schema is false/i)
       }
-      const legacy = await validateExecution(manifest, { ...shared, schemaSet: legacySchemas })
-      const next = await validateExecutionNext(manifest, { ...shared, schemaSet: scaleSchemas })
-      expect(next.valid, path.relative(root, file)).toBe(legacy.valid)
-      const left = project(legacy.issues)
-      const right = project(next.issues)
-      expect(right, path.relative(root, file)).toEqual(left)
-      const rawNext = next.issues.map((issue) => `${issue.code}|${issue.path}|${issue.severity}`)
-      expect(new Set(rawNext).size, `F2 uniqueness ${path.relative(root, file)}`).toBe(rawNext.length)
+      const raw = result.issues.map((issue) => `${issue.code}|${issue.path}|${issue.severity}`)
+      expect(new Set(raw).size, `F2 uniqueness ${path.relative(root, file)}`).toBe(raw.length)
       compared += 1
     }
     expect(steps).toBeGreaterThanOrEqual(96)
@@ -136,7 +126,7 @@ describe("scale path equivalence", () => {
   }, 120_000)
 
   it("still reports structural errors next to a $secret or $env", async () => {
-    const { capabilities, loadPluginSchema } = loadCapabilities()
+    const { capabilities, loadPluginSchema, schemaFingerprints } = loadCapabilities()
     const manifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -151,12 +141,37 @@ describe("scale path equivalence", () => {
         },
       ],
     }
-    const options = { capabilities, loadPluginSchema }
-    const legacy = await validateExecution(manifest, options)
-    const next = await validateExecutionNext(manifest, options)
-    const seen = JSON.stringify({ legacy: legacy.issues, next: next.issues }, null, 1)
-    expect(next.issues.map((issue) => issue.path), seen).toContain("/steps/0/input/value")
-    expect(JSON.stringify(next.issues), seen).toContain("bogusStep")
-    expect(JSON.stringify(next.issues), seen).toContain("bogusRoot")
+    const result = await validateExecution(manifest, { capabilities, loadPluginSchema, schemaFingerprints })
+    const seen = JSON.stringify(result.issues, null, 1)
+    expect(result.issues.map((issue) => issue.path), seen).toContain("/steps/0/input/value")
+    expect(JSON.stringify(result.issues), seen).toContain("bogusStep")
+    expect(JSON.stringify(result.issues), seen).toContain("bogusRoot")
+    expect(JSON.stringify(result.issues), seen).not.toMatch(/boolean schema is false/i)
+  }, 30_000)
+
+  it("reuses compiled validators on a shared HostSchemaSet and invalidates on fingerprint change", async () => {
+    const { capabilities, loadPluginSchema, schemaFingerprints } = loadCapabilities()
+    const first = await HostSchemaSet.create(capabilities, { loadPluginSchema, schemaFingerprints })
+    const echo = capabilities.find((capability) => capability.id.endsWith(".echo"))
+    expect(echo).toBeTruthy()
+    const manifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "echo", uses: echo!.id, input: { value: "hi" }, as: "echo" }],
+    }
+    await validateExecution(manifest, { capabilities, loadPluginSchema, schemaFingerprints, schemaSet: first })
+    const afterFirst = first.inputCompileCount
+    await validateExecution(manifest, { capabilities, loadPluginSchema, schemaFingerprints, schemaSet: first })
+    expect(first.inputCompileCount).toBe(afterFirst)
+    expect(first.documentCompileCount).toBe(1)
+
+    const bumped = schemaFingerprints.map((item, index) =>
+      index === 0 ? { ...item, hash: `${item.hash.slice(0, 63)}f` } : item,
+    )
+    const second = await HostSchemaSet.create(capabilities, {
+      loadPluginSchema,
+      schemaFingerprints: bumped,
+    })
+    expect(second.schemaHash).not.toBe(first.schemaHash)
   }, 30_000)
 })

@@ -255,22 +255,27 @@ describe("filterMarkerExplainedErrors edges", () => {
 })
 
 describe("collectSecretEnvIssues", () => {
-  it("emits F3-shaped issues for $secret and $env", () => {
+  it("emits F3-shaped issues for $secret and $env at top-level, nested, array, and $script.params", () => {
     const issues = collectSecretEnvIssues({
-      steps: [{ input: { value: { $secret: "k" }, nested: { env: { $env: "PATH" } } } }],
+      steps: [
+        {
+          input: {
+            value: { $secret: "k" },
+            nested: { env: { $env: "PATH" } },
+            list: [{ $env: "HOME" }],
+            text: { $script: { lang: "js", source: "'x'", params: { key: { $secret: "in-params" } } } },
+          },
+        },
+      ],
     })
-    expect(issues).toEqual([
-      expect.objectContaining({
-        code: "ECP_MANIFEST_INVALID",
-        path: "/steps/0/input/value",
-        message: expect.stringContaining("$secret"),
-        suggestions: expect.any(Array),
-      }),
-      expect.objectContaining({
-        code: "ECP_MANIFEST_INVALID",
-        path: "/steps/0/input/nested/env",
-        message: expect.stringContaining("$env"),
-      }),
+    const paths = issues.map((issue) => issue.path).sort()
+    expect(paths).toEqual([
+      "/steps/0/input/list/0",
+      "/steps/0/input/nested/env",
+      "/steps/0/input/text/$script/params/key",
+      "/steps/0/input/value",
     ])
+    expect(issues.every((issue) => issue.code === "ECP_MANIFEST_INVALID")).toBe(true)
+    expect(issues.every((issue) => !/boolean schema is false/i.test(issue.message))).toBe(true)
   })
 })

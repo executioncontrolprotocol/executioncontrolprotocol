@@ -123,45 +123,101 @@ function fixtureHandlers(): ConstructorParameters<typeof FixturePluginAdapter>[1
   }
 }
 
+const creativePlugin = JSON.parse(
+  readFileSync(path.join(root, "fixtures/plugins/fixture-creative/ecp.manifest.json"), "utf8"),
+) as PluginManifest
+const creativePluginSchema = JSON.parse(
+  readFileSync(path.join(root, "fixtures/plugins/fixture-creative/ecp.schema.json"), "utf8"),
+) as PluginSchemaDocument
+
 describe("manifest conformance", () => {
   it("accepts every valid fixture", async () => {
     const dir = path.join(manifests, "valid")
+    const capabilities = [...testCapabilities, ...creativeCapabilities]
+    const loadPluginSchema = async (pluginId: string) => {
+      if (pluginId === testPlugin.plugin.id || pluginId === testPlugin.plugin.package) return testPluginSchema
+      if (pluginId === creativePlugin.plugin.id || pluginId === creativePlugin.plugin.package) {
+        return creativePluginSchema
+      }
+      return undefined
+    }
+    const schemaFingerprints = [
+      {
+        pluginId: testPlugin.plugin.id,
+        version: testPlugin.plugin.version,
+        hash: testPlugin.pluginSchema.hash,
+      },
+      {
+        pluginId: creativePlugin.plugin.id,
+        version: creativePlugin.plugin.version,
+        hash: creativePlugin.pluginSchema.hash,
+      },
+    ]
+    const schemaSet = await HostSchemaSet.create(capabilities, { loadPluginSchema, schemaFingerprints })
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".ecp.json"))) {
       const manifest = JSON.parse(readFileSync(path.join(dir, name), "utf8")) as unknown
       const result = await validateExecution(manifest, {
-        capabilities: [...testCapabilities, ...creativeCapabilities],
+        capabilities,
         configs: [anthropicConfig],
+        loadPluginSchema,
+        schemaFingerprints,
+        schemaSet,
         executionDir: dir,
         readText,
       })
       expect(result.issues.filter((issue) => issue.severity === "error"), name).toEqual([])
     }
-    // Each validation recompiles the combined execution schema today (audit F7), so this is slow under
-    // full-suite load. S3 of realignment/schema-scaling-plan.md removes that cost; then drop this timeout.
-  }, 30_000)
+  })
 
   it("matches the expected issues for every invalid fixture", { timeout: 30_000 }, async () => {
     const dir = path.join(manifests, "invalid")
+    const loadPluginSchema = async (pluginId: string) => {
+      if (pluginId === testPlugin.plugin.id || pluginId === testPlugin.plugin.package) return testPluginSchema
+      return undefined
+    }
+    const schemaFingerprints = [
+      {
+        pluginId: testPlugin.plugin.id,
+        version: testPlugin.plugin.version,
+        hash: testPlugin.pluginSchema.hash,
+      },
+    ]
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".ecp.json"))) {
       const manifest = JSON.parse(readFileSync(path.join(dir, name), "utf8")) as unknown
       const expected = JSON.parse(readFileSync(path.join(dir, name.replace(/\.ecp\.json$/, ".expected.json")), "utf8")) as Array<{
         code: string
         path: string
         severity: string
+        messageIncludes?: string
       }>
       const result = await validateExecution(manifest, {
         capabilities: testCapabilities,
+        loadPluginSchema,
+        schemaFingerprints,
         executionDir: dir,
         readText,
       })
-      const actual = result.issues.map((issue) => ({ code: issue.code, path: issue.path, severity: issue.severity }))
+      const actual = result.issues.map((issue) => ({
+        code: issue.code,
+        path: issue.path,
+        severity: issue.severity,
+        message: issue.message,
+      }))
+      expect(
+        actual.map(({ code, path: issuePath, severity }) => ({ code, path: issuePath, severity })),
+        name,
+      ).toEqual(expected.map(({ code, path: issuePath, severity }) => ({ code, path: issuePath, severity })))
       for (const issue of expected) {
-        expect(actual, `${name} missing ${issue.code} ${issue.path}`).toContainEqual(issue)
+        if (!issue.messageIncludes) continue
+        const match = actual.find(
+          (row) => row.code === issue.code && row.path === issue.path && row.severity === issue.severity,
+        )
+        expect(match?.message, `${name} ${issue.code} ${issue.path}`).toContain(issue.messageIncludes)
       }
     }
   })
 
-  it("accepts localize-banner against the generated schema and rejects an invalid pointer", async () => {
+  it("accepts localize-banner against the base document schema and rejects an invalid pointer", async () => {
     const schema = generateExecutionSchema([...testCapabilities, ...creativeCapabilities])
     const schemas = await HostSchemaSet.create([...testCapabilities, ...creativeCapabilities])
     const localize = JSON.parse(
@@ -176,7 +232,18 @@ describe("manifest conformance", () => {
     const expected = JSON.parse(
       readFileSync(path.join(manifests, "invalid", invalidName!.replace(/\.ecp\.json$/, ".expected.json")), "utf8"),
     ) as Array<{ code: string; path: string }>
-    const result = await validateExecution(invalid, { capabilities: testCapabilities })
+    const result = await validateExecution(invalid, {
+      capabilities: testCapabilities,
+      loadPluginSchema: async (pluginId) =>
+        pluginId === testPlugin.plugin.id || pluginId === testPlugin.plugin.package ? testPluginSchema : undefined,
+      schemaFingerprints: [
+        {
+          pluginId: testPlugin.plugin.id,
+          version: testPlugin.plugin.version,
+          hash: testPlugin.pluginSchema.hash,
+        },
+      ],
+    })
     const first = expected[0]
     expect(result.issues.some((issue) => issue.code === first?.code && issue.path === first.path)).toBe(true)
   })

@@ -7,6 +7,7 @@ import type {
   PluginInfo,
   PluginManifest,
   PluginSchemaDocument,
+  PluginSchemaFingerprint,
 } from "@executioncontrolprotocol/protocol"
 
 /**
@@ -44,30 +45,22 @@ export class FixturePluginAdapter implements PluginAdapter {
     private readonly schemaDocument: PluginSchemaDocument,
   ) {}
 
-  /** Capability entries assembled from the light manifest and schema document. */
+  /**
+   * Light capability rows (no accepts/returns). Tests that need schemas should call
+   * {@link FixturePluginAdapter.loadPluginSchema} or assemble full entries.
+   */
   capabilities(): CapabilityEntry[] {
-    const configSchema = this.schemaDocument.$defs.config
-    return this.manifest.capabilities.flatMap((capability) => {
-      const accepts = this.schemaDocument.$defs[`${capability.name}.accepts`]
-      const returns = this.schemaDocument.$defs[`${capability.name}.returns`]
-      if (!accepts || !returns) return []
-      return [
-        {
-          id: capability.id,
-          plugin: this.manifest.plugin.id,
-          package: this.manifest.plugin.package,
-          pluginVersion: this.manifest.plugin.version,
-          summary: capability.summary,
-          description: capability.description,
-          useCases: capability.useCases,
-          projections: capability.projections,
-          accepts,
-          returns,
-          configSchema,
-          timeoutMs: capability.timeoutMs,
-        },
-      ]
-    })
+    return this.manifest.capabilities.map((capability) => ({
+      id: capability.id,
+      plugin: this.manifest.plugin.id,
+      package: this.manifest.plugin.package,
+      pluginVersion: this.manifest.plugin.version,
+      summary: capability.summary,
+      description: capability.description,
+      useCases: capability.useCases,
+      projections: capability.projections,
+      timeoutMs: capability.timeoutMs,
+    }))
   }
 
   /** The single fixture plugin. */
@@ -81,6 +74,17 @@ export class FixturePluginAdapter implements PluginAdapter {
         capabilities: this.manifest.capabilities.map((capability) => capability.id),
         loaded: true,
         manifestOk: true,
+      },
+    ]
+  }
+
+  /** Schema fingerprints from the light manifest. */
+  schemaFingerprints(): readonly PluginSchemaFingerprint[] {
+    return [
+      {
+        pluginId: this.manifest.plugin.id,
+        version: this.manifest.plugin.version,
+        hash: this.manifest.pluginSchema.hash,
       },
     ]
   }

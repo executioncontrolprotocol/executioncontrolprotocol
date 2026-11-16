@@ -247,9 +247,12 @@ describe("execution fixtures", () => {
       }>
       expect(validate(manifest), name).toBe(false)
       const paths = errorPaths(validate)
-      for (const issue of expected) {
+      const schemaIssues = expected.filter((issue) =>
+        issue.code === "ECP_MANIFEST_INVALID" || issue.code === "ECP_EXECUTION_LOAD",
+      )
+      expect(schemaIssues.length, name).toBeGreaterThan(0)
+      for (const issue of schemaIssues) {
         expect(issue.severity).toBe("error")
-        expect(["ECP_MANIFEST_INVALID", "ECP_EXECUTION_LOAD"]).toContain(issue.code)
         const hit = paths.some((pointer) => pointer === issue.path || pointer.startsWith(`${issue.path}/`) || issue.path.startsWith(pointer))
         expect(hit, `${name} expected ${issue.path} in ${paths.join(", ")}`).toBe(true)
       }

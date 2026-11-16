@@ -27,8 +27,8 @@ export { generateExecutionSchema } from "./schema/generate.js"
 export type { JsonSchema } from "./schema/generate.js"
 export { canonicalJson, sha256Hex } from "./schema/canonical.js"
 export { closeMatches, damerauLevenshtein } from "./schema/suggest.js"
-export { HostSchemaSet, loadExecutionText, validateExecution, validateExecutionNext } from "./validate/validate.js"
-export type { ValidateOptions } from "./validate/validate.js"
+export { HostSchemaSet, loadExecutionText, validateExecution } from "./validate/validate.js"
+export type { SchemaFingerprint, ValidateOptions } from "./validate/validate.js"
 export {
   allowsString,
   assertScriptPositions,
@@ -49,5 +49,5 @@ export type { HandlerContextDeps } from "./execute/handler-context.js"
 export { matchCandidates, tokensOf } from "./operations/match.js"
 export type { MatchCandidate, MatchHit } from "./operations/match.js"
 export { applyPatch } from "./operations/patch.js"
-export { createOperations } from "./operations/operations.js"
+export { assembleCapabilityEntry, createOperations } from "./operations/operations.js"
 export type { OperationsOptions } from "./operations/operations.js"

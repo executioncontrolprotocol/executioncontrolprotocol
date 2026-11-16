@@ -8,7 +8,7 @@ App) gets the same `ValidationResult`, so an agent can fix and resubmit in a loo
 | Layer | Checks | Codes |
 | --- | --- | --- |
 | L0 Load | JSON parse, file exists, `schema`/`version` constants | `ECP_EXECUTION_LOAD`, `ECP_NOT_FOUND` |
-| L1 Schema | Generated host schema (default until S3): structure, node shapes, markers, step `input` against the capability's wrapped `accepts`, `$script` only at string positions, unknown capability ids. Dual-path / next validator: base structure + raw `accepts` + marker filter (same codes) | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
+| L1 Schema | Base structure + per-step raw `accepts` + marker filter: node shapes, marker syntax, step `input` against the capability's raw `accepts`, `$script` only at string positions, unknown capability ids | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
 | L2 Semantics | Unique ids, default arm last, `mode` needs `as`, `as` not an input name, `create` inside loop bodies, `expr`/`$expr` syntax, `$script` syntax and file, config ids exist and validate, no `$secret`/`$env` in the execution | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT` |
 | L3 Data flow | Every `$ref` resolves in order, paths exist in `returns`/`accepts`, types fit, maybe-missing handling, parallel isolation, write conflicts, `execution.returns` keys produced | `ECP_REF_UNRESOLVED`, `ECP_REF_MAYBE_MISSING`, `ECP_REF_PATH_INVALID`, `ECP_TYPE_MISMATCH`, `ECP_COMMIT_CONFLICT`, `ECP_RETURNS_UNRESOLVED` |
 | L4 Run input | Run `input` against `execution.accepts` (on `execute` only, after L0–L3) | `ECP_INPUT_INVALID` (path under `/input`) |
@@ -44,41 +44,17 @@ candidate set: capability ids, property names in `accepts`/`returns`, state keys
 
 ## Generated host schema (L1)
 
-Built by `engine` from the base manifest schema plus the plugin manifests whenever the plugin
-set changes (host start). Rules that keep errors precise (proved by the prototype; mandatory):
+The host validates executions in two stages. Rules that keep errors precise (mandatory):
 
-1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds.
-2. **Step input dispatches on `uses`:** `uses` is an `enum` of installed capability ids; `allOf` of `if { uses: const <id> } then { input: wrapped(accepts) }` per capability.
-3. **Value markers dispatch on their key:** every value position in a wrapped `accepts` becomes `if required[$ref] then RefValue else if required[$expr] then ExprValue else if required[$state] then StateValue else <original>`, and at string positions additionally `if required[$script] then ScriptValue`.
-4. Each capability's `returns` is attached as an annotation (`"x-ecp-returns"`) on its `then` branch, for tooling.
-5. `$id` of the generated schema is `ecp://host/execution.schema.json`; its hash is `schemaHash`.
+1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds. This lives in the base execution schema shipped in `protocol`.
+2. **Base structure only at compile time:** the host compiles **one** base document validator (node shapes, marker object syntax via `$defs/value`, ids, `uses` as a string matching the capability-id pattern). It never inlines capability `accepts` and never enumerates installed capability ids in the schema. Unknown `uses` values are an engine check (`ECP_CAPABILITY_UNKNOWN` / `ECP_PLUGINS_MISSING`) with suggestions.
+3. **Per-step input against raw `accepts`:** for each step whose `uses` is installed, the host validates `input` against that capability's raw `accepts` schema (from the plugin's `ecp.schema.json`, loaded lazily). Markers are not wrapped into the schema. The engine walks `input`, records marker JSON Pointers, runs the raw validator, and **drops only errors explained by a marker**: errors at or under a marker position; `additionalProperties` naming a marker key; `anyOf`/`oneOf` failures where some branch's errors are all explained (matched by `schemaPath` prefix). Remaining input errors are `ECP_INPUT_INVALID`. Two rules that keep equivalence with today's wrapped path: (a) on an object schema without `additionalProperties: false`, an undeclared property accepts any value, so a `$script` there is allowed; (b) marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`) is still validated by the base schema's marker defs, independently of `accepts`.
+4. **`$script` positions:** resolve the raw subschema at the marker's path; the position is valid only if that subschema accepts a string (or is an open schema). Otherwise `ECP_SCRIPT_INVALID` / `ECP_INPUT_INVALID` as today. `$expr` targets stay unchecked for type.
+5. **`$secret` / `$env` in an execution:** emit one dedicated `ECP_MANIFEST_INVALID` per occurrence (message and suggestion per spec 02); do not leave "boolean schema is false" as the only signal.
+6. Each capability's `returns` remains available to tooling and L3 from the plugin schema document (`$defs/<name>.returns`), loaded lazily when needed. Editor-only annotations may attach `x-ecp-returns` on editor dispatch branches.
+7. **`schemaHash`:** hash of the base schema plus the sorted hashes of every installed plugin's `ecp.schema.json` (plugin id + version). It changes when plugins or their schema documents change.
 
-Performance rule: the host compiles **one base validator** (structure, all capabilities' input
-wrappers referenced lazily) and **one input validator per capability**, compiled on first use
-and cached by `schemaHash` + capability id. The full single-file schema is written to disk for
-editors (`$ECP_HOME/schema/execution.schema.json`) and is not what the host compiles at
-runtime. Ajv options: `allErrors: true`, `strict: false`, `useDefaults: false` (defaults apply
-only to run input, L4, with `useDefaults: true` on a separate validator).
-
-## Next validator (equivalence)
-
-Until S3 switches the host default, an internal scale path (`useScalePath` /
-`validateExecutionNext`) validates with the **base** execution schema only (markers via
-`$defs/value`; capabilities not inlined) plus per-capability **raw** `accepts` from the
-plugin's `ecp.schema.json`. After running the raw validator, the engine drops only errors a
-marker position explains (at or under a marker; `additionalProperties` naming a marker key;
-`anyOf`/`oneOf` when some branch's errors are all explained). Two rules keep equivalence with
-the wrapped path:
-
-- **(a)** On an object schema without `additionalProperties: false`, an undeclared property
-  accepts any value, so a `$script` there is allowed.
-- **(b)** Marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`)
-  is still validated by the base schema's marker defs, independently of `accepts`.
-
-`$script` position is checked by resolving the raw subschema at that path (must accept a
-string, or an open object property). `$secret`/`$env` emit dedicated `ECP_MANIFEST_INVALID`
-issues (F3). Equivalence tests assert identical `{ code, path, severity }` multisets for both
-paths over fixtures and examples.
+Performance rule: the host compiles **one base validator** at start (or first validation in-process) and **one input validator per capability**, compiled on first use of that capability's plugin schema document and cached for the host lifetime (keyed by plugin version / schema document hash + capability name). Plugin schema documents are added to Ajv lazily on first use of any of that plugin's capabilities. The editor schema files under `$ECP_HOME/schema/` are not what the host compiles for runtime validation. Ajv options: `allErrors: true`, `strict: false`, `useDefaults: false` (defaults apply only to run input, L4, with `useDefaults: true` on a separate validator).
 
 ## Data-flow check (L3)
 

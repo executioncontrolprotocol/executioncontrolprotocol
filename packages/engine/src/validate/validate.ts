@@ -11,7 +11,7 @@ import Ajv2020 from "ajv/dist/2020.js"
 import addFormatsModule from "ajv-formats"
 import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 import { canonicalJson, sha256Hex } from "../schema/canonical.js"
-import { generateExecutionSchema, type JsonSchema } from "../schema/generate.js"
+import type { JsonSchema } from "../schema/generate.js"
 import { closeMatches } from "../schema/suggest.js"
 import { checkDataFlow } from "./dataflow.js"
 import { checkExpression, checkScript, syntaxIssue } from "./expr.js"
@@ -23,11 +23,24 @@ import {
 } from "./markers.js"
 
 /**
+ * Light-manifest schema fingerprint for {@link HostSchemaSet} `schemaHash`.
+ * @category Validation
+ */
+export interface SchemaFingerprint {
+  /** Plugin id. */
+  pluginId: string
+  /** Plugin package version. */
+  version: string
+  /** Hash of `ecp.schema.json` from the light manifest. */
+  hash: string
+}
+
+/**
  * What the validator needs besides the manifest. File reads are injected.
  * @category Validation
  */
 export interface ValidateOptions {
-  /** Installed capabilities. Their `accepts` schemas drive L1. */
+  /** Installed capabilities (light rows are fine; schemas load via {@link ValidateOptions.loadPluginSchema}). */
   capabilities: readonly CapabilityEntry[]
   /** Known config objects. Named step configs must be here. */
   configs?: readonly ConfigObject[]
@@ -38,18 +51,17 @@ export interface ValidateOptions {
   /** Run input. When set, L4 checks it against `execution.accepts`. */
   input?: Record<string, unknown>
   /**
-   * Optional loader for a plugin's schema document.
-   * Preferred by the scale path for raw `accepts` (S2+).
+   * Loader for a plugin's schema document. Used for raw `accepts` / `returns` and L3.
    */
   loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
   /**
-   * When true, use the base + lazy raw accepts path (S2). Default remains the legacy
-   * combined wrapped schema until S3.
+   * Optional fingerprints for `schemaHash` (base + sorted plugin schema hashes).
+   * When omitted, hashes fall back to capability plugin id + version only.
    */
-  useScalePath?: boolean
+  schemaFingerprints?: readonly SchemaFingerprint[]
   /**
-   * Optional prebuilt schema set. When set, skips {@link HostSchemaSet.create} /
-   * {@link HostSchemaSet.createBase} (tests and host-lifetime cache).
+   * Optional prebuilt schema set. When set, skips {@link HostSchemaSet.create}
+   * (tests and host-lifetime cache).
    */
   schemaSet?: HostSchemaSet
 }
@@ -74,22 +86,23 @@ const addFormats = addFormatsModule as unknown as (ajv: AjvLike) => AjvLike
 const HOST_EXECUTION_SCHEMA_ID = "ecp://host/execution.schema.json"
 
 /**
- * Compiled host schema. Input validators are compiled on first use.
+ * Compiled host schema set: one base document validator plus lazy per-capability input validators.
  * @category Validation
  */
 export class HostSchemaSet {
-  /** Full editor schema (legacy) or base schema (scale). */
+  /** Base execution schema (`ecp://host/execution.schema.json`). */
   readonly schema: JsonSchema
-  /** Hash of {@link HostSchemaSet.schema}. */
+  /** Hash of the base schema plus sorted plugin schema fingerprints. */
   readonly schemaHash: string
-  /** True when this set was built with {@link HostSchemaSet.createBase}. */
-  readonly scalePath: boolean
+  /** How many times the base document schema was compiled (always 1 per set). */
+  readonly documentCompileCount = 1
   private readonly ajv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly inputAjv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly documentValidator: ReturnType<AjvLike["compile"]>
   private readonly inputValidators = new Map<string, ReturnType<AjvLike["compile"]>>()
   private readonly pluginSchemas = new Map<string, PluginSchemaDocument>()
   private readonly addedPluginSchemaIds = new Set<string>()
+  private inputCompileCountInternal = 0
   private readonly loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
   private readonly capabilities: readonly CapabilityEntry[]
 
@@ -97,14 +110,12 @@ export class HostSchemaSet {
     schema: JsonSchema,
     schemaHash: string,
     options: {
-      scalePath?: boolean
       capabilities?: readonly CapabilityEntry[]
       loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
     } = {},
   ) {
     this.schema = schema
     this.schemaHash = schemaHash
-    this.scalePath = options.scalePath === true
     this.capabilities = options.capabilities ?? []
     this.loadPluginSchema = options.loadPluginSchema
     addFormats(this.ajv)
@@ -113,27 +124,47 @@ export class HostSchemaSet {
   }
 
   /**
-   * Build a schema set for the installed capabilities (legacy combined wrapped schema).
+   * Build a base-only schema set. Capabilities are not inlined into the document schema.
    * @category Validation
    */
-  static async create(capabilities: readonly CapabilityEntry[]): Promise<HostSchemaSet> {
-    const schema = generateExecutionSchema(capabilities)
-    const schemaHash = await sha256Hex(canonicalJson(schema))
-    return new HostSchemaSet(schema, schemaHash, { capabilities })
-  }
-
-  /**
-   * Build a base-only schema set for the scale path. Capabilities are not inlined.
-   * @category Validation
-   */
-  static async createBase(
+  static async create(
     capabilities: readonly CapabilityEntry[],
-    loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>,
+    options: {
+      loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
+      schemaFingerprints?: readonly SchemaFingerprint[]
+    } = {},
   ): Promise<HostSchemaSet> {
     const schema = structuredClone(baseSchema) as JsonSchema
     schema.$id = HOST_EXECUTION_SCHEMA_ID
-    const schemaHash = await sha256Hex(canonicalJson(schema))
-    return new HostSchemaSet(schema, schemaHash, { scalePath: true, capabilities, loadPluginSchema })
+    const fingerprints =
+      options.schemaFingerprints ??
+      uniquePluginFingerprints(capabilities)
+    const schemaHash = await sha256Hex(
+      canonicalJson({
+        base: schema,
+        plugins: [...fingerprints]
+          .map((item) => ({ id: item.pluginId, version: item.version, hash: item.hash }))
+          .sort((left, right) => {
+            if (left.id !== right.id) return left.id < right.id ? -1 : 1
+            if (left.version !== right.version) return left.version < right.version ? -1 : 1
+            return left.hash < right.hash ? -1 : left.hash > right.hash ? 1 : 0
+          }),
+      }),
+    )
+    return new HostSchemaSet(schema, schemaHash, {
+      capabilities,
+      loadPluginSchema: options.loadPluginSchema,
+    })
+  }
+
+  /** Number of compiled capability input validators (grows on first use). */
+  get inputCompileCount(): number {
+    return this.inputCompileCountInternal
+  }
+
+  /** Plugin schema documents added to Ajv so far. */
+  get addedPluginSchemaCount(): number {
+    return this.addedPluginSchemaIds.size
   }
 
   /** Validate a manifest document. */
@@ -143,16 +174,18 @@ export class HostSchemaSet {
   }
 
   /**
-   * Validate one capability input. Compiled once per schema hash and capability.
-   * Legacy path and runtime resolved-input checks (no marker filtering).
+   * Validate one resolved capability input (runtime). Compiles once per schema hash and capability.
+   * Prefers the plugin schema document when available; falls back to {@link CapabilityEntry.accepts}.
    * @category Validation
    */
   validateInput(capability: CapabilityEntry, input: unknown): AjvError[] {
-    const cacheKey = `${this.schemaHash}:${capability.id}`
+    const cacheKey = `${this.schemaHash}:runtime:${capability.id}`
     let validator = this.inputValidators.get(cacheKey)
     if (!validator) {
-      validator = this.inputAjv.compile(capability.accepts)
+      const accepts = capability.accepts ?? { type: "object" }
+      validator = this.inputAjv.compile(accepts)
       this.inputValidators.set(cacheKey, validator)
+      this.inputCompileCountInternal += 1
     }
     validator(input)
     return (validator.errors ?? []) as AjvError[]
@@ -195,9 +228,10 @@ export class HostSchemaSet {
       if (document?.$defs[`${name}.accepts`]) {
         validator = this.inputAjv.compile({ $ref: `${document.$id}#/$defs/${name}.accepts` })
       } else {
-        validator = this.inputAjv.compile(capability.accepts)
+        validator = this.inputAjv.compile(capability.accepts ?? { type: "object" })
       }
       this.inputValidators.set(cacheKey, validator)
+      this.inputCompileCountInternal += 1
     }
     return validateWithMarkers(validator as ((data: unknown) => boolean) & { errors?: MarkerAjvError[] | null }, input) as AjvError[]
   }
@@ -209,46 +243,35 @@ export class HostSchemaSet {
   async rawAccepts(capability: CapabilityEntry): Promise<Record<string, unknown>> {
     const document = await this.ensurePluginSchema(capability.plugin)
     const name = capabilityName(capability.id)
-    return document?.$defs[`${name}.accepts`] ?? capability.accepts
+    return document?.$defs[`${name}.accepts`] ?? capability.accepts ?? { type: "object" }
   }
-}
 
-/**
- * Validate an execution object through L0–L3, and L4 when `input` is set.
- * Default path is the legacy combined wrapped schema. Pass `useScalePath: true` for the S2 path.
- * @category Validation
- */
-export async function validateExecution(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
-  if (options.useScalePath) return validateExecutionNext(manifest, options)
-  const schemas = options.schemaSet ?? (await HostSchemaSet.create(options.capabilities))
-  const manifestHash = await sha256Hex(canonicalJson(manifest))
-  const loaded = loadObject(manifest)
-  if (loaded) {
-    return finish([loaded], manifestHash, schemas.schemaHash)
+  /**
+   * Raw returns schema for a capability (from the plugin document when available).
+   * @category Validation
+   */
+  async rawReturns(capability: CapabilityEntry): Promise<Record<string, unknown>> {
+    const document = await this.ensurePluginSchema(capability.plugin)
+    const name = capabilityName(capability.id)
+    return document?.$defs[`${name}.returns`] ?? capability.returns ?? { type: "object" }
   }
-  const structural = mapAjvErrors(schemas.validateDocument(manifest), manifest, options.capabilities)
-  const semantic = await checkSemantics(manifest, options)
-  const layerErrors = [...structural, ...semantic]
-  const flow =
-    layerErrors.some((item) => item.severity === "error") || !isManifest(manifest)
-      ? []
-      : checkDataFlow(manifest, options.capabilities)
-  const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
-  return finish([...layerErrors, ...flow, ...inputIssues], manifestHash, schemas.schemaHash)
 }
 
 /** Ajv keywords that only aggregate sub-schema failures. */
 const COMBINATOR_NOISE = new Set(["if", "then", "else", "anyOf", "oneOf", "allOf", "not", "false"])
 
 /**
- * Scale-path validation: base document schema + per-capability raw accepts with marker filtering.
+ * Validate an execution object through L0–L3, and L4 when `input` is set.
+ * Uses the base document schema plus per-capability raw accepts with marker filtering.
  * @category Validation
  */
-export async function validateExecutionNext(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
+export async function validateExecution(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
   const schemas =
-    options.schemaSet?.scalePath === true
-      ? options.schemaSet
-      : await HostSchemaSet.createBase(options.capabilities, options.loadPluginSchema)
+    options.schemaSet ??
+    (await HostSchemaSet.create(options.capabilities, {
+      loadPluginSchema: options.loadPluginSchema,
+      schemaFingerprints: options.schemaFingerprints,
+    }))
   const manifestHash = await sha256Hex(canonicalJson(manifest))
   const loaded = loadObject(manifest)
   if (loaded) {
@@ -269,18 +292,60 @@ export async function validateExecutionNext(manifest: unknown, options: Validate
     return !(COMBINATOR_NOISE.has(error.keyword) && aboveSecretEnv(error.instancePath))
   })
   const structural = mapAjvErrors(baseErrors, manifest, options.capabilities).filter(
-    (issue) => !atOrUnderSecretEnv(issue.path),
+    (issue) => !/boolean schema is false/i.test(issue.message) && !atOrUnderSecretEnv(issue.path),
   )
   const unknownUses = checkUnknownUses(manifest, options.capabilities)
   const capabilityInput = isManifest(manifest) ? await checkCapabilityInputs(manifest, schemas, options.capabilities) : []
-  const semantic = await checkSemantics(manifest, options)
+  const enriched = isManifest(manifest)
+    ? await enrichCapabilities(options.capabilities, schemas)
+    : options.capabilities
+  const semantic = await checkSemantics(manifest, { ...options, capabilities: enriched })
   const layerErrors = [...structural, ...unknownUses, ...capabilityInput, ...secretEnv, ...semantic]
   const flow =
     layerErrors.some((item) => item.severity === "error") || !isManifest(manifest)
       ? []
-      : checkDataFlow(manifest, options.capabilities)
+      : checkDataFlow(manifest, enriched)
   const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
   return finish(dedupeIssues([...layerErrors, ...flow, ...inputIssues]), manifestHash, schemas.schemaHash)
+}
+
+function uniquePluginFingerprints(capabilities: readonly CapabilityEntry[]): SchemaFingerprint[] {
+  const seen = new Map<string, SchemaFingerprint>()
+  for (const capability of capabilities) {
+    const key = `${capability.plugin}@${capability.pluginVersion}`
+    if (seen.has(key)) continue
+    seen.set(key, {
+      pluginId: capability.plugin,
+      version: capability.pluginVersion,
+      hash: capability.pluginVersion,
+    })
+  }
+  return [...seen.values()]
+}
+
+async function enrichCapabilities(
+  capabilities: readonly CapabilityEntry[],
+  schemas: HostSchemaSet,
+): Promise<CapabilityEntry[]> {
+  const out: CapabilityEntry[] = []
+  for (const capability of capabilities) {
+    if (capability.accepts && capability.returns) {
+      out.push(capability)
+      continue
+    }
+    const document = await schemas.ensurePluginSchema(capability.plugin)
+    const name = capabilityName(capability.id)
+    const accepts = document?.$defs[`${name}.accepts`] ?? capability.accepts
+    const returns = document?.$defs[`${name}.returns`] ?? capability.returns
+    const configSchema = document?.$defs.config ?? capability.configSchema
+    out.push({
+      ...capability,
+      ...(accepts ? { accepts } : {}),
+      ...(returns ? { returns } : {}),
+      ...(configSchema ? { configSchema } : {}),
+    })
+  }
+  return out
 }
 
 /**

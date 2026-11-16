@@ -195,17 +195,19 @@ describe("validation", () => {
     expect(wrong.issues[0]).toMatchObject({ code: "ECP_EXECUTION_LOAD", path: "/version" })
   })
 
-  it("changes schemaHash when a capability accepts schema changes and caches input validators", async () => {
-    const first = await HostSchemaSet.create(capabilities)
-    const changed = capabilities.map((capability) =>
-      capability.id === echo.id ? { ...capability, accepts: { type: "object", properties: { other: { type: "string" } } } } : capability,
-    )
-    const second = await HostSchemaSet.create(changed)
+  it("changes schemaHash when plugin schema fingerprints change and caches input validators", async () => {
+    const fingerprints = [{ pluginId: echo.plugin, version: echo.pluginVersion, hash: "a".repeat(64) }]
+    const first = await HostSchemaSet.create(capabilities, { schemaFingerprints: fingerprints })
+    const second = await HostSchemaSet.create(capabilities, {
+      schemaFingerprints: [{ ...fingerprints[0]!, hash: "b".repeat(64) }],
+    })
     expect(first.schemaHash).not.toBe(second.schemaHash)
     expect(first.schema.$id).toBe("ecp://host/execution.schema.json")
     const input = { value: "hi" }
     expect(first.validateInput(echo, input)).toEqual([])
+    expect(first.inputCompileCount).toBe(1)
     expect(first.validateInput(echo, input)).toEqual([])
+    expect(first.inputCompileCount).toBe(1)
   })
 
   it("suggests close capability ids and orders issues by path", async () => {

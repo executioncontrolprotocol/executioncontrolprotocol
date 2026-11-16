@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import { canonicalJson, sha256Hex } from "@executioncontrolprotocol/plugin-sdk"
-import { loadPluginPackage } from "../src/index.js"
+import { loadPluginPackage, loadPluginSchemaDocument } from "../src/index.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const requireFromSdk = createRequire(path.join(repoRoot, "packages/plugin-sdk/package.json"))
@@ -145,10 +145,13 @@ export default definePlugin({
       }),
     )
     const result = await loadPluginPackage(root, "core")
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
-      expect(result.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const schema = await loadPluginSchemaDocument(result.loaded)
+    expect(schema.ok).toBe(false)
+    if (!schema.ok) {
+      expect(schema.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
+      expect(schema.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
     }
   })
 
@@ -189,8 +192,11 @@ export default definePlugin({
     )
     await writeFile(path.join(root, "ecp.schema.json"), "{ not json")
     const result = await loadPluginPackage(root, "core")
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const schema = await loadPluginSchemaDocument(result.loaded)
+    expect(schema.ok).toBe(false)
+    if (!schema.ok) expect(schema.issues[0]?.message).toMatch(/ecp\.schema\.json is missing/)
   })
 
   it("rejects a schema hash mismatch", async () => {
@@ -238,10 +244,13 @@ export default definePlugin({
     )
     await writeFile(path.join(root, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
     const result = await loadPluginPackage(root, "core")
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.issues[0]?.message).toMatch(/hash mismatch/)
-      expect(result.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const schema = await loadPluginSchemaDocument(result.loaded)
+    expect(schema.ok).toBe(false)
+    if (!schema.ok) {
+      expect(schema.issues[0]?.message).toMatch(/hash mismatch/)
+      expect(schema.issues[0]?.suggestions?.[0]).toMatch(/ecp-plugin-manifest/)
     }
   })
 
@@ -340,8 +349,12 @@ export default definePlugin({
     )
     const result = await loadPluginPackage(root, "core")
     expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.loaded.schemaDocument.$defs["ping.accepts"]).toEqual({ type: "object" })
+    if (!result.ok) return
+    expect(result.loaded.schemaPath).toMatch(/custom\.schema\.json$/)
+    const schema = await loadPluginSchemaDocument(result.loaded)
+    expect(schema.ok).toBe(true)
+    if (schema.ok) {
+      expect(schema.document.$defs["ping.accepts"]).toEqual({ type: "object" })
     }
   })
 })

@@ -258,22 +258,24 @@ describe("LocalPluginRegistration", () => {
     await host.stop()
   })
 
-  it("assembles accepts/returns and exposes loadPluginSchema", async () => {
+  it("keeps listing light and loads accepts/returns via loadPluginSchema", async () => {
     const host = await createEnvironment()
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [pluginTestRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
     const echo = adapter.capabilities().find((item) => item.id.endsWith(".echo"))
-    expect(echo?.accepts).toMatchObject({ type: "object" })
-    expect(echo?.returns).toMatchObject({ type: "object" })
-    expect(adapter.configSchema("@executioncontrolprotocol/test")).toMatchObject({ type: "object" })
+    expect(echo?.accepts).toBeUndefined()
+    expect(echo?.returns).toBeUndefined()
+    expect(adapter.schemaFingerprints().some((item) => item.pluginId === "@executioncontrolprotocol/test")).toBe(true)
     const schema = await adapter.loadPluginSchema("@executioncontrolprotocol/test")
-    expect(schema?.$defs["echo.accepts"]).toBeTruthy()
+    expect(schema?.$defs["echo.accepts"]).toMatchObject({ type: "object" })
+    expect(schema?.$defs["echo.returns"]).toMatchObject({ type: "object" })
+    expect(adapter.configSchema("@executioncontrolprotocol/test")).toMatchObject({ type: "object" })
     expect(await adapter.loadPluginSchema("@missing/plugin")).toBeUndefined()
     await host.stop()
   })
 
-  it("marks plugins with a bad schema document as not ok", async () => {
+  it("marks plugins with a bad schema document as not ok on first schema load", async () => {
     const badSchemaRoot = path.join(tempRoot, "bad-schema")
     await mkdir(badSchemaRoot, { recursive: true })
     await writeFile(
@@ -323,8 +325,11 @@ describe("LocalPluginRegistration", () => {
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [badSchemaRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
+    expect(adapter.plugins()[0]?.manifestOk).toBe(true)
+    expect(adapter.capabilities().map((item) => item.id)).toContain("@executioncontrolprotocol/bad-schema.ping")
+    expect(await adapter.loadPluginSchema("@executioncontrolprotocol/bad-schema")).toBeUndefined()
     expect(adapter.plugins()[0]?.manifestOk).toBe(false)
-    expect(adapter.capabilities()).toEqual([])
+    expect(adapter.plugins()[0]?.issues?.[0]?.suggestions).toContain("Run ecp-plugin-manifest to regenerate.")
     await host.stop()
   })
 

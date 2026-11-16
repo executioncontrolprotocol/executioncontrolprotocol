@@ -1,4 +1,5 @@
 import type {
+  CapabilityEntry,
   CommitData,
   CommitInput,
   ConfigObject,
@@ -9,6 +10,7 @@ import type {
   Formatter as FormatterService,
   OperationError,
   OperationResponse,
+  PluginSchemaDocument,
   RetrieveData,
   RetrieveInput,
   RunRecord,
@@ -57,6 +59,11 @@ interface LiveRun {
   promise: Promise<void>
 }
 
+interface SchemaCache {
+  key: string
+  schemas: HostSchemaSet
+}
+
 /**
  * Build retrieve / execute / commit against the service lookup.
  * @category Operations
@@ -64,11 +71,78 @@ interface LiveRun {
 export function createOperations(services: ServiceLookup, options: OperationsOptions = {}): Operations {
   const live = new Map<string, LiveRun>()
   const createRunId = options.createRunId ?? defaultRunId
+  const schemaCache: { current?: SchemaCache } = {}
 
   return {
     retrieve: (input) => retrieve(services, input, options),
-    execute: (input) => execute(services, input, options, live, createRunId),
-    commit: (input) => commit(services, input),
+    execute: (input) => execute(services, input, options, live, createRunId, schemaCache),
+    commit: (input) => commit(services, input, schemaCache),
+  }
+}
+
+async function getHostSchemaSet(
+  services: ServiceLookup,
+  cache: { current?: SchemaCache },
+): Promise<HostSchemaSet> {
+  const plugins = services.get(PluginAdapter)
+  const fingerprints =
+    typeof plugins.schemaFingerprints === "function" ? plugins.schemaFingerprints() : []
+  const key = fingerprints
+    .map((item) => `${item.pluginId}@${item.version}:${item.hash}`)
+    .sort()
+    .join("|")
+  if (cache.current?.key === key) return cache.current.schemas
+  const schemas = await HostSchemaSet.create(plugins.capabilities(), {
+    loadPluginSchema: (pluginId) => plugins.loadPluginSchema(pluginId),
+    schemaFingerprints: fingerprints,
+  })
+  cache.current = { key, schemas }
+  return schemas
+}
+
+async function validateWithHostCache(
+  services: ServiceLookup,
+  cache: { current?: SchemaCache },
+  manifest: unknown,
+  extra: {
+    configs?: ConfigObject[]
+    input?: Record<string, unknown>
+    executionDir?: string
+    readText?: (absolutePath: string) => Promise<string>
+  } = {},
+): Promise<ValidationResult> {
+  const plugins = services.get(PluginAdapter)
+  const schemas = await getHostSchemaSet(services, cache)
+  return validateExecution(manifest, {
+    capabilities: plugins.capabilities(),
+    loadPluginSchema: (pluginId) => plugins.loadPluginSchema(pluginId),
+    schemaFingerprints: typeof plugins.schemaFingerprints === "function" ? plugins.schemaFingerprints() : [],
+    schemaSet: schemas,
+    configs: extra.configs,
+    input: extra.input,
+    ...(extra.executionDir ? { executionDir: extra.executionDir } : {}),
+    ...(extra.readText ? { readText: extra.readText } : {}),
+  })
+}
+
+/**
+ * Assemble a full {@link CapabilityEntry} from a light row and a schema document.
+ * @category Operations
+ */
+export function assembleCapabilityEntry(
+  light: CapabilityEntry,
+  document: PluginSchemaDocument | undefined,
+): CapabilityEntry {
+  if (!document) return light
+  const name = light.id.includes(".") ? light.id.slice(light.id.lastIndexOf(".") + 1) : light.id
+  const accepts = document.$defs[`${name}.accepts`] ?? light.accepts
+  const returns = document.$defs[`${name}.returns`] ?? light.returns
+  const configSchema = document.$defs.config ?? light.configSchema
+  return {
+    ...light,
+    ...(accepts ? { accepts } : {}),
+    ...(returns ? { returns } : {}),
+    ...(configSchema ? { configSchema } : {}),
   }
 }
 
@@ -121,12 +195,14 @@ async function loadRetrievePayload(
   if (input.type === "capability") {
     const all = plugins.capabilities()
     if (input.id) {
-      const item = all.find((capability) => capability.id === input.id)
-      if (!item) {
+      const light = all.find((capability) => capability.id === input.id)
+      if (!light) {
         return fail("ECP_NOT_FOUND", `Capability ${input.id} was not found.`, {
           suggestions: closeMatches(input.id, all.map((capability) => capability.id)),
         })
       }
+      const document = await plugins.loadPluginSchema(light.plugin)
+      const item = assembleCapabilityEntry(light, document)
       return ok({ type: "capability", item })
     }
     if (input.query) {
@@ -153,7 +229,15 @@ async function loadRetrievePayload(
         total: hits.length,
       })
     }
-    const items = [...all].sort((a, b) => (a.id < b.id ? -1 : 1)).slice(0, limit)
+    // Spec 05 / CapabilitySummary: listing stays light (no accepts/returns embeds).
+    const items = [...all]
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+      .slice(0, limit)
+      .map((capability) => ({
+        id: capability.id,
+        plugin: capability.plugin,
+        summary: capability.summary,
+      }))
     return ok({ type: "capability", items, total: all.length })
   }
 
@@ -284,13 +368,14 @@ async function execute(
   options: OperationsOptions,
   live: Map<string, LiveRun>,
   createRunId: () => string,
+  schemaCache: { current?: SchemaCache },
 ): Promise<OperationResponse<ExecuteData>> {
   try {
     const modes = [input.execution !== undefined, input.resume !== undefined, input.cancel !== undefined].filter(Boolean)
     if (modes.length !== 1) return fail("ECP_REQUEST_INVALID", "Pass exactly one of execution, resume, or cancel.")
 
     if (input.cancel) return cancelRun(input.cancel, live)
-    if (input.resume) return resumeRun(services, input, options, live)
+    if (input.resume) return resumeRun(services, input, options, live, schemaCache)
 
     const loaded = await loadExecution(services, input.execution!)
     if (!loaded.ok) return loaded
@@ -303,13 +388,10 @@ async function execute(
       }
     }
 
-    const plugins = services.get(PluginAdapter)
-    const capabilities = plugins.capabilities()
     const storage = services.get(StorageProvider)
     const configs = await storage.listConfigs()
     const executionDir = dirnameOf(loaded.ref.path)
-    const validation = await validateExecution(manifest, {
-      capabilities,
+    const validation = await validateWithHostCache(services, schemaCache, manifest, {
       configs,
       input: input.mode === "validate" || input.mode === undefined ? input.input : input.input,
       ...(executionDir ? { executionDir } : {}),
@@ -355,7 +437,7 @@ async function execute(
       }
     }
 
-    return startAndAwait(services, manifest, input, validation, options, live, createRunId, loaded.ref)
+    return startAndAwait(services, manifest, input, validation, options, live, createRunId, loaded.ref, schemaCache)
   } catch (error) {
     return fromThrown(error)
   }
@@ -383,6 +465,7 @@ async function resumeRun(
   input: ExecuteInput,
   options: OperationsOptions,
   live: Map<string, LiveRun>,
+  schemaCache: { current?: SchemaCache },
 ): Promise<OperationResponse<ExecuteData>> {
   const storage = services.get(StorageProvider)
   const runId = input.resume!
@@ -393,8 +476,7 @@ async function resumeRun(
   }
   const manifest = await storage.runs.getManifest(runId)
   if (!manifest) return fail("ECP_NOT_FOUND", `Manifest for run ${runId} was not found.`)
-  const validation = await validateExecution(manifest, {
-    capabilities: services.get(PluginAdapter).capabilities(),
+  const validation = await validateWithHostCache(services, schemaCache, manifest, {
     configs: await storage.listConfigs(),
     input: detail.input,
   })
@@ -407,6 +489,7 @@ async function resumeRun(
     live,
     () => runId,
     { path: null, id: detail.execution.id },
+    schemaCache,
     detail.cursor,
     true,
   )
@@ -421,6 +504,7 @@ async function startAndAwait(
   live: Map<string, LiveRun>,
   createRunId: () => string,
   ref: { path: string | null; id?: string },
+  schemaCache: { current?: SchemaCache },
   cursor?: RunRecord["cursor"],
   resuming = false,
 ): Promise<OperationResponse<ExecuteData>> {
@@ -457,10 +541,19 @@ async function startAndAwait(
 
   const configs = await storage.listConfigs()
   const controller = new AbortController()
-  const schemas = await HostSchemaSet.create(plugins.capabilities())
+  const schemas = await getHostSchemaSet(services, schemaCache)
+  const light = plugins.capabilities()
+  const usedPlugins = new Set(collectUsedCapabilityIds(manifest).map((id) => light.find((entry) => entry.id === id)?.plugin).filter(Boolean) as string[])
+  const documentByPlugin = new Map<string, PluginSchemaDocument | undefined>()
+  for (const pluginId of usedPlugins) {
+    documentByPlugin.set(pluginId, await plugins.loadPluginSchema(pluginId))
+  }
+  const capabilities = light.map((entry) =>
+    usedPlugins.has(entry.plugin) ? assembleCapabilityEntry(entry, documentByPlugin.get(entry.plugin)) : entry,
+  )
   const executionDir = dirnameOf(ref.path)
   const handle = startExecution(manifest, runInput, {
-    capabilities: plugins.capabilities(),
+    capabilities,
     expression: expression as ExpressionEngineService,
     configs,
     getSecret: secrets ? (key) => secrets.get(key) : undefined,
@@ -575,7 +668,11 @@ async function loadExecution(
   return fail("ECP_REQUEST_INVALID", "execution must be a manifest, { id }, { path }, or { id, patch }.")
 }
 
-async function commit(services: ServiceLookup, input: CommitInput): Promise<OperationResponse<CommitData>> {
+async function commit(
+  services: ServiceLookup,
+  input: CommitInput,
+  schemaCache: { current?: SchemaCache },
+): Promise<OperationResponse<CommitData>> {
   try {
     if (input.type !== "execution" && input.type !== "config") {
       return fail("ECP_REQUEST_INVALID", `Type ${String(input.type)} is read-only.`)
@@ -589,7 +686,7 @@ async function commit(services: ServiceLookup, input: CommitInput): Promise<Oper
 
     const storage = services.get(StorageProvider)
     if (input.type === "execution") {
-      return await commitExecution(services, storage, input)
+      return await commitExecution(services, storage, input, schemaCache)
     }
     return await commitConfig(services, storage, input)
   } catch (error) {
@@ -601,6 +698,7 @@ async function commitExecution(
   services: ServiceLookup,
   storage: StorageProviderService,
   input: CommitInput,
+  schemaCache: { current?: SchemaCache },
 ): Promise<OperationResponse<CommitData>> {
   if (input.action === "delete") {
     if (!input.id) return fail("ECP_REQUEST_INVALID", "id is required for delete.")
@@ -632,8 +730,7 @@ async function commitExecution(
     }
   }
 
-  const validation = await validateExecution(manifest, {
-    capabilities: services.get(PluginAdapter).capabilities(),
+  const validation = await validateWithHostCache(services, schemaCache, manifest, {
     configs: await storage.listConfigs(),
   })
   if (validation.issues.some((issue) => issue.severity === "error")) {
@@ -814,6 +911,31 @@ function isConfig(value: unknown): value is ConfigObject {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/** Capability ids referenced by step `uses` in a manifest. */
+function collectUsedCapabilityIds(manifest: ExecutionManifest): string[] {
+  const ids: string[] = []
+  const visit = (nodes: unknown[]): void => {
+    for (const node of nodes) {
+      if (!isRecord(node)) continue
+      const type = typeof node.type === "string" ? node.type : "step"
+      if (type === "step" && typeof node.uses === "string") ids.push(node.uses)
+      if (type === "branch" && Array.isArray(node.branches)) {
+        for (const branch of node.branches) {
+          if (isRecord(branch) && Array.isArray(branch.steps)) visit(branch.steps)
+        }
+      }
+      if (type === "loop" && Array.isArray(node.steps)) visit(node.steps)
+      if (type === "parallel" && Array.isArray(node.branches)) {
+        for (const branch of node.branches) {
+          if (Array.isArray(branch)) visit(branch)
+        }
+      }
+    }
+  }
+  visit(manifest.steps)
+  return ids
 }
 
 /** Parent directory of an absolute execution path (POSIX or Windows). */

@@ -110,6 +110,7 @@ export type {
   Lifecycle,
   PluginAdapter as PluginAdapterService,
   PluginInfo,
+  PluginSchemaFingerprint,
   RunStore,
   SecretsProvider as SecretsProviderService,
   ServiceToken,

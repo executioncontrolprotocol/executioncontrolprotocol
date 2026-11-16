@@ -53,10 +53,65 @@ export interface LoadedPluginPackage {
   entryPath: string
   /** Light manifest used for the registry. */
   manifest: PluginManifest
-  /** Per-plugin schema document assembled into capability entries. */
-  schemaDocument: PluginSchemaDocument
+  /**
+   * Absolute path to `ecp.schema.json` (installed packages). Linked packages may omit this
+   * when the document is already in memory.
+   */
+  schemaPath?: string
+  /**
+   * Per-plugin schema document. Present immediately for link mode; loaded lazily for installed
+   * packages via {@link loadPluginSchemaDocument}.
+   */
+  schemaDocument?: PluginSchemaDocument
   /** Parsed definition, when loaded for linked regen or first call. */
   definition?: PluginDefinition
+}
+
+/**
+ * Read and validate `ecp.schema.json` for an installed package.
+ * @category Plugins
+ */
+export async function loadPluginSchemaDocument(
+  loaded: LoadedPluginPackage,
+): Promise<{ ok: true; document: PluginSchemaDocument } | { ok: false; issues: ValidationIssue[] }> {
+  if (loaded.schemaDocument) return { ok: true, document: loaded.schemaDocument }
+  const schemaPath = loaded.schemaPath
+  if (!schemaPath) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: "ECP_PLUGIN_LOAD_FAILED",
+          severity: "error",
+          message: `ecp.schema.json is missing for ${loaded.packageName}.`,
+          path: "",
+          suggestions: [REGENERATE_SUGGESTION],
+        },
+      ],
+    }
+  }
+  let rawSchema: unknown
+  try {
+    rawSchema = JSON.parse(await readFile(schemaPath, "utf8")) as unknown
+  } catch {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: "ECP_PLUGIN_LOAD_FAILED",
+          severity: "error",
+          message: `ecp.schema.json is missing for ${loaded.packageName} at ${schemaPath}.`,
+          path: "",
+          suggestions: [REGENERATE_SUGGESTION],
+        },
+      ],
+    }
+  }
+  const schemaIssues = await validateLoadedSchema(rawSchema, loaded.manifest, schemaPath)
+  if (schemaIssues.length > 0) return { ok: false, issues: schemaIssues }
+  const document = rawSchema as PluginSchemaDocument
+  loaded.schemaDocument = document
+  return { ok: true, document }
 }
 
 /**
@@ -195,27 +250,6 @@ export async function loadPluginPackage(
   const schemaRel =
     manifest.pluginSchema.path || packageJson.ecp?.schema || "./ecp.schema.json"
   const schemaPath = path.resolve(root, schemaRel)
-  let rawSchema: unknown
-  try {
-    rawSchema = JSON.parse(await readFile(schemaPath, "utf8")) as unknown
-  } catch {
-    return {
-      ok: false,
-      packageName,
-      issues: [
-        {
-          code: "ECP_PLUGIN_LOAD_FAILED",
-          severity: "error",
-          message: `ecp.schema.json is missing for ${packageName} at ${schemaPath}.`,
-          path: "",
-          suggestions: [REGENERATE_SUGGESTION],
-        },
-      ],
-    }
-  }
-
-  const schemaIssues = await validateLoadedSchema(rawSchema, manifest, schemaPath)
-  if (schemaIssues.length > 0) return { ok: false, packageName, issues: schemaIssues }
 
   return {
     ok: true,
@@ -225,7 +259,7 @@ export async function loadPluginPackage(
       packageVersion,
       entryPath,
       manifest,
-      schemaDocument: rawSchema as PluginSchemaDocument,
+      schemaPath,
     },
   }
 }

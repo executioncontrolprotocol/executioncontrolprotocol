@@ -53,7 +53,10 @@ export interface ExpressionError extends Error {
  * @category Services
  */
 export interface PluginAdapter extends Lifecycle {
-  /** Capability entries from manifests. */
+  /**
+   * Light capability rows from manifests (no `accepts` / `returns` embeds).
+   * Full entries are assembled lazily for `retrieve --id` and validation.
+   */
   capabilities(): CapabilityEntry[]
   /** Installed plugins, including ones whose manifest failed. */
   plugins(): PluginInfo[]
@@ -62,10 +65,29 @@ export interface PluginAdapter extends Lifecycle {
   /**
    * Load the plugin's {@link PluginSchemaDocument} when available.
    * Returns `undefined` when the plugin is missing or its manifest failed.
+   * Missing or invalid `ecp.schema.json` marks the plugin `manifestOk: false`.
    */
   loadPluginSchema(pluginId: string): Promise<PluginSchemaDocument | undefined>
+  /**
+   * Light-manifest schema fingerprints for `schemaHash` and host-lifetime cache invalidation.
+   * Does not read `ecp.schema.json`.
+   */
+  schemaFingerprints(): readonly PluginSchemaFingerprint[]
   /** Import the plugin if needed and invoke the capability. */
   call(request: CapabilityCall, signal: AbortSignal): Promise<unknown>
+}
+
+/**
+ * Plugin schema document identity used in {@link ValidationResult.schemaHash}.
+ * @category Plugins
+ */
+export interface PluginSchemaFingerprint {
+  /** Plugin id. */
+  pluginId: string
+  /** Plugin package version. */
+  version: string
+  /** Hash of `ecp.schema.json` from the light manifest. */
+  hash: string
 }
 
 /**
