@@ -23,8 +23,16 @@ export type {
   ServiceLookup,
   UseOptions,
 } from "./container/environment.js"
-export { generateExecutionSchema } from "./schema/generate.js"
-export type { JsonSchema } from "./schema/generate.js"
+export type { JsonSchema } from "./schema/json-schema.js"
+export {
+  capabilityNameFromId,
+  generateEditorRootSchema,
+  generatePluginEditorSchema,
+  pluginEditorSchemaRelativePath,
+  pluginIdFromSafeFileName,
+  safePluginId,
+  wrapValue,
+} from "./schema/editor-schema.js"
 export { canonicalJson, sha256Hex } from "./schema/canonical.js"
 export { closeMatches, damerauLevenshtein } from "./schema/suggest.js"
 export { HostSchemaSet, loadExecutionText, validateExecution } from "./validate/validate.js"
@@ -40,7 +48,6 @@ export {
   subschemasAt,
   validateWithMarkers,
 } from "./validate/markers.js"
-export { wrapValue } from "./schema/generate.js"
 export { runExecution, startExecution } from "./execute/run.js"
 export type { ActiveRun, RunDependencies, RunOutcome, StateStore, StepSummary } from "./execute/run.js"
 export { resolveValue } from "./execute/resolve.js"

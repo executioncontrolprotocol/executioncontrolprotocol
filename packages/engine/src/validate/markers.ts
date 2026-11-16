@@ -1,5 +1,5 @@
 import type { ValidationIssue } from "@executioncontrolprotocol/protocol"
-import type { JsonSchema } from "../schema/generate.js"
+import type { JsonSchema } from "../schema/json-schema.js"
 
 /**
  * Marker keys recognised in execution values.

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
@@ -26,6 +26,7 @@ import {
   type StorageProvider as StorageProviderService,
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "@executioncontrolprotocol/quickjs"
+import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 import { LocalTokenAuth } from "./auth/local-token-auth.js"
 import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 import { generateHostToken } from "./token.js"
@@ -85,6 +86,19 @@ export interface LocalHost extends Host {
   readonly token?: string
   /** Resolves when `/v1/admin/shutdown` completes (server mode). */
   whenShutdown(): Promise<void>
+}
+
+/**
+ * Stamp under `$ECP_HOME/schema/plugins/index.json` for lazy editor rewrites.
+ * @category Host
+ */
+interface EditorSchemaStamp {
+  /** Runtime/editor schemaHash (base + sorted plugin schema hashes). */
+  schemaHash: string
+  /** Sorted capability ids reflected in the root editor schema. */
+  capabilityIds: string[]
+  /** Plugin id → `ecp.schema.json` hash from the light manifest. */
+  plugins: Record<string, string>
 }
 
 /**
@@ -200,21 +214,156 @@ async function markInterruptedRuns(
   }
 }
 
+/**
+ * Write or refresh the root editor schema and per-plugin editor files.
+ * A warm start with an unchanged plugin set does not call `loadPluginSchema`.
+ * @category Host
+ */
 async function writeExecutionSchema(host: Host): Promise<string> {
+  const {
+    canonicalJson,
+    generateEditorRootSchema,
+    generatePluginEditorSchema,
+    safePluginId,
+    sha256Hex,
+  } = await import("@executioncontrolprotocol/engine")
   const plugins = host.services.get(PluginAdapter)
-  const { assembleCapabilityEntry, generateExecutionSchema, sha256Hex, canonicalJson } = await import(
-    "@executioncontrolprotocol/engine"
-  )
   const light = plugins.capabilities()
-  const byPlugin = new Map<string, Awaited<ReturnType<typeof plugins.loadPluginSchema>>>()
-  for (const pluginId of new Set(light.map((entry) => entry.plugin))) {
-    byPlugin.set(pluginId, await plugins.loadPluginSchema(pluginId))
+  const fingerprints = plugins.schemaFingerprints()
+  const fingerprintById = new Map(fingerprints.map((item) => [item.pluginId, item]))
+  const capabilityIds = [...new Set(light.map((entry) => entry.id))].sort()
+  const pluginIds = [...new Set(light.map((entry) => entry.plugin))].sort()
+
+  const schemaDir = path.join(host.settings.home, "schema")
+  const pluginsDir = path.join(schemaDir, "plugins")
+  const rootPath = path.join(schemaDir, "execution.schema.json")
+  const indexPath = path.join(pluginsDir, "index.json")
+
+  const desiredPlugins: Record<string, string> = {}
+  for (const pluginId of pluginIds) {
+    const fingerprint = fingerprintById.get(pluginId)
+    if (fingerprint) desiredPlugins[pluginId] = fingerprint.hash
   }
-  const full = light.map((entry) => assembleCapabilityEntry(entry, byPlugin.get(entry.plugin)))
-  const schema = generateExecutionSchema(full)
-  const schemaHash = await sha256Hex(canonicalJson(schema))
-  const target = path.join(host.settings.home, "schema", "execution.schema.json")
-  await mkdir(path.dirname(target), { recursive: true })
-  await writeFile(target, `${JSON.stringify(schema, null, 2)}\n`, "utf8")
+
+  const base = structuredClone(baseSchema) as Record<string, unknown>
+  base.$id = "ecp://host/execution.schema.json"
+  const schemaHash = await sha256Hex(
+    canonicalJson({
+      base,
+      plugins: [...fingerprints]
+        .map((item) => ({ id: item.pluginId, version: item.version, hash: item.hash }))
+        .sort((left, right) => {
+          if (left.id !== right.id) return left.id < right.id ? -1 : 1
+          if (left.version !== right.version) return left.version < right.version ? -1 : 1
+          return left.hash < right.hash ? -1 : left.hash > right.hash ? 1 : 0
+        }),
+    }),
+  )
+
+  const previous = await readStamp(indexPath)
+  const stampMatches =
+    previous !== undefined &&
+    previous.schemaHash === schemaHash &&
+    arraysEqual(previous.capabilityIds, capabilityIds) &&
+    recordsEqual(previous.plugins, desiredPlugins)
+
+  let rootOk = false
+  try {
+    await stat(rootPath)
+    rootOk = true
+  } catch {
+    rootOk = false
+  }
+
+  const missingPluginFiles: string[] = []
+  for (const pluginId of pluginIds) {
+    const target = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
+    try {
+      await stat(target)
+    } catch {
+      missingPluginFiles.push(pluginId)
+    }
+  }
+
+  if (stampMatches && rootOk && missingPluginFiles.length === 0) {
+    return schemaHash
+  }
+
+  await mkdir(pluginsDir, { recursive: true })
+
+  const changedPluginIds = new Set<string>(missingPluginFiles)
+  for (const pluginId of pluginIds) {
+    if (previous?.plugins[pluginId] !== desiredPlugins[pluginId]) changedPluginIds.add(pluginId)
+  }
+  for (const pluginId of Object.keys(previous?.plugins ?? {})) {
+    if (!(pluginId in desiredPlugins)) {
+      const stale = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
+      await rm(stale, { force: true })
+    }
+  }
+
+  for (const pluginId of changedPluginIds) {
+    const document = await plugins.loadPluginSchema(pluginId)
+    if (!document) continue
+    const pluginCaps = light.filter((entry) => entry.plugin === pluginId)
+    const editor = generatePluginEditorSchema(pluginId, pluginCaps, document)
+    const target = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
+    await writeFile(target, `${JSON.stringify(editor, null, 2)}\n`, "utf8")
+  }
+
+  const rootNeeded =
+    !rootOk ||
+    !previous ||
+    previous.schemaHash !== schemaHash ||
+    !arraysEqual(previous.capabilityIds, capabilityIds) ||
+    changedPluginIds.size > 0
+  if (rootNeeded) {
+    const root = generateEditorRootSchema(light)
+    await mkdir(schemaDir, { recursive: true })
+    await writeFile(rootPath, `${JSON.stringify(root, null, 2)}\n`, "utf8")
+  }
+
+  const stamp: EditorSchemaStamp = {
+    schemaHash,
+    capabilityIds,
+    plugins: desiredPlugins,
+  }
+  await writeFile(indexPath, `${JSON.stringify(stamp, null, 2)}\n`, "utf8")
   return schemaHash
+}
+
+async function readStamp(indexPath: string): Promise<EditorSchemaStamp | undefined> {
+  try {
+    const text = await readFile(indexPath, "utf8")
+    const parsed = JSON.parse(text) as EditorSchemaStamp
+    if (
+      typeof parsed.schemaHash !== "string" ||
+      !Array.isArray(parsed.capabilityIds) ||
+      typeof parsed.plugins !== "object" ||
+      parsed.plugins === null
+    ) {
+      return undefined
+    }
+    return parsed
+  } catch {
+    return undefined
+  }
+}
+
+function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false
+  }
+  return true
+}
+
+function recordsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
+  const leftKeys = Object.keys(left).sort()
+  const rightKeys = Object.keys(right).sort()
+  if (!arraysEqual(leftKeys, rightKeys)) return false
+  for (const key of leftKeys) {
+    if (left[key] !== right[key]) return false
+  }
+  return true
 }

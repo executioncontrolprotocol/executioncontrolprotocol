@@ -103,8 +103,10 @@ lines' outputs with their own certainty.
 
 ## Editor support
 
-- `$ECP_HOME/schema/execution.schema.json`: the full generated schema, rewritten on every host
-  start when `schemaHash` changes. `ecp schema` prints its path.
-- Users add `"$schema": "<that path>"` to `.ecp.json` files (or a `json.schemas` mapping for
+- `$ECP_HOME/schema/execution.schema.json`: a small root dispatch rewritten when `schemaHash`
+  changes. Per-plugin editor schema files live beside it under `schema/plugins/`. Root branches
+  use relative `$ref`s to `#/$defs/<name>.editorInput` (marker-wrapped `accepts`). `ecp schema`
+  prints the root path.
+- Users add `"$schema": "<root path>"` to `.ecp.json` files (or a `json.schemas` mapping for
   `**/*.ecp.json`). Editors then complete capability ids, check inputs against `accepts`, and
   show plugin descriptions on hover.

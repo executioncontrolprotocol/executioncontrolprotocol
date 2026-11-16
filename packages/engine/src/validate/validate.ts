@@ -11,7 +11,7 @@ import Ajv2020 from "ajv/dist/2020.js"
 import addFormatsModule from "ajv-formats"
 import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 import { canonicalJson, sha256Hex } from "../schema/canonical.js"
-import type { JsonSchema } from "../schema/generate.js"
+import type { JsonSchema } from "../schema/json-schema.js"
 import { closeMatches } from "../schema/suggest.js"
 import { checkDataFlow } from "./dataflow.js"
 import { checkExpression, checkScript, syntaxIssue } from "./expr.js"

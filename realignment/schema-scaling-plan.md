@@ -453,7 +453,7 @@ Each PR green alone (`pnpm run check` / CI).
 | **S1 — Spec + light manifests + SDK emit** | Spec amendments (03/08/02/09/10/12 stubs for B8); protocol `plugin-manifest` **2.0** (light index + `schema: { path, hash }`). `buildPluginSchemaDocument` + bin writes light `ecp.manifest.json` and `ecp.schema.json`. Regenerate all first-party plugins. Load-manifest checks schema file (link: both in memory). No engine behaviour change yet. |
 | **S2 — Engine new path + equivalence** | `markers.ts`, new `HostSchemaSet` base+lazy raw path via `loadPluginSchema`, dual-path equivalence test over `fixtures/` + `examples/` with all real + fixture plugins. Default can remain old path if needed for safety; test runs both. |
 | **S3 — Switch-over + cache + delete legacy** | **Done (this PR):** new path default; operations host-lifetime `HostSchemaSet` cache; runtime combined wrap deleted; fixture re-baseline + exact conformance (Group C not merged). |
-| **S4 — Editor schema files** | Host writes root + `schema/plugins/*`; `wrapValue` editor-only; CLI `ecp schema` still root. |
+| **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite); `wrapValue` editor-only; CLI `ecp schema` still root. |
 | **S5 — B8** | `bench/run.mjs` + budgets (incl. registry load at 1k/5k in host-start); commit baseline JSON under `bench/baseline/` if that is the F6 convention; update A11 when budgets land. |
 | **S6 — Firefly families** | Move six pending families into `GENERATED_FAMILIES`; regenerate; per-family tests + README; tick F7 checkboxes / decision recorded. |
 

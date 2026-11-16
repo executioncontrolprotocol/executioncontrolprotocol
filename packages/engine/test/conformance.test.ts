@@ -18,7 +18,7 @@ import {
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
 import {
   createEnvironment,
-  generateExecutionSchema,
+  generateEditorRootSchema,
   HostSchemaSet,
   validateExecution,
   type ServiceClass,
@@ -218,13 +218,14 @@ describe("manifest conformance", () => {
   })
 
   it("accepts localize-banner against the base document schema and rejects an invalid pointer", async () => {
-    const schema = generateExecutionSchema([...testCapabilities, ...creativeCapabilities])
+    const schema = generateEditorRootSchema([...testCapabilities, ...creativeCapabilities])
     const schemas = await HostSchemaSet.create([...testCapabilities, ...creativeCapabilities])
     const localize = JSON.parse(
       readFileSync(path.join(manifests, "valid/localize-banner.ecp.json"), "utf8"),
     ) as unknown
     expect(schemas.validateDocument(localize)).toEqual([])
     expect(schema).toMatchObject({ type: "object" })
+    expect(JSON.stringify(schema)).toContain(".editor.schema.json#/$defs/")
 
     const invalidName = readdirSync(path.join(manifests, "invalid")).find((file) => file.endsWith(".ecp.json"))
     expect(invalidName).toBeTypeOf("string")

@@ -86,9 +86,27 @@ export class HomePaths {
     return path.join(this.runDir(runId), "artifacts")
   }
 
-  /** Editor schema path. */
+  /** Root editor schema path. */
   executionSchema(): string {
     return path.join(this.home, "schema", "execution.schema.json")
+  }
+
+  /** Directory for per-plugin editor schema files. */
+  pluginEditorSchemasDir(): string {
+    return path.join(this.home, "schema", "plugins")
+  }
+
+  /**
+   * Per-plugin editor schema path.
+   * @param safePluginId Filesystem-safe plugin id (see engine `safePluginId`).
+   */
+  pluginEditorSchema(safePluginId: string): string {
+    return path.join(this.pluginEditorSchemasDir(), `${safePluginId}.editor.schema.json`)
+  }
+
+  /** Stamp mapping plugin id → schema hash for lazy editor rewrites. */
+  pluginEditorSchemaIndex(): string {
+    return path.join(this.pluginEditorSchemasDir(), "index.json")
   }
 }
 

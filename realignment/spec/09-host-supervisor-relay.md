@@ -51,9 +51,10 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
 ## Host process
 
 - Entry: `packages/host/dist/main.js` → `createLocalHost({ mode: "server", port, token })`.
-- On start: mark leftover `running` runs `interrupted`; build registry from manifests;
-  generate schemas and write `$ECP_HOME/schema/execution.schema.json`; start endpoints; log a
-  timing line.
+- On start: mark leftover `running` runs `interrupted`; build registry from manifests; write
+  the root editor schema and per-plugin editor schema files under `$ECP_HOME/schema/plugins/`
+  (relative `$ref`s to `#/$defs/<name>.editorInput`); runtime validation does not compile these
+  files; start endpoints; log a timing line.
 - Graceful shutdown on `/v1/admin/shutdown` and on SIGTERM/SIGINT (POSIX).
 
 ## HTTP API (`HttpApiEndpoint`, `node:http`, no framework)
