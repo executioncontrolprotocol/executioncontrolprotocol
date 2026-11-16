@@ -267,10 +267,10 @@ Implementation plan:
 - **Or document:** if a family is deliberately deferred after the validation fix, list it in
   spec 08, the plugin README, Phase 8 and the plan retrospective with the reason.
 
-Progress: **S1–S4 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
+Progress: **S1–S5 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
 base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy registry, root +
-per-plugin editor schema files with stamp-based warm start). S5 B8 and S6 Firefly family ship
-remain.
+per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets).
+S6 Firefly family ship remains.
 
 - [ ] Decision recorded
 - [ ] Families shipped or documented

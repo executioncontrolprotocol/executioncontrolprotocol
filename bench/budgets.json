@@ -1,5 +1,5 @@
 {
-  "description": "Phase 5 CLI budgets (median ms). Raised only with evidence; never lowered to pass.",
+  "description": "Phase 5 CLI budgets (median ms). Raised only with evidence; never lowered to pass. B8 schema-scale targets from schema-scaling-plan §10.",
   "scenarios": {
     "B1-retrieve-id-in-process": { "medianMs": 5000 },
     "B1-retrieve-id-warm": { "medianMs": 3000 },
@@ -10,6 +10,30 @@
     "B5-execute-expr-warm": { "medianMs": 5000 },
     "B6-host-start": { "medianMs": 15000 },
     "B6-host-restart": { "medianMs": 20000 },
-    "B7-schema": { "medianMs": 5000 }
+    "B7-schema": { "medianMs": 5000 },
+    "B8-start-overhead-1k": {
+      "medianMs": 100,
+      "note": "Host start median minus empty at 1,000 synth caps; plan ≤ ~100 ms overhead at 5k."
+    },
+    "B8-start-overhead-5k": {
+      "medianMs": 200,
+      "note": "Plan target ≤ ~100 ms; Windows 2026-11-16 measured median 159 ms for 250 light manifests (see bench/baseline). Budget set to 200 ms with evidence — do not treat as a silent loosen of the design target."
+    },
+    "B8-first-use-median": {
+      "medianMs": 50,
+      "note": "First-use validateCapabilityInput median (ms/capability) at 1k."
+    },
+    "B8-cached-validate": {
+      "medianMs": 1,
+      "note": "Cached validateCapabilityInput median at 1k."
+    },
+    "B8-editor-write-warm-1k": {
+      "medianMs": 50,
+      "note": "Warm editor rewrite with unchanged stamp; should be ~0."
+    },
+    "B8-execute-echo-warm-all-plugins": {
+      "medianMs": 5000,
+      "note": "Warm echo with all real MVP plugins; floor for Group E (F6). Same order as B3-warm."
+    }
   }
 }

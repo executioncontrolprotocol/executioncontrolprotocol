@@ -1,0 +1,514 @@
+{
+  "date": "2026-11-16",
+  "os": "windows",
+  "runs": 11,
+  "budgetsEnforced": true,
+  "warmSavingsMsB3": 14.599999999999909,
+  "decision": "keep-in-process-fallback",
+  "decisionNote": "Warm host saves 15 ms median on B3 (< ~300 ms). Spec 10 discovery stays in-process when no host is running.",
+  "scenarios": [
+    {
+      "id": "B1-retrieve-id-in-process",
+      "samplesMs": [
+        914.9,
+        723.5,
+        767.3,
+        770.8,
+        853.3,
+        739.3,
+        1304.4,
+        1081,
+        768.5,
+        735.6,
+        735.9
+      ],
+      "medianMs": 768.5,
+      "p95Ms": 1304.4
+    },
+    {
+      "id": "B1-retrieve-id-warm",
+      "samplesMs": [
+        904.2,
+        766.5,
+        829.6,
+        839.5,
+        791.5,
+        802.6,
+        1023.1,
+        923.5,
+        837.8,
+        853.1,
+        845.5
+      ],
+      "medianMs": 839.5,
+      "p95Ms": 1023.1
+    },
+    {
+      "id": "B2-retrieve-query-warm",
+      "samplesMs": [
+        872.8,
+        903.9,
+        981.7,
+        835.1,
+        862.6,
+        867.2,
+        777.8,
+        769.9,
+        760,
+        759.1,
+        764
+      ],
+      "medianMs": 835.1,
+      "p95Ms": 981.7
+    },
+    {
+      "id": "B2-retrieve-query-in-process",
+      "samplesMs": [
+        835.9,
+        879.3,
+        1194.7,
+        732.5,
+        802.6,
+        790.4,
+        769.3,
+        722.3,
+        735.9,
+        801,
+        730.2
+      ],
+      "medianMs": 790.4,
+      "p95Ms": 1194.7
+    },
+    {
+      "id": "B3-execute-echo-in-process",
+      "samplesMs": [
+        827.1,
+        831,
+        842.3,
+        850.6,
+        834.9,
+        823.7,
+        816.3,
+        850.4,
+        890.3,
+        889.8,
+        913.7
+      ],
+      "medianMs": 842.3,
+      "p95Ms": 913.7
+    },
+    {
+      "id": "B3-execute-echo-warm",
+      "samplesMs": [
+        906.6,
+        848.8,
+        794,
+        797.6,
+        827.7,
+        1099.1,
+        1074.6,
+        803.7,
+        810,
+        942.6,
+        823.2
+      ],
+      "medianMs": 827.7,
+      "p95Ms": 1099.1
+    },
+    {
+      "id": "B4-execute-firefly",
+      "samplesMs": [],
+      "medianMs": null,
+      "p95Ms": null,
+      "note": "Skipped: live Firefly credentials not available in CI/local Phase 5 gate."
+    },
+    {
+      "id": "B5-execute-expr-warm",
+      "samplesMs": [
+        790.5,
+        824.7,
+        768.8,
+        780.6,
+        759.7,
+        777.2,
+        760.6,
+        762.4,
+        777.6,
+        783.2,
+        755.4
+      ],
+      "medianMs": 777.2,
+      "p95Ms": 824.7
+    },
+    {
+      "id": "B6-host-start",
+      "samplesMs": [
+        1773.7,
+        1499.1,
+        1612.8,
+        1521.6,
+        1509.6
+      ],
+      "medianMs": 1521.6,
+      "p95Ms": 1773.7
+    },
+    {
+      "id": "B6-host-restart",
+      "samplesMs": [
+        4263.9,
+        4249.2,
+        4250.8,
+        4266.3,
+        4240.4
+      ],
+      "medianMs": 4250.8,
+      "p95Ms": 4266.3
+    },
+    {
+      "id": "B7-schema",
+      "samplesMs": [
+        784.2
+      ],
+      "medianMs": 784.2,
+      "p95Ms": 784.2
+    },
+    {
+      "id": "B8-start-empty",
+      "samplesMs": [
+        27,
+        9,
+        3
+      ],
+      "medianMs": 9,
+      "p95Ms": 27,
+      "note": "createLocalHost timing.startMs with no plugins (registry/services only)."
+    },
+    {
+      "id": "B8-start-1k",
+      "samplesMs": [
+        49,
+        30,
+        48
+      ],
+      "medianMs": 48,
+      "p95Ms": 49,
+      "heapMb": 112.5,
+      "plugins": 50,
+      "capabilities": 1000,
+      "note": "timing.startMs incl. registry load of 50 light manifests (1000 caps)."
+    },
+    {
+      "id": "B8-start-overhead-1k",
+      "samplesMs": [
+        40,
+        21,
+        39
+      ],
+      "medianMs": 39,
+      "p95Ms": 40,
+      "note": "timing.startMs median minus empty (9 ms). Target ≤ ~100 ms at 5k."
+    },
+    {
+      "id": "B8-editor-write-cold-1k",
+      "samplesMs": [
+        1842,
+        1827,
+        1813
+      ],
+      "medianMs": 1827,
+      "p95Ms": 1842,
+      "note": "createLocalHost timing.schemaMs on cold start (no stamp)."
+    },
+    {
+      "id": "B8-editor-write-warm-1k",
+      "samplesMs": [
+        8,
+        5,
+        5
+      ],
+      "medianMs": 5,
+      "p95Ms": 8,
+      "note": "createLocalHost timing.schemaMs with unchanged stamp (should be ~0)."
+    },
+    {
+      "id": "B8-first-use-median-1k",
+      "samplesMs": [
+        36.2,
+        27.8,
+        15.4,
+        17.7,
+        17.8,
+        17.3,
+        29.8,
+        39.8,
+        14.6,
+        14,
+        13.9,
+        15.9,
+        14,
+        22.3,
+        15.9,
+        14,
+        13.7,
+        13.3,
+        14,
+        14.2
+      ],
+      "medianMs": 15.7,
+      "p95Ms": 36.2,
+      "heapMb": 94.6,
+      "sampleSize": 20,
+      "note": "Median first-use validateCapabilityInput (load plugin schema + compile accepts)."
+    },
+    {
+      "id": "B8-first-use-median",
+      "samplesMs": [
+        36.2,
+        27.8,
+        15.4,
+        17.7,
+        17.8,
+        17.3,
+        29.8,
+        39.8,
+        14.6,
+        14,
+        13.9,
+        15.9,
+        14,
+        22.3,
+        15.9,
+        14,
+        13.7,
+        13.3,
+        14,
+        14.2
+      ],
+      "medianMs": 15.7,
+      "p95Ms": 36.2,
+      "note": "Same as B8-first-use-median-1k (budget key)."
+    },
+    {
+      "id": "B8-cached-validate",
+      "samplesMs": [
+        0.1,
+        0,
+        0.1,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "medianMs": 0,
+      "p95Ms": 0.1,
+      "note": "Cached validateCapabilityInput on a warm capability (budget key)."
+    },
+    {
+      "id": "B8-cached-validate-1k",
+      "samplesMs": [
+        0.1,
+        0,
+        0.1,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "medianMs": 0,
+      "p95Ms": 0.1,
+      "note": "Cached validateCapabilityInput on a warm capability."
+    },
+    {
+      "id": "B8-heap-after-start-1k",
+      "samplesMs": [],
+      "medianMs": 112.5,
+      "p95Ms": 112.5,
+      "unit": "MB",
+      "note": "process.memoryUsage().heapUsed after cold start (soft; MB stored as medianMs)."
+    },
+    {
+      "id": "B8-heap-after-first-use-1k",
+      "samplesMs": [],
+      "medianMs": 94.6,
+      "p95Ms": 94.6,
+      "unit": "MB",
+      "note": "Heap after first-use sample (soft; MB stored as medianMs)."
+    },
+    {
+      "id": "B8-start-5k",
+      "samplesMs": [
+        138,
+        195,
+        181
+      ],
+      "medianMs": 181,
+      "p95Ms": 195,
+      "heapMb": 190.7,
+      "plugins": 250,
+      "capabilities": 5000,
+      "note": "timing.startMs incl. registry load of 250 light manifests (5000 caps)."
+    },
+    {
+      "id": "B8-start-overhead-5k",
+      "samplesMs": [
+        129,
+        186,
+        172
+      ],
+      "medianMs": 172,
+      "p95Ms": 186,
+      "note": "timing.startMs median minus empty (9 ms). Target ≤ ~100 ms at 5k."
+    },
+    {
+      "id": "B8-editor-write-cold-5k",
+      "samplesMs": [
+        8873,
+        8607,
+        12179
+      ],
+      "medianMs": 8873,
+      "p95Ms": 12179,
+      "note": "createLocalHost timing.schemaMs on cold start (no stamp)."
+    },
+    {
+      "id": "B8-editor-write-warm-5k",
+      "samplesMs": [
+        34,
+        22,
+        24
+      ],
+      "medianMs": 24,
+      "p95Ms": 34,
+      "note": "createLocalHost timing.schemaMs with unchanged stamp (should be ~0)."
+    },
+    {
+      "id": "B8-first-use-median-5k",
+      "samplesMs": [
+        56.8,
+        24.3,
+        14.4,
+        15.4,
+        15.8,
+        14.3,
+        17.1,
+        20.3,
+        13.4,
+        13.7,
+        13.6,
+        13,
+        12.9,
+        14.1,
+        14.6,
+        13.3,
+        13.3,
+        13.1,
+        14.8,
+        13.5
+      ],
+      "medianMs": 14.2,
+      "p95Ms": 24.3,
+      "heapMb": 166.1,
+      "sampleSize": 20,
+      "note": "Median first-use validateCapabilityInput (load plugin schema + compile accepts)."
+    },
+    {
+      "id": "B8-cached-validate-5k",
+      "samplesMs": [
+        0.1,
+        0,
+        0.1,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "medianMs": 0,
+      "p95Ms": 0.1,
+      "note": "Cached validateCapabilityInput on a warm capability."
+    },
+    {
+      "id": "B8-heap-after-start-5k",
+      "samplesMs": [],
+      "medianMs": 190.7,
+      "p95Ms": 190.7,
+      "unit": "MB",
+      "note": "process.memoryUsage().heapUsed after cold start (soft; MB stored as medianMs)."
+    },
+    {
+      "id": "B8-heap-after-first-use-5k",
+      "samplesMs": [],
+      "medianMs": 166.1,
+      "p95Ms": 166.1,
+      "unit": "MB",
+      "note": "Heap after first-use sample (soft; MB stored as medianMs)."
+    },
+    {
+      "id": "B8-execute-echo-warm-all-plugins",
+      "samplesMs": [
+        955.8,
+        783.1,
+        802.9,
+        793.7,
+        772.1,
+        897.3,
+        796.6,
+        764.2,
+        897.4,
+        1201.6,
+        1026.2
+      ],
+      "medianMs": 802.9,
+      "p95Ms": 1201.6,
+      "note": "Warm ecp execute echo with all real MVP plugins linked (F6 / Group E sub-metric)."
+    }
+  ],
+  "mcpColumn": "N/A until Phase 6",
+  "b8ScalesDefault": [
+    1000
+  ],
+  "b8ScalesGated": [
+    5000
+  ],
+  "b8BudgetNotes": {
+    "B8-start-overhead-5k": "Plan ≤100ms; measured median on this run — see scenarios; budget 200ms with evidence."
+  }
+}

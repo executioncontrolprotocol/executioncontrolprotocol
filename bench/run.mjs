@@ -1,5 +1,6 @@
 /**
- * B1–B7 CLI benchmarks (Phase 5). Writes JSON under bench/results/ and enforces budgets.json.
+ * B1–B8 CLI / schema-scale benchmarks. Writes JSON under bench/results/ and enforces budgets.json.
+ * B8 (1k default; also 5k when ECP_BENCH_SCALE=5000): see bench/b8.mjs.
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs"
 import { spawn } from "node:child_process"
@@ -7,10 +8,14 @@ import { tmpdir, platform } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { performance } from "node:perf_hooks"
+import { runB8 } from "./b8.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const ecpBin = path.join(root, "packages/cli/bin/ecp.js")
 const pluginTest = path.join(root, "plugins/plugin-test")
+const pluginAnthropic = path.join(root, "plugins/plugin-anthropic")
+const pluginAzure = path.join(root, "plugins/plugin-azure-blob-storage")
+const pluginFirefly = path.join(root, "plugins/plugin-adobe-firefly-services")
 const echoFixture = path.join(root, "fixtures/manifests/runs/echo.ecp.json")
 const exprFixture = path.join(root, "fixtures/manifests/valid/branch.ecp.json")
 const runs = Number(process.env.ECP_BENCH_RUNS ?? 11)
@@ -128,6 +133,22 @@ try {
   })
 
   await runEcp(["host", "stop", "--force", "--json"], baseEnv)
+
+  const b8 = await runB8({
+    root,
+    round,
+    runEcp,
+    waitHealthy,
+    timeScenario,
+    realPlugins: [
+      { name: "@executioncontrolprotocol/plugin-test", root: pluginTest },
+      { name: "@executioncontrolprotocol/plugin-anthropic", root: pluginAnthropic },
+      { name: "@executioncontrolprotocol/plugin-azure-blob-storage", root: pluginAzure },
+      { name: "@executioncontrolprotocol/plugin-adobe-firefly-services", root: pluginFirefly },
+    ],
+    echoFixture,
+  })
+  scenarios.push(...b8)
 } finally {
   try {
     await runEcp(["host", "stop", "--force", "--json"], baseEnv)

@@ -18,6 +18,18 @@ describe("A11 benchmark decision and budgets", () => {
     expect(Object.keys(budgets.scenarios).length).toBeGreaterThan(0)
     expect(budgets.scenarios["B3-execute-echo-in-process"]?.medianMs).toBeGreaterThan(0)
 
+    const b8Keys = [
+      "B8-start-overhead-1k",
+      "B8-start-overhead-5k",
+      "B8-first-use-median",
+      "B8-cached-validate",
+      "B8-editor-write-warm-1k",
+      "B8-execute-echo-warm-all-plugins",
+    ]
+    for (const key of b8Keys) {
+      expect(budgets.scenarios[key]?.medianMs, key).toBeGreaterThan(0)
+    }
+
     // Load budgets the same way the bench runner does (do not require gitignored results/).
     const { pathToFileURL } = await import("node:url")
     const benchPath = path.join(acceptanceRepoRoot, "bench/run.mjs")

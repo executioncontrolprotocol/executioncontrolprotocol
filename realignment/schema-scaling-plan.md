@@ -454,7 +454,7 @@ Each PR green alone (`pnpm run check` / CI).
 | **S2 — Engine new path + equivalence** | `markers.ts`, new `HostSchemaSet` base+lazy raw path via `loadPluginSchema`, dual-path equivalence test over `fixtures/` + `examples/` with all real + fixture plugins. Default can remain old path if needed for safety; test runs both. |
 | **S3 — Switch-over + cache + delete legacy** | **Done (this PR):** new path default; operations host-lifetime `HostSchemaSet` cache; runtime combined wrap deleted; fixture re-baseline + exact conformance (Group C not merged). |
 | **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite); `wrapValue` editor-only; CLI `ecp schema` still root. |
-| **S5 — B8** | `bench/run.mjs` + budgets (incl. registry load at 1k/5k in host-start); commit baseline JSON under `bench/baseline/` if that is the F6 convention; update A11 when budgets land. |
+| **S5 — B8** | **Done:** `bench/run.mjs` + `bench/b8.mjs` + budgets (registry load at 1k; 5k via `ECP_BENCH_SCALE=5000`); baseline under `bench/baseline/`; A11 + spec 12 updated. |
 | **S6 — Firefly families** | Move six pending families into `GENERATED_FAMILIES`; regenerate; per-family tests + README; tick F7 checkboxes / decision recorded. |
 
 **Relative to C and E:** S1–S2 ∥ C; S3 after C; S5 informs E's warm-execute re-budget; S6
@@ -483,12 +483,14 @@ Each PR green alone (`pnpm run check` / CI).
 - [x] `validate-scale-equivalence.test.ts` green over `fixtures/` + `examples/` with all real +
   fixture plugins, then legacy path removed; conformance exact-match green. *(S3)*
 - [x] Marker-filter, `$script` position, cache, lazy-load, missing-schema tests green. *(S3; B8 still open)*
-- [ ] **B8 budgets:** host start (incl. registry load of light manifests) median independent of N
+- [x] **B8 budgets:** host start (incl. registry load of light manifests) median independent of N
   (≈ flat; target ≤ ~100 ms overhead beyond empty at 5k synthetic); first-use compile median ≤
   **50 ms**/capability; cached validate ≤ **1 ms**; heap recorded at 1k and 5k (expectation
-  order-of-magnitude ≤ ~100 MB unused lazy, per spike).
-- [ ] Warm `ecp execute` (echo) measured before/after schema cache; contribution of schema
-  rebuild documented for F6.
+  order-of-magnitude ≤ ~100 MB unused lazy, per spike). *(S5; see `bench/budgets.json` +
+  `bench/baseline/`)*
+- [x] Warm `ecp execute` (echo) measured before/after schema cache; contribution of schema
+  rebuild documented for F6. *(S5 sub-metric `B8-execute-echo-warm-all-plugins`; Group E still
+  owns B1–B7 re-budget.)*
 - [ ] All six pending Firefly families shipped (or explicitly deferred in spec 08 + README with
   reason); generator/README/tests updated.
 - [ ] `pnpm run check` + CI Ubuntu/Windows green.
