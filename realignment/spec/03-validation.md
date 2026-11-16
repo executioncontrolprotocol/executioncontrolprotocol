@@ -8,7 +8,7 @@ App) gets the same `ValidationResult`, so an agent can fix and resubmit in a loo
 | Layer | Checks | Codes |
 | --- | --- | --- |
 | L0 Load | JSON parse, file exists, `schema`/`version` constants | `ECP_EXECUTION_LOAD`, `ECP_NOT_FOUND` |
-| L1 Schema | Generated host schema: structure, node shapes, markers, step `input` against the capability's `accepts`, `$script` only at string positions, unknown capability ids | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
+| L1 Schema | Generated host schema (default until S3): structure, node shapes, markers, step `input` against the capability's wrapped `accepts`, `$script` only at string positions, unknown capability ids. Dual-path / next validator: base structure + raw `accepts` + marker filter (same codes) | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
 | L2 Semantics | Unique ids, default arm last, `mode` needs `as`, `as` not an input name, `create` inside loop bodies, `expr`/`$expr` syntax, `$script` syntax and file, config ids exist and validate, no `$secret`/`$env` in the execution | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT` |
 | L3 Data flow | Every `$ref` resolves in order, paths exist in `returns`/`accepts`, types fit, maybe-missing handling, parallel isolation, write conflicts, `execution.returns` keys produced | `ECP_REF_UNRESOLVED`, `ECP_REF_MAYBE_MISSING`, `ECP_REF_PATH_INVALID`, `ECP_TYPE_MISMATCH`, `ECP_COMMIT_CONFLICT`, `ECP_RETURNS_UNRESOLVED` |
 | L4 Run input | Run `input` against `execution.accepts` (on `execute` only, after L0–L3) | `ECP_INPUT_INVALID` (path under `/input`) |
@@ -59,6 +59,26 @@ and cached by `schemaHash` + capability id. The full single-file schema is writt
 editors (`$ECP_HOME/schema/execution.schema.json`) and is not what the host compiles at
 runtime. Ajv options: `allErrors: true`, `strict: false`, `useDefaults: false` (defaults apply
 only to run input, L4, with `useDefaults: true` on a separate validator).
+
+## Next validator (equivalence)
+
+Until S3 switches the host default, an internal scale path (`useScalePath` /
+`validateExecutionNext`) validates with the **base** execution schema only (markers via
+`$defs/value`; capabilities not inlined) plus per-capability **raw** `accepts` from the
+plugin's `ecp.schema.json`. After running the raw validator, the engine drops only errors a
+marker position explains (at or under a marker; `additionalProperties` naming a marker key;
+`anyOf`/`oneOf` when some branch's errors are all explained). Two rules keep equivalence with
+the wrapped path:
+
+- **(a)** On an object schema without `additionalProperties: false`, an undeclared property
+  accepts any value, so a `$script` there is allowed.
+- **(b)** Marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`)
+  is still validated by the base schema's marker defs, independently of `accepts`.
+
+`$script` position is checked by resolving the raw subschema at that path (must accept a
+string, or an open object property). `$secret`/`$env` emit dedicated `ECP_MANIFEST_INVALID`
+issues (F3). Equivalence tests assert identical `{ code, path, severity }` multisets for both
+paths over fixtures and examples.
 
 ## Data-flow check (L3)
 

@@ -9,11 +9,18 @@ import type {
 } from "@executioncontrolprotocol/protocol"
 import Ajv2020 from "ajv/dist/2020.js"
 import addFormatsModule from "ajv-formats"
+import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 import { canonicalJson, sha256Hex } from "../schema/canonical.js"
 import { generateExecutionSchema, type JsonSchema } from "../schema/generate.js"
 import { closeMatches } from "../schema/suggest.js"
 import { checkDataFlow } from "./dataflow.js"
 import { checkExpression, checkScript, syntaxIssue } from "./expr.js"
+import {
+  assertScriptPositions,
+  collectSecretEnvIssues,
+  validateWithMarkers,
+  type MarkerAjvError,
+} from "./markers.js"
 
 /**
  * What the validator needs besides the manifest. File reads are injected.
@@ -32,9 +39,19 @@ export interface ValidateOptions {
   input?: Record<string, unknown>
   /**
    * Optional loader for a plugin's schema document.
-   * Unused in S1; reserved for lazy schema loading in later ships.
+   * Preferred by the scale path for raw `accepts` (S2+).
    */
   loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
+  /**
+   * When true, use the base + lazy raw accepts path (S2). Default remains the legacy
+   * combined wrapped schema until S3.
+   */
+  useScalePath?: boolean
+  /**
+   * Optional prebuilt schema set. When set, skips {@link HostSchemaSet.create} /
+   * {@link HostSchemaSet.createBase} (tests and host-lifetime cache).
+   */
+  schemaSet?: HostSchemaSet
 }
 
 interface AjvError {
@@ -47,41 +64,76 @@ interface AjvError {
 
 interface AjvLike {
   compile: (schema: unknown) => ((data: unknown) => boolean) & { errors?: AjvError[] | null }
+  addSchema: (schema: unknown) => AjvLike
+  getSchema: (keyRef: string) => (((data: unknown) => boolean) & { errors?: AjvError[] | null }) | undefined
 }
 
 const Ajv = Ajv2020 as unknown as new (options?: object) => AjvLike
 const addFormats = addFormatsModule as unknown as (ajv: AjvLike) => AjvLike
+
+const HOST_EXECUTION_SCHEMA_ID = "ecp://host/execution.schema.json"
 
 /**
  * Compiled host schema. Input validators are compiled on first use.
  * @category Validation
  */
 export class HostSchemaSet {
-  /** Full editor schema. */
+  /** Full editor schema (legacy) or base schema (scale). */
   readonly schema: JsonSchema
   /** Hash of {@link HostSchemaSet.schema}. */
   readonly schemaHash: string
+  /** True when this set was built with {@link HostSchemaSet.createBase}. */
+  readonly scalePath: boolean
   private readonly ajv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly inputAjv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly documentValidator: ReturnType<AjvLike["compile"]>
   private readonly inputValidators = new Map<string, ReturnType<AjvLike["compile"]>>()
+  private readonly pluginSchemas = new Map<string, PluginSchemaDocument>()
+  private readonly addedPluginSchemaIds = new Set<string>()
+  private readonly loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
+  private readonly capabilities: readonly CapabilityEntry[]
 
-  private constructor(schema: JsonSchema, schemaHash: string) {
+  private constructor(
+    schema: JsonSchema,
+    schemaHash: string,
+    options: {
+      scalePath?: boolean
+      capabilities?: readonly CapabilityEntry[]
+      loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>
+    } = {},
+  ) {
     this.schema = schema
     this.schemaHash = schemaHash
+    this.scalePath = options.scalePath === true
+    this.capabilities = options.capabilities ?? []
+    this.loadPluginSchema = options.loadPluginSchema
     addFormats(this.ajv)
     addFormats(this.inputAjv)
     this.documentValidator = this.ajv.compile(schema)
   }
 
   /**
-   * Build a schema set for the installed capabilities.
+   * Build a schema set for the installed capabilities (legacy combined wrapped schema).
    * @category Validation
    */
   static async create(capabilities: readonly CapabilityEntry[]): Promise<HostSchemaSet> {
     const schema = generateExecutionSchema(capabilities)
     const schemaHash = await sha256Hex(canonicalJson(schema))
-    return new HostSchemaSet(schema, schemaHash)
+    return new HostSchemaSet(schema, schemaHash, { capabilities })
+  }
+
+  /**
+   * Build a base-only schema set for the scale path. Capabilities are not inlined.
+   * @category Validation
+   */
+  static async createBase(
+    capabilities: readonly CapabilityEntry[],
+    loadPluginSchema?: (pluginId: string) => Promise<PluginSchemaDocument | undefined>,
+  ): Promise<HostSchemaSet> {
+    const schema = structuredClone(baseSchema) as JsonSchema
+    schema.$id = HOST_EXECUTION_SCHEMA_ID
+    const schemaHash = await sha256Hex(canonicalJson(schema))
+    return new HostSchemaSet(schema, schemaHash, { scalePath: true, capabilities, loadPluginSchema })
   }
 
   /** Validate a manifest document. */
@@ -92,6 +144,7 @@ export class HostSchemaSet {
 
   /**
    * Validate one capability input. Compiled once per schema hash and capability.
+   * Legacy path and runtime resolved-input checks (no marker filtering).
    * @category Validation
    */
   validateInput(capability: CapabilityEntry, input: unknown): AjvError[] {
@@ -104,14 +157,70 @@ export class HostSchemaSet {
     validator(input)
     return (validator.errors ?? []) as AjvError[]
   }
+
+  /**
+   * Load a plugin schema document into Ajv at most once.
+   * @category Validation
+   */
+  async ensurePluginSchema(pluginId: string): Promise<PluginSchemaDocument | undefined> {
+    const cached = this.pluginSchemas.get(pluginId)
+    if (cached) return cached
+    const fromCapability = this.capabilities.find((capability) => capability.plugin === pluginId)
+    const packageId = fromCapability?.package
+    let document = await this.loadPluginSchema?.(pluginId)
+    if (!document && packageId && packageId !== pluginId) {
+      document = await this.loadPluginSchema?.(packageId)
+    }
+    if (!document) return undefined
+    if (!this.addedPluginSchemaIds.has(document.$id)) {
+      this.inputAjv.addSchema(document)
+      this.addedPluginSchemaIds.add(document.$id)
+    }
+    this.pluginSchemas.set(pluginId, document)
+    if (packageId) this.pluginSchemas.set(packageId, document)
+    return document
+  }
+
+  /**
+   * Validate one capability input against raw accepts with marker-error filtering.
+   * Compiles each capability validator at most once per set.
+   * @category Validation
+   */
+  async validateCapabilityInput(capability: CapabilityEntry, input: unknown): Promise<AjvError[]> {
+    const name = capabilityName(capability.id)
+    const document = await this.ensurePluginSchema(capability.plugin)
+    const cacheKey = `${this.schemaHash}:scale:${capability.id}`
+    let validator = this.inputValidators.get(cacheKey)
+    if (!validator) {
+      if (document?.$defs[`${name}.accepts`]) {
+        validator = this.inputAjv.compile({ $ref: `${document.$id}#/$defs/${name}.accepts` })
+      } else {
+        validator = this.inputAjv.compile(capability.accepts)
+      }
+      this.inputValidators.set(cacheKey, validator)
+    }
+    return validateWithMarkers(validator as ((data: unknown) => boolean) & { errors?: MarkerAjvError[] | null }, input) as AjvError[]
+  }
+
+  /**
+   * Raw accepts schema for a capability (from the plugin document when available).
+   * @category Validation
+   */
+  async rawAccepts(capability: CapabilityEntry): Promise<Record<string, unknown>> {
+    const document = await this.ensurePluginSchema(capability.plugin)
+    const name = capabilityName(capability.id)
+    return document?.$defs[`${name}.accepts`] ?? capability.accepts
+  }
 }
 
 /**
  * Validate an execution object through L0–L3, and L4 when `input` is set.
+ * Default path is the legacy combined wrapped schema. Pass `useScalePath: true` for the S2 path.
  * @category Validation
  */
 export async function validateExecution(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
-  const schemas = await HostSchemaSet.create(options.capabilities)
+  if (options.useScalePath) return validateExecutionNext(manifest, options)
+  const schemas = options.schemaSet ?? (await HostSchemaSet.create(options.capabilities))
   const manifestHash = await sha256Hex(canonicalJson(manifest))
   const loaded = loadObject(manifest)
   if (loaded) {
@@ -126,6 +235,52 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
       : checkDataFlow(manifest, options.capabilities)
   const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
   return finish([...layerErrors, ...flow, ...inputIssues], manifestHash, schemas.schemaHash)
+}
+
+/** Ajv keywords that only aggregate sub-schema failures. */
+const COMBINATOR_NOISE = new Set(["if", "then", "else", "anyOf", "oneOf", "allOf", "not", "false"])
+
+/**
+ * Scale-path validation: base document schema + per-capability raw accepts with marker filtering.
+ * @category Validation
+ */
+export async function validateExecutionNext(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
+  const schemas =
+    options.schemaSet?.scalePath === true
+      ? options.schemaSet
+      : await HostSchemaSet.createBase(options.capabilities, options.loadPluginSchema)
+  const manifestHash = await sha256Hex(canonicalJson(manifest))
+  const loaded = loadObject(manifest)
+  if (loaded) {
+    return finish([loaded], manifestHash, schemas.schemaHash)
+  }
+  const secretEnv = collectSecretEnvIssues(manifest)
+  const secretEnvPaths = [...new Set(secretEnv.map((issue) => issue.path))]
+  // At or under a $secret/$env: the dedicated issue replaces the schema errors. Above it, drop only
+  // combinator noise (the dedicated issue explains why a branch failed); real structural errors on
+  // ancestors, such as an unknown step property, must still be reported.
+  const atOrUnderSecretEnv = (path: string): boolean =>
+    secretEnvPaths.some((secretPath) => path === secretPath || path.startsWith(`${secretPath}/`))
+  const aboveSecretEnv = (path: string): boolean =>
+    secretEnvPaths.some((secretPath) => path === "" || path === "/" || secretPath.startsWith(`${path}/`))
+  const baseErrors = schemas.validateDocument(manifest).filter((error) => {
+    const path = ajvPointer(error)
+    if (atOrUnderSecretEnv(path) || atOrUnderSecretEnv(error.instancePath)) return false
+    return !(COMBINATOR_NOISE.has(error.keyword) && aboveSecretEnv(error.instancePath))
+  })
+  const structural = mapAjvErrors(baseErrors, manifest, options.capabilities).filter(
+    (issue) => !atOrUnderSecretEnv(issue.path),
+  )
+  const unknownUses = checkUnknownUses(manifest, options.capabilities)
+  const capabilityInput = isManifest(manifest) ? await checkCapabilityInputs(manifest, schemas, options.capabilities) : []
+  const semantic = await checkSemantics(manifest, options)
+  const layerErrors = [...structural, ...unknownUses, ...capabilityInput, ...secretEnv, ...semantic]
+  const flow =
+    layerErrors.some((item) => item.severity === "error") || !isManifest(manifest)
+      ? []
+      : checkDataFlow(manifest, options.capabilities)
+  const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
+  return finish(dedupeIssues([...layerErrors, ...flow, ...inputIssues]), manifestHash, schemas.schemaHash)
 }
 
 /**
@@ -177,6 +332,142 @@ function loadObject(manifest: unknown): ValidationIssue | undefined {
     }
   }
   return undefined
+}
+
+function capabilityName(capabilityId: string): string {
+  const dot = capabilityId.lastIndexOf(".")
+  return dot >= 0 ? capabilityId.slice(dot + 1) : capabilityId
+}
+
+/** Keep the first issue for each `{ code, path, severity }` (F2). */
+function dedupeIssues(issues: ValidationIssue[]): ValidationIssue[] {
+  const seen = new Set<string>()
+  const out: ValidationIssue[] = []
+  for (const issue of issues) {
+    const key = `${issue.code}|${issue.path}|${issue.severity}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(issue)
+  }
+  return out
+}
+
+function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEntry[]): ValidationIssue[] {
+  if (!isRecord(manifest) || !Array.isArray(manifest.steps)) return []
+  const ids = capabilities.map((capability) => capability.id)
+  const byId = new Set(ids)
+  const issues: ValidationIssue[] = []
+  const visit = (nodes: unknown[], prefix: string): void => {
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index]
+      const path = `${prefix}/${index}`
+      if (!isRecord(node)) continue
+      const type = typeof node.type === "string" ? node.type : "step"
+      if (type === "step" && typeof node.uses === "string" && !byId.has(node.uses)) {
+        issues.push(unknownCapabilityIssue(node.uses, `${path}/uses`, capabilities, ids))
+      }
+      if (type === "branch" && Array.isArray(node.branches)) {
+        for (let arm = 0; arm < node.branches.length; arm += 1) {
+          const branch = node.branches[arm]
+          if (isRecord(branch) && Array.isArray(branch.steps)) visit(branch.steps, `${path}/branches/${arm}/steps`)
+        }
+      }
+      if (type === "loop" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
+      if (type === "parallel" && Array.isArray(node.branches)) {
+        for (let line = 0; line < node.branches.length; line += 1) {
+          const branch = node.branches[line]
+          if (Array.isArray(branch)) visit(branch, `${path}/branches/${line}`)
+        }
+      }
+    }
+  }
+  visit(manifest.steps, "/steps")
+  return issues
+}
+
+function unknownCapabilityIssue(
+  actual: string,
+  path: string,
+  capabilities: readonly CapabilityEntry[],
+  ids: string[],
+): ValidationIssue {
+  const pluginId = pluginIdFromCapability(actual)
+  const pluginInstalled = pluginId
+    ? capabilities.some((capability) => pluginIdFromCapability(capability.id) === pluginId)
+    : false
+  const firstParty = pluginId ? firstPartyPlugin(pluginId) : undefined
+  if (firstParty && pluginId && !pluginInstalled) {
+    return {
+      code: "ECP_PLUGINS_MISSING",
+      severity: "error",
+      message: `Plugin ${firstParty.short} is not installed. ${firstPartyInstallCommand(pluginId)}`,
+      path,
+      actual: trim(actual, 1024),
+    }
+  }
+  return {
+    code: "ECP_CAPABILITY_UNKNOWN",
+    severity: "error",
+    message: `Capability ${actual} is not installed.`,
+    path,
+    suggestions: closeMatches(actual, ids).map((id) => `did you mean '${id}'?`),
+    actual: trim(actual, 1024),
+  }
+}
+
+async function checkCapabilityInputs(
+  manifest: ExecutionManifest,
+  schemas: HostSchemaSet,
+  capabilities: readonly CapabilityEntry[],
+): Promise<ValidationIssue[]> {
+  const byId = new Map(capabilities.map((capability) => [capability.id, capability]))
+  const issues: ValidationIssue[] = []
+  const visit = async (nodes: unknown[], prefix: string): Promise<void> => {
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index]
+      const path = `${prefix}/${index}`
+      if (!isRecord(node)) continue
+      const type = typeof node.type === "string" ? node.type : "step"
+      if (type === "step" && typeof node.uses === "string") {
+        const capability = byId.get(node.uses)
+        if (capability) {
+          const input = node.input ?? {}
+          const inputPath = `${path}/input`
+          const accepts = await schemas.rawAccepts(capability)
+          const rawErrors = await schemas.validateCapabilityInput(capability, input)
+          for (const error of rawErrors) {
+            const relative = ajvPointer(error)
+            const fullPath = relative === "/" ? inputPath : `${inputPath}${relative === "" ? "" : relative}`
+            issues.push({
+              code: "ECP_INPUT_INVALID",
+              severity: "error",
+              message: `Input does not match the capability accepts schema. ${error.message ?? "Invalid input."}`,
+              path: fullPath,
+              actual: trim(readPointer(input, relative === "/" ? "" : relative), 1024),
+            })
+          }
+          issues.push(...assertScriptPositions(input, accepts, inputPath))
+        }
+      }
+      if (type === "branch" && Array.isArray(node.branches)) {
+        for (let arm = 0; arm < node.branches.length; arm += 1) {
+          const branch = node.branches[arm]
+          if (isRecord(branch) && Array.isArray(branch.steps)) {
+            await visit(branch.steps, `${path}/branches/${arm}/steps`)
+          }
+        }
+      }
+      if (type === "loop" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
+      if (type === "parallel" && Array.isArray(node.branches)) {
+        for (let line = 0; line < node.branches.length; line += 1) {
+          const branch = node.branches[line]
+          if (Array.isArray(branch)) await visit(branch, `${path}/branches/${line}`)
+        }
+      }
+    }
+  }
+  await visit(manifest.steps, "/steps")
+  return issues
 }
 
 function mapAjvErrors(errors: AjvError[], manifest: unknown, capabilities: readonly CapabilityEntry[]): ValidationIssue[] {

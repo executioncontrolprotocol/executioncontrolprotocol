@@ -1,5 +1,6 @@
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
 import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
+import { allowsString } from "../validate/markers.js"
 
 /**
  * A JSON Schema object.
@@ -39,11 +40,16 @@ export function generateExecutionSchema(capabilities: readonly CapabilityEntry[]
   return schema
 }
 
-function wrapValue(schema: JsonSchema): JsonSchema {
+/**
+ * Wrap a value schema so markers are accepted where the protocol allows them.
+ * Used by the legacy combined host schema and by editor schema generation.
+ * @category Validation
+ */
+export function wrapValue(schema: JsonSchema): JsonSchema {
   const original = wrapChildren(schema)
   // `$script` resolves to a string. Allow it on string fields and open schemas (`{}` /
   // `unknown`) that already accept any JSON value.
-  const scriptBranch = allowsString(schema) || isOpenSchema(schema)
+  const scriptBranch = allowsString(schema)
     ? { if: marker("$script"), then: SCRIPT_VALUE, else: original }
     : { if: marker("$script"), then: false, else: original }
   return {
@@ -87,19 +93,4 @@ function wrapChildren(schema: JsonSchema): JsonSchema {
 
 function marker(key: string): JsonSchema {
   return { type: "object", required: [key] }
-}
-
-function allowsString(schema: JsonSchema): boolean {
-  const type = schema.type
-  if (type === "string") return true
-  return Array.isArray(type) && type.includes("string")
-}
-
-/** True when the schema does not constrain the value shape (e.g. `{}` / zod unknown). */
-function isOpenSchema(schema: JsonSchema): boolean {
-  if (schema.type !== undefined) return false
-  if (schema.enum !== undefined || schema.const !== undefined) return false
-  if (schema.oneOf !== undefined || schema.anyOf !== undefined || schema.allOf !== undefined) return false
-  if (schema.not !== undefined || schema.if !== undefined) return false
-  return true
 }
