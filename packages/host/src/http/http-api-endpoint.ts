@@ -64,6 +64,7 @@ export class HttpApiEndpoint implements Endpoint {
   private startedAt = new Date().toISOString()
   private health: HealthStatus = "starting"
   private shutdownResolvers: Array<() => void> = []
+  private editorSchemaGate: (() => Promise<unknown>) | undefined
   /** Bound URL once listening. */
   url: string | undefined
   /** Resolved listen port. */
@@ -89,6 +90,14 @@ export class HttpApiEndpoint implements Endpoint {
   /** Mark ready for traffic after bind. */
   markReady(): void {
     this.health = this.draining ? "draining" : "ok"
+  }
+
+  /**
+   * When set, `retrieve` with `type: "plugin"` awaits this before responding (`ecp schema`).
+   * @category Host
+   */
+  setEditorSchemaGate(waitFor: () => Promise<unknown>): void {
+    this.editorSchemaGate = waitFor
   }
 
   /** Resolves when admin shutdown finishes (and optionally after process.exit is skipped). */
@@ -172,7 +181,11 @@ export class HttpApiEndpoint implements Endpoint {
           this.writeJson(res, body.status, body.envelope)
           return
         }
-        const envelope = await this.ops().retrieve(body.value as RetrieveInput)
+        const input = body.value as RetrieveInput
+        if (input.type === "plugin" && this.editorSchemaGate) {
+          await this.editorSchemaGate()
+        }
+        const envelope = await this.ops().retrieve(input)
         this.writeJson(res, statusForEnvelope(envelope), envelope)
         return
       }

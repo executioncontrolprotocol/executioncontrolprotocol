@@ -94,8 +94,8 @@ F2–F5).
 
 ### Editor / plugins today
 
-- Host writes one file: [`writeExecutionSchema`](../packages/host/src/create-local-host.ts)
-  209–217 via `generateExecutionSchema`.
+- Host writes editor files via [`writeEditorSchemaFiles`](../packages/host/src/editor-schema.ts)
+  (server mode: after `markReady`, in-process: before return).
 - [`ecp-plugin-manifest`](../packages/plugin-sdk/src/bin/ecp-plugin-manifest.ts) writes only
   `ecp.manifest.json` (accepts/returns embedded). No `ecp.schema.json`.
 - Firefly: `GENERATED_FAMILIES = ["firefly","photoshop"]` (17 caps); six `PENDING_FAMILIES`
@@ -453,7 +453,7 @@ Each PR green alone (`pnpm run check` / CI).
 | **S1 — Spec + light manifests + SDK emit** | Spec amendments (03/08/02/09/10/12 stubs for B8); protocol `plugin-manifest` **2.0** (light index + `schema: { path, hash }`). `buildPluginSchemaDocument` + bin writes light `ecp.manifest.json` and `ecp.schema.json`. Regenerate all first-party plugins. Load-manifest checks schema file (link: both in memory). No engine behaviour change yet. |
 | **S2 — Engine new path + equivalence** | `markers.ts`, new `HostSchemaSet` base+lazy raw path via `loadPluginSchema`, dual-path equivalence test over `fixtures/` + `examples/` with all real + fixture plugins. Default can remain old path if needed for safety; test runs both. |
 | **S3 — Switch-over + cache + delete legacy** | **Done (this PR):** new path default; operations host-lifetime `HostSchemaSet` cache; runtime combined wrap deleted; fixture re-baseline + exact conformance (Group C not merged). |
-| **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite); `wrapValue` editor-only; CLI `ecp schema` still root. |
+| **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite, atomic files, stamp last); server mode writes after ready; `wrapValue` editor-only; CLI `ecp schema` still root (`retrieve` `plugin` awaits in-flight write on HTTP). |
 | **S5 — B8** | **Done:** `bench/run.mjs` + `bench/b8.mjs` + budgets (registry load at 1k; 5k via `ECP_BENCH_SCALE=5000`); baseline under `bench/baseline/`; A11 + spec 12 updated. |
 | **S6 — Firefly families** | Move six pending families into `GENERATED_FAMILIES`; regenerate; per-family tests + README; tick F7 checkboxes / decision recorded. |
 

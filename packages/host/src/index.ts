@@ -5,6 +5,13 @@
 export { VERSION } from "./version.js"
 export { createLocalHost } from "./create-local-host.js"
 export type { CreateLocalHostOptions, LocalHost, LocalHostTiming } from "./create-local-host.js"
+export {
+  computeEditorSchemaHash,
+  writeEditorSchemaFiles,
+  setEditorSchemaWriteDelayForTests,
+  EDITOR_SCHEMA_SHUTDOWN_WAIT_MS,
+} from "./editor-schema.js"
+export type { EditorSchemaWriteResult, EditorSchemaStamp } from "./editor-schema.js"
 export { LocalTokenAuth, tokensEqual, isAllowedHost, isAllowedOrigin } from "./auth/local-token-auth.js"
 export type { LocalTokenAuthOptions } from "./auth/local-token-auth.js"
 export { HttpApiEndpoint } from "./http/http-api-endpoint.js"

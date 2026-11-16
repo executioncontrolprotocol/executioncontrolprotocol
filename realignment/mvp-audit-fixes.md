@@ -269,7 +269,9 @@ Implementation plan:
 
 Progress: **S1–S5 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
 base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy registry, root +
-per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets).
+per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets;
+S4b: server-mode editor writes off the start path — ready before background write, atomic
+files, `ecp schema` gated on HTTP `retrieve` `plugin`).
 S6 Firefly family ship remains.
 
 - [ ] Decision recorded

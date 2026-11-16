@@ -322,6 +322,36 @@ export async function runB8(ctx) {
       note: "createLocalHost timing.schemaMs on cold start (no stamp).",
     })
 
+    if (n === 1000) {
+      const serverReadySamples = []
+      const serverEditorSamples = []
+      for (let i = 0; i < START_ITERS; i++) {
+        await host.stop()
+        rmSync(path.join(home, "schema"), { recursive: true, force: true })
+        const t0 = performance.now()
+        const serverHost = await createLocalHost({ home, mode: "server" })
+        serverReadySamples.push(performance.now() - t0)
+        serverEditorSamples.push((await serverHost.editorSchemas).ms)
+        await serverHost.stop()
+        host = await createLocalHost({ home, mode: "in-process" })
+      }
+      scenarios.push({
+        id: "B8-server-ready-1k",
+        samplesMs: serverReadySamples.map(round),
+        medianMs: median(serverReadySamples, round),
+        p95Ms: percentile(serverReadySamples, 95, round),
+        note:
+          "Server mode: createLocalHost return (markReady) no longer includes editor file write; compare to B8-editor-write-cold-1k.",
+      })
+      scenarios.push({
+        id: "B8-server-editor-write-1k",
+        samplesMs: serverEditorSamples.map(round),
+        medianMs: median(serverEditorSamples, round),
+        p95Ms: percentile(serverEditorSamples, 95, round),
+        note: "Server mode: editorSchemas.ms (background write after ready).",
+      })
+    }
+
     // Warm editor rewrite (stamp match → ~0).
     const editorWarmSamples = []
     for (let i = 0; i < START_ITERS; i++) {

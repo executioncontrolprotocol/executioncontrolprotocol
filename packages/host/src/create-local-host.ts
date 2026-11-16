@@ -1,5 +1,6 @@
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { setTimeout as delay } from "node:timers/promises"
 import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
 import {
@@ -26,8 +27,13 @@ import {
   type StorageProvider as StorageProviderService,
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "@executioncontrolprotocol/quickjs"
-import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 import { LocalTokenAuth } from "./auth/local-token-auth.js"
+import {
+  computeEditorSchemaHash,
+  EDITOR_SCHEMA_SHUTDOWN_WAIT_MS,
+  writeEditorSchemaFiles,
+  type EditorSchemaWriteResult,
+} from "./editor-schema.js"
 import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 import { generateHostToken } from "./token.js"
 
@@ -67,7 +73,7 @@ export interface LocalHostTiming {
   startMs: number
   /** Milliseconds spent marking leftover runs interrupted. */
   interruptMs: number
-  /** Milliseconds spent writing the editor schema. */
+  /** Milliseconds spent on editor schema work at start (in-process: full write; server: hash only). */
   schemaMs: number
 }
 
@@ -80,25 +86,17 @@ export interface LocalHost extends Host {
   readonly timing: LocalHostTiming
   /** Stable schema hash written at startup. */
   readonly schemaHash: string
+  /**
+   * Resolves when editor files are written (server: may finish after ready; in-process: before return).
+   * @category Host
+   */
+  readonly editorSchemas: Promise<EditorSchemaWriteResult>
   /** Bound HTTP URL when `mode` is `server`. */
   readonly url?: string
   /** Token used by the HTTP API when `mode` is `server`. */
   readonly token?: string
   /** Resolves when `/v1/admin/shutdown` completes (server mode). */
   whenShutdown(): Promise<void>
-}
-
-/**
- * Stamp under `$ECP_HOME/schema/plugins/index.json` for lazy editor rewrites.
- * @category Host
- */
-interface EditorSchemaStamp {
-  /** Runtime/editor schemaHash (base + sorted plugin schema hashes). */
-  schemaHash: string
-  /** Sorted capability ids reflected in the root editor schema. */
-  capabilityIds: string[]
-  /** Plugin id → `ecp.schema.json` hash from the light manifest. */
-  plugins: Record<string, string>
 }
 
 /**
@@ -164,28 +162,59 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   const interruptMs = Date.now() - interruptStarted
 
   const schemaStarted = Date.now()
-  const schemaHash = await writeExecutionSchema(host)
-  const schemaMs = Date.now() - schemaStarted
+  const schemaHash = await computeEditorSchemaHash(host)
+  const hashMs = Date.now() - schemaStarted
+
+  const logEditorError = (error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`editor schema write failed: ${message}`)
+  }
+
+  let editorSchemas: Promise<EditorSchemaWriteResult>
+  let schemaMs: number
+
+  if (mode === "server") {
+    schemaMs = hashMs
+    editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+  } else {
+    const writeStarted = Date.now()
+    editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+    await editorSchemas
+    schemaMs = Date.now() - writeStarted
+  }
 
   let url: string | undefined
   let whenShutdown = async (): Promise<void> => undefined
+  let endpoint: HttpApiEndpoint | undefined
   if (mode === "server") {
-    const endpoint = host.services.get(Endpoint, HttpApiEndpoint.id) as HttpApiEndpoint
+    endpoint = host.services.get(Endpoint, HttpApiEndpoint.id) as HttpApiEndpoint
     const auth = host.services.get(Auth) as LocalTokenAuth
     auth.setPort(endpoint.port)
     endpoint.bindOperations(host.operations)
+    endpoint.setEditorSchemaGate(() => editorSchemas)
     endpoint.markReady()
     url = endpoint.url
-    whenShutdown = () => endpoint.whenShutdown()
+    whenShutdown = () => endpoint!.whenShutdown()
+  }
+
+  const baseStop = host.stop.bind(host)
+  const stop = async (): Promise<void> => {
+    try {
+      await Promise.race([editorSchemas, delay(EDITOR_SCHEMA_SHUTDOWN_WAIT_MS)])
+    } catch {
+      // write errors are already logged
+    }
+    await baseStop()
   }
 
   return {
     services: host.services,
     operations: host.operations,
     settings: host.settings,
-    stop: () => host.stop(),
+    stop,
     timing: { startMs, interruptMs, schemaMs },
     schemaHash,
+    editorSchemas,
     url,
     token,
     whenShutdown,
@@ -212,158 +241,4 @@ async function markInterruptedRuns(
       data: { reason: "host-restart" },
     })
   }
-}
-
-/**
- * Write or refresh the root editor schema and per-plugin editor files.
- * A warm start with an unchanged plugin set does not call `loadPluginSchema`.
- * @category Host
- */
-async function writeExecutionSchema(host: Host): Promise<string> {
-  const {
-    canonicalJson,
-    generateEditorRootSchema,
-    generatePluginEditorSchema,
-    safePluginId,
-    sha256Hex,
-  } = await import("@executioncontrolprotocol/engine")
-  const plugins = host.services.get(PluginAdapter)
-  const light = plugins.capabilities()
-  const fingerprints = plugins.schemaFingerprints()
-  const fingerprintById = new Map(fingerprints.map((item) => [item.pluginId, item]))
-  const capabilityIds = [...new Set(light.map((entry) => entry.id))].sort()
-  const pluginIds = [...new Set(light.map((entry) => entry.plugin))].sort()
-
-  const schemaDir = path.join(host.settings.home, "schema")
-  const pluginsDir = path.join(schemaDir, "plugins")
-  const rootPath = path.join(schemaDir, "execution.schema.json")
-  const indexPath = path.join(pluginsDir, "index.json")
-
-  const desiredPlugins: Record<string, string> = {}
-  for (const pluginId of pluginIds) {
-    const fingerprint = fingerprintById.get(pluginId)
-    if (fingerprint) desiredPlugins[pluginId] = fingerprint.hash
-  }
-
-  const base = structuredClone(baseSchema) as Record<string, unknown>
-  base.$id = "ecp://host/execution.schema.json"
-  const schemaHash = await sha256Hex(
-    canonicalJson({
-      base,
-      plugins: [...fingerprints]
-        .map((item) => ({ id: item.pluginId, version: item.version, hash: item.hash }))
-        .sort((left, right) => {
-          if (left.id !== right.id) return left.id < right.id ? -1 : 1
-          if (left.version !== right.version) return left.version < right.version ? -1 : 1
-          return left.hash < right.hash ? -1 : left.hash > right.hash ? 1 : 0
-        }),
-    }),
-  )
-
-  const previous = await readStamp(indexPath)
-  const stampMatches =
-    previous !== undefined &&
-    previous.schemaHash === schemaHash &&
-    arraysEqual(previous.capabilityIds, capabilityIds) &&
-    recordsEqual(previous.plugins, desiredPlugins)
-
-  let rootOk = false
-  try {
-    await stat(rootPath)
-    rootOk = true
-  } catch {
-    rootOk = false
-  }
-
-  const missingPluginFiles: string[] = []
-  for (const pluginId of pluginIds) {
-    const target = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
-    try {
-      await stat(target)
-    } catch {
-      missingPluginFiles.push(pluginId)
-    }
-  }
-
-  if (stampMatches && rootOk && missingPluginFiles.length === 0) {
-    return schemaHash
-  }
-
-  await mkdir(pluginsDir, { recursive: true })
-
-  const changedPluginIds = new Set<string>(missingPluginFiles)
-  for (const pluginId of pluginIds) {
-    if (previous?.plugins[pluginId] !== desiredPlugins[pluginId]) changedPluginIds.add(pluginId)
-  }
-  for (const pluginId of Object.keys(previous?.plugins ?? {})) {
-    if (!(pluginId in desiredPlugins)) {
-      const stale = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
-      await rm(stale, { force: true })
-    }
-  }
-
-  for (const pluginId of changedPluginIds) {
-    const document = await plugins.loadPluginSchema(pluginId)
-    if (!document) continue
-    const pluginCaps = light.filter((entry) => entry.plugin === pluginId)
-    const editor = generatePluginEditorSchema(pluginId, pluginCaps, document)
-    const target = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
-    await writeFile(target, `${JSON.stringify(editor, null, 2)}\n`, "utf8")
-  }
-
-  const rootNeeded =
-    !rootOk ||
-    !previous ||
-    previous.schemaHash !== schemaHash ||
-    !arraysEqual(previous.capabilityIds, capabilityIds) ||
-    changedPluginIds.size > 0
-  if (rootNeeded) {
-    const root = generateEditorRootSchema(light)
-    await mkdir(schemaDir, { recursive: true })
-    await writeFile(rootPath, `${JSON.stringify(root, null, 2)}\n`, "utf8")
-  }
-
-  const stamp: EditorSchemaStamp = {
-    schemaHash,
-    capabilityIds,
-    plugins: desiredPlugins,
-  }
-  await writeFile(indexPath, `${JSON.stringify(stamp, null, 2)}\n`, "utf8")
-  return schemaHash
-}
-
-async function readStamp(indexPath: string): Promise<EditorSchemaStamp | undefined> {
-  try {
-    const text = await readFile(indexPath, "utf8")
-    const parsed = JSON.parse(text) as EditorSchemaStamp
-    if (
-      typeof parsed.schemaHash !== "string" ||
-      !Array.isArray(parsed.capabilityIds) ||
-      typeof parsed.plugins !== "object" ||
-      parsed.plugins === null
-    ) {
-      return undefined
-    }
-    return parsed
-  } catch {
-    return undefined
-  }
-}
-
-function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) return false
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false
-  }
-  return true
-}
-
-function recordsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
-  const leftKeys = Object.keys(left).sort()
-  const rightKeys = Object.keys(right).sort()
-  if (!arraysEqual(leftKeys, rightKeys)) return false
-  for (const key of leftKeys) {
-    if (left[key] !== right[key]) return false
-  }
-  return true
 }
