@@ -1,0 +1,422 @@
+# MVP audit fixes (2026-11-15)
+
+An independent audit of the merged MVP (`development` @ `e37942e5`, PR #68; CLI `0.60.0`)
+against `realignment/spec/` and the plan. Most of the build matches the spec. This document
+lists every gap found, with evidence, the fix, the tests that prove it, and exit criteria.
+
+**How to use this doc:** work the PR groups in order (section "Order of work"). Each finding has
+an id (`F1`…`F19`). Every fix PR names the ids it closes, adds the listed tests, and ticks the
+finding's checkboxes here. If a fix needs a spec change, change the spec first in the same PR.
+
+**Branching:** the milestone is merged, so fixes branch from `development` as
+`fix/mvp-audit-<slug>` and open PRs into `development` (PR group A updates the agent rules to say
+this). Never push to `main` (publishes to npm).
+
+## What the audit confirmed (no action)
+
+- Command surface matches spec 10; MCP relay exposes exactly `retrieve`, `execute`, `commit`
+  with the protocol schemas; relative paths resolve against the relay cwd.
+- Error catalogue in `packages/protocol/src/errors.ts` matches spec 06 exactly.
+- Host routes match spec 09 (incl. `/v1/files`); no token / bad `Host` / bad `Origin` → 401;
+  no CORS headers; `/v1/file` refuses files outside the allowed set; `/` → `/app/`.
+- QuickJS limits 50 ms / 32 MB; no `new Function`/`eval` in packages; trust check fully removed.
+- Coverage floors 90/90/90/85; CI runs e2e and App on Ubuntu and Windows; all 12 acceptance
+  files run (A10 live test skipped in CI by design, live evidence recorded).
+- Secrets: `$secret` resolved via `ECP_SECRET_*`, reached the plugin, value absent from every
+  file under `ECP_HOME` and from the response.
+
+## Findings
+
+Severity: **High** = wrong behaviour users hit; **Medium** = the build doesn't meet what the
+spec/docs claim; **Low** = polish or doc drift.
+
+### F1 — `ecp plugins` reads a different plugin list from the host (High)
+
+**Evidence** (fresh temp `ECP_HOME`):
+
+```sh
+export ECP_HOME=<temp dir>
+ecp plugins link plugins/plugin-test        # writes $ECP_HOME/plugins/package.json (correct)
+ecp retrieve --type plugin --json           # host sees 1 plugin (plugin-test)
+ecp plugins                                 # lists 4 linked plugins from %LOCALAPPDATA%\ecp
+```
+
+**Root cause:** `packages/cli/src/hooks/init.ts` redefines oclif `config.dataDir` to
+`$ECP_HOME/plugins` in the `init` hook, but oclif has already loaded user and linked plugins
+from its default data dir (`%LOCALAPPDATA%\ecp` on Windows, `~/.local/share/ecp` on Linux,
+`~/Library/Application Support/ecp` on macOS) before hooks run. Writes go to the new dir;
+reads/listing use the old one. Side effect: every CLI start also loads the stale linked ECP
+plugins as oclif plugins (startup cost, see F6).
+
+**Fix:**
+
+- Make oclif's data dir correct **before** oclif loads plugins. Options, in order of
+  preference: (a) set `ECP_DATA_DIR`-equivalent that oclif honours natively (oclif reads
+  `<BIN>_DATA_DIR`, i.e. `ECP_DATA_DIR`, when computing `dataDir`) by setting
+  `process.env.ECP_DATA_DIR ??= $ECP_HOME/plugins` in `bin/run.js` before `execute()`; (b)
+  pass a custom `Config` with `dataDir` set. Remove the `Object.defineProperty` hack.
+- ECP plugins are not oclif command plugins. Ensure linking/installing an ECP plugin doesn't
+  make oclif load it as a CLI plugin on every start (e.g. plugin packages carry no `oclif`
+  section and the CLI excludes them from oclif's plugin loading, or the CLI manages the ECP
+  plugin list itself while delegating only install/link mechanics to `@oclif/plugin-plugins`).
+- One-time migration: if the old default data dir contains ECP plugin entries and
+  `$ECP_HOME/plugins` has none, print a one-line notice with the command to re-link (don't move
+  files silently).
+
+**Tests:** e2e with a temp `ECP_HOME` *and* a temp OS data dir pre-seeded with a stale link:
+`ecp plugins` lists exactly the plugins the host reports (`retrieve --type plugin`); link,
+unlink, install from tarball each keep the two views equal; Windows and Ubuntu.
+
+- [ ] Fixed
+- [ ] Tests added
+
+### F2 — Duplicate validation issues (High)
+
+**Evidence:** `ecp execute fixtures/manifests/invalid/<file> --validate --json` returns the same
+issue (same code, path, message) more than once: `schema-env.ecp.json` (1 duplicate),
+`schema-secret.ecp.json` (1), `schema-script-both.ecp.json` (4). Human output prints
+`/steps/0/input/value  ECP_MANIFEST_INVALID  boolean schema is false` three times.
+
+**Fix:** de-duplicate in the validator's issue builder (key: `code` + `path` + `message`), and
+fix the cause: the same Ajv failure surfaces from several dispatch branches. Spec 03 requires
+issues ordered and unique.
+
+**Tests:** every invalid fixture validated through the engine *and* through the CLI returns no
+duplicate issues (assert uniqueness in the conformance runner and the CLI sweep test, F5).
+
+- [ ] Fixed
+- [ ] Tests added
+
+### F3 — `$env` / `$secret` in an execution gives an unhelpful message (High)
+
+**Evidence:** `schema-env.ecp.json` → `ECP_MANIFEST_INVALID  boolean schema is false`.
+
+**Spec 02:** a `$secret` or `$env` object anywhere in an execution is `ECP_MANIFEST_INVALID`
+**with a suggestion to move it into a config object**.
+
+**Fix:** detect `$secret`/`$env` objects explicitly (before or instead of relying on the
+`false` schema) and emit one issue per occurrence: message
+`"$env is not allowed in an execution; put it in a config object"` (same for `$secret`), path to
+the marker, suggestion naming `ecp commit --type config` and the `config` step field.
+
+**Tests:** fixtures for `$env` and `$secret` at top-level input, nested object, inside an array,
+inside `$script.params`; exact message and suggestion asserted.
+
+- [ ] Fixed
+- [ ] Tests added
+
+### F4 — Issues without a `path` (Medium)
+
+**Evidence:** `schema-version.ecp.json` → `ECP_EXECUTION_LOAD` with `path` undefined (the
+fixture expects `/version`).
+
+**Fix:** every issue carries a JSON Pointer `path` (spec 03); load-layer issues use the
+offending field (`/schema`, `/version`) or `""` for whole-document problems (file not found,
+not JSON). Add a type-level guarantee (`path: string`, not optional) and a runtime assertion in
+the issue builder.
+
+**Tests:** conformance runner fails any issue without a string `path`.
+
+- [ ] Fixed
+- [ ] Tests added
+
+### F5 — Invalid fixtures don't match their expected files; comparison isn't exact (Medium)
+
+**Evidence** (CLI `--validate --json` vs `*.expected.json`, errors only):
+
+| Fixture | Difference |
+| --- | --- |
+| `schema-env.ecp.json` | duplicate issue (F2) |
+| `schema-secret.ecp.json` | duplicate issue (F2) |
+| `schema-script-both.ecp.json` | 4 duplicates; extra `ECP_SCRIPT_INVALID /steps/0/input/text/$script` |
+| `schema-maxrounds-zero.ecp.json` | extra `ECP_COMMIT_CONFLICT /steps/0/steps/0/mode` (`create` inside a loop body) |
+| `schema-until.ecp.json` | extra `ECP_COMMIT_CONFLICT /steps/0/steps/0/mode` |
+| `schema-version.ecp.json` | `ECP_EXECUTION_LOAD` path `undefined` vs `/version` (F4) |
+
+Spec 12 says expected issues are compared **exactly** (code, path, severity; message
+substring). The engine conformance test passes anyway, so it compares as a subset.
+
+**Fix:**
+
+- Make the conformance runner compare the full error set exactly (and warnings exactly when the
+  expected file lists them).
+- Fix the fixtures so each tests one thing: loop fixtures use `mode: "replace"` in the body
+  unless they test the commit conflict; decide whether `$script` with both `source` and `path`
+  should report one issue (preferred) or two, and make expected match.
+- Add a **CLI conformance sweep** e2e test: run every invalid fixture through
+  `ecp execute <f> --validate --json`, assert exit code 2 (3 for `ECP_PLUGINS_MISSING`) and the
+  exact expected issues. This catches CLI/engine drift and F2/F4 regressions.
+
+- [ ] Runner exact
+- [ ] Fixtures corrected
+- [ ] CLI sweep test added
+
+### F6 — Warm CLI performance misses the target; budgets were loosened instead (Medium)
+
+**Evidence** (`bench/results/2026-11-15-win32.json`, plan "Measurements"): warm
+`ecp retrieve --id` median **1656 ms**, `--query` 1648 ms; in-process 2387 ms; execute echo warm
+1993 ms. Plan target: warm commands **well under 1 s**. `bench/budgets.json` sets 3–8 s medians,
+so CI enforces numbers several times looser than the target. Only Windows results exist (spec
+12: Ubuntu and Windows); `bench/results/` is gitignored, so the evidence isn't in the repo.
+
+**Likely causes to check first:** F1 (oclif loading stale ECP plugins at start), oclif loading
+all commands eagerly (missing or stale `oclif.manifest.json` in the CLI package), heavy
+top-level imports in the CLI entry (host/engine/Ajv/QuickJS imported even for HTTP-only paths).
+
+**Fix:**
+
+1. Fix F1 first, then profile `ecp retrieve --id` with a warm host (`ECP_TIMING=1`, plus
+   `node --cpu-prof`) and record where time goes (Node start, oclif config/plugin load, command
+   import, HTTP round trip).
+2. Ensure the CLI ships an up-to-date `oclif.manifest.json` and that commands import the
+   in-process host lazily (only when no host is running).
+3. Re-run B1–B7 on Ubuntu and Windows; commit the results as `bench/baseline/<date>-<os>.json`
+   (not gitignored) and update the plan's Measurements table.
+4. Set budgets from the target, not from current numbers: warm `retrieve`/`execute` echo
+   median ≤ 1000 ms on Ubuntu (Windows budget may be higher; record why). If the target can't
+   be met after steps 1–2, record the measured floor and the reason in the plan, and change the
+   target explicitly (user decision), rather than loosening budgets silently.
+
+**Tests:** CI `bench` job enforces the new budgets on Ubuntu; A11 asserts the plan's decision
+text and that every budget is ≤ the stated target or has a recorded exception.
+
+- [ ] Profiled and causes recorded
+- [ ] Fixes applied
+- [ ] Ubuntu + Windows baselines committed
+- [ ] Budgets set from targets; A11 updated
+
+### F7 — Firefly plugin is a partial port, undocumented (Medium)
+
+**Evidence:** `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`:
+`GENERATED_FAMILIES = ["firefly", "photoshop"]` (17 capabilities); `PENDING_FAMILIES` lists
+`audio-video`, `creative-production`, `express`, `illustrator`, `indesign`, `substance3d`, with
+the comment that they "generate cleanly but are not shipped yet". Two more vendored spec
+folders, `openapi/content-tagging` and `openapi/overlays`, are in neither list. Spec 08 says **all** generated capabilities; Phase 8 is
+marked done; the plugin README and the plan retrospective don't mention the cut.
+
+**Fix (decision needed; default = ship):**
+
+- **Ship:** move the pending families into `GENERATED_FAMILIES`, regenerate, and for each family
+  add the generator snapshot test, the `useCases`/`projections` check, and mocked-fetch unit
+  tests for one representative capability (happy path, error mapping, abort). Update the
+  plugin README with the capability list per family.
+- **Or document:** if a family is deliberately deferred, list it in spec 08, the plugin README,
+  Phase 8 and the plan retrospective with the reason.
+
+- [ ] Decision recorded
+- [ ] Families shipped or documented
+
+### F8 — Missing invalid fixtures from the spec 12 minimum set (Medium)
+
+**Evidence:** `fixtures/manifests/invalid/` has 26 fixtures; spec 12's minimum list is not
+covered. Missing (add one fixture + `.expected.json` each):
+
+- `ECP_EXECUTION_LOAD`: not JSON; wrong `schema` constant (separate from wrong `version`).
+- `ECP_INPUT_INVALID`: missing required property; unknown property; enum violation (only
+  wrong type exists today).
+- `ECP_SCRIPT_INVALID`: `$script.path` to a missing file; `$script` at an object position.
+- `ECP_CONFIG_UNKNOWN`: step names a config that doesn't exist (needs a host-aware run in the
+  CLI sweep).
+- `ECP_REF_UNRESOLVED`: ref to a later step; ref to a parallel sibling's output (message says
+  so).
+- `ECP_REF_MAYBE_MISSING`: after a gated step; after a branch without default arm; after a loop
+  (check which of these the existing fixture covers; add the others).
+- `ECP_REF_PATH_INVALID`: wrong output path, with a "did you mean" suggestion.
+- `ECP_TYPE_MISMATCH`: number into string; object into string.
+- `ECP_COMMIT_CONFLICT`: `create` inside a loop body; two parallel lines writing the same key
+  (one generic fixture exists today).
+- `ECP_CAPABILITY_UNKNOWN` **with a suggestion**: a near-miss typo of an installed capability
+  (today's fixture uses an unrelated id, so `suggestions` is empty).
+
+- [ ] Fixtures added with exact expected files
+
+### F9 — The A2 "all-features" fixture doesn't use all features (Medium)
+
+**Evidence:** `fixtures/manifests/acceptance/all-features.ecp.json` uses only step, branch,
+parallel, `$expr`, `$state` and `mode: "replace"`. No loop, `$ref` (with `optional`/`fallback`),
+`$script` (path and source), gated step (`expr` on a step), `create`/`merge`/`append` modes,
+or config on a step. Spec 12 A2 is meant to prove executor semantics end to end.
+
+**Fix:** extend the fixture (and its `.run.json`: result, step statuses incl. `skipped`, loop
+rounds, event order) to cover every feature above, using `plugin-test` capabilities
+(`bounded` for `$script`, `config-echo` for config). Keep it runnable in-process and warm.
+
+- [ ] Fixture extended
+- [ ] A2 passes on Ubuntu and Windows
+
+### F10 — Acceptance A11/A12 are presence checks only (Low)
+
+**Evidence:** A11 checks that the plan mentions the decision and that `bench/budgets.json`
+parses; A12 checks that `legacy/` is gone. Both run in a few ms. That's acceptable as gates, but
+A11 doesn't check the budgets against targets (see F6).
+
+**Fix:** A11 asserts every budget is ≤ the target or has a recorded exception in the plan (F6).
+A12 also asserts no workspace file references `legacy/` paths.
+
+- [ ] Updated
+
+### F11 — Agent rules and docs still describe an unmerged milestone (Low, but steers agents wrong)
+
+**Evidence:**
+
+- `AGENTS.md` ("This branch line (`milestone/realignment` …) is executing…", "Never push to
+  `main` or `development`"), `.cursor/rules/realignment-milestone.mdc` (same), `CLAUDE.md`.
+- `RELEASING.md`: `milestone/realignment` — "Merge here until the milestone ships."
+- `realignment/README.md`: Phase 0 status "Local check green 2026-11-14; CI not run" though CI
+  is green on `development`.
+
+**Fix:** update to the post-merge model: `development` is the integration branch; fixes and
+features branch as `fix/*` / `feat/*` from `development` with PRs into `development`; `main`
+publishes. Mark the milestone as merged (date, PR #68) in the plan header and
+`realignment/README.md`; set Phase 0's status to Done with the CI run. Rename
+`realignment-milestone.mdc` to something like `realignment.mdc` describing the shipped design and
+where the spec lives, or fold it into `ecp-spec.mdc`. Regenerate `realignment/doc-index.md`.
+
+- [ ] Rules and docs updated
+
+### F12 — Spec and retrospective drift not written back (Low)
+
+**Evidence:** `test.bounded` exists in `plugin-test` but isn't in spec 08's capability list;
+the retrospective's "in-process event flush" row describes a workaround (warm host for A2) that
+looks obsolete (an in-process `ecp execute` wrote all 13 events in the audit, after commit
+`572110aa`); the Firefly scope cut (F7) isn't in the retrospective.
+
+**Fix:** update spec 08 (`bounded`), verify the in-process flush is fixed (test: in-process
+`execute` then read `events.ndjson` immediately after exit; `run.end` present) and update the
+retrospective row; add F7's outcome. Add a retrospective row for every finding here that
+changes a contract.
+
+- [ ] Spec and retrospective updated
+
+### F13 — CLI help text isn't model-legible (Low)
+
+**Evidence:** `ecp --help` shows topic descriptions copied from one subcommand (`host` → "Tail
+host or supervisor logs.", `plugins` → "List installed plugins."); most flags have no
+description (`ecp execute --help`: `--cancel`, `--json`, `--no-wait`, `--out`, `--resume`,
+`--start-host`, `--validate`; `ecp retrieve --help`: `--format`, `--id`, `--limit`, `--query`,
+…; `ecp app --help`: all flags).
+
+**Fix:** set explicit topic descriptions in the CLI's oclif config; give every flag a one-line
+description and examples on each command (the plan's "help written for a model reader").
+
+**Tests:** a unit test walks the oclif manifest and fails on any command, topic or flag without
+a description.
+
+- [ ] Fixed
+- [ ] Test added
+
+### F14 — `--json` envelope not used everywhere (Low)
+
+**Evidence:** `ecp host status --json` prints `{ supervisor, health, port, home }`, not
+`{ ok: true, data }`. Spec 10: `--json` prints the envelope on every command.
+
+**Fix:** audit every command's `--json` (host start/stop/status/restart/logs, app, schema,
+secrets list, plugins list) and wrap in the envelope; errors as `{ ok: false, error }`.
+
+**Tests:** e2e iterates all commands with `--json` and asserts the envelope shape.
+
+- [ ] Fixed
+- [ ] Test added
+
+### F15 — `ecp retrieve` human output isn't a table (Low)
+
+**Evidence:** `ecp retrieve --type capability --query echo` prints bare ids. Spec 10: lists as an
+aligned table (id, summary, and for runs status/time).
+
+**Fix:** aligned columns per type (capability: id, summary; execution: id, version, updated;
+config: id, plugin, version; run: id, status, started, duration; plugin: package, version,
+source, manifest; formatter: id, media type, default). Respect non-TTY/`NO_COLOR`.
+
+**Tests:** snapshot tests per type.
+
+- [ ] Fixed
+
+### F16 — `ecp plugins` lacks manifest status; extra oclif commands undocumented (Low)
+
+**Evidence:** spec 10: `list` adds manifest status per plugin — not shown. `ecp plugins` also
+exposes oclif's `inspect` and `reset`, which aren't in spec 10's table.
+
+**Fix:** add a manifest column (`ok` / issue summary) to `ecp plugins` (after F1, from the
+host's view). Decide on `inspect`/`reset`: keep and document in spec 10 (default), or hide.
+
+- [ ] Fixed
+- [ ] Spec 10 updated
+
+### F17 — In-process runs record `host.pid: 0` (Low)
+
+**Evidence:** `run.json` of an in-process `ecp execute` has `"host": { "pid": 0, … }`.
+
+**Fix:** record the actual process pid and a `mode: "in-process" | "server"` field (add to the
+run record schema in `protocol` and spec 05).
+
+- [ ] Fixed
+
+### F18 — MCP relay error text repeats the first issue (Low)
+
+**Evidence:** relay `execute { mode: "validate" }` on `ref-unresolved.ecp.json` returns text
+whose first line is the top-level error (`ECP_MANIFEST_INVALID — state.later is not produced…`)
+followed by the same issue (`ECP_REF_UNRESOLVED — …`).
+
+**Fix:** first line = top-level code + a summary ("1 validation error"), then one line per
+issue. Update the description snapshot/format tests.
+
+- [ ] Fixed
+
+### F19 — Verify A8 "runs list replays" is really asserted (Low)
+
+**Evidence:** the Playwright run lists 7 tests (unauthorized, home/open by path, validation
+fix hot reload, invalid JSON, `$script.path`, run live statuses, open by id). The A8 gate test
+only checks that the spec file body contains the phrase "runs list replays".
+
+**Fix:** confirm an assertion exists that selecting a past run replays statuses on the graph;
+if not, add a dedicated Playwright test. Change the A8 gate to check test titles, not body
+text.
+
+- [ ] Verified or added
+
+### F20 — Flaky drain test in the coverage gate (Medium, blocks commits)
+
+**Evidence:** `pnpm run test:coverage` (the pre-commit gate) failed once during the audit:
+`packages/host/test/http.test.ts > HttpApiEndpoint > drains active delay runs, rejects new
+execute, and allows retrieve` → `expected true to be false` at `expect(blocked.ok).toBe(false)`.
+The same file passes 3/3 when run alone.
+
+**Root cause (likely):** the test starts a `test.delay` run of 400 ms, sleeps a fixed 50 ms, then
+drains and expects a new `execute` to be refused. Under full-suite load the 400 ms run can finish
+before the blocked request is sent, so the host is no longer draining and the request succeeds.
+
+**Fix:** make the test deterministic: hold the run open until the test releases it (for example a
+`plugin-test` capability or test hook that waits on a signal, or a much longer delay combined
+with polling `/v1/health` until `status: "draining"` before sending the blocked `execute`).
+No fixed sleeps for ordering.
+
+**Tests:** run the file 50 times in a loop under parallel load (CI job or local script) with zero
+failures.
+
+- [ ] Fixed
+
+### Environment note (not a code change)
+
+The audit machine has stale linked ECP plugins in oclif's default data dir
+(`%LOCALAPPDATA%\ecp\package.json`) and in `~/.ecp/plugins/package.json`. After F1 ships,
+re-link the local plugins once against `~/.ecp/plugins` and remove the stale entries from
+`%LOCALAPPDATA%\ecp` (or run `ecp plugins reset` under the old data dir).
+
+## Order of work (PR groups)
+
+| Group | Findings | Why this order |
+| --- | --- | --- |
+| A | F11, F12 (docs part) | Fix the steering first so agents branch and target correctly |
+| B | F1, F16 | Correct plugin state before measuring or polishing the CLI |
+| C | F2, F3, F4, F5, F8, F9 | Validation output and fixtures (the fix loop); adds the CLI sweep test |
+| D | F13, F14, F15, F17, F18, F20 | CLI and relay polish; deterministic drain test |
+| E | F6, F10 | Performance after B removes the plugin-load overhead |
+| F | F7 | Firefly families (independent; can run in parallel with C–E) |
+| G | F12 (retrospective), F19, doc index | Close-out |
+
+## Exit criteria
+
+- [ ] Every finding's checkboxes ticked, with PR links next to them.
+- [ ] `pnpm run check` green; CI green on Ubuntu and Windows.
+- [ ] The audit repro commands in this doc produce the expected results.
+- [ ] Plan retrospective and `realignment/README.md` updated.

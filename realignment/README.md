@@ -32,6 +32,12 @@ once their dependencies land.
 **The MVP is done** when acceptance scenarios A1–A12 (`spec/12-testing-and-acceptance.md`)
 pass in CI on Ubuntu and Windows.
 
+## After the MVP: audit fixes
+
+| Doc | Status |
+| --- | --- |
+| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Not started |
+
 ## Post-MVP
 
 | Phase | Doc | Status |
