@@ -124,7 +124,9 @@ describe("manifest conformance", () => {
       })
       expect(result.issues.filter((issue) => issue.severity === "error"), name).toEqual([])
     }
-  })
+    // Each validation recompiles the combined execution schema today (audit F7), so this is slow under
+    // full-suite load. S3 of realignment/schema-scaling-plan.md removes that cost; then drop this timeout.
+  }, 30_000)
 
   it("matches the expected issues for every invalid fixture", { timeout: 30_000 }, async () => {
     const dir = path.join(manifests, "invalid")

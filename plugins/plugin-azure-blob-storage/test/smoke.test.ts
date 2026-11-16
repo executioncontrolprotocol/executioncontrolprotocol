@@ -21,7 +21,8 @@ describe("plugin-azure-blob-storage definition", () => {
       const mod = await definition.handler()
       expect(typeof mod.default).toBe("function")
     }
-  })
+    // First import of @azure/storage-blob is slow (seconds), more so under full-suite load (audit F20).
+  }, 30_000)
 })
 
 describe("config schema", () => {
