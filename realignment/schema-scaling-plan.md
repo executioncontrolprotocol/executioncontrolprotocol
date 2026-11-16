@@ -4,6 +4,8 @@ This document is the implementation plan for validation at scale. It refines the
 [`mvp-audit-fixes.md`](mvp-audit-fixes.md) (lines 216–265); it does not replace it. Spike evidence:
 [`spikes/schema-scale/README.md`](spikes/schema-scale/README.md).
 
+> **Per-PR implementation plans:** [`schema-scaling/s1-light-manifests.md`](schema-scaling/s1-light-manifests.md) (S1) and [`schema-scaling/s2-s6.md`](schema-scaling/s2-s6.md) (S2–S6, written before S1 landed; refresh each against the code before starting).
+
 ## 1. Goal, scope, non-goals
 
 **Goal.** Make L1 validation scale to hundreds–thousands of installed capabilities (starting with
