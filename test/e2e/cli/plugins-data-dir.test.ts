@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   assertCliBuilt,
   createCliHome,
@@ -25,12 +25,6 @@ type PluginEnvelope = {
 }
 
 describe("cli plugins data dir (F1/F16)", () => {
-  const stoppers: Array<() => Promise<void>> = []
-
-  afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
-  })
-
   it("does not load stale OS or $ECP_HOME/plugins links as oclif plugins", async () => {
     assertCliBuilt()
     const { home, env, dataDir } = await createCliHome({ linkPluginTest: false })

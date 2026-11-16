@@ -9,6 +9,8 @@ export {
   computeEditorSchemaHash,
   writeEditorSchemaFiles,
   setEditorSchemaWriteDelayForTests,
+  holdEditorSchemaWriteForTests,
+  releaseEditorSchemaWriteForTests,
   EDITOR_SCHEMA_SHUTDOWN_WAIT_MS,
 } from "./editor-schema.js"
 export type { EditorSchemaWriteResult, EditorSchemaStamp } from "./editor-schema.js"

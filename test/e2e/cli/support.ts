@@ -6,6 +6,8 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
 
+import { registerCliHome } from "../host-processes.js"
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 export const ecpBin = path.join(repoRoot, "packages/cli/bin/ecp.js")
 export const pluginTestRoot = path.join(repoRoot, "plugins/plugin-test")
@@ -43,9 +45,10 @@ export async function createCliHome(options?: {
   delete env.ECP_DATA_DIR
   if (options?.setDataDir === true) {
     env.ECP_DATA_DIR = dataDir
-  } else if (typeof options?.setDataDir === "string") {
+  } else   if (typeof options?.setDataDir === "string") {
     env.ECP_DATA_DIR = options.setDataDir
   }
+  registerCliHome(home)
   return { home, dataDir, env }
 }
 

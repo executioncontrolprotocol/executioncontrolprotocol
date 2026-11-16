@@ -71,6 +71,8 @@ export default defineConfig({
           environment: "node",
           include: ["packages/host/test/integration/**/*.test.ts"],
           exclude: ["**/dist/**", "**/node_modules/**"],
+          globalSetup: ["test/e2e/global-setup.ts"],
+          setupFiles: ["test/e2e/setup.ts"],
         },
       },
       {
@@ -79,6 +81,8 @@ export default defineConfig({
           environment: "node",
           include: ["test/e2e/**/*.test.ts"],
           exclude: ["**/node_modules/**"],
+          globalSetup: ["test/e2e/global-setup.ts"],
+          setupFiles: ["test/e2e/setup.ts"],
           // Spawned host/supervisor/MCP work; keep the default off the 5s Vitest floor.
           testTimeout: 120_000,
           hookTimeout: 60_000,

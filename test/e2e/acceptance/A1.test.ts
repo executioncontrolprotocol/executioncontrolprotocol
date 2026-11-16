@@ -20,9 +20,6 @@ describe("A1 retrieve via CLI and MCP", () => {
   it("plugins link + retrieve --query/--id find test.echo; same via MCP", async () => {
     assertCliBuilt()
     const { home, env } = await createCliHome({ linkPluginTest: false })
-    cleanups.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env }).catch(() => undefined)
-    })
 
     // Link first (no host yet), then start once — avoids restart races during retrieve.
     const link = await runEcp(["plugins", "link", pluginTestRoot, "--no-install"], {

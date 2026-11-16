@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   assertCliBuilt,
   createCliHome,
@@ -13,12 +13,6 @@ import {
 } from "./support.js"
 
 describe("cli e2e commands", () => {
-  const stoppers: Array<() => Promise<void>> = []
-
-  afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
-  })
-
   it("mcp start help is available", async () => {
     assertCliBuilt()
     const { env } = await createCliHome({ linkPluginTest: false })
@@ -37,9 +31,6 @@ describe("cli e2e commands", () => {
     expect(start.code).toBe(0)
     const started = parseJsonStdout<{ url: string; hostPid: number }>(start.stdout)
     expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
     await waitForHost(home)
 
     const status = await runEcp(["host", "status", "--json"], { env })
@@ -351,9 +342,6 @@ describe("cli e2e commands", () => {
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
     await waitForHost(home)
 
     const app = await runEcp(["app", "--no-open", "--json"], { env })

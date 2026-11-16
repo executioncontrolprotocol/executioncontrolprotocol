@@ -4,6 +4,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   statSync,
   unlinkSync,
   watch as fsWatch,
@@ -129,6 +130,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
         ECP_HOME: home,
         ECP_HOST_PORT: String(port),
         ECP_HOST_TOKEN: token,
+        ECP_SUPERVISOR_PID: String(process.pid),
       },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
@@ -321,7 +323,49 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
   } catch {
     // poll covers it
   }
+  const orphanForceExit = async (): Promise<void> => {
+    if (stopping) return
+    stopping = true
+    writeLog("orphan safety net: home or host.json invalid; force exit")
+    clearInterval(poll)
+    markerWatcher?.close()
+    await drainAndShutdown(true)
+    // Remove host.json only while it is still ours; a newer host may own it now.
+    try {
+      const hostJsonPath = path.join(home, "host.json")
+      const current = JSON.parse(readFileSync(hostJsonPath, "utf8")) as HostFile
+      if (current.token === token && current.supervisorPid === process.pid) unlinkSync(hostJsonPath)
+    } catch {
+      // missing or unreadable: nothing of ours to remove
+    }
+    controlServer?.close()
+    log.end()
+    process.exit(0)
+  }
+
+  const checkOrphanSafetyNet = (): void => {
+    if (stopping) return
+    if (!existsSync(home)) {
+      void orphanForceExit()
+      return
+    }
+    const hostJsonPath = path.join(home, "host.json")
+    if (!existsSync(hostJsonPath)) {
+      void orphanForceExit()
+      return
+    }
+    try {
+      const parsed = JSON.parse(readFileSync(hostJsonPath, "utf8")) as HostFile
+      if (parsed.token !== token || parsed.supervisorPid !== process.pid) {
+        void orphanForceExit()
+      }
+    } catch {
+      // single read failure: wait for next poll
+    }
+  }
+
   const poll = setInterval(() => {
+    checkOrphanSafetyNet()
     if (!existsSync(markerPath)) return
     try {
       const mtime = statSync(markerPath).mtimeMs
@@ -354,6 +398,12 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
   })
   process.on("SIGTERM", () => {
     void stopAll().then(() => process.exit(0))
+  })
+  process.on("exit", () => {
+    const child = hostChild
+    if (child && child.exitCode === null) {
+      child.kill()
+    }
   })
 
   await new Promise(() => undefined)

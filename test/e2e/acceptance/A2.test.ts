@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   assertCliBuilt,
   createCliHome,
@@ -11,21 +11,12 @@ import {
 } from "./support.js"
 
 describe("A2 all-features execute", () => {
-  const stoppers: Array<() => Promise<void>> = []
-
-  afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
-  })
-
   it("ecp execute acceptance/all-features matches run fixture and writes run files", async () => {
     assertCliBuilt()
     const { home, env } = await createCliHome()
     // Warm host so event batches flush (in-process CLI exits via process.exit before close).
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
     await waitForHost(home)
 
     const execPath = path.join(fixturesRoot, "manifests/acceptance/all-features.ecp.json")

@@ -1,5 +1,5 @@
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   assertCliBuilt,
   createCliHome,
@@ -33,12 +33,6 @@ function stripVolatile(value: unknown): unknown {
 }
 
 describe("cli A9 warm vs in-process parity", () => {
-  const stoppers: Array<() => Promise<void>> = []
-
-  afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
-  })
-
   it("A1–A5 ops return the same data warm and in-process", async () => {
     assertCliBuilt()
     const { home, env } = await createCliHome()
@@ -62,9 +56,6 @@ describe("cli A9 warm vs in-process parity", () => {
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
     await waitForHost(home)
 
     const warm = (await inProcessOps()).map(stripVolatile)

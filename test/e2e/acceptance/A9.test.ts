@@ -12,10 +12,10 @@ import {
 } from "./support.js"
 
 describe("A9 warm vs in-process parity for A1–A5 command set", () => {
-  const stoppers: Array<() => Promise<void>> = []
+  const cleanups: Array<() => Promise<void>> = []
 
   afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
+    while (cleanups.length > 0) await cleanups.pop()?.()
   })
 
   it("retrieve, execute, validate, secrets/config, $script match warm and in-process", async () => {
@@ -49,6 +49,9 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
     const secretKey = `parity.secret.${Date.now()}`
     const secretValue = `parity-${Date.now()}`
     await runEcp(["secrets", "set", secretKey, "--json"], { env, stdin: secretValue })
+    cleanups.push(async () => {
+      await runEcp(["secrets", "unset", secretKey, "--json"], { env })
+    })
     const configPath = path.join(home, "cfg.json")
     writeFileSync(
       configPath,
@@ -103,10 +106,6 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-      await runEcp(["secrets", "unset", secretKey, "--json"], { env })
-    })
     await waitForHost(home)
 
     const warm = (await ops()).map(stripVolatile)

@@ -28,7 +28,6 @@ describe("A6 supervisor drain, force interrupt, resume", () => {
     const session = await openMcpSession({ env })
     cleanups.push(async () => {
       await session.close()
-      await runEcp(["host", "stop", "--force", "--json"], { env })
     })
 
     const started = await callTool(session.client, "execute", {
@@ -108,7 +107,6 @@ describe("A6 supervisor drain, force interrupt, resume", () => {
     const session = await openMcpSession({ env })
     cleanups.push(async () => {
       await session.close()
-      await runEcp(["host", "stop", "--force", "--json"], { env })
     })
 
     const started = await callTool(session.client, "execute", {

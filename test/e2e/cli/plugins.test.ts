@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import { setTimeout as delay } from "node:timers/promises"
 import {
   assertCliBuilt,
@@ -15,20 +15,11 @@ import {
 } from "./support.js"
 
 describe("cli plugins e2e", () => {
-  const stoppers: Array<() => Promise<void>> = []
-
-  afterEach(async () => {
-    while (stoppers.length > 0) await stoppers.pop()?.()
-  })
-
   it("plugins link of plugin-test restarts a running host", async () => {
     assertCliBuilt()
     const { home, env, dataDir } = await createCliHome({ linkPluginTest: false })
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    stoppers.push(async () => {
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
     await waitForHost(home)
     const { readHostJson } = await import("../../../packages/host/src/index.js")
     const before = readHostJson(home)!

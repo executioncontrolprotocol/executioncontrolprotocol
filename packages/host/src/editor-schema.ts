@@ -34,12 +34,38 @@ export const EDITOR_SCHEMA_SHUTDOWN_WAIT_MS = 60_000
 /** Test-only delay applied before finishing a write. */
 let writeDelayMsForTests = 0
 
+/** Test-only gate: blocks {@link writeEditorSchemaFiles} until released. */
+let writeGatePromise: Promise<void> | undefined
+
+/** Test-only release for the write gate. */
+let writeGateResolve: (() => void) | undefined
+
 /**
  * Inject artificial write latency in unit tests.
  * @category Host
  */
 export function setEditorSchemaWriteDelayForTests(ms: number): void {
   writeDelayMsForTests = Math.max(0, ms)
+}
+
+/**
+ * Hold the async editor schema write until {@link releaseEditorSchemaWriteForTests}.
+ * @category Host
+ */
+export function holdEditorSchemaWriteForTests(): void {
+  writeGatePromise = new Promise<void>((resolve) => {
+    writeGateResolve = resolve
+  })
+}
+
+/**
+ * Release a held editor schema write (no-op when not held).
+ * @category Host
+ */
+export function releaseEditorSchemaWriteForTests(): void {
+  writeGateResolve?.()
+  writeGateResolve = undefined
+  writeGatePromise = undefined
 }
 
 /**
@@ -129,6 +155,10 @@ export async function writeEditorSchemaFiles(
 
     if (stampMatches && rootOk && missingPluginFiles.length === 0) {
       return { ms: Date.now() - started }
+    }
+
+    if (writeGatePromise) {
+      await writeGatePromise
     }
 
     if (writeDelayMsForTests > 0) {

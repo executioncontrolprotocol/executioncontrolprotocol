@@ -9,6 +9,8 @@ import {
   createLocalHost,
   generateHostToken,
   HostClient,
+  holdEditorSchemaWriteForTests,
+  releaseEditorSchemaWriteForTests,
   setEditorSchemaWriteDelayForTests,
 } from "../src/index.js"
 import { writeEditorSchemaFiles } from "../src/editor-schema.js"
@@ -23,13 +25,14 @@ describe("editor schema async server write", () => {
   const cleanups: Array<() => Promise<void>> = []
   afterEach(async () => {
     setEditorSchemaWriteDelayForTests(0)
+    releaseEditorSchemaWriteForTests()
     while (cleanups.length > 0) await cleanups.pop()?.()
     vi.restoreAllMocks()
   })
 
   it("marks server ready before a slow editor write finishes", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-editor-async-"))
-    setEditorSchemaWriteDelayForTests(400)
+    holdEditorSchemaWriteForTests()
     const host = await createLocalHost({
       home,
       mode: "server",
@@ -39,16 +42,15 @@ describe("editor schema async server write", () => {
     })
     cleanups.push(() => host.stop())
 
-    const readyAt = Date.now()
     const health = await checkHealth(host.url!)
     expect(health?.status).toBe("ok")
-    expect(Date.now() - readyAt).toBeLessThan(200)
 
     const rootPath = path.join(home, "schema", "execution.schema.json")
     await expect(access(rootPath)).rejects.toThrow()
 
+    releaseEditorSchemaWriteForTests()
     const write = await host.editorSchemas
-    expect(write.ms).toBeGreaterThanOrEqual(400)
+    expect(write.ms).toBeGreaterThanOrEqual(0)
     await expect(access(rootPath)).resolves.toBeUndefined()
   })
 
