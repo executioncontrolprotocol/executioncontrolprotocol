@@ -98,9 +98,8 @@ F2–F5).
   (server mode: after `markReady`, in-process: before return).
 - [`ecp-plugin-manifest`](../packages/plugin-sdk/src/bin/ecp-plugin-manifest.ts) writes only
   `ecp.manifest.json` (accepts/returns embedded). No `ecp.schema.json`.
-- Firefly: `GENERATED_FAMILIES = ["firefly","photoshop"]` (17 caps); six `PENDING_FAMILIES`
-  blocked by Ajv stack on the combined schema
-  ([`generate.mjs`](../plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs) ~46–65).
+- Firefly: all vendored families in `GENERATED_FAMILIES` except skipped `content-tagging`
+  (**63** capabilities; S6).
 
 ### Spike numbers (accepted)
 
@@ -455,7 +454,7 @@ Each PR green alone (`pnpm run check` / CI).
 | **S3 — Switch-over + cache + delete legacy** | **Done (this PR):** new path default; operations host-lifetime `HostSchemaSet` cache; runtime combined wrap deleted; fixture re-baseline + exact conformance (Group C not merged). |
 | **S4 — Editor schema files** | **Done:** host writes root + `schema/plugins/*` (stamp-based lazy rewrite, atomic files, stamp last); server mode writes after ready; `wrapValue` editor-only; CLI `ecp schema` still root (`retrieve` `plugin` awaits in-flight write on HTTP). |
 | **S5 — B8** | **Done:** `bench/run.mjs` + `bench/b8.mjs` + budgets (registry load at 1k; 5k via `ECP_BENCH_SCALE=5000`); baseline under `bench/baseline/`; A11 + spec 12 updated. |
-| **S6 — Firefly families** | Move six pending families into `GENERATED_FAMILIES`; regenerate; per-family tests + README; tick F7 checkboxes / decision recorded. |
+| **S6 — Firefly families** | **Done:** six pending families moved into `GENERATED_FAMILIES`; 63 capabilities regenerated; per-family mocked tests + README; F7 checkboxes ticked. |
 
 **Relative to C and E:** S1–S2 ∥ C; S3 after C; S5 informs E's warm-execute re-budget; S6
 (Firefly ship) after S3.
@@ -491,6 +490,6 @@ Each PR green alone (`pnpm run check` / CI).
 - [x] Warm `ecp execute` (echo) measured before/after schema cache; contribution of schema
   rebuild documented for F6. *(S5 sub-metric `B8-execute-echo-warm-all-plugins`; Group E still
   owns B1–B7 re-budget.)*
-- [ ] All six pending Firefly families shipped (or explicitly deferred in spec 08 + README with
-  reason); generator/README/tests updated.
+- [x] All six pending Firefly families shipped (63 capabilities; `content-tagging` skipped);
+  generator/README/tests updated.
 - [ ] `pnpm run check` + CI Ubuntu/Windows green.

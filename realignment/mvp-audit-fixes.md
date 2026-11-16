@@ -272,10 +272,13 @@ base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy re
 per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets;
 S4b: server-mode editor writes off the start path — ready before background write, atomic
 files, `ecp schema` gated on HTTP `retrieve` `plugin`).
-S6 Firefly family ship remains.
+S6 Firefly family ship lands on branch `fix/mvp-audit-group-a` (63 capabilities; `content-tagging`
+still skipped).
 
-- [ ] Decision recorded
-- [ ] Families shipped or documented
+- [x] Decision recorded (validation-at-scale S1–S5; ship all vendored families that generate
+  cleanly)
+- [x] Families shipped (audio-video, creative-production, express, illustrator, indesign,
+  substance3d + existing firefly, photoshop)
 
 ### F8 — Missing invalid fixtures from the spec 12 minimum set (Medium)
 

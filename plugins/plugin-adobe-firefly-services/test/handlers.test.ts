@@ -253,3 +253,114 @@ describe("handler guards", () => {
     expect(ims).toHaveBeenCalledWith(expect.stringContaining("scope=openid%2Cfirefly_api"))
   })
 })
+
+describe.each([
+  {
+    family: "audio-video",
+    name: "audio-video-avatars" as CapabilityName,
+    url: "https://audio-video-api.adobe.io/v1/avatars",
+    input: { "x-request-id": "av-1" },
+  },
+  {
+    family: "creative-production",
+    name: "creative-production-list-batches" as CapabilityName,
+    url: "https://run-workflow.adobe.io/batches",
+    input: { "api-version": "1.0" },
+  },
+  {
+    family: "express",
+    name: "express-tagged-documents" as CapabilityName,
+    url: "https://express-api.adobe.io/beta/tagged-documents",
+    input: { start: "0" },
+  },
+  {
+    family: "indesign",
+    name: "indesign-list-app-versions" as CapabilityName,
+    url: "https://indesign.adobe.io/v3/app-versions",
+    input: {},
+  },
+])("sync family capability: %s", ({ name, input }) => {
+  it("returns the JSON body on success", async () => {
+    const payload = { items: [{ id: "1" }] }
+    stubFetch(() => jsonResponse(200, payload))
+    const handler = await handlerFor(name)
+    await expect(handler(input, makeCtx(CONFIG))).resolves.toEqual(payload)
+  })
+
+  it("maps an API error to ECP_PROVIDER_ERROR with the body", async () => {
+    stubFetch(() => jsonResponse(502, { error: "bad_gateway" }))
+    const handler = await handlerFor(name)
+    await expect(handler(input, makeCtx(CONFIG))).rejects.toMatchObject({
+      code: "ECP_PROVIDER_ERROR",
+      details: { status: 502, body: { error: "bad_gateway" } },
+    })
+  })
+
+  it("stops when the step signal aborts before the response", async () => {
+    const controller = new AbortController()
+    stubFetch((_call, init) => hangUntilAborted(init))
+    const handler = await handlerFor(name)
+    const pending = handler(input, makeCtx(CONFIG, { signal: controller.signal }))
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+  })
+})
+
+describe.each([
+  {
+    family: "illustrator",
+    name: "illustrator-create-rendition" as CapabilityName,
+    submitUrl: "https://illustrator-api.adobe.io/v1/create-rendition",
+    statusUrl: "https://illustrator-api.adobe.io/v1/status/job-ill",
+    input: {
+      input: { source: { url: "https://storage.googleapis.com/c/test.ai" } },
+      output: { mediaType: "image/png" },
+      settings: { documentLevel: 1 },
+    },
+  },
+  {
+    family: "substance3d",
+    name: "substance3d-v1-composites-compose" as CapabilityName,
+    submitUrl: "https://s3d.adobe.io/v1/composites/compose",
+    statusUrl: "https://s3d.adobe.io/v1/status/job-s3d",
+    input: {
+      prompt: "studio backdrop",
+      heroAsset: "product",
+      sources: [{ url: { url: "https://storage.googleapis.com/c/scene.sbsar" } }],
+    },
+  },
+])("async family capability: %s", ({ name, submitUrl, statusUrl, input }) => {
+  it("submits, polls and returns the unwrapped result", async () => {
+    const result = { outputs: [{ seed: 1 }] }
+    const { calls } = stubFetch((call) => {
+      if (call.method === "POST") return jsonResponse(202, { jobId: "j1", statusUrl })
+      return jsonResponse(200, { status: "succeeded", result })
+    })
+    const handler = await handlerFor(name)
+    await expect(handler(input, makeCtx(CONFIG))).resolves.toEqual(result)
+    expect(calls[0]!.url).toBe(submitUrl)
+  })
+
+  it("maps an API error to ECP_PROVIDER_ERROR with the body", async () => {
+    stubFetch(() => jsonResponse(400, { message: "invalid scene" }))
+    const handler = await handlerFor(name)
+    await expect(handler(input, makeCtx(CONFIG))).rejects.toMatchObject({
+      code: "ECP_PROVIDER_ERROR",
+      details: { status: 400, body: { message: "invalid scene" } },
+    })
+  })
+
+  it("stops polling when the step signal aborts mid-poll", async () => {
+    const controller = new AbortController()
+    const { calls } = stubFetch((call, init) => {
+      if (call.method === "POST") return jsonResponse(202, { jobId: "j1", statusUrl })
+      if (calls.length >= 3) return hangUntilAborted(init)
+      return jsonResponse(200, { status: "running" })
+    })
+    const handler = await handlerFor(name)
+    const pending = handler(input, makeCtx(CONFIG, { signal: controller.signal }))
+    await vi.waitFor(() => expect(calls.length).toBeGreaterThanOrEqual(3))
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+  })
+})

@@ -27,7 +27,7 @@ export const photoshopCapabilities = {
   "photoshop-auto-crop": capability<z.ZodType, z.ZodType>({
     summary: "Auto crop (Adobe Photoshop).",
     description: "Generates smart crops, subject bounding boxes, and detects objects for an input image. The request is processed asynchronously. Poll GET /v2/status/{jobId} with the returned jobId for completion. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to auto crop with Adobe Photoshop","Adobe Photoshop Photoshop APIs tasks"],
+    useCases: ["Trim transparent or solid borders from a product or packshot image"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       aspectRatio: z.union([schemas.In_AutoCropAspectRatio, z.array(schemas.In_AutoCropAspectRatio)]).optional().describe("Desired aspect ratio(s) for generated crops. Accepts either a single enum string or an array of up to 20 strings. Allowed only for 'smartCrop' and 'subjectCrop'. When omitted, the service defaults to 1:1. An empty array is treated as absent."),
@@ -45,7 +45,7 @@ export const photoshopCapabilities = {
   "photoshop-create-artboard": capability<z.ZodType, z.ZodType>({
     summary: "Create an artboard (Adobe Photoshop).",
     description: "Create an artboard (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to create an artboard with Adobe Photoshop","Adobe Photoshop Photoshop APIs tasks"],
+    useCases: ["Build a new artboard layout from structured layer JSON"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       artboardSpacing: z.number().int().optional().describe("Horizontal spacing in pixels between each artboard. Defaults to 50. Optional."),
@@ -60,7 +60,7 @@ export const photoshopCapabilities = {
   "photoshop-create-composite": capability<z.ZodType, z.ZodType>({
     summary: "Create or edit a composite (Adobe Photoshop).",
     description: "Create or edit a composite (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to create or edit a composite with Adobe Photoshop","Adobe Photoshop Photoshop APIs tasks"],
+    useCases: ["Assemble layered composites from Smart Object definitions"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       edits: schemas.In_Edits.optional(),
@@ -76,7 +76,7 @@ export const photoshopCapabilities = {
   "photoshop-edit": capability<z.ZodType, z.ZodType>({
     summary: "Edit an image with various adjustments (Adobe Photoshop).",
     description: "Edit an image with various adjustments (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to edit an image with various adjustments with Adobe Photoshop","Adobe Photoshop Photoshop APIs tasks"],
+    useCases: ["Apply adjustment or retouch operations defined in Photoshop JSON"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       edits: schemas.In_LightroomEdits.optional(),
@@ -91,7 +91,7 @@ export const photoshopCapabilities = {
   "photoshop-generate-manifest": capability<z.ZodType, z.ZodType>({
     summary: "Generate a manifest for given input image (Adobe Photoshop).",
     description: "Generate a manifest for given input image (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate a manifest for given input image with Adobe Photoshop","Adobe Photoshop Photoshop APIs tasks"],
+    useCases: ["Extract layer and text metadata from a PSD for templating workflows"],
     projections: ["Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."],
     accepts: z.strictObject({
       exportOptions: schemas.In_OneOf_JpegExportOptions_or_PngExportOptions.optional(),

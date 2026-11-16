@@ -11,8 +11,8 @@ import {
   generateAll,
   generateFamily,
   loadFamilySpecs,
-  PENDING_FAMILIES,
 } from "../scripts/lib/generate.mjs"
+import { assertAgentMetadata } from "../scripts/lib/metadata-prose.mjs"
 import { cleanDescription, resolveRefs, ZodEmitter } from "../scripts/lib/zod-emitter.mjs"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -46,7 +46,7 @@ function inputFor(op: Op, components: Record<string, unknown> = {}) {
   return { built, emitter, fields: built.fields.map((f: string) => resolveRefs(f, "")).join("\n") }
 }
 
-describe.each(["photoshop", "firefly"])("generated output snapshot: %s", (family) => {
+describe.each(GENERATED_FAMILIES)("generated output snapshot: %s", (family) => {
   const specs = loadFamilySpecs(openapiDir, { families: [family] }).get(family)!
   const result = generateFamily(family, specs)
 
@@ -67,20 +67,23 @@ describe.each(["photoshop", "firefly"])("generated output snapshot: %s", (family
 describe("full generation", () => {
   const all = generateAll(loadFamilySpecs(openapiDir, { families: GENERATED_FAMILIES }))
 
+  it("keeps unique verb-led summaries and goal-oriented use cases", () => {
+    const metas: { name: string; summary: string; useCases: string[] }[] = []
+    for (const family of GENERATED_FAMILIES) {
+      const specs = loadFamilySpecs(openapiDir, { families: [family] }).get(family)!
+      metas.push(...generateFamily(family, specs).agentMetadata)
+    }
+    expect(() => assertAgentMetadata(metas)).not.toThrow()
+  })
+
   it("has no schema errors and matches the committed index and meta.json", () => {
     expect(all.errors).toEqual([])
     expect(all.files["index.ts"]).toBe(committed("index.ts"))
     expect(all.files["meta.json"]).toBe(committed("meta.json"))
     expect(Object.keys(all.files).every((rel) => all.files[rel] === committed(rel))).toBe(true)
     expect(all.meta.families).toEqual(GENERATED_FAMILIES)
-    expect(all.meta.pendingFamilies).toEqual(PENDING_FAMILIES)
-  })
-
-  it("generates the pending families without schema errors, ready to ship", () => {
-    const pending = generateAll(loadFamilySpecs(openapiDir, { families: PENDING_FAMILIES }))
-    expect(pending.errors).toEqual([])
-    expect(pending.meta.families).toEqual(PENDING_FAMILIES)
-    expect(pending.meta.capabilityCount).toBe(46)
+    expect(all.meta.pendingFamilies).toEqual([])
+    expect(all.meta.capabilityCount).toBe(63)
   })
 
   it("gives every capability summary, description, useCases and projections", () => {
@@ -293,15 +296,15 @@ describe("naming and metadata", () => {
   })
 
   it("derives prose metadata with at least one use case and projection", () => {
-    const meta = deriveMetadata({ summary: "Generate images.", tags: ["Images"] }, "firefly", "firefly-generate-images", "async-submit")
+    const meta = deriveMetadata({ summary: "Generate images." }, "firefly", "firefly-generate-images-v3-async", "async-submit")
     expect(meta.summary).toBe("Generate images (Adobe Firefly).")
     expect(meta.description).toContain("waits for it to finish")
-    expect(meta.useCases).toEqual(["When the goal is to generate images with Adobe Firefly", "Adobe Firefly Images tasks"])
+    expect(meta.useCases[0]).toContain("prompt")
     expect(meta.projections.length).toBeGreaterThan(0)
 
     const bare = deriveMetadata({}, "indesign", "indesign-list-app-versions", "sync")
-    expect(bare.summary).toBe("List App Versions (Adobe InDesign).")
-    expect(bare.useCases).toEqual(["When you need list app versions through Adobe InDesign"])
+    expect(bare.summary).toBe("List supported InDesign app versions for custom scripts (Adobe InDesign).")
+    expect(bare.useCases[0]).toContain("InDesign versions")
   })
 
   it("uses the hand-written photoshop-actions prose", () => {
