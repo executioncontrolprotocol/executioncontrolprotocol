@@ -469,6 +469,14 @@ No fixed sleeps for ordering.
 **Tests:** run the file 50 times in a loop under parallel load (CI job or local script) with zero
 failures.
 
+**More evidence (2026-11-16, F7 work):** done so far: the drain test is deterministic (polls health
+for `draining`), and the conformance, Azure smoke, host shutdown and scale-equivalence tests got
+sized timeouts. Still flaky in the pre-commit coverage run, passing alone and in two full runs:
+`packages/engine/test/operations.test.ts` "covers retrieve and execute edge paths" and
+`packages/host/test/editor-schema-async.test.ts` "marks server ready before a slow editor write
+finishes" (timing-based by design; make it signal-based). Both failed together once, then passed on
+retry.
+
 - [ ] Fixed
 
 ### F21 — Line endings flip on every Windows test run (Low; fixed in group A)
