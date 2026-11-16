@@ -51,19 +51,51 @@ export default finallyHook
 function collectRoots(
   id: string,
   argv: string[],
-  config: { plugins?: Map<string, { root?: string; type?: string }> | Array<{ root?: string; type?: string }> },
+  config: {
+    dataDir?: string
+    plugins?: Map<string, { root?: string; type?: string; name?: string }> | Array<{ root?: string; type?: string; name?: string }>
+  },
 ): string[] {
   if (id.includes("link")) {
     const target = argv.find((arg) => !arg.startsWith("-"))
     if (target) return [path.resolve(target)]
   }
   const plugins = config.plugins
-  if (!plugins) return []
-  const list = plugins instanceof Map ? [...plugins.values()] : plugins
-  return list
+  const list = plugins ? (plugins instanceof Map ? [...plugins.values()] : plugins) : []
+  const fromConfig = list
     .filter((plugin) => plugin.type === "user" || plugin.type === "link")
     .map((plugin) => plugin.root)
     .filter((root): root is string => Boolean(root))
+  if (fromConfig.length > 0) return fromConfig
+  // With `userPlugins: false`, linked/user plugins are not in config.plugins — read the data dir.
+  return rootsFromDataDir(config.dataDir ?? ecpDataDir())
+}
+
+function rootsFromDataDir(dataDir: string): string[] {
+  const pjsonPath = path.join(dataDir, "package.json")
+  if (!existsSync(pjsonPath)) return []
+  try {
+    const pjson = JSON.parse(readFileSync(pjsonPath, "utf8")) as {
+      oclif?: { plugins?: Array<string | { name: string; type?: string; root?: string }> }
+      dependencies?: Record<string, string>
+    }
+    const roots: string[] = []
+    for (const entry of pjson.oclif?.plugins ?? []) {
+      if (typeof entry === "string") {
+        roots.push(path.join(dataDir, "node_modules", entry))
+        continue
+      }
+      if (entry.type === "link" && entry.root) roots.push(entry.root)
+      else roots.push(path.join(dataDir, "node_modules", entry.name))
+    }
+    for (const name of Object.keys(pjson.dependencies ?? {})) {
+      const candidate = path.join(dataDir, "node_modules", name)
+      if (!roots.includes(candidate)) roots.push(candidate)
+    }
+    return roots
+  } catch {
+    return []
+  }
 }
 
 function warnManifest(root: string, warn: (message: string) => void): void {

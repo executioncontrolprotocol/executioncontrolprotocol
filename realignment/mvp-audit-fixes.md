@@ -67,8 +67,8 @@ plugins as oclif plugins (startup cost, see F6).
 `ecp plugins` lists exactly the plugins the host reports (`retrieve --type plugin`); link,
 unlink, install from tarball each keep the two views equal; Windows and Ubuntu.
 
-- [ ] Fixed
-- [ ] Tests added
+- [x] Fixed
+- [x] Tests added
 
 ### F2 — Duplicate validation issues (High)
 
@@ -408,8 +408,8 @@ exposes oclif's `inspect` and `reset`, which aren't in spec 10's table.
 **Fix:** add a manifest column (`ok` / issue summary) to `ecp plugins` (after F1, from the
 host's view). Decide on `inspect`/`reset`: keep and document in spec 10 (default), or hide.
 
-- [ ] Fixed
-- [ ] Spec 10 updated
+- [x] Fixed
+- [x] Spec 10 updated
 
 ### F17 — In-process runs record `host.pid: 0` (Low)
 
@@ -461,6 +461,44 @@ No fixed sleeps for ordering.
 
 **Tests:** run the file 50 times in a loop under parallel load (CI job or local script) with zero
 failures.
+
+**More evidence (2026-11-16, group B commits):** the same load-sensitive pattern failed other tests in
+the pre-commit coverage gate, each passing when run alone: `plugins/plugin-azure-blob-storage/test/smoke.test.ts`
+"loads every handler through its lazy thunk" (~15 s), `packages/host/test/http.test.ts` "shuts down via admin
+route without exiting the test process" (5 s timeout), and `packages/engine/test/conformance.test.ts` "accepts
+every valid fixture" (5 s timeout; slow because every validation recompiles the combined schema, F7). The machine
+was also running 68 leaked host processes (F22). Fix F22 first, then make these tests independent of wall-clock
+timing (raise per-test timeouts where the work is inherently slow, replace fixed sleeps with readiness polling),
+and re-check after S3 removes the per-call schema compile.
+
+- [ ] Fixed
+
+### F22 — Tests leak supervisor and host processes (High; causes F20 flakiness)
+
+**Evidence:** on 2026-11-16 the audit machine had **34 `packages/host/dist/supervisor.js` and 34
+`packages/host/dist/main.js` processes** running, started by test runs on Nov 14, Nov 15 and Nov 16 (none was the
+user's real host; `~/.ecp/host.json` didn't exist). They kept running after their tests ended and their temp
+`ECP_HOME`s were gone, competing for CPU and memory and making timing-sensitive tests fail (F20).
+
+**Likely causes to check:** e2e/integration teardown that deletes the temp `ECP_HOME` (or only kills the CLI)
+without calling `ecp host stop`; Windows not terminating a detached supervisor's child when the parent is killed;
+supervisors that never notice their home disappeared; failed or interrupted test runs skipping `afterAll`.
+
+**Fix:**
+
+- Every test that starts a supervisor or host registers a teardown that stops it via the control port (and as a
+  fallback kills both pids from `host.json`), before removing the temp home. Put this in the shared e2e/integration
+  helpers so no test can forget it.
+- The supervisor exits on its own when its `host.json` or `ECP_HOME` disappears, or when its token no longer
+  matches `host.json` (orphan safety net, also useful for users).
+- On Windows, kill the host when the supervisor exits (track the child; `taskkill /T` fallback).
+- A global vitest teardown (e2e project) that fails the run if any process started from this repo's
+  `packages/host/dist` is still alive afterwards, and kills it.
+
+**Tests:** run the full e2e suite twice in a row; afterwards zero `packages/host/dist` processes remain (the global
+teardown enforces it). Supervisor unit/e2e: deleting `ECP_HOME` stops it within a few seconds.
+
+**Cleanup done during the audit:** the 68 leaked processes were stopped manually on 2026-11-16.
 
 - [ ] Fixed
 
@@ -541,7 +579,7 @@ against the Cursor plan of the signed-in account.
 | A | F11, F12 (docs part) | Fix the steering first so agents branch and target correctly |
 | B | F1, F16 | Correct plugin state before measuring or polishing the CLI |
 | C | F2, F3, F4, F5, F8, F9 | Validation output and fixtures (the fix loop); adds the CLI sweep test |
-| D | F13, F14, F15, F17, F18, F20 | CLI and relay polish; deterministic drain test |
+| D | F13, F14, F15, F17, F18, F20, F22 | CLI and relay polish; stop test process leaks (F22) first, then deterministic timing tests (F20) |
 | E | F6, F10 | Performance after B removes the plugin-load overhead |
 | F | F7 | Validation at scale (per-plugin schemas, lazy compile, marker filtering; spec 03/08 amended), then the pending Firefly families. Can run in parallel with C–E |
 | G | F12 (retrospective), F19, doc index | Close-out |

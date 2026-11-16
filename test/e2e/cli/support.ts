@@ -13,9 +13,15 @@ export const fixturesRoot = path.join(repoRoot, "fixtures")
 
 /**
  * Create an isolated ECP_HOME with plugin-test linked for host discovery.
+ * Does **not** set `ECP_DATA_DIR` by default — the CLI derives it from `ECP_HOME`.
+ * Pass `setDataDir: true` (or an explicit path) only when a test needs a custom data dir.
  * @category Test
  */
-export async function createCliHome(options?: { linkPluginTest?: boolean }): Promise<{
+export async function createCliHome(options?: {
+  linkPluginTest?: boolean
+  /** Opt-in: set `ECP_DATA_DIR` on the env (default false; CLI derives from `ECP_HOME`). */
+  setDataDir?: boolean | string
+}): Promise<{
   home: string
   dataDir: string
   env: NodeJS.ProcessEnv
@@ -30,11 +36,37 @@ export async function createCliHome(options?: { linkPluginTest?: boolean }): Pro
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ECP_HOME: home,
-    ECP_DATA_DIR: dataDir,
     NO_COLOR: "1",
     FORCE_COLOR: "0",
   }
+  // Avoid inheriting a developer-machine override that would mask F1.
+  delete env.ECP_DATA_DIR
+  if (options?.setDataDir === true) {
+    env.ECP_DATA_DIR = dataDir
+  } else if (typeof options?.setDataDir === "string") {
+    env.ECP_DATA_DIR = options.setDataDir
+  }
   return { home, dataDir, env }
+}
+
+/**
+ * Redirect oclif's OS default data dir (`LOCALAPPDATA` / `XDG_DATA_HOME`) to a temp root.
+ * @category Test
+ */
+export async function createIsolatedOsDataDir(env: NodeJS.ProcessEnv): Promise<{
+  osDataRoot: string
+  osEcpDataDir: string
+}> {
+  const osDataRoot = await mkdtemp(path.join(os.tmpdir(), "ecp-os-data-"))
+  const osEcpDataDir = path.join(osDataRoot, "ecp")
+  mkdirSync(osEcpDataDir, { recursive: true })
+  if (process.platform === "win32") {
+    env.LOCALAPPDATA = osDataRoot
+  } else {
+    env.XDG_DATA_HOME = osDataRoot
+  }
+  if (!env.HOME) env.HOME = os.homedir()
+  return { osDataRoot, osEcpDataDir }
 }
 
 /**
