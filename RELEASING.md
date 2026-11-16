@@ -4,17 +4,17 @@ Packages are versioned independently with [Changesets](https://github.com/change
 `baseBranch` is `development`. In-repo dependencies stay `workspace:*` / `workspace:^` until
 publish.
 
-**Phase 9 does not publish.** This file is the checklist for the first MVP release after
-`milestone/realignment` merges.
+**Phase 9 did not publish.** This file is the checklist for the first MVP release from
+`development`/`main` after the merged milestone (PR #68, 2026-11-15).
 
 ## Branches
 
 | Branch | Role |
 | --- | --- |
-| `milestone/realignment` | MVP realignment. Merge here until the milestone ships. |
-| `development` | Default integration branch after the milestone. |
+| `development` | Default integration branch. |
 | `main` | Publishes `latest` when `ENABLE_NPM_PUBLISH` is `true`. |
-| `feat/realignment-*` | Feature PRs into `milestone/realignment`. |
+| `fix/*` / `feat/*` | Feature and fix PRs into `development`. |
+| `milestone/realignment` | Historical: merged into `development` via PR #68. |
 
 Never push feature work straight to `main`.
 

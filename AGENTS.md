@@ -1,15 +1,15 @@
 # AGENTS.md
 
-## Read this first: the realignment milestone
+## Read this first: post-merge MVP
 
-This branch line (`milestone/realignment` and `feat/realignment-*` branches cut from it) is
-executing the ECP realignment.
+MVP realignment merged into `development` via PR #68 on 2026-11-15. Spec and plan remain the
+source of truth; new work branches from `development`.
 
 1. **[`realignment/spec/`](realignment/spec/README.md)** is the MVP build spec: exact contracts. It wins
    over everything else.
 2. **[`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md)** holds the decisions, architecture and rationale.
-3. **[`realignment/`](realignment/README.md)** holds the phase docs. If you were asked to
-   execute a phase, its doc is your task list.
+3. **[`realignment/`](realignment/README.md)** holds the phase docs (history of the MVP build) and
+   audit follow-ups. For audit fixes see [`mvp-audit-fixes.md`](realignment/mvp-audit-fixes.md).
 4. **This file and `.cursor/rules/`** hold the rules for working in the repo. Where anything
    here disagrees with the plan or a phase doc, the plan wins: say so in your PR and propose a
    fix to this file.
@@ -21,12 +21,13 @@ instructions.
 
 Ground rules:
 
-- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
-  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
-  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
-- Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment`; open PRs into
-  `milestone/realignment`.
-- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written.
+  To change a contract, change the spec first in the same PR and say why. Throwaway spikes and
+  benchmarks go in `realignment/spikes/`. Phase docs are historical; for audit/post-MVP work
+  follow [`mvp-audit-fixes.md`](realignment/mvp-audit-fixes.md) or the relevant post-MVP doc.
+- Branch `fix/*` or `feat/*` from `development`; open PRs into `development`. Audit fix groups
+  are listed in [`realignment/mvp-audit-fixes.md`](realignment/mvp-audit-fixes.md).
+- **Never push to `main`.** Pushes to `main` publish to npm.
 - **MVP packages live under `packages/` and `plugins/`.** Implement against `realignment/spec/`.
   Do not resurrect deleted `legacy/` trees.
 - Keep the pre-commit hook on. Don't skip, delete or weaken valid tests to get CI green, except

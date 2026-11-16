@@ -1,24 +1,25 @@
 ---
-description: The realignment milestone — REALIGNMENT-PLAN.md and realignment/ phase docs take precedence
+description: Shipped MVP design — spec, plan, and branching on development
 alwaysApply: true
 ---
 
-# Realignment milestone
+# Realignment (shipped MVP)
 
-This repo is executing the ECP realignment on `milestone/realignment`.
+The MVP realignment merged into `development` via PR #68 on 2026-11-15. Spec and plan remain
+the source of truth; new work branches from `development`.
 
 - **Source of truth:** [`realignment/spec/`](../../realignment/spec/README.md) for exact MVP
   contracts, [`REALIGNMENT-PLAN.md`](../../REALIGNMENT-PLAN.md) for decisions and rationale, and
-  [`realignment/`](../../realignment/README.md) for each phase's doc.
+  [`realignment/`](../../realignment/README.md) for phase docs (history of the MVP build) and
+  audit follow-ups ([`mvp-audit-fixes.md`](../../realignment/mvp-audit-fixes.md)).
   When another rule or `AGENTS.md` disagrees with them, follow the plan, say so in the PR, and
   propose a fix to the rule.
-- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written,
-  phase by phase (`realignment/README.md`). To change a contract, change the spec first in the
-  same PR and say why. Throwaway spikes and benchmarks go in `realignment/spikes/`.
-- **Executing a phase:** read the plan, then `realignment/README.md`, then the phase doc. Work
-  its tasks in order. Branch `feat/realignment-<phase>-<slug>` from `milestone/realignment` and
-  open the PR into `milestone/realignment`.
-- **Never push to `main` or `development`.** Pushes to `main` publish to npm.
+- **Build from the spec.** `realignment/spec/` fixes every MVP contract; implement it as written.
+  To change a contract, change the spec first in the same PR and say why. Throwaway spikes and
+  benchmarks go in `realignment/spikes/`. Phase docs are historical task lists; for audit fixes
+  follow [`mvp-audit-fixes.md`](../../realignment/mvp-audit-fixes.md).
+- **Branching:** branch `fix/*` or `feat/*` from `development` and open PRs into `development`.
+  Never push to `main` (publishes to npm).
 - **MVP packages** live under `packages/` and `plugins/`. Do not resurrect deleted `legacy/`
   trees.
 - **Retired:** the CLI reset plan (`RESET-PLAN.md`, `reset/`), removed 2026-11-14. What still
@@ -30,5 +31,3 @@ This repo is executing the ECP realignment on `milestone/realignment`.
 - **If the plan or a phase doc is wrong or impossible,** stop and report it instead of
   improvising.
 - **Honesty:** label stubs, mocks and deferred work in code and in the PR.
-- **Done means:** every exit criterion in the phase doc is checked off with evidence in the PR,
-  CI is green, and the status is updated in `realignment/README.md`.

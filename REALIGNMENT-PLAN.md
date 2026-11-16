@@ -1,13 +1,14 @@
 # ECP Realignment Plan
 
-> **Status:** MVP decided, 2026-11-14. Milestone branch: `milestone/realignment`.
+> **Status:** MVP shipped / milestone merged 2026-11-15 (PR #68 into `development`). Spec remains
+> the contract; audit fixes in [`realignment/mvp-audit-fixes.md`](realignment/mvp-audit-fixes.md).
 > **Build from the spec:** [`realignment/spec/`](realignment/spec/README.md) holds the exact MVP contracts and
 > [`realignment/`](realignment/README.md) the phase docs. Where this plan and the spec differ, the spec wins.
 > This plan is the source of truth for the realignment. It replaces the CLI reset plan
 > (`RESET-PLAN.md` and `reset/`, retired 2026-11-14; what still applies is in "Carried over from
 > the CLI reset", and the originals are in git history at `27238c96`). Phase docs live in
 > [`realignment/`](realignment/README.md).
-> Implementation starts with Phase 0 (groundwork); see "MVP build".
+> Implementation started with Phase 0 (groundwork); see "MVP build".
 > Grounded in `development` @ `5a523783` (2026-11-04).
 
 ECP becomes an **ECP host**: one restartable process that holds the engine (executor, validation, registry), a service container, and an **HTTP API** with three operations (`retrieve`, `execute`, `commit`). It runs **execution manifests** (formerly workflow manifests) and validates every capability call against accepts/returns schemas. **Plugins load inside the host**, deferred the way oclif does it: the registry comes from per-plugin manifests and plugin code is imported on first call. A small **host supervisor** (`ecp host start`) keeps a warm host running and restarts it on plugin changes or crashes. The **MCP relay** (`ecp mcp start`) is a thin stdio MCP server that forwards the three tools to the host API, so MCP clients stay connected across host restarts. CLI commands, the App and scripts are clients of the same API. Every key component is a **service**: an interface with swappable implementations registered at environment setup (`environment.use(Impl, Interface.service)`), OSGi-style but without runtime lifecycles or ranking. The MVP ships local implementations only. The Fluent TS API becomes an SDK that generates manifests.
@@ -43,6 +44,10 @@ Decided 2026-11-14: the realignment happens in **this repo on `milestone/realign
 - **Layout of new code** (decided): Phase 0 moves legacy code to `legacy/` (out of the workspace and CI); new code goes in `packages/` and `plugins/`; Phase 9 deletes `legacy/`.
 - The npm scope `@executioncontrolprotocol/*` is published up to 0.52.x. Releases from this milestone are a new major version; decide package names before the first publish.
 - Pushes to `main` publish to npm. Work merges into `milestone/realignment` through PRs; nothing goes to `development` or `main` until the milestone is released.
+
+**Post-merge (2026-11-15):** `development` is the integration branch. Branch `fix/*` or `feat/*`
+from `development` and open PRs into `development`. Never push to `main` (publishes to npm).
+`milestone/realignment` is merged history (PR #68).
 
 ## Vocabulary
 
@@ -939,7 +944,8 @@ Notable drifts from the original spec/plan while building, and why:
 | Provider errors | Generic step failure | `ECP_PROVIDER_ERROR` with `message` + `details` on the issue | Agents need the provider body (IMS, credit, HTTP) to repair; rule in `extensions.mdc` / spec 08. |
 | CLI warm host | Optional auto-start if warm saves ≥ ~300 ms | Keep in-process when no host (Phase 5: ~85 ms B3 savings) | Budgets in `bench/budgets.json`; MCP/App still require a running host. |
 | Mid-session second plugin in A6 | `plugins link` of a second fixture | Pack + `plugins install` of the minimal fixture | Linked packages require a `definePlugin` `dist/index.js`; hand-written manifests load on install. |
-| In-process event flush | Assumed disk always has `events.ndjson` after CLI execute | Warm host for A2 disk asserts | CLI `finishOperation` calls `process.exit` before `ops.close()` flushes event batches. |
+| In-process event flush | Disk always has full `events.ndjson` after CLI execute | Fixed: `LocalRunStore.appendEvent` flushes immediately on `run.end` (batches earlier events with it). Completed in-process `ecp execute` leaves `run.end` on disk even when `finishOperation` exits before `ops.close()`. | Was: `process.exit` skipped `ops.close()` flush. Fix landed with the run-end flush (commit `572110aa` / current `run-store.ts`). A2 still uses a warm host; that workaround is obsolete for completed runs. |
+| Firefly plugin scope | All generated Firefly Services capabilities (spec 08) | Only `firefly` + `photoshop` (`GENERATED_FAMILIES` in `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`); `PENDING_FAMILIES` = audio-video, creative-production, express, illustrator, indesign, substance3d; `content-tagging` skipped (no published OpenAPI); `openapi/overlays` is overlay data, not a family. | Combined execution schema overflows Ajv call stack at ~50+ capabilities of this size; ship families needed for localize-banner until capability schemas compile separately. Full ship-vs-document decision is F7 (Group F). |
 | `$script` into maxLength | Capability with maxLength | `test.bounded` on plugin-test | Fixture-only `bounded` was engine-only; e2e needs a real linked plugin. |
 | Release tag | Avoid `v1.0.0` | `mvp-YYYY.MM.DD` | Documented in `RELEASING.md`; no publish in Phase 9. |
 

@@ -1,10 +1,11 @@
 # ECP realignment — MVP phases
 
-Working docs for the `milestone/realignment` milestone.
+MVP realignment merged into `development` via PR #68 on 2026-11-15. This tree is the MVP build
+record plus audit follow-ups.
 
 - **[`spec/`](spec/README.md)** — the MVP build spec: exact contracts. Implement it as written.
 - **[`../REALIGNMENT-PLAN.md`](../REALIGNMENT-PLAN.md)** — decisions, architecture, rationale.
-- **Phase docs below** — ordered tasks, tests and exit criteria per phase.
+- **Phase docs below** — ordered tasks, tests and exit criteria per phase (historical).
 
 The previous milestone's plan (the CLI reset) is retired. What still applies is in the plan's
 "Carried over from the CLI reset" section.
@@ -15,7 +16,7 @@ The previous milestone's plan (the CLI reset) is retired. What still applies is 
 | --- | --- | --- | --- |
 | — | [Docs and rules index](doc-index.md) | Done 2026-11-14 | — |
 | — | [MVP build spec](spec/README.md) | Decided 2026-11-14 | — |
-| 0 | [Groundwork](phase-0-groundwork.md) | Local check green 2026-11-14; CI not run | — |
+| 0 | [Groundwork](phase-0-groundwork.md) | Done 2026-11-15 (CI green on development / PR #68) | — |
 | 1 | [Engine](phase-1-engine.md) | Done 2026-11-14 | 0 |
 | 2 | [Plugins: SDK, manifests, loading](phase-2-plugins.md) | Done 2026-11-14 | 1 |
 | 3 | [Local services and in-process host](phase-3-local-host.md) | Done 2026-11-14 | 1, 2 |
@@ -36,7 +37,7 @@ pass in CI on Ubuntu and Windows.
 
 | Doc | Status |
 | --- | --- |
-| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Not started |
+| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Group A done; B-G not started |
 
 ## Post-MVP
 
@@ -50,9 +51,8 @@ No MVP phase depends on it, and MVP work must not add Fluent parsing or Fluent-s
 
 - **Build from the spec.** Each phase doc says which spec sections it implements. If a contract
   has to change, change the spec first, in the same PR, and say why.
-- **Branches:** `feat/realignment-<phase>-<slug>` from `milestone/realignment`; PRs into
-  `milestone/realignment`. Large phases split into several PRs, each green on its own. Never push
-  to `main` (publishes to npm) or `development`.
+- **Branches:** `fix/*` or `feat/*` from `development`; PRs into `development`. Large changes
+  split into several PRs, each green on its own. Never push to `main` (publishes to npm).
 - **Tests with every change:** positive, negative and edge cases; coverage floors (90 % lines,
   functions, statements; 85 % branches) never lowered.
 - **If the spec or a phase doc is wrong,** stop and say so in the PR rather than improvising.

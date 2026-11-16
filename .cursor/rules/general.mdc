@@ -35,5 +35,5 @@ alwaysApply: true
 - **Vendor-neutral host:** the host, CLI, MCP relay and App must not hard-code
   capability-specific ids or output shapes. Use plugin metadata and schemas. Domain knowledge
   lives in the plugin.
-- **Realignment milestone:** see `realignment-milestone.mdc`. The plan and phase docs take
+- **Realignment (shipped MVP):** see `realignment.mdc`. The plan and phase docs take
   precedence over older guidance. MVP packages live under `packages/` and `plugins/`.

@@ -16,7 +16,7 @@ Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 27 |
+| Plan / phases / spec | 28 |
 | Package READMEs | 10 |
 | Plugin READMEs | 4 |
 | Contributor skill | 4 |
@@ -44,7 +44,7 @@ Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate
 | `.cursor/rules/github-rulesets.mdc` | Agent rules | current |
 | `.cursor/rules/no-backwards-compatibility.mdc` | Agent rules | current |
 | `.cursor/rules/reactflow-render.mdc` | Agent rules | current |
-| `.cursor/rules/realignment-milestone.mdc` | Agent rules | current |
+| `.cursor/rules/realignment.mdc` | Agent rules | current |
 | `.cursor/rules/secrets-keyring.mdc` | Agent rules | current |
 | `.cursor/rules/testing-coverage.mdc` | Agent rules | current |
 | `.cursor/rules/testing.mdc` | Agent rules | current |
@@ -52,6 +52,7 @@ Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate
 | `realignment/README.md` | Plan / phases / spec | current |
 | `realignment/doc-index.md` | Plan / phases / spec | current |
 | `realignment/evidence/a10-localize-banner.md` | Plan / phases / spec | current |
+| `realignment/mvp-audit-fixes.md` | Plan / phases / spec | current |
 | `realignment/phase-0-groundwork.md` | Plan / phases / spec | current |
 | `realignment/phase-1-engine.md` | Plan / phases / spec | current |
 | `realignment/phase-2-plugins.md` | Plan / phases / spec | current |

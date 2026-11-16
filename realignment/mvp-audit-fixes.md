@@ -190,18 +190,33 @@ text and that every budget is ≤ the stated target or has a recorded exception.
 **Evidence:** `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`:
 `GENERATED_FAMILIES = ["firefly", "photoshop"]` (17 capabilities); `PENDING_FAMILIES` lists
 `audio-video`, `creative-production`, `express`, `illustrator`, `indesign`, `substance3d`, with
-the comment that they "generate cleanly but are not shipped yet". Two more vendored spec
-folders, `openapi/content-tagging` and `openapi/overlays`, are in neither list. Spec 08 says **all** generated capabilities; Phase 8 is
-marked done; the plugin README and the plan retrospective don't mention the cut.
+the comment that they "generate cleanly but are not shipped yet". `openapi/overlays` is
+schema-fix overlay data (`schema-fixes.json`), not a family; `content-tagging` is
+intentionally skipped (`SKIPPED_FAMILIES`: no Firefly Services OpenAPI published). Spec 08
+says **all** generated capabilities; Phase 8 is marked done; the plugin README and the plan
+retrospective don't mention the cut.
+
+**Root cause:** per the comment in
+`plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`, all 63 capabilities overflow
+Ajv's call stack because the host compiles **one** combined execution schema
+(`packages/engine/src/validate/validate.ts` ≈ line 68,
+`this.documentValidator = this.ajv.compile(schema)`). Spec 03 ("Performance rule") requires
+one base validator plus per-capability input validators compiled lazily. So the real fix for
+F7 is first to make validation follow spec 03 (base structure validator without inlined
+capability inputs + lazy per-capability validators), then ship the pending families.
 
 **Fix (decision needed; default = ship):**
 
-- **Ship:** move the pending families into `GENERATED_FAMILIES`, regenerate, and for each family
-  add the generator snapshot test, the `useCases`/`projections` check, and mocked-fetch unit
-  tests for one representative capability (happy path, error mapping, abort). Update the
-  plugin README with the capability list per family.
-- **Or document:** if a family is deliberately deferred, list it in spec 08, the plugin README,
-  Phase 8 and the plan retrospective with the reason.
+- **Validation first:** change the host so it compiles a base structure validator (capability
+  inputs referenced lazily) and one input validator per capability on first use, per spec 03 —
+  not one combined schema that Ajv cannot compile at Firefly scale.
+- **Ship:** after validation follows spec 03, move the pending families into
+  `GENERATED_FAMILIES`, regenerate, and for each family add the generator snapshot test, the
+  `useCases`/`projections` check, and mocked-fetch unit tests for one representative capability
+  (happy path, error mapping, abort). Update the plugin README with the capability list per
+  family.
+- **Or document:** if a family is deliberately deferred after the validation fix, list it in
+  spec 08, the plugin README, Phase 8 and the plan retrospective with the reason.
 
 - [ ] Decision recorded
 - [ ] Families shipped or documented
@@ -269,10 +284,10 @@ A12 also asserts no workspace file references `legacy/` paths.
 features branch as `fix/*` / `feat/*` from `development` with PRs into `development`; `main`
 publishes. Mark the milestone as merged (date, PR #68) in the plan header and
 `realignment/README.md`; set Phase 0's status to Done with the CI run. Rename
-`realignment-milestone.mdc` to something like `realignment.mdc` describing the shipped design and
-where the spec lives, or fold it into `ecp-spec.mdc`. Regenerate `realignment/doc-index.md`.
+`realignment-milestone.mdc` to `realignment.mdc` describing the shipped design and where the
+spec lives (do not fold into `ecp-spec.mdc`). Regenerate `realignment/doc-index.md`.
 
-- [ ] Rules and docs updated
+- [x] Rules and docs updated
 
 ### F12 — Spec and retrospective drift not written back (Low)
 
@@ -285,6 +300,11 @@ looks obsolete (an in-process `ecp execute` wrote all 13 events in the audit, af
 `execute` then read `events.ndjson` immediately after exit; `run.end` present) and update the
 retrospective row; add F7's outcome. Add a retrospective row for every finding here that
 changes a contract.
+
+Note (Group A): updated spec 08 (`bounded`) and the two retrospective rows (in-process event
+flush; Firefly plugin scope). The in-process flush is fixed (`run-store` flushes on `run.end`),
+so A2's warm-host workaround and its comment in `test/e2e/acceptance/A2.test.ts` are obsolete
+and Group G should switch A2 back to in-process. Group G owns the rest of F12.
 
 - [ ] Spec and retrospective updated
 
