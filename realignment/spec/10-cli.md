@@ -2,8 +2,10 @@
 
 oclif (`@oclif/core` 5), bin `ecp`, package `@executioncontrolprotocol/cli`. Commands are plain
 oclif command classes (no generation). Core oclif plugins bundled: `@oclif/plugin-plugins`,
-`@oclif/plugin-help`, `@oclif/plugin-not-found`. The CLI sets the oclif data dir to
-`$ECP_HOME/plugins` (`ECP_DATA_DIR`).
+`@oclif/plugin-help`, `@oclif/plugin-not-found`. The bin sets `ECP_DATA_DIR` (default
+`$ECP_HOME/plugins`) **before** oclif `Config.load`, so install/link writes and reads share one
+data dir. ECP packages are not loaded as oclif CLI plugins (`userPlugins: false`); `ecp plugins`
+lists via host `retrieve --type plugin`.
 
 ## Commands
 
@@ -19,7 +21,10 @@ oclif command classes (no generation). Core oclif plugins bundled: `@oclif/plugi
 | `ecp retrieve` | `--type`, `--id`, `--query`, `--limit`, `--include a,b`, `--filter key=value` (repeatable), `--format <id>`, `--out <file>`, `--json` | Operation 06 |
 | `ecp execute` | `[path \| id]`, `--input <json \| @file \| ->`, `--validate`, `--no-wait`, `--resume <runId>`, `--cancel <runId>`, `--out <file>`, `--start-host`, `--json` | Operation 06. Positional: ends in `.ecp.json` or contains a path separator → `path`, else `id` |
 | `ecp commit` | `--type`, `--action`, `--id`, `--object <@file \| ->`, `--patch <@file \| ->`, `--if-version <n>`, `--json` | Operation 06 |
-| `ecp plugins install \| uninstall \| link \| update \| list` | oclif's flags only | Manifest check and marker after changes (08). `list` adds manifest status per plugin |
+| `ecp plugins` | `--json` | Host plugin list: columns `package`, `version`, `source`, `manifest` (`ok` or first-issue summary). `--json` → `{ ok, data: { type: "plugin", items, total } }` |
+| `ecp plugins install \| uninstall \| link \| update` | oclif's flags only | Writes `$ECP_DATA_DIR/package.json`; manifest check and marker after changes (08) |
+| `ecp plugins inspect` | `PLUGIN…`, `--verbose` | Installation properties for a linked/user plugin (resolved from `$ECP_DATA_DIR`, not oclif's loaded plugin list) |
+| `ecp plugins reset` | oclif's flags | Reset installed/linked plugins under `$ECP_DATA_DIR` |
 | `ecp secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
 | `ecp secrets unset` | `<key>` | Delete; exit 2 if missing |
 | `ecp secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
@@ -60,6 +65,11 @@ benchmark in Phase 5 (12). The spec above is the starting behaviour.
 
 ## Hooks
 
-- `init`: set `ECP_DATA_DIR` default; ensure `$ECP_HOME` exists.
+- Bin (before `Config.load`): set `ECP_HOME` / `ECP_DATA_DIR` defaults and create the dirs;
+  pass `loadOptions: { userPlugins: false }` so linked ECP packages are not loaded as oclif
+  CLI plugins.
+- `init`: ensure home layout (idempotent); one-time stderr notice when the OS default oclif
+  data dir still has plugin entries and `$ECP_HOME/plugins` does not (stamp
+  `$ECP_HOME/.ecp-noticed-legacy-plugins`).
 - `command_not_found` (plugin-not-found): suggest the closest command.
 - Plugin install/link/uninstall/update: manifest check and marker touch after.

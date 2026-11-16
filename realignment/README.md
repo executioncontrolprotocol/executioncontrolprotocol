@@ -37,7 +37,7 @@ pass in CI on Ubuntu and Windows.
 
 | Doc | Status |
 | --- | --- |
-| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Group A done; B-G not started |
+| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Groups A–B done; C–G not started |
 | [Validation at scale plan (F7)](schema-scaling-plan.md) | Planned; S1–S6 not started |
 
 ## Post-MVP
