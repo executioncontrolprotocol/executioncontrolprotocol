@@ -205,12 +205,58 @@ one base validator plus per-capability input validators compiled lazily. So the 
 F7 is first to make validation follow spec 03 (base structure validator without inlined
 capability inputs + lazy per-capability validators), then ship the pending families.
 
-**Fix (decision needed; default = ship):**
+**Spike (2026-11-15):** [`realignment/spikes/schema-scale/`](spikes/schema-scale/README.md)
+measured the options with Firefly-sized synthetic capabilities. The combined schema took 3.2 s
+and 320 MB at 17 capabilities, 13.7 s and 1.2 GB at 63, and 52 s and 2.6 GB at 200
+(superlinear; it can't scale). Per-plugin schemas with lazy loading start in 45 ms at 5,000
+capabilities. Marker wrapping is the dominant cost: 13x compile time and 11x schema size per
+capability. Validating against the raw `accepts` schema and dropping only the errors that marker
+positions explain passed all 8 correctness cases at about 7-16 ms per capability.
 
-- **Validation first:** change the host so it compiles a base structure validator (capability
-  inputs referenced lazily) and one input validator per capability on first use, per spec 03 —
-  not one combined schema that Ajv cannot compile at Firefly scale.
-- **Ship:** after validation follows spec 03, move the pending families into
+**Design for validation at scale (amends spec 03 and 08; the target is thousands of
+capabilities):**
+
+1. **Each plugin builds its own schema document.** `ecp-plugin-manifest` also emits
+   `ecp.schema.json` (draft 2020-12) with `$id: ecp://plugins/<plugin-id>/<version>/schema.json`
+   and `$defs` per capability (`<name>.accepts`, `<name>.returns`) plus `$defs.config`. The
+   schemas are **raw** (no marker wrapping). Shared shapes (file references, anything common)
+   are referenced by absolute `$id` from schemas shipped in `protocol`
+   (`ecp://protocol/<name>.schema.json`), never copied. Each plugin schema document validates
+   on its own (plugin CI compiles it and checks its examples).
+2. **The host compiles one small base validator** for execution structure only (nodes,
+   markers' own syntax, ids, `uses` as a string). It never inlines capability inputs and never
+   enumerates capability ids (unknown capabilities are an engine check with suggestions).
+3. **Plugin schemas load lazily.** At start the host registers nothing per plugin (the
+   registry already comes from manifests). On the first use of a capability, the host adds that
+   plugin's schema document to Ajv and compiles that capability's `accepts` validator; validators
+   are cached per plugin version. Host start is independent of the number of capabilities.
+4. **Markers are handled outside the schema.** The engine walks the step input, validates each
+   marker's own syntax, and records marker positions (JSON Pointers). It runs the raw `accepts`
+   validator and drops only errors explained by a marker: errors at or below a marker position;
+   `additionalProperties` errors naming a marker key; and `anyOf`/`oneOf` failures where some
+   branch's errors are all explained (matched by `schemaPath` prefix). Typing is unchanged:
+   `$ref` types are still checked by the L3 data-flow pass against `returns`; `$script` is
+   checked by resolving the subschema at its position and requiring that it accepts a string;
+   `$expr` stays unchecked.
+5. **Editor schema:** the root `execution.schema.json` stays a small dispatch table (`if uses ==
+   X then input: { $ref: "plugins/<plugin>.schema.json#/$defs/<name>.editorInput" }`) using
+   relative file references, with per-plugin editor files written next to it. The editor
+   variant is the only place marker-wrapped schemas exist, so the host never pays for them.
+   Measure editor responsiveness with 1,000+ capabilities before finalising; if it's poor, keep
+   only `uses` completion and per-capability input checks in the editor.
+6. **No precompiled (standalone) validators:** runtime compile of raw schemas is cheap enough,
+   and standalone code adds about 46 KB per capability.
+7. **Benchmark B8** (add to `bench/`): host start, first-use validation and heap with 1,000 and
+   5,000 synthetic capabilities; budgets: start independent of N, first-use compile ≤ 50 ms per
+   capability, cached ≤ 1 ms.
+
+**Fix (default = ship):**
+
+- **Validation first:** implement the design above (spec 03 and 08 updated first, in the same
+  PR), with tests: every existing conformance fixture still produces exactly its expected
+  issues; marker-filtering cases (markers at string, object, array, whole-array and inside
+  `anyOf`/`oneOf` branches; real errors beside markers still reported); B8 within budget.
+- **Ship:** after validation follows the design, move the pending families into
   `GENERATED_FAMILIES`, regenerate, and for each family add the generator snapshot test, the
   `useCases`/`projections` check, and mocked-fetch unit tests for one representative capability
   (happy path, error mapping, abort). Update the plugin README with the capability list per
@@ -415,12 +461,75 @@ failures.
 
 - [ ] Fixed
 
+### F21 — Line endings flip on every Windows test run (Low; fixed in group A)
+
+**Evidence:** after any `pnpm run test:coverage` on Windows, `git status` showed
+`packages/mcp-relay/test/__snapshots__/descriptions.test.ts.snap` and
+`plugins/plugin-adobe-firefly-services/test/__snapshots__/generator.test.ts.snap` as modified
+with no content change, and every `git add` warned "LF will be replaced by CRLF". The repo had no
+`.gitattributes`; the machine's system Git config sets `core.autocrlf=true`, so 608 text files
+were checked out as CRLF while Vitest writes snapshots as LF. Separately,
+`.ecp/default-ecp-memory.sqlite` was tracked even though `.ecp/` is gitignored (a legacy
+leftover nothing references).
+
+**Fix (done, commit "chore: pin LF line endings and untrack a stray binary"):** `.gitattributes`
+with `* text=auto eol=lf` (LF in the repo and in every working tree, overriding
+`core.autocrlf`), CRLF for `*.cmd`/`*.bat`/`*.ps1` (`packages/cli/bin/run.cmd`), `binary` for
+images, PSD, sqlite, wasm and archives; working tree renormalised; the sqlite file untracked.
+Verified: a full pre-commit test run leaves `git status` clean.
+
+**Follow-up for contributors:** existing clones pick this up on their next checkout of changed
+files; to refresh everything at once on a clean tree run
+`git rm --cached -r . && git reset --hard`.
+
+- [x] Fixed
+
 ### Environment note (not a code change)
 
 The audit machine has stale linked ECP plugins in oclif's default data dir
 (`%LOCALAPPDATA%\ecp\package.json`) and in `~/.ecp/plugins/package.json`. After F1 ships,
 re-link the local plugins once against `~/.ecp/plugins` and remove the stale entries from
 `%LOCALAPPDATA%\ecp` (or run `ecp plugins reset` under the old data dir).
+
+## Working method: delegating fix groups to Cursor Agent CLI
+
+Fix groups can be delegated to Cursor's headless agent, with a planning pass first and a
+reviewer between planning and execution. Used for group A on 2026-11-15.
+
+**Setup (once per machine):** install with Cursor's script (Windows PowerShell:
+`irm 'https://cursor.com/install?win32=true' | iex`; it installs to
+`%LOCALAPPDATA%\cursor-agent`, adds it to the user `PATH`, and provides `agent` and
+`cursor-agent`), then `cursor-agent login` (browser sign-in) or set `CURSOR_API_KEY`. Usage counts
+against the Cursor plan of the signed-in account.
+
+**Loop per group:**
+
+1. **Brief:** write the instructions to a Markdown file (scope = the group's findings, files to
+   read, what not to touch, required output).
+2. **Plan (read-only):**
+   `cursor-agent -p --plan --trust --add-dir <brief folder> --output-format json "Read the planning brief at <file> and follow it exactly."`
+3. **Retrieve the plan:** headless plan mode doesn't save a plan file; resume the session
+   (`--resume <session_id from the JSON>`, still `--plan`) and ask it to print the full plan as
+   Markdown in its answer.
+4. **Review:** check every factual claim against the repo; write corrections into the execute
+   brief (corrections override the plan).
+5. **Execute** on a fresh branch (`fix/mvp-audit-<group>`):
+   `cursor-agent -p --force --trust --add-dir <brief folder> --output-format json "Read the implementation brief at <file> and carry it out exactly."`
+   The brief forbids git commits, pushes and branch changes; the reviewer commits.
+6. **Verify:** read the diff (scope check: nothing outside the group), run lint and the group's
+   tests, re-run the audit repro commands, tick the checkboxes here, commit with the hook on.
+
+**Pitfalls seen and how to avoid them:**
+
+- **Multi-line prompts get cut off on Windows:** `cursor-agent.cmd` is a batch file, and
+  batch files drop everything after the first newline in an argument. Always pass a one-line
+  prompt that points to a brief file.
+- **Plan mode returns no plan text** (see step 3).
+- **Never skip hooks:** commit with the pre-commit hook enabled; if a test fails, diagnose it
+  (F20 is the known flaky one) instead of using `--no-verify`.
+- **Don't test against the real `ECP_HOME`:** set a temp `ECP_HOME` in every shell that runs
+  `ecp`; a forgotten export starts a real host in `~/.ecp`. The OS keychain is shared across
+  homes, so use `ECP_SECRET_<KEY>` env values for secret tests.
 
 ## Order of work (PR groups)
 
@@ -431,7 +540,7 @@ re-link the local plugins once against `~/.ecp/plugins` and remove the stale ent
 | C | F2, F3, F4, F5, F8, F9 | Validation output and fixtures (the fix loop); adds the CLI sweep test |
 | D | F13, F14, F15, F17, F18, F20 | CLI and relay polish; deterministic drain test |
 | E | F6, F10 | Performance after B removes the plugin-load overhead |
-| F | F7 | Firefly families (independent; can run in parallel with C–E) |
+| F | F7 | Validation at scale (per-plugin schemas, lazy compile, marker filtering; spec 03/08 amended), then the pending Firefly families. Can run in parallel with C–E |
 | G | F12 (retrospective), F19, doc index | Close-out |
 
 ## Exit criteria
