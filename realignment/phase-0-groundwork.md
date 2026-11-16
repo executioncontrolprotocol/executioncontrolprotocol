@@ -34,7 +34,10 @@ against fixed contracts.
 
 ## Exit criteria
 
-- [x] `legacy/` is outside the workspace, build, lint, tests and coverage. CI workflow matches spec 01; it has not been run on a pull request yet.
+- [x] `legacy/` is outside the workspace, build, lint, tests and coverage. CI workflow matches
+  spec 01. Later green on the milestone/`development` line (PR #68, 2026-11-15):
+  <https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/runs/43773251998>
+  (all jobs including e2e-windows and app-windows).
 - [x] All packages scaffolded. Local `pnpm run build`, `lint`, `secrets:scan`, `check:no-file-deps`, `test:coverage` (100% on the new sources), `test:integration`, `test:e2e` and `test:app` pass.
 - [x] `protocol` covers spec 02–09 types and the JSON Schemas, with schema and catalogue tests.
 - [x] Fixture suite includes the spec 12 minimum set, v1 copies and hand-written v2 files with expected run files.

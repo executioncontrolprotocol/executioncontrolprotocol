@@ -12,7 +12,7 @@ export const fireflyCapabilities = {
   "firefly-adaptive-composite": capability<z.ZodType, z.ZodType>({
     summary: "Generate adaptive composite (Adobe Firefly).",
     description: "Submits an asynchronous adaptive composite generation job using the adaptive composite pipeline. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate adaptive composite with Adobe Firefly","Adobe Firefly Composite Operations tasks"],
+    useCases: ["Place a product or object into a scene with lighting-aware compositing"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       background: schemas.In_BackgroundInput.optional().describe("Background image and fill area mask."),
@@ -30,9 +30,9 @@ export const fireflyCapabilities = {
     handler: () => import("./operations.js").then((operations) => operations.load("firefly-adaptive-composite")),
   }),
   "firefly-expand-images-v3-async": capability<z.ZodType, z.ZodType>({
-    summary: "Expand image (Adobe Firefly).",
+    summary: "Expand image borders to a new size or aspect ratio (Adobe Firefly).",
     description: "Change the aspect ratio or size of an image to expand it. Optionally, provide a text prompt to generate additional imagery for the expansion. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to expand image with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Extend an image past its borders to a new aspect ratio or larger canvas"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       image: schemas.In_InputImageV3.optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
@@ -55,7 +55,7 @@ export const fireflyCapabilities = {
   "firefly-fill-images-v3-async": capability<z.ZodType, z.ZodType>({
     summary: "Fill image (Adobe Firefly).",
     description: "Generates a fill in an area of an image based on a text prompt. A mask defines the area of the image to be filled. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to fill image with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Inpaint or extend masked regions of an image from a text prompt"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       image: schemas.In_InputImageV3.optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
@@ -79,7 +79,7 @@ export const fireflyCapabilities = {
   "firefly-generate-images-v3-async": capability<z.ZodType, z.ZodType>({
     summary: "Generate images (Adobe Firefly).",
     description: "Generate images based on a text prompt. You may also include a reference image and Firefly will try to mimic the characteristics, such as color scheme, lighting, layout of objects in the image, etc. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate images with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Create images from a prompt with optional style or structure references"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["image3", "image3_custom", "image4_standard", "image4_ultra", "image4_custom"]).optional().describe("Specify the Firefly model version to use for the image generation. When a custom model is used, a `customModelId` must also be passed in the request body."),
@@ -108,7 +108,7 @@ export const fireflyCapabilities = {
   "firefly-generate-images-v5-async": capability<z.ZodType, z.ZodType>({
     summary: "Generate images with Image5 (Adobe Firefly).",
     description: "Generate images asynchronously using Firefly's Image5 model. When referenceBlobs is included in the request, omit aspectRatio or set it to auto . The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate images with Image5 with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Generate images with the Image5 model and reference blobs"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["image5"]).describe("The model version to use for image generation."),
@@ -130,7 +130,7 @@ export const fireflyCapabilities = {
   "firefly-generate-object-composite-v3-async": capability<z.ZodType, z.ZodType>({
     summary: "Generate object composite (Adobe Firefly).",
     description: "Combines your image and images generated by Firefly to create an image composite, or scene. The images that Firefly generates are based on a text prompt that you provide. You can upload an image with or without an image mask, such as a product photo, but for a successful result one of the following conditions must be true: The request size is larger than the input image, OR The image contains a transparent layer/channel, OR A mask is provided The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate object composite with Adobe Firefly","Adobe Firefly Composite Operations tasks"],
+    useCases: ["Composite a cut-out object onto a background image"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       contentClass: schemas.In_ContentClassV3.optional(),
@@ -155,7 +155,7 @@ export const fireflyCapabilities = {
   "firefly-generate-similar-images-v3-async": capability<z.ZodType, z.ZodType>({
     summary: "Generate similar images (Adobe Firefly).",
     description: "Generate similar images based on a reference image that you provide as a parameter. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate similar images with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Derive new images that resemble a reference photo"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["image3", "image4_standard", "image4_ultra"]).optional().describe("Specify the Firefly model version to use for the image generation."),
@@ -176,7 +176,7 @@ export const fireflyCapabilities = {
   "firefly-generate-video-v3": capability<z.ZodType, z.ZodType>({
     summary: "Generate video (Adobe Firefly).",
     description: "Generate a five second video using a text prompt. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate video with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["Generate a short video clip from a text or image prompt"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["video1_standard"]).describe("Specify the Firefly model version to use for the video generation."),
@@ -195,7 +195,7 @@ export const fireflyCapabilities = {
   "firefly-get-custom-models": capability<z.ZodType, z.ZodType>({
     summary: "Retrieve custom models (Adobe Firefly).",
     description: "Retrieve the custom models for a user.",
-    useCases: ["When the goal is to retrieve custom models with Adobe Firefly","Adobe Firefly Common Operations tasks"],
+    useCases: ["List custom Firefly models available to the organization"],
     projections: ["Keep each listed item's id and display name so a later step can select one; drop the rest."],
     accepts: z.strictObject({
       "x-user-token": z.string().optional().describe("A user token referencing the user's individual account, obtained using their credentials. The user token must be preceded by `Bearer`."),
@@ -212,7 +212,7 @@ export const fireflyCapabilities = {
   "firefly-precise-composite": capability<z.ZodType, z.ZodType>({
     summary: "Generate precise composite (Adobe Firefly).",
     description: "Submits an asynchronous precise composite generation job using the precise composite pipeline. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to generate precise composite with Adobe Firefly","Adobe Firefly Composite Operations tasks"],
+    useCases: ["Blend a foreground object into a background with precise placement control"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       background: schemas.In_BackgroundInput.optional().describe("Background image and fill area mask specifying object placement."),
@@ -228,9 +228,9 @@ export const fireflyCapabilities = {
     handler: () => import("./operations.js").then((operations) => operations.load("firefly-precise-composite")),
   }),
   "firefly-precise-upsampler-v3-async": capability<z.ZodType, z.ZodType>({
-    summary: "Upscale image (Adobe Firefly).",
+    summary: "Upscale an image with the precise upsampler (Adobe Firefly).",
     description: "Upscales an image asynchronously using the precise upsampler. Provide the input image via an upload ID from the storage API or a presigned URL. The response includes links to check status and retrieve the result. Poll the status URL until the job completes, then fetch the result for the upscaled image(s). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
-    useCases: ["When the goal is to upscale image with Adobe Firefly","Adobe Firefly Upscale tasks"],
+    useCases: ["Increase resolution while preserving detail on an existing image"],
     projections: ["Take the ids or asset URLs the next step needs from the response."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["precise_upsampler_v1"]).optional().describe("Model version for the upscale operation. Only `precise_upsampler_v1` is supported. Passing `creative_upsampler_v1` will return a 422 validation error."),

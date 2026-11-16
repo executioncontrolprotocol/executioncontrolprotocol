@@ -140,6 +140,14 @@ describe("LocalPluginRegistration", () => {
   it("marks version-mismatched plugins without blocking start", async () => {
     const badRoot = path.join(tempRoot, "bad")
     await mkdir(badRoot, { recursive: true })
+    const schemaDocument = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "ecp://plugins/@executioncontrolprotocol/bad/1.0.0/schema.json",
+      $defs: {
+        "ping.accepts": { type: "object" },
+        "ping.returns": { type: "object" },
+      },
+    }
     await writeFile(
       path.join(badRoot, "package.json"),
       JSON.stringify({
@@ -152,7 +160,7 @@ describe("LocalPluginRegistration", () => {
       path.join(badRoot, "ecp.manifest.json"),
       JSON.stringify({
         schema: "@executioncontrolprotocol.plugin-manifest",
-        version: "1.0",
+        version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/bad",
           package: "@executioncontrolprotocol/plugin-bad",
@@ -161,6 +169,7 @@ describe("LocalPluginRegistration", () => {
           description: "Version mismatch.",
         },
         sdkVersion: "fixture.sdk",
+        pluginSchema: { path: "./ecp.schema.json", hash: "a".repeat(64) },
         capabilities: [
           {
             id: "@executioncontrolprotocol/bad.ping",
@@ -169,14 +178,13 @@ describe("LocalPluginRegistration", () => {
             description: "Ping.",
             useCases: ["Ping"],
             projections: ["Pong"],
-            accepts: { type: "object" },
-            returns: { type: "object" },
           },
         ],
         entry: "./dist/index.js",
-        hash: "abc",
+        hash: "b".repeat(64),
       }),
     )
+    await writeFile(path.join(badRoot, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
 
     const host = await createEnvironment()
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [badRoot] } })
@@ -190,6 +198,16 @@ describe("LocalPluginRegistration", () => {
   it("detects duplicate capability ids across plugins", async () => {
     const dupRoot = path.join(tempRoot, "dup")
     await mkdir(path.join(dupRoot, "dist"), { recursive: true })
+    const { canonicalJson, sha256Hex } = await import("@executioncontrolprotocol/plugin-sdk")
+    const schemaDocument = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "ecp://plugins/@executioncontrolprotocol/dup/1.0.0/schema.json",
+      $defs: {
+        "echo.accepts": { type: "object" },
+        "echo.returns": { type: "object" },
+      },
+    }
+    const schemaHash = await sha256Hex(canonicalJson(schemaDocument))
     await writeFile(
       path.join(dupRoot, "package.json"),
       JSON.stringify({
@@ -202,7 +220,7 @@ describe("LocalPluginRegistration", () => {
       path.join(dupRoot, "ecp.manifest.json"),
       JSON.stringify({
         schema: "@executioncontrolprotocol.plugin-manifest",
-        version: "1.0",
+        version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/dup",
           package: "@executioncontrolprotocol/plugin-dup",
@@ -211,6 +229,7 @@ describe("LocalPluginRegistration", () => {
           description: "Duplicates echo.",
         },
         sdkVersion: "fixture.sdk",
+        pluginSchema: { path: "./ecp.schema.json", hash: schemaHash },
         capabilities: [
           {
             id: "@executioncontrolprotocol/test.echo",
@@ -219,14 +238,13 @@ describe("LocalPluginRegistration", () => {
             description: "Dup echo.",
             useCases: ["Echo"],
             projections: ["Echo"],
-            accepts: { type: "object" },
-            returns: { type: "object" },
           },
         ],
         entry: "./dist/index.js",
-        hash: "def",
+        hash: "d".repeat(64),
       }),
     )
+    await writeFile(path.join(dupRoot, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
 
     const host = await createEnvironment()
       .use(LocalPluginRegistration, PluginAdapter, {
@@ -237,6 +255,81 @@ describe("LocalPluginRegistration", () => {
     const plugins = adapter.plugins()
     expect(plugins.some((plugin) => plugin.manifestOk)).toBe(true)
     expect(plugins.some((plugin) => plugin.manifestOk === false)).toBe(true)
+    await host.stop()
+  })
+
+  it("keeps listing light and loads accepts/returns via loadPluginSchema", async () => {
+    const host = await createEnvironment()
+      .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [pluginTestRoot] } })
+      .start({ home: "/tmp/ecp" })
+    const adapter = host.services.get(PluginAdapter)
+    const echo = adapter.capabilities().find((item) => item.id.endsWith(".echo"))
+    expect(echo?.accepts).toBeUndefined()
+    expect(echo?.returns).toBeUndefined()
+    expect(adapter.schemaFingerprints().some((item) => item.pluginId === "@executioncontrolprotocol/test")).toBe(true)
+    const schema = await adapter.loadPluginSchema("@executioncontrolprotocol/test")
+    expect(schema?.$defs["echo.accepts"]).toMatchObject({ type: "object" })
+    expect(schema?.$defs["echo.returns"]).toMatchObject({ type: "object" })
+    expect(adapter.configSchema("@executioncontrolprotocol/test")).toMatchObject({ type: "object" })
+    expect(await adapter.loadPluginSchema("@missing/plugin")).toBeUndefined()
+    await host.stop()
+  })
+
+  it("marks plugins with a bad schema document as not ok on first schema load", async () => {
+    const badSchemaRoot = path.join(tempRoot, "bad-schema")
+    await mkdir(badSchemaRoot, { recursive: true })
+    await writeFile(
+      path.join(badSchemaRoot, "package.json"),
+      JSON.stringify({
+        name: "@executioncontrolprotocol/plugin-bad-schema",
+        version: "1.0.0",
+        ecp: { manifest: "./ecp.manifest.json" },
+      }),
+    )
+    await writeFile(
+      path.join(badSchemaRoot, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/bad-schema",
+          package: "@executioncontrolprotocol/plugin-bad-schema",
+          version: "1.0.0",
+          summary: "Bad schema.",
+          description: "Bad schema.",
+        },
+        sdkVersion: "fixture.sdk",
+        pluginSchema: { path: "./ecp.schema.json", hash: "a".repeat(64) },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/bad-schema.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    await writeFile(
+      path.join(badSchemaRoot, "ecp.schema.json"),
+      JSON.stringify({
+        $id: "ecp://plugins/@executioncontrolprotocol/bad-schema/1.0.0/schema.json",
+        $defs: { only: { type: "string" } },
+      }),
+    )
+    const host = await createEnvironment()
+      .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [badSchemaRoot] } })
+      .start({ home: "/tmp/ecp" })
+    const adapter = host.services.get(PluginAdapter)
+    expect(adapter.plugins()[0]?.manifestOk).toBe(true)
+    expect(adapter.capabilities().map((item) => item.id)).toContain("@executioncontrolprotocol/bad-schema.ping")
+    expect(await adapter.loadPluginSchema("@executioncontrolprotocol/bad-schema")).toBeUndefined()
+    expect(adapter.plugins()[0]?.manifestOk).toBe(false)
+    expect(adapter.plugins()[0]?.issues?.[0]?.suggestions).toContain("Run ecp-plugin-manifest to regenerate.")
     await host.stop()
   })
 

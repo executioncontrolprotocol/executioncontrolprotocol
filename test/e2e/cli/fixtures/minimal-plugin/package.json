@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "keywords": ["ecosystem:ecp-plugin", "oclif-plugin"],
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ],
   "oclif": {},
   "ecp": {
-    "manifest": "./ecp.manifest.json"
+    "manifest": "./ecp.manifest.json",
+    "schema": "./ecp.schema.json"
   },
-  "files": ["ecp.manifest.json", "index.js"]
+  "files": [
+    "ecp.manifest.json",
+    "index.js",
+    "ecp.schema.json"
+  ]
 }

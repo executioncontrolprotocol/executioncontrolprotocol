@@ -1,0 +1,22 @@
+{
+  "$defs": {
+    "ping.accepts": {
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ping.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/minimal-fixture/1.0.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -100,13 +100,11 @@ describe("A3 validate fix loop CLI + MCP", () => {
         error: { issues?: Array<{ code: string; path: string; suggestions?: string[] }> }
       }>(cli.stdout)
       expect(envelope.ok).toBe(false)
-      const actual = envelope.error.issues ?? []
-      for (const issue of expected) {
-        expect(
-          actual.some((row) => row.code === issue.code && row.path === issue.path),
-          `${name} missing ${issue.code} ${issue.path}`,
-        ).toBe(true)
-      }
+      const actual = (envelope.error.issues ?? []).map((row) => ({ code: row.code, path: row.path }))
+      expect(
+        actual,
+        name,
+      ).toEqual(expected.map((issue) => ({ code: issue.code, path: issue.path })))
 
       const mcp = await callTool(session.client, "execute", {
         execution: { path: file },
@@ -116,12 +114,10 @@ describe("A3 validate fix loop CLI + MCP", () => {
       const mcpIssues =
         (mcp.structuredContent?.error as { issues?: Array<{ code: string; path: string }> })?.issues ??
         []
-      for (const issue of expected) {
-        expect(
-          mcpIssues.some((row) => row.code === issue.code && row.path === issue.path),
-          `MCP ${name} missing ${issue.code} ${issue.path}`,
-        ).toBe(true)
-      }
+      expect(
+        mcpIssues.map((row) => ({ code: row.code, path: row.path })),
+        `MCP ${name}`,
+      ).toEqual(expected.map((issue) => ({ code: issue.code, path: issue.path })))
 
       const suggestions = actual.flatMap((issue) => issue.suggestions ?? [])
       const raw = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>

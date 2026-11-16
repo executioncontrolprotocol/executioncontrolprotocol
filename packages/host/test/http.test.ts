@@ -5,6 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import {
+  checkHealth,
   createLocalHost,
   generateHostToken,
   HostClient,
@@ -201,7 +202,8 @@ describe("HttpApiEndpoint", () => {
           {
             id: "wait",
             uses: "@executioncontrolprotocol/test.delay",
-            input: { ms: 400 },
+            // Long enough to stay active for the whole test; the drain timeout below ends it.
+            input: { ms: 10_000 },
             as: "done",
           },
         ],
@@ -210,8 +212,13 @@ describe("HttpApiEndpoint", () => {
     })
     expect(running.ok).toBe(true)
 
-    const drainPromise = client.drain(5_000)
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    const drainPromise = client.drain(1_500)
+    // Wait until the host reports draining (no fixed sleep: ordering must not depend on load).
+    const deadline = Date.now() + 5_000
+    while ((await checkHealth(baseUrl))?.status !== "draining") {
+      if (Date.now() > deadline) throw new Error("host never reported draining")
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
     const blocked = await client.execute({
       execution: {
         schema: "@executioncontrolprotocol.execution",
@@ -339,7 +346,7 @@ describe("HttpApiEndpoint", () => {
     expect(result.ok).toBe(true)
     await shutdown
     host = undefined
-  })
+  }, 30_000) // commit + two validates each rebuild the combined schema today (F7); S3 caches it
 
   it("force-drains a run to interrupted and resumes after host restart", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-http-resume-"))

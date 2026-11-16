@@ -6,7 +6,7 @@ alwaysApply: true
 # ECP specification
 
 - **Source of truth:** the MVP build spec in `realignment/spec/` (exact contracts), then
-  `REALIGNMENT-PLAN.md` (see `realignment-milestone.mdc`). `SPEC.md` points at
+  `REALIGNMENT-PLAN.md` (see `realignment.mdc`). `SPEC.md` points at
   `realignment/spec/`; the CLI reset plan is retired.
 - **Executions** (formerly workflows) are JSON manifests:
   `schema: "@executioncontrolprotocol.execution"`, `version: "2.0"`. The shape is

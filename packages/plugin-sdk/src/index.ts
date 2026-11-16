@@ -20,10 +20,16 @@ export type {
 } from "./define.js"
 export {
   buildPluginManifest,
+  buildPluginSchemaDocument,
   serializeManifest,
+  serializePluginSchema,
   zodToJsonSchema,
 } from "./manifest.js"
-export type { BuildManifestOptions, PackageJsonInfo } from "./manifest.js"
+export type {
+  BuildManifestOptions,
+  BuildPluginSchemaOptions,
+  PackageJsonInfo,
+} from "./manifest.js"
 export { canonicalJson, sha256Hex } from "./canonical.js"
 
 export type {

@@ -3,12 +3,19 @@ import {
   PLUGIN_MANIFEST_VERSION,
   type PluginCapabilityManifest,
   type PluginManifest,
+  type PluginSchemaDocument,
 } from "@executioncontrolprotocol/protocol"
 import { z } from "zod"
 import { canonicalJson, sha256Hex } from "./canonical.js"
 import type { CapabilityDefinition, PluginDefinition } from "./define.js"
 import { PluginDefinitionError } from "./define.js"
 import { VERSION } from "./version.js"
+
+/** Relative path written into light manifests for the schema document. */
+const DEFAULT_SCHEMA_PATH = "./ecp.schema.json"
+
+/** Draft id stamped on written `ecp.schema.json` files. */
+const JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 /**
  * Package.json fields the manifest bin reads.
@@ -34,6 +41,21 @@ export interface BuildManifestOptions {
   entry?: string
   /** SDK version stamped into the manifest. Default {@link VERSION}. */
   sdkVersion?: string
+  /** Relative path for `pluginSchema.path`. Default `./ecp.schema.json`. */
+  schemaPath?: string
+  /** Pre-built schema document. When omitted, one is built from the definition. */
+  schemaDocument?: PluginSchemaDocument
+}
+
+/**
+ * Options for {@link buildPluginSchemaDocument}.
+ * @category Plugins
+ */
+export interface BuildPluginSchemaOptions {
+  /** Plugin definition (default export of the entry). */
+  definition: PluginDefinition
+  /** Surrounding package.json. */
+  packageJson: PackageJsonInfo
 }
 
 /**
@@ -46,17 +68,46 @@ export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): Reco
 }
 
 /**
- * Build a deterministic {@link PluginManifest} from a definition and package.json.
+ * Build the per-plugin {@link PluginSchemaDocument} (`ecp.schema.json`).
+ * @category Plugins
+ */
+export async function buildPluginSchemaDocument(
+  options: BuildPluginSchemaOptions,
+): Promise<PluginSchemaDocument> {
+  const { definition, packageJson } = options
+  assertPackageJson(packageJson)
+
+  const defs: Record<string, Record<string, unknown>> = {}
+  const names = Object.keys(definition.capabilities).sort()
+  for (const name of names) {
+    const cap = definition.capabilities[name]
+    if (!cap) continue
+    defs[`${name}.accepts`] = zodToJsonSchema(cap.accepts, "input")
+    defs[`${name}.returns`] = zodToJsonSchema(cap.returns, "output")
+  }
+  if (definition.config) {
+    defs.config = zodToJsonSchema(definition.config, "input")
+  }
+
+  return sortKeys({
+    $schema: JSON_SCHEMA_DRAFT,
+    $id: `ecp://plugins/${definition.id}/${packageJson.version}/schema.json`,
+    $defs: defs,
+  }) as PluginSchemaDocument
+}
+
+/**
+ * Build a deterministic light {@link PluginManifest} from a definition and package.json.
  * @category Plugins
  */
 export async function buildPluginManifest(options: BuildManifestOptions): Promise<PluginManifest> {
   const { definition, packageJson } = options
-  if (packageJson.version === undefined || packageJson.version === "") {
-    throw new PluginDefinitionError("ECP_PLUGIN_MANIFEST", "package.json is missing version.")
-  }
-  if (!packageJson.name) {
-    throw new PluginDefinitionError("ECP_PLUGIN_MANIFEST", "package.json is missing name.")
-  }
+  assertPackageJson(packageJson)
+
+  const schemaDocument =
+    options.schemaDocument ??
+    (await buildPluginSchemaDocument({ definition, packageJson }))
+  const schemaHash = await sha256Hex(canonicalJson(schemaDocument))
 
   const capabilities: PluginCapabilityManifest[] = Object.entries(definition.capabilities).map(([name, cap]) =>
     toCapabilityManifest(definition.id, name, cap),
@@ -74,7 +125,10 @@ export async function buildPluginManifest(options: BuildManifestOptions): Promis
       description: definition.description,
     },
     sdkVersion: options.sdkVersion ?? VERSION,
-    ...(definition.config ? { configSchema: zodToJsonSchema(definition.config, "input") } : {}),
+    pluginSchema: {
+      path: options.schemaPath ?? DEFAULT_SCHEMA_PATH,
+      hash: schemaHash,
+    },
     capabilities,
     entry: options.entry ?? "./dist/index.js",
   }
@@ -85,11 +139,28 @@ export async function buildPluginManifest(options: BuildManifestOptions): Promis
 }
 
 /**
- * Serialize a manifest as deterministic JSON with a trailing newline.
+ * Serialize a light manifest as deterministic JSON with a trailing newline.
  * @category Plugins
  */
 export function serializeManifest(manifest: PluginManifest): string {
   return `${JSON.stringify(sortKeys(manifest), null, 2)}\n`
+}
+
+/**
+ * Serialize a plugin schema document as deterministic JSON with a trailing newline.
+ * @category Plugins
+ */
+export function serializePluginSchema(doc: PluginSchemaDocument): string {
+  return `${JSON.stringify(sortKeys(doc), null, 2)}\n`
+}
+
+function assertPackageJson(packageJson: PackageJsonInfo): void {
+  if (packageJson.version === undefined || packageJson.version === "") {
+    throw new PluginDefinitionError("ECP_PLUGIN_MANIFEST", "package.json is missing version.")
+  }
+  if (!packageJson.name) {
+    throw new PluginDefinitionError("ECP_PLUGIN_MANIFEST", "package.json is missing name.")
+  }
 }
 
 function toCapabilityManifest(
@@ -104,8 +175,6 @@ function toCapabilityManifest(
     description: cap.description,
     useCases: [...cap.useCases],
     projections: [...cap.projections],
-    accepts: zodToJsonSchema(cap.accepts, "input"),
-    returns: zodToJsonSchema(cap.returns, "output"),
     ...(cap.timeoutMs === undefined ? {} : { timeoutMs: cap.timeoutMs }),
   }
 }

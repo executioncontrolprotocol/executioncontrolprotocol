@@ -2,21 +2,22 @@
 name: ecp-core
 description: >-
   Contributes to the ECP monorepo MVP (host, execution manifest v2, plugins, MCP
-  relay, CLI, App). Use when planning or executing a realignment phase,
-  implementing the MVP build spec, or writing plugins. Not for the old 0.52
-  consumer CLI (use the docs ecp skill for that).
+  relay, CLI, App). Use when implementing or maintaining the MVP build spec,
+  applying audit fixes, or writing plugins. Not for the old 0.52 consumer CLI
+  (use the docs ecp skill for that).
 ---
 
 # ECP core monorepo
 
-This skill is for **working inside this repository** on `milestone/realignment` and
-`feat/realignment-*` branches.
+This skill is for **working inside this repository** on `development` with `fix/*` /
+`feat/*` branches.
 
 ## Start here
 
 1. `realignment/spec/README.md` — MVP build spec (exact contracts). Wins over everything else.
 2. `REALIGNMENT-PLAN.md` — decisions, architecture, vocabulary, diagrams.
-3. `realignment/README.md` and the phase doc you were asked to execute.
+3. `realignment/README.md` and, for audit fixes, `realignment/mvp-audit-fixes.md`. Phase docs
+   are historical task lists for the merged MVP.
 4. `AGENTS.md` and `.cursor/rules/` — rules for working in the repo.
 5. `ARCHITECTURE.md` / `SETUP.md` — shipped package layout and local setup.
 
@@ -40,4 +41,4 @@ pnpm run test:app
 ```
 
 All workspace packages use `workspace:*` / `workspace:^`. Never add `file:` links.
-Open PRs into `milestone/realignment`. Never push to `main` (publishes to npm) or `development`.
+Open PRs into `development`. Never push to `main` (publishes to npm).

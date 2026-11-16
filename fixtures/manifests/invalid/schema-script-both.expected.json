@@ -3,5 +3,10 @@
     "code": "ECP_MANIFEST_INVALID",
     "path": "/steps/0/input/text/$script",
     "severity": "error"
+  },
+  {
+    "code": "ECP_SCRIPT_INVALID",
+    "path": "/steps/0/input/text/$script",
+    "severity": "error"
   }
 ]

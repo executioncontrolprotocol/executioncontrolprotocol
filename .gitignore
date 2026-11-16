@@ -37,3 +37,6 @@ id_ed25519
 *.pfx
 credentials.json
 service-account*.json
+
+# Schema-scale spike output
+realignment/spikes/schema-scale/out/

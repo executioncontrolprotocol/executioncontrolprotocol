@@ -11,6 +11,8 @@ export default tseslint.config(
       "examples/**/*.uxp.js",
       "pnpm-lock.yaml",
       "bench/results/**",
+      // Generated output of throwaway spikes (gitignored).
+      "realignment/spikes/**/out/**",
       // Vendored third-party OpenAPI specs (refreshed by the plugin's fetch-specs script).
       "plugins/*/openapi/**",
     ],
