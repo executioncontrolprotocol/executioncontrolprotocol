@@ -1,4 +1,4 @@
-import { readFile, rm, stat } from "node:fs/promises"
+import { readdir, readFile, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import type { Host } from "@executioncontrolprotocol/engine"
@@ -169,10 +169,12 @@ export async function writeEditorSchemaFiles(
     for (const pluginId of pluginIds) {
       if (previous?.plugins[pluginId] !== desiredPlugins[pluginId]) changedPluginIds.add(pluginId)
     }
-    for (const pluginId of Object.keys(previous?.plugins ?? {})) {
-      if (!(pluginId in desiredPlugins)) {
-        const stale = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
-        await rm(stale, { force: true })
+    // Remove editor files no current plugin owns: uninstalled plugins and files from an older
+    // naming scheme (e.g. percent-encoded names that editors could not resolve).
+    const expected = new Set(pluginIds.map((pluginId) => `${safePluginId(pluginId)}.editor.schema.json`))
+    for (const name of await readdir(pluginsDir).catch(() => [] as string[])) {
+      if (name.endsWith(".editor.schema.json") && !expected.has(name)) {
+        await rm(path.join(pluginsDir, name), { force: true })
       }
     }
 
