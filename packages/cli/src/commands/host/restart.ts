@@ -10,7 +10,7 @@ import { writeEnvelope } from "../../lib/output.js"
  */
 export default class HostRestart extends Command {
   static override description =
-    "Ask the supervisor to restart the host process; use host status when the API stays unhealthy."
+    "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`."
 
   static override examples = [
     {

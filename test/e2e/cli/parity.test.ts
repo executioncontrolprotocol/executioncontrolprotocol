@@ -54,6 +54,7 @@ describe("cli A9 warm vs in-process parity", () => {
 
     const cold = (await inProcessOps()).map(stripVolatile)
 
+    delete env.ECP_NO_START_HOST
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
     await waitForHost(home)

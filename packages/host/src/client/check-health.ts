@@ -15,6 +15,10 @@ export interface HostHealth {
   plugins: number
   /** Active running runs. */
   activeRuns: number
+  /** ISO time of last counted activity. */
+  lastActivityAt?: string
+  /** Open `GET /v1/watch` streams. */
+  openStreams?: number
 }
 
 /**

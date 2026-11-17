@@ -23,9 +23,9 @@ This file matches the shipped MVP packages. Full decisions and diagrams live in
   the **App** are clients of the same API.
 - **Config objects** hold plugin settings with `{ "$secret": "key" }` references; values live in
   the secrets provider (`ecp secrets set`).
-- **CLI mode:** when no host is running, one-off commands boot an in-process host for that call
-  (Phase 5 benchmark: warm host savings &lt; 300 ms median on echo). MCP and the App always need
-  a running host.
+- **CLI mode:** `retrieve`, `execute`, `commit`, and `plugins` (list) auto-start a detached
+  supervisor when no healthy host exists (15 min idle shutdown unless opted out). `--no-start-host`
+  or `ECP_NO_START_HOST` keeps the in-process path. MCP and the App always ensure a running host.
 
 ## Package layout
 

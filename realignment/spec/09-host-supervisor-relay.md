@@ -4,21 +4,29 @@
 
 | Process | Started by | Lives | Holds |
 | --- | --- | --- | --- |
-| Supervisor | `ecp host start` (also auto-started by `ecp mcp start` and `ecp app`) | Until `ecp host stop` | Port, token, `host.json`, the host child, restart logic, control port |
+| Supervisor | `ecp host start`, auto-start from `ecp retrieve\|execute\|commit\|plugins` (list), `ecp mcp start`, `ecp app` | Until clean stop, idle stop, or orphan exit | Port, token, `host.json`, `supervisor.pid`, the host child, restart logic, control port, idle timer |
 | Host | Supervisor (`node <host>/dist/main.js`) | Restarted on plugin change or crash | Engine, services, loaded plugins, HTTP API, App bundle |
 | MCP relay | MCP client running `ecp mcp start` | The MCP session | Stdio MCP server; forwards to the host API |
-| One-off CLI | User/agent | One command | Calls the host API if up, else an in-process host |
+| One-off CLI | User/agent | One command | HTTP API when a healthy host exists or after auto-start; else in-process when opted out |
 
 ## `host.json` (`$ECP_HOME/host.json`, mode 0600 on POSIX; default user ACL on Windows)
 
 ```json
 { "schema": "@executioncontrolprotocol.host", "version": "1.0",
   "supervisorPid": 4100, "hostPid": 4120, "port": 51234, "controlPort": 51235,
-  "token": "<43-char base64url>", "hostVersion": "1.0.0", "startedAt": "…", "home": "/home/u/.ecp" }
+  "token": "<43-char base64url>", "hostVersion": "1.0.0", "startedAt": "…", "home": "/home/u/.ecp",
+  "idleMinutes": 15, "startedBy": "auto" }
 ```
 
-Written atomically by the supervisor before the first host spawn, rewritten on each restart
-(new `hostPid`, same `port`, `controlPort`, `token`). Deleted on clean stop.
+Optional `idleMinutes` (`0` = never) and `startedBy` (`"auto"` \| `"explicit"`) are written by
+the supervisor on first spawn (omitted on older files still valid at version `1.0`). Written
+atomically before the first host spawn, rewritten on each restart (new `hostPid`, same `port`,
+`controlPort`, `token`). Deleted on clean stop and idle stop.
+
+**`$ECP_HOME/supervisor.pid`** (mode 0600 on POSIX): mutex for one supervisor per home.
+Created with `wx`; body is the supervisor pid. If the file exists and that pid is alive, a
+second start exits 0 without rewriting `host.json`. Stale pid → replace and continue. Deleted
+with `host.json` on clean and idle stop.
 
 ## Supervisor
 
@@ -38,8 +46,21 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
   therefore stops it within about 2 seconds.
 - On `process.exit`, synchronously `kill()` the host child if it has not exited (orderly `/stop` and
   POSIX signals; not `SIGKILL` / Windows `TerminateProcess` on the supervisor).
+- **Idle shutdown (default 15 min):** env `ECP_HOST_IDLE_MINUTES` (integer, default 15; `0`
+  never). `ecp host start --idle-minutes <n>` overrides for that supervisor. Tests may set
+  `ECP_HOST_IDLE_MS` instead. After `idleMinutes` with no activity and no active runs (and no
+  open `GET /v1/watch` streams), the supervisor stops like `POST /stop`: `stopping` first, drain,
+  shutdown host, delete `host.json` and `supervisor.pid`, exit. Idle checks are skipped while
+  `hostStatus` is `starting`, `draining`, or `failed`. **Activity** (updates host
+  `lastActivityAt`; supervisor health polls do not): `POST /v1/retrieve`, `/v1/execute`,
+  `/v1/commit`; `GET /v1/file`, `/v1/files`; an open watch stream holds shutdown until it
+  closes (heartbeats do not reset `lastActivityAt`). `activeRuns > 0` blocks shutdown. Health,
+  static `/app` assets, and admin drain/shutdown do not count.
 - **Control server** on `controlPort` (same token, same Host-header check):
-  `GET /status` → `{ supervisorPid, hostPid, hostStatus, restarts, lastRestartReason }`;
+  `GET /status` → `{ supervisorPid, hostPid, hostStatus, restarts, lastRestartReason,
+  startedBy, idleMinutes, lastActivityAt, idleShutdownAt, idleBlockedBy }` (`idleBlockedBy`:
+  `"run"` \| `"stream"` when the idle clock is held; `idleShutdownAt` null when idle is 0 or
+  blocked);
   `POST /restart { force?: boolean }`; `POST /stop { force?: boolean }`.
 - **Plugin changes:** watch `$ECP_DATA_DIR/.ecp-plugins-changed` (`fs.watch` + 2 s poll
   fallback), debounce 500 ms, then restart.
@@ -54,7 +75,8 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
   after 60 s healthy. More than 10 crashes in 10 minutes → stop restarting, `hostStatus:
   "failed"` in `/status`, and the CLI and relay report `ECP_HOST_UNAVAILABLE` with the log
   path.
-- **Stop:** drain (unless `force`), shutdown host, delete `host.json`, exit.
+- **Stop:** drain (unless `force`), shutdown host, delete `host.json`, delete `supervisor.pid`,
+  exit.
 
 ## Host process
 
@@ -72,7 +94,7 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
 
 | Route | Auth | Body → response |
 | --- | --- | --- |
-| `GET /v1/health` | none | `{ status: "starting" \| "ok" \| "draining", version, pid, startedAt, plugins: n, activeRuns: n }` |
+| `GET /v1/health` | none | `{ status: "starting" \| "ok" \| "draining", version, pid, startedAt, plugins: n, activeRuns: n, lastActivityAt, openStreams: n }` |
 | `POST /v1/retrieve` | token | `RetrieveInput` → envelope |
 | `POST /v1/execute` | token | `ExecuteInput` → envelope |
 | `POST /v1/commit` | token | `CommitInput` → envelope |

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { Command, Flags } from "@oclif/core"
 import { discoverOps } from "../lib/host-discovery.js"
+import { hostUnavailableEnvelope, isHostUnavailableError } from "../lib/host-unavailable.js"
 import { ecpHome } from "../lib/home.js"
 import { writeEnvelope } from "../lib/output.js"
 
@@ -25,10 +26,6 @@ export default class Schema extends Command {
       description: "Print schema file contents (human) or parsed schema in the envelope with --json.",
       default: false,
     }),
-    "start-host": Flags.boolean({
-      description: "Start the background host if it is not already running.",
-      default: false,
-    }),
     json: Flags.boolean({
       description:
         "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
@@ -40,7 +37,19 @@ export default class Schema extends Command {
     const { flags } = await this.parse(Schema)
     const home = ecpHome()
     const schemaPath = path.join(home, "schema", "execution.schema.json")
-    const ops = await discoverOps({ startHost: flags["start-host"] })
+    let ops
+    try {
+      ops = await discoverOps({ autoStart: false })
+    } catch (error) {
+      if (isHostUnavailableError(error)) {
+        writeEnvelope(hostUnavailableEnvelope(error), {
+          json: flags.json,
+          human: () => this.error(error.message, { exit: 4 }),
+          exitCode: 4,
+        })
+      }
+      throw error
+    }
     try {
       await ops.retrieve({ type: "plugin", limit: 1 })
     } finally {

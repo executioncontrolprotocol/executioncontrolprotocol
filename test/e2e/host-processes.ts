@@ -66,6 +66,14 @@ function writeRegistryFile(entry: HostProcessRegistryEntry): void {
   writeFileSync(target, `${JSON.stringify(entry)}\n`)
 }
 
+/**
+ * Register supervisor/host pids from an existing `host.json` (F22).
+ * @category Test
+ */
+export async function registerHostFromHome(home: string): Promise<void> {
+  await refreshRegistryFromHome(path.resolve(home))
+}
+
 async function refreshRegistryFromHome(home: string): Promise<void> {
   const hostJson = path.join(home, "host.json")
   if (!existsSync(hostJson)) return

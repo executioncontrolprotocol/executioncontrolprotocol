@@ -109,7 +109,7 @@ async function tryHealthy(home: string, waitMs = HEALTH_POLL_MS): Promise<Ensure
 async function startHostViaCli(options: EnsureHostOptions): Promise<void> {
   relayLog(options.home, `starting host via ${options.ecpBin} host start`)
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(process.execPath, [options.ecpBin, "host", "start", "--json"], {
+    const child = spawn(process.execPath, [options.ecpBin, "host", "start", "--started-by", "auto", "--json"], {
       env: { ...process.env, ECP_HOME: options.home },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,

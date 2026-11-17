@@ -14,6 +14,8 @@
     "token": { "type": "string", "minLength": 43, "maxLength": 43 },
     "hostVersion": { "type": "string" },
     "startedAt": { "type": "string" },
-    "home": { "type": "string" }
+    "home": { "type": "string" },
+    "idleMinutes": { "type": "integer", "minimum": 0 },
+    "startedBy": { "enum": ["auto", "explicit"] }
   }
 }

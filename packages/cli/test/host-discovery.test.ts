@@ -17,6 +17,7 @@ describe("host discovery", () => {
       const ops = await discoverOps({
         home,
         extraPlugins: [pluginTestRoot],
+        autoStart: false,
       })
       expect(ops.mode).toBe("in-process")
       const result = await ops.retrieve({ type: "capability", query: "echo", limit: 5 })

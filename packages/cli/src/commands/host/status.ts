@@ -10,7 +10,7 @@ import { writeEnvelope } from "../../lib/output.js"
  */
 export default class HostStatus extends Command {
   static override description =
-    "Report whether the background host is up; use host start when retrieve or execute is slow without --start-host."
+    "Report whether the background host is up, including idle shutdown scheduling when running."
 
   static override examples = [
     {
@@ -56,14 +56,36 @@ export default class HostStatus extends Command {
         exitCode: 4,
       })
     }
-    const payload = { supervisor, health, port: file.port, home: file.home }
+    const idleLabel =
+      supervisor?.idleMinutes === 0
+        ? "never"
+        : supervisor?.idleMinutes !== undefined
+          ? `${supervisor.idleMinutes}m`
+          : "unknown"
+    const payload = {
+      supervisor,
+      health,
+      port: file.port,
+      home: file.home,
+      startedBy: supervisor?.startedBy ?? file.startedBy,
+      idleMinutes: supervisor?.idleMinutes ?? file.idleMinutes,
+      lastActivityAt: supervisor?.lastActivityAt ?? health?.lastActivityAt,
+      idleShutdownAt: supervisor?.idleShutdownAt,
+      idleBlockedBy: supervisor?.idleBlockedBy,
+    }
     writeEnvelope(
       { ok: true, data: payload },
       {
         json: flags.json,
         human: () => {
           this.log(`port=${file.port} health=${health?.status ?? "unknown"}`)
-          if (supervisor) this.log(`supervisor hostStatus=${supervisor.hostStatus} restarts=${supervisor.restarts}`)
+          if (supervisor) {
+            this.log(
+              `supervisor hostStatus=${supervisor.hostStatus} restarts=${supervisor.restarts} startedBy=${supervisor.startedBy ?? "unknown"} idle=${idleLabel}`,
+            )
+            if (supervisor.idleShutdownAt) this.log(`idleShutdownAt=${supervisor.idleShutdownAt}`)
+            if (supervisor.idleBlockedBy) this.log(`idleBlockedBy=${supervisor.idleBlockedBy}`)
+          }
         },
         exitCode: 0,
       },

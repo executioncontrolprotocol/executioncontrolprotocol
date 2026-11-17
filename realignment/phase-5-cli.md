@@ -28,4 +28,4 @@ plugin management, and the benchmark-driven decision on the background host.
 
 - [x] All commands implemented and tested (e2e under `test/e2e/cli/**`; CI runs e2e on Ubuntu and Windows).
 - [x] A1 (CLI half), A3, A4, A5, A7, A9 pass through the CLI (`test/e2e/cli/commands.test.ts`, `parity.test.ts`, `plugins.test.ts`).
-- [x] Benchmark decision recorded in `REALIGNMENT-PLAN.md` Measurements: keep in-process fallback (B3 warm savings 85 ms &lt; ~300 ms). Budgets in `bench/budgets.json`, enforced by `pnpm run bench`. Spec 10 unchanged.
+- [x] Benchmark decision recorded in `REALIGNMENT-PLAN.md` Measurements (B3 warm savings **700 ms**). Budgets in `bench/budgets.json`, enforced by `pnpm run bench`. **Auto-start + idle shutdown** shipped in a follow-up; normative contract is [`realignment/spec/10-cli.md`](spec/10-cli.md) (discovery and opt-out).

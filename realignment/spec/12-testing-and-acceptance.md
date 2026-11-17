@@ -87,10 +87,13 @@ few minutes).
 
 **Phase 0** runs the early proxies with legacy code (`legacy/` CLI cold runs, QuickJS start,
 Ajv compile of Firefly-sized schemas, Firefly import time) and records them in the plan's
-"Measurements". **Phase 5** runs B1–B8 on the new CLI and applies the plan's decision rule:
-warm host saves less than ~300 ms median per call on B3/B4 → the CLI stays in-process when no
-host is running (current spec); otherwise implement auto-start with idle shutdown (15 min idle,
-no active runs) and record the decision in the plan. Budgets are then set and enforced in CI.
+"Measurements". **Phase 5 (2026-11-17)** ran B1–B8 and applied the decision rule: B3 warm
+savings **700 ms** median (in-process **1085.7** vs warm **386.1**) crossed the ~300 ms
+threshold. **Implemented (follow-up):** one-off CLI commands auto-start a detached supervisor
+unless `--no-start-host` or `ECP_NO_START_HOST`; idle shutdown after **15 minutes** with no
+activity and no active runs (spec 09, 10). **B1–B3 in-process rows** set `ECP_NO_START_HOST=1`
+in `bench/run.mjs` so they still measure a per-command in-process boot; warm rows are unchanged.
+Budgets and baselines stay as recorded in the plan and `bench/budgets.json`.
 
 ## MVP acceptance scenarios
 

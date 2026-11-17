@@ -1,7 +1,8 @@
 import { Command, Flags } from "@oclif/core"
 import { discoverOps } from "../lib/host-discovery.js"
+import { hostUnavailableEnvelope, isHostUnavailableError } from "../lib/host-unavailable.js"
 import { parseFilters, parseInclude } from "../lib/input.js"
-import { finishOperation, printRetrieveHuman } from "../lib/output.js"
+import { finishOperation, printRetrieveHuman, writeEnvelope } from "../lib/output.js"
 import type { RetrieveInput, RetrieveType } from "@executioncontrolprotocol/protocol"
 
 /**
@@ -37,15 +38,27 @@ export default class Retrieve extends Command {
         "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
       default: false,
     }),
-    "start-host": Flags.boolean({
-      description: "Start the background host if it is not already running.",
+    "no-start-host": Flags.boolean({
+      description: "Do not start a background host when one is not already running.",
       default: false,
     }),
   }
 
   override async run(): Promise<void> {
     const { flags } = await this.parse(Retrieve)
-    const ops = await discoverOps({ startHost: flags["start-host"] })
+    let ops
+    try {
+      ops = await discoverOps({ autoStart: !flags["no-start-host"] })
+    } catch (error) {
+      if (isHostUnavailableError(error)) {
+        writeEnvelope(hostUnavailableEnvelope(error), {
+          json: flags.json,
+          human: () => this.error(error.message, { exit: 4 }),
+          exitCode: 4,
+        })
+      }
+      throw error
+    }
     try {
       const input: RetrieveInput = {
         type: flags.type as RetrieveType,

@@ -96,6 +96,12 @@
           "name": "json",
           "type": "boolean"
         },
+        "no-start-host": {
+          "allowNo": false,
+          "description": "Do not start a background host when one is not already running.",
+          "name": "no-start-host",
+          "type": "boolean"
+        },
         "object": {
           "description": "Full object JSON, @file, or - (stdin).",
           "hasDynamicHelp": false,
@@ -109,12 +115,6 @@
           "multiple": false,
           "name": "patch",
           "type": "option"
-        },
-        "start-host": {
-          "allowNo": false,
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
-          "type": "boolean"
         },
         "type": {
           "description": "Object family to change (execution or config).",
@@ -180,6 +180,12 @@
           "name": "json",
           "type": "boolean"
         },
+        "no-start-host": {
+          "allowNo": false,
+          "description": "Do not start a background host when one is not already running.",
+          "name": "no-start-host",
+          "type": "boolean"
+        },
         "no-wait": {
           "allowNo": false,
           "description": "Start the run and return immediately with runId (default waits for completion).",
@@ -199,12 +205,6 @@
           "multiple": false,
           "name": "resume",
           "type": "option"
-        },
-        "start-host": {
-          "allowNo": false,
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
-          "type": "boolean"
         },
         "validate": {
           "allowNo": false,
@@ -275,10 +275,50 @@
       ],
       "strict": true
     },
+    "host:reload": {
+      "aliases": [],
+      "args": {},
+      "description": "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> host restart",
+          "description": "Requests a host restart; add --json for the envelope."
+        }
+      ],
+      "flags": {
+        "force": {
+          "allowNo": false,
+          "description": "Restart without waiting for runs to drain.",
+          "name": "force",
+          "type": "boolean"
+        },
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "host:reload",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "host",
+        "reload.js"
+      ],
+      "strict": true
+    },
     "host:restart": {
       "aliases": [],
       "args": {},
-      "description": "Ask the supervisor to restart the host process; use host status when the API stays unhealthy.",
+      "description": "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`.",
       "enableJsonFlag": false,
       "examples": [
         {
@@ -333,11 +373,30 @@
           "name": "foreground",
           "type": "boolean"
         },
+        "idle-minutes": {
+          "description": "Stop the host after this many idle minutes (0 = never). Defaults to 15 or ECP_HOST_IDLE_MINUTES.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "idle-minutes",
+          "type": "option"
+        },
         "json": {
           "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
           "type": "boolean"
+        },
+        "started-by": {
+          "default": "explicit",
+          "description": "Record how the supervisor was started (explicit for host start).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "started-by",
+          "options": [
+            "auto",
+            "explicit"
+          ],
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -358,7 +417,7 @@
     "host:status": {
       "aliases": [],
       "args": {},
-      "description": "Report whether the background host is up; use host start when retrieve or execute is slow without --start-host.",
+      "description": "Report whether the background host is up, including idle shutdown scheduling when running.",
       "enableJsonFlag": false,
       "examples": [
         {
@@ -472,6 +531,12 @@
           "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
+          "type": "boolean"
+        },
+        "no-start-host": {
+          "allowNo": false,
+          "description": "Do not start a background host when one is not already running.",
+          "name": "no-start-host",
           "type": "boolean"
         }
       },
@@ -590,6 +655,12 @@
           "name": "limit",
           "type": "option"
         },
+        "no-start-host": {
+          "allowNo": false,
+          "description": "Do not start a background host when one is not already running.",
+          "name": "no-start-host",
+          "type": "boolean"
+        },
         "out": {
           "description": "Write full JSON result to this file and print a one-line summary.",
           "hasDynamicHelp": false,
@@ -603,12 +674,6 @@
           "multiple": false,
           "name": "query",
           "type": "option"
-        },
-        "start-host": {
-          "allowNo": false,
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
-          "type": "boolean"
         },
         "type": {
           "description": "What to list or fetch (capability, execution, config, run, plugin, formatter).",
@@ -663,12 +728,6 @@
           "allowNo": false,
           "description": "Print schema file contents (human) or parsed schema in the envelope with --json.",
           "name": "print",
-          "type": "boolean"
-        },
-        "start-host": {
-          "allowNo": false,
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
           "type": "boolean"
         }
       },

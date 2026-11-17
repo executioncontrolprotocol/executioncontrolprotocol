@@ -122,6 +122,7 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
 
     const cold = (await ops()).map(stripVolatile)
 
+    delete env.ECP_NO_START_HOST
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
     await waitForHost(home)
