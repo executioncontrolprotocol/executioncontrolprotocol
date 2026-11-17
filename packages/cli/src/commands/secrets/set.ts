@@ -12,13 +12,13 @@ export default class SecretsSet extends Command {
     "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean."
 
   static override args = {
-    key: Args.string({ required: true, description: "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/apiKey." }),
+    key: Args.string({ required: true, description: "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/api-key." }),
   }
 
   static override examples = [
     {
       description: "Reads the value from stdin and stores it under the key.",
-      command: "<%= config.bin %> secrets set anthropic.apiKey",
+      command: "<%= config.bin %> secrets set anthropic/api-key",
     },
   ]
 

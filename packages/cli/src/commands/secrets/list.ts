@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core"
 import { withSecrets } from "../../lib/secrets.js"
-import { writeEnvelope } from "../../lib/output.js"
+import { printTable, writeEnvelope } from "../../lib/output.js"
 
 /**
  * `ecp secrets list`
@@ -33,7 +33,17 @@ export default class SecretsList extends Command {
       {
         json: flags.json,
         human: () => {
-          for (const row of rows) this.log(`${row.key}  ${row.source}`)
+          if (rows.length === 0) {
+            this.log("No secrets stored.")
+            return
+          }
+          printTable(
+            [
+              { key: "key", header: "key" },
+              { key: "source", header: "source" },
+            ],
+            rows.map((row) => ({ key: row.key, source: row.source })),
+          )
         },
         exitCode: 0,
       },

@@ -16,7 +16,7 @@ export default class SecretsUnset extends Command {
   static override examples = [
     {
       description: "Deletes the key when present; missing keys return exit 2 with --json.",
-      command: "<%= config.bin %> secrets unset anthropic.apiKey",
+      command: "<%= config.bin %> secrets unset anthropic/api-key",
     },
   ]
 

@@ -10,8 +10,8 @@ export function exitCodeForEnvelope(envelope: OperationResponse<unknown>): numbe
     if (isEcpErrorCode(code)) return catalogueEntry(code).exitCode
     return 1
   }
-  const data = envelope.data as { status?: string; validation?: { ok?: boolean } }
-  if (data.validation && data.validation.ok === false) return 2
+  const data = envelope.data as { status?: string; validation?: { valid?: boolean } }
+  if (data.validation && data.validation.valid === false) return 2
   if (data.status === "failed" || data.status === "cancelled") return 1
   return 0
 }

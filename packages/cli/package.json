@@ -60,7 +60,7 @@
     },
     "topics": {
       "host": {
-        "description": "Start, stop, and inspect the background ECP host process."
+        "description": "The background host that warm commands use; started automatically, or start, stop, reload, and inspect it here."
       },
       "mcp": {
         "description": "Run the MCP stdio relay that forwards retrieve, execute, and commit."

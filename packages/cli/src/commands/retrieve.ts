@@ -29,7 +29,7 @@ export default class Retrieve extends Command {
     id: Flags.string({ description: "Fetch one item by id instead of listing." }),
     query: Flags.string({ description: "Fuzzy search string when listing capabilities or executions." }),
     limit: Flags.integer({ description: "Maximum rows to return (default 10, max 100)." }),
-    include: Flags.string({ description: "Comma-separated detail sections for a single capability." }),
+    include: Flags.string({ description: "With --type run --id: comma-separated extras to include (steps, events, manifest, state)." }),
     filter: Flags.string({ multiple: true, description: "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed." }),
     format: Flags.string({ description: "Formatter id when --type formatter." }),
     out: Flags.string({ description: "Write full JSON result to this file and print a one-line summary." }),

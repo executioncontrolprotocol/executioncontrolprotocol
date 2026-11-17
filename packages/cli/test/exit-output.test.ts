@@ -11,7 +11,7 @@ describe("cli exit and output", () => {
     expect(exitCodeForEnvelope({ ok: true, data: { status: "completed" } })).toBe(0)
     expect(exitCodeForEnvelope({ ok: true, data: { status: "failed" } })).toBe(1)
     expect(exitCodeForEnvelope({ ok: true, data: { status: "cancelled" } })).toBe(1)
-    expect(exitCodeForEnvelope({ ok: true, data: { validation: { ok: false } } })).toBe(2)
+    expect(exitCodeForEnvelope({ ok: true, data: { validation: { valid: false } } })).toBe(2)
     expect(
       exitCodeForEnvelope({
         ok: false,
@@ -59,10 +59,10 @@ describe("cli exit and output", () => {
         steps: [{ nodeId: "echo", status: "completed" }],
         result: { value: 1 },
       })
-      printExecuteHuman({ validation: { ok: true, issues: [] } })
+      printExecuteHuman({ validation: { valid: true, issues: [] } })
       printExecuteHuman({
         validation: {
-          ok: false,
+          valid: false,
           issues: [{ code: "ECP_X", message: "bad", path: "/steps", severity: "error" }],
         },
       })
@@ -77,7 +77,9 @@ describe("cli exit and output", () => {
     expect(text).toContain("No capabilities found.")
     expect(truncateCell("x".repeat(61))).toBe(`${"x".repeat(57)}...`)
     expect(text).toContain("echo  completed")
-    expect(text).toContain("valid")
+    // A valid file prints exactly "valid" (it used to print nothing).
+    expect(text).toMatch(/^valid$/m)
+    expect(text).toContain("ECP_MANIFEST_INVALID  1 validation error")
     expect(text).toContain("ECP_X")
     expect(text).toContain("execution  e1  2")
   })
