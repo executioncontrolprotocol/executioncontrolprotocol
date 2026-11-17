@@ -1,8 +1,8 @@
-import { readFile, stat } from "node:fs/promises"
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import { mkdtemp } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { LocalPluginRegistration } from "@executioncontrolprotocol/local"
 import { safePluginId } from "@executioncontrolprotocol/engine"
@@ -55,6 +55,48 @@ describe("editor schema files", () => {
     }
     expect(index.schemaHash).toBe(host.schemaHash)
     expect(index.plugins["@executioncontrolprotocol/test"]).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it("resolves every $ref the way an editor would and removes old-style file names", async () => {
+    const home = await mkdtemp(path.join(os.tmpdir(), "ecp-editor-refs-"))
+    const pluginsDir = path.join(home, "schema", "plugins")
+    await mkdir(pluginsDir, { recursive: true })
+    const legacy = path.join(pluginsDir, "%40executioncontrolprotocol%2Ftest.editor.schema.json")
+    await writeFile(legacy, "{}\n")
+
+    const host = await createLocalHost({ home, mode: "in-process", extraPlugins: [pluginTestRoot] })
+    cleanups.push(() => host.stop())
+
+    // Follow every $ref the way an editor does (URL relative to the containing file, then
+    // URL-decoded to a path) and check both the file and its #/$defs/<name> target exist.
+    const rootPath = path.join(home, "schema", "execution.schema.json")
+    const pending = [rootPath]
+    const seen = new Set<string>()
+    let followed = 0
+    while (pending.length > 0) {
+      const file = pending.pop()!
+      if (seen.has(file)) continue
+      seen.add(file)
+      const document = JSON.parse(await readFile(file, "utf8")) as { $id?: string; $defs?: Record<string, unknown> }
+      expect(document.$id, `${file} must not set $id`).toBeUndefined()
+      const refs = new Set<string>()
+      JSON.stringify(document, (key, value: unknown) => {
+        if (key === "$ref" && typeof value === "string") refs.add(value)
+        return value
+      })
+      for (const ref of refs) {
+        const [target = "", fragment = ""] = ref.split("#")
+        const targetPath = target ? fileURLToPath(new URL(target, pathToFileURL(file))) : file
+        const targetDoc = JSON.parse(await readFile(targetPath, "utf8")) as { $defs?: Record<string, unknown> }
+        const defName = decodeURIComponent(fragment.replace(/^\/\$defs\//, ""))
+        if (fragment.startsWith("/$defs/")) expect(targetDoc.$defs?.[defName], `${ref} in ${file}`).toBeTruthy()
+        if (target) pending.push(targetPath)
+        followed += 1
+      }
+    }
+    expect(seen.size).toBeGreaterThan(1)
+    expect(followed).toBeGreaterThan(0)
+    await expect(stat(legacy)).rejects.toThrow()
   })
 
   it("does not call loadPluginSchema on a warm start with no plugin changes", async () => {

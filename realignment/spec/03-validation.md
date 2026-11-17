@@ -107,6 +107,12 @@ lines' outputs with their own certainty.
   changes. Per-plugin editor schema files live beside it under `schema/plugins/`. Root branches
   use relative `$ref`s to `#/$defs/<name>.editorInput` (marker-wrapped `accepts`). `ecp schema`
   prints the root path.
-- Users add `"$schema": "<root path>"` to `.ecp.json` files (or a `json.schemas` mapping for
-  `**/*.ecp.json`). Editors then complete capability ids, check inputs against `accepts`, and
-  show plugin descriptions on hover.
+- Users add `"$schema": "<root file URL>"` to `.ecp.json` files (an absolute `file:///` URL;
+  editors don't expand `~`), or a `json.schemas` mapping for `**/*.ecp.json`. Editors then
+  complete capability ids with their summaries (`enumDescriptions`), check inputs against
+  `accepts`, and show summaries on hover.
+- Editor files carry no `$id`, so relative `$ref`s resolve against their location on disk.
+  Per-plugin file names use only `[A-Za-z0-9.~-]` plus `_xx` hex escapes, because editors
+  URL-decode `$ref`s (a `%2F` would become a path separator). Marker `$ref`s in plugin files
+  point at the root (`../execution.schema.json#/$defs/refValue`). Rejections carry an
+  `errorMessage` so editors show the same guidance as `ecp execute --validate`.

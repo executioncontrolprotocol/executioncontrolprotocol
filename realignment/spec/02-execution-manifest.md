@@ -6,7 +6,7 @@ JSON is the only execution format in the MVP. Files use the extension `.ecp.json
 
 ```jsonc
 {
-  "$schema": "~/.ecp/schema/execution.schema.json",   // optional, editors only; ignored by the host
+  "$schema": "file:///C:/Users/me/.ecp/schema/execution.schema.json", // optional, editors only; ignored by the host
   "schema": "@executioncontrolprotocol.execution",    // required, constant
   "version": "2.0",                                   // required, constant
   "execution": {                                      // optional block
