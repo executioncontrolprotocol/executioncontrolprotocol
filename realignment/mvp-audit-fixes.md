@@ -489,7 +489,11 @@ was also running 68 leaked host processes (F22). Fix F22 first, then make these 
 timing (raise per-test timeouts where the work is inherently slow, replace fixed sleeps with readiness polling),
 and re-check after S3 removes the per-call schema compile.
 
-- [ ] Fixed
+- [ ] Fixed. Progress after F22: `packages/host/test/editor-schema-async.test.ts` "marks server ready before a slow
+  editor write finishes" is signal-based via `holdEditorSchemaWriteForTests` / `releaseEditorSchemaWriteForTests`,
+  not wall-clock. Re-checked under `pnpm run test:coverage` after F22 (640 passed): `packages/host/test/http.test.ts`
+  drain polling — pass; `packages/engine/test/operations.test.ts` "covers retrieve and execute edge paths" — pass;
+  `packages/host/test/editor-schema-async.test.ts` — pass.
 
 ### F22 — Tests leak supervisor and host processes (High; causes F20 flakiness)
 
@@ -521,7 +525,10 @@ teardown enforces it). Supervisor unit/e2e: deleting `ECP_HOME` stops it within 
 **Clean runs leak too (2026-11-16, F7 work):** a full e2e run that passed (17 files) left 5 supervisor/host
 pairs running, all started during that run; they were stopped manually. So this isn't only interrupted runs.
 
-- [ ] Fixed
+- [x] Fixed. Cause: five e2e tests made an MCP tool call, which auto-starts a detached host, and only closed the
+  relay. Fix: shared stop helper, supervisor and host orphan safety nets, and a registry-only global teardown.
+  Evidence (2026-11-16, Windows): from zero leftover processes, two consecutive full e2e runs (18 files, 44 passed
+  each) left **0** `supervisor.js`/`main.js` processes; before the fix one clean run left 5 pairs.
 
 ### F21 — Line endings flip on every Windows test run (Low; fixed in group A)
 

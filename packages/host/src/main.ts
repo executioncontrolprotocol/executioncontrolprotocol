@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import os from "node:os"
 import path from "node:path"
+import { setInterval as setIntervalNode, clearInterval as clearIntervalNode } from "node:timers"
 import { pathToFileURL } from "node:url"
 import { Endpoint } from "@executioncontrolprotocol/protocol"
 import { createLocalHost } from "./create-local-host.js"
@@ -9,6 +10,7 @@ import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 const EXIT_CLEAN = 0
 const EXIT_CRASH = 1
 const EXIT_ADDRINUSE = 70
+const SUPERVISOR_POLL_MS = 2_000
 
 /**
  * Host process entry: parse env, start server mode, handle signals.
@@ -59,7 +61,31 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> 
     process.on("SIGTERM", () => {
       void shutdown()
     })
+
+    const supervisorPidRaw = env.ECP_SUPERVISOR_PID
+    const supervisorPid =
+      supervisorPidRaw !== undefined && supervisorPidRaw !== ""
+        ? Number(supervisorPidRaw)
+        : Number.NaN
+    let supervisorPoll: ReturnType<typeof setIntervalNode> | undefined
+    if (Number.isFinite(supervisorPid) && supervisorPid > 0) {
+      supervisorPoll = setIntervalNode(() => {
+        if (stopping) return
+        let alive = false
+        try {
+          process.kill(supervisorPid, 0)
+          alive = true
+        } catch {
+          alive = false
+        }
+        if (!alive) {
+          void shutdown()
+        }
+      }, SUPERVISOR_POLL_MS)
+    }
+
     await host.whenShutdown()
+    if (supervisorPoll) clearIntervalNode(supervisorPoll)
     process.exit(EXIT_CLEAN)
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code

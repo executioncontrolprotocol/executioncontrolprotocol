@@ -8,6 +8,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { performance } from "node:perf_hooks"
+import { killRegisteredHostPidsBeforeRm } from "./host-pid-fallback.mjs"
 
 /** Capabilities per synthetic plugin (Firefly-sized). */
 export const B8_CAPS_PER_PLUGIN = 20
@@ -491,6 +492,7 @@ export async function runB8(ctx) {
     } catch {
       // ignore
     }
+    await killRegisteredHostPidsBeforeRm(realHome, root)
     rmSync(realHome, { recursive: true, force: true })
   }
 

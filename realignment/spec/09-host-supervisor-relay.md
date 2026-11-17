@@ -27,9 +27,17 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
   and reports.
 - Picks two free ports on `127.0.0.1` (bind port 0, read, close), generates the token
   (32 random bytes, base64url).
-- Spawns the host with env `ECP_HOME`, `ECP_HOST_PORT`, `ECP_HOST_TOKEN` (never argv), stdio to
-  `logs/host.log`. If the host exits with `EADDRINUSE` on start, pick a new port, rewrite
-  `host.json`, retry (max 3).
+- Spawns the host with env `ECP_HOME`, `ECP_HOST_PORT`, `ECP_HOST_TOKEN`, `ECP_SUPERVISOR_PID`
+  (the supervisor's `process.pid`; never argv), stdio to `logs/host.log`. If the host exits with
+  `EADDRINUSE` on start, pick a new port, rewrite `host.json`, retry (max 3).
+- **Orphan safety (same 2 s poll as the plugin marker):** while not already stopping, if
+  `ECP_HOME` is missing, `host.json` is missing, or a readable `host.json` has a different
+  `token` or `supervisorPid` than this process, force-stop (drain timeout `0`), kill the host
+  child, delete `host.json` if present, and exit. A single failed read (sharing violation, partial
+  write) does nothing until the next poll. Deleting `~/.ecp` or `host.json` while a host is running
+  therefore stops it within about 2 seconds.
+- On `process.exit`, synchronously `kill()` the host child if it has not exited (orderly `/stop` and
+  POSIX signals; not `SIGKILL` / Windows `TerminateProcess` on the supervisor).
 - **Control server** on `controlPort` (same token, same Host-header check):
   `GET /status` → `{ supervisorPid, hostPid, hostStatus, restarts, lastRestartReason }`;
   `POST /restart { force?: boolean }`; `POST /stop { force?: boolean }`.
@@ -51,6 +59,9 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
 ## Host process
 
 - Entry: `packages/host/dist/main.js` → `createLocalHost({ mode: "server", port, token })`.
+- When `ECP_SUPERVISOR_PID` is set (supervisor-spawned host only, not in-process tests), poll that
+  pid every 2 s with `process.kill(pid, 0)`; if the supervisor is gone, drain and exit (covers
+  abrupt supervisor death on Windows where parent links are unreliable).
 - On start: mark leftover `running` runs `interrupted`; build registry from manifests; mark the
   HTTP endpoint ready, then write the root editor schema and per-plugin editor schema files under
   `$ECP_HOME/schema/plugins/` (relative `$ref`s to `#/$defs/<name>.editorInput`); runtime

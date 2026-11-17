@@ -139,10 +139,7 @@ describe("mcp relay e2e", () => {
     expect(purity.sawToolsList).toBe(true)
 
     const session = await openMcpSession({ env })
-    cleanups.push(async () => {
-      await session.close()
-      await runEcp(["host", "stop", "--force", "--json"], { env })
-    })
+    cleanups.push(session.close)
     const result = await callTool(session.client, "retrieve", { type: "capability", query: "echo" })
     expect(result.isError).toBeUndefined()
     await waitForHost(home)
@@ -159,7 +156,6 @@ describe("mcp relay e2e", () => {
     const session = await openMcpSession({ env })
     cleanups.push(async () => {
       await session.close()
-      await runEcp(["host", "stop", "--force", "--json"], { env })
     })
 
     const before = await callTool(session.client, "retrieve", { type: "capability", query: "echo" })

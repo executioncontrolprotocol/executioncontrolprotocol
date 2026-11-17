@@ -9,6 +9,7 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { performance } from "node:perf_hooks"
 import { runB8 } from "./b8.mjs"
+import { killRegisteredHostPidsBeforeRm } from "./host-pid-fallback.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const ecpBin = path.join(root, "packages/cli/bin/ecp.js")
@@ -155,6 +156,7 @@ try {
   } catch {
     // ignore
   }
+  await killRegisteredHostPidsBeforeRm(home, root)
 }
 
 const b3Cold = scenarios.find((s) => s.id === "B3-execute-echo-in-process")
@@ -200,12 +202,14 @@ if (existsSync(budgetsPath)) {
   }
   if (failures.length > 0) {
     console.error(`bench: budget failures:\n${failures.map((f) => `  - ${f}`).join("\n")}`)
+    await killRegisteredHostPidsBeforeRm(home, root)
     rmSync(home, { recursive: true, force: true })
     process.exit(1)
   }
   console.log("bench: budgets ok")
 }
 
+await killRegisteredHostPidsBeforeRm(home, root)
 rmSync(home, { recursive: true, force: true })
 
 async function timeScenario(id, fn) {
