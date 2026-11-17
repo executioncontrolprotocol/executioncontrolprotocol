@@ -13,6 +13,14 @@ import {
 } from "./support.js"
 
 describe("cli e2e commands", () => {
+  it("retrieve help renders an example", async () => {
+    assertCliBuilt()
+    const { env } = await createCliHome({ linkPluginTest: false })
+    const result = await runEcp(["retrieve", "--help"], { env })
+    expect(result.code).toBe(0)
+    expect(result.stdout + result.stderr).toMatch(/retrieve --type capability --query echo/)
+  })
+
   it("mcp start help is available", async () => {
     assertCliBuilt()
     const { env } = await createCliHome({ linkPluginTest: false })
@@ -29,17 +37,17 @@ describe("cli e2e commands", () => {
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
-    const started = parseJsonStdout<{ url: string; hostPid: number }>(start.stdout)
-    expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    const started = parseJsonStdout<{ ok: boolean; data: { url: string; hostPid: number } }>(start.stdout)
+    expect(started.data.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
     await waitForHost(home)
 
     const status = await runEcp(["host", "status", "--json"], { env })
     expect(status.code).toBe(0)
-    expect(parseJsonStdout<{ port: number }>(status.stdout).port).toBeGreaterThan(0)
+    expect(parseJsonStdout<{ ok: boolean; data: { port: number } }>(status.stdout).data.port).toBeGreaterThan(0)
 
     const logs = await runEcp(["host", "logs", "--lines", "5", "--json"], { env })
     expect(logs.code).toBe(0)
-    expect(parseJsonStdout<{ path: string }>(logs.stdout).path).toContain("host.log")
+    expect(parseJsonStdout<{ ok: boolean; data: { path: string } }>(logs.stdout).data.path).toContain("host.log")
 
     const stop = await runEcp(["host", "stop", "--force", "--json"], { env })
     expect(stop.code).toBe(0)
@@ -156,8 +164,12 @@ describe("cli e2e commands", () => {
 
     const list = await runEcp(["secrets", "list", "--json"], { env })
     expect(list.code).toBe(0)
-    const listed = parseJsonStdout<{ items: Array<{ key: string; source: string }> }>(list.stdout)
-    expect(listed.items.some((row) => row.key === secretKey && (row.source === "keychain" || row.source === "env"))).toBe(
+    const listed = parseJsonStdout<{ ok: boolean; data: { items: Array<{ key: string; source: string }> } }>(
+      list.stdout,
+    )
+    expect(
+      listed.data.items.some((row) => row.key === secretKey && (row.source === "keychain" || row.source === "env")),
+    ).toBe(
       true,
     )
 
@@ -338,7 +350,9 @@ describe("cli e2e commands", () => {
     const { home, env, dataDir } = await createCliHome()
     const schema = await runEcp(["schema", "--json"], { env })
     expect(schema.code).toBe(0)
-    expect(parseJsonStdout<{ path: string }>(schema.stdout).path).toContain("execution.schema.json")
+    expect(parseJsonStdout<{ ok: boolean; data: { path: string } }>(schema.stdout).data.path).toContain(
+      "execution.schema.json",
+    )
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
@@ -346,7 +360,7 @@ describe("cli e2e commands", () => {
 
     const app = await runEcp(["app", "--no-open", "--json"], { env })
     expect(app.code).toBe(0)
-    expect(parseJsonStdout<{ url: string }>(app.stdout).url).toMatch(/\/app\/#/)
+    expect(parseJsonStdout<{ ok: boolean; data: { url: string } }>(app.stdout).data.url).toMatch(/\/app\/#/)
 
     const bare = path.join(home, "bare-plugin")
     mkdirSync(bare, { recursive: true })

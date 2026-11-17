@@ -317,7 +317,7 @@ rounds, event order) to cover every feature above, using `plugin-test` capabilit
 (`bounded` for `$script`, `config-echo` for config). Keep it runnable in-process and warm.
 
 - [x] Fixture extended — `all-features.ecp.json` covers every node kind, marker, commit mode and a step `config` (plugin-test only); `all-features.run.json` holds the result and the exact 42-event sequence, which A2 and the host integration test assert (parallel `maxConcurrency: 1`).
-- [ ] A2 passes on Ubuntu and Windows
+- [x] A2 passes on Ubuntu and Windows — CI e2e-ubuntu and e2e-windows on #74 (exact 42-event sequence).
 
 ### F10 — Acceptance A11/A12 are presence checks only (Low)
 
@@ -382,8 +382,8 @@ description and examples on each command (the plan's "help written for a model r
 **Tests:** a unit test walks the oclif manifest and fails on any command, topic or flag without
 a description.
 
-- [ ] Fixed
-- [ ] Test added
+- [x] Fixed (`packages/cli/package.json` oclif topics; every command in `packages/cli/src/commands/` has `description`, `examples`, and flag text; `packages/cli/test/help-quality.test.ts`)
+- [x] Test added
 
 ### F14 — `--json` envelope not used everywhere (Low)
 
@@ -395,8 +395,8 @@ secrets list, plugins list) and wrap in the envelope; errors as `{ ok: false, er
 
 **Tests:** e2e iterates all commands with `--json` and asserts the envelope shape.
 
-- [ ] Fixed
-- [ ] Test added
+- [x] Fixed (`writeEnvelope` in `packages/cli/src/lib/output.ts`; host/app/schema/secrets/plugins inspect)
+- [x] Test added (`test/e2e/cli/json-envelope.test.ts`)
 
 ### F15 — `ecp retrieve` human output isn't a table (Low)
 
@@ -409,7 +409,7 @@ source, manifest; formatter: id, media type, default). Respect non-TTY/`NO_COLOR
 
 **Tests:** snapshot tests per type.
 
-- [ ] Fixed
+- [x] Fixed (`printTable` / `printRetrieveHuman` in `packages/cli/src/lib/output.ts`; spec 10 column list)
 
 ### F16 — `ecp plugins` lacks manifest status; extra oclif commands undocumented (Low)
 
@@ -429,7 +429,7 @@ host's view). Decide on `inspect`/`reset`: keep and document in spec 10 (default
 **Fix:** record the actual process pid and a `mode: "in-process" | "server"` field (add to the
 run record schema in `protocol` and spec 05).
 
-- [ ] Fixed
+- [x] Fixed (`run.schema.json` `host.mode` required, `pid` minimum 1; `operations.ts` records `process.pid` and settings mode)
 
 ### F18 — MCP relay error text repeats the first issue (Low)
 
@@ -440,7 +440,7 @@ followed by the same issue (`ECP_REF_UNRESOLVED — …`).
 **Fix:** first line = top-level code + a summary ("1 validation error"), then one line per
 issue. Update the description snapshot/format tests.
 
-- [ ] Fixed
+- [x] Fixed (`printError` / `formatError` count header; `packages/cli/test/output-more.test.ts`, `packages/mcp-relay/test/format-paths.test.ts`)
 
 ### F19 — Verify A8 "runs list replays" is really asserted (Low)
 

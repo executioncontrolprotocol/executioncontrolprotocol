@@ -108,12 +108,11 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
         (await runEcp(["execute", invalid, "--validate", "--json"], { env })).stdout,
       )
       // Filter secrets to this test's key — the OS keychain is shared across e2e workers.
-      const secretsRaw = parseJsonStdout<{ items: Array<{ key: string; source: string }> }>(
+      const secretsRaw = parseJsonStdout<{ ok: boolean; data: { items: Array<{ key: string; source: string }> } }>(
         (await runEcp(["secrets", "list", "--json"], { env })).stdout,
       )
       const secretsList = {
-        ...secretsRaw,
-        items: secretsRaw.items.filter((row) => row.key === secretKey),
+        items: secretsRaw.data.items.filter((row) => row.key === secretKey),
       }
       const script = parseJsonStdout(
         (await runEcp(["execute", scriptManifest, "--json"], { env })).stdout,

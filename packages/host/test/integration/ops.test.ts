@@ -85,7 +85,7 @@ describe("host integration operations", () => {
         error: null,
         startedAt: new Date().toISOString(),
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
       },
       {
         schema: "@executioncontrolprotocol.execution",

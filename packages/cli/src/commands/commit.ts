@@ -9,17 +9,40 @@ import { finishOperation, printCommitHuman } from "../lib/output.js"
  * @category CLI
  */
 export default class Commit extends Command {
-  static override description = "Create, update or delete an execution or config."
+  static override description =
+    "Create, update, or delete stored executions and configs; use execute --validate before committing risky edits."
+
+  static override examples = [
+    {
+      description: "Creates a stored execution from a JSON file referenced with @path.",
+      command: "<%= config.bin %> commit --type execution --action create --id demo --object @./demo.ecp.json",
+    },
+  ]
 
   static override flags = {
-    type: Flags.string({ required: true, options: ["execution", "config"] }),
-    action: Flags.string({ required: true, options: ["create", "update", "delete"] }),
-    id: Flags.string(),
-    object: Flags.string({ description: "JSON, @file, or -." }),
-    patch: Flags.string({ description: "JSON Patch, @file, or -." }),
-    "if-version": Flags.integer(),
-    json: Flags.boolean({ default: false }),
-    "start-host": Flags.boolean({ default: false }),
+    type: Flags.string({
+      required: true,
+      options: ["execution", "config"],
+      description: "Object family to change (execution or config).",
+    }),
+    action: Flags.string({
+      required: true,
+      options: ["create", "update", "delete"],
+      description: "create, update, or delete.",
+    }),
+    id: Flags.string({ description: "Object id (required for update/delete and optional on create)." }),
+    object: Flags.string({ description: "Full object JSON, @file, or - (stdin)." }),
+    patch: Flags.string({ description: "JSON Patch array, @file, or - (stdin) for updates." }),
+    "if-version": Flags.integer({ description: "Expected objectVersion for optimistic concurrency." }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
+    "start-host": Flags.boolean({
+      description: "Start the background host if it is not already running.",
+      default: false,
+    }),
   }
 
   override async run(): Promise<void> {

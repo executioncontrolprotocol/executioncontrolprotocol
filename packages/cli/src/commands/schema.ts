@@ -3,7 +3,7 @@ import path from "node:path"
 import { Command, Flags } from "@oclif/core"
 import { discoverOps } from "../lib/host-discovery.js"
 import { ecpHome } from "../lib/home.js"
-import { exitWith } from "../lib/exit.js"
+import { writeEnvelope } from "../lib/output.js"
 
 /**
  * `ecp schema`
@@ -11,12 +11,29 @@ import { exitWith } from "../lib/exit.js"
  */
 export default class Schema extends Command {
   static override description =
-    "Show the root editor execution JSON Schema path or contents (ensures root and per-plugin editor files are current)."
+    "Print the editor execution JSON Schema path or file; use retrieve for capabilities instead."
+
+  static override examples = [
+    {
+      description: "Prints the schema file path after warming the host; add --print to dump the file.",
+      command: "<%= config.bin %> schema --print",
+    },
+  ]
 
   static override flags = {
-    print: Flags.boolean({ default: false }),
-    "start-host": Flags.boolean({ default: false }),
-    json: Flags.boolean({ default: false }),
+    print: Flags.boolean({
+      description: "Print schema file contents (human) or parsed schema in the envelope with --json.",
+      default: false,
+    }),
+    "start-host": Flags.boolean({
+      description: "Start the background host if it is not already running.",
+      default: false,
+    }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
   }
 
   override async run(): Promise<void> {
@@ -25,23 +42,41 @@ export default class Schema extends Command {
     const schemaPath = path.join(home, "schema", "execution.schema.json")
     const ops = await discoverOps({ startHost: flags["start-host"] })
     try {
-      // Touch the host so schema generation / startup has run.
       await ops.retrieve({ type: "plugin", limit: 1 })
     } finally {
       await ops.close()
     }
     if (!existsSync(schemaPath)) {
-      this.error(`Schema file missing at ${schemaPath}`, { exit: 1 })
+      writeEnvelope(
+        { ok: false, error: { code: "ECP_NOT_FOUND", message: `Schema file missing at ${schemaPath}` } },
+        {
+          json: flags.json,
+          human: () => this.error(`Schema file missing at ${schemaPath}`, { exit: 1 }),
+          exitCode: 1,
+        },
+      )
     }
+    const text = readFileSync(schemaPath, "utf8")
     if (flags.print) {
-      const text = readFileSync(schemaPath, "utf8")
-      if (flags.json) process.stdout.write(text.endsWith("\n") ? text : `${text}\n`)
-      else process.stdout.write(text.endsWith("\n") ? text : `${text}\n`)
-    } else if (flags.json) {
-      process.stdout.write(`${JSON.stringify({ path: schemaPath })}\n`)
-    } else {
-      process.stdout.write(`${schemaPath}\n`)
+      if (flags.json) {
+        const schema = JSON.parse(text) as Record<string, unknown>
+        writeEnvelope({ ok: true, data: { path: schemaPath, schema } }, { json: true, exitCode: 0 })
+      }
+      writeEnvelope(
+        { ok: true, data: { path: schemaPath } },
+        {
+          human: () => process.stdout.write(text.endsWith("\n") ? text : `${text}\n`),
+          exitCode: 0,
+        },
+      )
     }
-    exitWith(0)
+    writeEnvelope(
+      { ok: true, data: { path: schemaPath } },
+      {
+        json: flags.json,
+        human: () => process.stdout.write(`${schemaPath}\n`),
+        exitCode: 0,
+      },
+    )
   }
 }

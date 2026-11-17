@@ -120,6 +120,26 @@ describe("JSON Schemas", () => {
     expect(validate(manifest)).toBe(true)
   })
 
+  it("rejects run records with host.pid 0 or missing mode", () => {
+    const base = {
+      schema: "@executioncontrolprotocol.run",
+      version: "1.0",
+      id: "run-20261114T000000Z-abcdef",
+      execution: { path: null, manifestHash: "abc" },
+      status: "completed",
+      input: {},
+      result: {},
+      error: null,
+      startedAt: "2026-11-14T00:00:00.000Z",
+      plugins: {},
+      warnings: [],
+    }
+    const validate = ajv().compile(readJson(path.join(schemaDir, "run.schema.json")) as object)
+    expect(validate({ ...base, host: { version: PROTOCOL_VERSION, pid: 0, mode: "in-process" } })).toBe(false)
+    expect(validate({ ...base, host: { version: PROTOCOL_VERSION, pid: 1 } })).toBe(false)
+    expect(validate({ ...base, host: { version: PROTOCOL_VERSION, pid: 1, mode: "server" } })).toBe(true)
+  })
+
   it("accepts sample objects for the other document schemas", () => {
     const samples: Record<string, unknown> = {
       "config.schema.json": {
@@ -142,7 +162,7 @@ describe("JSON Schemas", () => {
         error: null,
         startedAt: "2026-11-14T00:00:00.000Z",
         plugins: {},
-        host: { version: PROTOCOL_VERSION, pid: 1 },
+        host: { version: PROTOCOL_VERSION, pid: 1, mode: "in-process" },
         warnings: [],
       },
       "step-record.schema.json": {

@@ -9,21 +9,39 @@ import { finishOperation, printExecuteHuman } from "../lib/output.js"
  * @category CLI
  */
 export default class Execute extends Command {
-  static override description = "Validate or run an execution."
+  static override description =
+    "Validate or run an execution file or stored id; use retrieve to inspect and commit to save manifests."
 
   static override args = {
-    target: Args.string({ description: "Execution path or id." }),
+    target: Args.string({ description: "Path to a .ecp.json file or a stored execution id." }),
   }
 
+  static override examples = [
+    {
+      description: "Validates the manifest without running steps; exit 0 when validation passes.",
+      command: "<%= config.bin %> execute ./flow.ecp.json --validate",
+    },
+  ]
+
   static override flags = {
-    input: Flags.string({ description: "JSON, @file, or -." }),
-    validate: Flags.boolean({ default: false }),
-    "no-wait": Flags.boolean({ default: false }),
-    resume: Flags.string(),
-    cancel: Flags.string(),
-    out: Flags.string(),
-    json: Flags.boolean({ default: false }),
-    "start-host": Flags.boolean({ default: false }),
+    input: Flags.string({ description: "Run input as JSON text, @file, or - (stdin)." }),
+    validate: Flags.boolean({ description: "Validate only; do not start a run.", default: false }),
+    "no-wait": Flags.boolean({
+      description: "Start the run and return immediately with runId (default waits for completion).",
+      default: false,
+    }),
+    resume: Flags.string({ description: "Resume an interrupted run by run id." }),
+    cancel: Flags.string({ description: "Cancel a running run by run id." }),
+    out: Flags.string({ description: "Write the full run result JSON to this file." }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
+    "start-host": Flags.boolean({
+      description: "Start the background host if it is not already running.",
+      default: false,
+    }),
   }
 
   override async run(): Promise<void> {

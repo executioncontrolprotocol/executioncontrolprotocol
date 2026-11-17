@@ -54,11 +54,19 @@ benchmark in Phase 5 (12). The spec above is the starting behaviour.
 
 ## Output
 
-- Default: human-readable. `retrieve` lists as an aligned table; items as indented JSON (or the
-  formatter's text). `execute`: one line per step with its status (`completed`,
-  `skipped`, `failed`), then the result as JSON, or the error with each issue as
-  `path  CODE  message` and its suggestions. Validation results print the same issue lines.
-- `--json`: the envelope (06) as one JSON document on stdout, nothing else on stdout.
+- Default: human-readable. `retrieve` lists as an aligned table with a header row: capability
+  `id`, `plugin`, `summary`; execution `id`, `version`, `updatedAt`; config `id`, `plugin`; run
+  `id`, `status`, `startedAt`; plugin `package`, `version`, `source`, `manifest` (`ok` or first
+  issue); formatter `id`, `mediaType`, `default`. Single-item `--id` responses stay indented JSON;
+  formatter text output is unchanged. `execute`: one line per step with its status (`completed`,
+  `skipped`, `failed`), then the result as JSON, or the error with a count line
+  (`CODE  N validation error(s)`) then each issue as `path  CODE  message` and its suggestions.
+- `--json`: the envelope (06) as one JSON document on stdout, nothing else on stdout, on every
+  ECP-owned command (`host`, `mcp` except `mcp start`, `app`, `schema`, `secrets`, `plugins` list
+  and `plugins inspect`, and the three operations). Exceptions: `ecp mcp start` has no `--json`
+  (stdio is the MCP stream); `ecp plugins install|uninstall|link|update|reset` use oclif's native
+  `--json` only. `schema --print --json` returns `{ ok: true, data: { path, schema } }` with the
+  parsed schema document in `data.schema` (human `--print` still writes the raw file).
 - `--out <file>`: write the full data there; print a one-line summary.
 - Exit codes: 06.
 - No emojis or colour when stdout isn't a TTY; respect `NO_COLOR`.

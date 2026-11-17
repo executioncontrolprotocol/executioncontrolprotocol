@@ -23,7 +23,7 @@ function detail(status: RunDetail["status"], events: RunEvent[]): RunDetail {
     error: null,
     startedAt: "t",
     plugins: {},
-    host: { version: VERSION, pid: 1 },
+    host: { version: VERSION, pid: 1, mode: "in-process" },
     warnings: [],
     events,
   }

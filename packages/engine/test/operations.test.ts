@@ -417,6 +417,10 @@ describe("operations", () => {
     const ran = await host.operations.execute({ execution: echo, input: {} })
     expect(ran.ok).toBe(true)
     if (ran.ok && "runId" in ran.data) {
+      const record = await storage.runs.get(ran.data.runId)
+      expect(record?.host.pid).toBeGreaterThan(0)
+      expect(record?.host.pid).toBe(process.pid)
+      expect(record?.host.mode).toBe("in-process")
       const withInclude = await host.operations.retrieve({
         type: "run",
         id: ran.data.runId,

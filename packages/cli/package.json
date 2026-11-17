@@ -55,6 +55,20 @@
     "hooks": {
       "init": "./dist/hooks/init.js",
       "finally": "./dist/hooks/plugins-changed.js"
+    },
+    "topics": {
+      "host": {
+        "description": "Start, stop, and inspect the background ECP host process."
+      },
+      "mcp": {
+        "description": "Run the MCP stdio relay that forwards retrieve, execute, and commit."
+      },
+      "plugins": {
+        "description": "Install and list ECP provider packages under $ECP_HOME/plugins."
+      },
+      "secrets": {
+        "description": "Store and list secret keys in the OS keychain for $secret references."
+      }
     }
   }
 }
