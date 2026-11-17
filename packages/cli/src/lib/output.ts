@@ -46,12 +46,21 @@ export function printError(error: {
   suggestions?: string[]
   issues?: ValidationIssue[]
 }): void {
-  const path = error.path ? `${error.path}  ` : ""
-  process.stderr.write(`${path}${error.code}  ${error.message}\n`)
-  for (const suggestion of error.suggestions ?? []) {
-    process.stderr.write(`  suggestion: ${suggestion}\n`)
+  const issues = error.issues ?? []
+  const first = issues[0]
+  const skipHeader =
+    first !== undefined &&
+    error.code === first.code &&
+    (error.path ?? "") === first.path &&
+    error.message === first.message
+  if (!skipHeader) {
+    const path = error.path ? `${error.path}  ` : ""
+    process.stderr.write(`${path}${error.code}  ${error.message}\n`)
+    for (const suggestion of error.suggestions ?? []) {
+      process.stderr.write(`  suggestion: ${suggestion}\n`)
+    }
   }
-  for (const issue of error.issues ?? []) {
+  for (const issue of issues) {
     process.stderr.write(`${issue.path}  ${issue.code}  ${issue.message}\n`)
     for (const suggestion of issue.suggestions ?? []) {
       process.stderr.write(`  suggestion: ${suggestion}\n`)

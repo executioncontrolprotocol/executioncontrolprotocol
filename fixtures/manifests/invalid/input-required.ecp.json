@@ -1,0 +1,12 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "wait",
+      "uses": "@executioncontrolprotocol/test.delay",
+      "input": {},
+      "as": "wait"
+    }
+  ]
+}

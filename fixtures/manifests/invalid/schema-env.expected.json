@@ -3,6 +3,6 @@
     "code": "ECP_MANIFEST_INVALID",
     "path": "/steps/0/input/value",
     "severity": "error",
-    "messageIncludes": "$env"
+    "messageIncludes": "not allowed in an execution"
   }
 ]

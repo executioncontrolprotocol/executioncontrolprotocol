@@ -1,0 +1,10 @@
+[
+  {
+    "code": "ECP_REF_PATH_INVALID",
+    "path": "/steps/1/input/text/$ref",
+    "severity": "error",
+    "suggestionsIncludes": [
+      "did you mean 'waitedMs'?"
+    ]
+  }
+]

@@ -1,0 +1,48 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "branch",
+      "id": "pick",
+      "branches": [
+        {
+          "expr": "(state) => true",
+          "steps": [
+            {
+              "id": "a",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "a"
+              },
+              "as": "picked"
+            }
+          ]
+        },
+        {
+          "expr": "(state) => false",
+          "steps": [
+            {
+              "id": "b",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "b"
+              },
+              "as": "picked"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "use",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.picked"
+        }
+      },
+      "as": "use"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "wait",
+      "uses": "@executioncontrolprotocol/test.delay",
+      "input": {
+        "ms": 0
+      },
+      "as": "out"
+    },
+    {
+      "id": "bounded",
+      "uses": "@executioncontrolprotocol/test.bounded",
+      "input": {
+        "text": {
+          "$ref": "state.out.waitedMs"
+        }
+      },
+      "as": "bounded"
+    }
+  ]
+}

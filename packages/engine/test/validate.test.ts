@@ -3,7 +3,13 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import type { CapabilityEntry, ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { damerauLevenshtein, HostSchemaSet, loadExecutionText, validateExecution } from "../src/index.js"
+import {
+  dedupeIssues,
+  damerauLevenshtein,
+  HostSchemaSet,
+  loadExecutionText,
+  validateExecution,
+} from "../src/index.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixtureDir = path.resolve(here, "../../../fixtures/plugins/fixture-plugin")
@@ -346,4 +352,55 @@ describe("validation", () => {
     expect(unresolved?.available?.length).toBeLessThanOrEqual(50)
     expect(unresolved?.available?.length).toBe(50)
   })
+})
+
+describe("validation output contract (F2–F4)", () => {
+  const manifestFile = JSON.parse(
+    readFileSync(path.join(fixtureDir, "ecp.manifest.json"), "utf8"),
+  ) as { pluginSchema: { hash: string } }
+  const loadPluginSchema = async () => schemaDocument
+  const schemaFingerprints = [
+    { pluginId: plugin.plugin.id, version: plugin.plugin.version, hash: manifestFile.pluginSchema.hash },
+  ]
+  const validateOpts = { capabilities, loadPluginSchema, schemaFingerprints }
+
+  it("dedupes identical issues and keeps distinct messages at the same path", () => {
+    const sample = [
+      { code: "ECP_MANIFEST_INVALID" as const, severity: "error" as const, message: "a", path: "/x" },
+      { code: "ECP_MANIFEST_INVALID" as const, severity: "error" as const, message: "a", path: "/x" },
+      { code: "ECP_MANIFEST_INVALID" as const, severity: "error" as const, message: "b", path: "/x" },
+    ]
+    expect(dedupeIssues(sample)).toHaveLength(2)
+  })
+
+  it("matches schema-env message and suggestion (F3)", async () => {
+    const manifest = JSON.parse(
+      readFileSync(path.resolve(here, "../../../fixtures/manifests/invalid/schema-env.ecp.json"), "utf8"),
+    ) as ExecutionManifest
+    const result = await validateExecution(manifest, validateOpts)
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "ECP_MANIFEST_INVALID",
+        path: "/steps/0/input/value",
+        message: "$env is not allowed in an execution; put it in a config object",
+        suggestions: [
+          "move this value into a config object (ecp commit --type config) and set the step config field",
+        ],
+      }),
+    ])
+  })
+
+  it("reports schema-secret-positions without schema noise", async () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        path.resolve(here, "../../../fixtures/manifests/invalid/schema-secret-positions.ecp.json"),
+        "utf8",
+      ),
+    ) as ExecutionManifest
+    const result = await validateExecution(manifest, validateOpts)
+    expect(result.issues).toHaveLength(4)
+    expect(result.issues.every((issue) => issue.code === "ECP_MANIFEST_INVALID")).toBe(true)
+    expect(JSON.stringify(result.issues)).not.toMatch(/boolean schema is false/i)
+  })
+
 })

@@ -635,7 +635,7 @@ async function loadExecution(
   | { ok: true; manifest: ExecutionManifest; patch?: import("@executioncontrolprotocol/protocol").PatchOp[]; ref: { path: string | null; id?: string } }
   | { ok: false; error: OperationError }
 > {
-  if (isManifest(execution)) {
+  if (isExecutionLike(execution)) {
     return { ok: true, manifest: execution, ref: { path: null, id: execution.execution?.id } }
   }
   if ("path" in execution) {
@@ -648,10 +648,10 @@ async function loadExecution(
       if (loaded.issues.length > 0) {
         return { ok: false, error: { code: "ECP_EXECUTION_LOAD", message: loaded.issues[0]?.message ?? "Load failed.", issues: loaded.issues } }
       }
-      if (!isManifest(loaded.manifest)) {
+      if (!isRecord(loaded.manifest)) {
         return fail("ECP_EXECUTION_LOAD", "Execution file did not contain an execution object.")
       }
-      return { ok: true, manifest: loaded.manifest, ref: { path: execution.path } }
+      return { ok: true, manifest: loaded.manifest as unknown as ExecutionManifest, ref: { path: execution.path } }
     } catch (error) {
       return fromThrown(error)
     }
@@ -902,7 +902,11 @@ function delay(ms: number): Promise<void> {
 }
 
 function isManifest(value: unknown): value is ExecutionManifest {
-  return isRecord(value) && value.schema === "@executioncontrolprotocol.execution" && value.version === "2.0"
+  return isRecord(value) && value.schema === "@executioncontrolprotocol.execution"
+}
+
+function isExecutionLike(value: unknown): value is ExecutionManifest {
+  return isRecord(value) && typeof value.schema === "string"
 }
 
 function isConfig(value: unknown): value is ConfigObject {

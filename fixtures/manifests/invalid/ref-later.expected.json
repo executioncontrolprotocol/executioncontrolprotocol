@@ -1,0 +1,8 @@
+[
+  {
+    "code": "ECP_REF_UNRESOLVED",
+    "path": "/steps/0/input/value/$ref",
+    "severity": "error",
+    "messageIncludes": "not produced before"
+  }
+]

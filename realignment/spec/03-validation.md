@@ -23,7 +23,7 @@ interface ValidationIssue {
   code: EcpErrorCode            // catalogue in 06
   severity: "error" | "warning"
   message: string               // one sentence, model-readable, names the offending value
-  path: string                  // JSON Pointer into the manifest ("/steps/1/branches/0/steps/2/input/prompt"); "/input/..." for run input
+  path: string                  // JSON Pointer into the manifest ("/steps/1/branches/0/steps/2/input/prompt"); "/input/..." for run input; "" means the whole document (for example not JSON)
   nodeId?: string               // id of the enclosing node
   line?: number; column?: number // for expr/$expr/$script syntax errors, relative to that source text
   expected?: unknown            // the relevant JSON Schema fragment (trimmed to 2 KB)
@@ -31,6 +31,8 @@ interface ValidationIssue {
   suggestions?: string[]        // concrete fixes: "did you mean 'text'?", "add \"optional\": true and a \"fallback\""
   available?: string[]          // ref errors: every valid ref path at this point, e.g. ["state.doc", "state.doc.width", ...] (max 50)
 }
+Issues are unique by `code`, `path`, `message`, and `severity`. Every issue's `path` is a string.
+
 interface ValidationResult {
   valid: boolean                // no issues of severity "error"
   issues: ValidationIssue[]     // errors first, then warnings, each group ordered by document position
@@ -49,7 +51,7 @@ The host validates executions in two stages. Rules that keep errors precise (man
 1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds. This lives in the base execution schema shipped in `protocol`.
 2. **Base structure only at compile time:** the host compiles **one** base document validator (node shapes, marker object syntax via `$defs/value`, ids, `uses` as a string matching the capability-id pattern). It never inlines capability `accepts` and never enumerates installed capability ids in the schema. Unknown `uses` values are an engine check (`ECP_CAPABILITY_UNKNOWN` / `ECP_PLUGINS_MISSING`) with suggestions.
 3. **Per-step input against raw `accepts`:** for each step whose `uses` is installed, the host validates `input` against that capability's raw `accepts` schema (from the plugin's `ecp.schema.json`, loaded lazily). Markers are not wrapped into the schema. The engine walks `input`, records marker JSON Pointers, runs the raw validator, and **drops only errors explained by a marker**: errors at or under a marker position; `additionalProperties` naming a marker key; `anyOf`/`oneOf` failures where some branch's errors are all explained (matched by `schemaPath` prefix). Remaining input errors are `ECP_INPUT_INVALID`. Two rules that keep equivalence with today's wrapped path: (a) on an object schema without `additionalProperties: false`, an undeclared property accepts any value, so a `$script` there is allowed; (b) marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`) is still validated by the base schema's marker defs, independently of `accepts`.
-4. **`$script` positions:** resolve the raw subschema at the marker's path; the position is valid only if that subschema accepts a string (or is an open schema). Otherwise `ECP_SCRIPT_INVALID` / `ECP_INPUT_INVALID` as today. `$expr` targets stay unchecked for type.
+4. **`$script` positions:** resolve the raw subschema at the marker's path; the position is valid only if that subschema accepts a string (or is an open schema). Otherwise `ECP_SCRIPT_INVALID`. Setting both `source` and `path` on a `$script` object is a single `ECP_SCRIPT_INVALID` (not a schema oneOf failure). `$expr` targets stay unchecked for type.
 5. **`$secret` / `$env` in an execution:** emit one dedicated `ECP_MANIFEST_INVALID` per occurrence (message and suggestion per spec 02); do not leave "boolean schema is false" as the only signal.
 6. Each capability's `returns` remains available to tooling and L3 from the plugin schema document (`$defs/<name>.returns`), loaded lazily when needed. Editor-only annotations may attach `x-ecp-returns` on editor dispatch branches.
 7. **`schemaHash`:** hash of the base schema plus the sorted hashes of every installed plugin's `ecp.schema.json` (plugin id + version). It changes when plugins or their schema documents change.

@@ -1,0 +1,34 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "race",
+      "branches": [
+        [
+          {
+            "id": "a",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "a"
+            },
+            "as": "slot",
+            "mode": "create"
+          }
+        ],
+        [
+          {
+            "id": "b",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "b"
+            },
+            "as": "slot",
+            "mode": "create"
+          }
+        ]
+      ]
+    }
+  ]
+}

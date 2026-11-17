@@ -20,6 +20,7 @@ import {
   createEnvironment,
   generateEditorRootSchema,
   HostSchemaSet,
+  loadExecutionText,
   validateExecution,
   type ServiceClass,
 } from "../src/index.js"
@@ -183,37 +184,54 @@ describe("manifest conformance", () => {
       },
     ]
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".ecp.json"))) {
-      const manifest = JSON.parse(readFileSync(path.join(dir, name), "utf8")) as unknown
+      const filePath = path.join(dir, name)
+      const text = readFileSync(filePath, "utf8")
       const expected = JSON.parse(readFileSync(path.join(dir, name.replace(/\.ecp\.json$/, ".expected.json")), "utf8")) as Array<{
         code: string
         path: string
         severity: string
         messageIncludes?: string
+        suggestionsIncludes?: string[]
       }>
-      const result = await validateExecution(manifest, {
-        capabilities: testCapabilities,
-        loadPluginSchema,
-        schemaFingerprints,
-        executionDir: dir,
-        readText,
-      })
+      const result =
+        name === "not-json.ecp.json"
+          ? { valid: false, issues: loadExecutionText(text).issues, manifestHash: "", schemaHash: "" }
+          : await validateExecution(JSON.parse(text) as unknown, {
+              capabilities: testCapabilities,
+              loadPluginSchema,
+              schemaFingerprints,
+              executionDir: dir,
+              readText,
+            })
       const actual = result.issues.map((issue) => ({
         code: issue.code,
         path: issue.path,
         severity: issue.severity,
         message: issue.message,
+        suggestions: issue.suggestions,
       }))
+      for (const row of actual) {
+        expect(typeof row.path, `${name} path type`).toBe("string")
+      }
       expect(
         actual.map(({ code, path: issuePath, severity }) => ({ code, path: issuePath, severity })),
         name,
       ).toEqual(expected.map(({ code, path: issuePath, severity }) => ({ code, path: issuePath, severity })))
       for (const issue of expected) {
-        if (!issue.messageIncludes) continue
         const match = actual.find(
           (row) => row.code === issue.code && row.path === issue.path && row.severity === issue.severity,
         )
-        expect(match?.message, `${name} ${issue.code} ${issue.path}`).toContain(issue.messageIncludes)
+        if (issue.messageIncludes) {
+          expect(match?.message, `${name} ${issue.code} ${issue.path}`).toContain(issue.messageIncludes)
+        }
+        if (issue.suggestionsIncludes) {
+          for (const suggestion of issue.suggestionsIncludes) {
+            expect(match?.suggestions ?? [], `${name} ${issue.code} ${issue.path}`).toContain(suggestion)
+          }
+        }
       }
+      const keys = actual.map((row) => `${row.code}|${row.path}|${row.message}|${row.severity}`)
+      expect(new Set(keys).size, `${name} duplicate issues`).toBe(keys.length)
     }
   })
 

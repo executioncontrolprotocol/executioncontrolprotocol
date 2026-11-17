@@ -18,6 +18,7 @@ import { checkExpression, checkScript, syntaxIssue } from "./expr.js"
 import {
   assertScriptPositions,
   collectSecretEnvIssues,
+  markerKind,
   validateWithMarkers,
   type MarkerAjvError,
 } from "./markers.js"
@@ -286,16 +287,23 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
     secretEnvPaths.some((secretPath) => path === secretPath || path.startsWith(`${secretPath}/`))
   const aboveSecretEnv = (path: string): boolean =>
     secretEnvPaths.some((secretPath) => path === "" || path === "/" || secretPath.startsWith(`${path}/`))
-  const baseErrors = schemas.validateDocument(manifest).filter((error) => {
+  // Schema checks run on a copy with each $secret/$env replaced by null, so a marker can't fail
+  // the enclosing value's type union and cascade errors onto its ancestors. Errors at the marker
+  // itself are dropped in favour of the dedicated issue; real errors elsewhere still surface.
+  const checked = secretEnvPaths.length > 0 ? withoutSecretEnv(manifest) : manifest
+  const baseErrors = schemas.validateDocument(checked).filter((error) => {
     const path = ajvPointer(error)
     if (atOrUnderSecretEnv(path) || atOrUnderSecretEnv(error.instancePath)) return false
     return !(COMBINATOR_NOISE.has(error.keyword) && aboveSecretEnv(error.instancePath))
   })
   const structural = mapAjvErrors(baseErrors, manifest, options.capabilities).filter(
-    (issue) => !/boolean schema is false/i.test(issue.message) && !atOrUnderSecretEnv(issue.path),
+    (issue) =>
+      !/boolean schema is false/i.test(issue.message) &&
+      !atOrUnderSecretEnv(issue.path),
   )
   const unknownUses = checkUnknownUses(manifest, options.capabilities)
-  const capabilityInput = isManifest(manifest) ? await checkCapabilityInputs(manifest, schemas, options.capabilities) : []
+  const capabilityInputRaw = isManifest(checked) ? await checkCapabilityInputs(checked, schemas, options.capabilities) : []
+  const capabilityInput = capabilityInputRaw.filter((issue) => !atOrUnderSecretEnv(issue.path))
   const enriched = isManifest(manifest)
     ? await enrichCapabilities(options.capabilities, schemas)
     : options.capabilities
@@ -306,7 +314,19 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
       ? []
       : checkDataFlow(manifest, enriched)
   const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
-  return finish(dedupeIssues([...layerErrors, ...flow, ...inputIssues]), manifestHash, schemas.schemaHash)
+  const combined = collapseScriptPositionIssues([...layerErrors, ...flow, ...inputIssues])
+  return finish(dedupeIssues(combined), manifestHash, schemas.schemaHash)
+}
+
+/** Deep copy with every `$secret` / `$env` marker object replaced by `null`. */
+function withoutSecretEnv(value: unknown): unknown {
+  const kind = markerKind(value)
+  if (kind === "$secret" || kind === "$env") return null
+  if (Array.isArray(value)) return value.map(withoutSecretEnv)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withoutSecretEnv(item)]))
+  }
+  return value
 }
 
 function uniquePluginFingerprints(capabilities: readonly CapabilityEntry[]): SchemaFingerprint[] {
@@ -404,17 +424,42 @@ function capabilityName(capabilityId: string): string {
   return dot >= 0 ? capabilityId.slice(dot + 1) : capabilityId
 }
 
-/** Keep the first issue for each `{ code, path, severity }` (F2). */
-function dedupeIssues(issues: ValidationIssue[]): ValidationIssue[] {
+/**
+ * Keep the first issue for each `{ code, path, message, severity }` tuple (F2).
+ * @category Validation
+ */
+export function dedupeIssues(issues: ValidationIssue[]): ValidationIssue[] {
   const seen = new Set<string>()
   const out: ValidationIssue[] = []
   for (const issue of issues) {
-    const key = `${issue.code}|${issue.path}|${issue.severity}`
+    const key = `${issue.code}|${issue.path}|${issue.message}|${issue.severity}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push(issue)
   }
   return out
+}
+
+/** When `ECP_SCRIPT_INVALID` is present at a path, drop co-located schema noise (F2). */
+function collapseScriptPositionIssues(issues: ValidationIssue[]): ValidationIssue[] {
+  const scriptPaths = new Set(issues.filter((issue) => issue.code === "ECP_SCRIPT_INVALID").map((issue) => issue.path))
+  if (scriptPaths.size === 0) return issues
+  return issues.filter((issue) => !(scriptPaths.has(issue.path) && issue.code !== "ECP_SCRIPT_INVALID"))
+}
+
+/**
+ * Map Ajv input errors for a resolved step input to validation issues.
+ * @category Validation
+ */
+export function mapCapabilityInputIssues(errors: AjvError[], stepInputPointer: string): ValidationIssue[] {
+  return dedupeIssues(
+    errors.map((error) => ({
+      code: "ECP_INPUT_INVALID" as const,
+      severity: "error" as const,
+      message: `Input does not match the capability accepts schema. ${error.message ?? "Invalid input."}`,
+      path: `${stepInputPointer}${ajvPointer(error) === "/" ? "" : ajvPointer(error)}`,
+    })),
+  )
 }
 
 function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEntry[]): ValidationIssue[] {
@@ -767,6 +812,11 @@ function validateRunInput(manifest: unknown, input: Record<string, unknown>): Va
 }
 
 function finish(issues: ValidationIssue[], manifestHash: string, schemaHash: string): ValidationResult {
+  for (const issue of issues) {
+    if (typeof issue.path !== "string") {
+      throw new Error(`Validation issue path must be a string (got ${String(issue.path)} for ${issue.code}).`)
+    }
+  }
   const errors = issues.filter((item) => item.severity === "error").sort(byPath)
   const warnings = issues.filter((item) => item.severity === "warning").sort(byPath)
   return { valid: errors.length === 0, issues: [...errors, ...warnings], manifestHash, schemaHash }
