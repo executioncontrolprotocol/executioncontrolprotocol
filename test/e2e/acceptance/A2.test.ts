@@ -29,6 +29,25 @@ describe("A2 all-features execute", () => {
       events: string[]
     }
 
+    const configPath = path.join(home, "all-features-config.json")
+    writeFileSync(
+      configPath,
+      `${JSON.stringify({
+        schema: "@executioncontrolprotocol.config",
+        version: "1.0",
+        id: "test/default",
+        plugin: "@executioncontrolprotocol/test",
+        values: { label: "lab" },
+        objectVersion: 0,
+        updatedAt: "",
+      })}\n`,
+    )
+    const configCommit = await runEcp(
+      ["commit", "--type", "config", "--action", "create", "--object", `@${configPath}`, "--json"],
+      { env },
+    )
+    expect(configCommit.code, configCommit.stderr + configCommit.stdout).toBe(0)
+
     const inputPath = path.join(home, "in.json")
     writeFileSync(inputPath, `${JSON.stringify({ name: "world" })}\n`)
 
@@ -75,8 +94,6 @@ describe("A2 all-features execute", () => {
     expect(events[0]?.type).toBe("run.start")
     expect(events.at(-1)?.type).toBe("run.end")
     const types = events.map((event) => event.type)
-    for (const type of expected.events) {
-      expect(types).toContain(type)
-    }
+    expect(types).toEqual(expected.events)
   }, 120_000)
 })

@@ -21,9 +21,7 @@ describe("host integration acceptance", () => {
   it("A2 runs all-features end to end on disk", async () => {
     const { host, home } = await startTestHost()
     cleanups.push(() => host.stop())
-    const manifest = JSON.parse(
-      await readFile(path.join(fixturesRoot, "manifests/acceptance/all-features.ecp.json"), "utf8"),
-    ) as ExecutionManifest
+    const execPath = path.join(fixturesRoot, "manifests/acceptance/all-features.ecp.json")
     const expected = JSON.parse(
       await readFile(path.join(fixturesRoot, "manifests/acceptance/all-features.run.json"), "utf8"),
     ) as {
@@ -33,8 +31,23 @@ describe("host integration acceptance", () => {
       events: string[]
     }
 
+    const configCommit = await host.operations.commit({
+      type: "config",
+      action: "create",
+      object: {
+        schema: "@executioncontrolprotocol.config",
+        version: "1.0",
+        id: "test/default",
+        plugin: "@executioncontrolprotocol/test",
+        values: { label: "lab" },
+        objectVersion: 0,
+        updatedAt: "",
+      },
+    })
+    expect(configCommit.ok).toBe(true)
+
     const response = await host.operations.execute({
-      execution: manifest,
+      execution: { path: execPath },
       input: { name: "world" },
     })
     expect(response.ok).toBe(true)
@@ -52,10 +65,9 @@ describe("host integration acceptance", () => {
     expect(steps.length).toBeGreaterThan(0)
     const events = await readEvents(home, runId)
     const types = events.map((event) => event.type)
-    expect(types).toContain("run.start")
-    expect(types).toContain("run.end")
     expect(events[0]?.type).toBe("run.start")
     expect(events.at(-1)?.type).toBe("run.end")
+    expect(types).toEqual(expected.events)
   })
 
   it("A3 validates eight invalid manifests with expected codes", async () => {

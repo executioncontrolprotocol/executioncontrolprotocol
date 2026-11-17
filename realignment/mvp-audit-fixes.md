@@ -305,6 +305,112 @@ covered. Missing (add one fixture + `.expected.json` each):
 
 - [x] Fixtures added with exact expected files — `fixtures/manifests/invalid/` now includes `not-json`, `schema-wrong`, `input-{required,unknown,enum}`, `script-{missing,object}`, `config-unknown`, `ref-{later,parallel-sibling,maybe-branch,maybe-loop,path}`, `type-{number,object}`, `commit-{loop,parallel}`, `unknown-capability-typo`, `schema-secret-positions` (each with `.expected.json`).
 
+### F9 — The A2 "all-features" fixture doesn't use all features (Medium)
+
+**Evidence:** `fixtures/manifests/acceptance/all-features.ecp.json` uses only step, branch,
+parallel, `$expr`, `$state` and `mode: "replace"`. No loop, `$ref` (with `optional`/`fallback`),
+`$script` (path and source), gated step (`expr` on a step), `create`/`merge`/`append` modes,
+or config on a step. Spec 12 A2 is meant to prove executor semantics end to end.
+
+**Fix:** extend the fixture (and its `.run.json`: result, step statuses incl. `skipped`, loop
+rounds, event order) to cover every feature above, using `plugin-test` capabilities
+(`bounded` for `$script`, `config-echo` for config). Keep it runnable in-process and warm.
+
+- [x] Fixture extended — `all-features.ecp.json` covers every node kind, marker, commit mode and a step `config` (plugin-test only); `all-features.run.json` holds the result and the exact 42-event sequence, which A2 and the host integration test assert (parallel `maxConcurrency: 1`).
+- [ ] A2 passes on Ubuntu and Windows
+
+### F10 — Acceptance A11/A12 are presence checks only (Low)
+
+**Evidence:** A11 checks that the plan mentions the decision and that `bench/budgets.json`
+parses; A12 checks that `legacy/` is gone. Both run in a few ms. That's acceptable as gates, but
+A11 doesn't check the budgets against targets (see F6).
+
+**Fix:** A11 asserts every budget is ≤ the target or has a recorded exception in the plan (F6).
+A12 also asserts no workspace file references `legacy/` paths.
+
+- [ ] Updated
+
+### F11 — Agent rules and docs still describe an unmerged milestone (Low, but steers agents wrong)
+
+**Evidence:**
+
+- `AGENTS.md` ("This branch line (`milestone/realignment` …) is executing…", "Never push to
+  `main` or `development`"), `.cursor/rules/realignment-milestone.mdc` (same), `CLAUDE.md`.
+- `RELEASING.md`: `milestone/realignment` — "Merge here until the milestone ships."
+- `realignment/README.md`: Phase 0 status "Local check green 2026-11-14; CI not run" though CI
+  is green on `development`.
+
+**Fix:** update to the post-merge model: `development` is the integration branch; fixes and
+features branch as `fix/*` / `feat/*` from `development` with PRs into `development`; `main`
+publishes. Mark the milestone as merged (date, PR #68) in the plan header and
+`realignment/README.md`; set Phase 0's status to Done with the CI run. Rename
+`realignment-milestone.mdc` to `realignment.mdc` describing the shipped design and where the
+spec lives (do not fold into `ecp-spec.mdc`). Regenerate `realignment/doc-index.md`.
+
+- [x] Rules and docs updated
+
+### F12 — Spec and retrospective drift not written back (Low)
+
+**Evidence:** `test.bounded` exists in `plugin-test` but isn't in spec 08's capability list;
+the retrospective's "in-process event flush" row describes a workaround (warm host for A2) that
+looks obsolete (an in-process `ecp execute` wrote all 13 events in the audit, after commit
+`572110aa`); the Firefly scope cut (F7) isn't in the retrospective.
+
+**Fix:** update spec 08 (`bounded`), verify the in-process flush is fixed (test: in-process
+`execute` then read `events.ndjson` immediately after exit; `run.end` present) and update the
+retrospective row; add F7's outcome. Add a retrospective row for every finding here that
+changes a contract.
+
+Note (Group A): updated spec 08 (`bounded`) and the two retrospective rows (in-process event
+flush; Firefly plugin scope). The in-process flush is fixed (`run-store` flushes on `run.end`),
+so A2's warm-host workaround and its comment in `test/e2e/acceptance/A2.test.ts` are obsolete
+and Group G should switch A2 back to in-process. Group G owns the rest of F12.
+
+- [ ] Spec and retrospective updated
+
+### F13 — CLI help text isn't model-legible (Low)
+
+**Evidence:** `ecp --help` shows topic descriptions copied from one subcommand (`host` → "Tail
+host or supervisor logs.", `plugins` → "List installed plugins."); most flags have no
+description (`ecp execute --help`: `--cancel`, `--json`, `--no-wait`, `--out`, `--resume`,
+`--start-host`, `--validate`; `ecp retrieve --help`: `--format`, `--id`, `--limit`, `--query`,
+…; `ecp app --help`: all flags).
+
+**Fix:** set explicit topic descriptions in the CLI's oclif config; give every flag a one-line
+description and examples on each command (the plan's "help written for a model reader").
+
+**Tests:** a unit test walks the oclif manifest and fails on any command, topic or flag without
+a description.
+
+- [ ] Fixed
+- [ ] Test added
+
+### F14 — `--json` envelope not used everywhere (Low)
+
+**Evidence:** `ecp host status --json` prints `{ supervisor, health, port, home }`, not
+`{ ok: true, data }`. Spec 10: `--json` prints the envelope on every command.
+
+**Fix:** audit every command's `--json` (host start/stop/status/restart/logs, app, schema,
+secrets list, plugins list) and wrap in the envelope; errors as `{ ok: false, error }`.
+
+**Tests:** e2e iterates all commands with `--json` and asserts the envelope shape.
+
+- [ ] Fixed
+- [ ] Test added
+
+### F15 — `ecp retrieve` human output isn't a table (Low)
+
+**Evidence:** `ecp retrieve --type capability --query echo` prints bare ids. Spec 10: lists as an
+aligned table (id, summary, and for runs status/time).
+
+**Fix:** aligned columns per type (capability: id, summary; execution: id, version, updated;
+config: id, plugin, version; run: id, status, started, duration; plugin: package, version,
+source, manifest; formatter: id, media type, default). Respect non-TTY/`NO_COLOR`.
+
+**Tests:** snapshot tests per type.
+
+- [ ] Fixed
+
 ### F16 — `ecp plugins` lacks manifest status; extra oclif commands undocumented (Low)
 
 **Evidence:** spec 10: `list` adds manifest status per plugin — not shown. `ecp plugins` also

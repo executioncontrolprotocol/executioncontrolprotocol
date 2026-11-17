@@ -71,6 +71,25 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
       { env },
     )
 
+    const defaultConfigPath = path.join(home, "default-config.json")
+    writeFileSync(
+      defaultConfigPath,
+      `${JSON.stringify({
+        schema: "@executioncontrolprotocol.config",
+        version: "1.0",
+        id: "test/default",
+        plugin: "@executioncontrolprotocol/test",
+        values: { label: "lab" },
+        objectVersion: 0,
+        updatedAt: "",
+      })}\n`,
+    )
+    const defaultConfigCommit = await runEcp(
+      ["commit", "--type", "config", "--action", "create", "--object", `@${defaultConfigPath}`, "--json"],
+      { env },
+    )
+    expect(defaultConfigCommit.code, defaultConfigCommit.stderr + defaultConfigCommit.stdout).toBe(0)
+
     const ops = async (): Promise<unknown[]> => {
       const retrieve = parseJsonStdout(
         (
