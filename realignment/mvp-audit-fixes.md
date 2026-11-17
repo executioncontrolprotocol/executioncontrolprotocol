@@ -183,7 +183,7 @@ text and that every budget is ≤ the stated target or has a recorded exception.
 
 - [x] Profiled and causes recorded — `bench/phases.mjs` before/after tables in `REALIGNMENT-PLAN.md` Measurements (Group E).
 - [x] Fixes applied — `@executioncontrolprotocol/host/client`, lazy `createLocalHost`, committed `packages/cli/oclif.manifest.json` + drift check.
-- [ ] Ubuntu + Windows baselines committed — `bench/baseline/<date>-win32.json` on this branch; Linux file pending CI artifact upload (bench-linux).
+- [x] Ubuntu + Windows baselines committed — `bench/baseline/2026-11-17-win32.json` (local) and `bench/baseline/2026-11-17-linux.json` (CI bench artifact, #77); all medians within budget (Linux warm 159–179 ms, Windows 360–392 ms).
 - [x] Budgets set from targets; A11 updated — `bench/targets.json`, `bench/budget-check.mjs`, acceptance A11.
 
 ### F7 — Firefly plugin is a partial port, undocumented (Medium)
