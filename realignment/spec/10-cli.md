@@ -45,6 +45,11 @@ No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others a
    endpoint), run the operation, stop the host, exit. Print to stderr once:
    `tip: run "ecp host start" to keep a warm host and make commands faster`.
 
+If the warm host refuses the request because it began draining (for example an idle shutdown
+starting between discovery and the request: `ECP_HOST_RESTARTING`, or the connection drops),
+the CLI rediscovers once (waiting out the drain and auto-starting a fresh host when allowed)
+and resends the same request. It retries at most once.
+
 Health `draining` → wait and retry like the relay (09), up to 30 s.
 
 **Never auto-start:** `ecp host status|stop|restart|logs|reload` (status when down stays exit

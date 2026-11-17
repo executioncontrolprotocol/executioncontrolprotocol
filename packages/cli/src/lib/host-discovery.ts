@@ -65,6 +65,48 @@ export interface StartSupervisorOptions {
  * @category CLI
  */
 export async function discoverOps(options: DiscoverOpsOptions = {}): Promise<OpsHandle> {
+  const ops = await discoverOnce(options)
+  if (ops.mode !== "http") return ops
+  return retryOnceIfHostStops(ops, () => discoverOnce(options))
+}
+
+/**
+ * A warm host can begin an idle shutdown between discovery and the request, and then refuses
+ * new work with ECP_HOST_RESTARTING (or the connection drops). Rediscover once, which waits out
+ * the drain and starts a fresh host when allowed, and resend the same request.
+ * @category CLI
+ */
+export function retryOnceIfHostStops(ops: OpsHandle, rediscover: () => Promise<OpsHandle>): OpsHandle {
+  const withRetry = <I, D>(call: (handle: OpsHandle) => (input: I) => Promise<OperationResponse<D>>) =>
+    async (input: I): Promise<OperationResponse<D>> => {
+      let response: OperationResponse<D> | undefined
+      try {
+        response = await call(ops)(input)
+        if (response.ok || response.error.code !== "ECP_HOST_RESTARTING") return response
+      } catch (error) {
+        if (!isConnectionError(error)) throw error
+      }
+      const fresh = await rediscover()
+      try {
+        return await call(fresh)(input)
+      } finally {
+        if (fresh !== ops) await fresh.close()
+      }
+    }
+  return {
+    ...ops,
+    retrieve: withRetry((handle) => handle.retrieve),
+    execute: withRetry((handle) => handle.execute),
+    commit: withRetry((handle) => handle.commit),
+  }
+}
+
+function isConnectionError(error: unknown): boolean {
+  const code = (error as { cause?: { code?: string }; code?: string })?.cause?.code ?? (error as { code?: string })?.code
+  return code === "ECONNREFUSED" || code === "ECONNRESET" || (error instanceof TypeError && /fetch failed/i.test(error.message))
+}
+
+async function discoverOnce(options: DiscoverOpsOptions): Promise<OpsHandle> {
   const home = options.home ?? ecpHome()
   const warm = await tryWarm(home)
   if (warm) return warm

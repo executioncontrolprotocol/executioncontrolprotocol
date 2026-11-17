@@ -117,11 +117,11 @@ describe("host auto-start and idle shutdown", () => {
         steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 4000 }, as: "out" }],
       })}\n`,
     )
-    await runEcp(["retrieve", "--type", "capability", "--limit", "1", "--json"], { env })
-    await waitForHost(home)
+    // The execute itself auto-starts the host, so no idle gap opens between warming and the run.
     const run = await runEcp(["execute", manifest, "--no-wait", "--json"], { env })
-    expect(run.code).toBe(0)
+    expect(run.code, run.stdout + run.stderr).toBe(0)
     await delay(2500)
+    // Past the 2 s idle timeout, but the 4 s run keeps the host up.
     expect(existsSync(path.join(home, "host.json"))).toBe(true)
     await delay(5000)
     const deadline = Date.now() + 20_000
