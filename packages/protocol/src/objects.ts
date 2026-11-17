@@ -131,14 +131,22 @@ export interface RunExecutionRef {
 }
 
 /**
+ * How the host ran the execution (`server` HTTP child or `in-process`).
+ * @category Definitions
+ */
+export type RunHostMode = "in-process" | "server"
+
+/**
  * Host identity recorded on a run.
  * @category Definitions
  */
 export interface RunHostInfo {
   /** Host package version. */
   version: string
-  /** Host process id. */
+  /** Host process id (never 0 on new runs). */
   pid: number
+  /** `server` or `in-process`. */
+  mode: RunHostMode
 }
 
 /**

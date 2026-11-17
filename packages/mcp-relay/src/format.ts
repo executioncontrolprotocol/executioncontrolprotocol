@@ -46,18 +46,21 @@ export function formatError(error: {
 }): string {
   const lines: string[] = []
   const issues = error.issues ?? []
-  const first = issues[0]
-  const skipHeader =
-    first !== undefined &&
-    error.code === first.code &&
-    (error.path ?? "") === first.path &&
-    error.message === first.message
-  if (!skipHeader) {
-    const head = error.path ? `${error.path}: ${error.code} — ${error.message}` : `${error.code} — ${error.message}`
+  const errorIssues = issues.filter((issue) => issue.severity === "error")
+  if (errorIssues.length > 0) {
+    const noun = errorIssues.length === 1 ? "validation error" : "validation errors"
+    // The header is the code and a count only; each issue line carries its own path.
+    const head = `${error.code} — ${errorIssues.length} ${noun}`
     lines.push(head)
-    for (const suggestion of error.suggestions ?? []) {
-      lines.push(`  suggestion: ${suggestion}`)
+    for (const issue of issues) {
+      lines.push(formatIssue(issue))
     }
+    return lines.join("\n")
+  }
+  const head = error.path ? `${error.path}: ${error.code} — ${error.message}` : `${error.code} — ${error.message}`
+  lines.push(head)
+  for (const suggestion of error.suggestions ?? []) {
+    lines.push(`  suggestion: ${suggestion}`)
   }
   for (const issue of issues) {
     lines.push(formatIssue(issue))

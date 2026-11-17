@@ -34,13 +34,19 @@ describe("format and paths", () => {
   })
 
   it("formats issue lines", () => {
-    expect(
-      formatError({
-        code: "ECP_MANIFEST_INVALID",
-        message: "no",
-        issues: [{ code: "ECP_Y", message: "y", path: "/steps", severity: "error" }],
-      }),
-    ).toContain("/steps: ECP_Y — y")
+    const text = formatError({
+      code: "ECP_MANIFEST_INVALID",
+      message: "The execution is invalid.",
+      issues: [{ code: "ECP_Y", message: "y", path: "/steps", severity: "error" }],
+    })
+    expect(text).toContain("ECP_MANIFEST_INVALID — 1 validation error")
+    expect(text.split("\n")[0]).toBe("ECP_MANIFEST_INVALID — 1 validation error")
+    expect(text).toContain("/steps: ECP_Y — y")
+    expect(text).not.toContain("The execution is invalid.")
+  })
+
+  it("keeps a plain header when there are no issues", () => {
+    expect(formatError({ code: "ECP_NOT_FOUND", message: "missing" })).toContain("ECP_NOT_FOUND — missing")
   })
 
   it("resolves relative paths against cwd", () => {

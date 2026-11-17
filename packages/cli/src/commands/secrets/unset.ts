@@ -1,35 +1,53 @@
 import { Args, Command, Flags } from "@oclif/core"
 import { withSecrets } from "../../lib/secrets.js"
-import { exitWith } from "../../lib/exit.js"
+import { writeEnvelope } from "../../lib/output.js"
 
 /**
  * `ecp secrets unset`
  * @category CLI
  */
 export default class SecretsUnset extends Command {
-  static override description = "Delete a secret from the OS keychain."
+  static override description = "Remove a secret from the keychain; exit 2 when the key does not exist."
 
   static override args = {
-    key: Args.string({ required: true }),
+    key: Args.string({ required: true, description: "Secret key to delete." }),
   }
 
+  static override examples = [
+    {
+      description: "Deletes the key when present; missing keys return exit 2 with --json.",
+      command: "<%= config.bin %> secrets unset anthropic.apiKey",
+    },
+  ]
+
   static override flags = {
-    json: Flags.boolean({ default: false }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
   }
 
   override async run(): Promise<void> {
     const { args, flags } = await this.parse(SecretsUnset)
     const existed = await withSecrets(async (secrets) => secrets.delete(args.key))
     if (!existed) {
-      if (flags.json) {
-        process.stdout.write(
-          `${JSON.stringify({ ok: false, error: { code: "ECP_NOT_FOUND", message: `Secret ${args.key} was not found.` } })}\n`,
-        )
-      } else this.error(`Secret ${args.key} was not found.`, { exit: 2 })
-      exitWith(2)
+      writeEnvelope(
+        { ok: false, error: { code: "ECP_NOT_FOUND", message: `Secret ${args.key} was not found.` } },
+        {
+          json: flags.json,
+          human: () => this.error(`Secret ${args.key} was not found.`, { exit: 2 }),
+          exitCode: 2,
+        },
+      )
     }
-    if (flags.json) process.stdout.write(`${JSON.stringify({ key: args.key, unset: true })}\n`)
-    else this.log(`unset ${args.key}`)
-    exitWith(0)
+    writeEnvelope(
+      { ok: true, data: { key: args.key, unset: true } },
+      {
+        json: flags.json,
+        human: () => this.log(`unset ${args.key}`),
+        exitCode: 0,
+      },
+    )
   }
 }

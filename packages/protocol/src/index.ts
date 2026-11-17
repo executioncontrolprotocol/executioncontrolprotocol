@@ -60,6 +60,7 @@ export type {
   RunExecutionRef,
   RunFilter,
   RunHostInfo,
+  RunHostMode,
   RunRecord,
   RunStatus,
   SecretRef,

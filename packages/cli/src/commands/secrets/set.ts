@@ -1,22 +1,34 @@
 import { Args, Command, Flags } from "@oclif/core"
 import { readStdin } from "../../lib/input.js"
 import { withSecrets } from "../../lib/secrets.js"
-import { exitWith } from "../../lib/exit.js"
+import { writeEnvelope } from "../../lib/output.js"
 
 /**
  * `ecp secrets set`
  * @category CLI
  */
 export default class SecretsSet extends Command {
-  static override description = "Store a secret in the OS keychain."
+  static override description =
+    "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean."
 
   static override args = {
-    key: Args.string({ required: true }),
+    key: Args.string({ required: true, description: "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/apiKey." }),
   }
 
+  static override examples = [
+    {
+      description: "Reads the value from stdin and stores it under the key.",
+      command: "<%= config.bin %> secrets set anthropic.apiKey",
+    },
+  ]
+
   static override flags = {
-    value: Flags.string({ description: "Secret value (prefer stdin to avoid shell history)." }),
-    json: Flags.boolean({ default: false }),
+    value: Flags.string({ description: "Secret value inline (prefer stdin to avoid shell history)." }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
   }
 
   override async run(): Promise<void> {
@@ -27,14 +39,26 @@ export default class SecretsSet extends Command {
       else value = await promptHidden("value: ")
     }
     if (value === undefined || value === "") {
-      this.error("Secret value is required.", { exit: 2 })
+      writeEnvelope(
+        { ok: false, error: { code: "ECP_REQUEST_INVALID", message: "Secret value is required." } },
+        {
+          json: flags.json,
+          human: () => this.error("Secret value is required.", { exit: 2 }),
+          exitCode: 2,
+        },
+      )
     }
     await withSecrets(async (secrets) => {
       await secrets.set(args.key, value!)
     })
-    if (flags.json) process.stdout.write(`${JSON.stringify({ key: args.key, set: true })}\n`)
-    else this.log(`set ${args.key}`)
-    exitWith(0)
+    writeEnvelope(
+      { ok: true, data: { key: args.key, set: true } },
+      {
+        json: flags.json,
+        human: () => this.log(`set ${args.key}`),
+        exitCode: 0,
+      },
+    )
   }
 }
 

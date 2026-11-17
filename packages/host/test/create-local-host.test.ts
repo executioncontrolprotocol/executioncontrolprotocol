@@ -38,7 +38,7 @@ describe("createLocalHost", () => {
         error: null,
         startedAt: new Date(Date.now() - 1000).toISOString(),
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
       },
       tiny,
     )

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { exitCodeForEnvelope } from "../src/lib/exit.js"
-import { plainOutput, printCommitHuman, printExecuteHuman, printRetrieveHuman } from "../src/lib/output.js"
+import { plainOutput, printCommitHuman, printExecuteHuman, printRetrieveHuman, truncateCell } from "../src/lib/output.js"
 import { ecpDataDir, ecpHome, ensureHomeLayout } from "../src/lib/home.js"
 import os from "node:os"
 import path from "node:path"
@@ -44,7 +44,15 @@ describe("cli exit and output", () => {
       return true
     }) as typeof process.stdout.write
     try {
-      printRetrieveHuman({ items: [{ id: "cap.a", name: "A" }], total: 1 })
+      printRetrieveHuman({
+        type: "capability",
+        items: [
+          { id: "@executioncontrolprotocol/test.echo", plugin: "@executioncontrolprotocol/test", summary: "Echo" },
+          { id: "@executioncontrolprotocol/test.delay", plugin: "@executioncontrolprotocol/test", summary: "Delay" },
+        ],
+        total: 2,
+      })
+      printRetrieveHuman({ type: "capability", items: [], total: 0 })
       printExecuteHuman({
         runId: "r1",
         status: "completed",
@@ -63,7 +71,11 @@ describe("cli exit and output", () => {
       process.stdout.write = orig
     }
     const text = chunks.join("")
-    expect(text).toContain("cap.a")
+    expect(text).toContain("id")
+    expect(text).toContain("summary")
+    expect(text).toContain("@executioncontrolprotocol/test.echo")
+    expect(text).toContain("No capabilities found.")
+    expect(truncateCell("x".repeat(61))).toBe(`${"x".repeat(57)}...`)
     expect(text).toContain("echo  completed")
     expect(text).toContain("valid")
     expect(text).toContain("ECP_X")

@@ -9,13 +9,20 @@ import { ecpHome } from "../../lib/home.js"
  * @category CLI
  */
 export default class McpStart extends Command {
-  static override description = "Start the MCP relay on stdio."
+  static override description =
+    "Run the MCP relay on stdio (no --json); use when the agent connects over MCP instead of the CLI."
+
+  static override examples = [
+    {
+      description: "Starts the relay; stdout is reserved for MCP frames only.",
+      command: "<%= config.bin %> mcp start",
+    },
+  ]
 
   override async run(): Promise<void> {
     await this.parse(McpStart)
     const home = ecpHome()
     const ecpBin = resolveEcpBin()
-    // Blocks until the MCP client closes stdio. Do not write to stdout.
     await startRelay({
       cwd: process.cwd(),
       home,
@@ -25,7 +32,6 @@ export default class McpStart extends Command {
 }
 
 function resolveEcpBin(): string {
-  // When launched as `node …/bin/ecp.js …`, argv[1] is the bin.
   const argvBin = process.argv[1]
   if (argvBin && (argvBin.endsWith("ecp.js") || argvBin.endsWith(`${path.sep}ecp`) || argvBin.endsWith("/ecp"))) {
     return path.resolve(argvBin)

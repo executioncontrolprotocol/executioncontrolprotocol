@@ -120,6 +120,9 @@ Written atomically by the supervisor before the first host spawn, rewritten on e
   model to call `execute { resume }`).
 - **Results:** `content: [{ type: "text", text }]` where `text` is the formatted data (JSON
   pretty-printed, or the formatter's text), plus `structuredContent` = the `data` object.
-  `ok: false` → `isError: true` with the error rendered as text (code, message, then each issue
-  as `path: code — message (suggestions)`).
+  `ok: false` → `isError: true` with the error rendered as text: when `issues` includes
+  `severity: "error"`, the first line is the top-level `code` and a count (`1 validation error` /
+  `N validation errors`), then one line per issue as `path: code — message (suggestions)` without
+  repeating the first issue in the summary line; with no issues, `code — message` and optional
+  suggestions as today.
 - The tool list never changes, so the relay never sends `tools/list_changed`.

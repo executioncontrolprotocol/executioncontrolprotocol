@@ -262,6 +262,7 @@ export function createEnvironment(): Environment {
         operations: createOperations(lookup, {
           settings: resolved,
           writeTextFile: resolved.writeTextFile,
+          hostPid: process.pid,
         }),
         settings: resolved,
         async stop() {

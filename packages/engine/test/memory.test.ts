@@ -32,7 +32,7 @@ function runRecord(id: string, status: RunRecord["status"] = "running"): RunReco
     error: null,
     startedAt: `2026-11-14T00:00:0${id.at(-1)}Z`,
     plugins: {},
-    host: { version: VERSION, pid: 1 },
+    host: { version: VERSION, pid: 1, mode: "in-process" },
     warnings: [],
   }
 }

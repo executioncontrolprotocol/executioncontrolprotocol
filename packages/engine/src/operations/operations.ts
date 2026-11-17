@@ -49,6 +49,8 @@ export interface OperationsOptions {
   writeTextFile?: (path: string, text: string) => Promise<void>
   /** Host settings used for timeouts and concurrency. */
   settings?: ResolvedHostSettings
+  /** Host process id recorded on runs (defaults to `process.pid`). */
+  hostPid?: number
   /** Override run id creation. */
   createRunId?: () => string
 }
@@ -399,11 +401,17 @@ async function execute(
     })
     if (validation.issues.some((issue) => issue.severity === "error")) {
       const first = validation.issues.find((issue) => issue.severity === "error")
+      const code =
+        first?.code === "ECP_EXECUTION_LOAD" || first?.code === "ECP_INPUT_INVALID" ? first.code : "ECP_MANIFEST_INVALID"
+      const message =
+        code === "ECP_EXECUTION_LOAD" || code === "ECP_INPUT_INVALID"
+          ? (first?.message ?? "The execution is invalid.")
+          : "The execution is invalid."
       return {
         ok: false,
         error: {
-          code: first?.code === "ECP_EXECUTION_LOAD" || first?.code === "ECP_INPUT_INVALID" ? first.code : "ECP_MANIFEST_INVALID",
-          message: first?.message ?? "The execution is invalid.",
+          code,
+          message,
           issues: validation.issues,
           path: first?.path,
         },
@@ -531,7 +539,11 @@ async function startAndAwait(
     error: null,
     startedAt,
     plugins: Object.fromEntries(plugins.plugins().map((plugin) => [plugin.id, plugin.version])),
-    host: { version: VERSION, pid: 0 },
+    host: {
+      version: VERSION,
+      pid: options.hostPid ?? process.pid,
+      mode: options.settings?.mode ?? "in-process",
+    },
     clientRequestId: input.clientRequestId,
     cursor,
     warnings: validation.issues.filter((issue) => issue.severity === "warning"),

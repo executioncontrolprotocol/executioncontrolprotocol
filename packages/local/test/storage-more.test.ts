@@ -106,7 +106,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: "2026-11-14T00:00:02.000Z",
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
         clientRequestId: "c1",
       },
       tiny,
@@ -123,7 +123,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: "2026-11-14T00:00:01.000Z",
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
       },
       tiny,
     )
@@ -208,7 +208,7 @@ describe("LocalStorage extra branches", () => {
         error: null,
         startedAt: new Date().toISOString(),
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
       },
       tiny,
     )

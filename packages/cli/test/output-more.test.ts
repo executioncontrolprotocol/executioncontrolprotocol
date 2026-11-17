@@ -26,11 +26,15 @@ describe("cli output edges", () => {
         error: { code: "ECP_STEP_FAILED", message: "boom", path: "/steps/0" },
       })
       printError({
+        code: "ECP_MANIFEST_INVALID",
+        message: "The execution is invalid.",
+        issues: [{ code: "ECP_REF_UNRESOLVED", message: "bad ref", path: "/steps/0", severity: "error" }],
+      })
+      printError({
         code: "ECP_NOT_FOUND",
         message: "missing",
         path: "/id",
         suggestions: ["create it"],
-        issues: [{ code: "ECP_X", message: "bad", path: "/x", severity: "error", suggestions: ["fix"] }],
       })
     } finally {
       process.stdout.write = out
@@ -38,6 +42,10 @@ describe("cli output edges", () => {
     }
     const text = chunks.join("")
     expect(text).toContain("formatted")
+    expect(text).toContain("1 validation error")
+    // Header line is code + count only; the issue line carries the path.
+    expect(text).toMatch(/^ECP_MANIFEST_INVALID  1 validation error$/m)
+    expect(text).toContain("/steps/0  ECP_REF_UNRESOLVED  bad ref")
     expect(text).toContain("suggestion: create it")
     expect(text).toContain("ECP_STEP_FAILED")
   })

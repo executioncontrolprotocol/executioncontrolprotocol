@@ -457,7 +457,7 @@ describe("run fixtures", () => {
         error: null,
         startedAt: "2026-11-14T00:00:00.000Z",
         plugins: {},
-        host: { version: VERSION, pid: 1 },
+        host: { version: VERSION, pid: 1, mode: "in-process" },
         warnings: [],
       } satisfies RunRecord,
       {

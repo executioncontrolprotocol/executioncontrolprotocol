@@ -2,6 +2,7 @@ import { Args, Command, Config, Flags } from "@oclif/core"
 import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { ecpDataDir } from "../../lib/home.js"
+import { writeEnvelope } from "../../lib/output.js"
 
 /**
  * `ecp plugins inspect` — resolve plugins from `$ECP_DATA_DIR/package.json` because
@@ -9,27 +10,42 @@ import { ecpDataDir } from "../../lib/home.js"
  * @category CLI
  */
 export default class PluginsInspect extends Command {
-  static override description = "Displays installation properties of a plugin."
-
-  static override enableJsonFlag = true
+  static override description =
+    "Show where a plugin is installed on disk; use the top-level plugins command for host manifest status."
 
   static override strict = false
 
+  static override examples = [
+    {
+      description: "Prints package path and version for plugin-test.",
+      command: "<%= config.bin %> plugins inspect plugin-test",
+    },
+  ]
+
   static override args = {
     plugin: Args.string({
-      description: "Plugin to inspect.",
+      description: "Plugin package or friendly name to inspect.",
       required: true,
     }),
   }
 
   static override flags = {
-    verbose: Flags.boolean({ char: "v", default: false }),
+    verbose: Flags.boolean({
+      char: "v",
+      description: "Include dependency versions in the output.",
+      default: false,
+    }),
+    json: Flags.boolean({
+      description:
+        "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+      default: false,
+    }),
   }
 
-  override async run(): Promise<unknown> {
+  override async run(): Promise<void> {
     const { argv, flags } = await this.parse(PluginsInspect)
     const names = (argv.length > 0 ? argv : ["."]).map(String)
-    const results = []
+    const results: Array<Awaited<ReturnType<typeof describePlugin>>> = []
     for (const raw of names) {
       const name = raw === "." ? readLocalPackageName() : expandFriendlyName(raw, this.config)
       const entry = findDiskPlugin(this.config.dataDir || ecpDataDir(), name)
@@ -45,17 +61,24 @@ export default class PluginsInspect extends Command {
           : path.join(this.config.dataDir || ecpDataDir(), "node_modules", entry.name)
       results.push(await describePlugin(root, entry.name, entry.type ?? "user", flags.verbose))
     }
-    if (flags.json) return results
-    for (const result of results) {
-      this.log(`${result.name} ${result.version} (${result.type})`)
-      this.log(`  location ${result.root}`)
-      if (flags.verbose && result.dependencies) {
-        for (const [dep, version] of Object.entries(result.dependencies)) {
-          this.log(`  ${dep} ${version}`)
-        }
-      }
-    }
-    return results
+    writeEnvelope(
+      { ok: true, data: { items: results } },
+      {
+        json: flags.json,
+        human: () => {
+          for (const result of results) {
+            this.log(`${result.name} ${result.version} (${result.type})`)
+            this.log(`  location ${result.root}`)
+            if (flags.verbose && result.dependencies) {
+              for (const [dep, version] of Object.entries(result.dependencies)) {
+                this.log(`  ${dep} ${version}`)
+              }
+            }
+          }
+        },
+        exitCode: 0,
+      },
+    )
   }
 }
 
