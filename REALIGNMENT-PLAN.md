@@ -140,8 +140,8 @@ flowchart TB
   mcp["ecp mcp start<br/>(MCP relay)"] -- "reads; runs ecp host start<br/>if the host is down" --> hj
   mcp -- "HTTP + token" --> host
   app["ecp app [path]"] -- "opens browser on host API" --> host
-  oneoff["ecp execute / retrieve / commit"] -- "host up: call API" --> host
-  oneoff -- "host down: run in-process,<br/>print tip, exit" --> files[("localstorage files")]
+  oneoff["ecp execute / retrieve / commit / plugins"] -- "host up: call API" --> host
+  oneoff -- "host down: auto-start supervisor<br/>(or in-process if opted out)" --> sup
   host -- "read / write" --> files
 ```
 
@@ -211,10 +211,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  cmd["ecp execute / retrieve / commit"] --> check{"~/.ecp/host.json exists<br/>and host responds?"}
+  cmd["ecp execute / retrieve / commit / plugins"] --> check{"~/.ecp/host.json exists<br/>and host responds?"}
   check -- yes --> api["Call the running host's API<br/>(warm: manifests and plugins already loaded)"]
-  check -- "no, --start-host" --> start["ecp host start,<br/>then call its API"]
-  check -- no --> boot["Boot a host in this process<br/>(same core, same lazy loading)<br/>tip: run ecp host start"]
+  check -- "no, not opted out" --> start["Detached supervisor<br/>(idle 15m), then call API"]
+  check -- "no, --no-start-host or ECP_NO_START_HOST" --> boot["Boot a host in this process<br/>(same core, same lazy loading)<br/>tip: run ecp host start"]
   start --> api
   boot --> run["Run, write results to localstorage, exit"]
   api --> out["Print result / write --out file"]
@@ -232,13 +232,13 @@ flowchart LR
 
 ### Host supervisor
 
-- **Required vs optional (decided 2026-11-17).** MCP and the App always need a running host, so the supervisor exists either way. One-off CLI commands stay **in-process when no host is running** (no idle auto-start); see Measurements for the Phase 5 benchmark. Explicit `ecp host start` remains available for a warm background host.
-- Started by `ecp host start` as a detached process (Node `spawn` with `detached` + `unref`; works on Windows). Logs to `~/.ecp/logs/`.
+- **Auto-start + idle (decided 2026-11-17 Phase 5, implemented follow-up).** MCP and the App always need a running host. One-off `retrieve`, `execute`, `commit`, and `plugins` (list) auto-start a detached supervisor when no healthy host exists (B3 warm savings **700 ms**: in-process **1085.7** vs warm **386.1**). Default **15 min** idle with no activity and no active runs, then clean stop (`ECP_HOST_IDLE_MINUTES`, `ecp host start --idle-minutes`). Opt out with `--no-start-host` or `ECP_NO_START_HOST`. Explicit `ecp host start` pins idle (`0` = never).
+- Started by `ecp host start` or discovery auto-start as a detached process (Node `spawn` with `detached` + `unref`; works on Windows). One supervisor per `ECP_HOME` (`supervisor.pid` mutex). Logs to `~/.ecp/logs/`.
 - Picks the port and token once, writes `~/.ecp/host.json` (pid, port, token, started-at), spawns the host, and keeps the **same port across restarts** so clients just reconnect.
 - Watches the plugins marker (touched by `ecp plugins install/uninstall/link`), debounced. On change: asks the host to drain, then restarts it.
 - **Drain rule (proposed):** wait for active runs to finish, capped (e.g. 30 s); `ecp host restart --force` restarts immediately. Interrupted runs resume from their last saved step.
 - Crash: restart with backoff; failures visible in `ecp host status` and through `retrieve`.
-- `ecp host stop | status | restart` talk to the supervisor. `status` shows pid, port, uptime, loaded plugins and active runs.
+- `ecp host stop | status | restart` talk to the supervisor (`restart` reloads plugins/config after drain; `reload` is an alias). `status` shows pid, port, uptime, loaded plugins, active runs, idle policy, and activity (`spec` 09/10).
 
 ### MCP relay
 
@@ -341,12 +341,12 @@ Consequence for today's plugins: `format-toon` and `format-mermaid` become `Form
 
 ### CLI (oclif)
 
-Every `ecp` command is a short-lived process. Commands that need the engine use the running host if there is one, and otherwise build a host in their own process (decided 2026-11-14). Whether the CLI should start a background host for this is an option decided by the CLI benchmark; until then, one-off commands default to in-process when no host is running.
+Every `ecp` command is a short-lived process. Commands that need the engine use a healthy host if there is one; otherwise they auto-start a detached supervisor (unless opted out), else an in-process host for that command only (decided 2026-11-14; auto-start per Phase 5 benchmark, spec 10).
 
-- `ecp host start | stop | status | restart [--force]` **(option, pending the CLI benchmark)**: the warm host, through the supervisor. If automatic start is adopted, `start` is rarely typed and `status` / `stop` / `restart --force` remain for troubleshooting.
+- `ecp host start | stop | status | restart [--force]` (`reload` = alias of `restart`): the warm host through the supervisor; `start` accepts `--idle-minutes` and is rarely typed after auto-start.
 - `ecp mcp start`: the MCP relay (starts the host if it's down).
 - `ecp app [path | id]`: opens the App in the browser on the running host (starts it if needed). See "App".
-- `ecp retrieve | execute | commit`: the same three operations as the MCP tools. If `~/.ecp/host.json` exists and the host responds, they call its API (warm). Otherwise they boot a host in-process for that one command and print a tip to run `ecp host start`; `--start-host` starts it and then calls it. Output goes to stdout, so agents can pipe it or redirect it and choose what enters their context.
+- `ecp retrieve | execute | commit | plugins` (list): the same three operations as the MCP tools (list uses retrieve). Healthy `host.json` → HTTP API (warm). Else auto-start supervisor, else in-process with `--no-start-host` / `ECP_NO_START_HOST`. Output goes to stdout, so agents can pipe it or redirect it and choose what enters their context.
   - `ecp retrieve --type capability --query "blob storage"` / `--id …`
   - `ecp execute <path | id> --input <file | json> [--out <file>]`
   - `ecp commit --type config --action update --id … --patch <file>`
@@ -866,7 +866,7 @@ Startup and restart speed decide how often agents and CLI commands wait. Measure
 | CLI warm-path phases (before fixes, 2026-11-17, Windows, `bench/phases.mjs`) | Module import ms (sequential): oclif-core 196.3, plugin-help 106.1, plugin-plugins 156.7, plugin-not-found 1120.3, host barrel 414.4 (no `host/client` yet). B1 warm retrieve wall median **757.5** ms (11 runs, plugin-test only). | Lazy `host/client` + oclif manifest (Group E). |
 | CLI warm-path phases (after fixes, same tools) | oclif-core 140.1, plugin-help 85.6, plugin-plugins 47.2, plugin-not-found 119.8, host barrel 310.2, **host/client 1.7**. B1 warm wall median **359.8** ms. `DEBUG=oclif*` on `node packages/cli/bin/ecp.js` shows `using manifest from …/packages/cli/oclif.manifest.json`. | Warm CLI target **1000** ms (`bench/targets.json`). |
 | `ecp retrieve` / `execute`, warm host (B1–B3, 2026-11-17, Windows) | All four MVP plugins linked; 11 runs. B1 warm **359.7** ms; B2 warm **364.5** ms; B3 warm **386.1** ms. Targets **1000** ms; budgets match targets. | `bench/baseline/2026-11-17-win32.json`. |
-| `ecp retrieve` / `execute`, in-process (same run) | B1 **979.9** ms; B2 **977.4** ms; B3 **1085.7** ms (still loads full host once per process). Budgets **1500** ms. | Spec 10 in-process fallback unchanged. |
+| `ecp retrieve` / `execute`, in-process (same run) | B1 **979.9** ms; B2 **977.4** ms; B3 **1085.7** ms (still loads full host once per process; bench sets `ECP_NO_START_HOST=1`). Budgets **1500** ms. | In-process mode via opt-out; default CLI auto-starts (spec 10). |
 | B5 `$expr` warm / B7 schema | B5 **392** ms (branch fixture with `--input`). B7 **356.4** ms (five `ecp schema` samples, all plugins). Budgets **1000** / **2000** ms. | B5 no longer uses `--validate`. |
 | Host start / restart (B6) | Start median **1800.5** ms; restart **4186.3** ms. Budgets **3000** / **6000** ms. | |
 | B8 execute warm all plugins | **385.4** ms. Budget **1000** ms. | |
@@ -896,7 +896,7 @@ The MCP column is the lower bound (no process start per call); the question is h
 - Warm host saves **less than ~300 ms median per call** on scenarios 3 and 4 → the CLI stays in-process when no host is running (spec 10). The background host remains for MCP and the App; `ecp host start|stop|status|restart|logs` stay available.
 - Saves **more** → one-off CLI commands auto-start the background host, with idle shutdown (15 min idle, no active runs). Only then decide whether an opt-out is needed.
 
-**Phase 5 decision (2026-11-17, Windows, Group E):** After lazy `host/client` and oclif manifest, B3 warm savings median **700 ms** (in-process **1085.7** vs warm **386.1**). That crosses the ~300 ms auto-start threshold in `bench/run.mjs`, but **keep in-process fallback** when no host is running (spec 10; auto-start + idle shutdown is a follow-up). B4 Firefly live skipped (no credentials). Design targets in `bench/targets.json`; enforced budgets in `bench/budgets.json`; evidence in `bench/baseline/2026-11-17-win32.json` (Ubuntu `*-linux.json` pending CI `bench-linux` artifact). A11 checks targets, exceptions, and baselines.
+**Phase 5 decision (2026-11-17, Windows, Group E):** After lazy `host/client` and oclif manifest, B3 warm savings median **700 ms** (in-process **1085.7** vs warm **386.1**). That crosses the ~300 ms auto-start threshold in `bench/run.mjs`. **Shipped (follow-up):** auto-start with idle shutdown (15 min, no active runs) per spec 10; in-process remains via `ECP_NO_START_HOST` (bench B1–B3 in-process rows). B4 Firefly live skipped (no credentials). Design targets in `bench/targets.json`; enforced budgets in `bench/budgets.json`; evidence in `bench/baseline/2026-11-17-win32.json` (Ubuntu `*-linux.json` pending CI `bench-linux` artifact). A11 checks targets, exceptions, and baselines.
 
 ## Later
 
@@ -932,8 +932,8 @@ Resolved by the MVP spec (2026-11-14): package names, QuickJS limits and the `$s
 
 Still open, decided inside their phases:
 
-- Background host for one-off CLI commands (Phase 5 benchmark decision) — **done:** keep
-  in-process fallback.
+- Background host for one-off CLI commands (Phase 5 benchmark decision) — **done:** auto-start
+  with idle shutdown; opt-out for in-process and benchmarks.
 - Release tag naming and the 0.x deprecation list (Phase 9) — **done:** see `RELEASING.md`
   (`mvp-YYYY.MM.DD`).
 
@@ -947,6 +947,7 @@ Notable drifts from the original spec/plan while building, and why:
 | A10 Azure storage | Firefly-only / generic storage | Adobe `storageType: "azure"` + Azure SAS config | Firefly upload failed without Azure storage type; dogfood needs a provisioned container. |
 | Provider errors | Generic step failure | `ECP_PROVIDER_ERROR` with `message` + `details` on the issue | Agents need the provider body (IMS, credit, HTTP) to repair; rule in `extensions.mdc` / spec 08. |
 | CLI warm host | Optional auto-start if warm saves ≥ ~300 ms | Keep in-process when no host (Phase 5 decision, 2026-11-17) | F6 reset budgets from `bench/targets.json` (see Measurements); MCP/App still require a running host. |
+| CLI auto-start + idle | Follow-up after Phase 5 in-process ship | Auto-start + 15 min idle (spec 10/09); `ECP_NO_START_HOST` for in-process | B3 savings 700 ms crossed threshold; bench in-process rows use opt-out. |
 | Mid-session second plugin in A6 | `plugins link` of a second fixture | Pack + `plugins install` of the minimal fixture | Linked packages require a `definePlugin` `dist/index.js`; hand-written manifests load on install. |
 | In-process event flush | Disk always has full `events.ndjson` after CLI execute | Fixed: `LocalRunStore.appendEvent` flushes immediately on `run.end`. A2 runs in-process; `events.ndjson` ends with `run.end` before the CLI process exits. | `process.exit` used to skip `ops.close()` flush; run-end flush (`572110aa` / `run-store.ts`). |
 | Firefly plugin scope | All generated Firefly Services capabilities (spec 08) | Eight families in `GENERATED_FAMILIES`: `audio-video`, `creative-production`, `express`, `firefly`, `illustrator`, `indesign`, `photoshop`, `substance3d` — **63** capabilities, `pendingFamilies: []`; `content-tagging` still skipped. | F7 S1–S6: one base validator + lazy raw `accepts` (spec 03) replaced the combined marker-wrapped schema and unblocked the families. |

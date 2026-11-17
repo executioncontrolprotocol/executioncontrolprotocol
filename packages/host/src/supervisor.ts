@@ -8,6 +8,7 @@ import {
   statSync,
   unlinkSync,
   watch as fsWatch,
+  writeFileSync,
   type FSWatcher,
 } from "node:fs"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
@@ -29,6 +30,9 @@ import { readHostJson } from "./client/read-host-json.js"
 import { openRotatingLog } from "./log-rotate.js"
 import { allocateLoopbackPort } from "./ports.js"
 import { generateHostToken } from "./token.js"
+import { decideIdleShutdown } from "./idle-shutdown.js"
+import { resolveIdleConfigFromEnv, type ResolvedIdleConfig } from "./idle-config.js"
+import type { HostHealth } from "./client/check-health.js"
 import { VERSION } from "./version.js"
 
 const HEALTH_WAIT_MS = 15_000
@@ -51,6 +55,12 @@ export interface SupervisorOptions {
   dataDir?: string
   /** Path to host `main.js`. Default sibling of this module. */
   hostEntry?: string
+  /** Idle minutes override (`0` = never). */
+  idleMinutes?: number
+  /** Millisecond idle override (tests); wins over minutes. */
+  idleMsOverride?: number
+  /** How this supervisor was started. */
+  startedBy?: "auto" | "explicit"
 }
 
 /**
@@ -60,15 +70,30 @@ export interface SupervisorOptions {
 export async function runSupervisor(options: SupervisorOptions): Promise<void> {
   const home = path.resolve(options.home)
   mkdirSync(path.join(home, "logs"), { recursive: true })
+
+  const pidPath = path.join(home, "supervisor.pid")
+  if (!acquireSupervisorPid(pidPath)) return
+
   const existing = readHostJson(home)
   if (existing && isProcessAlive(existing.supervisorPid)) {
+  if (existing.supervisorPid !== process.pid) {
+      try {
+        unlinkSync(pidPath)
+      } catch {
+        // ignore
+      }
+    }
     return
   }
 
   const dataDir = options.dataDir ?? path.join(home, "plugins")
   mkdirSync(dataDir, { recursive: true })
   const hostEntry =
-    options.hostEntry ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "main.js")
+    options.hostEntry ??
+    process.env.ECP_HOST_ENTRY ??
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "main.js")
+
+  const idleConfig = resolveSupervisorIdleConfig(options)
   const log = openRotatingLog(path.join(home, "logs", "supervisor.log"))
   const writeLog = (line: string): void => {
     // Never log the token.
@@ -88,6 +113,14 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
   let backoffMs = 1000
   let stopping = false
   let ignoringExit = false
+  let lastHealth: HostHealth | undefined
+  const removeSupervisorPid = (): void => {
+    try {
+      unlinkSync(pidPath)
+    } catch {
+      // missing is fine
+    }
+  }
   const writeHostFile = async (pid: number): Promise<void> => {
     const file: HostFile = {
       schema: HOST_SCHEMA,
@@ -100,6 +133,8 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
       hostVersion: VERSION,
       startedAt: new Date().toISOString(),
       home,
+      idleMinutes: idleConfig.idleMinutes,
+      startedBy: idleConfig.startedBy,
     }
     const target = path.join(home, "host.json")
     await atomicWriteText(target, `${JSON.stringify(file, null, 2)}\n`)
@@ -112,13 +147,32 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     }
   }
 
-  const status = (): SupervisorStatus => ({
-    supervisorPid: process.pid,
-    hostPid,
-    hostStatus,
-    restarts,
-    lastRestartReason,
-  })
+  const status = (): SupervisorStatus => {
+    const base = {
+      supervisorPid: process.pid,
+      hostPid,
+      hostStatus,
+      restarts,
+      lastRestartReason,
+      idleMinutes: idleConfig.idleMinutes,
+      startedBy: idleConfig.startedBy,
+    }
+    const decision = decideIdleShutdown({
+      idleMs: idleConfig.idleMs,
+      lastActivityAt: lastHealth?.lastActivityAt,
+      nowMs: Date.now(),
+      activeRuns: lastHealth?.activeRuns ?? 0,
+      openStreams: lastHealth?.openStreams ?? 0,
+      hostHealthy: hostStatus === "healthy",
+      stopping,
+    })
+    return {
+      ...base,
+      lastActivityAt: lastHealth?.lastActivityAt ?? null,
+      idleShutdownAt: decision.idleShutdownAt,
+      idleBlockedBy: decision.idleBlockedBy,
+    }
+  }
 
   const spawnHost = async (): Promise<void> => {
     hostStatus = "starting"
@@ -291,6 +345,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
       } catch {
         // missing is fine
       }
+      removeSupervisorPid()
       res.statusCode = 200
       res.end(`${JSON.stringify({ ok: true, data: {} })}\n`)
       controlServer?.close()
@@ -304,7 +359,21 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     )
   }
 
-  await startHostWithAddrRetry()
+  try {
+    await startHostWithAddrRetry()
+  } catch (error) {
+    try {
+      unlinkSync(path.join(home, "host.json"))
+    } catch {
+      // ignore
+    }
+    try {
+      unlinkSync(pidPath)
+    } catch {
+      // ignore
+    }
+    throw error
+  }
 
   const markerPath = path.join(dataDir, ".ecp-plugins-changed")
   let debounce: ReturnType<typeof setTimeout> | undefined
@@ -337,6 +406,11 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
       if (current.token === token && current.supervisorPid === process.pid) unlinkSync(hostJsonPath)
     } catch {
       // missing or unreadable: nothing of ours to remove
+    }
+    try {
+      unlinkSync(pidPath)
+    } catch {
+      // ignore
     }
     controlServer?.close()
     log.end()
@@ -378,8 +452,44 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     }
   }
 
+  const idleStop = async (): Promise<void> => {
+    if (stopping) return
+    stopping = true
+    writeLog("idle timeout; stopping")
+    clearInterval(poll)
+    markerWatcher?.close()
+    await drainAndShutdown(false)
+    try {
+      unlinkSync(path.join(home, "host.json"))
+    } catch {
+      // ignore
+    }
+    removeSupervisorPid()
+    controlServer?.close()
+    log.end()
+    process.exit(0)
+  }
+
+  const checkIdleShutdown = async (): Promise<void> => {
+    if (stopping || hostStatus !== "healthy" || idleConfig.idleMs <= 0) return
+    const health = await checkHealth(`http://127.0.0.1:${port}`)
+    if (health?.status === "ok") lastHealth = health
+    const decision = decideIdleShutdown({
+      idleMs: idleConfig.idleMs,
+      lastActivityAt: lastHealth?.lastActivityAt,
+      nowMs: Date.now(),
+      activeRuns: lastHealth?.activeRuns ?? 0,
+      openStreams: lastHealth?.openStreams ?? 0,
+      hostHealthy: hostStatus === "healthy",
+      stopping,
+    })
+    if (decision.shouldIdleStop) await idleStop()
+  }
+
+  const pollMs = idleConfig.idleMs > 0 && idleConfig.idleMs < 2000 ? 200 : MARKER_POLL_MS
   const poll = setInterval(() => {
     checkOrphanSafetyNet()
+    void checkIdleShutdown()
     if (!existsSync(markerPath)) return
     try {
       const mtime = statSync(markerPath).mtimeMs
@@ -390,7 +500,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     } catch {
       // ignore
     }
-  }, MARKER_POLL_MS)
+  }, pollMs)
 
   writeLog(`supervisor ready control=${controlPort} host=${port}`)
 
@@ -404,6 +514,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     } catch {
       // ignore
     }
+    removeSupervisorPid()
     controlServer?.close()
     log.end()
   }
@@ -421,6 +532,28 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
   })
 
   await new Promise(() => undefined)
+}
+
+function acquireSupervisorPid(pidPath: string): boolean {
+  try {
+    writeFileSync(pidPath, String(process.pid), { flag: "wx" })
+    return true
+  } catch {
+    if (!existsSync(pidPath)) return true
+    const raw = readFileSync(pidPath, "utf8").trim()
+    const existingPid = Number.parseInt(raw, 10)
+    if (Number.isFinite(existingPid) && isProcessAlive(existingPid)) return false
+    writeFileSync(pidPath, String(process.pid))
+    return true
+  }
+}
+
+function resolveSupervisorIdleConfig(options: SupervisorOptions): ResolvedIdleConfig {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  if (options.idleMinutes !== undefined) env.ECP_HOST_IDLE_MINUTES = String(options.idleMinutes)
+  if (options.idleMsOverride !== undefined) env.ECP_HOST_IDLE_MS = String(options.idleMsOverride)
+  if (options.startedBy) env.ECP_HOST_STARTED_BY = options.startedBy
+  return resolveIdleConfigFromEnv(env)
 }
 
 function isProcessAlive(pid: number): boolean {

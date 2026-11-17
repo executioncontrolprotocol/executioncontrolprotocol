@@ -4,12 +4,14 @@ import { fileURLToPath } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
 import { checkHealth, HostClient, readHostJson } from "@executioncontrolprotocol/host/client"
 import type { LocalHost } from "@executioncontrolprotocol/host"
+import type { HostStartedBy } from "@executioncontrolprotocol/protocol"
 import type { CommitData, CommitInput, ExecuteData, ExecuteInput, OperationResponse, RetrieveData, RetrieveInput } from "@executioncontrolprotocol/protocol"
 import { ecpHome } from "./home.js"
 
 const HEALTH_BUDGET_MS = 500
 const DRAIN_WAIT_MS = 30_000
 const START_WAIT_MS = 15_000
+const DEFAULT_IDLE_MINUTES = 15
 
 let tipPrinted = false
 
@@ -37,42 +39,102 @@ export interface OpsHandle {
 }
 
 /**
+ * Options for {@link discoverOps}.
+ * @category CLI
+ */
+export interface DiscoverOpsOptions {
+  /** When `false`, never auto-start a supervisor (still uses a healthy host). Default: honor env unless set. */
+  autoStart?: boolean
+  home?: string
+  extraPlugins?: string[]
+}
+
+/**
+ * Options for {@link startSupervisorDetached}.
+ * @category CLI
+ */
+export interface StartSupervisorOptions {
+  /** Recorded on host.json (`auto` default for discovery). */
+  startedBy?: HostStartedBy
+  /** Idle minutes for this supervisor (`0` = never). */
+  idleMinutes?: number
+}
+
+/**
  * Discover a host for operations (spec 10).
  * @category CLI
  */
-export async function discoverOps(options: {
-  startHost?: boolean
-  home?: string
-  extraPlugins?: string[]
-}): Promise<OpsHandle> {
+export async function discoverOps(options: DiscoverOpsOptions = {}): Promise<OpsHandle> {
+  const ops = await discoverOnce(options)
+  if (ops.mode !== "http") return ops
+  return retryOnceIfHostStops(ops, () => discoverOnce(options))
+}
+
+/**
+ * A warm host can begin an idle shutdown between discovery and the request, and then refuses
+ * new work with ECP_HOST_RESTARTING (or the connection drops). Rediscover once, which waits out
+ * the drain and starts a fresh host when allowed, and resend the same request.
+ * @category CLI
+ */
+export function retryOnceIfHostStops(ops: OpsHandle, rediscover: () => Promise<OpsHandle>): OpsHandle {
+  const withRetry = <I, D>(call: (handle: OpsHandle) => (input: I) => Promise<OperationResponse<D>>) =>
+    async (input: I): Promise<OperationResponse<D>> => {
+      let response: OperationResponse<D> | undefined
+      try {
+        response = await call(ops)(input)
+        if (response.ok || response.error.code !== "ECP_HOST_RESTARTING") return response
+      } catch (error) {
+        if (!isConnectionError(error)) throw error
+      }
+      const fresh = await rediscover()
+      try {
+        return await call(fresh)(input)
+      } finally {
+        if (fresh !== ops) await fresh.close()
+      }
+    }
+  return {
+    ...ops,
+    retrieve: withRetry((handle) => handle.retrieve),
+    execute: withRetry((handle) => handle.execute),
+    commit: withRetry((handle) => handle.commit),
+  }
+}
+
+function isConnectionError(error: unknown): boolean {
+  const code = (error as { cause?: { code?: string }; code?: string })?.cause?.code ?? (error as { code?: string })?.code
+  return code === "ECONNREFUSED" || code === "ECONNRESET" || (error instanceof TypeError && /fetch failed/i.test(error.message))
+}
+
+async function discoverOnce(options: DiscoverOpsOptions): Promise<OpsHandle> {
   const home = options.home ?? ecpHome()
   const warm = await tryWarm(home)
   if (warm) return warm
 
-  if (options.startHost) {
-    await startSupervisorDetached(home)
-    const after = await tryWarm(home, START_WAIT_MS)
-    if (after) return after
-    throw Object.assign(new Error("ECP_HOST_UNAVAILABLE: host did not become healthy after start."), {
-      code: "ECP_HOST_UNAVAILABLE",
-    })
+  const optOut = noStartHostEnv() || options.autoStart === false
+  if (optOut) {
+    return inProcessHost(home, options.extraPlugins)
   }
 
-  const { createLocalHost } = await import("@executioncontrolprotocol/host")
-  const host = await createLocalHost({
-    home,
-    mode: "in-process",
-    extraPlugins: options.extraPlugins,
-  })
-  if (!tipPrinted) {
-    process.stderr.write('tip: run "ecp host start" to keep a warm host and make commands faster\n')
-    tipPrinted = true
+  try {
+    const start = await startSupervisorDetached(home, { startedBy: "auto" })
+    const after = await tryWarm(home, START_WAIT_MS)
+    if (!after) throw hostUnavailable(home, "supervisor did not become healthy.")
+    if (start.spawned && after.url) {
+      // Report the idle timeout the running supervisor recorded, not this process's defaults.
+      const idleMinutes = readHostJson(home)?.idleMinutes ?? start.idleMinutes
+      const idleLabel = idleMinutes === 0 ? "never" : `${idleMinutes}m`
+      process.stderr.write(`host: started ${after.url} (idle ${idleLabel})\n`)
+    }
+    return after
+  } catch (error) {
+    if (isHostUnavailable(error)) throw error
+    throw hostUnavailable(home, error instanceof Error ? error.message : "start failed.")
   }
-  return wrapInProcess(host)
 }
 
 /**
- * Ensure a warm host is running (for `ecp app` / schema).
+ * Ensure a warm host is running (for `ecp app` / MCP relay). Ignores `ECP_NO_START_HOST`.
  * @category CLI
  */
 export async function ensureWarmHost(home = ecpHome()): Promise<{
@@ -90,12 +152,10 @@ export async function ensureWarmHost(home = ecpHome()): Promise<{
       port: existing.port,
     }
   }
-  await startSupervisorDetached(home)
+  await startSupervisorDetached(home, { startedBy: "auto" })
   const warm = await tryWarm(home, START_WAIT_MS)
   if (!warm?.url || !warm.token || !warm.port) {
-    throw Object.assign(new Error("ECP_HOST_UNAVAILABLE: could not start a warm host."), {
-      code: "ECP_HOST_UNAVAILABLE",
-    })
+    throw hostUnavailable(home, "could not start a warm host.")
   }
   return {
     client: new HostClient(warm.url, warm.token),
@@ -103,6 +163,22 @@ export async function ensureWarmHost(home = ecpHome()): Promise<{
     token: warm.token,
     port: warm.port,
   }
+}
+
+async function inProcessHost(home: string, extraPlugins?: string[]): Promise<OpsHandle> {
+  const { createLocalHost } = await import("@executioncontrolprotocol/host")
+  const host = await createLocalHost({
+    home,
+    mode: "in-process",
+    extraPlugins,
+  })
+  if (!tipPrinted) {
+    process.stderr.write(
+      'tip: run "ecp host start" to keep a warm host and make commands faster (or clear ECP_NO_START_HOST)\n',
+    )
+    tipPrinted = true
+  }
+  return wrapInProcess(host)
 }
 
 async function tryWarm(home: string, waitMs = HEALTH_BUDGET_MS): Promise<OpsHandle | undefined> {
@@ -164,33 +240,38 @@ function wrapInProcess(host: LocalHost): OpsHandle {
 
 /**
  * Spawn the supervisor entry detached and wait briefly for `host.json`.
- * If a live supervisor already owns `host.json`, wait through restart gaps instead of
- * starting a second supervisor. Stale `host.json` (control port dead) is replaced.
  * @category CLI
  */
-export async function startSupervisorDetached(home: string): Promise<void> {
+export async function startSupervisorDetached(
+  home: string,
+  options: StartSupervisorOptions = {},
+): Promise<{ spawned: boolean; idleMinutes: number }> {
   const existing = await waitForExistingSupervisor(home, START_WAIT_MS)
-  if (existing === "ok") return
+  if (existing === "ok") {
+    const file = readHostJson(home)
+    return { spawned: false, idleMinutes: file?.idleMinutes ?? resolveIdleMinutesFromEnv() }
+  }
   if (existing === "alive-unhealthy") {
-    throw Object.assign(
-      new Error("ECP_HOST_UNAVAILABLE: existing host did not become healthy."),
-      { code: "ECP_HOST_UNAVAILABLE" },
-    )
+    throw hostUnavailable(home, "existing host did not become healthy.")
   }
 
+  const idleMinutes = options.idleMinutes ?? resolveIdleMinutesFromEnv()
   const supervisorEntry = resolveSupervisorEntry()
   const child = spawn(process.execPath, [supervisorEntry], {
-    env: { ...process.env, ECP_HOME: home },
+    env: {
+      ...process.env,
+      ECP_HOME: home,
+      ECP_HOST_STARTED_BY: options.startedBy ?? "explicit",
+      ECP_HOST_IDLE_MINUTES: String(idleMinutes),
+    },
     detached: true,
     stdio: "ignore",
     windowsHide: true,
   })
   child.unref()
   const ready = await waitForHostOk(home, START_WAIT_MS)
-  if (ready) return
-  throw Object.assign(new Error("ECP_HOST_UNAVAILABLE: supervisor did not become healthy."), {
-    code: "ECP_HOST_UNAVAILABLE",
-  })
+  if (ready) return { spawned: true, idleMinutes }
+  throw hostUnavailable(home, "supervisor did not become healthy.")
 }
 
 /** Outcome of waiting on an existing supervisor before deciding whether to spawn. */
@@ -213,7 +294,6 @@ async function waitForExistingSupervisor(home: string, timeoutMs: number): Promi
       await delay(100)
       continue
     }
-    // Restart gap can briefly drop HTTP and control; keep waiting if we saw life or still in grace.
     if (sawLiveControl || Date.now() < graceUntil) {
       await delay(100)
       continue
@@ -258,4 +338,32 @@ function resolveSupervisorEntry(): string {
     const here = path.dirname(fileURLToPath(import.meta.url))
     return path.resolve(here, "../../../host/dist/supervisor.js")
   }
+}
+
+function resolveIdleMinutesFromEnv(): number {
+  const raw = process.env.ECP_HOST_IDLE_MINUTES
+  if (raw !== undefined && raw !== "") {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed
+  }
+  return DEFAULT_IDLE_MINUTES
+}
+
+function noStartHostEnv(): boolean {
+  const value = process.env.ECP_NO_START_HOST
+  if (!value) return false
+  return value === "1" || value.toLowerCase() === "true"
+}
+
+function hostUnavailable(home: string, detail: string): Error {
+  const hostLog = path.join(home, "logs", "host.log")
+  const supervisorLog = path.join(home, "logs", "supervisor.log")
+  return Object.assign(new Error(`ECP_HOST_UNAVAILABLE: ${detail} See ${hostLog} and ${supervisorLog}.`), {
+    code: "ECP_HOST_UNAVAILABLE",
+    suggestions: [`Check ${hostLog}`, `Check ${supervisorLog}`, "Run ecp host start"],
+  })
+}
+
+function isHostUnavailable(error: unknown): error is Error & { code: string } {
+  return Boolean(error && typeof error === "object" && (error as { code?: string }).code === "ECP_HOST_UNAVAILABLE")
 }

@@ -14,7 +14,7 @@ describe("A11 benchmark decision, targets, and budgets", () => {
   it("Phase 5 decision, targets, budgets, and baselines align", () => {
     const plan = readFileSync(path.join(acceptanceRepoRoot, "REALIGNMENT-PLAN.md"), "utf8")
     expect(plan).toMatch(/Phase 5 decision/)
-    expect(plan).toMatch(/Keep in-process fallback/i)
+    expect(plan).toMatch(/auto-start with idle shutdown/i)
     expect(plan).toMatch(/bench\/budgets\.json/)
 
     const budgets = JSON.parse(

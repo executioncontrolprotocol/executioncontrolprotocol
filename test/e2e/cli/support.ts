@@ -6,7 +6,7 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
 
-import { registerCliHome } from "../host-processes.js"
+import { registerCliHome, registerHostFromHome } from "../host-processes.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 export const ecpBin = path.join(repoRoot, "packages/cli/bin/ecp.js")
@@ -21,6 +21,8 @@ export const fixturesRoot = path.join(repoRoot, "fixtures")
  */
 export async function createCliHome(options?: {
   linkPluginTest?: boolean
+  /** Opt-in: allow auto-start (default e2e homes opt out via `ECP_NO_START_HOST`). */
+  autoStartHost?: boolean
   /** Opt-in: set `ECP_DATA_DIR` on the env (default false; CLI derives from `ECP_HOME`). */
   setDataDir?: boolean | string
 }): Promise<{
@@ -40,6 +42,11 @@ export async function createCliHome(options?: {
     ECP_HOME: home,
     NO_COLOR: "1",
     FORCE_COLOR: "0",
+  }
+  if (options?.autoStartHost) {
+    delete env.ECP_NO_START_HOST
+  } else if (env.ECP_NO_START_HOST === undefined) {
+    env.ECP_NO_START_HOST = "1"
   }
   // Avoid inheriting a developer-machine override that would mask F1.
   delete env.ECP_DATA_DIR
@@ -125,8 +132,12 @@ export async function runEcp(
       clearTimeout(timer)
       reject(error)
     })
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       clearTimeout(timer)
+      const home = options.env.ECP_HOME
+      if (typeof home === "string") {
+        await registerHostFromHome(home)
+      }
       resolve({
         code: code ?? 1,
         stdout: Buffer.concat(stdout).toString("utf8"),

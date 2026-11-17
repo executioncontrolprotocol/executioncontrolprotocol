@@ -24,6 +24,15 @@ export default class HostStart extends Command {
       description: "Run supervisor and host in the foreground (blocks until exit). Default: detached.",
       default: false,
     }),
+    "idle-minutes": Flags.integer({
+      description: "Stop the host after this many idle minutes (0 = never). Defaults to 15 or ECP_HOST_IDLE_MINUTES.",
+      min: 0,
+    }),
+    "started-by": Flags.string({
+      description: "Record how the supervisor was started (explicit for host start).",
+      options: ["auto", "explicit"],
+      default: "explicit",
+    }),
     json: Flags.boolean({
       description:
         "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
@@ -35,12 +44,31 @@ export default class HostStart extends Command {
     const { flags } = await this.parse(HostStart)
     const home = ecpHome()
 
+    const idleMinutes = flags["idle-minutes"] ?? resolveIdleMinutesFromCliEnv()
+    const startedBy = flags["started-by"] === "auto" ? "auto" : "explicit"
+
     if (flags.foreground) {
-      await runSupervisor({ home })
+      await runSupervisor({
+        home,
+        idleMinutes,
+        startedBy,
+      })
       writeEnvelope({ ok: true, data: { foreground: true } }, { json: flags.json, exitCode: 0 })
     }
 
-    await startSupervisorDetached(home)
+    try {
+      await startSupervisorDetached(home, { startedBy, idleMinutes })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "host start failed"
+      writeEnvelope(
+        { ok: false, error: { code: "ECP_HOST_UNAVAILABLE", message } },
+        {
+          json: flags.json,
+          human: () => this.error(message, { exit: 4 }),
+          exitCode: 4,
+        },
+      )
+    }
     const file = readHostJson(home)
     if (!file) {
       writeEnvelope(
@@ -66,7 +94,8 @@ export default class HostStart extends Command {
       {
         json: flags.json,
         human: () => {
-          this.log(`started ${payload.url}`)
+          const idleLabel = idleMinutes === 0 ? "never" : `${idleMinutes}m`
+          this.log(`started ${payload.url} (idle ${idleLabel})`)
           this.log(`hostPid=${payload.hostPid} supervisorPid=${payload.supervisorPid}`)
           this.log(`logs ${payload.logs.host}`)
         },
@@ -74,4 +103,13 @@ export default class HostStart extends Command {
       },
     )
   }
+}
+
+function resolveIdleMinutesFromCliEnv(): number {
+  const raw = process.env.ECP_HOST_IDLE_MINUTES
+  if (raw !== undefined && raw !== "") {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed
+  }
+  return 15
 }

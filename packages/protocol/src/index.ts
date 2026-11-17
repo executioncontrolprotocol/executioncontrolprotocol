@@ -133,4 +133,4 @@ export type {
   PluginSchemaRef,
   StateHandle,
 } from "./plugins.js"
-export type { HostFile, SupervisorStatus } from "./host.js"
+export type { HostFile, HostStartedBy, SupervisorStatus } from "./host.js"

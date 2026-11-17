@@ -50,6 +50,7 @@ const baseEnv = {
   ...process.env,
   ECP_HOME: home,
   ECP_DATA_DIR: dataDir,
+  ECP_NO_START_HOST: "1",
   NO_COLOR: "1",
   FORCE_COLOR: "0",
 }
@@ -182,7 +183,7 @@ const decision =
 const decisionNote =
   decision === "keep-in-process-fallback"
     ? `Warm host saves ${warmSavingsMs?.toFixed?.(0) ?? "n/a"} ms median on B3 (< ~300 ms). Spec 10 discovery stays in-process when no host is running.`
-    : `Warm host saves ${warmSavingsMs?.toFixed?.(0) ?? "n/a"} ms median on B3 (>= ~300 ms). Auto-start + idle shutdown should be implemented.`
+    : `Warm host saves ${warmSavingsMs?.toFixed?.(0) ?? "n/a"} ms median on B3 (>= ~300 ms). Auto-start + idle shutdown implemented.`
 
 const result = {
   date,

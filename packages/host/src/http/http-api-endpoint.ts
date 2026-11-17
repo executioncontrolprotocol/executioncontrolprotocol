@@ -18,6 +18,7 @@ import {
   type StorageChange,
   type StorageProvider as StorageProviderService,
 } from "@executioncontrolprotocol/protocol"
+import { HostActivityTracker } from "../activity-tracker.js"
 import { VERSION } from "../version.js"
 import { refuse, statusForEnvelope } from "./envelope.js"
 import { listExecutionFiles, readAllowedFile } from "./files.js"
@@ -65,6 +66,7 @@ export class HttpApiEndpoint implements Endpoint {
   private health: HealthStatus = "starting"
   private shutdownResolvers: Array<() => void> = []
   private editorSchemaGate: (() => Promise<unknown>) | undefined
+  private readonly activity = new HostActivityTracker()
   /** Bound URL once listening. */
   url: string | undefined
   /** Resolved listen port. */
@@ -90,6 +92,7 @@ export class HttpApiEndpoint implements Endpoint {
   /** Mark ready for traffic after bind. */
   markReady(): void {
     this.health = this.draining ? "draining" : "ok"
+    if (!this.draining) this.activity.touch()
   }
 
   /**
@@ -167,6 +170,14 @@ export class HttpApiEndpoint implements Endpoint {
       if (method === "GET" && pathName === "/v1/health") {
         await this.writeHealth(res)
         return
+      }
+
+      if (
+        (method === "POST" &&
+          (pathName === "/v1/retrieve" || pathName === "/v1/execute" || pathName === "/v1/commit")) ||
+        (method === "GET" && (pathName === "/v1/file" || pathName === "/v1/files"))
+      ) {
+        this.activity.touch()
       }
 
       const headers = flattenHeaders(req.headers)
@@ -283,6 +294,7 @@ export class HttpApiEndpoint implements Endpoint {
     const storage = this.ctx.services.get(StorageProvider) as StorageProviderService
     const plugins = this.ctx.services.get(PluginAdapter) as PluginAdapterService
     const activeRuns = (await storage.runs.list({ status: "running" }, 10_000)).length
+    const { lastActivityAt, openStreams } = this.activity.snapshot()
     this.writeJson(res, 200, {
       status: this.health,
       version: VERSION,
@@ -290,6 +302,8 @@ export class HttpApiEndpoint implements Endpoint {
       startedAt: this.startedAt,
       plugins: plugins.plugins().length,
       activeRuns,
+      lastActivityAt,
+      openStreams,
     })
   }
 
@@ -358,6 +372,7 @@ export class HttpApiEndpoint implements Endpoint {
       Connection: "keep-alive",
     })
     res.write(`: connected\n\n`)
+    this.activity.streamOpened()
     const storage = this.ctx.services.get(StorageProvider) as StorageProviderService
     const send = (event: string, data: unknown): void => {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
@@ -380,6 +395,7 @@ export class HttpApiEndpoint implements Endpoint {
       clearInterval(heartbeat)
       unwatch()
       unwatchPath?.()
+      this.activity.streamClosed()
     }
     req.on("close", close)
   }

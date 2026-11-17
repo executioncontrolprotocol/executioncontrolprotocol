@@ -15,7 +15,7 @@ Anything a user types as a name follows **kebab-case**, the same family as enum 
 literals in `typescript.mdc`. TypeScript field names stay camelCase; the CLI is a separate
 surface.
 
-- **Long flags:** kebab-case (`--start-host`, `--out`). Never camelCase or snake_case.
+- **Long flags:** kebab-case (`--no-start-host`, `--out`). Never camelCase or snake_case.
 - **Subcommand and topic segments:** kebab-case.
 - **Closed-set flag values:** use the same kebab-case literals as the type union.
 - **Short flags:** single letters, only where clearly useful, and never colliding with oclif's
@@ -30,7 +30,7 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
 | `ecp retrieve`, `ecp execute`, `ecp commit` | The three operations, same inputs and outputs as the MCP tools and the host API |
 | `ecp mcp start` | The MCP relay (stdio) |
 | `ecp app [path \| id]` | The App on the host API |
-| `ecp host status \| stop \| restart` (and `start`, if adopted) | The background host. Exact set decided by the CLI benchmark (plan: "Measurements") |
+| `ecp host start \| stop \| status \| restart \| logs` | The background host (supervisor + HTTP API). `restart` drains and respawns the host to re-read plugins and config; **`reload` is an oclif alias of `restart`**, not a separate command |
 | `ecp plugins install \| uninstall \| list \| link` | oclif plugin management; writes or checks `ecp.manifest.json` |
 | `ecp secrets set \| unset \| list` | Secret values in the local secrets provider; `list` shows keys only |
 
