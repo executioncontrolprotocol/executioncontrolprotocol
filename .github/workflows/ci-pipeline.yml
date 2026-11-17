@@ -89,6 +89,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+      - name: oclif manifest is committed and current
+        run: git diff --exit-code -- packages/cli/oclif.manifest.json
       - run: pnpm run plugins:check-manifests
       - run: pnpm run test:coverage
       - name: Upload coverage summary
@@ -221,6 +223,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run bench
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-linux
+          path: bench/results/*-linux.json
+          if-no-files-found: warn
 
   publish:
     name: publish

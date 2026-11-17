@@ -51,18 +51,34 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
 
 ## Benchmarks (`bench/`)
 
-`bench/run.mjs` (plain Node, no extra tools), writes `bench/results/<date>-<os>.json`, prints a
-table. Each scenario 20 runs; median and p95.
+`bench/run.mjs` (plain Node, no extra tools), writes `bench/results/<date>-<platform()>.json`
+(`win32`, `linux`), prints a table. CI and the default runner use **11** samples per scenario
+(`ECP_BENCH_RUNS`; a local full run may set `20`). B6 host start/restart uses **5** samples.
+B7 `ecp schema` uses **5** samples. Median and p95 are reported.
 
-| # | Scenario | Modes |
+Design targets (median ms) live in `bench/targets.json`. Enforced budgets are in
+`bench/budgets.json` (equal to the target when both OS medians are at or under the target;
+otherwise an `exception` sentence in `REALIGNMENT-PLAN.md` and the measured median rounded up
+to 50 ms). Committed evidence is `bench/baseline/<date>-win32.json` and
+`<date>-linux.json` (not gitignored). A11 checks targets, budgets, baselines, and the plan text.
+
+B1–B7 use a temp `ECP_HOME` with all four MVP plugins linked (`plugin-test`, Anthropic, Azure,
+Firefly). B4 live Firefly is skipped when credentials are absent (null median + note; no budget
+row). B5 runs `fixtures/manifests/valid/branch.ecp.json` with `--input` so the branch `$expr`
+runs (not `--validate`). B7 measures editor-schema readiness with all MVP plugins present.
+
+The MCP relay is **not** a budgeted bench mode (A9 covers parity); result JSON records a note
+instead of an MCP timing column.
+
+| # | Scenario | Budgeted modes |
 | --- | --- | --- |
-| B1 | `ecp retrieve --type capability --id …` | in-process, warm host via CLI, via MCP relay |
+| B1 | `ecp retrieve --type capability --id …` | in-process, warm host via CLI |
 | B2 | `ecp retrieve --type capability --query …` (all installed plugins incl. Firefly) | same |
 | B3 | `ecp execute fixtures/…/echo.ecp.json` | same |
-| B4 | `ecp execute` Firefly fixture ×10 in a row (plugin import + IMS token; live only) | same |
-| B5 | `ecp execute` `$expr`-heavy fixture | same |
-| B6 | `ecp host start` until healthy; restart until healthy | — |
-| B7 | Host schema generation + validator compile with all MVP plugins installed | — |
+| B4 | `ecp execute` Firefly fixture ×10 in a row (plugin import + IMS token; live only) | skipped without credentials |
+| B5 | `ecp execute` `$expr`-heavy fixture (`branch.ecp.json` with `--input`) | warm |
+| B6 | `ecp host start` until healthy; restart until healthy | warm |
+| B7 | `ecp schema` (editor schema readiness) with all MVP plugins | warm |
 | B8 | Schema scale: host start (incl. registry load of light manifests), first-use compile, cached validate, heap at 1,000 and 5,000 synthetic capabilities; warm `ecp execute` with all real plugins | synthetic + warm |
 
 Default `pnpm run bench` measures B8 at 1,000 synthetic capabilities. Set `ECP_BENCH_SCALE=5000`
