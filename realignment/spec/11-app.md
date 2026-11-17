@@ -49,12 +49,12 @@ Path-opened executions use three host routes (09):
   Reloading never interrupts a run in progress; the run panel keeps showing it.
 - Layout: dagre, left-to-right; parallel lines stacked; branch arms fan out; loop bodies drawn
   inside a route frame (no `parentId` containers; `.cursor/rules/reactflow-render.mdc`).
-- Reuse from `legacy/packages/app`: `graph/workflow-to-reactflow.ts`, `extract-data-edges.ts`,
-  `layout.ts`, `map-run-events.ts`, `EcpStepNode`, `EcpDataEdge`, `EcpRouteEdge`, `EcpIoNode`,
-  `RunInputForm`, `RunOutputView`, styles. Adapt to v2 (`expr`, markers, `uses`), and take ports
-  from JSON Schema (`accepts`/`returns`) instead of zod.
+- The App was ported from the pre-realignment tree into `packages/app` (`execution-to-reactflow.ts`,
+  `extract-data-edges.ts`, `layout.ts`, `map-run-events.ts`, `ports-from-schema.ts`,
+  `EcpStepNode`, `EcpDataEdge`, `EcpRouteEdge`, `EcpIoNode`, `RunInputForm`, `RunOutputView`,
+  styles). Adapt to v2 (`expr`, markers, `uses`); ports come from JSON Schema (`accepts`/`returns`).
 - UI: dark mode, Tailwind + shadcn, Lucide icons, Monaco, design tokens from
-  `legacy/packages/app/DESIGN.md` (moved to `packages/app/DESIGN.md`). Not a chat client.
+  `packages/app/DESIGN.md`. Not a chat client.
 
 ## Tests
 

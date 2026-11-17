@@ -22,7 +22,7 @@ fixtures/
 ├── manifests/invalid/*.ecp.json               each with a sibling *.expected.json: [{ code, path, severity }]
 ├── manifests/runs/*.ecp.json + *.run.json     run fixtures: input, expected status, result, step statuses, events (types in order)
 ├── plugins/fixture-plugin/                    a tiny plugin with hand-written ecp.manifest.json for engine tests
-└── v1/                                        legacy examples and dogfood workflows (copied from legacy/) with their v2 conversions
+└── v1/                                        v1 workflow copies and dogfood sources with hand-written v2 conversions (the `legacy/examples/` tree is gone)
 ```
 
 Minimum fixture set (Phase 0 writes them; later phases add more):
@@ -46,8 +46,8 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
   failure cancels siblings; each commit mode; `$state` staged writes discarded on failure;
   config + secret resolution and redaction; output invalid; step timeout; expr timeout; resume
   after interruption.
-- **v1 conversions:** `legacy/examples/01,02,03,06,07,08` and `legacy/examples/dogfood/*`
-  converted to v2 by hand; Phase 8 checks they run on the new engine with the expected state.
+- **v1 conversions:** `fixtures/v1/` holds the copied v1 manifests; each has a v2 conversion.
+  Phase 8 checks they run on the new engine with the expected state.
 
 ## Benchmarks (`bench/`)
 
@@ -106,7 +106,7 @@ Ubuntu and Windows CI, and A10 has been run live once with the result recorded.
 | A5 | `$script` by path and by source into a capability expecting a string with `maxLength`; a syntax error reports line/column; an over-long script fails `ECP_INPUT_INVALID` | `$script` |
 | A6 | With an MCP client connected through the relay and a `delay` run in progress: `ecp plugins link` a second fixture plugin → supervisor drains (run finishes) and restarts the host → the relay's next `retrieve` shows the new capability without reconnecting. Repeat with `--force` restart during a run → run `interrupted` → `execute { resume }` completes it | Supervisor, relay, resume |
 | A7 | `commit` an execution; `commit` update with an `@id` patch and correct `ifVersion` → version 2; stale `ifVersion` → `ECP_VERSION_CONFLICT`; `execute { id, patch }` runs a variant without saving | Commit and patches |
-| A8 | App (Playwright): `ecp app <path>` opens the file; validation issues show; saving fixes to the file (and to a `$script.path` file) hot-reloads the graph and issues within 1 s with no action in the App; run → live statuses and result; runs list replays | App, hot reload by path |
+| A8 | App (Playwright): `ecp app <path>` opens the file; validation issues show; saving fixes to the file (and to a `$script.path` file) hot-reloads the graph and issues within 1 s with no action in the App; run → live statuses and result; runs list **replays statuses on the graph** (reload clears live overlay; selecting a past run restores step `data-status` on nodes) | App, hot reload by path |
 | A9 | Every A1–A5 command run once with a warm host and once in-process gives identical `data` (except timing and run ids) | Mode parity |
 | A10 | Live (manual or CI with secrets): the Firefly `localize-banner` execution (converted dogfood) validates and runs against real Firefly and Anthropic, producing a PSD; output recorded in the Phase 8 PR | Real dogfood |
 | A11 | Benchmarks B1–B8 recorded; the background-host decision written in the plan; budgets enforced in CI | Performance decision |

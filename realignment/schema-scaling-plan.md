@@ -4,7 +4,7 @@ This document is the implementation plan for validation at scale. It refines the
 [`mvp-audit-fixes.md`](mvp-audit-fixes.md) (lines 216–265); it does not replace it. Spike evidence:
 [`spikes/schema-scale/README.md`](spikes/schema-scale/README.md).
 
-> **Per-PR implementation plans:** [`schema-scaling/s1-light-manifests.md`](schema-scaling/s1-light-manifests.md) (S1) and [`schema-scaling/s2-s6.md`](schema-scaling/s2-s6.md) (S2–S6, written before S1 landed; refresh each against the code before starting).
+> **Per-PR implementation plans:** [`schema-scaling/s1-light-manifests.md`](schema-scaling/s1-light-manifests.md) (S1) and [`schema-scaling/s2-s6.md`](schema-scaling/s2-s6.md) (S2–S6, written before S1 landed; refresh each against the code before starting). **Status (2026-11-17):** S1–S6 merged ([PR #69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)); all vendored Firefly families that generate cleanly are shipped (63 capabilities; `content-tagging` still skipped).
 
 ## 1. Goal, scope, non-goals
 

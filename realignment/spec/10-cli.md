@@ -42,8 +42,9 @@ No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others a
 
 Health `draining` → wait and retry like the relay (09), up to 30 s.
 
-The background-host default (whether step 3 should auto-start a host) is decided by the CLI
-benchmark in Phase 5 (12). The spec above is the starting behaviour.
+The Phase 5 CLI benchmark (2026-11-17) keeps step 3 as written: one-off commands stay
+in-process when no host is running (no idle auto-start). See `REALIGNMENT-PLAN.md`
+Measurements.
 
 ## Input and paths
 

@@ -7,17 +7,12 @@ import {
   fixturesRoot,
   parseJsonStdout,
   runEcp,
-  waitForHost,
 } from "./support.js"
 
 describe("A2 all-features execute", () => {
   it("ecp execute acceptance/all-features matches run fixture and writes run files", async () => {
     assertCliBuilt()
     const { home, env } = await createCliHome()
-    // Warm host so event batches flush (in-process CLI exits via process.exit before close).
-    const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
-    expect(start.code).toBe(0)
-    await waitForHost(home)
 
     const execPath = path.join(fixturesRoot, "manifests/acceptance/all-features.ecp.json")
     const expected = JSON.parse(
@@ -84,8 +79,11 @@ describe("A2 all-features execute", () => {
 
     const runRecord = JSON.parse(readFileSync(path.join(runDir, "run.json"), "utf8")) as {
       status: string
+      host?: { pid: number; mode: string }
     }
     expect(runRecord.status).toBe("completed")
+    expect(runRecord.host?.mode).toBe("in-process")
+    expect(runRecord.host?.pid).toBeGreaterThanOrEqual(1)
 
     const events = readFileSync(path.join(runDir, "events.ndjson"), "utf8")
       .split(/\r?\n/)

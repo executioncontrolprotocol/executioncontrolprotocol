@@ -5,7 +5,7 @@ against `realignment/spec/` and the plan. Most of the build matches the spec. Th
 lists every gap found, with evidence, the fix, the tests that prove it, and exit criteria.
 
 **How to use this doc:** work the PR groups in order (section "Order of work"). Each finding has
-an id (`F1`…`F19`). Every fix PR names the ids it closes, adds the listed tests, and ticks the
+an id (`F1`…`F22`). Every fix PR names the ids it closes, adds the listed tests, and ticks the
 finding's checkboxes here. If a fix needs a spec change, change the spec first in the same PR.
 
 **Branching:** the milestone is merged, so fixes branch from `development` as
@@ -67,8 +67,8 @@ plugins as oclif plugins (startup cost, see F6).
 `ecp plugins` lists exactly the plugins the host reports (`retrieve --type plugin`); link,
 unlink, install from tarball each keep the two views equal; Windows and Ubuntu.
 
-- [x] Fixed
-- [x] Tests added
+- [x] Fixed ([#70](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/70))
+- [x] Tests added ([#70](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/70))
 
 ### F2 — Duplicate validation issues (High)
 
@@ -84,8 +84,8 @@ issues ordered and unique.
 **Tests:** every invalid fixture validated through the engine *and* through the CLI returns no
 duplicate issues (assert uniqueness in the conformance runner and the CLI sweep test, F5).
 
-- [x] Fixed — dedupe key is `code|path|message|severity`; CLI and MCP skip the envelope header when it repeats the first issue (`packages/cli/src/lib/output.ts`, `packages/mcp-relay/src/format.ts`).
-- [x] Tests added — `packages/engine/test/conformance.test.ts` (duplicate guard), `test/e2e/cli/fixture-sweep.test.ts`.
+- [x] Fixed — dedupe key is `code|path|message|severity`; CLI and MCP skip the envelope header when it repeats the first issue (`packages/cli/src/lib/output.ts`, `packages/mcp-relay/src/format.ts`). ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
+- [x] Tests added — `packages/engine/test/conformance.test.ts` (duplicate guard), `test/e2e/cli/fixture-sweep.test.ts`. ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
 
 ### F3 — `$env` / `$secret` in an execution gives an unhelpful message (High)
 
@@ -102,8 +102,8 @@ the marker, suggestion naming `ecp commit --type config` and the `config` step f
 **Tests:** fixtures for `$env` and `$secret` at top-level input, nested object, inside an array,
 inside `$script.params`; exact message and suggestion asserted.
 
-- [x] Fixed — `collectSecretEnvIssues` + marker-filtered capability input; `schema-secret-positions.ecp.json` covers nested, array, and `$script.params`.
-- [x] Tests added — `packages/engine/test/validate.test.ts`, `schema-secret-positions` expected file, sweep test.
+- [x] Fixed — `collectSecretEnvIssues` + marker-filtered capability input; `schema-secret-positions.ecp.json` covers nested, array, and `$script.params`. ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
+- [x] Tests added — `packages/engine/test/validate.test.ts`, `schema-secret-positions` expected file, sweep test. ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
 
 ### F4 — Issues without a `path` (Medium)
 
@@ -117,8 +117,8 @@ the issue builder.
 
 **Tests:** conformance runner fails any issue without a string `path`.
 
-- [x] Fixed — `finish` asserts every issue `path` is a string; load accepts execution files with wrong `version` and returns `/version` via validate (`operations.ts` `isManifest` aligned with the engine).
-- [x] Tests added — conformance path-type check; runtime step failures use step pointers (`packages/engine/test/run.test.ts`).
+- [x] Fixed — `finish` asserts every issue `path` is a string; load accepts execution files with wrong `version` and returns `/version` via validate (`operations.ts` `isManifest` aligned with the engine). ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
+- [x] Tests added — conformance path-type check; runtime step failures use step pointers (`packages/engine/test/run.test.ts`). ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
 
 ### F5 — Invalid fixtures don't match their expected files; comparison isn't exact (Medium)
 
@@ -148,9 +148,9 @@ substring). The engine conformance test passes anyway, so it compares as a subse
   06, including `ECP_PLUGINS_MISSING`; the audit's exit code 3 is superseded by spec 06) and the
   exact expected issues. This catches CLI/engine drift and F2/F4 regressions.
 
-- [x] Runner exact — `packages/engine/test/conformance.test.ts` full tuple compare, `suggestionsIncludes`, `not-json` via `loadExecutionText`.
-- [x] Fixtures corrected — 19 new invalid fixtures; loop fixtures use `mode: "replace"` where they are not testing commit conflict.
-- [x] CLI sweep test added — `test/e2e/cli/fixture-sweep.test.ts` (CLI + MCP, one host).
+- [x] Runner exact — `packages/engine/test/conformance.test.ts` full tuple compare, `suggestionsIncludes`, `not-json` via `loadExecutionText`. ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
+- [x] Fixtures corrected — 19 new invalid fixtures; loop fixtures use `mode: "replace"` where they are not testing commit conflict. ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
+- [x] CLI sweep test added — `test/e2e/cli/fixture-sweep.test.ts` (CLI + MCP, one host). ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
 
 ### F6 — Warm CLI performance misses the target; budgets were loosened instead (Medium)
 
@@ -181,14 +181,14 @@ top-level imports in the CLI entry (host/engine/Ajv/QuickJS imported even for HT
 **Tests:** CI `bench` job enforces the new budgets on Ubuntu; A11 asserts the plan's decision
 text and that every budget is ≤ the stated target or has a recorded exception.
 
-- [x] Profiled and causes recorded — `bench/phases.mjs` before/after tables in `REALIGNMENT-PLAN.md` Measurements (Group E).
-- [x] Fixes applied — `@executioncontrolprotocol/host/client`, lazy `createLocalHost`, committed `packages/cli/oclif.manifest.json` + drift check.
-- [x] Ubuntu + Windows baselines committed — `bench/baseline/2026-11-17-win32.json` (local) and `bench/baseline/2026-11-17-linux.json` (CI bench artifact, #77); all medians within budget (Linux warm 159–179 ms, Windows 360–392 ms).
-- [x] Budgets set from targets; A11 updated — `bench/targets.json`, `bench/budget-check.mjs`, acceptance A11.
+- [x] Profiled and causes recorded — `bench/phases.mjs` before/after tables in `REALIGNMENT-PLAN.md` Measurements (Group E). ([#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77))
+- [x] Fixes applied — `@executioncontrolprotocol/host/client`, lazy `createLocalHost`, committed `packages/cli/oclif.manifest.json` + drift check. ([#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77))
+- [x] Ubuntu + Windows baselines committed — `bench/baseline/2026-11-17-win32.json` (local) and `bench/baseline/2026-11-17-linux.json` (CI bench artifact, [#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77)); all medians within budget (Linux warm 159–179 ms, Windows 360–392 ms).
+- [x] Budgets set from targets; A11 updated — `bench/targets.json`, `bench/budget-check.mjs`, acceptance A11. ([#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77))
 
 ### F7 — Firefly plugin is a partial port, undocumented (Medium)
 
-**Evidence:** `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`:
+**Evidence (2026-11-15, before the fix):** `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`:
 `GENERATED_FAMILIES = ["firefly", "photoshop"]` (17 capabilities); `PENDING_FAMILIES` lists
 `audio-video`, `creative-production`, `express`, `illustrator`, `indesign`, `substance3d`, with
 the comment that they "generate cleanly but are not shipped yet". `openapi/overlays` is
@@ -268,18 +268,15 @@ Implementation plan:
 - **Or document:** if a family is deliberately deferred after the validation fix, list it in
   spec 08, the plugin README, Phase 8 and the plan retrospective with the reason.
 
-Progress: **S1–S5 done** (light manifests + `ecp.schema.json`, dual-path then switch-over to
-base + raw accepts + marker filter, host-lifetime `HostSchemaSet` cache, lazy registry, root +
-per-plugin editor schema files with stamp-based warm start, B8 schema-scale bench + budgets;
-S4b: server-mode editor writes off the start path — ready before background write, atomic
-files, `ecp schema` gated on HTTP `retrieve` `plugin`).
-S6 Firefly family ship lands on branch `fix/mvp-audit-group-a` (63 capabilities; `content-tagging`
-still skipped).
+Progress: **S1–S6 merged** ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)): light manifest 2.0 + `ecp.schema.json`, base validator + lazy raw `accepts` + marker
+filter, per-plugin editor schema files, B8 budgets, then eight `GENERATED_FAMILIES` (**63**
+capabilities; `content-tagging` still skipped). Current generator: `pendingFamilies: []` per
+spec 03.
 
-- [x] Decision recorded (validation-at-scale S1–S5; ship all vendored families that generate
-  cleanly)
+- [x] Decision recorded (validation-at-scale S1–S6; ship all vendored families that generate
+  cleanly) ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69))
 - [x] Families shipped (audio-video, creative-production, express, illustrator, indesign,
-  substance3d + existing firefly, photoshop)
+  substance3d + existing firefly, photoshop) ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69))
 
 ### F8 — Missing invalid fixtures from the spec 12 minimum set (Medium)
 
@@ -303,7 +300,7 @@ covered. Missing (add one fixture + `.expected.json` each):
 - `ECP_CAPABILITY_UNKNOWN` **with a suggestion**: a near-miss typo of an installed capability
   (today's fixture uses an unrelated id, so `suggestions` is empty).
 
-- [x] Fixtures added with exact expected files — `fixtures/manifests/invalid/` now includes `not-json`, `schema-wrong`, `input-{required,unknown,enum}`, `script-{missing,object}`, `config-unknown`, `ref-{later,parallel-sibling,maybe-branch,maybe-loop,path}`, `type-{number,object}`, `commit-{loop,parallel}`, `unknown-capability-typo`, `schema-secret-positions` (each with `.expected.json`).
+- [x] Fixtures added with exact expected files — `fixtures/manifests/invalid/` now includes `not-json`, `schema-wrong`, `input-{required,unknown,enum}`, `script-{missing,object}`, `config-unknown`, `ref-{later,parallel-sibling,maybe-branch,maybe-loop,path}`, `type-{number,object}`, `commit-{loop,parallel}`, `unknown-capability-typo`, `schema-secret-positions` (each with `.expected.json`). ([#73](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/73))
 
 ### F9 — The A2 "all-features" fixture doesn't use all features (Medium)
 
@@ -316,8 +313,8 @@ or config on a step. Spec 12 A2 is meant to prove executor semantics end to end.
 rounds, event order) to cover every feature above, using `plugin-test` capabilities
 (`bounded` for `$script`, `config-echo` for config). Keep it runnable in-process and warm.
 
-- [x] Fixture extended — `all-features.ecp.json` covers every node kind, marker, commit mode and a step `config` (plugin-test only); `all-features.run.json` holds the result and the exact 42-event sequence, which A2 and the host integration test assert (parallel `maxConcurrency: 1`).
-- [x] A2 passes on Ubuntu and Windows — CI e2e-ubuntu and e2e-windows on #74 (exact 42-event sequence).
+- [x] Fixture extended — `all-features.ecp.json` covers every node kind, marker, commit mode and a step `config` (plugin-test only); `all-features.run.json` holds the result and the exact 42-event sequence, which A2 and the host integration test assert (parallel `maxConcurrency: 1`). ([#74](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/74))
+- [x] A2 passes on Ubuntu and Windows — CI e2e-ubuntu and e2e-windows on [#74](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/74) (exact 42-event sequence).
 
 ### F10 — Acceptance A11/A12 are presence checks only (Low)
 
@@ -328,7 +325,7 @@ A11 doesn't check the budgets against targets (see F6).
 **Fix:** A11 asserts every budget is ≤ the target or has a recorded exception in the plan (F6).
 A12 also asserts no workspace file references `legacy/` paths.
 
-- [x] Updated — `bench/budget-check.mjs`, `bench/legacy-path-scan.mjs`, acceptance A11/A12 with unit fixtures.
+- [x] Updated — `bench/budget-check.mjs`, `bench/legacy-path-scan.mjs`, acceptance A11/A12 with unit fixtures. ([#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77))
 
 ### F11 — Agent rules and docs still describe an unmerged milestone (Low, but steers agents wrong)
 
@@ -347,7 +344,7 @@ publishes. Mark the milestone as merged (date, PR #68) in the plan header and
 `realignment-milestone.mdc` to `realignment.mdc` describing the shipped design and where the
 spec lives (do not fold into `ecp-spec.mdc`). Regenerate `realignment/doc-index.md`.
 
-- [x] Rules and docs updated
+- [x] Rules and docs updated ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69))
 
 ### F12 — Spec and retrospective drift not written back (Low)
 
@@ -362,11 +359,10 @@ retrospective row; add F7's outcome. Add a retrospective row for every finding h
 changes a contract.
 
 Note (Group A): updated spec 08 (`bounded`) and the two retrospective rows (in-process event
-flush; Firefly plugin scope). The in-process flush is fixed (`run-store` flushes on `run.end`),
-so A2's warm-host workaround and its comment in `test/e2e/acceptance/A2.test.ts` are obsolete
-and Group G should switch A2 back to in-process. Group G owns the rest of F12.
+flush; Firefly plugin scope). Group G: A2 in-process, plan/spec/retrospective close-out, doc
+index lint gate.
 
-- [ ] Spec and retrospective updated
+- [x] Spec and retrospective updated (Group G close-out, [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78))
 
 ### F13 — CLI help text isn't model-legible (Low)
 
@@ -382,8 +378,8 @@ description and examples on each command (the plan's "help written for a model r
 **Tests:** a unit test walks the oclif manifest and fails on any command, topic or flag without
 a description.
 
-- [x] Fixed (`packages/cli/package.json` oclif topics; every command in `packages/cli/src/commands/` has `description`, `examples`, and flag text; `packages/cli/test/help-quality.test.ts`)
-- [x] Test added
+- [x] Fixed (`packages/cli/package.json` oclif topics; every command in `packages/cli/src/commands/` has `description`, `examples`, and flag text; `packages/cli/test/help-quality.test.ts`) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
+- [x] Test added ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
 
 ### F14 — `--json` envelope not used everywhere (Low)
 
@@ -395,8 +391,8 @@ secrets list, plugins list) and wrap in the envelope; errors as `{ ok: false, er
 
 **Tests:** e2e iterates all commands with `--json` and asserts the envelope shape.
 
-- [x] Fixed (`writeEnvelope` in `packages/cli/src/lib/output.ts`; host/app/schema/secrets/plugins inspect)
-- [x] Test added (`test/e2e/cli/json-envelope.test.ts`)
+- [x] Fixed (`writeEnvelope` in `packages/cli/src/lib/output.ts`; host/app/schema/secrets/plugins inspect) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
+- [x] Test added (`test/e2e/cli/json-envelope.test.ts`) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
 
 ### F15 — `ecp retrieve` human output isn't a table (Low)
 
@@ -409,7 +405,7 @@ source, manifest; formatter: id, media type, default). Respect non-TTY/`NO_COLOR
 
 **Tests:** snapshot tests per type.
 
-- [x] Fixed (`printTable` / `printRetrieveHuman` in `packages/cli/src/lib/output.ts`; spec 10 column list)
+- [x] Fixed (`printTable` / `printRetrieveHuman` in `packages/cli/src/lib/output.ts`; spec 10 column list) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
 
 ### F16 — `ecp plugins` lacks manifest status; extra oclif commands undocumented (Low)
 
@@ -419,8 +415,8 @@ exposes oclif's `inspect` and `reset`, which aren't in spec 10's table.
 **Fix:** add a manifest column (`ok` / issue summary) to `ecp plugins` (after F1, from the
 host's view). Decide on `inspect`/`reset`: keep and document in spec 10 (default), or hide.
 
-- [x] Fixed
-- [x] Spec 10 updated
+- [x] Fixed ([#70](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/70))
+- [x] Spec 10 updated ([#70](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/70))
 
 ### F17 — In-process runs record `host.pid: 0` (Low)
 
@@ -429,7 +425,7 @@ host's view). Decide on `inspect`/`reset`: keep and document in spec 10 (default
 **Fix:** record the actual process pid and a `mode: "in-process" | "server"` field (add to the
 run record schema in `protocol` and spec 05).
 
-- [x] Fixed (`run.schema.json` `host.mode` required, `pid` minimum 1; `operations.ts` records `process.pid` and settings mode)
+- [x] Fixed (`run.schema.json` `host.mode` required, `pid` minimum 1; `operations.ts` records `process.pid` and settings mode) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
 
 ### F18 — MCP relay error text repeats the first issue (Low)
 
@@ -440,7 +436,7 @@ followed by the same issue (`ECP_REF_UNRESOLVED — …`).
 **Fix:** first line = top-level code + a summary ("1 validation error"), then one line per
 issue. Update the description snapshot/format tests.
 
-- [x] Fixed (`printError` / `formatError` count header; `packages/cli/test/output-more.test.ts`, `packages/mcp-relay/test/format-paths.test.ts`)
+- [x] Fixed (`printError` / `formatError` count header; `packages/cli/test/output-more.test.ts`, `packages/mcp-relay/test/format-paths.test.ts`) ([#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75))
 
 ### F19 — Verify A8 "runs list replays" is really asserted (Low)
 
@@ -452,7 +448,7 @@ only checks that the spec file body contains the phrase "runs list replays".
 if not, add a dedicated Playwright test. Change the A8 gate to check test titles, not body
 text.
 
-- [ ] Verified or added
+- [x] Verified or added — Playwright `runs list replays statuses on the graph`; A8 gate matches test titles (Group G close-out, [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78))
 
 ### F20 — Flaky drain test in the coverage gate (Medium, blocks commits)
 
@@ -485,12 +481,12 @@ retry.
 the pre-commit coverage gate, each passing when run alone: `plugins/plugin-azure-blob-storage/test/smoke.test.ts`
 "loads every handler through its lazy thunk" (~15 s), `packages/host/test/http.test.ts` "shuts down via admin
 route without exiting the test process" (5 s timeout), and `packages/engine/test/conformance.test.ts` "accepts
-every valid fixture" (5 s timeout; slow because every validation recompiles the combined schema, F7). The machine
+every valid fixture" (5 s timeout; at the time every validation recompiled the combined schema — pre-S3/F7). The machine
 was also running 68 leaked host processes (F22). Fix F22 first, then make these tests independent of wall-clock
 timing (raise per-test timeouts where the work is inherently slow, replace fixed sleeps with readiness polling),
 and re-check after S3 removes the per-call schema compile.
 
-- [x] Fixed (group D PR 2, 2026-11-17). Wall-clock ordering sleeps replaced with signals, polls, or test-only hooks;
+- [x] Fixed (group D PR 2, 2026-11-17, [#76](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/76)). Wall-clock ordering sleeps replaced with signals, polls, or test-only hooks;
   flake targets: `operations.test.ts` "covers retrieve and execute edge paths" (`holdDelayForTests` + `input.hold`, 30s
   timeout), `conformance.test.ts` "accepts every valid fixture" (30s timeout), editor retrieve sibling
   (`holdEditorSchemaWriteForTests` not `setEditorSchemaWriteDelayForTests(300)`), storage/run/operations/watch/supervisor
@@ -530,7 +526,7 @@ teardown enforces it). Supervisor unit/e2e: deleting `ECP_HOME` stops it within 
 **Clean runs leak too (2026-11-16, F7 work):** a full e2e run that passed (17 files) left 5 supervisor/host
 pairs running, all started during that run; they were stopped manually. So this isn't only interrupted runs.
 
-- [x] Fixed. Cause: five e2e tests made an MCP tool call, which auto-starts a detached host, and only closed the
+- [x] Fixed ([#71](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/71)). Cause: five e2e tests made an MCP tool call, which auto-starts a detached host, and only closed the
   relay. Fix: shared stop helper, supervisor and host orphan safety nets, and a registry-only global teardown.
   Evidence (2026-11-16, Windows): from zero leftover processes, two consecutive full e2e runs (18 files, 44 passed
   each) left **0** `supervisor.js`/`main.js` processes; before the fix one clean run left 5 pairs.
@@ -556,7 +552,7 @@ Verified: a full pre-commit test run leaves `git status` clean.
 files; to refresh everything at once on a clean tree run
 `git rm --cached -r . && git reset --hard`.
 
-- [x] Fixed
+- [x] Fixed ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69))
 
 ### Environment note (not a code change)
 
@@ -600,7 +596,7 @@ against the Cursor plan of the signed-in account.
   prompt that points to a brief file.
 - **Plan mode returns no plan text** (see step 3).
 - **Never skip hooks:** commit with the pre-commit hook enabled; if a test fails, diagnose it
-  (F20 is the known flaky one) instead of using `--no-verify`.
+  instead of using `--no-verify` (F20 was the known flake before [#76](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/76); treat new flakes on their merits).
 - **Don't test against the real `ECP_HOME`:** set a temp `ECP_HOME` in every shell that runs
   `ecp`; a forgotten export starts a real host in `~/.ecp`. The OS keychain is shared across
   homes, so use `ECP_SECRET_<KEY>` env values for secret tests.
@@ -617,9 +613,11 @@ against the Cursor plan of the signed-in account.
 | F | F7 | Validation at scale (per-plugin schemas, lazy compile, marker filtering; spec 03/08 amended), then the pending Firefly families. Can run in parallel with C–E |
 | G | F12 (retrospective), F19, doc index | Close-out |
 
+**Status (2026-11-17): Done (A–G).** Every finding is fixed and merged into `development` ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)–[#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78)).
+
 ## Exit criteria
 
-- [ ] Every finding's checkboxes ticked, with PR links next to them.
-- [ ] `pnpm run check` green; CI green on Ubuntu and Windows.
-- [ ] The audit repro commands in this doc produce the expected results.
-- [ ] Plan retrospective and `realignment/README.md` updated.
+- [x] Every finding's checkboxes ticked, with PR links next to them.
+- [x] `pnpm run check` green; CI green on Ubuntu and Windows — local `pnpm run check` on Windows (coverage 667, integration 18, e2e 50, app 8) and every CI job on [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78), including `e2e-ubuntu`, `e2e-windows`, `app`, `app-windows` and `bench`.
+- [x] The audit repro commands in this doc produce the expected results (see Group G execution report).
+- [x] Plan retrospective and `realignment/README.md` updated (Group G close-out).

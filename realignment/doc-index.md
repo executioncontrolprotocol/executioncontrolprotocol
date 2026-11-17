@@ -1,7 +1,7 @@
 # Docs and rules index
 
-Every markdown file and agent rule in the MVP tree (updated Phase 9). Regenerate with
-`node scripts/gen-doc-index.mjs` when docs are added or removed.
+Every markdown file and agent rule in the MVP tree. Regenerate with
+`node scripts/gen-doc-index.mjs` when docs are added or removed (enforced by `pnpm run lint`).
 
 ## How agents load rules
 

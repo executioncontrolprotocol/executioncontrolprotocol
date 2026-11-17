@@ -26,10 +26,22 @@ function runManifest() {
   })
 }
 
-function formatManifest(raw) {
-  const parsed = JSON.parse(raw)
-  return `${JSON.stringify(parsed, null, 2)}\n`
+// `oclif manifest` emits commands in a nondeterministic order, so write and compare with every
+// object's keys sorted (array order is kept).
+function sortKeys(value) {
+  if (Array.isArray(value)) return value.map(sortKeys)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, sortKeys(value[key])]))
+  }
+  return value
 }
+
+function formatManifest(raw) {
+  return `${JSON.stringify(sortKeys(JSON.parse(raw)), null, 2)}\n`
+}
+
+// `oclif manifest` writes over the committed file, so read the committed copy first.
+const committed = existsSync(manifestPath) ? readFileSync(manifestPath, "utf8") : undefined
 
 runManifest()
 
@@ -46,14 +58,14 @@ if (write) {
   process.exit(0)
 }
 
-if (!existsSync(manifestPath)) {
-  console.error("check-oclif-manifest: missing committed manifest; run build first")
+// Check mode never changes the working tree: put the committed file back before comparing.
+if (committed === undefined) {
+  console.error("check-oclif-manifest: missing committed manifest; run pnpm run build and commit it")
   process.exit(1)
 }
-
-const committed = readFileSync(manifestPath, "utf8")
+writeFileSync(manifestPath, committed)
 if (committed !== freshlyGenerated) {
-  console.error("check-oclif-manifest: drift — regenerate with pnpm run build")
+  console.error("check-oclif-manifest: drift — regenerate with pnpm run build and commit packages/cli/oclif.manifest.json")
   process.exit(1)
 }
 

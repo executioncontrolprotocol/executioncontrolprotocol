@@ -92,6 +92,8 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   "warnings": [], "timing": { … } }
 ```
 
+- `host.pid`: integer ≥ 1 (the process that ran the operation).
+- `host.mode`: `"in-process"` or `"server"` (required with `pid`).
 - Run id: `run-<UTC yyyymmddTHHMMSSZ>-<6 hex>`.
 - `result`: if `execution.returns` exists, an object with exactly those keys from state;
   otherwise every key committed by `as` during the run.

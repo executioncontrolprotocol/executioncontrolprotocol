@@ -129,6 +129,39 @@ test.describe("A8 App", () => {
     await expect(page.getByTestId("validation-clean")).toBeVisible({ timeout: 5_000 })
   })
 
+  test("runs list replays statuses on the graph", async ({ page }) => {
+    await openPath(page, harness.scriptPath)
+    await page.getByTestId("tab-runs").click()
+    await expect(page.getByTestId("runs-empty")).toBeVisible()
+    await expect(page.getByTestId("ecp-step-scripted")).toHaveAttribute("data-status", "idle")
+
+    await openPath(page, harness.demoPath)
+    await page.getByTestId("tab-run").click()
+    await page.getByTestId("ecp-run").click()
+    await expect(page.getByTestId("ecp-step-echo")).toHaveAttribute("data-status", "completed", {
+      timeout: 15_000,
+    })
+
+    await page.reload()
+    await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId("ecp-step-echo")).toHaveAttribute("data-status", "idle", {
+      timeout: 10_000,
+    })
+
+    await page.getByTestId("tab-runs").click()
+    await page.getByTestId("run-history-item").first().click()
+    await expect(page.getByTestId("ecp-step-echo")).toHaveAttribute("data-status", "completed", {
+      timeout: 10_000,
+    })
+    await expect(page.getByTestId("run-replay")).toBeVisible()
+    await expect(page.getByTestId("run-replay-step").first()).toBeVisible()
+
+    await page.getByTestId("runs-clear-replay").click()
+    await expect(page.getByTestId("ecp-step-echo")).toHaveAttribute("data-status", "idle", {
+      timeout: 10_000,
+    })
+  })
+
   test("run updates live statuses and shows result; runs list replays", async ({ page }) => {
     await openPath(page, harness.demoPath)
     await page.getByTestId("tab-run").click()
