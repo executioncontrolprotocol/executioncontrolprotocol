@@ -35,7 +35,13 @@ export {
 } from "./schema/editor-schema.js"
 export { canonicalJson, sha256Hex } from "./schema/canonical.js"
 export { closeMatches, damerauLevenshtein } from "./schema/suggest.js"
-export { HostSchemaSet, loadExecutionText, validateExecution } from "./validate/validate.js"
+export {
+  dedupeIssues,
+  HostSchemaSet,
+  loadExecutionText,
+  mapCapabilityInputIssues,
+  validateExecution,
+} from "./validate/validate.js"
 export type { SchemaFingerprint, ValidateOptions } from "./validate/validate.js"
 export {
   allowsString,

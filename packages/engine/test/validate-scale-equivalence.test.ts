@@ -117,7 +117,7 @@ describe("scale path regression", () => {
       for (const issue of result.issues) {
         expect(issue.message, path.relative(root, file)).not.toMatch(/boolean schema is false/i)
       }
-      const raw = result.issues.map((issue) => `${issue.code}|${issue.path}|${issue.severity}`)
+      const raw = result.issues.map((issue) => `${issue.code}|${issue.path}|${issue.message}|${issue.severity}`)
       expect(new Set(raw).size, `F2 uniqueness ${path.relative(root, file)}`).toBe(raw.length)
       compared += 1
     }
@@ -147,6 +147,49 @@ describe("scale path regression", () => {
     expect(JSON.stringify(result.issues), seen).toContain("bogusStep")
     expect(JSON.stringify(result.issues), seen).toContain("bogusRoot")
     expect(JSON.stringify(result.issues), seen).not.toMatch(/boolean schema is false/i)
+  }, 30_000)
+
+  it("reports a real input error on the object that holds a nested $env, without type-union noise", async () => {
+    const { capabilities, loadPluginSchema, schemaFingerprints } = loadCapabilities()
+    const manifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          // bounded requires `text`; the only property given wraps an $env two levels down.
+          id: "bounded",
+          uses: "@executioncontrolprotocol/test.bounded",
+          input: { extra: { inner: { $env: "PATH" } } },
+          as: "bounded",
+        },
+      ],
+    }
+    const result = await validateExecution(manifest, { capabilities, loadPluginSchema, schemaFingerprints })
+    const seen = JSON.stringify(result.issues, null, 1)
+    const paths = result.issues.map((issue) => `${issue.code} ${issue.path}`)
+    expect(paths, seen).toContain("ECP_INPUT_INVALID /steps/0/input/text") // required `text` missing
+    expect(paths, seen).toContain("ECP_INPUT_INVALID /steps/0/input/extra") // unknown property
+    expect(paths, seen).toContain("ECP_MANIFEST_INVALID /steps/0/input/extra/inner")
+    // No "must be null / boolean / number ..." cascade onto the marker's ancestors.
+    expect(result.issues.filter((issue) => /must be (null|boolean|number|array)/.test(issue.message)), seen).toEqual([])
+  }, 30_000)
+
+  it("validates the localize-banner reference example against the real plugins", async () => {
+    // Real Firefly, Anthropic and test plugin schemas; only the Anthropic config is absent.
+    const { capabilities, loadPluginSchema, schemaFingerprints } = loadCapabilities()
+    const file = path.join(root, "fixtures/manifests/valid/localize-banner.ecp.json")
+    const manifest = JSON.parse(readFileSync(file, "utf8")) as unknown
+    const result = await validateExecution(manifest, {
+      capabilities: capabilities.filter((capability) => !capability.plugin.includes("fixture")),
+      loadPluginSchema,
+      schemaFingerprints,
+      executionDir: path.dirname(file),
+      readText: async (absolutePath: string) => readFileSync(absolutePath, "utf8"),
+    })
+    const seen = JSON.stringify(result.issues, null, 1)
+    expect(result.issues.map((issue) => `${issue.code} ${issue.path}`), seen).toEqual([
+      "ECP_CONFIG_UNKNOWN /steps/1/config",
+    ])
   }, 30_000)
 
   it("reuses compiled validators on a shared HostSchemaSet and invalidates on fingerprint change", async () => {

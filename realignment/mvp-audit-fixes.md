@@ -84,8 +84,8 @@ issues ordered and unique.
 **Tests:** every invalid fixture validated through the engine *and* through the CLI returns no
 duplicate issues (assert uniqueness in the conformance runner and the CLI sweep test, F5).
 
-- [ ] Fixed
-- [ ] Tests added
+- [x] Fixed — dedupe key is `code|path|message|severity`; CLI and MCP skip the envelope header when it repeats the first issue (`packages/cli/src/lib/output.ts`, `packages/mcp-relay/src/format.ts`).
+- [x] Tests added — `packages/engine/test/conformance.test.ts` (duplicate guard), `test/e2e/cli/fixture-sweep.test.ts`.
 
 ### F3 — `$env` / `$secret` in an execution gives an unhelpful message (High)
 
@@ -102,8 +102,8 @@ the marker, suggestion naming `ecp commit --type config` and the `config` step f
 **Tests:** fixtures for `$env` and `$secret` at top-level input, nested object, inside an array,
 inside `$script.params`; exact message and suggestion asserted.
 
-- [ ] Fixed
-- [ ] Tests added
+- [x] Fixed — `collectSecretEnvIssues` + marker-filtered capability input; `schema-secret-positions.ecp.json` covers nested, array, and `$script.params`.
+- [x] Tests added — `packages/engine/test/validate.test.ts`, `schema-secret-positions` expected file, sweep test.
 
 ### F4 — Issues without a `path` (Medium)
 
@@ -117,8 +117,8 @@ the issue builder.
 
 **Tests:** conformance runner fails any issue without a string `path`.
 
-- [ ] Fixed
-- [ ] Tests added
+- [x] Fixed — `finish` asserts every issue `path` is a string; load accepts execution files with wrong `version` and returns `/version` via validate (`operations.ts` `isManifest` aligned with the engine).
+- [x] Tests added — conformance path-type check; runtime step failures use step pointers (`packages/engine/test/run.test.ts`).
 
 ### F5 — Invalid fixtures don't match their expected files; comparison isn't exact (Medium)
 
@@ -144,12 +144,13 @@ substring). The engine conformance test passes anyway, so it compares as a subse
   unless they test the commit conflict; decide whether `$script` with both `source` and `path`
   should report one issue (preferred) or two, and make expected match.
 - Add a **CLI conformance sweep** e2e test: run every invalid fixture through
-  `ecp execute <f> --validate --json`, assert exit code 2 (3 for `ECP_PLUGINS_MISSING`) and the
+  `ecp execute <f> --validate --json`, assert exit code **2** for every validation refusal (spec
+  06, including `ECP_PLUGINS_MISSING`; the audit's exit code 3 is superseded by spec 06) and the
   exact expected issues. This catches CLI/engine drift and F2/F4 regressions.
 
-- [ ] Runner exact
-- [ ] Fixtures corrected
-- [ ] CLI sweep test added
+- [x] Runner exact — `packages/engine/test/conformance.test.ts` full tuple compare, `suggestionsIncludes`, `not-json` via `loadExecutionText`.
+- [x] Fixtures corrected — 19 new invalid fixtures; loop fixtures use `mode: "replace"` where they are not testing commit conflict.
+- [x] CLI sweep test added — `test/e2e/cli/fixture-sweep.test.ts` (CLI + MCP, one host).
 
 ### F6 — Warm CLI performance misses the target; budgets were loosened instead (Medium)
 
@@ -302,113 +303,7 @@ covered. Missing (add one fixture + `.expected.json` each):
 - `ECP_CAPABILITY_UNKNOWN` **with a suggestion**: a near-miss typo of an installed capability
   (today's fixture uses an unrelated id, so `suggestions` is empty).
 
-- [ ] Fixtures added with exact expected files
-
-### F9 — The A2 "all-features" fixture doesn't use all features (Medium)
-
-**Evidence:** `fixtures/manifests/acceptance/all-features.ecp.json` uses only step, branch,
-parallel, `$expr`, `$state` and `mode: "replace"`. No loop, `$ref` (with `optional`/`fallback`),
-`$script` (path and source), gated step (`expr` on a step), `create`/`merge`/`append` modes,
-or config on a step. Spec 12 A2 is meant to prove executor semantics end to end.
-
-**Fix:** extend the fixture (and its `.run.json`: result, step statuses incl. `skipped`, loop
-rounds, event order) to cover every feature above, using `plugin-test` capabilities
-(`bounded` for `$script`, `config-echo` for config). Keep it runnable in-process and warm.
-
-- [ ] Fixture extended
-- [ ] A2 passes on Ubuntu and Windows
-
-### F10 — Acceptance A11/A12 are presence checks only (Low)
-
-**Evidence:** A11 checks that the plan mentions the decision and that `bench/budgets.json`
-parses; A12 checks that `legacy/` is gone. Both run in a few ms. That's acceptable as gates, but
-A11 doesn't check the budgets against targets (see F6).
-
-**Fix:** A11 asserts every budget is ≤ the target or has a recorded exception in the plan (F6).
-A12 also asserts no workspace file references `legacy/` paths.
-
-- [ ] Updated
-
-### F11 — Agent rules and docs still describe an unmerged milestone (Low, but steers agents wrong)
-
-**Evidence:**
-
-- `AGENTS.md` ("This branch line (`milestone/realignment` …) is executing…", "Never push to
-  `main` or `development`"), `.cursor/rules/realignment-milestone.mdc` (same), `CLAUDE.md`.
-- `RELEASING.md`: `milestone/realignment` — "Merge here until the milestone ships."
-- `realignment/README.md`: Phase 0 status "Local check green 2026-11-14; CI not run" though CI
-  is green on `development`.
-
-**Fix:** update to the post-merge model: `development` is the integration branch; fixes and
-features branch as `fix/*` / `feat/*` from `development` with PRs into `development`; `main`
-publishes. Mark the milestone as merged (date, PR #68) in the plan header and
-`realignment/README.md`; set Phase 0's status to Done with the CI run. Rename
-`realignment-milestone.mdc` to `realignment.mdc` describing the shipped design and where the
-spec lives (do not fold into `ecp-spec.mdc`). Regenerate `realignment/doc-index.md`.
-
-- [x] Rules and docs updated
-
-### F12 — Spec and retrospective drift not written back (Low)
-
-**Evidence:** `test.bounded` exists in `plugin-test` but isn't in spec 08's capability list;
-the retrospective's "in-process event flush" row describes a workaround (warm host for A2) that
-looks obsolete (an in-process `ecp execute` wrote all 13 events in the audit, after commit
-`572110aa`); the Firefly scope cut (F7) isn't in the retrospective.
-
-**Fix:** update spec 08 (`bounded`), verify the in-process flush is fixed (test: in-process
-`execute` then read `events.ndjson` immediately after exit; `run.end` present) and update the
-retrospective row; add F7's outcome. Add a retrospective row for every finding here that
-changes a contract.
-
-Note (Group A): updated spec 08 (`bounded`) and the two retrospective rows (in-process event
-flush; Firefly plugin scope). The in-process flush is fixed (`run-store` flushes on `run.end`),
-so A2's warm-host workaround and its comment in `test/e2e/acceptance/A2.test.ts` are obsolete
-and Group G should switch A2 back to in-process. Group G owns the rest of F12.
-
-- [ ] Spec and retrospective updated
-
-### F13 — CLI help text isn't model-legible (Low)
-
-**Evidence:** `ecp --help` shows topic descriptions copied from one subcommand (`host` → "Tail
-host or supervisor logs.", `plugins` → "List installed plugins."); most flags have no
-description (`ecp execute --help`: `--cancel`, `--json`, `--no-wait`, `--out`, `--resume`,
-`--start-host`, `--validate`; `ecp retrieve --help`: `--format`, `--id`, `--limit`, `--query`,
-…; `ecp app --help`: all flags).
-
-**Fix:** set explicit topic descriptions in the CLI's oclif config; give every flag a one-line
-description and examples on each command (the plan's "help written for a model reader").
-
-**Tests:** a unit test walks the oclif manifest and fails on any command, topic or flag without
-a description.
-
-- [ ] Fixed
-- [ ] Test added
-
-### F14 — `--json` envelope not used everywhere (Low)
-
-**Evidence:** `ecp host status --json` prints `{ supervisor, health, port, home }`, not
-`{ ok: true, data }`. Spec 10: `--json` prints the envelope on every command.
-
-**Fix:** audit every command's `--json` (host start/stop/status/restart/logs, app, schema,
-secrets list, plugins list) and wrap in the envelope; errors as `{ ok: false, error }`.
-
-**Tests:** e2e iterates all commands with `--json` and asserts the envelope shape.
-
-- [ ] Fixed
-- [ ] Test added
-
-### F15 — `ecp retrieve` human output isn't a table (Low)
-
-**Evidence:** `ecp retrieve --type capability --query echo` prints bare ids. Spec 10: lists as an
-aligned table (id, summary, and for runs status/time).
-
-**Fix:** aligned columns per type (capability: id, summary; execution: id, version, updated;
-config: id, plugin, version; run: id, status, started, duration; plugin: package, version,
-source, manifest; formatter: id, media type, default). Respect non-TTY/`NO_COLOR`.
-
-**Tests:** snapshot tests per type.
-
-- [ ] Fixed
+- [x] Fixtures added with exact expected files — `fixtures/manifests/invalid/` now includes `not-json`, `schema-wrong`, `input-{required,unknown,enum}`, `script-{missing,object}`, `config-unknown`, `ref-{later,parallel-sibling,maybe-branch,maybe-loop,path}`, `type-{number,object}`, `commit-{loop,parallel}`, `unknown-capability-typo`, `schema-secret-positions` (each with `.expected.json`).
 
 ### F16 — `ecp plugins` lacks manifest status; extra oclif commands undocumented (Low)
 

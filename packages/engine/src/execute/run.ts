@@ -13,7 +13,7 @@ import type {
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
-import { HostSchemaSet } from "../validate/validate.js"
+import { HostSchemaSet, mapCapabilityInputIssues } from "../validate/validate.js"
 import { resolveValue, type ScriptReader } from "./resolve.js"
 
 /**
@@ -216,7 +216,7 @@ export function startExecution(
     emit("run.start", { manifestHash: "", input: redact(input, runtime.secrets) })
     if (deps.cursor?.inProgress) emit("run.resume", { rerunNodeId: deps.cursor.inProgress })
     try {
-      await runNodes(asNodes(manifest.steps), state, runtime, emit, undefined)
+      await runNodes(asNodes(manifest.steps), state, runtime, emit, undefined, "/steps")
       if (runtime.interrupted) {
         emit("run.interrupted", { reason: runtime.interruptReason ?? "host-restart" })
         emit("run.end", { status: "interrupted" })
@@ -288,10 +288,13 @@ async function runNodes(
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   round: number | undefined,
+  prefix: string,
 ): Promise<void> {
-  for (const node of nodes) {
+  for (let index = 0; index < nodes.length; index += 1) {
     if (runtime.controller.signal.aborted || runtime.interrupted) return
-    await runNode(node, state, runtime, emit, round)
+    const node = nodes[index]
+    if (!node) continue
+    await runNode(node, state, runtime, emit, round, `${prefix}/${index}`)
   }
 }
 
@@ -301,17 +304,18 @@ async function runNode(
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   round: number | undefined,
+  nodePointer: string,
 ): Promise<void> {
   if (runtime.completed.has(node.id) && runtime.cursor.inProgress !== node.id) return
   runtime.cursor.inProgress = node.id
   if (node.type === "branch") {
-    await runBranch(node, state, runtime, emit, round)
+    await runBranch(node, state, runtime, emit, round, nodePointer)
   } else if (node.type === "loop") {
-    await runLoop(node, state, runtime, emit)
+    await runLoop(node, state, runtime, emit, nodePointer)
   } else if (node.type === "parallel") {
-    await runParallel(node, state, runtime, emit, round)
+    await runParallel(node, state, runtime, emit, round, nodePointer)
   } else {
-    await runStep(node, state, runtime, emit, round)
+    await runStep(node, state, runtime, emit, round, nodePointer)
   }
   if (!runtime.interrupted && !runtime.controller.signal.aborted) {
     runtime.completed.add(node.id)
@@ -326,6 +330,7 @@ async function runStep(
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   round: number | undefined,
+  stepPointer: string,
 ): Promise<void> {
   const summary: StepSummary = { nodeId: node.id, status: "completed", ...(round === undefined ? {} : { round }) }
   if (node.expr) {
@@ -354,7 +359,12 @@ async function runStep(
     if (capability && runtime.schemas) {
       const inputErrors = runtime.schemas.validateInput(capability, resolvedInput)
       if (inputErrors.length > 0) {
-        throw Object.assign(new Error(inputErrors[0]?.message ?? "Input is invalid."), { code: "ECP_INPUT_INVALID" })
+        const issues = mapCapabilityInputIssues(inputErrors, `${stepPointer}/input`)
+        const first = issues[0]
+        throw Object.assign(new Error(first?.message ?? "Input is invalid."), {
+          code: "ECP_INPUT_INVALID",
+          path: first?.path ?? `${stepPointer}/input`,
+        })
       }
     } else if (capability) {
       assertSchema(capability.accepts, resolvedInput, "ECP_INPUT_INVALID")
@@ -385,7 +395,12 @@ async function runStep(
     summary.durationMs = Date.now() - started
     if (timeout.signal.aborted && !runtime.controller.signal.aborted) {
       summary.status = "failed"
-      const issue = { code: "ECP_STEP_TIMEOUT" as const, severity: "error" as const, message: "Step timed out.", path: "" }
+      const issue = {
+        code: "ECP_STEP_TIMEOUT" as const,
+        severity: "error" as const,
+        message: "Step timed out.",
+        path: stepPointer,
+      }
       emit("step.error", { nodeId: node.id, round, error: issue })
       await persistStep(runtime, node, summary, resolvedInput, null, issue)
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
@@ -396,12 +411,13 @@ async function runStep(
       if (runtime.interrupted) return
       throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
-    const issue = toIssue(error, runtime.secrets)
+    const issue = toIssue(error, runtime.secrets, stepPointer)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
     await persistStep(runtime, node, summary, resolvedInput, null, issue)
     throw Object.assign(new Error(issue.message), {
       code: issue.code,
+      path: issue.path,
       ...(issue.details ? { details: issue.details } : {}),
     })
   } finally {
@@ -415,6 +431,7 @@ async function runBranch(
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   round: number | undefined,
+  nodePointer: string,
 ): Promise<void> {
   const arms = Array.isArray(node.branches) ? (node.branches as Array<{ expr?: string; steps?: NodeLike[] }>) : []
   const restored = runtime.cursor.branches[node.id]
@@ -437,7 +454,7 @@ async function runBranch(
   if (selected !== null) runtime.cursor.branches[node.id] = selected
   emit("branch.select", { nodeId: node.id, arm: selected })
   const chosen = selected === null ? undefined : arms[selected]
-  if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, runtime, emit, round)
+  if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, runtime, emit, round, `${nodePointer}/branches/${selected}/steps`)
 }
 
 async function runLoop(
@@ -445,6 +462,7 @@ async function runLoop(
   state: Record<string, unknown>,
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
+  nodePointer: string,
 ): Promise<void> {
   const maxRounds = node.maxRounds ?? 1
   const resumeRound = runtime.deps.cursor?.loops[node.id]
@@ -462,7 +480,7 @@ async function runLoop(
     }
     runtime.cursor.loops[node.id] = round
     emit("loop.round", { nodeId: node.id, round })
-    await runNodes(node.steps ?? [], state, runtime, emit, round)
+    await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
     round += 1
   }
   if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: round })
@@ -489,6 +507,7 @@ async function runParallel(
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   round: number | undefined,
+  nodePointer: string,
 ): Promise<void> {
   const lines = Array.isArray(node.branches) ? (node.branches as NodeLike[][]) : []
   const limit = node.maxConcurrency ?? runtime.deps.maxConcurrency ?? 4
@@ -505,7 +524,7 @@ async function runParallel(
       if (!line || local.signal.aborted) return
       const child: Runtime = { ...runtime, controller: local }
       try {
-        await runNodes(asNodes(line as never), state, child, emit, round)
+        await runNodes(asNodes(line as never), state, child, emit, round, `${nodePointer}/branches/${index}`)
       } catch (error) {
         if (!failure) {
           failure = error
@@ -657,18 +676,20 @@ function redact(value: unknown, secrets: Set<string>): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redact(child, secrets)]))
 }
 
-function toIssue(error: unknown, secrets: Set<string> = new Set()): ValidationIssue {
+function toIssue(error: unknown, secrets: Set<string> = new Set(), stepPointer = ""): ValidationIssue {
   const code = isRecord(error) && typeof error.code === "string" ? error.code : "ECP_STEP_FAILED"
   const message = error instanceof Error ? error.message : "Step failed."
   const rawDetails = isRecord(error) && isRecord(error.details) ? error.details : undefined
   const details = rawDetails
     ? (redact(rawDetails, secrets) as Record<string, unknown>)
     : undefined
+  const path =
+    isRecord(error) && typeof error.path === "string" ? error.path : code === "ECP_RUN_CANCELLED" ? "" : stepPointer
   return {
     code: code as ValidationIssue["code"],
     severity: "error",
     message,
-    path: "",
+    path,
     ...(details && Object.keys(details).length > 0 ? { details } : {}),
   }
 }

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "ECP_CAPABILITY_UNKNOWN",
+    "path": "/steps/0/uses",
+    "severity": "error",
+    "suggestionsIncludes": [
+      "did you mean '@executioncontrolprotocol/test.echo'?"
+    ]
+  }
+]

@@ -5,9 +5,9 @@
 | Layer | Location | Runs | Notes |
 | --- | --- | --- | --- |
 | Unit | `packages/*/test/**/*.test.ts`, `plugins/*/test/**` | `test:unit`, coverage gate | Pure, fast, no network, no real `ECP_HOME` |
-| Conformance | `fixtures/` + `packages/engine/test/conformance.test.ts` | part of `test:unit` | Every fixture validated; expected issues compared exactly (code, path, severity; message substring) |
+| Conformance | `fixtures/` + `packages/engine/test/conformance.test.ts` | part of `test:unit` | Every fixture validated; expected issues compared exactly (code, path, severity; `messageIncludes` substring; optional `suggestionsIncludes`) |
 | Integration | `packages/host/test/integration/**` | `test:integration` | `createLocalHost` in-process, temp `ECP_HOME`, `plugin-test` via `extraPlugins` |
-| E2E | `test/e2e/**` (root) | `test:e2e` | Spawns the built `ecp` bin: supervisor, host, relay over stdio (MCP SDK client), plugin pack/install/link; Ubuntu + Windows |
+| E2E | `test/e2e/**` (root) | `test:e2e` | Spawns the built `ecp` bin: supervisor, host, relay over stdio (MCP SDK client), plugin pack/install/link; Ubuntu + Windows. `test/e2e/cli/fixture-sweep.test.ts` (one warm host) runs every `fixtures/manifests/invalid/*.ecp.json` through CLI and MCP validate and compares the same tuples; exit code **2** for validation refusals (spec 06, including `ECP_PLUGINS_MISSING`) |
 | App | `packages/app/test/e2e/**` | `test:app` | Playwright against a real host |
 | Live | `plugins/*/test/live/**` | when secrets exist | Anthropic, Azure (Azurite or account), Firefly; skip cleanly otherwise |
 
@@ -29,7 +29,8 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
 
 - **Valid:** smallest execution; every node kind alone; nested branch-in-loop-in-parallel;
   every marker; every commit mode; `$script` by source and by path; `optional`/`fallback`;
-  `localize-banner` (reference example, 02).
+  `localize-banner` (reference example, 02; validated against the shipped Firefly, Anthropic and
+  test plugins in the engine tests, where its only issue is the missing `anthropic/default` config).
 - **Invalid (one per code that L0–L3 can produce):** at least one fixture for each of
   `ECP_EXECUTION_LOAD`, `ECP_MANIFEST_INVALID` (unknown property, missing `steps`, duplicate
   id, default arm not last, `mode` without `as`, `$secret` in execution, `maxRounds` 0),

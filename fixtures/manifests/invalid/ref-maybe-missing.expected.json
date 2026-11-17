@@ -2,6 +2,9 @@
   {
     "code": "ECP_REF_MAYBE_MISSING",
     "path": "/steps/1/input/value/$ref",
-    "severity": "error"
+    "severity": "error",
+    "suggestionsIncludes": [
+      "add \"optional\": true and a \"fallback\""
+    ]
   }
 ]

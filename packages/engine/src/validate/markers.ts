@@ -203,7 +203,7 @@ export function assertScriptPositions(
     if (kind !== "$script") continue
     if (subschemasAt(accepts, relative).some((schema) => allowsString(schema))) continue
     issues.push({
-      code: "ECP_MANIFEST_INVALID",
+      code: "ECP_SCRIPT_INVALID",
       severity: "error",
       message: "$script is not allowed where the capability accepts schema does not accept a string.",
       path: `${inputPointer}${relative}`,

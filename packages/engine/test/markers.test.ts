@@ -168,7 +168,7 @@ describe("open-object and script position rules", () => {
       ),
     ).toEqual([
       expect.objectContaining({
-        code: "ECP_MANIFEST_INVALID",
+        code: "ECP_SCRIPT_INVALID",
         path: "/steps/0/input/script",
       }),
     ])
@@ -187,7 +187,7 @@ describe("open-object and script position rules", () => {
     )
     expect(issues).toEqual([
       expect.objectContaining({
-        code: "ECP_MANIFEST_INVALID",
+        code: "ECP_SCRIPT_INVALID",
         path: "/steps/0/input/count",
       }),
     ])

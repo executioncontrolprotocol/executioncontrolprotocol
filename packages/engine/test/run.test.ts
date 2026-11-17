@@ -11,7 +11,7 @@ import type {
   PluginSchemaDocument,
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
-import { resolveValue, runExecution, startExecution, VERSION, type StateStore } from "../src/index.js"
+import { HostSchemaSet, resolveValue, runExecution, startExecution, VERSION, type StateStore } from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
 import type { RunRecord } from "@executioncontrolprotocol/protocol"
 
@@ -586,16 +586,25 @@ describe("run fixtures", () => {
     expect(resumed.result.banner).toEqual({ echo: "banner" })
     expect(resumed.result.bump).toEqual({ echo: "bump" })
 
+    const schemas = await HostSchemaSet.create(capabilities)
     const invalidInput = await runExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
-        steps: [{ id: "bad", uses: "@executioncontrolprotocol/test.delay", input: { ms: "nope" }, as: "bad" }],
+        steps: [
+          {
+            id: "bad",
+            uses: "@executioncontrolprotocol/test.bounded",
+            input: { text: 1 },
+            as: "bad",
+          },
+        ],
       },
       {},
-      { capabilities, call: invoke, expression: engine },
+      { capabilities, call: invoke, expression: engine, schemas },
     )
     expect(invalidInput.error?.code).toBe("ECP_INPUT_INVALID")
+    expect(invalidInput.error?.path).toBe("/steps/0/input/text")
 
     const custom: CapabilityEntry[] = [
       {

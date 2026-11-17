@@ -78,17 +78,22 @@ describe("host integration acceptance", () => {
       ) as ExecutionManifest
       const expected = JSON.parse(
         await readFile(path.join(invalidDir, `${name}.expected.json`), "utf8"),
-      ) as Array<{ code: string; path: string; severity: string }>
+      ) as Array<{ code: string; path: string; severity: string; messageIncludes?: string }>
       const response = await host.operations.execute({ execution: manifest, mode: "validate" })
       expect(response.ok).toBe(false)
       if (response.ok) continue
-      const actual = (response.error.issues ?? []).map((issue) => ({
+      const issues = response.error.issues ?? []
+      const actual = issues.map((issue) => ({
         code: issue.code,
         path: issue.path,
         severity: issue.severity,
       }))
-      for (const issue of expected) {
+      for (const { messageIncludes, ...issue } of expected) {
         expect(actual, `${name} missing ${issue.code} ${issue.path}`).toContainEqual(issue)
+        if (messageIncludes) {
+          const match = issues.find((item) => item.code === issue.code && item.path === issue.path)
+          expect(match?.message, `${name} ${issue.code} message`).toContain(messageIncludes)
+        }
       }
     }
   })

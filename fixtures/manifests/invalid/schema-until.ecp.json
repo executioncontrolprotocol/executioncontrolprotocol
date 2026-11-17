@@ -15,7 +15,8 @@
           "input": {
             "value": "hi"
           },
-          "as": "echo"
+          "as": "echo",
+          "mode": "replace"
         }
       ]
     }

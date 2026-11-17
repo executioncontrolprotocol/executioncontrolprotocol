@@ -1,10 +1,5 @@
 [
   {
-    "code": "ECP_COMMIT_CONFLICT",
-    "path": "/steps/0/steps/0/mode",
-    "severity": "error"
-  },
-  {
     "code": "ECP_MANIFEST_INVALID",
     "path": "/steps/0/until",
     "severity": "error"

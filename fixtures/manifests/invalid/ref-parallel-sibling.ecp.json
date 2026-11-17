@@ -1,0 +1,34 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "pair",
+      "branches": [
+        [
+          {
+            "id": "a",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": {
+                "$ref": "state.right"
+              }
+            },
+            "as": "left"
+          }
+        ],
+        [
+          {
+            "id": "b",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "r"
+            },
+            "as": "right"
+          }
+        ]
+      ]
+    }
+  ]
+}
