@@ -42,8 +42,9 @@ No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others a
    `idle never`). Reuse prints nothing. Start failure → exit **4** `ECP_HOST_UNAVAILABLE`
    with host and supervisor log paths (no in-process fallback).
 3. Else → in-process: `createLocalHost({ mode: "in-process" })` (same services, no HTTP
-   endpoint), run the operation, stop the host, exit. Print to stderr once:
-   `tip: run "ecp host start" to keep a warm host and make commands faster`.
+   endpoint), run the operation, stop the host, exit. Print to stderr once a tip naming why
+   (`ECP_NO_START_HOST` is set, or `--no-start-host`) and how to get the warm host. Commands that
+   never auto-start (`schema`) print no tip.
 
 If the warm host refuses the request because it began draining (for example an idle shutdown
 starting between discovery and the request: `ECP_HOST_RESTARTING`, or the connection drops),

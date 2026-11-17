@@ -45,6 +45,8 @@ export interface OpsHandle {
 export interface DiscoverOpsOptions {
   /** When `false`, never auto-start a supervisor (still uses a healthy host). Default: honor env unless set. */
   autoStart?: boolean
+  /** When `false`, don't print the in-process tip (commands that never auto-start, e.g. `schema`). */
+  tip?: boolean
   home?: string
   extraPlugins?: string[]
 }
@@ -111,9 +113,16 @@ async function discoverOnce(options: DiscoverOpsOptions): Promise<OpsHandle> {
   const warm = await tryWarm(home)
   if (warm) return warm
 
-  const optOut = noStartHostEnv() || options.autoStart === false
-  if (optOut) {
-    return inProcessHost(home, options.extraPlugins)
+  const envOptOut = noStartHostEnv()
+  if (envOptOut || options.autoStart === false) {
+    // Say why this ran in-process, so the user knows what to change.
+    const tip =
+      options.tip === false
+        ? undefined
+        : envOptOut
+          ? "tip: ran in-process because ECP_NO_START_HOST is set; unset it for a warm background host and faster commands\n"
+          : "tip: ran in-process (--no-start-host); drop the flag for a warm background host and faster commands\n"
+    return inProcessHost(home, options.extraPlugins, tip)
   }
 
   try {
@@ -165,17 +174,15 @@ export async function ensureWarmHost(home = ecpHome()): Promise<{
   }
 }
 
-async function inProcessHost(home: string, extraPlugins?: string[]): Promise<OpsHandle> {
+async function inProcessHost(home: string, extraPlugins?: string[], tip?: string): Promise<OpsHandle> {
   const { createLocalHost } = await import("@executioncontrolprotocol/host")
   const host = await createLocalHost({
     home,
     mode: "in-process",
     extraPlugins,
   })
-  if (!tipPrinted) {
-    process.stderr.write(
-      'tip: run "ecp host start" to keep a warm host and make commands faster (or clear ECP_NO_START_HOST)\n',
-    )
+  if (tip && !tipPrinted) {
+    process.stderr.write(tip)
     tipPrinted = true
   }
   return wrapInProcess(host)

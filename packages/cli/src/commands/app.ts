@@ -9,7 +9,7 @@ import { writeEnvelope } from "../lib/output.js"
  */
 export default class App extends Command {
   static override description =
-    "Open the visual App against the local host; use retrieve and execute for headless agent workflows."
+    "Open the visual App in a browser (starts the background host if needed); use retrieve and execute for headless agent workflows."
 
   static override args = {
     path: Args.string({ description: "Execution file path to open in the App (resolved to absolute)." }),

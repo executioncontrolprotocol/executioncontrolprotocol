@@ -8,7 +8,7 @@
           "name": "path"
         }
       },
-      "description": "Open the visual App against the local host; use retrieve and execute for headless agent workflows.",
+      "description": "Open the visual App in a browser (starts the background host if needed); use retrieve and execute for headless agent workflows.",
       "enableJsonFlag": false,
       "examples": [
         {
@@ -278,12 +278,12 @@
     "host:reload": {
       "aliases": [],
       "args": {},
-      "description": "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`.",
+      "description": "Re-read plugins and config by draining running work and restarting the host; same as `ecp host restart`.",
       "enableJsonFlag": false,
       "examples": [
         {
-          "command": "<%= config.bin %> host restart",
-          "description": "Requests a host restart; add --json for the envelope."
+          "command": "<%= config.bin %> host reload",
+          "description": "Picks up a newly linked or updated plugin without stopping the background host for long."
         }
       ],
       "flags": {
@@ -318,7 +318,7 @@
     "host:restart": {
       "aliases": [],
       "args": {},
-      "description": "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`.",
+      "description": "Drain running work, restart the host, and re-read plugins and config. `ecp host reload` does the same.",
       "enableJsonFlag": false,
       "examples": [
         {
@@ -388,8 +388,9 @@
         },
         "started-by": {
           "default": "explicit",
-          "description": "Record how the supervisor was started (explicit for host start).",
+          "description": "Internal: how the supervisor was started (set to auto by the CLI and MCP relay).",
           "hasDynamicHelp": false,
+          "hidden": true,
           "multiple": false,
           "name": "started-by",
           "options": [
@@ -568,8 +569,8 @@
       "enableJsonFlag": false,
       "examples": [
         {
-          "command": "<%= config.bin %> plugins inspect plugin-test",
-          "description": "Prints package path and version for plugin-test."
+          "command": "<%= config.bin %> plugins inspect test",
+          "description": "Prints where @executioncontrolprotocol/plugin-test is installed (friendly name: test)."
         }
       ],
       "flags": {
@@ -636,7 +637,7 @@
           "type": "option"
         },
         "include": {
-          "description": "Comma-separated detail sections for a single capability.",
+          "description": "With --type run --id: comma-separated extras to include (steps, events, manifest, state).",
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "include",
@@ -714,7 +715,7 @@
       "examples": [
         {
           "command": "<%= config.bin %> schema --print",
-          "description": "Prints the schema file path after warming the host; add --print to dump the file."
+          "description": "Prints the editor schema path (writes the files if needed); add --print to dump the file."
         }
       ],
       "flags": {
@@ -783,7 +784,7 @@
       "aliases": [],
       "args": {
         "key": {
-          "description": "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/apiKey.",
+          "description": "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/api-key.",
           "name": "key",
           "required": true
         }
@@ -792,7 +793,7 @@
       "enableJsonFlag": false,
       "examples": [
         {
-          "command": "<%= config.bin %> secrets set anthropic.apiKey",
+          "command": "<%= config.bin %> secrets set anthropic/api-key",
           "description": "Reads the value from stdin and stores it under the key."
         }
       ],
@@ -839,7 +840,7 @@
       "enableJsonFlag": false,
       "examples": [
         {
-          "command": "<%= config.bin %> secrets unset anthropic.apiKey",
+          "command": "<%= config.bin %> secrets unset anthropic/api-key",
           "description": "Deletes the key when present; missing keys return exit 2 with --json."
         }
       ],

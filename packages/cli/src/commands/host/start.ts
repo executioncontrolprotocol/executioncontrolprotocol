@@ -29,7 +29,8 @@ export default class HostStart extends Command {
       min: 0,
     }),
     "started-by": Flags.string({
-      description: "Record how the supervisor was started (explicit for host start).",
+      description: "Internal: how the supervisor was started (set to auto by the CLI and MCP relay).",
+      hidden: true,
       options: ["auto", "explicit"],
       default: "explicit",
     }),

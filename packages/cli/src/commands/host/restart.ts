@@ -10,7 +10,7 @@ import { writeEnvelope } from "../../lib/output.js"
  */
 export default class HostRestart extends Command {
   static override description =
-    "Drain the host, restart it, and re-read plugins and config; also available as `ecp host reload`."
+    "Drain running work, restart the host, and re-read plugins and config. `ecp host reload` does the same."
 
   static override examples = [
     {

@@ -16,7 +16,7 @@ export default class Schema extends Command {
 
   static override examples = [
     {
-      description: "Prints the schema file path after warming the host; add --print to dump the file.",
+      description: "Prints the editor schema path (writes the files if needed); add --print to dump the file.",
       command: "<%= config.bin %> schema --print",
     },
   ]
@@ -39,7 +39,7 @@ export default class Schema extends Command {
     const schemaPath = path.join(home, "schema", "execution.schema.json")
     let ops
     try {
-      ops = await discoverOps({ autoStart: false })
+      ops = await discoverOps({ autoStart: false, tip: false })
     } catch (error) {
       if (isHostUnavailableError(error)) {
         writeEnvelope(hostUnavailableEnvelope(error), {

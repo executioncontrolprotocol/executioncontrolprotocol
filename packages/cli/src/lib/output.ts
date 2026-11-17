@@ -264,20 +264,22 @@ function retrieveRow(type: RetrieveType, item: Record<string, unknown>): Record<
  */
 export function printExecuteHuman(data: unknown): void {
   if (data && typeof data === "object" && "validation" in (data as object) && !("runId" in (data as object))) {
-    const validation = (data as { validation: { ok: boolean; issues: ValidationIssue[] } }).validation
-    if (!validation.ok) {
-      const errors = validation.issues.filter((issue) => issue.severity === "error")
+    // ValidationResult uses `valid` (spec 03); an earlier `ok` check printed nothing for valid files.
+    const validation = (data as { validation: { valid: boolean; issues: ValidationIssue[] } }).validation
+    const errors = validation.issues.filter((issue) => issue.severity === "error")
+    if (validation.valid) {
+      process.stdout.write("valid\n")
+    } else {
       const noun = errors.length === 1 ? "validation error" : "validation errors"
-      if (errors.length > 0) process.stdout.write(`ECP_MANIFEST_INVALID  ${errors.length} ${noun}\n`)
-      for (const issue of validation.issues) {
-        process.stdout.write(`${issue.path}  ${issue.code}  ${issue.message}\n`)
-        for (const suggestion of issue.suggestions ?? []) {
-          process.stdout.write(`  suggestion: ${suggestion}\n`)
-        }
-      }
-      return
+      process.stdout.write(`ECP_MANIFEST_INVALID  ${errors.length} ${noun}\n`)
     }
-    process.stdout.write("valid\n")
+    // Errors, then warnings (a valid file can still carry warnings).
+    for (const issue of validation.issues) {
+      process.stdout.write(`${issue.path}  ${issue.code}  ${issue.message}\n`)
+      for (const suggestion of issue.suggestions ?? []) {
+        process.stdout.write(`  suggestion: ${suggestion}\n`)
+      }
+    }
     return
   }
   const run = data as {
