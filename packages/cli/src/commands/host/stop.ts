@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core"
-import { readHostJson } from "@executioncontrolprotocol/host"
+import { readHostJson } from "@executioncontrolprotocol/host/client"
 import { setTimeout as delay } from "node:timers/promises"
 import { existsSync, unlinkSync } from "node:fs"
 import path from "node:path"

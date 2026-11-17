@@ -1,0 +1,21 @@
+{
+  "description": "Phase 5 design targets (median ms). See realignment/spec/12-testing-and-acceptance.md.",
+  "scenarios": {
+    "B1-retrieve-id-in-process": { "medianMs": 1500 },
+    "B1-retrieve-id-warm": { "medianMs": 1000 },
+    "B2-retrieve-query-in-process": { "medianMs": 1500 },
+    "B2-retrieve-query-warm": { "medianMs": 1000 },
+    "B3-execute-echo-in-process": { "medianMs": 1500 },
+    "B3-execute-echo-warm": { "medianMs": 1000 },
+    "B5-execute-expr-warm": { "medianMs": 1000 },
+    "B6-host-start": { "medianMs": 3000 },
+    "B6-host-restart": { "medianMs": 6000 },
+    "B7-schema": { "medianMs": 2000 },
+    "B8-start-overhead-1k": { "medianMs": 100 },
+    "B8-start-overhead-5k": { "medianMs": 100 },
+    "B8-first-use-median": { "medianMs": 50 },
+    "B8-cached-validate": { "medianMs": 1 },
+    "B8-editor-write-warm-1k": { "medianMs": 50 },
+    "B8-execute-echo-warm-all-plugins": { "medianMs": 1000 }
+  }
+}

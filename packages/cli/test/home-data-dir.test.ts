@@ -107,6 +107,19 @@ describe("setup-env.js parity with home.ts", () => {
   })
 })
 
+describe("host-discovery warm path imports", () => {
+  it("uses host/client for discovery and lazy-imports createLocalHost", () => {
+    const discoveryPath = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../src/lib/host-discovery.ts",
+    )
+    const source = readFileSync(discoveryPath, "utf8")
+    expect(source).toMatch(/from "@executioncontrolprotocol\/host\/client"/)
+    expect(source).toMatch(/await import\("@executioncontrolprotocol\/host"\)/)
+    expect(source).not.toMatch(/createLocalHost[^{\n]*from "@executioncontrolprotocol\/host"/)
+  })
+})
+
 describe("maybeWarnLegacyPluginDir", () => {
   it("prints once, writes stamp, then stays silent", async () => {
     const home = await tempDir("ecp-notice-home-")

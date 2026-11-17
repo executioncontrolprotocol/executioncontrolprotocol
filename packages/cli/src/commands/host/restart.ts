@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core"
-import { readHostJson } from "@executioncontrolprotocol/host"
+import { readHostJson } from "@executioncontrolprotocol/host/client"
 import { ControlClient } from "../../lib/control-client.js"
 import { ecpHome } from "../../lib/home.js"
 import { writeEnvelope } from "../../lib/output.js"

@@ -32,11 +32,17 @@ if (!existsSync(ecpBin)) {
 const home = mkdtempSync(path.join(tmpdir(), "ecp-bench-"))
 const dataDir = path.join(home, "plugins")
 mkdirSync(dataDir, { recursive: true })
+const benchPlugins = [
+  { name: "@executioncontrolprotocol/plugin-test", root: pluginTest },
+  { name: "@executioncontrolprotocol/plugin-anthropic", root: pluginAnthropic },
+  { name: "@executioncontrolprotocol/plugin-azure-blob-storage", root: pluginAzure },
+  { name: "@executioncontrolprotocol/plugin-adobe-firefly-services", root: pluginFirefly },
+]
 writeFileSync(
   path.join(dataDir, "package.json"),
   `${JSON.stringify({
     private: true,
-    oclif: { plugins: [{ type: "link", name: "@executioncontrolprotocol/plugin-test", root: pluginTest }] },
+    oclif: { plugins: benchPlugins.map((p) => ({ type: "link", name: p.name, root: p.root })) },
   })}\n`,
 )
 
@@ -93,7 +99,10 @@ try {
   })
 
   scenarios.push(await timeScenario("B5-execute-expr-warm", async () => {
-    await runEcp(["execute", exprFixture, "--validate", "--json"], baseEnv)
+    await runEcp(
+      ["execute", exprFixture, "--input", JSON.stringify({ on: true }), "--json"],
+      baseEnv,
+    )
   }))
 
   const startSamples = []
@@ -123,14 +132,17 @@ try {
     p95Ms: percentile(restartSamples, 95),
   })
 
-  const schemaT0 = performance.now()
-  await runEcp(["schema", "--json"], baseEnv)
-  const schemaMs = performance.now() - schemaT0
+  const schemaSamples = []
+  for (let i = 0; i < 5; i++) {
+    const schemaT0 = performance.now()
+    await runEcp(["schema", "--json"], baseEnv)
+    schemaSamples.push(performance.now() - schemaT0)
+  }
   scenarios.push({
     id: "B7-schema",
-    samplesMs: [round(schemaMs)],
-    medianMs: round(schemaMs),
-    p95Ms: round(schemaMs),
+    samplesMs: schemaSamples.map(round),
+    medianMs: median(schemaSamples),
+    p95Ms: percentile(schemaSamples, 95),
   })
 
   await runEcp(["host", "stop", "--force", "--json"], baseEnv)
@@ -181,7 +193,7 @@ const result = {
   decision,
   decisionNote,
   scenarios,
-  mcpColumn: "N/A until Phase 6",
+  mcpColumn: "MCP relay is not a budgeted bench mode (A9 covers parity).",
 }
 
 const resultFile = path.join(outDir, `${date}-${platform()}.json`)
@@ -265,7 +277,9 @@ function runEcp(args, env) {
 }
 
 async function waitHealthy(homeDir, timeoutMs = 20_000) {
-  const { checkHealth, readHostJson } = await import(pathToFileURL(path.join(root, "packages/host/dist/index.js")).href)
+  const { checkHealth, readHostJson } = await import(
+    pathToFileURL(path.join(root, "packages/host/dist/client.js")).href,
+  )
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const file = readHostJson(homeDir)

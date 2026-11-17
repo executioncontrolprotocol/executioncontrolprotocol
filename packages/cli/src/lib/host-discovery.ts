@@ -2,13 +2,8 @@ import { spawn } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { setTimeout as delay } from "node:timers/promises"
-import {
-  checkHealth,
-  createLocalHost,
-  HostClient,
-  readHostJson,
-  type LocalHost,
-} from "@executioncontrolprotocol/host"
+import { checkHealth, HostClient, readHostJson } from "@executioncontrolprotocol/host/client"
+import type { LocalHost } from "@executioncontrolprotocol/host"
 import type { CommitData, CommitInput, ExecuteData, ExecuteInput, OperationResponse, RetrieveData, RetrieveInput } from "@executioncontrolprotocol/protocol"
 import { ecpHome } from "./home.js"
 
@@ -63,6 +58,7 @@ export async function discoverOps(options: {
     })
   }
 
+  const { createLocalHost } = await import("@executioncontrolprotocol/host")
   const host = await createLocalHost({
     home,
     mode: "in-process",

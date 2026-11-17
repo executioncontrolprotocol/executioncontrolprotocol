@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import path from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
-import { checkHealth, HostClient, readHostJson } from "@executioncontrolprotocol/host"
+import { checkHealth, HostClient, readHostJson } from "@executioncontrolprotocol/host/client"
 import type { HostFile, SupervisorStatus } from "@executioncontrolprotocol/protocol"
 import { relayLog } from "./log.js"
 

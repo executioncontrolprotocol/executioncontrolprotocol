@@ -181,10 +181,10 @@ top-level imports in the CLI entry (host/engine/Ajv/QuickJS imported even for HT
 **Tests:** CI `bench` job enforces the new budgets on Ubuntu; A11 asserts the plan's decision
 text and that every budget is ≤ the stated target or has a recorded exception.
 
-- [ ] Profiled and causes recorded
-- [ ] Fixes applied
-- [ ] Ubuntu + Windows baselines committed
-- [ ] Budgets set from targets; A11 updated
+- [x] Profiled and causes recorded — `bench/phases.mjs` before/after tables in `REALIGNMENT-PLAN.md` Measurements (Group E).
+- [x] Fixes applied — `@executioncontrolprotocol/host/client`, lazy `createLocalHost`, committed `packages/cli/oclif.manifest.json` + drift check.
+- [ ] Ubuntu + Windows baselines committed — `bench/baseline/<date>-win32.json` on this branch; Linux file pending CI artifact upload (bench-linux).
+- [x] Budgets set from targets; A11 updated — `bench/targets.json`, `bench/budget-check.mjs`, acceptance A11.
 
 ### F7 — Firefly plugin is a partial port, undocumented (Medium)
 
@@ -328,7 +328,7 @@ A11 doesn't check the budgets against targets (see F6).
 **Fix:** A11 asserts every budget is ≤ the target or has a recorded exception in the plan (F6).
 A12 also asserts no workspace file references `legacy/` paths.
 
-- [ ] Updated
+- [x] Updated — `bench/budget-check.mjs`, `bench/legacy-path-scan.mjs`, acceptance A11/A12 with unit fixtures.
 
 ### F11 — Agent rules and docs still describe an unmerged milestone (Low, but steers agents wrong)
 

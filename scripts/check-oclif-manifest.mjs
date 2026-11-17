@@ -1,0 +1,60 @@
+/**
+ * Generate or verify packages/cli/oclif.manifest.json matches dist/commands.
+ */
+import { execFileSync } from "node:child_process"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const cliRoot = path.join(root, "packages/cli")
+const manifestPath = path.join(cliRoot, "oclif.manifest.json")
+const write = process.argv.includes("--write")
+
+if (!existsSync(path.join(cliRoot, "dist/commands"))) {
+  console.error("check-oclif-manifest: run tsc for packages/cli first")
+  process.exit(1)
+}
+
+const oclifBin = path.join(cliRoot, "node_modules/oclif/bin/run.js")
+
+function runManifest() {
+  execFileSync(process.execPath, [oclifBin, "manifest"], {
+    cwd: cliRoot,
+    encoding: "utf8",
+    env: { ...process.env, NODE_ENV: "production" },
+  })
+}
+
+function formatManifest(raw) {
+  const parsed = JSON.parse(raw)
+  return `${JSON.stringify(parsed, null, 2)}\n`
+}
+
+runManifest()
+
+if (!existsSync(manifestPath)) {
+  console.error("check-oclif-manifest: oclif manifest did not write oclif.manifest.json")
+  process.exit(1)
+}
+
+const freshlyGenerated = formatManifest(readFileSync(manifestPath, "utf8"))
+
+if (write) {
+  writeFileSync(manifestPath, freshlyGenerated)
+  console.log("check-oclif-manifest: wrote", path.relative(root, manifestPath))
+  process.exit(0)
+}
+
+if (!existsSync(manifestPath)) {
+  console.error("check-oclif-manifest: missing committed manifest; run build first")
+  process.exit(1)
+}
+
+const committed = readFileSync(manifestPath, "utf8")
+if (committed !== freshlyGenerated) {
+  console.error("check-oclif-manifest: drift — regenerate with pnpm run build")
+  process.exit(1)
+}
+
+console.log("check-oclif-manifest: ok")
