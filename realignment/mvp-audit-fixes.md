@@ -362,7 +362,7 @@ Note (Group A): updated spec 08 (`bounded`) and the two retrospective rows (in-p
 flush; Firefly plugin scope). Group G: A2 in-process, plan/spec/retrospective close-out, doc
 index lint gate.
 
-- [x] Spec and retrospective updated (Group G close-out; branch `fix/mvp-audit-group-g`, PR pending)
+- [x] Spec and retrospective updated (Group G close-out, [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78))
 
 ### F13 — CLI help text isn't model-legible (Low)
 
@@ -448,7 +448,7 @@ only checks that the spec file body contains the phrase "runs list replays".
 if not, add a dedicated Playwright test. Change the A8 gate to check test titles, not body
 text.
 
-- [x] Verified or added — Playwright `runs list replays statuses on the graph`; A8 gate matches test titles (Group G close-out; branch `fix/mvp-audit-group-g`, PR pending)
+- [x] Verified or added — Playwright `runs list replays statuses on the graph`; A8 gate matches test titles (Group G close-out, [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78))
 
 ### F20 — Flaky drain test in the coverage gate (Medium, blocks commits)
 
@@ -613,11 +613,11 @@ against the Cursor plan of the signed-in account.
 | F | F7 | Validation at scale (per-plugin schemas, lazy compile, marker filtering; spec 03/08 amended), then the pending Firefly families. Can run in parallel with C–E |
 | G | F12 (retrospective), F19, doc index | Close-out |
 
-**Status (2026-11-17):** Groups A–F merged ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)–[#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77)); Group G close-out on `fix/mvp-audit-group-g` (PR pending; CI box open until green).
+**Status (2026-11-17): Done (A–G).** Every finding is fixed and merged into `development` ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)–[#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78)).
 
 ## Exit criteria
 
 - [x] Every finding's checkboxes ticked, with PR links next to them.
-- [ ] `pnpm run check` green; CI green on Ubuntu and Windows (reviewer ticks after `e2e-ubuntu`, `e2e-windows`, `app`, `app-windows` on the Group G PR).
+- [x] `pnpm run check` green; CI green on Ubuntu and Windows — local `pnpm run check` on Windows (coverage 667, integration 18, e2e 50, app 8) and every CI job on [#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78), including `e2e-ubuntu`, `e2e-windows`, `app`, `app-windows` and `bench`.
 - [x] The audit repro commands in this doc produce the expected results (see Group G execution report).
 - [x] Plan retrospective and `realignment/README.md` updated (Group G close-out).

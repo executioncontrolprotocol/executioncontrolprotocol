@@ -37,7 +37,7 @@ pass in CI on Ubuntu and Windows.
 
 | Doc | Status |
 | --- | --- |
-| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Groups A–F merged ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)–[#77](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/77)); G close-out in progress on `fix/mvp-audit-group-g` |
+| [MVP audit fixes (2026-11-15)](mvp-audit-fixes.md) | Done (A–G): all 22 findings fixed and merged ([#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69)–[#78](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/78)) |
 | [Validation at scale plan (F7)](schema-scaling-plan.md) | S1–S6 done (F7); [section 8](schema-scaling-plan.md) is the outcome record |
 
 ## Post-MVP

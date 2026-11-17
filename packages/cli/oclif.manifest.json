@@ -9,139 +9,139 @@
         }
       },
       "description": "Open the visual App against the local host; use retrieve and execute for headless agent workflows.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints the App URL without opening a browser.",
-          "command": "<%= config.bin %> app --no-open"
+          "command": "<%= config.bin %> app --no-open",
+          "description": "Prints the App URL without opening a browser."
         }
       ],
       "flags": {
         "id": {
           "description": "Stored execution id to open instead of a file path.",
-          "name": "id",
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "id",
           "type": "option"
         },
-        "no-open": {
-          "description": "Print the URL only; do not launch the default browser.",
-          "name": "no-open",
-          "allowNo": false,
-          "type": "boolean"
-        },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
+          "type": "boolean"
+        },
+        "no-open": {
           "allowNo": false,
+          "description": "Print the URL only; do not launch the default browser.",
+          "name": "no-open",
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "app",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "app.js"
-      ]
+      ],
+      "strict": true
     },
     "commit": {
       "aliases": [],
       "args": {},
       "description": "Create, update, or delete stored executions and configs; use execute --validate before committing risky edits.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Creates a stored execution from a JSON file referenced with @path.",
-          "command": "<%= config.bin %> commit --type execution --action create --id demo --object @./demo.ecp.json"
+          "command": "<%= config.bin %> commit --type execution --action create --id demo --object @./demo.ecp.json",
+          "description": "Creates a stored execution from a JSON file referenced with @path."
         }
       ],
       "flags": {
-        "type": {
-          "description": "Object family to change (execution or config).",
-          "name": "type",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "options": [
-            "execution",
-            "config"
-          ],
-          "type": "option"
-        },
         "action": {
           "description": "create, update, or delete.",
-          "name": "action",
-          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "action",
           "options": [
             "create",
             "update",
             "delete"
           ],
+          "required": true,
           "type": "option"
         },
         "id": {
           "description": "Object id (required for update/delete and optional on create).",
+          "hasDynamicHelp": false,
+          "multiple": false,
           "name": "id",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "object": {
-          "description": "Full object JSON, @file, or - (stdin).",
-          "name": "object",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "patch": {
-          "description": "JSON Patch array, @file, or - (stdin) for updates.",
-          "name": "patch",
-          "hasDynamicHelp": false,
-          "multiple": false,
           "type": "option"
         },
         "if-version": {
           "description": "Expected objectVersion for optimistic concurrency.",
-          "name": "if-version",
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "if-version",
           "type": "option"
         },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         },
+        "object": {
+          "description": "Full object JSON, @file, or - (stdin).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "object",
+          "type": "option"
+        },
+        "patch": {
+          "description": "JSON Patch array, @file, or - (stdin) for updates.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "patch",
+          "type": "option"
+        },
         "start-host": {
+          "allowNo": false,
           "description": "Start the background host if it is not already running.",
           "name": "start-host",
-          "allowNo": false,
           "type": "boolean"
+        },
+        "type": {
+          "description": "Object family to change (execution or config).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "type",
+          "options": [
+            "execution",
+            "config"
+          ],
+          "required": true,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "commit",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "commit.js"
-      ]
+      ],
+      "strict": true
     },
     "execute": {
       "aliases": [],
@@ -152,492 +152,343 @@
         }
       },
       "description": "Validate or run an execution file or stored id; use retrieve to inspect and commit to save manifests.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Validates the manifest without running steps; exit 0 when validation passes.",
-          "command": "<%= config.bin %> execute ./flow.ecp.json --validate"
+          "command": "<%= config.bin %> execute ./flow.ecp.json --validate",
+          "description": "Validates the manifest without running steps; exit 0 when validation passes."
         }
       ],
       "flags": {
-        "input": {
-          "description": "Run input as JSON text, @file, or - (stdin).",
-          "name": "input",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "validate": {
-          "description": "Validate only; do not start a run.",
-          "name": "validate",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "no-wait": {
-          "description": "Start the run and return immediately with runId (default waits for completion).",
-          "name": "no-wait",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "resume": {
-          "description": "Resume an interrupted run by run id.",
-          "name": "resume",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "cancel": {
           "description": "Cancel a running run by run id.",
-          "name": "cancel",
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "cancel",
           "type": "option"
         },
-        "out": {
-          "description": "Write the full run result JSON to this file.",
-          "name": "out",
+        "input": {
+          "description": "Run input as JSON text, @file, or - (stdin).",
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "input",
           "type": "option"
         },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         },
+        "no-wait": {
+          "allowNo": false,
+          "description": "Start the run and return immediately with runId (default waits for completion).",
+          "name": "no-wait",
+          "type": "boolean"
+        },
+        "out": {
+          "description": "Write the full run result JSON to this file.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "out",
+          "type": "option"
+        },
+        "resume": {
+          "description": "Resume an interrupted run by run id.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "resume",
+          "type": "option"
+        },
         "start-host": {
+          "allowNo": false,
           "description": "Start the background host if it is not already running.",
           "name": "start-host",
+          "type": "boolean"
+        },
+        "validate": {
           "allowNo": false,
+          "description": "Validate only; do not start a run.",
+          "name": "validate",
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "execute",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "execute.js"
-      ]
-    },
-    "retrieve": {
-      "aliases": [],
-      "args": {},
-      "description": "Read capabilities, executions, configs, runs, plugins, or formatters; use execute to run and commit to write.",
-      "examples": [
-        {
-          "description": "Lists matching capabilities as a table; add --json for the operation envelope.",
-          "command": "<%= config.bin %> retrieve --type capability --query echo"
-        }
       ],
-      "flags": {
-        "type": {
-          "description": "What to list or fetch (capability, execution, config, run, plugin, formatter).",
-          "name": "type",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "options": [
-            "capability",
-            "execution",
-            "config",
-            "run",
-            "plugin",
-            "formatter"
-          ],
-          "type": "option"
-        },
-        "id": {
-          "description": "Fetch one item by id instead of listing.",
-          "name": "id",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "query": {
-          "description": "Fuzzy search string when listing capabilities or executions.",
-          "name": "query",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "limit": {
-          "description": "Maximum rows to return (default 10, max 100).",
-          "name": "limit",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "include": {
-          "description": "Comma-separated detail sections for a single capability.",
-          "name": "include",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "filter": {
-          "description": "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed.",
-          "name": "filter",
-          "hasDynamicHelp": false,
-          "multiple": true,
-          "type": "option"
-        },
-        "format": {
-          "description": "Formatter id when --type formatter.",
-          "name": "format",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "out": {
-          "description": "Write full JSON result to this file and print a one-line summary.",
-          "name": "out",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "start-host": {
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "retrieve",
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "retrieve.js"
-      ]
-    },
-    "schema": {
-      "aliases": [],
-      "args": {},
-      "description": "Print the editor execution JSON Schema path or file; use retrieve for capabilities instead.",
-      "examples": [
-        {
-          "description": "Prints the schema file path after warming the host; add --print to dump the file.",
-          "command": "<%= config.bin %> schema --print"
-        }
-      ],
-      "flags": {
-        "print": {
-          "description": "Print schema file contents (human) or parsed schema in the envelope with --json.",
-          "name": "print",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "start-host": {
-          "description": "Start the background host if it is not already running.",
-          "name": "start-host",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "json": {
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema",
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema.js"
-      ]
+      "strict": true
     },
     "host:logs": {
       "aliases": [],
       "args": {},
       "description": "Show recent host or supervisor log lines; use host status when the file is missing.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints the last 50 host log lines; add --json for { path, text } in data.",
-          "command": "<%= config.bin %> host logs --lines 50"
+          "command": "<%= config.bin %> host logs --lines 50",
+          "description": "Prints the last 50 host log lines; add --json for { path, text } in data."
         }
       ],
       "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
         "lines": {
-          "description": "Number of lines to print from the end of the log file.",
-          "name": "lines",
           "default": 50,
+          "description": "Number of lines to print from the end of the log file.",
           "hasDynamicHelp": false,
           "multiple": false,
+          "name": "lines",
           "type": "option"
         },
         "supervisor": {
+          "allowNo": false,
           "description": "Read supervisor.log instead of host.log.",
           "name": "supervisor",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "json": {
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "host:logs",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "host",
         "logs.js"
-      ]
+      ],
+      "strict": true
     },
     "host:restart": {
       "aliases": [],
       "args": {},
       "description": "Ask the supervisor to restart the host process; use host status when the API stays unhealthy.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Requests a host restart; add --json for the envelope.",
-          "command": "<%= config.bin %> host restart"
+          "command": "<%= config.bin %> host restart",
+          "description": "Requests a host restart; add --json for the envelope."
         }
       ],
       "flags": {
         "force": {
+          "allowNo": false,
           "description": "Restart without waiting for runs to drain.",
           "name": "force",
-          "allowNo": false,
           "type": "boolean"
         },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "host:restart",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "host",
         "restart.js"
-      ]
+      ],
+      "strict": true
     },
     "host:start": {
       "aliases": [],
       "args": {},
       "description": "Start the detached supervisor and host; use --foreground to run attached for debugging.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Starts the local host and prints URL and log paths; add --json for the envelope.",
-          "command": "<%= config.bin %> host start"
+          "command": "<%= config.bin %> host start",
+          "description": "Starts the local host and prints URL and log paths; add --json for the envelope."
         }
       ],
       "flags": {
         "foreground": {
+          "allowNo": false,
           "description": "Run supervisor and host in the foreground (blocks until exit). Default: detached.",
           "name": "foreground",
-          "allowNo": false,
           "type": "boolean"
         },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "host:start",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "host",
         "start.js"
-      ]
+      ],
+      "strict": true
     },
     "host:status": {
       "aliases": [],
       "args": {},
       "description": "Report whether the background host is up; use host start when retrieve or execute is slow without --start-host.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints supervisor and API health; add --json for the envelope.",
-          "command": "<%= config.bin %> host status"
+          "command": "<%= config.bin %> host status",
+          "description": "Prints supervisor and API health; add --json for the envelope."
         }
       ],
       "flags": {
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "host:status",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "host",
         "status.js"
-      ]
+      ],
+      "strict": true
     },
     "host:stop": {
       "aliases": [],
       "args": {},
       "description": "Stop the supervisor and host; use host status to confirm it is down.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Stops a running host; add --json for { ok, data: { stopped: true } }.",
-          "command": "<%= config.bin %> host stop"
+          "command": "<%= config.bin %> host stop",
+          "description": "Stops a running host; add --json for { ok, data: { stopped: true } }."
         }
       ],
       "flags": {
         "force": {
+          "allowNo": false,
           "description": "Force-stop immediately instead of draining runs first.",
           "name": "force",
-          "allowNo": false,
           "type": "boolean"
         },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "host:stop",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "host",
         "stop.js"
-      ]
+      ],
+      "strict": true
     },
     "mcp:start": {
       "aliases": [],
       "args": {},
       "description": "Run the MCP relay on stdio (no --json); use when the agent connects over MCP instead of the CLI.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Starts the relay; stdout is reserved for MCP frames only.",
-          "command": "<%= config.bin %> mcp start"
+          "command": "<%= config.bin %> mcp start",
+          "description": "Starts the relay; stdout is reserved for MCP frames only."
         }
       ],
       "flags": {},
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "mcp:start",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "mcp",
         "start.js"
-      ]
+      ],
+      "strict": true
     },
     "plugins": {
       "aliases": [],
       "args": {},
       "description": "List ECP plugins from the host with manifest status; use retrieve for capability metadata instead.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints installed plugins as a table; add --json for the operation envelope.",
-          "command": "<%= config.bin %> plugins"
+          "command": "<%= config.bin %> plugins",
+          "description": "Prints installed plugins as a table; add --json for the operation envelope."
         }
       ],
       "flags": {
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "plugins",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "plugins",
         "index.js"
-      ]
+      ],
+      "strict": true
     },
     "plugins:inspect": {
       "aliases": [],
@@ -649,76 +500,225 @@
         }
       },
       "description": "Show where a plugin is installed on disk; use the top-level plugins command for host manifest status.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints package path and version for plugin-test.",
-          "command": "<%= config.bin %> plugins inspect plugin-test"
+          "command": "<%= config.bin %> plugins inspect plugin-test",
+          "description": "Prints package path and version for plugin-test."
         }
       ],
       "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
         "verbose": {
+          "allowNo": false,
           "char": "v",
           "description": "Include dependency versions in the output.",
           "name": "verbose",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "json": {
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "plugins:inspect",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": false,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "plugins",
         "inspect.js"
-      ]
+      ],
+      "strict": false
+    },
+    "retrieve": {
+      "aliases": [],
+      "args": {},
+      "description": "Read capabilities, executions, configs, runs, plugins, or formatters; use execute to run and commit to write.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> retrieve --type capability --query echo",
+          "description": "Lists matching capabilities as a table; add --json for the operation envelope."
+        }
+      ],
+      "flags": {
+        "filter": {
+          "description": "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed.",
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "name": "filter",
+          "type": "option"
+        },
+        "format": {
+          "description": "Formatter id when --type formatter.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "format",
+          "type": "option"
+        },
+        "id": {
+          "description": "Fetch one item by id instead of listing.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "id",
+          "type": "option"
+        },
+        "include": {
+          "description": "Comma-separated detail sections for a single capability.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "include",
+          "type": "option"
+        },
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "limit": {
+          "description": "Maximum rows to return (default 10, max 100).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "limit",
+          "type": "option"
+        },
+        "out": {
+          "description": "Write full JSON result to this file and print a one-line summary.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "out",
+          "type": "option"
+        },
+        "query": {
+          "description": "Fuzzy search string when listing capabilities or executions.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "query",
+          "type": "option"
+        },
+        "start-host": {
+          "allowNo": false,
+          "description": "Start the background host if it is not already running.",
+          "name": "start-host",
+          "type": "boolean"
+        },
+        "type": {
+          "description": "What to list or fetch (capability, execution, config, run, plugin, formatter).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "type",
+          "options": [
+            "capability",
+            "execution",
+            "config",
+            "run",
+            "plugin",
+            "formatter"
+          ],
+          "required": true,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "retrieve",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "retrieve.js"
+      ],
+      "strict": true
+    },
+    "schema": {
+      "aliases": [],
+      "args": {},
+      "description": "Print the editor execution JSON Schema path or file; use retrieve for capabilities instead.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> schema --print",
+          "description": "Prints the schema file path after warming the host; add --print to dump the file."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "print": {
+          "allowNo": false,
+          "description": "Print schema file contents (human) or parsed schema in the envelope with --json.",
+          "name": "print",
+          "type": "boolean"
+        },
+        "start-host": {
+          "allowNo": false,
+          "description": "Start the background host if it is not already running.",
+          "name": "start-host",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema.js"
+      ],
+      "strict": true
     },
     "secrets:list": {
       "aliases": [],
       "args": {},
       "description": "List secret key names and sources (never values); use secrets set before execute steps that reference $secret.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Prints keys and keychain/env source; add --json for the envelope.",
-          "command": "<%= config.bin %> secrets list"
+          "command": "<%= config.bin %> secrets list",
+          "description": "Prints keys and keychain/env source; add --json for the envelope."
         }
       ],
       "flags": {
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "secrets:list",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "secrets",
         "list.js"
-      ]
+      ],
+      "strict": true
     },
     "secrets:set": {
       "aliases": [],
@@ -730,42 +730,42 @@
         }
       },
       "description": "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Reads the value from stdin and stores it under the key.",
-          "command": "<%= config.bin %> secrets set anthropic.apiKey"
+          "command": "<%= config.bin %> secrets set anthropic.apiKey",
+          "description": "Reads the value from stdin and stores it under the key."
         }
       ],
       "flags": {
-        "value": {
-          "description": "Secret value inline (prefer stdin to avoid shell history).",
-          "name": "value",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
+        },
+        "value": {
+          "description": "Secret value inline (prefer stdin to avoid shell history).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "value",
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "secrets:set",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "secrets",
         "set.js"
-      ]
+      ],
+      "strict": true
     },
     "secrets:unset": {
       "aliases": [],
@@ -777,35 +777,35 @@
         }
       },
       "description": "Remove a secret from the keychain; exit 2 when the key does not exist.",
+      "enableJsonFlag": false,
       "examples": [
         {
-          "description": "Deletes the key when present; missing keys return exit 2 with --json.",
-          "command": "<%= config.bin %> secrets unset anthropic.apiKey"
+          "command": "<%= config.bin %> secrets unset anthropic.apiKey",
+          "description": "Deletes the key when present; missing keys return exit 2 with --json."
         }
       ],
       "flags": {
         "json": {
+          "allowNo": false,
           "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
           "name": "json",
-          "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
       "id": "secrets:unset",
+      "isESM": true,
       "pluginAlias": "@executioncontrolprotocol/cli",
       "pluginName": "@executioncontrolprotocol/cli",
       "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
       "relativePath": [
         "dist",
         "commands",
         "secrets",
         "unset.js"
-      ]
+      ],
+      "strict": true
     }
   },
   "version": "0.60.0"
