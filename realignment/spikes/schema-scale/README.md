@@ -13,7 +13,7 @@ integers and strings, about 40 leaf fields each. Windows, Node 22, Ajv 8.20 (dra
 ## Run
 
 ```sh
-node realignment/spikes/schema-scale/scale.mjs 63 20 A     # A: one combined schema (today)
+node realignment/spikes/schema-scale/scale.mjs 63 20 A     # A: one combined schema (at the time of the 2026-11-15 spike)
 node realignment/spikes/schema-scale/scale.mjs 5000 20 B   # B: per-plugin schemas, lazy per-capability compile
 node realignment/spikes/schema-scale/scale2.mjs 5000       # C: lazy plugin loading; D: wrapped vs raw compile cost
 node realignment/spikes/schema-scale/scale3.mjs            # F: raw schema + marker error filtering; G: standalone code

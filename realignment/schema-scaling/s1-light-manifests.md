@@ -345,6 +345,8 @@ Spot-check: `ecp retrieve --type capability --id <id>` returns accepts/returns; 
 
 ---
 
+> **Historical (S1 milestone):** The exit criteria below describe S1 only. S3 removed the combined wrapped validation path (see [`schema-scaling-plan.md`](../schema-scaling-plan.md) status).
+
 ## 9. Exit criteria (S1-only)
 
 - Spec 08 updated (manifest 2.0, `ecp.schema.json`, loading); no other spec changes.

@@ -28,18 +28,18 @@ These override anything below that reads otherwise. Details are in the spec.
 - **JSON is the only execution format in the MVP.** The host accepts manifests inline, by `id`, by `path`, or by `id` + patch. No Fluent parsing in the host.
 - **The Fluent SDK is a separate post-MVP phase** ([`realignment/post-mvp-fluent-sdk.md`](realignment/post-mvp-fluent-sdk.md)). It produces JSON at build time; no MVP phase depends on it. Sections below that discuss Fluent as an authoring format describe that later phase.
 - **The host is the validation authority.** Four layers (load, schema, semantics, data flow, plus run input); one `ValidationResult` with codes, JSON Pointers, suggestions and available refs on every surface; `execute { mode: "validate" }` for the fix loop (spec 03, 06).
-- **Plugin manifests carry `accepts`, `returns` and the config schema.** The host generates a plugin-aware schema (dispatching by `uses`, node `type` and marker key) and checks every `$ref` against `returns`: order, maybe-missing outputs after gates/branches/loops, path existence, type fit, parallel isolation, write conflicts (spec 03).
+- **Plugin manifests carry `accepts`, `returns` and the config schema.** The host validates execution structure with one base validator, compiles each capability's raw `accepts` lazily, filters marker-explained schema errors outside the schema, and keeps a separate editor dispatch schema (spec 03). Data-flow still checks every `$ref` against `returns`: order, maybe-missing outputs after gates/branches/loops, path existence, type fit, parallel isolation, write conflicts.
 - **`$script` can reference a file** (`path`) as well as inline `source` (spec 02).
 - **Commit modes:** `create`, `replace`, `merge`, `append`. The legacy `version` mode behaved exactly like `replace` and is dropped.
-- **Layout:** Phase 0 moves all legacy code to `legacy/` outside the workspace, build, lint, tests and CI; new packages live in `packages/` and `plugins/`; Phase 9 deletes `legacy/` (spec 01).
+- **Layout:** Phase 0 moved all legacy code to `legacy/` outside the workspace; Phase 9 deleted that tree. New packages live in `packages/` and `plugins/` (spec 01).
 - **Packages:** `protocol`, `engine`, `quickjs`, `formatters`, `local`, `plugin-sdk`, `host`, `mcp-relay`, `cli`, `app`, and plugins `plugin-test`, `plugin-anthropic`, `plugin-azure-blob-storage`, `plugin-adobe-firefly-services` (spec 01, 08).
 - **Done means** the 12 acceptance scenarios in spec 12 pass in CI on Ubuntu and Windows.
 
 ## Repo and branch
 
-Decided 2026-11-14: the realignment happens in **this repo on `milestone/realignment`**, cut from `development`.
+Historical (decided 2026-11-14, superseded 2026-11-15): the realignment happened in **this repo on `milestone/realignment`**, cut from `development`.
 
-- The existing packages stay as **legacy reference code** until each one is replaced. Read them for what to carry over (see "What carries over"); don't extend them.
+- The existing packages stayed as **legacy reference code** until each one was replaced. Read them for what to carry over (see "What carries over"); don't extend them.
 - Agent rules (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `skills/ecp-core/`) were rewritten for this plan before any code, so agents don't follow the reset-era rules. `RESET-PLAN.md` and `reset/` are history.
 - **Layout of new code** (decided): Phase 0 moves legacy code to `legacy/` (out of the workspace and CI); new code goes in `packages/` and `plugins/`; Phase 9 deletes `legacy/`.
 - The npm scope `@executioncontrolprotocol/*` is published up to 0.52.x. Releases from this milestone are a new major version; decide package names before the first publish.
@@ -232,7 +232,7 @@ flowchart LR
 
 ### Host supervisor
 
-- **Required vs optional (2026-11-14).** MCP and the App always need a running host, so the supervisor exists either way. What's **optional, pending the CLI benchmark** (see "Measurements"), is whether one-off CLI commands use that warm background host, and how it starts: explicit `ecp host start`, or automatic start on first use with idle shutdown (the Gradle/Turborepo pattern, preferred if adopted). No opt-out flag is designed until the benchmark shows it's needed.
+- **Required vs optional (decided 2026-11-17).** MCP and the App always need a running host, so the supervisor exists either way. One-off CLI commands stay **in-process when no host is running** (no idle auto-start); see Measurements for the Phase 5 benchmark. Explicit `ecp host start` remains available for a warm background host.
 - Started by `ecp host start` as a detached process (Node `spawn` with `detached` + `unref`; works on Windows). Logs to `~/.ecp/logs/`.
 - Picks the port and token once, writes `~/.ecp/host.json` (pid, port, token, started-at), spawns the host, and keeps the **same port across restarts** so clients just reconnect.
 - Watches the plugins marker (touched by `ecp plugins install/uninstall/link`), debounced. On change: asks the host to drain, then restarts it.
@@ -251,7 +251,7 @@ flowchart LR
 
 - Plugins only declare capabilities and config schemas. Authoring starts from today's `defineExtension(...).withCapabilities([...])`, renamed to fit.
 - **Per-plugin manifest.** Each plugin ships `ecp.manifest.json` (capability ids, `accepts`/`returns` as JSON Schema, config schema), generated at plugin build and checked on install, like oclif's `oclif.manifest.json`. Linked plugins regenerate theirs from source when the host starts.
-- **The registry is built from manifests**, never by loading plugin code. `retrieve`, `commit` and manifest validation never import plugins, and the host validates against JSON Schema without importing plugins' zod schemas (matters for Firefly's 84 generated capabilities).
+- **The registry is built from manifests**, never by loading plugin code. `retrieve`, `commit` and manifest validation never import plugins, and the host validates against JSON Schema without importing plugins' zod schemas (matters for Firefly's **63** shipped capabilities; see Phase 0 measurement row for the old 84-capability spike size).
 - **Plugin code is imported on first call**: only the plugins (ideally only the capability modules) an execution actually uses. The `PluginAdapter` service (`LocalPluginRegistration`) does this; it's the only implementation in the MVP.
 
 | Command | Plugin code loaded |
@@ -446,7 +446,7 @@ Visualizing executions stays in the MVP (decided 2026-11-14). The App is the hos
 - `ecp mcp start --app` (or `ecp app` alongside it): the same host, so you watch the graph and run status while an agent works over MCP.
 - Run records are written as each step completes, so the App shows runs started from any process (MCP, CLI, scripts).
 - **MVP scope:** view the graph, live updates from the file, run status on the graph, run with an input form. **Later:** editing in the canvas, writing through `commit` and patches.
-- **Reuse from today's `packages/app`** (React 19, React Flow, Vite): `graph/workflow-to-reactflow.ts` already builds the graph from the JSON manifest, and `graph/map-run-events.ts` already maps run events onto it. Changes: the `HostAdapter` maps onto `retrieve`/`execute`/`commit`/`watch`; ports come from capabilities' JSON Schemas in the manifests instead of zod (`ports-from-zod.ts`); `when` edges and badges become `expr`; the Fluent source editor becomes a JSON view (plus a Fluent view if that formatter happens).
+- **Shipped in `packages/app`** (React 19, React Flow, Vite; ported from the pre-realignment App at Phase 7): `graph/execution-to-reactflow.ts` builds the graph from the JSON manifest, `graph/map-run-events.ts` maps run events onto it, and `graph/ports-from-schema.ts` derives ports from capability JSON Schemas. The `HostAdapter` maps onto `retrieve`/`execute`/`commit`/`watch`; `expr` replaces `when` edges; the editor is JSON (Fluent view remains post-MVP).
 
 ## Execution manifest v2
 
@@ -946,10 +946,13 @@ Notable drifts from the original spec/plan while building, and why:
 | All-features fixture path | `fixtures/manifests/runs/all-features.ecp.json` | `fixtures/manifests/acceptance/all-features.ecp.json` | Keeps the heavy acceptance run separate from smaller run fixtures; spec 12 updated. |
 | A10 Azure storage | Firefly-only / generic storage | Adobe `storageType: "azure"` + Azure SAS config | Firefly upload failed without Azure storage type; dogfood needs a provisioned container. |
 | Provider errors | Generic step failure | `ECP_PROVIDER_ERROR` with `message` + `details` on the issue | Agents need the provider body (IMS, credit, HTTP) to repair; rule in `extensions.mdc` / spec 08. |
-| CLI warm host | Optional auto-start if warm saves ≥ ~300 ms | Keep in-process when no host (Phase 5: ~85 ms B3 savings) | Budgets in `bench/budgets.json`; MCP/App still require a running host. |
+| CLI warm host | Optional auto-start if warm saves ≥ ~300 ms | Keep in-process when no host (Phase 5 decision, 2026-11-17) | F6 reset budgets from `bench/targets.json` (see Measurements); MCP/App still require a running host. |
 | Mid-session second plugin in A6 | `plugins link` of a second fixture | Pack + `plugins install` of the minimal fixture | Linked packages require a `definePlugin` `dist/index.js`; hand-written manifests load on install. |
-| In-process event flush | Disk always has full `events.ndjson` after CLI execute | Fixed: `LocalRunStore.appendEvent` flushes immediately on `run.end` (batches earlier events with it). Completed in-process `ecp execute` leaves `run.end` on disk even when `finishOperation` exits before `ops.close()`. | Was: `process.exit` skipped `ops.close()` flush. Fix landed with the run-end flush (commit `572110aa` / current `run-store.ts`). A2 still uses a warm host; that workaround is obsolete for completed runs. |
-| Firefly plugin scope | All generated Firefly Services capabilities (spec 08) | Only `firefly` + `photoshop` (`GENERATED_FAMILIES` in `plugins/plugin-adobe-firefly-services/scripts/lib/generate.mjs`); `PENDING_FAMILIES` = audio-video, creative-production, express, illustrator, indesign, substance3d; `content-tagging` skipped (no published OpenAPI); `openapi/overlays` is overlay data, not a family. | Combined execution schema overflows Ajv call stack at ~50+ capabilities of this size; ship families needed for localize-banner until capability schemas compile separately. Full ship-vs-document decision is F7 (Group F). |
+| In-process event flush | Disk always has full `events.ndjson` after CLI execute | Fixed: `LocalRunStore.appendEvent` flushes immediately on `run.end`. A2 runs in-process; `events.ndjson` ends with `run.end` before the CLI process exits. | `process.exit` used to skip `ops.close()` flush; run-end flush (`572110aa` / `run-store.ts`). |
+| Firefly plugin scope | All generated Firefly Services capabilities (spec 08) | Eight families in `GENERATED_FAMILIES`: `audio-video`, `creative-production`, `express`, `firefly`, `illustrator`, `indesign`, `photoshop`, `substance3d` — **63** capabilities, `pendingFamilies: []`; `content-tagging` still skipped. | F7 S1–S6: one base validator + lazy raw `accepts` (spec 03) replaced the combined marker-wrapped schema and unblocked the families. |
+| Validation at scale (F7) | One plugin-aware schema dispatching on `uses` | Light manifest 2.0, `ecp.schema.json`, base validator, lazy raw `accepts`, marker filter, editor schemas as separate files. | Audit F7 / PR [#69](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/69). |
+| Run host identity (F17) | In-process `run.json` had `pid: 0`, no mode | `host.pid` minimum 1, `host.mode` `"in-process"` \| `"server"` (`run.schema.json`). | Audit F17 / PR [#75](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/75). |
+| Plugin list (F1/F16) | `ecp plugins` read oclif's OS data dir | `ECP_DATA_DIR` before `Config.load`, ECP packages not loaded as oclif plugins, `manifest` column, `inspect`/`reset` in spec 10. | Audit F1/F16 / PR [#70](https://github.com/executioncontrolprotocol/executioncontrolprotocol/pull/70). |
 | `$script` into maxLength | Capability with maxLength | `test.bounded` on plugin-test | Fixture-only `bounded` was engine-only; e2e needs a real linked plugin. |
 | Release tag | Avoid `v1.0.0` | `mvp-YYYY.MM.DD` | Documented in `RELEASING.md`; no publish in Phase 9. |
 

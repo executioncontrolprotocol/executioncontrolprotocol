@@ -33,6 +33,9 @@ deletes `legacy/`. This removes npm-name collisions (new packages reuse names li
 └── REALIGNMENT-PLAN.md, AGENTS.md, CLAUDE.md, .cursor/rules/, skills/ecp-core/
 ```
 
+Phase 9 removed `legacy/` from the repository; the tree above is the Phase 0 layout record plus
+that fact.
+
 ## Packages and their boundaries
 
 | Package | Depends on | Owns | MUST NOT |

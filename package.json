@@ -12,7 +12,7 @@
     "clean:coverage": "node scripts/clean-dist.mjs coverage",
     "clean:dist": "node scripts/clean-dist.mjs dist",
     "build": "tsc -b tsconfig.build.json && node scripts/check-oclif-manifest.mjs --write && pnpm --filter @executioncontrolprotocol/app run build:web",
-    "lint": "eslint . && markdownlint-cli2 && pnpm run lint:yaml",
+    "lint": "eslint . && markdownlint-cli2 && pnpm run lint:yaml && node scripts/check-doc-index.mjs",
     "lint:ts": "eslint .",
     "lint:md": "markdownlint-cli2",
     "lint:yaml": "node scripts/lint-yaml.mjs",

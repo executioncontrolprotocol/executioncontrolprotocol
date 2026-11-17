@@ -163,8 +163,9 @@ Also emitted by `ecp-plugin-manifest` (same build step as the light manifest; re
    stale.
 4. **Registry** = capability entries assembled from good light manifests plus their schema
    documents (`accepts`/`returns`/`configSchema` filled from `$defs`). No plugin code is
-   imported. (Lazy per-use schema reading arrives in a later ship; S1 still loads both
-   documents at host start.)
+   imported. `capabilities()` returns light rows only; on first use of a capability from an
+   installed package the host reads that plugin's `ecp.schema.json` in `loadPluginSchema` (link
+   mode already holds the document in memory from step 2).
 5. **On first call** to a capability: import the plugin entry (cached), take the definition's
    capability, call its `handler()` thunk (cached), invoke the default export. Failures →
    `ECP_PLUGIN_LOAD_FAILED`.
