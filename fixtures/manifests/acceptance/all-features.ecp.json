@@ -16,7 +16,17 @@
       "properties": {
         "greeting": {},
         "staged": {},
-        "branch": {}
+        "branch": {},
+        "bag": {},
+        "echo": {},
+        "marked": {},
+        "scriptedPath": {},
+        "scriptedSrc": {},
+        "cfg": {},
+        "spin": {},
+        "lap": {},
+        "left": {},
+        "right": {}
       }
     }
   },
@@ -75,8 +85,152 @@
       ]
     },
     {
+      "id": "mode-create",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": { "value": "a" },
+      "as": "bag",
+      "mode": "create"
+    },
+    {
+      "id": "mode-replace",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": { "value": "b" },
+      "as": "bag",
+      "mode": "replace"
+    },
+    {
+      "id": "mode-merge",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "extra": 1
+        }
+      },
+      "as": "bag",
+      "mode": "merge"
+    },
+    {
+      "id": "mode-append",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": { "value": "c" },
+      "as": "bag",
+      "mode": "append"
+    },
+    {
+      "id": "gated",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "expr": "(state) => false",
+      "input": { "value": "x" },
+      "as": "maybe"
+    },
+    {
+      "id": "ref-echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.maybe",
+          "optional": true,
+          "fallback": "fallback"
+        }
+      },
+      "as": "echo",
+      "mode": "replace"
+    },
+    {
+      "id": "mark",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$expr": "(state) => state.greeting.echo"
+        },
+        "fromRef": {
+          "$ref": "state.greeting.echo",
+          "optional": true,
+          "fallback": "missing"
+        },
+        "handle": {
+          "$state": "history"
+        },
+        "script": {
+          "$script": {
+            "lang": "js",
+            "source": "1"
+          }
+        }
+      },
+      "as": "marked",
+      "mode": "replace"
+    },
+    {
+      "id": "script-path",
+      "uses": "@executioncontrolprotocol/test.bounded",
+      "input": {
+        "text": {
+          "$script": {
+            "lang": "js",
+            "path": "../valid/banner.js"
+          }
+        }
+      },
+      "as": "scriptedPath",
+      "mode": "replace"
+    },
+    {
+      "id": "script-src",
+      "uses": "@executioncontrolprotocol/test.bounded",
+      "input": {
+        "text": {
+          "$script": {
+            "lang": "js",
+            "source": "2"
+          }
+        }
+      },
+      "as": "scriptedSrc",
+      "mode": "replace"
+    },
+    {
+      "id": "cfg",
+      "uses": "@executioncontrolprotocol/test.config-echo",
+      "config": "test/default",
+      "input": {},
+      "as": "cfg",
+      "mode": "replace"
+    },
+    {
+      "type": "loop",
+      "id": "spinner",
+      "expr": "(state) => true",
+      "maxRounds": 2,
+      "steps": [
+        {
+          "id": "spin",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": { "value": "spin" },
+          "as": "spin",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
+      "type": "loop",
+      "id": "refine",
+      "expr": "(state) => state.lap === undefined",
+      "maxRounds": 4,
+      "steps": [
+        {
+          "id": "lap",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": { "value": "lap" },
+          "as": "lap",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
       "type": "parallel",
       "id": "together",
+      "maxConcurrency": 1,
       "branches": [
         [
           {

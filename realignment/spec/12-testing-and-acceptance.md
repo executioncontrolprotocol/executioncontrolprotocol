@@ -84,7 +84,7 @@ Ubuntu and Windows CI, and A10 has been run live once with the result recorded.
 | # | Scenario | Proves |
 | --- | --- | --- |
 | A1 | Fresh `ECP_HOME`. `ecp plugins link plugins/plugin-test`. `ecp retrieve --type capability --query echo` finds `test.echo`; `--id` returns `accepts` and `returns`. Same through an MCP client over `ecp mcp start` | Plugin loading from manifests, retrieve, relay |
-| A2 | `ecp execute fixtures/manifests/acceptance/all-features.ecp.json --input @in.json` completes; result and every step status match the run fixture; `run.json`, step records, `events.ndjson` exist with the expected event order | Executor semantics end to end |
+| A2 | `ecp execute fixtures/manifests/acceptance/all-features.ecp.json --input @in.json` completes; result and every step status match the run fixture; `run.json`, step records, `events.ndjson` exist; the run asserts the **exact** event type sequence in `all-features.run.json` | Executor semantics end to end |
 | A3 | Fix loop: for 8 broken manifests (one per L1/L2/L3 family), `ecp execute --validate --json` returns exactly the expected codes and paths with suggestions; applying the suggested fix makes each valid. Same via MCP `execute { mode: "validate" }` | Validation authority and fix loop |
 | A4 | `ecp secrets set test.secret` (stdin); `ecp commit` a `test/default` config with `{ "$secret": "test.secret" }`; a `config-echo` step receives it; the value appears nowhere in run files, events, responses or logs | Config, secrets, redaction |
 | A5 | `$script` by path and by source into a capability expecting a string with `maxLength`; a syntax error reports line/column; an over-long script fails `ECP_INPUT_INVALID` | `$script` |
