@@ -213,7 +213,6 @@ describe("LocalStorage", () => {
       type: "step.start",
       data: { nodeId: "x" },
     })
-    await new Promise((resolve) => setTimeout(resolve, 80))
     const detail = await storage.runs.get("run-batch", ["events"])
     expect(detail?.events?.map((event) => event.type)).toEqual(["run.start", "step.start"])
     await host.stop()

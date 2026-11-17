@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { beforeAll, describe, expect, it } from "vitest"
+import { afterEach, beforeAll, describe, expect, it } from "vitest"
+import {
+  awaitTestDelay,
+  holdDelayForTests,
+  releaseDelayForTests,
+  resetDelayForTests,
+} from "../../../plugins/plugin-test/src/capabilities/delay-hooks.js"
 import type {
   ExecutionManifest,
   Formatter,
@@ -58,15 +64,9 @@ function handlers(): ConstructorParameters<typeof FixturePluginAdapter>[1] {
       return { echo: value === undefined ? "hi" : value }
     },
     "@executioncontrolprotocol/test.delay": async (input, ctx) => {
-      const ms = Number((input as { ms: number }).ms)
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(resolve, ms)
-        ctx.signal.addEventListener("abort", () => {
-          clearTimeout(timer)
-          reject(Object.assign(new Error("aborted"), { name: "AbortError" }))
-        })
-      })
-      return { waitedMs: ms }
+      const typed = input as { ms: number; hold?: boolean }
+      await awaitTestDelay(typed.ms, ctx.signal, typed.hold)
+      return { waitedMs: typed.ms }
     },
     "@executioncontrolprotocol/test.fail": async (input) => {
       throw Object.assign(new Error(String((input as { message?: string }).message ?? "failed")), {
@@ -75,6 +75,10 @@ function handlers(): ConstructorParameters<typeof FixturePluginAdapter>[1] {
     },
   }
 }
+
+afterEach(() => {
+  resetDelayForTests()
+})
 
 function bind<T>(id: string, instance: T): ServiceClass<T> {
   return class {
@@ -244,7 +248,20 @@ describe("operations", () => {
     })
     expect(interruptRun.ok).toBe(true)
     if (interruptRun.ok && "runId" in interruptRun.data) {
-      await new Promise((resolve) => setTimeout(resolve, 30))
+      await expect
+        .poll(
+          async () => {
+            const run = await host.operations.retrieve({ type: "run", id: interruptRun.data.runId! })
+            if (!run.ok) return undefined
+            const status =
+              "item" in run.data && run.data.item && typeof run.data.item === "object" && "status" in run.data.item
+                ? (run.data.item as { status?: string }).status
+                : undefined
+            return status === "running" ? true : undefined
+          },
+          { timeout: 5_000 },
+        )
+        .toBe(true)
       const detail = await storage.runs.get(interruptRun.data.runId, ["state"])
       await storage.runs.update(interruptRun.data.runId, {
         status: "interrupted",
@@ -376,7 +393,7 @@ describe("operations", () => {
     expect(ops.retrieve).toBeTypeOf("function")
   })
 
-  it("covers retrieve and execute edge paths", async () => {
+  it("covers retrieve and execute edge paths", { timeout: 30_000 }, async () => {
     const { host, storage, written } = await startHost({
       read: async (filePath) => {
         if (filePath.endsWith("bad.ecp.json")) return "{ not json"
@@ -448,17 +465,19 @@ describe("operations", () => {
       expect((await host.operations.execute({ resume: ran.data.runId })).ok).toBe(false)
     }
 
+    holdDelayForTests()
     const timed = await host.operations.execute({
       execution: {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
-        steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" }],
+        steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000, hold: true }, as: "wait" }],
       },
       waitTimeoutMs: 20,
     })
     expect(timed.ok).toBe(true)
     if (timed.ok && "status" in timed.data) expect(timed.data.status).toBe("running")
     if (timed.ok && "runId" in timed.data) await host.operations.execute({ cancel: timed.data.runId })
+    releaseDelayForTests()
 
     const withOut = await host.operations.execute({
       execution: echo,

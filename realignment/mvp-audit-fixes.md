@@ -490,11 +490,15 @@ was also running 68 leaked host processes (F22). Fix F22 first, then make these 
 timing (raise per-test timeouts where the work is inherently slow, replace fixed sleeps with readiness polling),
 and re-check after S3 removes the per-call schema compile.
 
-- [ ] Fixed. Progress after F22: `packages/host/test/editor-schema-async.test.ts` "marks server ready before a slow
-  editor write finishes" is signal-based via `holdEditorSchemaWriteForTests` / `releaseEditorSchemaWriteForTests`,
-  not wall-clock. Re-checked under `pnpm run test:coverage` after F22 (640 passed): `packages/host/test/http.test.ts`
-  drain polling — pass; `packages/engine/test/operations.test.ts` "covers retrieve and execute edge paths" — pass;
-  `packages/host/test/editor-schema-async.test.ts` — pass.
+- [x] Fixed (group D PR 2, 2026-11-17). Wall-clock ordering sleeps replaced with signals, polls, or test-only hooks;
+  flake targets: `operations.test.ts` "covers retrieve and execute edge paths" (`holdDelayForTests` + `input.hold`, 30s
+  timeout), `conformance.test.ts` "accepts every valid fixture" (30s timeout), editor retrieve sibling
+  (`holdEditorSchemaWriteForTests` not `setEditorSchemaWriteDelayForTests(300)`), storage/run/operations/watch/supervisor
+  e2e/A6/relay/app/azure-client cases per approved plan. Hooks: `plugin-test` `delay-hooks` (`hold`/`release`/`reset`,
+  optional `hold` on delay input, honours abort), `LocalStorage.pollOnceForTests`, `withFileLock` `onWaiting`,
+  `onPathWatchReadyForTests`, supervisor orphan poll log lines. Evidence: `pnpm run test:coverage` ×3 — **653 passed**,
+  3 skipped, coverage above floors (lines 96.28%, branches 85.66%); integration **18 passed**, 1 skipped; e2e **47
+  passed**, 2 skipped; `pnpm run lint` green.
 
 ### F22 — Tests leak supervisor and host processes (High; causes F20 flakiness)
 

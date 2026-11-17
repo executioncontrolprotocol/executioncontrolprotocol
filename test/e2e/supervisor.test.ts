@@ -110,8 +110,10 @@ describe("supervisor e2e", () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-e2e-"))
     const child = await startSupervisor(home)
     const hostFile = await waitForHostOk(home)
+    const before = countSupervisorLog(home, "orphan poll: host.json kept")
     writeFileSync(path.join(home, "host.json"), `${JSON.stringify(hostFile, null, 2)}\n`)
-    await delay(5_500)
+    // Two healthy polls after the rewrite (the supervisor logs the first two after each change).
+    await waitForSupervisorLog(home, "orphan poll: host.json kept", before + 2, 15_000)
     expect(isAlive(child.pid!)).toBe(true)
     expect(isAlive(hostFile.hostPid)).toBe(true)
     const stop = await fetch(`http://127.0.0.1:${hostFile.controlPort}/stop`, {
@@ -145,7 +147,7 @@ describe("supervisor e2e", () => {
       const hostFile = await waitForHostOk(home)
       const hostJson = path.join(home, "host.json")
       chmodSync(hostJson, 0o000)
-      await delay(2_500)
+      await waitForSupervisorLog(home, "orphan poll: host.json unreadable, will retry", 1, 10_000)
       expect(isAlive(child.pid!)).toBe(true)
       chmodSync(hostJson, 0o600)
       const tampered: HostFile = { ...hostFile, token: `${hostFile.token}y` }
@@ -158,6 +160,26 @@ describe("supervisor e2e", () => {
     30_000,
   )
 })
+
+function countSupervisorLog(home: string, needle: string): number {
+  const logPath = path.join(home, "logs", "supervisor.log")
+  if (!existsSync(logPath)) return 0
+  return readFileSync(logPath, "utf8").split(/\r?\n/).filter((line) => line.includes(needle)).length
+}
+
+async function waitForSupervisorLog(
+  home: string,
+  needle: string,
+  count: number,
+  timeoutMs: number,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (countSupervisorLog(home, needle) >= count) return
+    await delay(100)
+  }
+  throw new Error(`expected ${count} supervisor log line(s) containing "${needle}"`)
+}
 
 async function waitFor<T>(fn: () => T | Promise<T | undefined> | undefined, timeoutMs: number): Promise<T> {
   const deadline = Date.now() + timeoutMs

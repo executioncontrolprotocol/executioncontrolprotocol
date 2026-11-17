@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { beforeAll, describe, expect, it } from "vitest"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
+import {
+  awaitTestDelay,
+  holdDelayForTests,
+  onDelayEnteredForTests,
+  resetDelayForTests,
+} from "../../../plugins/plugin-test/src/capabilities/delay-hooks.js"
 import type {
   CapabilityCall,
   CapabilityEntry,
@@ -45,6 +51,10 @@ beforeAll(async () => {
   await engine.start()
 })
 
+afterEach(() => {
+  resetDelayForTests()
+})
+
 async function invoke(request: CapabilityCall, signal: AbortSignal, store: StateStore): Promise<unknown> {
   const input = (request.input ?? {}) as Record<string, unknown>
   if (request.capabilityId.endsWith(".echo")) {
@@ -64,13 +74,8 @@ async function invoke(request: CapabilityCall, signal: AbortSignal, store: State
     })
   }
   if (request.capabilityId.endsWith(".delay")) {
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, Number(input.ms))
-      signal.addEventListener("abort", () => {
-        clearTimeout(timer)
-        reject(Object.assign(new Error("aborted"), { name: "AbortError" }))
-      })
-    })
+    const hold = Boolean(input.hold)
+    await awaitTestDelay(Number(input.ms), signal, hold)
     return { waitedMs: input.ms }
   }
   if (request.capabilityId.endsWith(".stage")) {
@@ -507,37 +512,49 @@ describe("run fixtures", () => {
     expect(JSON.stringify(detail?.state)).toContain("[redacted]")
     expect(detail?.events?.some((event) => event.type === "step.end")).toBe(true)
 
+    holdDelayForTests()
+    let delayEntered = false
+    onDelayEnteredForTests(() => {
+      delayEntered = true
+    })
     const cancelHandle = startExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
         steps: [
-          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" },
+          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000, hold: true }, as: "wait" },
           { id: "after", uses: "@executioncontrolprotocol/test.echo", input: { value: "after" }, as: "after" },
         ],
       },
       {},
       { capabilities, call: invoke, expression: engine },
     )
-    setTimeout(() => cancelHandle.cancel(), 20)
+    await vi.waitFor(() => delayEntered, { timeout: 5_000 })
+    cancelHandle.cancel()
     const cancelled = await cancelHandle.outcome
     expect(cancelled.status).toBe("cancelled")
     expect(cancelled.steps.find((step) => step.nodeId === "wait")?.status).toBe("cancelled")
     expect(cancelled.steps.find((step) => step.nodeId === "after")).toBeUndefined()
 
+    holdDelayForTests()
+    delayEntered = false
+    onDelayEnteredForTests(() => {
+      delayEntered = true
+    })
     const interruptHandle = startExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
         steps: [
-          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" },
+          { id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000, hold: true }, as: "wait" },
           { id: "after", uses: "@executioncontrolprotocol/test.echo", input: { value: "after" }, as: "after" },
         ],
       },
       {},
       { capabilities, call: invoke, expression: engine },
     )
-    setTimeout(() => interruptHandle.interrupt("host-restart"), 20)
+    await vi.waitFor(() => delayEntered, { timeout: 5_000 })
+    interruptHandle.interrupt("host-restart")
     const interrupted = await interruptHandle.outcome
     expect(interrupted.status).toBe("interrupted")
     expect(interrupted.events).toContain("run.interrupted")
@@ -715,17 +732,23 @@ describe("run fixtures", () => {
     )
     expect(badInt.error?.code).toBe("ECP_INPUT_INVALID")
 
+    holdDelayForTests()
+    delayEntered = false
+    onDelayEnteredForTests(() => {
+      delayEntered = true
+    })
     const external = new AbortController()
     const externalRun = startExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
-        steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000 }, as: "wait" }],
+        steps: [{ id: "wait", uses: "@executioncontrolprotocol/test.delay", input: { ms: 5000, hold: true }, as: "wait" }],
       },
       {},
       { capabilities, call: invoke, expression: engine, signal: external.signal },
     )
-    setTimeout(() => external.abort(), 20)
+    await vi.waitFor(() => delayEntered, { timeout: 5_000 })
+    external.abort()
     expect((await externalRun.outcome).status).toBe("cancelled")
   })
 })

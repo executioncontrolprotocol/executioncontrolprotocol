@@ -293,6 +293,14 @@ export class LocalStorage implements StorageProvider {
     this.lastSnapshot = snapshot
   }
 
+  /**
+   * Run one debounced poll cycle immediately (tests only).
+   * @category Storage
+   */
+  pollOnceForTests(): void {
+    this.pollOnce()
+  }
+
   private snapshotIds(): string {
     const keys: string[] = []
     if (existsSync(this.paths.executionsDir())) {

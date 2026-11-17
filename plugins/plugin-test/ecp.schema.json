@@ -89,6 +89,9 @@
     },
     "delay.accepts": {
       "properties": {
+        "hold": {
+          "type": "boolean"
+        },
         "ms": {
           "maximum": 9007199254740991,
           "minimum": 0,

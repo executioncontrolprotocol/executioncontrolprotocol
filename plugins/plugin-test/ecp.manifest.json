@@ -99,7 +99,7 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "fc63fea31a5d1f09831511ee2f727a4fb1afd88907d278f3c670fb08e05ab784",
+  "hash": "4644b488b7469e32ed90b9d5c86e5fb773a0656d1dbe87c86e681216459a0a57",
   "plugin": {
     "description": "Echo, fail, delay, stage, config-echo, file-roundtrip, call and bounded for every executor and handler-context feature.",
     "id": "@executioncontrolprotocol/test",
@@ -108,7 +108,7 @@
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "a1381194e40b090f648281241d0b907d6f61a36a8a9e0752c45def50414ac639",
+    "hash": "6af3adaf300bd27f46a0ad49ba3a17260cd1f7b36df6f97ec93e08c0029acec3",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

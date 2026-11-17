@@ -74,10 +74,23 @@ export async function renameWithRetry(from: string, to: string): Promise<void> {
 }
 
 /**
+ * Options for {@link withFileLock}.
+ * @category Storage
+ */
+export interface WithFileLockOptions {
+  /** Called once when waiting on an existing lock file (tests). */
+  onWaiting?: () => void
+}
+
+/**
  * Hold an exclusive lock file for the duration of `fn`. Stale locks (>10 s) are reclaimed.
  * @category Storage
  */
-export async function withFileLock<T>(targetPath: string, fn: () => Promise<T>): Promise<T> {
+export async function withFileLock<T>(
+  targetPath: string,
+  fn: () => Promise<T>,
+  options?: WithFileLockOptions,
+): Promise<T> {
   const lockPath = `${targetPath}.lock`
   mkdirSync(path.dirname(targetPath), { recursive: true })
   for (;;) {
@@ -101,6 +114,7 @@ export async function withFileLock<T>(targetPath: string, fn: () => Promise<T>):
       } catch {
         // race: lock disappeared
       }
+      options?.onWaiting?.()
       await delay(20)
     }
   }

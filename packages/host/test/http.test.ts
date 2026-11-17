@@ -4,6 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
+import { holdDelayForTests, resetDelayForTests } from "../../../plugins/plugin-test/src/capabilities/delay-hooks.js"
 import {
   checkHealth,
   createLocalHost,
@@ -24,6 +25,7 @@ describe("HttpApiEndpoint", () => {
   let baseUrl: string
 
   afterEach(async () => {
+    resetDelayForTests()
     if (host) await host.stop()
     host = undefined
   })
@@ -360,6 +362,7 @@ describe("HttpApiEndpoint", () => {
     })
     baseUrl = host.url!
     const client = new HostClient(baseUrl, token)
+    holdDelayForTests()
     const mid = await client.execute({
       execution: {
         schema: "@executioncontrolprotocol.execution",
@@ -368,7 +371,7 @@ describe("HttpApiEndpoint", () => {
           {
             id: "wait",
             uses: "@executioncontrolprotocol/test.delay",
-            input: { ms: 5_000 },
+            input: { ms: 5_000, hold: true },
             as: "done",
           },
         ],
@@ -378,6 +381,16 @@ describe("HttpApiEndpoint", () => {
     expect(mid.ok).toBe(true)
     if (!mid.ok) return
     const forceId = mid.data.runId
+    await expect
+      .poll(
+        async () => {
+          const run = await client.retrieve({ type: "run", id: forceId })
+          if (!run.ok || !("item" in run.data)) return undefined
+          return (run.data.item as { status?: string }).status === "running" ? true : undefined
+        },
+        { timeout: 5_000 },
+      )
+      .toBe(true)
     const forced = await client.drain(0)
     expect(forced.ok).toBe(true)
     if (forced.ok) expect(forced.data.interrupted).toContain(forceId)

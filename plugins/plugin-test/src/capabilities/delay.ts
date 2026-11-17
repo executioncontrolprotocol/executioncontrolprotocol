@@ -1,21 +1,11 @@
 import type { HandlerContext } from "@executioncontrolprotocol/plugin-sdk"
+import { awaitTestDelay } from "./delay-hooks.js"
 
 /** Delay handler. */
 export default async function handler(
-  input: { ms: number },
+  input: { ms: number; hold?: boolean },
   ctx: HandlerContext,
 ): Promise<{ waitedMs: number }> {
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, input.ms)
-    const onAbort = (): void => {
-      clearTimeout(timer)
-      reject(Object.assign(new Error("aborted"), { name: "AbortError" }))
-    }
-    if (ctx.signal.aborted) {
-      onAbort()
-      return
-    }
-    ctx.signal.addEventListener("abort", onAbort, { once: true })
-  })
+  await awaitTestDelay(input.ms, ctx.signal, input.hold)
   return { waitedMs: input.ms }
 }

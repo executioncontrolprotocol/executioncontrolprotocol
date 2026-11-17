@@ -132,7 +132,7 @@ const creativePluginSchema = JSON.parse(
 ) as PluginSchemaDocument
 
 describe("manifest conformance", () => {
-  it("accepts every valid fixture", async () => {
+  it("accepts every valid fixture", { timeout: 30_000 }, async () => {
     const dir = path.join(manifests, "valid")
     const capabilities = [...testCapabilities, ...creativeCapabilities]
     const loadPluginSchema = async (pluginId: string) => {

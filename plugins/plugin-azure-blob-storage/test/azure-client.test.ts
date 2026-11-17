@@ -16,6 +16,7 @@ interface StoredBlob {
 const blobs = new Map<string, StoredBlob>()
 let server: Server
 let connectionString: string
+let slowPutAbort: (() => void) | undefined
 
 function readRequest(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -38,7 +39,12 @@ function commonHeaders(): Record<string, string> {
 async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const path = decodeURIComponent(new URL(req.url ?? "/", "http://localhost").pathname)
   const key = path.replace(`/${ACCOUNT}/`, "")
-  if (key.endsWith("/slow")) return
+  if (req.method === "PUT" && key.endsWith("/slow")) {
+    slowPutAbort?.()
+    slowPutAbort = undefined
+    await readRequest(req)
+    return
+  }
   if (req.method === "PUT") {
     const bytes = await readRequest(req)
     const contentType = req.headers["x-ms-blob-content-type"]
@@ -89,6 +95,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   blobs.clear()
+  slowPutAbort = undefined
 })
 
 function config(): AzureBlobConfig {
@@ -133,6 +140,7 @@ describe("azure-client upload and download", () => {
 
   it("rejects an upload when the signal aborts mid-request", async () => {
     const controller = new AbortController()
+    slowPutAbort = () => controller.abort()
     const pending = uploadBytes(config(), {
       container: "ecp",
       blobName: "slow",
@@ -140,7 +148,6 @@ describe("azure-client upload and download", () => {
       contentType: "application/octet-stream",
       signal: controller.signal,
     })
-    setTimeout(() => controller.abort(), 20)
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" })
   })

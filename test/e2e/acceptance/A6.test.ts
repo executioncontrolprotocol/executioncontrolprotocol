@@ -49,7 +49,18 @@ describe("A6 supervisor drain, force interrupt, resume", () => {
     const runId = (started.structuredContent as { runId?: string }).runId
     expect(runId).toBeTruthy()
 
-    await delay(400)
+    await expect
+      .poll(
+        async () => {
+          const mid = await callTool(session.client, "retrieve", { type: "run", id: runId! })
+          const midStatus =
+            (mid.structuredContent as { item?: { status?: string } })?.item?.status ??
+            (mid.structuredContent as { status?: string }).status
+          return midStatus === "running" ? true : undefined
+        },
+        { timeout: 15_000, interval: 50 },
+      )
+      .toBe(true)
     const mid = await callTool(session.client, "retrieve", { type: "run", id: runId! })
     const midStatus =
       (mid.structuredContent as { item?: { status?: string } })?.item?.status ??
@@ -127,7 +138,18 @@ describe("A6 supervisor drain, force interrupt, resume", () => {
     expect(started.isError).toBeUndefined()
     const runId = (started.structuredContent as { runId?: string }).runId
     expect(runId).toBeTruthy()
-    await delay(400)
+    await expect
+      .poll(
+        async () => {
+          const probe = await callTool(session.client, "retrieve", { type: "run", id: runId! })
+          const probeStatus =
+            (probe.structuredContent as { item?: { status?: string } })?.item?.status ??
+            (probe.structuredContent as { status?: string }).status
+          return probeStatus === "running" ? true : undefined
+        },
+        { timeout: 15_000, interval: 50 },
+      )
+      .toBe(true)
 
     const restart = await runEcp(["host", "restart", "--force", "--json"], { env })
     expect(restart.code).toBe(0)

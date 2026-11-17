@@ -6,6 +6,17 @@ import { scriptPathsOf } from "./files.js"
 const DEBOUNCE_MS = 100
 const POLL_MS = 2_000
 
+/** Test-only: fired when the first fs watcher is attached. */
+let pathWatchReadyForTests: (() => void) | undefined
+
+/**
+ * Register a one-shot callback when path watch watchers are ready (tests only).
+ * @category Host
+ */
+export function onPathWatchReadyForTests(callback: () => void): void {
+  pathWatchReadyForTests = callback
+}
+
 /**
  * Change payload for execution-file hot reload.
  * @category Host
@@ -76,6 +87,11 @@ export function watchExecutionPath(
         // Poll fallback covers transient watcher failures.
       })
       watchers.set(filePath, watcher)
+      if (pathWatchReadyForTests) {
+        const notify = pathWatchReadyForTests
+        pathWatchReadyForTests = undefined
+        notify()
+      }
     } catch {
       // ignore
     }

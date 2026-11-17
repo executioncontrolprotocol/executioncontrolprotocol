@@ -41,7 +41,7 @@ export const delay = capability({
   description: "Sleeps for `ms` and honours `signal`.",
   useCases: ["Exercise cancel and timeout"],
   projections: ["Take `waitedMs`"],
-  accepts: z.object({ ms: z.number().int().min(0) }),
+  accepts: z.object({ ms: z.number().int().min(0), hold: z.boolean().optional() }),
   returns: z.object({ waitedMs: z.number().int() }),
   /** Long enough for A6 interruption / resume scenarios. */
   timeoutMs: 60_000,

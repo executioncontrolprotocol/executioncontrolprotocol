@@ -202,6 +202,20 @@ describe("mcp relay e2e", () => {
     const runId = (started.structuredContent as { runId?: string }).runId
     expect(runId).toBeTruthy()
 
+    await expect
+      .poll(
+        async () => {
+          const probe = await callTool(session.client, "retrieve", { type: "run", id: runId! })
+          if (probe.isError) return undefined
+          const probeStatus =
+            (probe.structuredContent as { item?: { status?: string } })?.item?.status ??
+            (probe.structuredContent as { status?: string }).status
+          return probeStatus === "running" ? true : undefined
+        },
+        { timeout: 15_000, interval: 50 },
+      )
+      .toBe(true)
+
     const restart = await runEcp(["host", "restart", "--force", "--json"], { env })
     expect(restart.code).toBe(0)
 

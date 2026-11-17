@@ -5,7 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import { createLocalHost, generateHostToken, type LocalHost } from "../src/index.js"
-import { watchExecutionPath } from "../src/http/path-watch.js"
+import { onPathWatchReadyForTests, watchExecutionPath } from "../src/http/path-watch.js"
 
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -39,11 +39,15 @@ describe("path watch", () => {
     writeFileSync(execPath, `${JSON.stringify(smallest, null, 2)}\n`)
 
     const events: string[] = []
+    let watchReady = false
+    onPathWatchReadyForTests(() => {
+      watchReady = true
+    })
     const stop = watchExecutionPath(execPath, (event) => {
       events.push(event.path)
     })
 
-    await new Promise((r) => setTimeout(r, 50))
+    await expect.poll(() => watchReady, { timeout: 3_000 }).toBe(true)
     writeFileSync(
       execPath,
       `${JSON.stringify({ ...smallest, execution: { label: "changed" } }, null, 2)}\n`,
@@ -82,11 +86,15 @@ describe("path watch", () => {
     )
 
     const events: string[] = []
+    let scriptWatchReady = false
+    onPathWatchReadyForTests(() => {
+      scriptWatchReady = true
+    })
     const stop = watchExecutionPath(execPath, (event) => {
       events.push(event.path)
     })
 
-    await new Promise((r) => setTimeout(r, 50))
+    await expect.poll(() => scriptWatchReady, { timeout: 3_000 }).toBe(true)
     writeFileSync(scriptPath, "export const x = 2\n")
 
     await expect
@@ -150,6 +158,17 @@ describe("path watch", () => {
     const port = Number(new URL(host.url!).port)
     const { request } = await import("node:http")
     const chunks: string[] = []
+    let sseReady = false
+    const mutate = (): void => {
+      if (sseReady) return
+      const body = chunks.join("")
+      if (!body.includes(": connected") && !body.includes("event: file")) return
+      sseReady = true
+      writeFileSync(
+        execPath,
+        `${JSON.stringify({ ...smallest, execution: { label: "sse" } }, null, 2)}\n`,
+      )
+    }
     await new Promise<void>((resolve, reject) => {
       const req = request(
         {
@@ -168,6 +187,7 @@ describe("path watch", () => {
           res.setEncoding("utf8")
           res.on("data", (chunk: string) => {
             chunks.push(chunk)
+            mutate()
             if (chunks.join("").includes("event: file")) {
               req.destroy()
               resolve()
@@ -180,13 +200,6 @@ describe("path watch", () => {
         else reject(error)
       })
       req.end()
-      void (async () => {
-        await new Promise((r) => setTimeout(r, 80))
-        writeFileSync(
-          execPath,
-          `${JSON.stringify({ ...smallest, execution: { label: "sse" } }, null, 2)}\n`,
-        )
-      })()
       setTimeout(() => {
         req.destroy()
         resolve()
