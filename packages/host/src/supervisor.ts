@@ -343,6 +343,10 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
     process.exit(0)
   }
 
+  // Confirm the first two healthy polls after host.json is (re)written in the log (tests wait on
+  // these lines); otherwise a healthy poll is silent so a long-running host's log doesn't grow every 2 s.
+  let keptLogsLeft = 0
+  let lastHostJsonMtime = -1
   const checkOrphanSafetyNet = (): void => {
     if (stopping) return
     if (!existsSync(home)) {
@@ -358,9 +362,19 @@ export async function runSupervisor(options: SupervisorOptions): Promise<void> {
       const parsed = JSON.parse(readFileSync(hostJsonPath, "utf8")) as HostFile
       if (parsed.token !== token || parsed.supervisorPid !== process.pid) {
         void orphanForceExit()
+        return
+      }
+      const mtime = statSync(hostJsonPath).mtimeMs
+      if (mtime !== lastHostJsonMtime) {
+        lastHostJsonMtime = mtime
+        keptLogsLeft = 2
+      }
+      if (keptLogsLeft > 0) {
+        keptLogsLeft -= 1
+        writeLog("orphan poll: host.json kept")
       }
     } catch {
-      // single read failure: wait for next poll
+      writeLog("orphan poll: host.json unreadable, will retry")
     }
   }
 

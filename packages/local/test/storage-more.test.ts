@@ -227,7 +227,6 @@ describe("LocalStorage extra branches", () => {
       type: "loop.round",
       data: { round: 0 },
     })
-    await new Promise((resolve) => setTimeout(resolve, 80))
     const detail = await storage.runs.get("run-round", ["steps", "events"])
     expect(detail?.steps?.[0]?.round).toBe(0)
     expect(detail?.events?.[0]?.type).toBe("loop.round")
@@ -245,7 +244,7 @@ describe("LocalStorage extra branches", () => {
       updatedAt: new Date().toISOString(),
       manifestHash: "h",
     }))
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    storage.pollOnceForTests()
     await host.stop()
   })
 
@@ -255,8 +254,13 @@ describe("LocalStorage extra branches", () => {
     const lockPath = `${target}.lock`
     mkdirSync(home, { recursive: true })
     writeFileSync(lockPath, "holder\n")
-    const waiter = withFileLock(target, async () => "ok")
-    await new Promise((resolve) => setTimeout(resolve, 40))
+    let waiting = false
+    const waiter = withFileLock(target, async () => "ok", {
+      onWaiting: () => {
+        waiting = true
+      },
+    })
+    await expect.poll(() => waiting, { timeout: 3_000 }).toBe(true)
     const { unlinkSync } = await import("node:fs")
     unlinkSync(lockPath)
     await expect(waiter).resolves.toBe("ok")

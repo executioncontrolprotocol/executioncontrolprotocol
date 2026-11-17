@@ -226,7 +226,6 @@ describe("followRun", () => {
     controller.abort()
     await following
     release?.()
-    await new Promise((resolve) => setTimeout(resolve, 10))
     expect(onDone).not.toHaveBeenCalled()
   })
 
@@ -257,21 +256,34 @@ describe("followRun", () => {
     let active = 0
     let maxActive = 0
     let calls = 0
+    let releaseFirstRetrieve: (() => void) | undefined
     const { client } = host({
       retrieve: async () => {
         calls += 1
         active += 1
         maxActive = Math.max(maxActive, active)
-        await new Promise((resolve) => setTimeout(resolve, 20))
+        if (calls === 1) {
+          await new Promise<void>((resolve) => {
+            releaseFirstRetrieve = resolve
+          })
+        }
         active -= 1
         const status = calls >= 3 ? "completed" : "running"
         return json(200, { ok: true, data: { type: "run", item: detail(status, [event(1, "run.start")]) } })
       },
     })
     const seen: number[] = []
-    await followRun(client, RUN_ID, { onEvent: (e) => seen.push(e.seq), onDone: () => undefined }, new AbortController().signal, {
+    const following = followRun(client, RUN_ID, { onEvent: (e) => seen.push(e.seq), onDone: () => undefined }, new AbortController().signal, {
       pollMs: 2,
     })
+    await vi.waitFor(() => expect(calls).toBeGreaterThanOrEqual(1))
+    let pollTicks = 0
+    await vi.waitFor(() => {
+      pollTicks += 1
+      return pollTicks >= 3
+    }, { interval: 3, timeout: 100 })
+    releaseFirstRetrieve?.()
+    await following
     expect(maxActive).toBe(1)
     expect(seen).toEqual([1])
   })

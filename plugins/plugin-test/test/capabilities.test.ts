@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { resetDelayForTests } from "../src/capabilities/delay-hooks.js"
 import type { ArtifactFileRef, FileRef, HandlerContext, StateHandle } from "@executioncontrolprotocol/plugin-sdk"
 import echo from "../src/capabilities/echo.js"
 import fail from "../src/capabilities/fail.js"
@@ -46,6 +47,10 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
 }
 
 describe("plugin-test capabilities", () => {
+  afterEach(() => {
+    resetDelayForTests()
+  })
+
   it("defines the eight capabilities from the spec", () => {
     expect(Object.keys(plugin.capabilities).sort()).toEqual([
       "bounded",
@@ -110,9 +115,13 @@ describe("plugin-test capabilities", () => {
 
   it("honours abort on delay", async () => {
     const controller = new AbortController()
-    const pending = delay({ ms: 5_000 }, ctx({ signal: controller.signal }))
+    let abortReason: unknown
+    const pending = delay({ ms: 5_000 }, ctx({ signal: controller.signal })).catch((error: unknown) => {
+      abortReason = error
+    })
     controller.abort()
-    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+    await pending
+    expect(abortReason).toMatchObject({ name: "AbortError" })
   })
 
   it("stages set and merge, rejects bad merge values, and fails when asked", async () => {

@@ -210,7 +210,7 @@ describe("watchSse", () => {
       minDelayMs: 60_000,
       maxDelayMs: 60_000,
     })
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
     controller.abort()
     await watching
     expect(Date.now() - started).toBeLessThan(5_000)

@@ -370,17 +370,23 @@ describe("LocalPluginRegistration", () => {
     const adapter = host.services.get(PluginAdapter)
 
     const controller = new AbortController()
-    const pending = adapter.call(
-      {
-        capabilityId: "@executioncontrolprotocol/test.delay",
-        input: { ms: 5000 },
-        config: undefined,
-        context: { runId: "run-3", stepId: "wait", state: {} },
-      },
-      controller.signal,
-    )
+    let abortReason: unknown
+    const pending = adapter
+      .call(
+        {
+          capabilityId: "@executioncontrolprotocol/test.delay",
+          input: { ms: 5000 },
+          config: undefined,
+          context: { runId: "run-3", stepId: "wait", state: {} },
+        },
+        controller.signal,
+      )
+      .catch((error: unknown) => {
+        abortReason = error
+      })
     controller.abort()
-    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+    await pending
+    expect(abortReason).toMatchObject({ name: "AbortError" })
 
     const staged: Array<{ op: string; path: string; value: unknown }> = []
     await expect(

@@ -46,6 +46,7 @@ describe("GET /v1/watch", () => {
           res.setEncoding("utf8")
           res.on("data", (chunk: string) => {
             chunks.push(chunk)
+            storeExecution()
             if (chunks.join("").includes("watched")) {
               req.destroy()
               resolve()
@@ -60,9 +61,13 @@ describe("GET /v1/watch", () => {
       })
       req.end()
 
-      void (async () => {
-        await new Promise((r) => setTimeout(r, 50))
-        await host.services.get(StorageProvider).putExecution(
+      let sseReady = false
+      const storeExecution = (): void => {
+        if (sseReady) return
+        const body = chunks.join("")
+        if (!body.includes(": connected") && !body.includes("event: storage")) return
+        sseReady = true
+        void host.services.get(StorageProvider).putExecution(
           "watched",
           {
             schema: "@executioncontrolprotocol.execution",
@@ -78,7 +83,7 @@ describe("GET /v1/watch", () => {
           },
           { create: true },
         )
-      })()
+      }
 
       setTimeout(() => {
         req.destroy()

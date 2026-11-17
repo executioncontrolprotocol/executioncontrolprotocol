@@ -56,7 +56,7 @@ describe("editor schema async server write", () => {
 
   it("retrieve plugin over HTTP waits for in-flight editor files", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-editor-retrieve-"))
-    setEditorSchemaWriteDelayForTests(300)
+    holdEditorSchemaWriteForTests()
     const token = generateHostToken()
     const host = await createLocalHost({
       home,
@@ -68,7 +68,9 @@ describe("editor schema async server write", () => {
     cleanups.push(() => host.stop())
 
     const client = new HostClient(host.url!, token)
-    const response = await client.retrieve({ type: "plugin", limit: 1 })
+    const responsePromise = client.retrieve({ type: "plugin", limit: 1 })
+    releaseEditorSchemaWriteForTests()
+    const response = await responsePromise
     expect(response.ok).toBe(true)
     const stamp = JSON.parse(
       await readFile(path.join(home, "schema", "plugins", "index.json"), "utf8"),

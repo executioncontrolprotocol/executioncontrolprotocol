@@ -20,6 +20,7 @@ export {
   withFileLock,
   ATOMIC_CONSTANTS,
   setRenameImplForTests,
+  type WithFileLockOptions,
 } from "./storage/atomic.js"
 export { HomePaths, EXECUTION_FILE_MAX_BYTES, SCRIPT_FILE_MAX_BYTES, stableStringify } from "./storage/paths.js"
 export { LocalSecrets, envNameForKey, canonicalSecretKey } from "./secrets/secrets.js"

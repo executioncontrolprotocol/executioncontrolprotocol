@@ -57,6 +57,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
+          setupFiles: ["test/unit-delay-hooks.ts"],
           include: ["packages/**/test/**/*.test.ts", "plugins/**/test/**/*.test.ts"],
           exclude: [
             "**/dist/**",
