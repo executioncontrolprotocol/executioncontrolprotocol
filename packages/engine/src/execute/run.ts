@@ -642,7 +642,7 @@ async function resolveSecrets(value: unknown, deps: RunDependencies, secrets: Se
   if (typeof value.$secret === "string") {
     const resolved = await deps.getSecret?.(value.$secret)
     if (resolved === undefined) {
-      throw Object.assign(new Error(`Secret ${value.$secret} is not set. ecp secrets set ${value.$secret}`), {
+      throw Object.assign(new Error(`Secret ${value.$secret} is not set. ecp config secrets set ${value.$secret}`), {
         code: "ECP_SECRET_MISSING",
       })
     }

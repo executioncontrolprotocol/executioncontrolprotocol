@@ -59,8 +59,8 @@ pnpm run bench          # budgets in bench/budgets.json
 ## Secrets
 
 ```bash
-ecp secrets set my.key   # value on stdin
-ecp secrets list --json
+ecp config secrets set my.key   # value on stdin
+ecp config secrets list --json
 ```
 
 Config objects reference `{ "$secret": "my.key" }`. Executions never contain secret values.

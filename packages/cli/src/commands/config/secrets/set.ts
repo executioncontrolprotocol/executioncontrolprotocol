@@ -1,13 +1,13 @@
 import { Args, Command, Flags } from "@oclif/core"
-import { readStdin } from "../../lib/input.js"
-import { withSecrets } from "../../lib/secrets.js"
-import { writeEnvelope } from "../../lib/output.js"
+import { readStdin } from "../../../lib/input.js"
+import { withSecrets } from "../../../lib/secrets.js"
+import { writeEnvelope } from "../../../lib/output.js"
 
 /**
- * `ecp secrets set`
+ * `ecp config secrets set`
  * @category CLI
  */
-export default class SecretsSet extends Command {
+export default class ConfigSecretsSet extends Command {
   static override description =
     "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean."
 
@@ -18,7 +18,7 @@ export default class SecretsSet extends Command {
   static override examples = [
     {
       description: "Reads the value from stdin and stores it under the key.",
-      command: "<%= config.bin %> secrets set anthropic/api-key",
+      command: "<%= config.bin %> config secrets set anthropic/api-key",
     },
   ]
 
@@ -32,7 +32,7 @@ export default class SecretsSet extends Command {
   }
 
   override async run(): Promise<void> {
-    const { args, flags } = await this.parse(SecretsSet)
+    const { args, flags } = await this.parse(ConfigSecretsSet)
     let value = flags.value
     if (value === undefined) {
       if (!process.stdin.isTTY) value = (await readStdin()).replace(/\r?\n$/, "")

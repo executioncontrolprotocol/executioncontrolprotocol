@@ -16,7 +16,7 @@ describe("tool descriptions", () => {
 
   it("mentions the fix loop and secrets boundary", () => {
     expect(EXECUTE_DESCRIPTION).toMatch(/validate/)
-    expect(EXECUTE_DESCRIPTION).toMatch(/ecp secrets set/)
+    expect(EXECUTE_DESCRIPTION).toMatch(/ecp config secrets set/)
     expect(RETRIEVE_DESCRIPTION).toMatch(/accepts\/returns/)
     expect(COMMIT_DESCRIPTION).toMatch(/ifVersion|updates/i)
   })

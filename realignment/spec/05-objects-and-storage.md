@@ -74,7 +74,7 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   (`anthropic.apiKey` → `ECP_SECRET_ANTHROPIC_APIKEY`). Keychain wins if both exist.
   CI and containers use the env form.
 - Keys: `^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`.
-- Values are only written by `ecp secrets set` (never through MCP or the HTTP API).
+- Values are only written by `ecp config secrets set` (never through MCP or the HTTP API).
 
 ## Run record (`run.json`)
 

@@ -48,9 +48,9 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
 
     const secretKey = `parity.secret.${Date.now()}`
     const secretValue = `parity-${Date.now()}`
-    await runEcp(["secrets", "set", secretKey, "--json"], { env, stdin: secretValue })
+    await runEcp(["config", "secrets", "set", secretKey, "--json"], { env, stdin: secretValue })
     cleanups.push(async () => {
-      await runEcp(["secrets", "unset", secretKey, "--json"], { env })
+      await runEcp(["config", "secrets", "unset", secretKey, "--json"], { env })
     })
     const configPath = path.join(home, "cfg.json")
     writeFileSync(
@@ -109,7 +109,7 @@ describe("A9 warm vs in-process parity for A1–A5 command set", () => {
       )
       // Filter secrets to this test's key — the OS keychain is shared across e2e workers.
       const secretsRaw = parseJsonStdout<{ ok: boolean; data: { items: Array<{ key: string; source: string }> } }>(
-        (await runEcp(["secrets", "list", "--json"], { env })).stdout,
+        (await runEcp(["config", "secrets", "list", "--json"], { env })).stdout,
       )
       const secretsList = {
         items: secretsRaw.data.items.filter((row) => row.key === secretKey),

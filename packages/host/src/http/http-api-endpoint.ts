@@ -96,7 +96,7 @@ export class HttpApiEndpoint implements Endpoint {
   }
 
   /**
-   * When set, `retrieve` with `type: "plugin"` awaits this before responding (`ecp schema`).
+   * When set, `retrieve` with `type: "plugin"` or `type: "schema"` awaits this before responding.
    * @category Host
    */
   setEditorSchemaGate(waitFor: () => Promise<unknown>): void {
@@ -193,7 +193,7 @@ export class HttpApiEndpoint implements Endpoint {
           return
         }
         const input = body.value as RetrieveInput
-        if (input.type === "plugin" && this.editorSchemaGate) {
+        if ((input.type === "plugin" || input.type === "schema") && this.editorSchemaGate) {
           await this.editorSchemaGate()
         }
         const envelope = await this.ops().retrieve(input)

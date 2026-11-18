@@ -143,6 +143,130 @@
       ],
       "strict": true
     },
+    "config:secrets:list": {
+      "aliases": [],
+      "args": {},
+      "description": "List secret key names and sources (never values); use config secrets set before execute steps that reference $secret.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> config secrets list",
+          "description": "Prints keys and keychain/env source; add --json for the envelope."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "config:secrets:list",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "config",
+        "secrets",
+        "list.js"
+      ],
+      "strict": true
+    },
+    "config:secrets:set": {
+      "aliases": [],
+      "args": {
+        "key": {
+          "description": "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/api-key.",
+          "name": "key",
+          "required": true
+        }
+      },
+      "description": "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> config secrets set anthropic/api-key",
+          "description": "Reads the value from stdin and stores it under the key."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "value": {
+          "description": "Secret value inline (prefer stdin to avoid shell history).",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "value",
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "config:secrets:set",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "config",
+        "secrets",
+        "set.js"
+      ],
+      "strict": true
+    },
+    "config:secrets:unset": {
+      "aliases": [],
+      "args": {
+        "key": {
+          "description": "Secret key to delete.",
+          "name": "key",
+          "required": true
+        }
+      },
+      "description": "Remove a secret from the keychain; exit 2 when the key does not exist.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> config secrets unset anthropic/api-key",
+          "description": "Deletes the key when present; missing keys return exit 2 with --json."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "config:secrets:unset",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "config",
+        "secrets",
+        "unset.js"
+      ],
+      "strict": true
+    },
     "execute": {
       "aliases": [],
       "args": {
@@ -866,12 +990,24 @@
     "retrieve": {
       "aliases": [],
       "args": {},
-      "description": "Read capabilities, executions, configs, runs, plugins, or formatters; use execute to run and commit to write.",
+      "description": "Read capabilities, executions, configs, runs, plugins, formatters, or editor schema files; use execute to run and commit to write.",
       "enableJsonFlag": false,
       "examples": [
         {
           "command": "<%= config.bin %> retrieve --type capability --query echo",
           "description": "Lists matching capabilities as a table; add --json for the operation envelope."
+        },
+        {
+          "command": "<%= config.bin %> retrieve --type schema",
+          "description": "Prints the root editor schema path (no host auto-start)."
+        },
+        {
+          "command": "<%= config.bin %> retrieve --type schema --include document",
+          "description": "Inlines the root schema JSON when under the size cap."
+        },
+        {
+          "command": "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/plugin-adobe-firefly-services --include document --out firefly.schema.json",
+          "description": "Writes a large plugin schema to a file."
         }
       ],
       "flags": {
@@ -897,7 +1033,7 @@
           "type": "option"
         },
         "include": {
-          "description": "With --type run --id: comma-separated extras to include (steps, events, manifest, state).",
+          "description": "Comma-separated extras: run detail (steps, events, manifest, state) or schema document with --type schema.",
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "include",
@@ -937,7 +1073,7 @@
           "type": "option"
         },
         "type": {
-          "description": "What to list or fetch (capability, execution, config, run, plugin, formatter).",
+          "description": "What to list or fetch (capability, execution, config, run, plugin, formatter, schema).",
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "type",
@@ -947,7 +1083,8 @@
             "config",
             "run",
             "plugin",
-            "formatter"
+            "formatter",
+            "schema"
           ],
           "required": true,
           "type": "option"
@@ -964,166 +1101,6 @@
         "dist",
         "commands",
         "retrieve.js"
-      ],
-      "strict": true
-    },
-    "schema": {
-      "aliases": [],
-      "args": {},
-      "description": "Print the editor execution JSON Schema path or file; use retrieve for capabilities instead.",
-      "enableJsonFlag": false,
-      "examples": [
-        {
-          "command": "<%= config.bin %> schema --print",
-          "description": "Prints the editor schema path (writes the files if needed); add --print to dump the file."
-        }
-      ],
-      "flags": {
-        "json": {
-          "allowNo": false,
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "type": "boolean"
-        },
-        "print": {
-          "allowNo": false,
-          "description": "Print schema file contents (human) or parsed schema in the envelope with --json.",
-          "name": "print",
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema",
-      "isESM": true,
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema.js"
-      ],
-      "strict": true
-    },
-    "secrets:list": {
-      "aliases": [],
-      "args": {},
-      "description": "List secret key names and sources (never values); use secrets set before execute steps that reference $secret.",
-      "enableJsonFlag": false,
-      "examples": [
-        {
-          "command": "<%= config.bin %> secrets list",
-          "description": "Prints keys and keychain/env source; add --json for the envelope."
-        }
-      ],
-      "flags": {
-        "json": {
-          "allowNo": false,
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "secrets:list",
-      "isESM": true,
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "relativePath": [
-        "dist",
-        "commands",
-        "secrets",
-        "list.js"
-      ],
-      "strict": true
-    },
-    "secrets:set": {
-      "aliases": [],
-      "args": {
-        "key": {
-          "description": "Secret key: starts with a letter or digit, then letters, digits, '.', '_', '/' or '-' (max 128); e.g. anthropic/api-key.",
-          "name": "key",
-          "required": true
-        }
-      },
-      "description": "Store a secret in the OS keychain; prefer stdin over --value so the shell history stays clean.",
-      "enableJsonFlag": false,
-      "examples": [
-        {
-          "command": "<%= config.bin %> secrets set anthropic/api-key",
-          "description": "Reads the value from stdin and stores it under the key."
-        }
-      ],
-      "flags": {
-        "json": {
-          "allowNo": false,
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "type": "boolean"
-        },
-        "value": {
-          "description": "Secret value inline (prefer stdin to avoid shell history).",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "name": "value",
-          "type": "option"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "secrets:set",
-      "isESM": true,
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "relativePath": [
-        "dist",
-        "commands",
-        "secrets",
-        "set.js"
-      ],
-      "strict": true
-    },
-    "secrets:unset": {
-      "aliases": [],
-      "args": {
-        "key": {
-          "description": "Secret key to delete.",
-          "name": "key",
-          "required": true
-        }
-      },
-      "description": "Remove a secret from the keychain; exit 2 when the key does not exist.",
-      "enableJsonFlag": false,
-      "examples": [
-        {
-          "command": "<%= config.bin %> secrets unset anthropic/api-key",
-          "description": "Deletes the key when present; missing keys return exit 2 with --json."
-        }
-      ],
-      "flags": {
-        "json": {
-          "allowNo": false,
-          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
-          "name": "json",
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "secrets:unset",
-      "isESM": true,
-      "pluginAlias": "@executioncontrolprotocol/cli",
-      "pluginName": "@executioncontrolprotocol/cli",
-      "pluginType": "core",
-      "relativePath": [
-        "dist",
-        "commands",
-        "secrets",
-        "unset.js"
       ],
       "strict": true
     }

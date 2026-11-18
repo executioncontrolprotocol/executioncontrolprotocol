@@ -11,25 +11,39 @@ import type { RetrieveInput, RetrieveType } from "@executioncontrolprotocol/prot
  */
 export default class Retrieve extends Command {
   static override description =
-    "Read capabilities, executions, configs, runs, plugins, or formatters; use execute to run and commit to write."
+    "Read capabilities, executions, configs, runs, plugins, formatters, or editor schema files; use execute to run and commit to write."
 
   static override examples = [
     {
       description: "Lists matching capabilities as a table; add --json for the operation envelope.",
       command: "<%= config.bin %> retrieve --type capability --query echo",
     },
+    {
+      description: "Prints the root editor schema path (no host auto-start).",
+      command: "<%= config.bin %> retrieve --type schema",
+    },
+    {
+      description: "Inlines the root schema JSON when under the size cap.",
+      command: "<%= config.bin %> retrieve --type schema --include document",
+    },
+    {
+      description: "Writes a large plugin schema to a file.",
+      command: "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/plugin-adobe-firefly-services --include document --out firefly.schema.json",
+    },
   ]
 
   static override flags = {
     type: Flags.string({
       required: true,
-      options: ["capability", "execution", "config", "run", "plugin", "formatter"],
-      description: "What to list or fetch (capability, execution, config, run, plugin, formatter).",
+      options: ["capability", "execution", "config", "run", "plugin", "formatter", "schema"],
+      description: "What to list or fetch (capability, execution, config, run, plugin, formatter, schema).",
     }),
     id: Flags.string({ description: "Fetch one item by id instead of listing." }),
     query: Flags.string({ description: "Fuzzy search string when listing capabilities or executions." }),
     limit: Flags.integer({ description: "Maximum rows to return (default 10, max 100)." }),
-    include: Flags.string({ description: "With --type run --id: comma-separated extras to include (steps, events, manifest, state)." }),
+    include: Flags.string({
+      description: "Comma-separated extras: run detail (steps, events, manifest, state) or schema document with --type schema.",
+    }),
     filter: Flags.string({ multiple: true, description: "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed." }),
     format: Flags.string({ description: "Formatter id when --type formatter." }),
     out: Flags.string({ description: "Write full JSON result to this file and print a one-line summary." }),
@@ -46,9 +60,14 @@ export default class Retrieve extends Command {
 
   override async run(): Promise<void> {
     const { flags } = await this.parse(Retrieve)
+    const type = flags.type as RetrieveType
     let ops
     try {
-      ops = await discoverOps({ autoStart: !flags["no-start-host"] })
+      const discover =
+        type === "schema"
+          ? { autoStart: false as const, tip: false as const }
+          : { autoStart: !flags["no-start-host"] }
+      ops = await discoverOps(discover)
     } catch (error) {
       if (isHostUnavailableError(error)) {
         writeEnvelope(hostUnavailableEnvelope(error), {

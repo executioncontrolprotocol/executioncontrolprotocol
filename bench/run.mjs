@@ -136,7 +136,7 @@ try {
   const schemaSamples = []
   for (let i = 0; i < 5; i++) {
     const schemaT0 = performance.now()
-    await runEcp(["schema", "--json"], baseEnv)
+    await runEcp(["retrieve", "--type", "schema", "--json"], baseEnv)
     schemaSamples.push(performance.now() - schemaT0)
   }
   scenarios.push({

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import {
@@ -154,7 +154,7 @@ describe("cli e2e commands", () => {
     const { home, env } = await createCliHome()
     const secretKey = `cli.secret.${Date.now()}`
     const secretValue = `super-secret-${Date.now()}`
-    const set = await runEcp(["secrets", "set", secretKey, "--json"], {
+    const set = await runEcp(["config", "secrets", "set", secretKey, "--json"], {
       env,
       stdin: secretValue,
     })
@@ -162,7 +162,7 @@ describe("cli e2e commands", () => {
     expect(set.stdout).not.toContain(secretValue)
     expect(set.stderr).not.toContain(secretValue)
 
-    const list = await runEcp(["secrets", "list", "--json"], { env })
+    const list = await runEcp(["config", "secrets", "list", "--json"], { env })
     expect(list.code).toBe(0)
     const listed = parseJsonStdout<{ ok: boolean; data: { items: Array<{ key: string; source: string }> } }>(
       list.stdout,
@@ -213,10 +213,10 @@ describe("cli e2e commands", () => {
     expect(envelope.ok).toBe(true)
     expect(JSON.stringify(envelope.data.result)).not.toContain(secretValue)
 
-    const missing = await runEcp(["secrets", "unset", `missing.${Date.now()}`, "--json"], { env })
+    const missing = await runEcp(["config", "secrets", "unset", `missing.${Date.now()}`, "--json"], { env })
     expect(missing.code).toBe(2)
 
-    await runEcp(["secrets", "unset", secretKey, "--json"], { env })
+    await runEcp(["config", "secrets", "unset", secretKey, "--json"], { env })
   }, 90_000)
 
   it("A5 $script syntax and over-long via CLI", async () => {
@@ -345,14 +345,21 @@ describe("cli e2e commands", () => {
     expect(run.data.result?.out?.echo).toBe("v2")
   }, 90_000)
 
-  it("schema prints path; app --no-open prints URL; plugins link exits 2 without manifest", async () => {
+  it("retrieve schema prints path; retired schema command fails; app --no-open prints URL", async () => {
     assertCliBuilt()
     const { home, env, dataDir } = await createCliHome()
-    const schema = await runEcp(["schema", "--json"], { env })
-    expect(schema.code).toBe(0)
-    expect(parseJsonStdout<{ ok: boolean; data: { path: string } }>(schema.stdout).data.path).toContain(
-      "execution.schema.json",
-    )
+    const schemaHuman = await runEcp(["retrieve", "--type", "schema"], { env })
+    expect(schemaHuman.code).toBe(0)
+    expect(schemaHuman.stdout.trim()).toContain("execution.schema.json")
+    const schemaJson = await runEcp(["retrieve", "--type", "schema", "--json"], { env })
+    expect(schemaJson.code).toBe(0)
+    expect(
+      parseJsonStdout<{ ok: boolean; data: { item: { path: string } } }>(schemaJson.stdout).data.item.path,
+    ).toContain("execution.schema.json")
+    const retiredSchema = await runEcp(["schema"], { env })
+    expect(retiredSchema.code).not.toBe(0)
+    const retiredSecrets = await runEcp(["secrets", "list"], { env })
+    expect(retiredSecrets.code).not.toBe(0)
 
     const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
     expect(start.code).toBe(0)
@@ -381,4 +388,56 @@ describe("cli e2e commands", () => {
     void pluginTestRoot
     void seedPluginLink
   }, 120_000)
+
+  it("retrieve schema in-process writes plugin editor file after plugins link", async () => {
+    assertCliBuilt()
+    const { home, env, dataDir } = await createCliHome({ linkPluginTest: false })
+    const rootOnly = await runEcp(["retrieve", "--type", "schema", "--json"], { env })
+    expect(rootOnly.code).toBe(0)
+    const rootPath = parseJsonStdout<{ ok: boolean; data: { item: { path: string } } }>(rootOnly.stdout).data.item.path
+    expect(existsSync(rootPath)).toBe(true)
+
+    const link = await runEcp(["plugins", "link", pluginTestRoot, "--json"], { env, timeoutMs: 120_000 })
+    expect(link.code).toBe(0)
+
+    const pluginSchema = await runEcp(
+      ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/plugin-test", "--json"],
+      { env },
+    )
+    expect(pluginSchema.code).toBe(0)
+    const pluginPath = parseJsonStdout<{ ok: boolean; data: { item: { path: string } } }>(pluginSchema.stdout).data.item
+      .path
+    expect(existsSync(pluginPath)).toBe(true)
+    void home
+    void dataDir
+  }, 120_000)
+
+  it("warm host retrieve schema after plugins link returns existing plugin editor path", async () => {
+    assertCliBuilt()
+    const { home, env, dataDir } = await createCliHome({ linkPluginTest: false, autoStartHost: true })
+    const start = await runEcp(["host", "start", "--json"], { env, timeoutMs: 30_000 })
+    expect(start.code).toBe(0)
+    await waitForHost(home)
+
+    const link = await runEcp(["plugins", "link", pluginTestRoot, "--json"], { env, timeoutMs: 120_000 })
+    expect(link.code).toBe(0)
+
+    await expect
+      .poll(
+        async () => {
+          const pluginSchema = await runEcp(
+            ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/plugin-test", "--json"],
+            { env, timeoutMs: 60_000 },
+          )
+          if (pluginSchema.code !== 0) return undefined
+          const pluginPath = parseJsonStdout<{ ok: boolean; data: { item: { path: string } } }>(pluginSchema.stdout)
+            .data.item.path
+          return existsSync(pluginPath) ? pluginPath : undefined
+        },
+        { timeout: 120_000, interval: 500 },
+      )
+      .toBeTypeOf("string")
+    await runEcp(["host", "stop", "--force", "--json"], { env })
+    void dataDir
+  }, 180_000)
 })

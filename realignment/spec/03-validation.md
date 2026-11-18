@@ -107,8 +107,8 @@ lines' outputs with their own certainty.
 
 - `$ECP_HOME/schema/execution.schema.json`: a small root dispatch rewritten when `schemaHash`
   changes. Per-plugin editor schema files live beside it under `schema/plugins/`. Root branches
-  use relative `$ref`s to `#/$defs/<name>.editorInput` (marker-wrapped `accepts`). `ecp schema`
-  prints the root path.
+  use relative `$ref`s to `#/$defs/<name>.editorInput` (marker-wrapped `accepts`). `ecp retrieve --type schema`
+  prints the root path; `include=document` returns the parsed document.
 - Users add `"$schema": "<root file URL>"` to `.ecp.json` files (an absolute `file:///` URL;
   editors don't expand `~`), or a `json.schemas` mapping for `**/*.ecp.json`. Editors then
   complete capability ids with their summaries (`enumDescriptions`), check inputs against

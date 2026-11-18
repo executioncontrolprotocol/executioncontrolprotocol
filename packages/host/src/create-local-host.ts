@@ -11,6 +11,7 @@ import {
 import {
   Auth,
   Endpoint,
+  EditorSchemaFiles,
   ExpressionEngine,
   Formatter,
   PluginAdapter,
@@ -18,6 +19,7 @@ import {
   StorageProvider,
   type Auth as AuthService,
   type Endpoint as EndpointService,
+  type EditorSchemaFiles as EditorSchemaFilesService,
   type ExpressionEngine as ExpressionEngineService,
   type Formatter as FormatterService,
   type HostSettings,
@@ -34,6 +36,7 @@ import {
   writeEditorSchemaFiles,
   type EditorSchemaWriteResult,
 } from "./editor-schema.js"
+import { LocalEditorSchemaFiles, type EditorSchemaWriteRef } from "./editor-schema-files.js"
 import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 import { generateHostToken } from "./token.js"
 
@@ -116,6 +119,10 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   const token = mode === "server" ? (options.token ?? generateHostToken()) : undefined
   const port = mode === "server" ? (options.port ?? 0) : undefined
 
+  const editorWriteRef: EditorSchemaWriteRef = {
+    promise: Promise.resolve({ ms: 0 }),
+  }
+
   let env = createEnvironment()
     .use(LocalPluginRegistration as ServiceClass<PluginAdapterService>, PluginAdapter, {
       options: {
@@ -128,6 +135,9 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     .use(QuickJsExpressionEngine as ServiceClass<ExpressionEngineService>, ExpressionEngine)
     .use(JsonFormatter as ServiceClass<FormatterService>, Formatter, { default: true })
     .use(ToonFormatter as ServiceClass<FormatterService>, Formatter)
+    .use(LocalEditorSchemaFiles as ServiceClass<EditorSchemaFilesService>, EditorSchemaFiles, {
+      options: { writeRef: editorWriteRef },
+    })
 
   if (mode === "server") {
     const listenPort = port ?? 0
@@ -176,9 +186,11 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   if (mode === "server") {
     schemaMs = hashMs
     editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+    editorWriteRef.promise = editorSchemas
   } else {
     const writeStarted = Date.now()
     editorSchemas = writeEditorSchemaFiles(host, { onError: logEditorError })
+    editorWriteRef.promise = editorSchemas
     await editorSchemas
     schemaMs = Date.now() - writeStarted
   }

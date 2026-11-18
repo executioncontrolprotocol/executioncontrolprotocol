@@ -55,6 +55,25 @@ describe("mcp relay e2e", () => {
     expect(blob).toMatch(/returns/)
   }, 90_000)
 
+  it("retrieve type schema returns path and optional document", async () => {
+    const { env } = await createCliHome()
+    const session = await openMcpSession({ env })
+    cleanups.push(session.close)
+
+    const pathOnly = await callTool(session.client, "retrieve", { type: "schema" })
+    expect(pathOnly.isError).toBeUndefined()
+    const item = (pathOnly.structuredContent as { item: { path: string; document?: unknown } }).item
+    expect(item.path).toContain("execution.schema.json")
+    expect(item.document).toBeUndefined()
+
+    const withDoc = await callTool(session.client, "retrieve", { type: "schema", include: ["document"] })
+    expect(withDoc.isError).toBeUndefined()
+    expect((withDoc.structuredContent as { item: { document: unknown } }).item.document).toBeTypeOf("object")
+
+    const missing = await callTool(session.client, "retrieve", { type: "schema", id: "missing-plugin-id" })
+    expect(missing.isError).toBe(true)
+  }, 90_000)
+
   it("A3 validate-fix loop via MCP structuredContent", async () => {
     const { env } = await createCliHome()
     const session = await openMcpSession({ env })
