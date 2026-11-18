@@ -345,7 +345,7 @@ describe("cli e2e commands", () => {
     expect(run.data.result?.out?.echo).toBe("v2")
   }, 90_000)
 
-  it("schema prints path; app --no-open prints URL; plugins link warns without manifest", async () => {
+  it("schema prints path; app --no-open prints URL; plugins link exits 2 without manifest", async () => {
     assertCliBuilt()
     const { home, env, dataDir } = await createCliHome()
     const schema = await runEcp(["schema", "--json"], { env })
@@ -372,8 +372,11 @@ describe("cli e2e commands", () => {
         oclif: {},
       })}\n`,
     )
-    const link = await runEcp(["plugins", "link", bare, "--no-install"], { env, timeoutMs: 60_000 })
-    expect(link.stderr + link.stdout).toMatch(/ecp\.manifest\.json/)
+    const link = await runEcp(["plugins", "link", bare, "--no-install", "--json"], { env, timeoutMs: 60_000 })
+    expect(link.code).toBe(2)
+    const linkEnv = parseJsonStdout<{ ok: boolean; error: { code: string; suggestions?: string[] } }>(link.stdout)
+    expect(linkEnv.error.code).toBe("ECP_MANIFEST_INVALID")
+    expect(linkEnv.error.suggestions?.join(" ")).toContain("ecp-plugin-manifest")
     void dataDir
     void pluginTestRoot
     void seedPluginLink

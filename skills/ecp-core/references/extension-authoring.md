@@ -25,6 +25,8 @@ export default definePlugin({
 ```
 
 Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
+The installable package also needs an empty `"oclif": {}` key in `package.json` (first-party
+plugins include it).
 Peer-depend on `plugin-sdk` and `zod`. Never import `@executioncontrolprotocol/host`, `cli`,
 `mcp-relay`, or `app`.
 

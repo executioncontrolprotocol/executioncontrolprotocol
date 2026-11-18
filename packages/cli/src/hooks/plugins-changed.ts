@@ -1,22 +1,26 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import type { Hook } from "@oclif/core"
 import { ecpDataDir } from "../lib/home.js"
+import { touchPluginsChangedMarker } from "../lib/plugin-mgmt.js"
 
 const PLUGIN_MUTATIONS = new Set([
   "plugins:install",
   "plugins:link",
   "plugins:uninstall",
   "plugins:update",
+  "plugins:reset",
   "plugins install",
   "plugins link",
   "plugins uninstall",
   "plugins update",
+  "plugins reset",
 ])
 
 /**
- * After plugin install/link/uninstall/update: warn on missing/invalid manifest and touch the change marker.
- * oclif plugin-plugins v5 does not emit plugins:post* hooks, so this runs from `finally`.
+ * After plugin install/link/uninstall/update/reset: warn on missing/invalid manifest and touch the change marker.
+ * ECP-owned commands call {@link touchPluginsChangedMarker} before `writeEnvelope` because `process.exit` skips `finally`.
+ * oclif plugin-plugins v5 does not emit plugins:post* hooks, so this runs from `finally` as a backstop.
  * @category CLI
  */
 const finallyHook: Hook<"finally"> = async function (options) {
@@ -28,7 +32,7 @@ const finallyHook: Hook<"finally"> = async function (options) {
   for (const root of roots) {
     warnManifest(root, this.warn.bind(this))
   }
-  touchMarker()
+  touchPluginsChangedMarker()
 }
 
 /**
@@ -43,7 +47,7 @@ export async function pluginsPostHook(
     ? [options.plugin.root]
     : (options.config?.plugins ?? []).map((plugin) => plugin.root).filter((root): root is string => Boolean(root))
   for (const root of roots) warnManifest(root, this.warn.bind(this))
-  touchMarker()
+  touchPluginsChangedMarker()
 }
 
 export default finallyHook
@@ -111,7 +115,3 @@ function warnManifest(root: string, warn: (message: string) => void): void {
   }
 }
 
-function touchMarker(): void {
-  const marker = path.join(ecpDataDir(), ".ecp-plugins-changed")
-  writeFileSync(marker, `${Date.now()}\n`, "utf8")
-}

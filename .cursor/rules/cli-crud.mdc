@@ -31,7 +31,7 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
 | `ecp mcp start` | The MCP relay (stdio) |
 | `ecp app [path \| id]` | The App on the host API |
 | `ecp host start \| stop \| status \| restart \| logs` | The background host (supervisor + HTTP API). `restart` drains and respawns the host to re-read plugins and config; **`reload` is an oclif alias of `restart`**, not a separate command |
-| `ecp plugins install \| uninstall \| list \| link` | oclif plugin management; writes or checks `ecp.manifest.json` |
+| `ecp plugins install \| uninstall \| link \| update \| reset` | ECP-owned plugin management (oclif plugin-plugins is library-only); writes or checks `ecp.manifest.json` |
 | `ecp secrets set \| unset \| list` | Secret values in the local secrets provider; `list` shows keys only |
 
 - **No per-capability commands.** Capabilities are reached through `ecp execute` (a one-step
