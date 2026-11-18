@@ -102,7 +102,7 @@ Through the `ExpressionEngine` service (QuickJS in the MVP):
 2. Load the config object (05). Missing explicit id → `ECP_CONFIG_UNKNOWN`.
 3. Resolve `{ "$secret": "<key>" }` through `SecretsProvider.get` and `{ "$env": "<NAME>" }`
    through the host's environment. Missing → `ECP_SECRET_MISSING` (names the key and the
-   `ecp secrets set` command).
+   `ecp config secrets set` command).
 4. Validate the resolved config against the plugin's config schema → `ECP_CONFIG_INVALID`.
 5. Pass the resolved config to the capability call. Record only `{ id, version }` in the step
    record.

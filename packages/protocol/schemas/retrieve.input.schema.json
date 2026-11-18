@@ -5,13 +5,13 @@
   "additionalProperties": false,
   "required": ["type"],
   "properties": {
-    "type": { "enum": ["capability", "execution", "config", "run", "plugin", "formatter"] },
+    "type": { "enum": ["capability", "execution", "config", "run", "plugin", "formatter", "schema"] },
     "id": { "type": "string", "minLength": 1 },
     "query": { "type": "string", "minLength": 1 },
     "filter": { "type": "object" },
     "include": {
       "type": "array",
-      "items": { "enum": ["steps", "events", "manifest", "state"] }
+      "items": { "enum": ["steps", "events", "manifest", "state", "document"] }
     },
     "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
     "format": { "type": "string" },

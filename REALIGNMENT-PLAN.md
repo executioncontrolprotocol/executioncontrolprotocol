@@ -334,7 +334,7 @@ Consequence for today's plugins: `format-toon` and `format-mermaid` become `Form
     "values": { "model": "claude-sonnet-5", "apiKey": { "$secret": "anthropic.apiKey" } } }
   ```
 
-- **Secret values are set outside MCP** (`ecp secrets set anthropic.apiKey`), so they never enter a model's context. Agents can create and edit config objects with `commit` and write references, but never see a value; `retrieve { type: "config" }` returns references only.
+- **Secret values are set outside MCP** (`ecp config secrets set anthropic.apiKey`), so they never enter a model's context. Agents can create and edit config objects with `commit` and write references, but never see a value; `retrieve { type: "config" }` returns references only.
 - **Executions contain no `$secret` or `$env`.** A step can name a config (`"config": "anthropic/client-x"`); otherwise the plugin's default config is used. Capability `accepts` never include credentials.
 - **MVP resolution:** the host resolves `$secret`/`$env` in the config through its `SecretsProvider` at call time and passes the resolved config to the plugin's handler in-process. Secrets never leave the machine. Run records store the config id and version, never values.
 - **Later (remote plugin hosts):** references go unresolved to the plugin host, which resolves them with the plugin-host SDK's own `SecretsProvider`. Secrets then never cross the network. See "Later".
@@ -351,7 +351,7 @@ Every `ecp` command is a short-lived process. Commands that need the engine use 
   - `ecp execute <path | id> --input <file | json> [--out <file>]`
   - `ecp commit --type config --action update --id … --patch <file>`
 - `ecp plugins install | uninstall | list | link`: oclif plugin management into the plugins folder, writes or checks the plugin's `ecp.manifest.json`, then touches the marker (the supervisor restarts the host).
-- `ecp secrets set | unset | list`: writes secret values to the local `SecretsProvider` (`list` shows keys only).
+- `ecp config secrets set | unset | list`: writes secret values to the local `SecretsProvider` (`list` shows keys only).
 
 **Shared files, concurrent processes.** The running host and one-off in-process commands can touch the same files at the same time:
 
@@ -867,7 +867,7 @@ Startup and restart speed decide how often agents and CLI commands wait. Measure
 | CLI warm-path phases (after fixes, same tools) | oclif-core 140.1, plugin-help 85.6, plugin-plugins 47.2, plugin-not-found 119.8, host barrel 310.2, **host/client 1.7**. B1 warm wall median **359.8** ms. `DEBUG=oclif*` on `node packages/cli/bin/ecp.js` shows `using manifest from …/packages/cli/oclif.manifest.json`. | Warm CLI target **1000** ms (`bench/targets.json`). |
 | `ecp retrieve` / `execute`, warm host (B1–B3, 2026-11-17, Windows) | All four MVP plugins linked; 11 runs. B1 warm **359.7** ms; B2 warm **364.5** ms; B3 warm **386.1** ms. Targets **1000** ms; budgets match targets. | `bench/baseline/2026-11-17-win32.json`. |
 | `ecp retrieve` / `execute`, in-process (same run) | B1 **979.9** ms; B2 **977.4** ms; B3 **1085.7** ms (still loads full host once per process; bench sets `ECP_NO_START_HOST=1`). Budgets **1500** ms. | In-process mode via opt-out; default CLI auto-starts (spec 10). |
-| B5 `$expr` warm / B7 schema | B5 **392** ms (branch fixture with `--input`). B7 **356.4** ms (five `ecp schema` samples, all plugins). Budgets **1000** / **2000** ms. | B5 no longer uses `--validate`. |
+| B5 `$expr` warm / B7 schema | B5 **392** ms (branch fixture with `--input`). B7 **356.4** ms (five ``ecp retrieve --type schema`` samples, all plugins). Budgets **1000** / **2000** ms. | B5 no longer uses `--validate`. |
 | Host start / restart (B6) | Start median **1800.5** ms; restart **4186.3** ms. Budgets **3000** / **6000** ms. | |
 | B8 execute warm all plugins | **385.4** ms. Budget **1000** ms. | |
 | B8 start overhead 5k | Measured median **146** ms on 2026-11-17 Windows (`ECP_BENCH_SCALE=5000`). Design target ~100 ms. | **Exception:** B8 host start overhead at 5,000 synthetic capabilities remains above the ~100 ms design target on Windows; budget 150 ms follows the measured median rounded up (see bench/baseline). |

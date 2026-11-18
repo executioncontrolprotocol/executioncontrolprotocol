@@ -129,7 +129,7 @@ with `host.json` on clean and idle stop.
   that `retrieve` is how to discover capabilities and their `accepts`/`returns`; the fix loop
   (`execute` with `mode: "validate"`, read `issues`, fix, repeat); prefer `path` for local files;
   `output.path` for large results; secrets are never passed through these tools (use
-  `ecp secrets set` and config objects).
+  `ecp config secrets set` and config objects).
 - **Host discovery per call:** read `host.json`; `GET /v1/health`. Missing or failing → run
   `ecp host start` (spawn the CLI with the same `ECP_HOME`), wait up to 15 s. Still failing →
   tool error `ECP_HOST_UNAVAILABLE` with the log paths.

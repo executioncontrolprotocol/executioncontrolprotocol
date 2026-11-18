@@ -90,7 +90,7 @@ The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
   - Never commit live keys; use `.env` (gitignored), the OS keychain, or CI secrets.
   - Executions never contain secrets or `$secret`/`$env` references. Config objects hold
     `{ "$secret": "key" }` references; values live in the secrets provider and are set outside
-    MCP (`ecp secrets set`).
+    MCP (`ecp config secrets set`).
   - Pre-commit runs Secretlint; CI also runs Gitleaks.
 - **Plugins never import hosts.** Plugin packages depend on the plugin authoring package (as a
   peer dependency) and focused third-party libraries, never on the host, CLI, relay or App

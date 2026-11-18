@@ -67,8 +67,11 @@
       "plugins": {
         "description": "Install and list ECP provider packages under $ECP_HOME/plugins."
       },
-      "secrets": {
-        "description": "Store and list secret keys in the OS keychain for $secret references."
+      "config": {
+        "description": "Local settings for this machine (not config objects — those use retrieve --type config and commit --type config)."
+      },
+      "config:secrets": {
+        "description": "Store secret key values in the OS keychain for $secret references (list shows keys only)."
       }
     }
   }

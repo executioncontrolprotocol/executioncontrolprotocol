@@ -287,9 +287,44 @@ export interface HostSettings {
   logLevel?: "debug" | "info" | "warn" | "error"
 }
 
+/**
+ * Stat for one editor schema file on disk.
+ * @category Services
+ */
+export interface EditorSchemaFileStat {
+  /** `"root"` or the plugin id. */
+  id: string
+  /** Absolute path on the host machine. */
+  path: string
+  /** File size in bytes. */
+  bytes: number
+}
+
+/**
+ * Host-written editor schema files under `$ECP_HOME/schema`.
+ * @category Services
+ */
+export interface EditorSchemaFiles {
+  /** Await the host startup editor write (no-op when already settled). */
+  ensureCurrent(): Promise<void>
+  /**
+   * Stat the root editor schema when `pluginId` is omitted; otherwise stat that plugin's editor file.
+   * Throws when the path is still missing after {@link ensureCurrent}.
+   */
+  stat(pluginId?: string): Promise<EditorSchemaFileStat>
+  /** Read and parse JSON at `absolutePath` (from {@link stat}). */
+  read(absolutePath: string): Promise<Record<string, unknown>>
+}
+
 /** Token for {@link PluginAdapter}. @category Services */
 export const PluginAdapter: ServiceToken<PluginAdapter> = {
   id: "@executioncontrolprotocol/plugin-adapter",
+  multiple: false,
+}
+
+/** Token for {@link EditorSchemaFiles}. @category Services */
+export const EditorSchemaFiles: ServiceToken<EditorSchemaFiles> = {
+  id: "@executioncontrolprotocol/editor-schema-files",
   multiple: false,
 }
 
@@ -342,4 +377,5 @@ export const IMPLEMENTATION_IDS = {
   toonFormatter: "@executioncontrolprotocol/formatters.toon",
   httpEndpoint: "@executioncontrolprotocol/host.http",
   localTokenAuth: "@executioncontrolprotocol/host.token",
+  editorSchemaFiles: "@executioncontrolprotocol/host.editor-schema-files",
 } as const

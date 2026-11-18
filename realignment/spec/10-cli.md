@@ -30,10 +30,10 @@ lists via host `retrieve --type plugin`.
 | `ecp plugins update` | `--verbose`, `--json` | User `type` entries only; no user plugins → exit 0, no npm |
 | `ecp plugins reset` | `--hard`, `--reinstall`, `--verbose`, `--json` | Same effects as oclif reset (no checkmark emoji in human output); envelope `{ action: "reset", removed, hard, reinstall }` |
 | `ecp plugins inspect` | `PLUGIN…`, `--verbose`, `--json` | Installation properties for a linked/user plugin (resolved from `$ECP_DATA_DIR`, not oclif's loaded plugin list) |
-| `ecp secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
-| `ecp secrets unset` | `<key>` | Delete; exit 2 if missing |
-| `ecp secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
-| `ecp schema` | `--print` | Prints the **root** `execution.schema.json` path (or contents with `--print`); ensures root **and** `schema/plugins/*` editor files are current (in-process write, or the running host if already healthy). No `--start-host` / auto-start |
+| `ecp config secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
+| `ecp config secrets unset` | `<key>` | Delete; exit 2 if missing |
+| `ecp config secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
+| `ecp retrieve --type schema` | `--id <plugin>`, `--include document`, `--out <file>`, `--json` | One editor schema item: default prints the **root** `execution.schema.json` path; `--include document` inlines JSON up to 256 KiB; `--id` selects a plugin editor file; `--out` writes large documents. Never auto-starts a host (reuses a healthy host or runs in-process) |
 
 No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others are post-MVP.
 
@@ -49,7 +49,7 @@ No other commands in the MVP. `ecp plugins discover`, `ecp migrate` and others a
 3. Else → in-process: `createLocalHost({ mode: "in-process" })` (same services, no HTTP
    endpoint), run the operation, stop the host, exit. Print to stderr once a tip naming why
    (`ECP_NO_START_HOST` is set, or `--no-start-host`) and how to get the warm host. Commands that
-   never auto-start (`schema`) print no tip.
+   never auto-start (`retrieve --type schema`, `ecp config secrets *`) print no tip.
 
 If the warm host refuses the request because it began draining (for example an idle shutdown
 starting between discovery and the request: `ECP_HOST_RESTARTING`, or the connection drops),
@@ -59,8 +59,8 @@ and resends the same request. It retries at most once.
 Health `draining` → wait and retry like the relay (09), up to 30 s.
 
 **Never auto-start:** `ecp host status|stop|restart|logs|reload` (status when down stays exit
-4); `ecp secrets *`; `ecp plugins install|uninstall|link|update|reset|inspect`; `ecp schema`
-(always in-process write unless a healthy host already exists). `ecp host start`, `ecp mcp
+4); `ecp config secrets *`; `ecp plugins install|uninstall|link|update|reset|inspect`;
+`ecp retrieve --type schema` (in-process or warm host, never spawns a supervisor). `ecp host start`, `ecp mcp
 start`, and `ecp app` ignore `ECP_NO_START_HOST`.
 
 **Opt-out:** per-command `--no-start-host` on retrieve, execute, commit, and plugins list;
@@ -84,11 +84,11 @@ the env var so timings stay comparable (spec 12).
   `skipped`, `failed`), then the result as JSON, or the error with a count line
   (`CODE  N validation error(s)`) then each issue as `path  CODE  message` and its suggestions.
 - `--json`: the envelope (06) as one JSON document on stdout, nothing else on stdout, on every
-  ECP-owned command (`host`, `mcp` except `mcp start`, `app`, `schema`, `secrets`, all `plugins`
+  ECP-owned command (`host`, `mcp` except `mcp start`, `app`, `config secrets`, all `plugins`
   subcommands including `install`, `link`, `uninstall`, `update`, `reset`, and the three
   operations). Exceptions: `ecp mcp start` has no `--json` (stdio is the MCP stream).
-  `schema --print --json` returns `{ ok: true, data: { path, schema } }` with the parsed schema
-  document in `data.schema` (human `--print` still writes the raw file). Plugin install/link
+  `retrieve --type schema --include document --json` returns `{ ok: true, data: { type, item } }`
+  with `item.document` when under the inline cap (human output prints the JSON file body). Plugin install/link
   success: `{ action, package, version, type, root, alreadyInstalled?, manifest: { ok } | { ok:
   false, issues } }`; uninstall `{ action, package, removed }`; update `{ action, updated }`;
   reset `{ action, removed, hard, reinstall }`.

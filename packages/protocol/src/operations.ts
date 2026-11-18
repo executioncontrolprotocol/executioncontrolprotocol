@@ -31,7 +31,7 @@ export interface OperationError {
  * Object kinds `retrieve` can read.
  * @category Operations
  */
-export type RetrieveType = "capability" | "execution" | "config" | "run" | "plugin" | "formatter"
+export type RetrieveType = "capability" | "execution" | "config" | "run" | "plugin" | "formatter" | "schema"
 
 /**
  * Input of `retrieve`. `id` and `query` are mutually exclusive.
@@ -56,7 +56,7 @@ export interface RetrieveInput {
     clientRequestId?: string
   }
   /** Extra sections for a run or execution. */
-  include?: Array<"steps" | "events" | "manifest" | "state">
+  include?: Array<"steps" | "events" | "manifest" | "state" | "document">
   /** Maximum items. Default 10, max 100. */
   limit?: number
   /** Formatter id. Default JSON. */

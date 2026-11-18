@@ -1,12 +1,12 @@
 import { Args, Command, Flags } from "@oclif/core"
-import { withSecrets } from "../../lib/secrets.js"
-import { writeEnvelope } from "../../lib/output.js"
+import { withSecrets } from "../../../lib/secrets.js"
+import { writeEnvelope } from "../../../lib/output.js"
 
 /**
- * `ecp secrets unset`
+ * `ecp config secrets unset`
  * @category CLI
  */
-export default class SecretsUnset extends Command {
+export default class ConfigSecretsUnset extends Command {
   static override description = "Remove a secret from the keychain; exit 2 when the key does not exist."
 
   static override args = {
@@ -16,7 +16,7 @@ export default class SecretsUnset extends Command {
   static override examples = [
     {
       description: "Deletes the key when present; missing keys return exit 2 with --json.",
-      command: "<%= config.bin %> secrets unset anthropic/api-key",
+      command: "<%= config.bin %> config secrets unset anthropic/api-key",
     },
   ]
 
@@ -29,7 +29,7 @@ export default class SecretsUnset extends Command {
   }
 
   override async run(): Promise<void> {
-    const { args, flags } = await this.parse(SecretsUnset)
+    const { args, flags } = await this.parse(ConfigSecretsUnset)
     const existed = await withSecrets(async (secrets) => secrets.delete(args.key))
     if (!existed) {
       writeEnvelope(

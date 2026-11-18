@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 4 |
 | Contributor skill | 4 |
 | Examples | 8 |
-| Other | 11 |
+| Other | 12 |
 
 ## All files
 
@@ -113,6 +113,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |
 | `.changeset/plugin-manifest-2.md` | Other | current |
+| `.changeset/retrieve-schema-config-secrets.md` | Other | current |
 | `.github/rulesets/README.md` | Other | current |
 | `.github/workflows/README.md` | Other | current |
 | `packages/app/DESIGN.md` | Other | current |

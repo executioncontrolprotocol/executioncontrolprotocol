@@ -6,6 +6,6 @@ with `plugin` `@executioncontrolprotocol/anthropic` and values
 secret before running.
 
 ```sh
-ecp secrets set anthropic/api-key
+ecp config secrets set anthropic/api-key
 ecp execute --path weekly-brief.ecp.json --input '{"signals":["shipped X"]}' --wait
 ```

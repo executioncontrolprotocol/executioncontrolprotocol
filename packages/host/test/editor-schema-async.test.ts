@@ -54,6 +54,31 @@ describe("editor schema async server write", () => {
     await expect(access(rootPath)).resolves.toBeUndefined()
   })
 
+  it("retrieve schema over HTTP waits for in-flight editor files", async () => {
+    const home = await mkdtemp(path.join(os.tmpdir(), "ecp-editor-schema-retrieve-"))
+    holdEditorSchemaWriteForTests()
+    const token = generateHostToken()
+    const host = await createLocalHost({
+      home,
+      mode: "server",
+      port: 0,
+      token,
+      extraPlugins: [pluginTestRoot],
+    })
+    cleanups.push(() => host.stop())
+
+    const client = new HostClient(host.url!, token)
+    const rootPath = path.join(home, "schema", "execution.schema.json")
+    const responsePromise = client.retrieve({ type: "schema" })
+    await expect(access(rootPath)).rejects.toThrow()
+    releaseEditorSchemaWriteForTests()
+    const response = await responsePromise
+    expect(response.ok).toBe(true)
+    if (!response.ok || !("item" in response.data)) throw new Error("expected item")
+    expect((response.data.item as { path: string }).path).toBe(rootPath)
+    await expect(access(rootPath)).resolves.toBeUndefined()
+  })
+
   it("retrieve plugin over HTTP waits for in-flight editor files", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-editor-retrieve-"))
     holdEditorSchemaWriteForTests()

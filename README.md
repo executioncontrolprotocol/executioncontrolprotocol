@@ -32,7 +32,7 @@ ecp app path/to/echo.ecp.json
 
 Executions are `*.ecp.json` with `schema: "@executioncontrolprotocol.execution"` and
 `version: "2.0"`. They never contain secrets. Config objects hold `{ "$secret": "key" }`
-references; set values with `ecp secrets set`.
+references; set values with `ecp config secrets set`.
 
 ```bash
 ecp retrieve --type capability --query echo --json

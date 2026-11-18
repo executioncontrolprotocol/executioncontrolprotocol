@@ -48,9 +48,9 @@ Create these before the first run (values via secrets):
 ```
 
 ```sh
-ecp secrets set anthropic/api-key
-ecp secrets set adobe-firefly-services/client-id
-ecp secrets set adobe-firefly-services/client-secret
+ecp config secrets set anthropic/api-key
+ecp config secrets set adobe-firefly-services/client-id
+ecp config secrets set adobe-firefly-services/client-secret
 ecp plugins link ../../plugins/plugin-anthropic
 ecp plugins link ../../plugins/plugin-adobe-firefly-services
 ecp plugins link ../../plugins/plugin-azure-blob-storage

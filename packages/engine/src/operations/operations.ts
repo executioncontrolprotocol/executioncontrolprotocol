@@ -7,6 +7,7 @@ import type {
   ExecuteInput,
   ExecutionManifest,
   ExpressionEngine as ExpressionEngineService,
+  EditorSchemaFiles as EditorSchemaFilesService,
   Formatter as FormatterService,
   OperationError,
   OperationResponse,
@@ -18,10 +19,12 @@ import type {
   ValidationResult,
 } from "@executioncontrolprotocol/protocol"
 import {
+  EditorSchemaFiles,
   ExpressionEngine,
   Formatter,
   IMPLEMENTATION_IDS,
   PluginAdapter,
+  SCHEMA_DOCUMENT_INLINE_MAX_BYTES,
   SecretsProvider,
   StorageProvider,
 } from "@executioncontrolprotocol/protocol"
@@ -341,6 +344,66 @@ async function loadRetrievePayload(
     }
     const items = [...all].sort((a, b) => (a.id < b.id ? -1 : 1)).slice(0, limit)
     return ok({ type: "plugin", items, total: all.length })
+  }
+
+  if (input.type === "schema") {
+    if (input.query) {
+      return fail("ECP_REQUEST_INVALID", "query is not supported for type schema.")
+    }
+    if (input.filter && Object.keys(input.filter).length > 0) {
+      return fail("ECP_REQUEST_INVALID", "filter is not supported for type schema.")
+    }
+    let editorFiles: EditorSchemaFilesService
+    try {
+      editorFiles = services.get(EditorSchemaFiles)
+    } catch {
+      return fail("ECP_INTERNAL", "Editor schema files are not available on this host.")
+    }
+    const includeDocument = input.include?.includes("document") === true
+    let resolvedPluginId: string | undefined
+    if (input.id) {
+      const all = plugins.plugins()
+      const item = all.find((plugin) => plugin.id === input.id || plugin.package === input.id)
+      if (!item) {
+        return fail("ECP_NOT_FOUND", `Plugin ${input.id} was not found.`, {
+          suggestions: closeMatches(
+            input.id,
+            all.flatMap((plugin) => [plugin.id, plugin.package]),
+          ),
+        })
+      }
+      resolvedPluginId = item.id
+    }
+    await editorFiles.ensureCurrent()
+    let stats: { id: string; path: string; bytes: number }
+    try {
+      stats = await editorFiles.stat(resolvedPluginId)
+    } catch {
+      const target = resolvedPluginId ?? "root"
+      return fail("ECP_NOT_FOUND", `Editor schema ${target} is not on disk.`)
+    }
+    if (
+      includeDocument &&
+      stats.bytes > SCHEMA_DOCUMENT_INLINE_MAX_BYTES &&
+      !input.output?.path
+    ) {
+      return fail(
+        "ECP_REQUEST_INVALID",
+        `Schema document is ${stats.bytes} bytes; inline responses are capped at ${SCHEMA_DOCUMENT_INLINE_MAX_BYTES} bytes. Set output.path or use --out.`,
+        {
+          suggestions: ["ecp retrieve --type schema --include document --out <file>"],
+        },
+      )
+    }
+    const item: Record<string, unknown> = {
+      id: stats.id,
+      path: stats.path,
+      bytes: stats.bytes,
+    }
+    if (includeDocument) {
+      item.document = await editorFiles.read(stats.path)
+    }
+    return ok({ type: "schema", item })
   }
 
   const formatters = services.getAll(Formatter)

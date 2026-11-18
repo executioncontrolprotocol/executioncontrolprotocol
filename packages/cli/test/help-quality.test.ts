@@ -12,11 +12,12 @@ async function loadCommandModules(dir: string, prefix = ""): Promise<Array<{ id:
   const out: Array<{ id: string; mod: { default: typeof Command } }> = []
   for (const entry of entries) {
     const full = path.join(dir, entry.name)
-    const id = prefix ? `${prefix}:${entry.name.replace(/\.ts$/, "")}` : entry.name.replace(/\.ts$/, "")
+    const nextPrefix = prefix ? `${prefix}:${entry.name}` : entry.name
     if (entry.isDirectory()) {
-      out.push(...(await loadCommandModules(full, entry.name)))
+      out.push(...(await loadCommandModules(full, nextPrefix)))
       continue
     }
+    const id = prefix ? `${prefix}:${entry.name.replace(/\.ts$/, "")}` : entry.name.replace(/\.ts$/, "")
     if (!entry.name.endsWith(".ts")) continue
     const mod = (await import(pathToFileURL(full).href)) as { default: typeof Command }
     out.push({ id, mod })

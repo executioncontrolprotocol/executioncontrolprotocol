@@ -127,6 +127,7 @@ const EMPTY_RETRIEVE: Record<RetrieveType, string> = {
   run: "No runs found.",
   plugin: "No plugins installed.",
   formatter: "No formatters found.",
+  schema: "Schema not available.",
 }
 
 /**
@@ -177,7 +178,20 @@ export function printRetrieveHuman(data: unknown): void {
     return
   }
   if (data && typeof data === "object" && "item" in (data as object)) {
-    process.stdout.write(`${JSON.stringify((data as { item: unknown }).item, null, 2)}\n`)
+    const body = data as { type?: RetrieveType; item: Record<string, unknown> }
+    if (body.type === "schema") {
+      const item = body.item
+      if (item.document !== undefined) {
+        const text = JSON.stringify(item.document, null, 2)
+        process.stdout.write(text.endsWith("\n") ? text : `${text}\n`)
+        return
+      }
+      if (typeof item.path === "string") {
+        process.stdout.write(`${item.path}\n`)
+        return
+      }
+    }
+    process.stdout.write(`${JSON.stringify(body.item, null, 2)}\n`)
     return
   }
   if (data && typeof data === "object" && "items" in (data as object)) {

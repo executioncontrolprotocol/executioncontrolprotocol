@@ -25,7 +25,7 @@ describe("cli json envelope", () => {
     expect(missingLog.code).toBe(2)
     expect(parseJsonStdout<{ ok: boolean; error: { code: string } }>(missingLog.stdout).error.code).toMatch(/^ECP_/)
 
-    const missingSecret = await runEcp(["secrets", "unset", `missing.${Date.now()}`, "--json"], { env })
+    const missingSecret = await runEcp(["config", "secrets", "unset", `missing.${Date.now()}`, "--json"], { env })
     expect(missingSecret.code).toBe(2)
     expect(parseJsonStdout<{ ok: boolean; error: { code: string } }>(missingSecret.stdout).error.code).toBe(
       "ECP_NOT_FOUND",
@@ -40,7 +40,7 @@ describe("cli json envelope", () => {
     expect(status.code).toBe(0)
     expect(parseJsonStdout<{ ok: boolean; data: { port: number } }>(status.stdout).data.port).toBeGreaterThan(0)
 
-    const secrets = await runEcp(["secrets", "list", "--json"], { env })
+    const secrets = await runEcp(["config", "secrets", "list", "--json"], { env })
     expect(secrets.code).toBe(0)
     expect(parseJsonStdout<{ ok: boolean; data: { items: unknown[] } }>(secrets.stdout).data.items).toBeDefined()
 
@@ -60,13 +60,17 @@ describe("cli json envelope", () => {
     expect(pluginInspect.code).toBe(0)
     expect(parseJsonStdout<{ ok: boolean; data: { items: unknown[] } }>(pluginInspect.stdout).data.items).toBeDefined()
 
-    const schema = await runEcp(["schema", "--print", "--json"], { env })
-    expect(schema.code).toBe(0)
-    const schemaEnv = parseJsonStdout<{ ok: boolean; data: { path: string; schema: Record<string, unknown> } }>(
-      schema.stdout,
+    const schema = await runEcp(
+      ["retrieve", "--type", "schema", "--include", "document", "--json"],
+      { env },
     )
+    expect(schema.code).toBe(0)
+    const schemaEnv = parseJsonStdout<{
+      ok: boolean
+      data: { item: { path: string; document: Record<string, unknown> } }
+    }>(schema.stdout)
     expect(schemaEnv.ok).toBe(true)
-    expect(schemaEnv.data.schema).toBeTypeOf("object")
+    expect(schemaEnv.data.item.document).toBeTypeOf("object")
     expect(schema.stdout.trim().split("\n").length).toBe(1)
 
     const app = await runEcp(["app", "--no-open", "--json"], { env })

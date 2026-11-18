@@ -25,11 +25,11 @@ conflict, host problem).
 
 ```ts
 interface RetrieveInput {
-  type: "capability" | "execution" | "config" | "run" | "plugin" | "formatter"
+  type: "capability" | "execution" | "config" | "run" | "plugin" | "formatter" | "schema"
   id?: string                       // exactly one item, full detail
   query?: string                    // search (capability, execution, config); case-insensitive
   filter?: { plugin?: string; executionId?: string; status?: RunStatus; clientRequestId?: string }
-  include?: Array<"steps" | "events" | "manifest" | "state">   // run/execution detail extras
+  include?: Array<"steps" | "events" | "manifest" | "state" | "document">   // run extras; document = schema type only
   limit?: number                    // default 10, max 100
   format?: string                   // formatter id; default "@executioncontrolprotocol/formatters.json"
   output?: { path: string }         // write the full result to this file; respond with a summary
@@ -51,6 +51,14 @@ type RetrieveOutput =
   `["state"]` the latest state.
 - Plugin item = `{ package, id, version, source: "user" | "link" | "core", capabilities: [ids], loaded: boolean, manifestOk: boolean, issues? }`.
 - Formatter items = `{ id, mediaType, default }`.
+- Schema item = one object `{ id: "root" | <pluginId>, path, bytes, document? }` (type `schema` only).
+  No `id` → root `$ECP_HOME/schema/execution.schema.json`. `id` → plugin id or package (same match
+  as type `plugin`). `query`, `filter`, and `limit` are invalid (`ECP_REQUEST_INVALID`). Default
+  response is `path` and `bytes` only. `include: ["document"]` adds parsed JSON when `bytes` ≤
+  `262144` (`SCHEMA_DOCUMENT_INLINE_MAX_BYTES`); over the cap without `output.path` →
+  `ECP_REQUEST_INVALID` (names `--out` / `output.path`). With `output.path`, write the full payload
+  and return the usual `written` summary. Unknown plugin id or a missing editor file after the host
+  write → `ECP_NOT_FOUND`.
 - Not found → `ECP_NOT_FOUND` with suggestions of close ids.
 
 **Matching (capability, execution, config):** tokenise the query (lowercase, split on
@@ -111,7 +119,7 @@ type CommitOutput = { type: string; id: string; version: number | null; warnings
 - Create on an existing id → `ECP_ALREADY_EXISTS`. Update/delete with a stale `ifVersion` →
   `ECP_VERSION_CONFLICT` (message includes the current version). Missing `ifVersion` on
   update/delete → `ECP_REQUEST_INVALID`.
-- Other types (capability, run, plugin, formatter) are read-only → `ECP_REQUEST_INVALID`.
+- Other types (capability, run, plugin, formatter, schema) are read-only → `ECP_REQUEST_INVALID`.
 
 ## Patch format
 

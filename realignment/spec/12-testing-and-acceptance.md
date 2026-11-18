@@ -54,7 +54,7 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
 `bench/run.mjs` (plain Node, no extra tools), writes `bench/results/<date>-<platform()>.json`
 (`win32`, `linux`), prints a table. CI and the default runner use **11** samples per scenario
 (`ECP_BENCH_RUNS`; a local full run may set `20`). B6 host start/restart uses **5** samples.
-B7 `ecp schema` uses **5** samples. Median and p95 are reported.
+B7 `ecp retrieve --type schema` uses **5** samples. Median and p95 are reported.
 
 Design targets (median ms) live in `bench/targets.json`. Enforced budgets are in
 `bench/budgets.json` (equal to the target when both OS medians are at or under the target;
@@ -78,7 +78,7 @@ instead of an MCP timing column.
 | B4 | `ecp execute` Firefly fixture ×10 in a row (plugin import + IMS token; live only) | skipped without credentials |
 | B5 | `ecp execute` `$expr`-heavy fixture (`branch.ecp.json` with `--input`) | warm |
 | B6 | `ecp host start` until healthy; restart until healthy | warm |
-| B7 | `ecp schema` (editor schema readiness) with all MVP plugins | warm |
+| B7 | `ecp retrieve --type schema` (editor schema readiness) with all MVP plugins | warm |
 | B8 | Schema scale: host start (incl. registry load of light manifests), first-use compile, cached validate, heap at 1,000 and 5,000 synthetic capabilities; warm `ecp execute` with all real plugins | synthetic + warm |
 
 Default `pnpm run bench` measures B8 at 1,000 synthetic capabilities. Set `ECP_BENCH_SCALE=5000`
@@ -105,7 +105,7 @@ Ubuntu and Windows CI, and A10 has been run live once with the result recorded.
 | A1 | Fresh `ECP_HOME`. `ecp plugins link plugins/plugin-test`. `ecp retrieve --type capability --query echo` finds `test.echo`; `--id` returns `accepts` and `returns`. Same through an MCP client over `ecp mcp start` | Plugin loading from manifests, retrieve, relay |
 | A2 | `ecp execute fixtures/manifests/acceptance/all-features.ecp.json --input @in.json` completes; result and every step status match the run fixture; `run.json`, step records, `events.ndjson` exist; the run asserts the **exact** event type sequence in `all-features.run.json` | Executor semantics end to end |
 | A3 | Fix loop: for 8 broken manifests (one per L1/L2/L3 family), `ecp execute --validate --json` returns exactly the expected codes and paths with suggestions; applying the suggested fix makes each valid. Same via MCP `execute { mode: "validate" }` | Validation authority and fix loop |
-| A4 | `ecp secrets set test.secret` (stdin); `ecp commit` a `test/default` config with `{ "$secret": "test.secret" }`; a `config-echo` step receives it; the value appears nowhere in run files, events, responses or logs | Config, secrets, redaction |
+| A4 | `ecp config secrets set test.secret` (stdin); `ecp commit` a `test/default` config with `{ "$secret": "test.secret" }`; a `config-echo` step receives it; the value appears nowhere in run files, events, responses or logs | Config, secrets, redaction |
 | A5 | `$script` by path and by source into a capability expecting a string with `maxLength`; a syntax error reports line/column; an over-long script fails `ECP_INPUT_INVALID` | `$script` |
 | A6 | With an MCP client connected through the relay and a `delay` run in progress: `ecp plugins link` a second fixture plugin → supervisor drains (run finishes) and restarts the host → the relay's next `retrieve` shows the new capability without reconnecting. Repeat with `--force` restart during a run → run `interrupted` → `execute { resume }` completes it | Supervisor, relay, resume |
 | A7 | `commit` an execution; `commit` update with an `@id` patch and correct `ifVersion` → version 2; stale `ifVersion` → `ECP_VERSION_CONFLICT`; `execute { id, patch }` runs a variant without saving | Commit and patches |

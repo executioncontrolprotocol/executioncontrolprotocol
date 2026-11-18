@@ -69,5 +69,8 @@ export const DEFAULT_FORMATTER_ID = "@executioncontrolprotocol/formatters.json"
 /** Expression evaluation budget in milliseconds. @category Definitions */
 export const EXPR_BUDGET_MS = 50
 
+/** Maximum editor schema bytes returned inline on `retrieve` type `schema` with `include: ["document"]`. @category Definitions */
+export const SCHEMA_DOCUMENT_INLINE_MAX_BYTES = 262_144
+
 /** Loop `maxRounds` upper bound. @category Definitions */
 export const MAX_ROUNDS_LIMIT = 1000

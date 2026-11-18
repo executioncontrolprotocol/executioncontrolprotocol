@@ -15,7 +15,7 @@ describe("A4 secrets and redaction", () => {
     const secretKey = `test.secret.${Date.now()}`
     const secretValue = `acceptance-secret-${Date.now()}`
 
-    const set = await runEcp(["secrets", "set", secretKey, "--json"], {
+    const set = await runEcp(["config", "secrets", "set", secretKey, "--json"], {
       env,
       stdin: secretValue,
     })
@@ -79,6 +79,6 @@ describe("A4 secrets and redaction", () => {
     expect(configStored).toContain("$secret")
     expect(configStored).not.toContain(secretValue)
 
-    await runEcp(["secrets", "unset", secretKey, "--json"], { env })
+    await runEcp(["config", "secrets", "unset", secretKey, "--json"], { env })
   }, 90_000)
 })
