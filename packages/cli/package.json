@@ -35,7 +35,7 @@
     "@oclif/core": "^5.1.8",
     "@oclif/plugin-help": "^6.2.33",
     "@oclif/plugin-not-found": "^3.2.68",
-    "@oclif/plugin-plugins": "^5.4.46"
+    "@oclif/plugin-plugins": "5.5.2"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -51,7 +51,6 @@
     "pluginPrefix": "plugin",
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-plugins",
       "@oclif/plugin-not-found"
     ],
     "hooks": {

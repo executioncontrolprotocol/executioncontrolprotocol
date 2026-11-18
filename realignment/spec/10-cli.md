@@ -1,8 +1,10 @@
 # 10 — CLI (`ecp`)
 
 oclif (`@oclif/core` 5), bin `ecp`, package `@executioncontrolprotocol/cli`. Commands are plain
-oclif command classes (no generation). Core oclif plugins bundled: `@oclif/plugin-plugins`,
-`@oclif/plugin-help`, `@oclif/plugin-not-found`. The bin sets `ECP_DATA_DIR` (default
+oclif command classes (no generation). Core oclif plugins bundled: `@oclif/plugin-help`,
+`@oclif/plugin-not-found`. `@oclif/plugin-plugins` is a **library dependency only** (install/link
+mechanics); it is **not** listed in `oclif.plugins` and its command classes are not loaded. The
+bin sets `ECP_DATA_DIR` (default
 `$ECP_HOME/plugins`) **before** oclif `Config.load`, so install/link writes and reads share one
 data dir. ECP packages are not loaded as oclif CLI plugins (`userPlugins: false`); `ecp plugins`
 lists via host `retrieve --type plugin`.
@@ -22,9 +24,12 @@ lists via host `retrieve --type plugin`.
 | `ecp execute` | `[path \| id]`, `--input <json \| @file \| ->`, `--validate`, `--no-wait`, `--resume <runId>`, `--cancel <runId>`, `--out <file>`, `--no-start-host`, `--json` | Operation 06. Positional: ends in `.ecp.json` or contains a path separator → `path`, else `id` |
 | `ecp commit` | `--type`, `--action`, `--id`, `--object <@file \| ->`, `--patch <@file \| ->`, `--if-version <n>`, `--no-start-host`, `--json` | Operation 06 |
 | `ecp plugins` | `--json`, `--no-start-host` | Host plugin list: columns `package`, `version`, `source`, `manifest` (`ok` or first-issue summary). `--json` → `{ ok, data: { type: "plugin", items, total } }` |
-| `ecp plugins install \| uninstall \| link \| update` | oclif's flags only | Writes `$ECP_DATA_DIR/package.json`; manifest check and marker after changes (08) |
-| `ecp plugins inspect` | `PLUGIN…`, `--verbose` | Installation properties for a linked/user plugin (resolved from `$ECP_DATA_DIR`, not oclif's loaded plugin list) |
-| `ecp plugins reset` | oclif's flags | Reset installed/linked plugins under `$ECP_DATA_DIR` |
+| `ecp plugins install` (alias `plugins add`) | `<package>`, `--force`, `--verbose`, `--json` | Install from npm, friendly name (`test` → `@executioncontrolprotocol/plugin-test`), or tarball path (converted to `file:` URL). Already installed without `--force` → exit 0 `alreadyInstalled`. Manifest invalid → exit 2 `ECP_MANIFEST_INVALID` (package stays). Missing `"oclif": {}` → exit 2 with regenerate hint |
+| `ecp plugins link` | `[path]` (default `.`), `--install` / `--no-install`, `--verbose`, `--json` | Link a local package; manifest check; touches marker before envelope |
+| `ecp plugins uninstall` (aliases `plugins unlink`, `plugins remove`) | `<package>`, `--verbose`, `--json` | Required arg; missing plugin → exit 2 `ECP_NOT_FOUND` |
+| `ecp plugins update` | `--verbose`, `--json` | User `type` entries only; no user plugins → exit 0, no npm |
+| `ecp plugins reset` | `--hard`, `--reinstall`, `--verbose`, `--json` | Same effects as oclif reset (no checkmark emoji in human output); envelope `{ action: "reset", removed, hard, reinstall }` |
+| `ecp plugins inspect` | `PLUGIN…`, `--verbose`, `--json` | Installation properties for a linked/user plugin (resolved from `$ECP_DATA_DIR`, not oclif's loaded plugin list) |
 | `ecp secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
 | `ecp secrets unset` | `<key>` | Delete; exit 2 if missing |
 | `ecp secrets list` | `--json` | Keys only, with source (`keychain` / `env`) |
@@ -79,11 +84,14 @@ the env var so timings stay comparable (spec 12).
   `skipped`, `failed`), then the result as JSON, or the error with a count line
   (`CODE  N validation error(s)`) then each issue as `path  CODE  message` and its suggestions.
 - `--json`: the envelope (06) as one JSON document on stdout, nothing else on stdout, on every
-  ECP-owned command (`host`, `mcp` except `mcp start`, `app`, `schema`, `secrets`, `plugins` list
-  and `plugins inspect`, and the three operations). Exceptions: `ecp mcp start` has no `--json`
-  (stdio is the MCP stream); `ecp plugins install|uninstall|link|update|reset` use oclif's native
-  `--json` only. `schema --print --json` returns `{ ok: true, data: { path, schema } }` with the
-  parsed schema document in `data.schema` (human `--print` still writes the raw file).
+  ECP-owned command (`host`, `mcp` except `mcp start`, `app`, `schema`, `secrets`, all `plugins`
+  subcommands including `install`, `link`, `uninstall`, `update`, `reset`, and the three
+  operations). Exceptions: `ecp mcp start` has no `--json` (stdio is the MCP stream).
+  `schema --print --json` returns `{ ok: true, data: { path, schema } }` with the parsed schema
+  document in `data.schema` (human `--print` still writes the raw file). Plugin install/link
+  success: `{ action, package, version, type, root, alreadyInstalled?, manifest: { ok } | { ok:
+  false, issues } }`; uninstall `{ action, package, removed }`; update `{ action, updated }`;
+  reset `{ action, removed, hard, reinstall }`.
 - `--out <file>`: write the full data there; print a one-line summary.
 - Exit codes: 06.
 - No emojis or colour when stdout isn't a TTY; respect `NO_COLOR`.

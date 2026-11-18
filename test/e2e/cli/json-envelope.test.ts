@@ -52,6 +52,14 @@ describe("cli json envelope", () => {
     expect(plugins.code).toBe(0)
     expect(parseJsonStdout<{ ok: boolean; data: { items: unknown[] } }>(plugins.stdout).data.items).toBeDefined()
 
+    const pluginUpdate = await runEcp(["plugins", "update", "--json"], { env })
+    expect(pluginUpdate.code).toBe(0)
+    expect(parseJsonStdout<{ ok: boolean; data: { action: string } }>(pluginUpdate.stdout).data.action).toBe("update")
+
+    const pluginInspect = await runEcp(["plugins", "inspect", "test", "--json"], { env })
+    expect(pluginInspect.code).toBe(0)
+    expect(parseJsonStdout<{ ok: boolean; data: { items: unknown[] } }>(pluginInspect.stdout).data.items).toBeDefined()
+
     const schema = await runEcp(["schema", "--print", "--json"], { env })
     expect(schema.code).toBe(0)
     const schemaEnv = parseJsonStdout<{ ok: boolean; data: { path: string; schema: Record<string, unknown> } }>(

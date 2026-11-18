@@ -170,12 +170,16 @@ Also emitted by `ecp-plugin-manifest` (same build step as the light manifest; re
    capability, call its `handler()` thunk (cached), invoke the default export. Failures →
    `ECP_PLUGIN_LOAD_FAILED`.
 
-## After install, link, uninstall or update (CLI hook)
+## After install, link, uninstall, update or reset (CLI hook)
 
 No trust check or allowlist in the MVP: any package oclif can install or link is accepted.
-After a successful install or link, the CLI verifies that `ecp.manifest.json` exists and
-validates (it warns, and doesn't uninstall, if not), then touches the marker so a running host
-restarts. Uninstall and update touch the marker too.
+After install or link, the CLI verifies `ecp.manifest.json` / `ecp.schema.json` via the local
+loader. On failure the command exits non-zero with the regenerate hint
+(`Run ecp-plugin-manifest to regenerate.`), the package **stays** installed, and
+`$ECP_DATA_DIR/.ecp-plugins-changed` is still touched so a running host reloads and reports
+`manifestOk: false`. ECP-owned commands touch the marker **before** `writeEnvelope` because
+`process.exit` skips oclif's `finally` hook; the hook remains a backstop. Uninstall, update and
+reset touch the marker when the data dir changed.
 
 ## First-party plugins in the MVP
 

@@ -69,7 +69,7 @@ plugin's install folder never carries its own copy and the registry never splits
 | quickjs-emscripten | latest 0.31.x | Sync WASM variant; one runtime per host, one context per evaluation |
 | @modelcontextprotocol/sdk | 1.x (latest minor) | Stdio server in `mcp-relay`; client in tests |
 | @oclif/core | 4.x or 5.x as already used by legacy CLI (5.x) | Keep 5.x |
-| @oclif/plugin-plugins | 5.x | Plugin install/link/update |
+| @oclif/plugin-plugins | 5.5.2 (pinned) | Library for `ecp plugins install\|link\|…` only; not an oclif loaded plugin |
 | @napi-rs/keyring | 1.x | Same naming rules as legacy (`.cursor/rules/secrets-keyring.mdc`) |
 | @toon-format/toon | 2.x | TOON formatter |
 | React / @xyflow/react / dagre / Monaco | 19 / 12 / 1.x / latest | App only |

@@ -603,6 +603,266 @@
       ],
       "strict": false
     },
+    "plugins:install": {
+      "aliases": [
+        "plugins:add"
+      ],
+      "args": {
+        "package": {
+          "description": "npm package, friendly short name, or path to a .tgz file.",
+          "name": "package",
+          "required": true
+        }
+      },
+      "description": "Install an ECP plugin from npm or a local tarball; use a short name like test for @executioncontrolprotocol/plugin-test.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> plugins install @executioncontrolprotocol/plugin-anthropic",
+          "description": "Installs the Anthropic provider from npm."
+        },
+        {
+          "command": "<%= config.bin %> plugins install test",
+          "description": "Installs @executioncontrolprotocol/plugin-test by its short name."
+        },
+        {
+          "command": "<%= config.bin %> plugins install ./dist/plugin.tgz",
+          "description": "Installs from a packed tarball (path or file: URL)."
+        }
+      ],
+      "flags": {
+        "force": {
+          "allowNo": false,
+          "description": "Reinstall even when the package is already present.",
+          "name": "force",
+          "type": "boolean"
+        },
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "char": "v",
+          "description": "Show npm install output on stderr.",
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "plugins:install",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "plugins",
+        "install.js"
+      ],
+      "strict": true
+    },
+    "plugins:link": {
+      "aliases": [],
+      "args": {
+        "path": {
+          "default": ".",
+          "description": "Path to the plugin package root.",
+          "name": "path"
+        }
+      },
+      "description": "Link a local ECP plugin directory for development; dependencies install by default unless you pass --no-install.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> plugins link ./plugins/plugin-test --no-install",
+          "description": "Links plugin-test from the monorepo without running install in the plugin directory."
+        }
+      ],
+      "flags": {
+        "install": {
+          "allowNo": true,
+          "description": "Run the package manager in the plugin directory before linking.",
+          "name": "install",
+          "type": "boolean"
+        },
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "char": "v",
+          "description": "Show npm or yarn output on stderr.",
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "plugins:link",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "plugins",
+        "link.js"
+      ],
+      "strict": true
+    },
+    "plugins:reset": {
+      "aliases": [],
+      "args": {},
+      "description": "Remove every linked and user-installed plugin under $ECP_DATA_DIR; optional --hard deletes node_modules and lockfiles.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> plugins reset --json",
+          "description": "Uninstalls each registered plugin without deleting the whole data directory."
+        }
+      ],
+      "flags": {
+        "hard": {
+          "allowNo": false,
+          "description": "Delete node_modules, package.json, and lockfiles under the plugins data dir.",
+          "name": "hard",
+          "type": "boolean"
+        },
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "reinstall": {
+          "allowNo": false,
+          "description": "Reinstall or relink plugins after removal (may need network for registry packages).",
+          "name": "reinstall",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "char": "v",
+          "description": "Show npm output on stderr.",
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "plugins:reset",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "plugins",
+        "reset.js"
+      ],
+      "strict": true
+    },
+    "plugins:uninstall": {
+      "aliases": [
+        "plugins:unlink",
+        "plugins:remove"
+      ],
+      "args": {
+        "package": {
+          "description": "npm package or friendly short name to remove.",
+          "name": "package",
+          "required": true
+        }
+      },
+      "description": "Remove an installed or linked ECP plugin from $ECP_DATA_DIR.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> plugins uninstall test",
+          "description": "Uninstalls plugin-test by short name."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "char": "v",
+          "description": "Show npm uninstall output on stderr.",
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "plugins:uninstall",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "plugins",
+        "uninstall.js"
+      ],
+      "strict": true
+    },
+    "plugins:update": {
+      "aliases": [],
+      "args": {},
+      "description": "Update user-installed ECP plugins from npm; linked plugins are left unchanged.",
+      "enableJsonFlag": false,
+      "examples": [
+        {
+          "command": "<%= config.bin %> plugins update --json",
+          "description": "Refreshes registry packages when any are installed; exits 0 when there are none."
+        }
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "description": "Print one JSON object on stdout: { ok: true, data } on success, { ok: false, error } on failure (exit code non-zero).",
+          "name": "json",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "char": "v",
+          "description": "Show npm output on stderr.",
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "plugins:update",
+      "isESM": true,
+      "pluginAlias": "@executioncontrolprotocol/cli",
+      "pluginName": "@executioncontrolprotocol/cli",
+      "pluginType": "core",
+      "relativePath": [
+        "dist",
+        "commands",
+        "plugins",
+        "update.js"
+      ],
+      "strict": true
+    },
     "retrieve": {
       "aliases": [],
       "args": {},

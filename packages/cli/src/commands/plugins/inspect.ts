@@ -2,6 +2,7 @@ import { Args, Command, Config, Flags } from "@oclif/core"
 import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { ecpDataDir } from "../../lib/home.js"
+import { expandFriendlyName, friendlyNameFromPackage } from "../../lib/plugin-mgmt.js"
 import { writeEnvelope } from "../../lib/output.js"
 
 /**
@@ -136,23 +137,10 @@ function findDiskPlugin(dataDir: string, name: string): DiskPlugin | undefined {
   )
   const byName =
     plugins.find((plugin) => plugin.name === name) ??
-    plugins.find((plugin) => friendlyName(plugin.name) === name)
+    plugins.find((plugin) => friendlyNameFromPackage(plugin.name) === name)
   if (byName) return byName
   if (pjson.dependencies?.[name]) return { name, type: "user" }
   return undefined
-}
-
-function expandFriendlyName(name: string, config: Config): string {
-  if (name.includes("@")) return name
-  const scope = config.pjson.oclif?.scope
-  const prefix = config.pjson.oclif?.pluginPrefix ?? "plugin"
-  if (!scope) return name
-  return `@${scope}/${prefix}-${name}`
-}
-
-function friendlyName(name: string): string {
-  const match = name.match(/^@[^/]+\/plugin-(.+)$/)
-  return match?.[1] ?? name
 }
 
 function readLocalPackageName(): string {
