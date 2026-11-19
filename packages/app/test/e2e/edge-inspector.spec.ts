@@ -38,12 +38,20 @@ test.describe("Edge inspector", () => {
     await expect(page.getByTestId("ecp-step-composite")).toBeVisible({ timeout: 20_000 })
   }
 
+  /**
+   * Select an edge by its accessible name. Dispatch the click on the edge element itself: a
+   * coordinate click (even forced) lands on whichever edge is topmost at that point, and edges fanning
+   * out of the Inputs node overlap differently per platform's font metrics (it hit a neighbour on Linux).
+   */
+  async function clickEdge(page: Page, name: RegExp): Promise<void> {
+    const edge = page.getByRole("group", { name }).first()
+    await expect(edge).toBeAttached()
+    await edge.dispatchEvent("click")
+  }
+
   /** Data edge whose binding marker is the composite `edits.layers` `$expr`. */
   async function selectEditsLayersExpr(page: Page): Promise<void> {
-    await page
-      .getByRole("group", { name: /Edge from generate to composite/i })
-      .first()
-      .click({ force: true })
+    await clickEdge(page, /Edge from generate to composite/i)
     await expect(page.getByTestId("edge-panel")).toBeVisible()
     await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })
   }
@@ -75,7 +83,7 @@ test.describe("Edge inspector", () => {
 
   test("ref-only data edge has no editor", async ({ page }) => {
     await open(page)
-    await page.getByRole("group", { name: /Edge from ecp:accepts to generate/i }).first().click({ force: true })
+    await clickEdge(page, /Edge from ecp:accepts to generate/i)
     await expect(page.getByTestId("edge-panel")).toBeVisible()
     await expect(page.getByTestId("edge-ref-path")).toBeVisible()
     await expect(page.getByTestId("edge-expr-editor")).toHaveCount(0)
