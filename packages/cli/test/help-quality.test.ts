@@ -30,7 +30,7 @@ describe("cli help quality", () => {
     const modules = await loadCommandModules(commandsRoot)
     const issues = modules.flatMap(({ id, mod }) => checkCommandHelp(id, mod.default))
     expect(issues).toEqual([])
-  })
+  }, 30_000) // imports every command module (and its dependencies); slow under the coverage gate's load
 
   it("rejects stubs missing examples or flag descriptions", () => {
     class BadExamples extends Command {

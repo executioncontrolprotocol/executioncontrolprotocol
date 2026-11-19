@@ -20,7 +20,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Package READMEs | 10 |
 | Plugin READMEs | 4 |
 | Contributor skill | 4 |
-| Examples | 8 |
+| Examples | 9 |
 | Other | 12 |
 
 ## All files
@@ -106,6 +106,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/dogfood-reshape/README.md` | Examples | current |
 | `examples/echo/README.md` | Examples | current |
 | `examples/localize-banner/README.md` | Examples | current |
+| `examples/psd-layers/README.md` | Examples | current |
 | `examples/weekly-brief/README.md` | Examples | current |
 | `.changeset/0.52.0-applied.md` | Other | current |
 | `.changeset/README.md` | Other | current |
