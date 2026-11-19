@@ -169,3 +169,32 @@ export function withDefaultManifestOutputs(input: Record<string, unknown>): Reco
   if (isPlainObject(body) && Array.isArray(body.outputs) && body.outputs.length > 0) return input
   return { ...input, outputs: manifestOutputs() }
 }
+
+function parseEmbeddedJsonContent(content: unknown, embedded: unknown): unknown {
+  if (typeof content !== "string" || embedded !== "json") return content
+  try {
+    return JSON.parse(content)
+  } catch {
+    return content
+  }
+}
+
+function liftOneManifestOutput(entry: unknown): unknown {
+  if (!isPlainObject(entry)) return entry
+  const destination = entry.destination
+  if (!isPlainObject(destination) || !Object.prototype.hasOwnProperty.call(destination, "content")) return entry
+  const lifted = parseEmbeddedJsonContent(destination.content, destination.embedded)
+  if (!isPlainObject(lifted) && typeof lifted !== "string") return entry
+  return { ...entry, content: lifted, destination }
+}
+
+/**
+ * Copy embedded manifest JSON from `outputs[i].destination.content` onto `outputs[i].content`
+ * without removing `destination`. Parsed when `embedded` is `json` and `content` is a string.
+ * @category Runtime
+ */
+export function liftManifestOutputContent(value: unknown): unknown {
+  if (!isPlainObject(value) || !Array.isArray(value.outputs)) return value
+  const outputs = value.outputs.map((entry) => liftOneManifestOutput(entry))
+  return { ...value, outputs }
+}

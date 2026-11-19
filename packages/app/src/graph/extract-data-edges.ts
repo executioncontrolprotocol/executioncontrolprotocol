@@ -273,13 +273,14 @@ function pushReadEdge(
   const key = `${sourceId}|${sourceHandle}|${reader.id}|${targetHandle}`
   if (ctx.seen.has(key)) return
   ctx.seen.add(key)
+  const safeState = statePath.replace(/[^a-zA-Z0-9._-]/g, "_")
   ctx.edges.push({
-    id: `${ctx.prefix}-${ctx.edges.length}-${sourceId}-${reader.id}-${targetHandle}`,
+    id: `${ctx.prefix}-${sourceId}-${reader.id}-${targetHandle}-${safeState}`,
     source: sourceId,
     target: reader.id,
     sourceHandle,
     targetHandle,
-    data: { kind: "data" },
+    data: { kind: "data", inputPath: targetHandle, statePath },
   })
 }
 

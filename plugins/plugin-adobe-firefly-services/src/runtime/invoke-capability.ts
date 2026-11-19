@@ -6,6 +6,7 @@ import { extractAdobeStatusUrl, pollAdobeJob } from "../http/async-job.js"
 import { buildUrl, createAdobeHttpClient, redactUrl, type AdobeHttpMethod } from "../http/client.js"
 import {
   assembleAdobeOperationInput,
+  liftManifestOutputContent,
   unwrapAdobeResult,
   withDefaultManifestOutputs,
   type AdobeBodyRules,
@@ -91,6 +92,7 @@ export function createAdobeHandler(name: string, operation: AdobeOperation): Ado
       intervalMs: config.pollIntervalMs,
       timeoutMs: config.pollTimeoutMs,
     })
-    return unwrapAdobeResult(final) ?? {}
+    const unwrapped = unwrapAdobeResult(final) ?? {}
+    return operation.defaultManifestOutputs ? liftManifestOutputContent(unwrapped) : unwrapped
   }
 }

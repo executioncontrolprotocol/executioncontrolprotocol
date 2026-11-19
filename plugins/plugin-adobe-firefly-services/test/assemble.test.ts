@@ -4,6 +4,7 @@ import {
   assembleAdobeOperationInput,
   ensureDefaultCaiClaimVersion,
   mergeParameterBody,
+  liftManifestOutputContent,
   unwrapAdobeResult,
   withDefaultManifestOutputs,
 } from "../src/runtime/assemble.js"
@@ -138,6 +139,44 @@ describe("unwrapAdobeResult", () => {
     expect(unwrapAdobeResult({ result: null })).toEqual({ result: null })
     expect(unwrapAdobeResult([1])).toEqual([1])
     expect(unwrapAdobeResult(undefined)).toBeUndefined()
+  })
+})
+
+describe("liftManifestOutputContent", () => {
+  it("copies plain destination.content and leaves destination in place", () => {
+    const payload = { outputs: [{ destination: { content: { layers: [] } } }] }
+    expect(liftManifestOutputContent(payload)).toEqual({
+      outputs: [{ destination: { content: { layers: [] } }, content: { layers: [] } }],
+    })
+  })
+
+  it("leaves results without embedded destination content unchanged", () => {
+    const bare = { outputs: [{ layers: [] }] }
+    expect(liftManifestOutputContent(bare)).toEqual(bare)
+  })
+
+  it("parses JSON string content when embedded is json", () => {
+    const payload = {
+      outputs: [{ destination: { embedded: "json", content: '{"layers":[]}' } }],
+    }
+    expect(liftManifestOutputContent(payload)).toEqual({
+      outputs: [{ destination: { embedded: "json", content: '{"layers":[]}' }, content: { layers: [] } }],
+    })
+  })
+
+  it("keeps invalid JSON strings as text", () => {
+    const payload = {
+      outputs: [{ destination: { embedded: "json", content: "{not json" } }],
+    }
+    const lifted = liftManifestOutputContent(payload) as { outputs: Array<{ content: string }> }
+    expect(lifted.outputs[0]?.content).toBe("{not json")
+  })
+
+  it("ignores non-object values", () => {
+    expect(liftManifestOutputContent(null)).toBe(null)
+    expect(liftManifestOutputContent({ outputs: [1, { destination: { content: 5 } }] })).toEqual({
+      outputs: [1, { destination: { content: 5 } }],
+    })
   })
 })
 

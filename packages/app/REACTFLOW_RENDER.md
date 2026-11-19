@@ -22,10 +22,13 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
 - **Route edges** publish structure (`data.kind: "route"`, `route`: `branch` / `parallel` /
   `loop`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or `defaultArm` for
   the arm without `expr`. Loops carry their `expr` and `maxRounds`, plus a `loopBack` edge from
-  the body's exits to its entries (excluded from dagre ranks). Parallel lines carry their line
-  index.
-- **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Structure is visible
-  through route edges and their labels.
+  the body's exits to its entries (excluded from dagre ranks). Parallel lines use dashed route
+  edges without repeating the structure label (the label is drawn on the frame).
+- **Parallel frames.** After dagre, emit one `ecp-frame` node per parallel line: a
+  non-interactive overlay sized to the union of that line's step nodes (with padding). Frames
+  are not dagre parents and never set `parentId`.
+- **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch and loop
+  structure stay on route edges; parallel structure uses frames plus route connectors.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
   node (possibly empty); `execution.returns` becomes the `ecp:returns` node when it declares
   properties.

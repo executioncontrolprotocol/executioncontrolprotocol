@@ -251,24 +251,25 @@ function retrieveColumns(type: RetrieveType): Array<{ key: string; header: strin
 }
 
 function retrieveRow(type: RetrieveType, item: Record<string, unknown>): Record<string, string> {
-  const str = (key: string): string => truncateCell(String(item[key] ?? ""))
+  const raw = (key: string): string => String(item[key] ?? "")
+  const summaryCell = (key: string): string => truncateCell(raw(key))
   switch (type) {
     case "capability":
-      return { id: str("id"), plugin: str("plugin"), summary: str("summary") }
+      return { id: raw("id"), plugin: raw("plugin"), summary: summaryCell("summary") }
     case "execution":
-      return { id: str("id"), version: str("version"), updatedAt: str("updatedAt") }
+      return { id: raw("id"), version: raw("version"), updatedAt: raw("updatedAt") }
     case "config":
-      return { id: str("id"), plugin: str("plugin") }
+      return { id: raw("id"), plugin: raw("plugin") }
     case "run":
-      return { id: str("id"), status: str("status"), startedAt: str("startedAt") }
+      return { id: raw("id"), status: raw("status"), startedAt: raw("startedAt") }
     case "formatter":
       return {
-        id: str("id"),
-        mediaType: str("mediaType"),
-        default: item.default === true ? "yes" : item.default === false ? "no" : str("default"),
+        id: raw("id"),
+        mediaType: raw("mediaType"),
+        default: item.default === true ? "yes" : item.default === false ? "no" : raw("default"),
       }
     default:
-      return { id: str("id") }
+      return { id: raw("id") }
   }
 }
 

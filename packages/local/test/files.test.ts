@@ -3,7 +3,7 @@ import http from "node:http"
 import os from "node:os"
 import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { createPluginFiles } from "../src/index.js"
+import { createPluginFiles, resolveFileRefPath } from "../src/plugins/files.js"
 
 describe("createPluginFiles", () => {
   let tempRoot: string
@@ -68,6 +68,34 @@ describe("createPluginFiles", () => {
     expect(unnamed.name).toMatch(/^artifact-/)
     const byUri = await files.read({ kind: "artifact", uri: unnamed.uri })
     expect(byUri.bytes).toEqual(new Uint8Array([1]))
+  })
+
+  it("resolves relative file paths against executionDir", async () => {
+    const executionDir = path.join(tempRoot, "exec-dir")
+    await mkdir(executionDir, { recursive: true })
+    const nested = path.join(executionDir, "subdir")
+    await mkdir(nested, { recursive: true })
+    const relativeTarget = path.join("subdir", "relative.psd")
+    const absoluteTarget = path.join(nested, "relative.psd")
+    await writeFile(absoluteTarget, Buffer.from("psd"))
+    const absOnly = path.join(tempRoot, "abs-only.psd")
+    await writeFile(absOnly, Buffer.from("abs"))
+    const files = createPluginFiles({ artifactDir: tempRoot, runId: "run-rel", executionDir })
+
+    const fromRelative = await files.read({ kind: "file", path: relativeTarget })
+    expect(Buffer.from(fromRelative.bytes).toString("utf8")).toBe("psd")
+
+    const fromAbsolute = await files.read({ kind: "file", path: absOnly })
+    expect(Buffer.from(fromAbsolute.bytes).toString("utf8")).toBe("abs")
+  })
+
+  it("rejects relative file paths when executionDir is missing", async () => {
+    const files = createPluginFiles({ artifactDir: tempRoot, runId: "run-inline" })
+    await expect(files.read({ kind: "file", path: "missing.psd" })).rejects.toMatchObject({
+      code: "ECP_INPUT_INVALID",
+    })
+    const hostAbs = process.platform === "win32" ? "C:\\data\\host.psd" : "/tmp/host.psd"
+    expect(resolveFileRefPath(hostAbs, undefined)).toBe(hostAbs)
   })
 
   it("fails clearly when a url fetch is not ok", async () => {

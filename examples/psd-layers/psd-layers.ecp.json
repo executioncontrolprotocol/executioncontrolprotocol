@@ -1,0 +1,80 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "psd-layers",
+    "label": "List PSD layers",
+    "description": "Upload a local PSD to Azure Blob Storage, ask Photoshop for the document manifest, and return every layer (including those inside groups) with its name, type, id, group path and depth.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "psdPath": {
+          "type": "string",
+          "description": "Absolute path to the PSD on this machine."
+        }
+      },
+      "required": [
+        "psdPath"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "psd": {
+          "type": "object",
+          "description": "echo.document (width, height, mode), echo.layers (flat list with name, type, id, group path, depth, visible, and text for text layers), echo.names (in document order), echo.count."
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "upload",
+      "label": "Upload the PSD and sign a read URL",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": {
+          "kind": "file",
+          "path": {
+            "$ref": "state.psdPath"
+          },
+          "mediaType": "image/vnd.adobe.photoshop"
+        },
+        "blobName": {
+          "$expr": "(state) => `psd-layers/${Date.now()}-${String(state.psdPath).split(/[\\/]/).pop()}`"
+        },
+        "contentType": "image/vnd.adobe.photoshop",
+        "createReadSas": true
+      },
+      "as": "upload"
+    },
+    {
+      "id": "manifest",
+      "label": "Read the document manifest",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "source": {
+            "url": {
+              "$ref": "state.upload.sasUrl"
+            }
+          }
+        }
+      },
+      "as": "manifest"
+    },
+    {
+      "id": "collect",
+      "label": "Flatten the layer tree",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$expr": "(state) => { const out = []; const walk = (layers, parents) => { for (const layer of layers || []) { const row = { name: layer.name, type: layer.type, id: layer.id, path: [...parents, layer.name].join(' / '), depth: parents.length, visible: layer.visible }; if (layer.text && typeof layer.text.content === 'string') row.text = layer.text.content; out.push(row); if (Array.isArray(layer.children)) walk(layer.children, [...parents, layer.name]); } }; const first = ((state.manifest && state.manifest.outputs) || [])[0] || {}; const content = first.content ?? (first.destination && first.destination.content); walk(first.layers || (content && content.layers), []); return { document: content && content.document ? { width: content.document.bounds.right - content.document.bounds.left, height: content.document.bounds.bottom - content.document.bounds.top, mode: content.document.imageMode } : undefined, layers: out, names: out.map((layer) => layer.name), count: out.length }; }"
+        }
+      },
+      "as": "psd"
+    }
+  ]
+}

@@ -133,6 +133,8 @@ export interface CapabilityCall {
     /** Append one usage entry. */
     record(entry: { kind: string; amount: number; unit: string; detail?: unknown }): void
   }
+  /** Directory of the execution file for resolving relative `file` refs and `$script` paths. */
+  executionDir?: string
 }
 
 /**

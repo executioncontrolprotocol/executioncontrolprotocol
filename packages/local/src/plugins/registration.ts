@@ -239,7 +239,11 @@ export class LocalPluginRegistration implements PluginAdapter {
       (this.ctx.services.has(StorageProvider)
         ? this.ctx.services.get(StorageProvider).runs.artifactDir(runId)
         : `/tmp/ecp/runs/${runId}/artifacts`)
-    const files = createPluginFiles({ artifactDir, runId })
+    const files = createPluginFiles({
+      artifactDir,
+      runId,
+      ...(request.executionDir ? { executionDir: request.executionDir } : {}),
+    })
     const ctx = createHandlerContext({
       config: request.config,
       signal,
@@ -268,6 +272,7 @@ export class LocalPluginRegistration implements PluginAdapter {
               },
               store,
               usage,
+              ...(request.executionDir ? { executionDir: request.executionDir } : {}),
             },
             signal,
           )

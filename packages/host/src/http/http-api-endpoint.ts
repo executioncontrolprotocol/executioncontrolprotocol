@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
+import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 import type { Operations, ServiceContext } from "@executioncontrolprotocol/engine"
@@ -21,7 +22,7 @@ import {
 import { HostActivityTracker } from "../activity-tracker.js"
 import { VERSION } from "../version.js"
 import { refuse, statusForEnvelope } from "./envelope.js"
-import { listExecutionFiles, readAllowedFile } from "./files.js"
+import { FILE_MAX_BYTES, listExecutionFiles, readAllowedFile, writeAllowedExecutionFile } from "./files.js"
 import { watchExecutionPath } from "./path-watch.js"
 import { resolveAppRoot } from "./resolve-app-root.js"
 import { serveAppStatic } from "./static-app.js"
@@ -67,6 +68,8 @@ export class HttpApiEndpoint implements Endpoint {
   private shutdownResolvers: Array<() => void> = []
   private editorSchemaGate: (() => Promise<unknown>) | undefined
   private readonly activity = new HostActivityTracker()
+  /** Execution `.ecp.json` paths with an open App `GET /v1/watch?path=` stream. */
+  private readonly watchedExecutions = new Map<string, number>()
   /** Bound URL once listening. */
   url: string | undefined
   /** Resolved listen port. */
@@ -175,7 +178,8 @@ export class HttpApiEndpoint implements Endpoint {
       if (
         (method === "POST" &&
           (pathName === "/v1/retrieve" || pathName === "/v1/execute" || pathName === "/v1/commit")) ||
-        (method === "GET" && (pathName === "/v1/file" || pathName === "/v1/files"))
+        (method === "GET" && (pathName === "/v1/file" || pathName === "/v1/files")) ||
+        method === "PUT"
       ) {
         this.activity.touch()
       }
@@ -249,6 +253,26 @@ export class HttpApiEndpoint implements Endpoint {
         res.statusCode = 200
         res.setHeader("Content-Type", "text/plain; charset=utf-8")
         res.end(result.text)
+        return
+      }
+      if (method === "PUT" && pathName === "/v1/file") {
+        const filePath = url.searchParams.get("path")
+        if (!filePath) {
+          this.writeJson(res, 400, refuse("ECP_REQUEST_INVALID", "Query path is required."))
+          return
+        }
+        const body = await readTextBody(req, FILE_MAX_BYTES)
+        if (!body.ok) {
+          this.writeJson(res, body.status, body.envelope)
+          return
+        }
+        const result = await writeAllowedExecutionFile(filePath, body.text, this.watchedExecutionPaths())
+        if (!result.ok) {
+          this.writeJson(res, result.code === "ECP_NOT_FOUND" ? 404 : 400, refuse(result.code, result.message))
+          return
+        }
+        res.statusCode = 204
+        res.end()
         return
       }
       if (method === "GET" && pathName === "/v1/files") {
@@ -383,11 +407,14 @@ export class HttpApiEndpoint implements Endpoint {
       send("storage", change)
     }
     const unwatch = storage.watch(onChange)
-    const unwatchPath = watchPath
-      ? watchExecutionPath(watchPath, (event) => {
-          send("file", event)
-        })
-      : undefined
+    const releaseWatch =
+      watchPath !== undefined ? this.retainWatchedExecution(watchPath) : undefined
+    const unwatchPath =
+      watchPath !== undefined
+        ? watchExecutionPath(watchPath, (event) => {
+            send("file", event)
+          })
+        : undefined
     const heartbeat = setInterval(() => {
       res.write(`: heartbeat ${new Date().toISOString()}\n\n`)
     }, HEARTBEAT_MS)
@@ -395,6 +422,7 @@ export class HttpApiEndpoint implements Endpoint {
       clearInterval(heartbeat)
       unwatch()
       unwatchPath?.()
+      releaseWatch?.()
       this.activity.streamClosed()
     }
     req.on("close", close)
@@ -404,6 +432,20 @@ export class HttpApiEndpoint implements Endpoint {
     res.statusCode = status
     res.setHeader("Content-Type", "application/json; charset=utf-8")
     res.end(`${JSON.stringify(body)}\n`)
+  }
+
+  private watchedExecutionPaths(): Set<string> {
+    return new Set(this.watchedExecutions.keys())
+  }
+
+  private retainWatchedExecution(executionPath: string): () => void {
+    const resolved = path.resolve(executionPath)
+    this.watchedExecutions.set(resolved, (this.watchedExecutions.get(resolved) ?? 0) + 1)
+    return () => {
+      const next = (this.watchedExecutions.get(resolved) ?? 1) - 1
+      if (next <= 0) this.watchedExecutions.delete(resolved)
+      else this.watchedExecutions.set(resolved, next)
+    }
   }
 }
 
@@ -440,6 +482,31 @@ function flattenHeaders(
     out[key.toLowerCase()] = Array.isArray(value) ? value[0] : value
   }
   return out
+}
+
+async function readTextBody(
+  req: IncomingMessage,
+  maxBytes: number,
+): Promise<
+  | { ok: true; text: string }
+  | { ok: false; status: number; envelope: OperationResponse<never> }
+> {
+  const chunks: Buffer[] = []
+  let total = 0
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buf.length
+    if (total > maxBytes) {
+      req.resume()
+      return {
+        ok: false,
+        status: 413,
+        envelope: refuse("ECP_REQUEST_INVALID", `Request body exceeds ${maxBytes} bytes.`),
+      }
+    }
+    chunks.push(buf)
+  }
+  return { ok: true, text: Buffer.concat(chunks).toString("utf8") }
 }
 
 async function readJsonBody(

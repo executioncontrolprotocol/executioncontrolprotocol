@@ -244,6 +244,9 @@ export const METADATA_OVERRIDES = {
   },
   "photoshop-generate-manifest": {
     useCases: ["Extract layer and text metadata from a PSD for templating workflows"],
+    projections: [
+      "Read `outputs[0].content.layers` and `outputs[0].content.document` (or the same fields under `destination.content` when embedded JSON is used).",
+    ],
   },
   "substance3d-create-space-from-frame-io-v2": {
     useCases: ["Stage Frame.io folders as a Substance space for later 3D jobs"],

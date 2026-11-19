@@ -30,6 +30,10 @@ export interface AppE2eHarness {
   scriptPath: string
   /** Absolute path of the companion script file. */
   bannerPath: string
+  /** Parallel execution for frame overlay tests. */
+  parallelPath: string
+  /** Execution using test.bounded, whose accepts types `text` as a string (typed-port test). */
+  typedPath: string
   /** Stop the host. */
   stop: () => Promise<void>
 }
@@ -99,6 +103,59 @@ export async function startAppHarness(): Promise<AppE2eHarness> {
     )}\n`,
   )
 
+  const typedPath = path.join(workDir, "typed.ecp.json")
+  writeFileSync(
+    typedPath,
+    `${JSON.stringify(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "bounded", uses: "@executioncontrolprotocol/test.bounded", input: { text: "hi" }, as: "out" }],
+      },
+      null,
+      2,
+    )}\n`,
+  )
+
+  const parallelPath = path.join(workDir, "parallel.ecp.json")
+  writeFileSync(
+    parallelPath,
+    `${JSON.stringify(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            type: "parallel",
+            id: "prepare",
+            label: "Prepare both sides in parallel for the pipeline",
+            maxConcurrency: 2,
+            branches: [
+              [
+                {
+                  id: "left",
+                  uses: "@executioncontrolprotocol/test.echo",
+                  input: { value: "left" },
+                  as: "left",
+                },
+              ],
+              [
+                {
+                  id: "right",
+                  uses: "@executioncontrolprotocol/test.echo",
+                  input: { value: "right" },
+                  as: "right",
+                },
+              ],
+            ],
+          },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  )
+
   mkdirSync(path.join(workDir, "nested"), { recursive: true })
   writeFileSync(
     path.join(workDir, "nested", "other.ecp.json"),
@@ -138,6 +195,8 @@ export async function startAppHarness(): Promise<AppE2eHarness> {
     demoPath,
     scriptPath,
     bannerPath,
+    parallelPath,
+    typedPath,
     stop: () => host.stop(),
   }
 }

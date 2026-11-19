@@ -75,9 +75,15 @@ interface HandlerContext<Config> {
 }
 ```
 
-- `FileRef` kinds: `file` (`{ kind, path, mediaType? }`, absolute path), `url` (`{ kind, url, headers?, mediaType? }`),
+- `FileRef` kinds: `file` (`{ kind, path, mediaType? }`), `url` (`{ kind, url, headers?, mediaType? })`,
   `artifact` (`{ kind, uri: "ecp://runs/<runId>/artifacts/<name>", mediaType?, name?, sizeBytes? }`).
   The legacy `buffer` kind is dropped.
+- **`file` path resolution** (in the host's `files.read`, not in plugins): an absolute path is
+  used as-is. A relative path joins the execution directory (directory of the `.ecp.json` for
+  path-started runs, or `executions/<id>.ecp.json` for id-started runs). Inline executions (no
+  file) reject relative paths at read time with `ECP_INPUT_INVALID` (message names the path and
+  requires an absolute path). `..` is allowed like `$script.path`; not a sandbox.
+  `CapabilityCall.executionDir` carries that directory from the executor to the adapter.
 - `ctx.call` counts as a nested step for events (`step.start` with `parentNodeId`) and is
   subject to the same timeout budget as the calling step.
 - Usage entries are written to the step record.

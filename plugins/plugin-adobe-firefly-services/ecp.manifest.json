@@ -695,7 +695,7 @@
       "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
       "name": "photoshop-generate-manifest",
       "projections": [
-        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+        "Read `outputs[0].content.layers` and `outputs[0].content.document` (or the same fields under `destination.content` when embedded JSON is used)."
       ],
       "summary": "Generate a manifest for given input image (Adobe Photoshop).",
       "timeoutMs": 600000,
@@ -822,7 +822,7 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "494526a5d82b5bd702149feccdd80f0db2d32ba2f93b6a7b1b0cd1dee3734f01",
+  "hash": "12df91499e6bf8edfee41ffc3630aaccdaa78563304a9977c65d32c48570f3d7",
   "plugin": {
     "description": "One capability per Firefly Services API operation, generated from Adobe's OpenAPI specs: Firefly image generation, expand, fill, composites, upscaling and video, and Photoshop document edits, actions, UXP scripts, artboards and layer manifests. The config object holds OAuth server-to-server credentials (client id and secret as secret references). Async jobs are polled inside the step, which returns the job result. Request fields are top-level parameters; an optional body carries the rest of the JSON document. Files move by URL: pass presigned storage URLs as sources and output destinations.",
     "id": "@executioncontrolprotocol/adobe-firefly-services",

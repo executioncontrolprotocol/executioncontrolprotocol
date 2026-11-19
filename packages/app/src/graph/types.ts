@@ -94,6 +94,19 @@ export interface ReactFlowIoData {
 }
 
 /**
+ * Decorative frame around a parallel line (not a dagre parent; drawn after layout).
+ * @category App
+ */
+export interface ReactFlowFrameData {
+  /** Parallel node id in the execution manifest. */
+  structureId: string
+  /** Parallel line index. */
+  armIndex: number
+  /** Structure label when the parallel node declares one. */
+  label?: string
+}
+
+/**
  * React Flow node.
  * @category App
  */
@@ -101,13 +114,15 @@ export interface ReactFlowNode {
   /** Node id: the execution step id, or a synthetic `ecp:` id for I/O nodes. */
   id: string
   /** Node type for the viewer. */
-  type: "ecp-step" | "ecp-io"
+  type: "ecp-step" | "ecp-io" | "ecp-frame"
   /** Layout position (absolute; the canvas is the execution surface). */
   position: { x: number; y: number }
   /** Node payload. */
-  data: ReactFlowStepData | ReactFlowIoData
+  data: ReactFlowStepData | ReactFlowIoData | ReactFlowFrameData
   /** Soft size hint from layout. */
   style?: { width?: number; height?: number }
+  /** Draw order; frames sit behind steps. */
+  zIndex?: number
 }
 
 /**
@@ -139,6 +154,8 @@ export interface ReactFlowRouteEdgeData {
   label?: string
   /** Branch arm `expr` or loop `expr` source. */
   exprBadge?: string
+  /** Full `expr` source for the edge inspector (not the badge). */
+  exprSource?: string
   /** True for the branch arm without `expr` (the default arm). */
   defaultArm?: boolean
   /** Loop `maxRounds`. */
@@ -150,13 +167,32 @@ export interface ReactFlowRouteEdgeData {
 }
 
 /**
+ * Data edge payload (published `$ref` / `$expr` bindings).
+ * @category App
+ */
+export interface ReactFlowDataEdgeData {
+  /** Discriminator. */
+  kind: "data"
+  /** Dotted input path on the target step (`targetHandle`). */
+  inputPath: string
+  /** State path the edge reads (after `parseStateRef`). */
+  statePath: string
+}
+
+/**
+ * Layout-only control edge between structure nodes.
+ * @category App
+ */
+export interface ReactFlowControlEdgeData {
+  /** Discriminator. */
+  kind: "control"
+}
+
+/**
  * Data or layout-control edge payload.
  * @category App
  */
-export interface ReactFlowPlainEdgeData {
-  /** Discriminator. */
-  kind: "data" | "control"
-}
+export type ReactFlowPlainEdgeData = ReactFlowDataEdgeData | ReactFlowControlEdgeData
 
 /**
  * React Flow edge.
