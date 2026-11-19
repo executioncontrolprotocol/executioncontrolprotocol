@@ -14,7 +14,7 @@
       "steps": [{ "nodeId": "gen", "status": "completed", "durationMs": 810 }],
       "execution": {
         "manifestHash": "1e25eff351823cad0d990db456453681597a56fb01ea7cdc76e8f945b826fce8",
-        "path": "C:\\Users\\guill\\AppData\\Local\\Temp\\ecp-a10-smoke\\anthropic.ecp.json"
+        "path": "<TEMP>\\ecp-a10-smoke\\anthropic.ecp.json"
       }
     },
     {
@@ -30,7 +30,7 @@
       "steps": [{ "nodeId": "image", "status": "completed", "durationMs": 11310 }],
       "execution": {
         "manifestHash": "7b4428b06b180cdf7128e53d22c554e9b9bbe98ba56f8aec0323b5f3b64d5096",
-        "path": "C:\\Users\\guill\\AppData\\Local\\Temp\\ecp-a10-smoke\\firefly.ecp.json"
+        "path": "<TEMP>\\ecp-a10-smoke\\firefly.ecp.json"
       }
     }
   ]
