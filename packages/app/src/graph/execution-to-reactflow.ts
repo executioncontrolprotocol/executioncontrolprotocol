@@ -23,13 +23,14 @@ import {
   returnsReactFlowNode,
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
-import { layoutReactFlowDocument } from "./layout.js"
+import { boundsAroundNodeIds, FRAME_PADDING, layoutReactFlowDocument } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import type {
   CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
+  ReactFlowFrameData,
   ReactFlowNode,
   ReactFlowRouteEdgeData,
   ReactFlowStepData,
@@ -37,6 +38,21 @@ import type {
 
 interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
+  parallelFrames: ParallelLineFrame[]
+}
+
+/** One overlay frame per parallel node (around all its lines), emitted after layout. */
+interface ParallelLineFrame {
+  /** Stable node id. */
+  frameId: string
+  /** Parallel node id. */
+  structureId: string
+  /** Parallel line index. */
+  armIndex: number
+  /** Parallel structure label, when set. */
+  label?: string
+  /** Leaf step ids on this line. */
+  stepIds: string[]
 }
 
 /** Route metadata a parent uses to draw labelled edges into a structure's entries. */
@@ -105,6 +121,14 @@ function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
 
 function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
   const out: RenderSegment = { nodes: [], edges: [], entryIds: [], exitIds: [], routeEntries: [] }
+  // One frame around the whole parallel (every line), so its label appears once.
+  ctx.parallelFrames.push({
+    frameId: `ecp:frame:${node.id}`,
+    structureId: node.id,
+    armIndex: 0,
+    ...(node.label ? { label: node.label } : {}),
+    stepIds: node.branches.flatMap((line) => leafStepIds(line)),
+  })
   node.branches.forEach((line, lineIndex) => {
     const seg = renderNodes(line, ctx)
     out.nodes.push(...seg.nodes)
@@ -119,7 +143,6 @@ function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
           route: "parallel",
           structureId: node.id,
           armIndex: lineIndex,
-          ...(node.label ? { label: node.label } : {}),
           stepIds,
         },
       })
@@ -145,7 +168,9 @@ function renderBranch(node: BranchNode, ctx: EncodeContext): RenderSegment {
           structureId: node.id,
           armIndex,
           ...(arm.label ? { label: arm.label } : {}),
-          ...(arm.expr !== undefined ? { exprBadge: formatExprBadge(arm.expr) } : { defaultArm: true }),
+          ...(arm.expr !== undefined
+            ? { exprBadge: formatExprBadge(arm.expr), exprSource: arm.expr }
+            : { defaultArm: true }),
           stepIds,
         },
       })
@@ -161,6 +186,7 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     structureId: node.id,
     ...(node.label ? { label: node.label } : {}),
     exprBadge: formatExprBadge(node.expr),
+    exprSource: node.expr,
     maxRounds: node.maxRounds,
     stepIds: leafStepIds(node.steps),
   }
@@ -242,7 +268,7 @@ function extractReturnsEdges(manifest: ExecutionManifest, stepNodes: ReactFlowNo
         target: EXECUTION_RETURNS_NODE_ID,
         sourceHandle: returnsSourceHandle(data),
         targetHandle: field.name,
-        data: { kind: "data" },
+        data: { kind: "data", inputPath: field.name, statePath: `state.${field.name}` },
       })
       return
     }
@@ -253,7 +279,7 @@ function extractReturnsEdges(manifest: ExecutionManifest, stepNodes: ReactFlowNo
       target: EXECUTION_RETURNS_NODE_ID,
       sourceHandle: field.name,
       targetHandle: field.name,
-      data: { kind: "data" },
+      data: { kind: "data", inputPath: field.name, statePath: `state.${field.name}` },
     })
   })
   return edges
@@ -274,6 +300,41 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
   }
 }
 
+function frameNodesForParallel(
+  laid: ReactFlowDocument,
+  frames: readonly ParallelLineFrame[],
+  options?: ReactFlowEncodeOptions,
+): ReactFlowNode[] {
+  const nodeWidth = options?.nodeWidth ?? 260
+  const nodeHeight = options?.nodeHeight ?? 160
+  const out: ReactFlowNode[] = []
+  for (const spec of frames) {
+    const inner = boundsAroundNodeIds(laid.nodes, spec.stepIds, nodeWidth, nodeHeight)
+    if (!inner) continue
+    const labelGap = spec.label ? FRAME_PADDING.label : 0
+    const data: ReactFlowFrameData = {
+      structureId: spec.structureId,
+      armIndex: spec.armIndex,
+      ...(spec.label ? { label: spec.label } : {}),
+    }
+    out.push({
+      id: spec.frameId,
+      type: "ecp-frame",
+      position: {
+        x: inner.x - FRAME_PADDING.x,
+        y: inner.y - FRAME_PADDING.y - labelGap,
+      },
+      style: {
+        width: inner.width + FRAME_PADDING.x * 2,
+        height: inner.height + FRAME_PADDING.y * 2 + labelGap,
+      },
+      zIndex: 0,
+      data,
+    })
+  }
+  return out
+}
+
 /**
  * Convert an execution manifest into a positioned React Flow document.
  *
@@ -288,7 +349,8 @@ export function executionToReactFlow(
   manifest: ExecutionManifest,
   options?: ReactFlowEncodeOptions,
 ): ReactFlowDocument {
-  const ctx: EncodeContext = { capabilitySchemas: options?.capabilitySchemas }
+  const parallelFrames: ParallelLineFrame[] = []
+  const ctx: EncodeContext = { capabilitySchemas: options?.capabilitySchemas, parallelFrames }
   const steps = Array.isArray(manifest.steps) ? manifest.steps : []
   const acceptsNode = acceptsReactFlowNode(manifest)
   const returnsNode = returnsReactFlowNode(manifest)
@@ -329,8 +391,9 @@ export function executionToReactFlow(
   }
 
   const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options)
+  const frames = frameNodesForParallel(laid, parallelFrames, options)
   return {
-    nodes: laid.nodes,
+    nodes: [...frames, ...laid.nodes],
     edges: laid.edges.filter((edge) => edge.data.kind !== "control"),
   }
 }

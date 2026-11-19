@@ -26,7 +26,8 @@ ecp plugins link ../../plugins/plugin-test
 ecp execute psd-layers.ecp.json --input '{"psdPath": "C:\\path\\to\\banner.psd"}'
 ```
 
-`psdPath` must be absolute. With [`../localize-banner/fixtures/banner-with-text.psd`](../localize-banner/fixtures/banner-with-text.psd):
+`psdPath` may be absolute or relative to this execution file (for example
+`../localize-banner/fixtures/banner-with-text.psd`). With that fixture:
 
 | Layer | Type | Text |
 | --- | --- | --- |

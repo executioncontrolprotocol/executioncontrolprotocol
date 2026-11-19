@@ -53,7 +53,7 @@ with `host.json` on clean and idle stop.
   shutdown host, delete `host.json` and `supervisor.pid`, exit. Idle checks are skipped while
   `hostStatus` is `starting`, `draining`, or `failed`. **Activity** (updates host
   `lastActivityAt`; supervisor health polls do not): `POST /v1/retrieve`, `/v1/execute`,
-  `/v1/commit`; `GET /v1/file`, `/v1/files`; an open watch stream holds shutdown until it
+  `/v1/commit`; `GET /v1/file`, `PUT /v1/file`, `/v1/files`; an open watch stream holds shutdown until it
   closes (heartbeats do not reset `lastActivityAt`). `activeRuns > 0` blocks shutdown. Health,
   static `/app` assets, and admin drain/shutdown do not count.
 - **Control server** on `controlPort` (same token, same Host-header check):
@@ -100,6 +100,7 @@ with `host.json` on clean and idle stop.
 | `POST /v1/commit` | token | `CommitInput` → envelope |
 | `GET /v1/watch?types=run,execution,config&runId=…&path=…` | token | Server-sent events stream: storage changes, run events (04), and changes to an execution file and its `$script.path` files (`path`, App hot reload); heartbeat comment every 15 s |
 | `GET /v1/file?path=<absolute>` | token | Read-only text of a `.ecp.json` file or a `$script.path` it references (App); max 2 MB |
+| `PUT /v1/file?path=<absolute>` | token | Replace an existing `.ecp.json` the App has open (`GET /v1/watch?path=` on that file); absolute path only; body is UTF-8 text; atomic write; max 2 MB; never `$script.path` targets; 204 on success |
 | `GET /v1/files?dir=<absolute>` | token | `*.ecp.json` files under `dir`, depth 3, max 200, skipping `node_modules` and dot-folders (App home) |
 | `POST /v1/admin/drain` | token | `{ timeoutMs }` → `{ interrupted: [runIds] }` |
 | `POST /v1/admin/shutdown` | token | `{}` → `{}` then exit |

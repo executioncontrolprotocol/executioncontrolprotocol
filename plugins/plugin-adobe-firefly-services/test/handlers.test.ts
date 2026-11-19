@@ -215,6 +215,53 @@ describe("photoshop-generate-manifest", () => {
     expect(calls[0]!.body).toMatchObject({ outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }] })
     expect(result).toEqual({ outputs: [{ layers: [] }] })
   })
+
+  it("lifts destination.content onto outputs[i].content", async () => {
+    const layers = [{ name: "Headline", type: "text_layer" }]
+    const document = { bounds: { left: 0, right: 100, top: 0, bottom: 50 }, imageMode: "RGB" }
+    stubFetch((call) =>
+      call.method === "POST"
+        ? jsonResponse(202, { statusUrl: `${PHOTOSHOP}/v2/status/m` })
+        : jsonResponse(200, {
+            status: "succeeded",
+            result: {
+              outputs: [
+                {
+                  destination: { embedded: "json", content: { layers, document } },
+                },
+              ],
+            },
+          }),
+    )
+    const handler = await handlerFor("photoshop-generate-manifest")
+    const result = (await handler({ image: { source: { url: "https://store.test/in.psd" } } }, makeCtx(CONFIG))) as {
+      outputs: Array<Record<string, unknown>>
+    }
+    expect(result.outputs[0]?.content).toEqual({ layers, document })
+    expect((result.outputs[0]?.destination as { content: unknown }).content).toEqual({ layers, document })
+  })
+
+  it("parses embedded JSON strings and lifts each output independently", async () => {
+    stubFetch((call) =>
+      call.method === "POST"
+        ? jsonResponse(202, { statusUrl: `${PHOTOSHOP}/v2/status/m2` })
+        : jsonResponse(200, {
+            status: "succeeded",
+            result: {
+              outputs: [
+                { destination: { embedded: "json", content: JSON.stringify({ layers: [{ id: 1 }] }) } },
+                { destination: { embedded: "json", content: "{not-json" } },
+              ],
+            },
+          }),
+    )
+    const handler = await handlerFor("photoshop-generate-manifest")
+    const result = (await handler({ image: { source: { url: "https://store.test/in.psd" } } }, makeCtx(CONFIG))) as {
+      outputs: Array<{ content: unknown }>
+    }
+    expect(result.outputs[0]?.content).toEqual({ layers: [{ id: 1 }] })
+    expect(result.outputs[1]?.content).toBe("{not-json")
+  })
 })
 
 describe("handler guards", () => {

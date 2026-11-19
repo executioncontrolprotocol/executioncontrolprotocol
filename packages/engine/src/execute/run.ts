@@ -377,6 +377,7 @@ async function runStep(
         config,
         context: { runId: runtime.runId, stepId: node.id, round, state },
         store,
+        ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
       },
       signal,
       store,

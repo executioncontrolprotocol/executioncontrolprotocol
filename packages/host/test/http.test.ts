@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { request } from "node:http"
 import { mkdtemp } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -192,6 +193,115 @@ describe("HttpApiEndpoint", () => {
     })
     expect(denied.status).toBe(400)
   })
+
+  it("PUT /v1/file writes a watched execution and refuses other paths", async () => {
+    await start()
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-put-"))
+    const file = path.join(dir, "demo.ecp.json")
+    const other = path.join(dir, "other.ecp.json")
+    const manifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      execution: { id: "demo", label: "Before" },
+      steps: [],
+    }
+    writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`)
+    writeFileSync(other, `${JSON.stringify({ ...manifest, execution: { id: "other", label: "Other" } }, null, 2)}\n`)
+
+    const port = Number(new URL(baseUrl).port)
+    const hostHeader = `127.0.0.1:${port}`
+    const authHeaders = { Authorization: `Bearer ${token}`, Host: hostHeader }
+
+    const notWatched = await rawRequest({
+      baseUrl,
+      method: "PUT",
+      path: `/v1/file?path=${encodeURIComponent(file)}`,
+      headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+      body: `${JSON.stringify({ ...manifest, execution: { id: "demo", label: "Hacked" } }, null, 2)}\n`,
+    })
+    expect(notWatched.status).toBe(400)
+    expect(notWatched.body).toContain("ECP_REQUEST_INVALID")
+
+    await new Promise<void>((resolve, reject) => {
+      const watchReq = request(
+        {
+          hostname: "127.0.0.1",
+          port,
+          path: `/v1/watch?path=${encodeURIComponent(file)}`,
+          method: "GET",
+          headers: { ...authHeaders, Accept: "text/event-stream" },
+        },
+        (res) => {
+          expect(res.statusCode).toBe(200)
+          let buf = ""
+          res.setEncoding("utf8")
+          res.on("data", (chunk: string) => {
+            buf += chunk
+            if (!buf.includes(": connected")) return
+            void (async () => {
+              const updated = { ...manifest, execution: { id: "demo", label: "After" } }
+              const body = `${JSON.stringify(updated, null, 2)}\n`
+              const ok = await rawRequest({
+                baseUrl,
+                method: "PUT",
+                path: `/v1/file?path=${encodeURIComponent(file)}`,
+                headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+                body,
+              })
+              expect(ok.status).toBe(204)
+              expect(JSON.parse(readFileSync(file, "utf8")).execution.label).toBe("After")
+
+              const wrongFile = await rawRequest({
+                baseUrl,
+                method: "PUT",
+                path: `/v1/file?path=${encodeURIComponent(other)}`,
+                headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+                body,
+              })
+              expect(wrongFile.status).toBe(400)
+
+              const relative = await rawRequest({
+                baseUrl,
+                method: "PUT",
+                path: `/v1/file?path=${encodeURIComponent("demo.ecp.json")}`,
+                headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+                body,
+              })
+              expect(relative.status).toBe(400)
+
+              const missing = await rawRequest({
+                baseUrl,
+                method: "PUT",
+                path: `/v1/file?path=${encodeURIComponent(path.join(dir, "nope.ecp.json"))}`,
+                headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+                body,
+              })
+              expect(missing.status).toBe(400)
+              expect(missing.body).toContain("not open")
+
+              const huge = await rawRequest({
+                baseUrl,
+                method: "PUT",
+                path: `/v1/file?path=${encodeURIComponent(file)}`,
+                headers: { ...authHeaders, "Content-Type": "text/plain; charset=utf-8" },
+                body: "x".repeat(2 * 1024 * 1024 + 1),
+              })
+              expect(huge.status).toBe(413)
+
+              watchReq.destroy()
+              resolve()
+            })().catch(reject)
+          })
+          res.on("error", reject)
+        },
+      )
+      watchReq.on("error", (error) => {
+        if ((error as NodeJS.ErrnoException).code === "ECONNRESET") resolve()
+        else reject(error)
+      })
+      watchReq.end()
+    })
+  }, 15_000)
 
   it("drains active delay runs, rejects new execute, and allows retrieve", async () => {
     await start()

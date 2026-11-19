@@ -28,7 +28,7 @@ test.describe("A8 App", () => {
     await expect(page.getByTestId("home-view")).toBeVisible({ timeout: 15_000 })
     const files = page.getByTestId("home-file")
     await expect(files.first()).toBeVisible()
-    await expect(files).toHaveCount(3)
+    await expect(files).toHaveCount(5) // demo, scripted, typed, parallel, nested/other
     await page.getByTestId("home-file").filter({ hasText: "demo.ecp.json" }).click()
     await expect(page.getByTestId("workspace")).toBeVisible()
     await expect(page.getByTestId("graph-canvas")).toBeVisible()
@@ -177,6 +177,73 @@ test.describe("A8 App", () => {
     await page.getByTestId("run-history-item").first().click()
     await expect(page.getByTestId("run-replay")).toBeVisible()
     await expect(page.getByTestId("run-replay-step").first()).toBeVisible()
+  })
+
+  test("step ports show types from the capability's accepts schema", async ({ page }) => {
+    // The capability list is light, so the App fetches full entries by id. Regression: every port
+    // read `unknown` because the by-id response ({ item }) was read as a list ({ items }).
+    await openPath(page, harness.typedPath)
+    const step = page.getByTestId("ecp-step-bounded")
+    await expect(step).toBeVisible()
+    await expect(step).toContainText("text:string", { timeout: 10_000 })
+    await expect(step).not.toContainText("text:unknown")
+  })
+
+  test("parallel execution shows one frame label without edge clipping", async ({ page }) => {
+    await openPath(page, harness.parallelPath)
+    // One frame for the whole parallel, not one per line.
+    await expect(page.locator('[data-testid^="ecp-frame-label-prepare"]')).toHaveCount(1)
+    const label = page.getByTestId("ecp-frame-label-prepare-0")
+    await expect(label).toBeVisible()
+    await expect(label).toHaveText("Prepare both sides in parallel for the pipeline")
+    const labelBox = await label.boundingBox()
+    expect(labelBox).not.toBeNull()
+    expect(labelBox!.width).toBeGreaterThan(200)
+    await expect(page.locator(".ecp-rf-edge-label", { hasText: "Prepare both sides" })).toHaveCount(0)
+  })
+
+  test("graph fits the canvas on open; selection does not move the viewport", async ({ page }) => {
+    await openPath(page, harness.demoPath)
+    await expect(page.getByTestId("ecp-step-echo")).toBeVisible()
+    const canvas = page.getByTestId("graph-canvas")
+  const step = page.getByTestId("ecp-step-echo")
+    await expect
+      .poll(async () => (await step.boundingBox())?.width ?? 0, { timeout: 5_000 })
+      .toBeGreaterThan(100)
+    const stepBox = await step.boundingBox()
+    const canvasBox = await canvas.boundingBox()
+    expect(stepBox).not.toBeNull()
+    expect(canvasBox).not.toBeNull()
+    expect(stepBox!.x).toBeGreaterThanOrEqual(canvasBox!.x - 2)
+    expect(stepBox!.y).toBeGreaterThanOrEqual(canvasBox!.y - 2)
+
+    const viewportBefore = await page.locator(".react-flow__viewport").getAttribute("style")
+    await step.click()
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-selected-node", "echo")
+    const viewportAfter = await page.locator(".react-flow__viewport").getAttribute("style")
+    expect(viewportAfter).toBe(viewportBefore)
+  })
+
+  test("wider execution refits the viewport", async ({ page }) => {
+    await openPath(page, harness.demoPath)
+    await expect
+      .poll(async () => (await page.getByTestId("ecp-step-echo").boundingBox())?.width ?? 0, { timeout: 5_000 })
+      .toBeGreaterThan(100)
+    const narrowZoom = await page.evaluate(() => {
+      const el = document.querySelector(".react-flow__viewport") as HTMLElement | null
+      return el?.style.transform ?? ""
+    })
+    await openPath(page, harness.parallelPath)
+    await expect(page.getByTestId("ecp-step-left")).toBeVisible()
+    await expect
+      .poll(async () => (await page.getByTestId("ecp-step-left").boundingBox())?.width ?? 0, { timeout: 5_000 })
+      .toBeGreaterThan(100)
+    const wideZoom = await page.evaluate(() => {
+      const el = document.querySelector(".react-flow__viewport") as HTMLElement | null
+      return el?.style.transform ?? ""
+    })
+    expect(wideZoom).not.toBe("")
+    expect(wideZoom).not.toBe(narrowZoom)
   })
 
   test("open by id", async ({ page }) => {

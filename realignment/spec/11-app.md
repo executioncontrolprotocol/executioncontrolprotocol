@@ -1,7 +1,8 @@
 # 11 — App (MVP)
 
 A React app served by the host at `/app/`, talking only to the host HTTP API (09). View and run;
-no editing in the MVP.
+expression editing on graph edges is in scope. The node panel, JSON view and other views stay
+read-only.
 
 ## Opening
 
@@ -24,6 +25,7 @@ no editing in the MVP.
 | --- | --- | --- |
 | Graph | React Flow canvas of the execution: step nodes (capability id, label, status), route edges for branch arms / loop / parallel lines (labelled with arm label or `expr` text, loop `maxRounds`), data edges from `$ref` / `$state` / `expr` reads | Manifest from `retrieve` (id) or `GET /v1/file` (path; see "Files") |
 | Node panel | Selected node: capability summary and description, input bindings (literal / ref / expr / script, with the script text in a read-only Monaco), `accepts` and `returns` schemas (collapsible JSON), config id | `retrieve { type: "capability", id }` |
+| Edge panel | Selected data or route edge: source/target handles, `$ref` (optional / fallback) or `$expr` / route `expr` (textarea when editable); syntax via `execute { mode: "validate", execution: <draft> }` (`ECP_EXPR_INVALID` at the edited pointer only); save via `PUT /v1/file` (path) or `commit { type: "execution", action: "update", ifVersion }` (id). Payloads: `retrieve { type: "run", include: ["steps", "state"] }` for the selected or live run (source from state along the read path, target from the step record's resolved `input`; not on `step.end` events) | Host execute / commit / file routes |
 | Validation | Issues list (code, message, path, suggestions); clicking an issue selects the node; nodes with errors get an error badge | `execute { mode: "validate" }` |
 | Run | Input form generated from `execution.accepts` (string, number, integer, boolean, enum, object/array as JSON textarea); Run button; live per-node status (running / completed / skipped / failed / cancelled), loop round counter, selected branch arm highlighted; result JSON; error with issues | `execute { wait: false }` then `/v1/watch?runId=` |
 | Runs | Run history for this execution; selecting a run replays its statuses on the graph and shows step inputs/outputs (redacted) | `retrieve { type: "run", filter: { executionId }, include: ["steps"] }` |
@@ -37,6 +39,8 @@ Path-opened executions use three host routes (09):
   skipping `node_modules` and dot-folders).
 - `GET /v1/file?path=<absolute>` returns the text of a `.ecp.json` file, or of a file referenced
   by an open execution's `$script.path` (read-only, max 2 MB).
+- `PUT /v1/file?path=<absolute>` writes an existing `.ecp.json` that the App has open on
+  `GET /v1/watch?path=` (same auth; max 2 MB).
 - `GET /v1/watch?path=<absolute>` streams a change event whenever that execution file **or any
   of its `$script.path` files** changes (`fs.watch`, 100 ms debounce, 2 s poll fallback). The set
   of watched script files is recomputed after each reload.
@@ -46,9 +50,11 @@ Path-opened executions use three host routes (09):
 - Hot reload: on a file/storage change event, re-fetch, re-validate, re-layout within 500 ms
   (keep viewport and selection when node ids persist). A file that fails to parse keeps the last
   good graph on screen and shows the load error (`ECP_EXECUTION_LOAD`) until the next good save.
-  Reloading never interrupts a run in progress; the run panel keeps showing it.
-- Layout: dagre, left-to-right; parallel lines stacked; branch arms fan out; loop bodies drawn
-  inside a route frame (no `parentId` containers; `.cursor/rules/reactflow-render.mdc`).
+  Reloading never interrupts a run in progress; the run panel keeps showing it. A dirty edge-edit
+  draft is discarded on external reload with a one-line note.
+- Layout: dagre, left-to-right; parallel lines stacked with a non-parent `ecp-frame` overlay per
+  line (structure label on the frame, not repeated on route edges); branch arms fan out; loop
+  bodies use route edges. Never set `parentId` (`.cursor/rules/reactflow-render.mdc`).
 - The App was ported from the pre-realignment tree into `packages/app` (`execution-to-reactflow.ts`,
   `extract-data-edges.ts`, `layout.ts`, `map-run-events.ts`, `ports-from-schema.ts`,
   `EcpStepNode`, `EcpDataEdge`, `EcpRouteEdge`, `EcpIoNode`, `RunInputForm`, `RunOutputView`,

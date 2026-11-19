@@ -33,7 +33,7 @@ ecp execute psd-generate-background.ecp.json --input '{
 
 | Input | Required | Default |
 | --- | --- | --- |
-| `psdPath` | yes | Absolute path to the template PSD |
+| `psdPath` | yes | Path to the template PSD (absolute, or relative to this execution file) |
 | `prompt` | yes | |
 | `headline`, `subhead` | no | Keep the template's text |
 | `backgroundLayer` | no | `Background` |

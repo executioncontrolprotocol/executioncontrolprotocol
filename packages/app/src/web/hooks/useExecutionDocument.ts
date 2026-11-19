@@ -25,6 +25,8 @@ export type ExecutionSource = { kind: "path"; path: string } | { kind: "id"; id:
 export interface ExecutionDocumentState {
   /** Last manifest that parsed. */
   manifest?: ExecutionManifest
+  /** Stored record version when opened by id. */
+  storedVersion?: number
   /** Validation of the last good manifest. */
   validation?: AppValidation
   /** Why the latest load failed, until the next good load. */
@@ -68,6 +70,7 @@ export function useExecutionDocument(
 
   const loadOnce = useCallback(async (): Promise<void> => {
     let manifest: ExecutionManifest | undefined
+    let storedVersion: number | undefined
     let loadError: OperationError | undefined
     if (source.kind === "path") {
       try {
@@ -81,8 +84,10 @@ export function useExecutionDocument(
     } else {
       const response = await client.retrieve({ type: "execution", id: source.id })
       const item = retrieveItem<StoredExecution>(response)
-      if (item) manifest = item.manifest
-      else loadError = response.ok ? { code: "ECP_NOT_FOUND", message: `Execution ${source.id} was not found.` } : response.error
+      if (item) {
+        manifest = item.manifest
+        storedVersion = item.version
+      } else loadError = response.ok ? { code: "ECP_NOT_FOUND", message: `Execution ${source.id} was not found.` } : response.error
     }
     if (!alive.current) return
     if (!manifest) {
@@ -94,6 +99,7 @@ export function useExecutionDocument(
     setState((prev) => ({
       ...prev,
       manifest,
+      storedVersion,
       validation,
       loadError: undefined,
       loading: false,

@@ -751,4 +751,22 @@ describe("run fixtures", () => {
     external.abort()
     expect((await externalRun.outcome).status).toBe("cancelled")
   })
+
+  it("passes executionDir on capability calls", async () => {
+    const seen: CapabilityCall[] = []
+    const track = async (request: CapabilityCall, signal: AbortSignal, store: StateStore) => {
+      seen.push(request)
+      return invoke(request, signal, store)
+    }
+    await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "echo", uses: "@executioncontrolprotocol/test.echo", input: { value: "dir" }, as: "out" }],
+      },
+      {},
+      { capabilities, call: track, expression: engine, executionDir: "/tmp/exec-dir" },
+    )
+    expect(seen[0]?.executionDir).toBe("/tmp/exec-dir")
+  })
 })

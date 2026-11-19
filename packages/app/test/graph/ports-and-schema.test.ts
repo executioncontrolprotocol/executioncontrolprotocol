@@ -1,8 +1,9 @@
-import type { StepNode } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, StepNode } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   ensureInputPort,
   ensureOutputPort,
+  executionToReactFlow,
   fileRefValueSchemaHint,
   flattenJsonSchemaProperties,
   formatLiteralValue,
@@ -16,7 +17,42 @@ import {
   valueSchemaFromJsonSchemaProp,
   valueSchemasFromCapabilitySchema,
   type ReactFlowPort,
+  type ReactFlowStepData,
 } from "../../src/graph/index.js"
+
+describe("executionToReactFlow capability schemas", () => {
+  const manifest: ExecutionManifest = {
+    schema: "@executioncontrolprotocol.execution",
+    version: "2.0",
+    steps: [
+      {
+        id: "echo",
+        uses: "@executioncontrolprotocol/test.echo",
+        input: { value: "hi" },
+        as: "out",
+      },
+    ],
+  }
+
+  it("yields a real typeLabel when accepts is provided", () => {
+    const doc = executionToReactFlow(manifest, {
+      capabilitySchemas: {
+        "@executioncontrolprotocol/test.echo": {
+          accepts: { type: "object", properties: { value: { type: "string" } }, required: ["value"] },
+        },
+      },
+    })
+    const step = doc.nodes.find((n) => n.id === "echo")!.data as ReactFlowStepData
+    expect(step.inputs.find((p) => p.id === "value")?.typeLabel).toBe("string!")
+    expect(step.inputs.find((p) => p.id === "value")?.typeLabel).not.toBe("unknown")
+  })
+
+  it("keeps unknown when the capability schema is missing", () => {
+    const doc = executionToReactFlow(manifest)
+    const step = doc.nodes.find((n) => n.id === "echo")!.data as ReactFlowStepData
+    expect(step.inputs.find((p) => p.id === "value")?.typeLabel).toBe("unknown")
+  })
+})
 
 describe("formatLiteralValue / truncateLiteralPreview", () => {
   it("formats primitives and JSON", () => {

@@ -4,6 +4,26 @@
  */
 export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
+  applyDataEdgeDraft,
+  applyRouteEdgeDraft,
+  dataEdgeEditable,
+  routeEdgeEditable,
+} from "./edge-panel-logic.js"
+export {
+  dataEdgeInspectorMeta,
+  exprIssuesAtPointer,
+  inputManifestPointer,
+  readManifestPointer,
+  replaceManifestPointer,
+  routeEdgeInspectorMeta,
+  stepManifestPointer,
+  valueAtInputPath,
+  valueAtStateRef,
+  type DataEdgeInspectorMeta,
+  type DataEdgeMarkerKind,
+  type RouteEdgeInspectorMeta,
+} from "./edge-manifest.js"
+export {
   collectSteps,
   EXPR_HANDLE_ID,
   extractDataEdges,
@@ -82,10 +102,13 @@ export type {
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
+  ReactFlowFrameData,
   ReactFlowIoData,
   ReactFlowIoKind,
   ReactFlowLoopRoundDetail,
   ReactFlowNode,
+  ReactFlowControlEdgeData,
+  ReactFlowDataEdgeData,
   ReactFlowPlainEdgeData,
   ReactFlowPort,
   ReactFlowPortBinding,

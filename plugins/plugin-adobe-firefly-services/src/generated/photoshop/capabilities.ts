@@ -92,7 +92,7 @@ export const photoshopCapabilities = {
     summary: "Generate a manifest for given input image (Adobe Photoshop).",
     description: "Generate a manifest for given input image (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
     useCases: ["Extract layer and text metadata from a PSD for templating workflows"],
-    projections: ["Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."],
+    projections: ["Read `outputs[0].content.layers` and `outputs[0].content.document` (or the same fields under `destination.content` when embedded JSON is used)."],
     accepts: z.strictObject({
       exportOptions: schemas.In_OneOf_JpegExportOptions_or_PngExportOptions.optional(),
       extractSmartObjectData: z.boolean().optional().describe("Optional. Extract embedded smart objects and include presigned URLs in the manifest. Only applies to embedded (non-linked) smart objects. Default is false."),

@@ -84,6 +84,15 @@ Recursive over the JSON value, depth-first, object keys in insertion order:
   `const params = <JSON.stringify(params)>;\n<script text>`. Errors: `ECP_SCRIPT_INVALID`.
 - Anything else: copied.
 
+Relative paths on a `file` ref in capability input are not resolved here (the path may still
+be a `$ref` that becomes a string at run time). The host's `files.read` resolves them when the
+plugin reads the ref: absolute paths are used as-is; relative paths join the **execution
+directory** (the directory of the `.ecp.json` when the run started by path, or
+`executions/<id>.ecp.json` when started by id—the same directory `$script.path` uses). An inline
+execution (no file) rejects a relative path at read time with `ECP_INPUT_INVALID` and a message
+that names the path and requires an absolute path. `..` is allowed to the same degree as for
+`$script`; this is not a sandbox.
+
 ## Expressions
 
 Through the `ExpressionEngine` service (QuickJS in the MVP):

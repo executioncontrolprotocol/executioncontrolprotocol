@@ -211,6 +211,11 @@
     stroke-width: 1.5;
   }
 
+  .react-flow__edge.ecp-rf-edge--selected path.react-flow__edge-path {
+    stroke: var(--color-primary) !important;
+    stroke-width: 2.5;
+  }
+
   .react-flow__edge.ecp-rf-edge--route path.react-flow__edge-path {
     stroke: var(--color-outline) !important;
     stroke-width: 1.5 !important;
@@ -225,6 +230,25 @@
 
   .react-flow__edge.ecp-rf-edge--skipped path.react-flow__edge-path {
     opacity: 0.3 !important;
+  }
+
+  .ecp-rf-frame {
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 1px dashed var(--color-outline);
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--color-surface-container-low) 55%, transparent);
+  }
+
+  .ecp-rf-frame-label {
+    max-width: 100%;
+    padding: 0.25rem 0.5rem 0.125rem;
+    color: var(--color-on-surface-variant);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .ecp-rf-edge-label {

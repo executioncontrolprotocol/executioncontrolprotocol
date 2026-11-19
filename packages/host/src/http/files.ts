@@ -1,8 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import path from "node:path"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { atomicWriteText } from "@executioncontrolprotocol/local"
 
-const FILE_MAX_BYTES = 2 * 1024 * 1024
+/** Max bytes for `GET` / `PUT` `/v1/file` bodies. */
+export const FILE_MAX_BYTES = 2 * 1024 * 1024
 const FILES_MAX = 200
 const FILES_DEPTH = 3
 
@@ -30,6 +32,53 @@ export function readAllowedFile(absolutePath: string): { ok: true; text: string 
     }
   }
   return { ok: true, text: readFileSync(resolved, "utf8") }
+}
+
+/**
+ * Write an open `.ecp.json` execution file. The path must be absolute, already exist, be at
+ * most {@link FILE_MAX_BYTES}, and appear in `watchedExecutions` (the App's `open=` watch set).
+ * Never writes `$script.path` targets.
+ * @category Host
+ */
+export async function writeAllowedExecutionFile(
+  absolutePath: string,
+  text: string,
+  watchedExecutions: ReadonlySet<string>,
+): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+  if (!path.isAbsolute(absolutePath)) {
+    return { ok: false, code: "ECP_REQUEST_INVALID", message: "Path must be absolute." }
+  }
+  const resolved = path.resolve(absolutePath)
+  if (!resolved.endsWith(".ecp.json")) {
+    return {
+      ok: false,
+      code: "ECP_REQUEST_INVALID",
+      message: "Only .ecp.json execution files may be written.",
+    }
+  }
+  if (!watchedExecutions.has(resolved)) {
+    return {
+      ok: false,
+      code: "ECP_REQUEST_INVALID",
+      message: "This execution file is not open in the App.",
+    }
+  }
+  if (!existsSync(resolved)) {
+    return { ok: false, code: "ECP_NOT_FOUND", message: `File ${resolved} was not found.` }
+  }
+  const bodyBytes = Buffer.byteLength(text, "utf8")
+  if (bodyBytes > FILE_MAX_BYTES) {
+    return { ok: false, code: "ECP_REQUEST_INVALID", message: `File exceeds ${FILE_MAX_BYTES} bytes.` }
+  }
+  if (isReferencedScript(resolved)) {
+    return {
+      ok: false,
+      code: "ECP_REQUEST_INVALID",
+      message: "Script files referenced by $script.path may not be written.",
+    }
+  }
+  await atomicWriteText(resolved, text)
+  return { ok: true }
 }
 
 /**

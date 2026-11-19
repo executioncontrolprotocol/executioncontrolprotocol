@@ -168,6 +168,14 @@ describe("AppHostClient file routes", () => {
     expect(headerOf(calls[0]?.init, "Authorization")).toBe(`Bearer ${TOKEN}`)
   })
 
+  it("putFile sends PUT with plain text and accepts 204", async () => {
+    const { fetch, calls } = mockFetch(() => new Response(null, { status: 204 }))
+    await new AppHostClient(BASE, TOKEN, { fetch }).putFile("/d/demo.ecp.json", '{"schema":"x"}\n')
+    expect(calls[0]?.init?.method).toBe("PUT")
+    expect(headerOf(calls[0]?.init, "Content-Type")).toContain("text/plain")
+    expect(calls[0]?.init?.body).toBe('{"schema":"x"}\n')
+  })
+
   it("getFile throws the host refusal", async () => {
     const { fetch } = mockFetch(() => jsonResponse(404, { ok: false, error: { code: "ECP_NOT_FOUND", message: "missing" } }))
     const error = await new AppHostClient(BASE, TOKEN, { fetch }).getFile("/x.ecp.json").catch((caught: unknown) => caught)

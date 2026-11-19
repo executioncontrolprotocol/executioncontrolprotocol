@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Braces, CheckCircle2, History, Network, Play, ShieldAlert, TriangleAlert } from "lucide-react"
-import type { RunDetail } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
   executionToReactFlow,
@@ -13,6 +13,7 @@ import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutio
 import { useLiveRun } from "../hooks/useLiveRun.js"
 import { GraphCanvas, type FocusRequest } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
+import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
@@ -62,13 +63,26 @@ function sourceLabel(source: ExecutionSource): string {
  */
 export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const doc = useExecutionDocument(client, source, onUnauthorized)
-  const capabilities = useCapabilities(client)
+  const [draftManifest, setDraftManifest] = useState<ExecutionManifest | undefined>(undefined)
+  const [draftDiscardNote, setDraftDiscardNote] = useState<string | undefined>(undefined)
+  const effectiveManifest = draftManifest ?? doc.manifest
+  const capabilities = useCapabilities(client, doc.manifest)
   const live = useLiveRun(client, source, onUnauthorized)
   const [tab, setTab] = useState<WorkspaceTab>("graph")
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined)
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
+  const prevLoads = useRef(doc.loads)
+
+  useEffect(() => {
+    if (doc.loads > prevLoads.current && draftManifest !== undefined) {
+      setDraftManifest(undefined)
+      setDraftDiscardNote("External change reloaded the execution; unsaved edits were discarded.")
+    }
+    prevLoads.current = doc.loads
+  }, [doc.loads, draftManifest])
 
   const encoded = useMemo<EncodedGraph>(() => {
     if (!doc.manifest) return { document: lastGood.current }
@@ -89,10 +103,14 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     [doc.validation, doc.manifest],
   )
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
+  const selectedEdge = encoded.document?.edges.find((edge) => edge.id === selectedEdgeId)
   const overlay = replay?.graph ?? live.graph
+  const runId = replay?.detail.id ?? live.runId
+  const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
 
   const selectFromIssue = useCallback((nodeId: string) => {
+    setSelectedEdgeId(undefined)
     setSelectedId(nodeId)
     setFocus((previous) => ({ id: nodeId, nonce: (previous?.nonce ?? 0) + 1 }))
   }, [])
@@ -100,6 +118,11 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const selectFromCanvas = useCallback((nodeId: string | undefined) => {
     setSelectedId(nodeId)
     if (nodeId) setTab("graph")
+  }, [])
+
+  const selectFromEdge = useCallback((edgeId: string | undefined) => {
+    setSelectedEdgeId(edgeId)
+    if (edgeId) setTab("graph")
   }, [])
 
   const onRun = useCallback(
@@ -124,6 +147,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-testid="workspace"
       data-source={source.kind}
       data-selected-node={selectedId ?? ""}
+      data-selected-edge={selectedEdgeId ?? ""}
       data-loads={doc.loads}
       className="flex min-h-0 flex-1 flex-col"
     >
@@ -165,6 +189,11 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           {encoded.error}
         </div>
       ) : null}
+      {draftDiscardNote ? (
+        <p data-testid="draft-discard-note" className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant">
+          {draftDiscardNote}
+        </p>
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         <section data-testid="graph-canvas" className="relative min-w-0 flex-1">
@@ -174,7 +203,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               run={overlay}
               nodeErrors={nodeErrors}
               selectedId={selectedId}
+              selectedEdgeId={selectedEdgeId}
               onSelect={selectFromCanvas}
+              onSelectEdge={selectFromEdge}
               focus={focus}
             />
           ) : (
@@ -213,16 +244,34 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </nav>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {tab === "graph" ? (
-              <NodePanel
-                client={client}
-                manifest={doc.manifest}
-                executionPath={source.kind === "path" ? source.path : undefined}
-                node={selectedNode}
-                capability={selectedUses ? capabilities.byId[selectedUses] : undefined}
-                issues={selectedId ? (nodeErrors[selectedId] ?? []) : []}
-                runStep={selectedId ? overlay.steps[selectedId] : undefined}
-                reloadKey={doc.loads}
-              />
+              selectedEdge ? (
+                <EdgePanel
+                  client={client}
+                  source={source}
+                  storedVersion={doc.storedVersion}
+                  manifest={doc.manifest}
+                  draft={draftManifest}
+                  onDraftChange={(next) => {
+                    setDraftDiscardNote(undefined)
+                    setDraftManifest(next)
+                  }}
+                  edge={selectedEdge}
+                  runId={runId}
+                  runSource={runSource}
+                  onUnauthorized={onUnauthorized}
+                />
+              ) : (
+                <NodePanel
+                  client={client}
+                  manifest={effectiveManifest}
+                  executionPath={source.kind === "path" ? source.path : undefined}
+                  node={selectedNode}
+                  capability={selectedUses ? capabilities.byId[selectedUses] : undefined}
+                  issues={selectedId ? (nodeErrors[selectedId] ?? []) : []}
+                  runStep={selectedId ? overlay.steps[selectedId] : undefined}
+                  reloadKey={doc.loads}
+                />
+              )
             ) : null}
             {tab === "validation" ? (
               <ValidationView
@@ -243,7 +292,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 onReplay={onReplay}
               />
             ) : null}
-            {tab === "json" ? <JsonView manifest={doc.manifest} /> : null}
+            {tab === "json" ? <JsonView manifest={effectiveManifest} /> : null}
           </div>
         </aside>
       </div>

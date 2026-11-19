@@ -10,6 +10,8 @@ import {
   type ReactFlowDocument,
   type ReactFlowEdge,
   type ReactFlowIoData,
+  type ReactFlowFrameData,
+  type ReactFlowNode,
   type ReactFlowRouteEdgeData,
   type ReactFlowStepData,
 } from "../../src/graph/index.js"
@@ -105,6 +107,7 @@ describe("route edges", () => {
       ["left", "parallel", 0],
       ["right", "parallel", 1],
     ])
+    expect(routes.every((e) => e.data.label === undefined)).toBe(true)
   })
 
   it("loop: entry route with expr and maxRounds plus a loop-back edge", () => {
@@ -281,6 +284,57 @@ describe("capability schemas", () => {
     expect(lrB.position.x).toBeGreaterThan(lrA.position.x)
     expect(tbB.position.y).toBeGreaterThan(tbA.position.y)
     expect(tbA.style?.width).toBe(100)
+  })
+})
+
+describe("parallel frames", () => {
+  function frameNodes(doc: ReactFlowDocument) {
+    return doc.nodes.filter((node) => node.type === "ecp-frame")
+  }
+
+  function stepNode(doc: ReactFlowDocument, id: string) {
+    return doc.nodes.find((n) => n.id === id)!
+  }
+
+  const encloses = (frame: ReactFlowNode, step: ReactFlowNode): boolean => {
+    const fw = (frame.style?.width as number | undefined) ?? 0
+    const fh = (frame.style?.height as number | undefined) ?? 0
+    return (
+      step.position.x >= frame.position.x &&
+      step.position.y >= frame.position.y &&
+      step.position.x + 260 <= frame.position.x + fw &&
+      step.position.y + 160 <= frame.position.y + fh
+    )
+  }
+
+  it("adds one frame per parallel node that encloses every line's steps", () => {
+    const doc = executionToReactFlow(load("parallel.ecp.json"))
+    const frames = frameNodes(doc)
+    // One frame (and one label) for the whole parallel, not one per line.
+    expect(frames).toHaveLength(1)
+    for (const stepId of ["left", "right"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
+  })
+
+  it("puts the full parallel label on the frame, not on route edges", () => {
+    const manifest = load("parallel.ecp.json")
+    manifest.steps[0] = { ...manifest.steps[0], label: "Prepare both sides in parallel" } as (typeof manifest.steps)[0]
+    const doc = executionToReactFlow(manifest)
+    const frame = frameNodes(doc)[0]!
+    expect((frame.data as ReactFlowFrameData).label).toBe("Prepare both sides in parallel")
+    expect(routeEdges(doc).every((e) => e.data.label === undefined)).toBe(true)
+  })
+
+  it("branch and loop fixtures gain no frame", () => {
+    expect(frameNodes(executionToReactFlow(load("branch.ecp.json")))).toHaveLength(0)
+    expect(frameNodes(executionToReactFlow(load("loop.ecp.json")))).toHaveLength(0)
+  })
+
+  it("a parallel whose line holds a loop and a branch still gets one enclosing frame", () => {
+    // nested.ecp.json: parallel `outer` with lines [loop > branch > step `nested`] and [step `side`].
+    const doc = executionToReactFlow(load("nested.ecp.json"))
+    const frames = frameNodes(doc)
+    expect(frames).toHaveLength(1)
+    for (const stepId of ["nested", "side"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
   })
 })
 

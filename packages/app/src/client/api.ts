@@ -177,6 +177,18 @@ export class AppHostClient {
     return this.post("/v1/commit", input)
   }
 
+  /** `PUT /v1/file?path=`: replace an open `.ecp.json` file (must be on the App watch set). */
+  async putFile(path: string, text: string): Promise<void> {
+    const response = await this.send(`/v1/file?${new URLSearchParams({ path })}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body: text,
+    })
+    if (response.status === 204) return
+    const body = await response.text()
+    throw this.refusal(response.status, body)
+  }
+
   /** `GET /v1/file?path=`: text of an execution file or one of its `$script.path` files. */
   async getFile(path: string): Promise<string> {
     const response = await this.send(`/v1/file?${new URLSearchParams({ path })}`, { method: "GET" })

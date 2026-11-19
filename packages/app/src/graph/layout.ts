@@ -12,6 +12,9 @@ const DEFAULT_NODE_HEIGHT = 160
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
 
+/** Padding around parallel line frames (pixels). */
+export const FRAME_PADDING = { x: 20, y: 16, label: 28 }
+
 function estimateNodeHeight(node: ReactFlowNode, fallback: number): number {
   const data = node.data as ReactFlowStepData | ReactFlowIoData
   const rows =
@@ -19,6 +22,37 @@ function estimateNodeHeight(node: ReactFlowNode, fallback: number): number {
       ? Math.max(data.inputs.length, 1) + Math.max(data.outputs.length, 1)
       : Math.max(data.inputs.length + data.outputs.length, 1)
   return Math.max(fallback, HEADER_ESTIMATE + rows * PORT_ROW_ESTIMATE)
+}
+
+/**
+ * Axis-aligned bounds of the given step nodes after layout.
+ * @category App
+ */
+export function boundsAroundNodeIds(
+  nodes: ReactFlowNode[],
+  nodeIds: readonly string[],
+  nodeWidth: number,
+  defaultNodeHeight: number,
+): { x: number; y: number; width: number; height: number } | undefined {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let any = false
+  for (const id of nodeIds) {
+    const node = byId.get(id)
+    if (!node) continue
+    any = true
+    const width = node.style?.width ?? nodeWidth
+    const height = estimateNodeHeight(node, defaultNodeHeight)
+    minX = Math.min(minX, node.position.x)
+    minY = Math.min(minY, node.position.y)
+    maxX = Math.max(maxX, node.position.x + width)
+    maxY = Math.max(maxY, node.position.y + height)
+  }
+  if (!any) return undefined
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 /**
