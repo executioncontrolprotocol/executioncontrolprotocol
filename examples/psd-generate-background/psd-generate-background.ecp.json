@@ -1,0 +1,89 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "psd-generate-background",
+    "label": "Generate a PSD background and set its text",
+    "description": "Generate an image with Firefly from a prompt, place it as the PSD's background layer (filling the canvas), set the headline and subhead text layers, and return hosted PNG and PSD renditions.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "psdPath": { "type": "string", "description": "Absolute path to the template PSD on this machine." },
+        "prompt": { "type": "string", "description": "What Firefly should generate for the background." },
+        "headline": { "type": "string", "description": "New text for the headline layer; omit to keep the PSD's text." },
+        "subhead": { "type": "string", "description": "New text for the subhead layer; omit to keep the PSD's text." },
+        "backgroundLayer": { "type": "string", "description": "Name of the layer to replace. Default: Background." },
+        "headlineLayer": { "type": "string", "description": "Name of the headline text layer. Default: Headline." },
+        "subheadLayer": { "type": "string", "description": "Name of the subhead text layer. Default: Subhead." }
+      },
+      "required": ["psdPath", "prompt"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "background": { "type": "object", "description": "Firefly result: outputs[0].image.url is the generated image." },
+        "banner": { "type": "object", "description": "Photoshop result: hosted PNG and PSD output URLs." }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "prepare",
+      "label": "Upload the template and generate the background at the same time",
+      "branches": [
+        [
+          {
+            "id": "upload",
+            "label": "Upload the PSD and sign a read URL",
+            "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+            "config": "azure-blob-storage/default",
+            "input": {
+              "file": { "kind": "file", "path": { "$ref": "state.psdPath" }, "mediaType": "image/vnd.adobe.photoshop" },
+              "blobName": {
+                "$expr": "(state) => `psd-generate-background/${Date.now()}-${String(state.psdPath).split(/[\\/]/).pop()}`"
+              },
+              "contentType": "image/vnd.adobe.photoshop",
+              "createReadSas": true
+            },
+            "as": "upload"
+          }
+        ],
+        [
+          {
+            "id": "generate",
+            "label": "Generate the background with Firefly",
+            "uses": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
+            "config": "adobe-firefly-services/default",
+            "input": {
+              "prompt": { "$ref": "state.prompt" },
+              "numVariations": 1,
+              "contentClass": "photo",
+              "size": { "width": 2304, "height": 1792 }
+            },
+            "as": "background"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "composite",
+      "label": "Replace the background and set the text",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": { "source": { "url": { "$ref": "state.upload.sasUrl" } } },
+        "edits": {
+          "layers": {
+            "$expr": "(state) => { const layers = [{ name: state.backgroundLayer || 'Background', type: 'layer', operation: { type: 'edit' }, image: { source: { url: state.background.outputs[0].image.url } }, transformMode: 'fill' }]; const text = (name, content) => { if (typeof content === 'string' && content.length > 0) layers.push({ name, type: 'text_layer', operation: { type: 'edit' }, text: { content } }); }; text(state.headlineLayer || 'Headline', state.headline); text(state.subheadLayer || 'Subhead', state.subhead); return layers; }"
+          }
+        },
+        "outputs": [
+          { "destination": { "validityPeriod": 86400 }, "mediaType": "image/png" },
+          { "destination": { "validityPeriod": 86400 }, "mediaType": "image/vnd.adobe.photoshop" }
+        ]
+      },
+      "as": "banner"
+    }
+  ]
+}
