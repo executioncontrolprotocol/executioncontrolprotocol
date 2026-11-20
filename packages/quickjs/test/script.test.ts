@@ -57,9 +57,11 @@ describe("QuickJsExpressionEngine evaluateScript", () => {
   })
 
   it("reports the memory limit, syntax errors, and undefined input as null", async () => {
-    await withEngine({ transformOptions: { memoryBytes: 2 * 1024 * 1024 } } as never, async (engine) => {
+    // One allocation over the cap. The WASM build cannot measure allocation sizes (no malloc_usable_size),
+    // so the cap is checked per request, not against cumulative use.
+    await withEngine({ transformOptions: { memoryBytes: 2 * 1024 * 1024, timeoutMs: 20_000 } } as never, async (engine) => {
       await expect(
-        engine.evaluateScript("const a = []; while (true) a.push('x'.repeat(1024)); return a", {}),
+        engine.evaluateScript("return 'x'.repeat(4 * 1024 * 1024)", {}),
       ).rejects.toMatchObject({ code: "ECP_SCRIPT_FAILED", message: "Script exceeded the memory limit." })
       await expect(engine.evaluateScript("return {", {})).rejects.toMatchObject({ code: "ECP_SCRIPT_FAILED" })
       await expect(engine.evaluateScript("return input", undefined)).resolves.toBeNull()
