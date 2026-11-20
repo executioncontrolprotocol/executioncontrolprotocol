@@ -42,7 +42,7 @@
           "mediaType": "image/vnd.adobe.photoshop"
         },
         "blobName": {
-          "$expr": "(state) => `psd-layers/${Date.now()}-${String(state.psdPath).split(/[\\/]/).pop()}`"
+          "$expr": "(state) => `psd-layers/${Date.now()}-${String(state.psdPath).split(/[\\\\/]/).pop()}`"
         },
         "contentType": "image/vnd.adobe.photoshop",
         "createReadSas": true
@@ -64,6 +64,18 @@
         }
       },
       "as": "manifest"
+    },
+    {
+      "id": "cleanup-upload",
+      "label": "Remove the uploaded PSD copy from Azure",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "blobName": {
+          "$ref": "state.upload.blobName"
+        },
+        "ifMissing": "ignore"
+      }
     },
     {
       "id": "collect",

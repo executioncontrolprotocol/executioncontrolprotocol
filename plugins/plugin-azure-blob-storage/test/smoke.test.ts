@@ -9,7 +9,7 @@ import { resolveConfig, resolveContainer } from "../src/config.js"
 describe("plugin-azure-blob-storage definition", () => {
   it("exports upload, download and sas with metadata", () => {
     expect(plugin.id).toBe("@executioncontrolprotocol/azure-blob-storage")
-    expect(Object.keys(plugin.capabilities)).toEqual(["upload", "download", "sas"])
+    expect(Object.keys(plugin.capabilities)).toEqual(["upload", "download", "sas", "delete"])
     for (const definition of Object.values(plugin.capabilities)) {
       expect(definition.useCases.length).toBeGreaterThan(0)
       expect(definition.projections.length).toBeGreaterThan(0)

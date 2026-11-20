@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-import { createSas, createServiceClient, downloadBytes, uploadBytes } from "../src/azure-client.js"
+import { createSas, createServiceClient, deleteBlob, downloadBytes, uploadBytes } from "../src/azure-client.js"
 import type { AzureBlobConfig } from "../src/schemas.js"
 
 // A local stand-in for the Blob REST endpoint: enough of Put Blob and Get Blob for the SDK.
@@ -50,6 +50,42 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     const contentType = req.headers["x-ms-blob-content-type"]
     blobs.set(key, { bytes, ...(typeof contentType === "string" ? { contentType } : {}) })
     res.writeHead(201, { ...commonHeaders(), "content-length": "0" })
+    res.end()
+    return
+  }
+  if (req.method === "DELETE") {
+    // Error shapes the error mapper must handle: plain text, no body, and XML with a code only.
+    // (4xx statuses: the SDK retries 5xx with backoff, which would only slow the test.)
+    if (key.endsWith("/plain-403")) {
+      res.writeHead(403, { ...commonHeaders(), "content-type": "text/plain" })
+      res.end("Server failed to authenticate the request.")
+      return
+    }
+    if (key.endsWith("/empty-400")) {
+      res.writeHead(400, { ...commonHeaders(), "content-length": "0" })
+      res.end()
+      return
+    }
+    if (key.endsWith("/code-only-409")) {
+      const body = '<?xml version="1.0" encoding="utf-8"?><Error><Code>LeaseIdMissing</Code></Error>'
+      res.writeHead(409, { ...commonHeaders(), "content-type": "application/xml", "content-length": String(Buffer.byteLength(body)) })
+      res.end(body)
+      return
+    }
+    if (!blobs.has(key)) {
+      const body =
+        '<?xml version="1.0" encoding="utf-8"?><Error><Code>BlobNotFound</Code><Message>The specified blob does not exist.</Message></Error>'
+      res.writeHead(404, {
+        ...commonHeaders(),
+        "x-ms-error-code": "BlobNotFound",
+        "content-type": "application/xml",
+        "content-length": String(Buffer.byteLength(body)),
+      })
+      res.end(body)
+      return
+    }
+    blobs.delete(key)
+    res.writeHead(202, { ...commonHeaders(), "content-length": "0" })
     res.end()
     return
   }
@@ -160,6 +196,63 @@ describe("azure-client upload and download", () => {
       downloadBytes(config(), { container: "ecp", blobName: "slow", signal: controller.signal }),
     ).rejects.toMatchObject({ name: "AbortError" })
   })
+})
+
+describe("azure-client deleteBlob", () => {
+  it("deletes an existing blob", async () => {
+    blobs.set("ecp/temp.psd", { bytes: Buffer.from("x") })
+
+    const result = await deleteBlob(config(), { container: "ecp", blobName: "temp.psd", ifMissing: "error" })
+
+    expect(result).toEqual({ deleted: true })
+    expect(blobs.has("ecp/temp.psd")).toBe(false)
+  })
+
+  it("returns deleted false when the blob is missing and ifMissing is ignore", async () => {
+    const result = await deleteBlob(config(), { container: "ecp", blobName: "missing.psd", ifMissing: "ignore" })
+
+    expect(result).toEqual({ deleted: false })
+  })
+
+  it("fails with ECP_PROVIDER_ERROR, provider text, and details.body when missing and ifMissing is error", async () => {
+    await expect(
+      deleteBlob(config(), { container: "ecp", blobName: "missing.psd", ifMissing: "error" }),
+    ).rejects.toMatchObject({
+      code: "ECP_PROVIDER_ERROR",
+      message: expect.stringContaining("The specified blob does not exist"),
+      details: {
+        status: 404,
+        body: expect.objectContaining({ message: "The specified blob does not exist." }),
+      },
+    })
+  })
+
+  it("keeps a plain-text error body and still reports the status", async () => {
+    const error = await deleteBlob(config(), { container: "ecp", blobName: "plain-403", ifMissing: "error" }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ code: "ECP_PROVIDER_ERROR", details: { status: 403 } })
+    expect((error as Error).message).toContain("HTTP 403 for ecp/plain-403")
+  })
+
+  it("reports a bodiless server error without a provider line", async () => {
+    const error = await deleteBlob(config(), { container: "ecp", blobName: "empty-400", ifMissing: "error" }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ code: "ECP_PROVIDER_ERROR", details: { status: 400 } })
+    expect((error as { details: Record<string, unknown> }).details).not.toHaveProperty("body")
+  })
+
+  it("keeps an XML error that has a code but no message", async () => {
+    const error = await deleteBlob(config(), { container: "ecp", blobName: "code-only-409", ifMissing: "error" }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ code: "ECP_PROVIDER_ERROR", details: { status: 409 } })
+  })
+
+  it("passes a network failure through unchanged (no HTTP status to map)", async () => {
+    // Port 9 (discard) on loopback: nothing listens, so the request fails before any HTTP response.
+    const dead = `DefaultEndpointsProtocol=http;AccountName=${ACCOUNT};AccountKey=${KEY};BlobEndpoint=http://127.0.0.1:9/${ACCOUNT};`
+    const error = await deleteBlob({ connectionString: dead }, { container: "ecp", blobName: "x", ifMissing: "error" }).catch(
+      (e: unknown) => e,
+    )
+    expect(error).toBeInstanceOf(Error)
+    expect((error as { code?: string }).code).not.toBe("ECP_PROVIDER_ERROR")
+  }, 30_000)
 })
 
 describe("azure-client createSas", () => {

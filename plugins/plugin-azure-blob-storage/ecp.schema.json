@@ -41,6 +41,50 @@
         }
       ]
     },
+    "delete.accepts": {
+      "properties": {
+        "blobName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "container": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ifMissing": {
+          "default": "error",
+          "enum": [
+            "error",
+            "ignore"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "blobName"
+      ],
+      "type": "object"
+    },
+    "delete.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "blobName": {
+          "type": "string"
+        },
+        "container": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "blobName",
+        "container",
+        "deleted"
+      ],
+      "type": "object"
+    },
     "download.accepts": {
       "properties": {
         "blobName": {

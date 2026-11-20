@@ -8,7 +8,9 @@ Turns a template PSD into a new banner from a prompt and two strings:
 2. `adobe-firefly-services.photoshop-create-composite` replaces the background layer's pixels with the
    generated image (`transformMode: fill`, cropped to the canvas) and sets the headline and subhead
    text layers. Omitted text inputs keep the template's text.
-3. Adobe hosts the results for a day: a PNG and a layered PSD.
+3. `azure-blob-storage.delete` removes the uploaded template copy from the container (`ifMissing:
+   ignore`).
+4. Adobe hosts the results for a day: a PNG and a layered PSD.
 
 ## Setup
 
@@ -48,5 +50,3 @@ running [`../psd-layers`](../psd-layers/README.md) on the output PSD shows the e
 
 - The text keeps the template's styling (font, size, colour). On a busy photo that can be hard to
   read; the composite API accepts character styles if you want to set colour or size too.
-- Each run uploads a copy of the template under `psd-generate-background/` in the configured
-  container.

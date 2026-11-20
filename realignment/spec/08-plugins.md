@@ -193,5 +193,5 @@ reset touch the marker when the data dir changed.
 | --- | --- | --- |
 | `plugin-test` | `echo`, `fail` (throws with a given code), `delay` (ms, honours `signal`), `stage` (writes via `$state` handle), `config-echo` (returns which config keys it received and the length of `secret`, never the value), `file-roundtrip` (reads a FileRef, writes an artifact), `call` (uses `ctx.call`), `bounded` (echo length-limited string / `$script` into `maxLength`; id `@executioncontrolprotocol/test.bounded`) | Test harness for every executor/host feature; not a dependency of the host |
 | `plugin-anthropic` | `generate` | Port from legacy; live test needs `ECP_SECRET_ANTHROPIC_APIKEY` |
-| `plugin-azure-blob-storage` | `upload`, `download`, `sas` | Port; live tests use Azurite if available, else skip |
+| `plugin-azure-blob-storage` | `upload`, `download`, `sas`, `delete` | Port; live tests use Azurite if available, else skip |
 | `plugin-adobe-firefly-services` | All generated families except skipped `content-tagging` (**63** capabilities) | Keep the HTTP input/output rules in `extensions.mdc`; `photoshop-actions` accepts `options.uxp.source.content` as a string (the `$script` target). |

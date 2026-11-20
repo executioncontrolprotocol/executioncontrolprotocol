@@ -44,6 +44,17 @@ export interface DownloadBytesOptions extends BlobLocation {
 }
 
 /**
+ * Options for {@link deleteBlob}.
+ * @category Plugins
+ */
+export interface DeleteBlobOptions extends BlobLocation {
+  /** When the blob is absent, fail (`error`) or return `deleted: false` (`ignore`). */
+  ifMissing: "error" | "ignore"
+  /** Aborts the delete. */
+  signal?: AbortSignal
+}
+
+/**
  * Options for {@link createSas}.
  * @category Plugins
  */
@@ -92,14 +103,41 @@ function blockBlob(config: AzureBlobConfig, location: BlobLocation): BlockBlobCl
   return createServiceClient(config).getContainerClient(location.container).getBlockBlobClient(location.blobName)
 }
 
+function azureErrorBody(error: object): unknown | undefined {
+  const response = (error as { response?: { parsedBody?: unknown; bodyAsText?: string } }).response
+  if (response?.parsedBody !== undefined) {
+    return response.parsedBody
+  }
+  const text = response?.bodyAsText
+  if (typeof text !== "string" || text.length === 0) {
+    return undefined
+  }
+  const code = text.match(/<Code>([^<]+)<\/Code>/)?.[1]
+  const message = text.match(/<Message>([^<]*)<\/Message>/)?.[1]
+  if (code === undefined && message === undefined) {
+    return text.length > 2048 ? `${text.slice(0, 2048)}…` : text
+  }
+  return { ...(code === undefined ? {} : { code }), ...(message === undefined ? {} : { message }) }
+}
+
 function mapAzureError(error: unknown, location: BlobLocation): unknown {
   if (error && typeof error === "object" && typeof (error as { statusCode?: unknown }).statusCode === "number") {
     const { statusCode, code, message } = error as { statusCode: number; code?: string; message?: string }
-    return codedError(
-      "ECP_PROVIDER_ERROR",
-      `Azure Blob Storage returned HTTP ${statusCode} for ${location.container}/${location.blobName}.`,
-      { status: statusCode, azureCode: code, message },
-    )
+    const body = azureErrorBody(error)
+    const providerLine =
+      typeof message === "string" && message.length > 0
+        ? message
+        : body && typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
+          ? body.message
+          : undefined
+    const summary = providerLine
+      ? `Azure Blob Storage returned HTTP ${statusCode} for ${location.container}/${location.blobName}: ${providerLine}`
+      : `Azure Blob Storage returned HTTP ${statusCode} for ${location.container}/${location.blobName}.`
+    return codedError("ECP_PROVIDER_ERROR", summary, {
+      status: statusCode,
+      azureCode: code,
+      ...(body === undefined ? {} : { body }),
+    })
   }
   return error
 }
@@ -141,6 +179,24 @@ export async function downloadBytes(config: AzureBlobConfig, options: DownloadBy
       bytes: new Uint8Array(Buffer.concat(chunks)),
       ...(response.contentType === undefined ? {} : { contentType: response.contentType }),
     }
+  } catch (error) {
+    throw mapAzureError(error, options)
+  }
+}
+
+/**
+ * Delete one block blob. Uses `deleteIfExists` when `ifMissing` is `ignore`, otherwise `delete`.
+ * @category Plugins
+ */
+export async function deleteBlob(config: AzureBlobConfig, options: DeleteBlobOptions): Promise<{ deleted: boolean }> {
+  const blob = blockBlob(config, options)
+  try {
+    if (options.ifMissing === "ignore") {
+      const response = await blob.deleteIfExists({ abortSignal: options.signal })
+      return { deleted: response.succeeded }
+    }
+    await blob.delete({ abortSignal: options.signal })
+    return { deleted: true }
   } catch (error) {
     throw mapAzureError(error, options)
   }

@@ -1,6 +1,8 @@
 import { capability, definePlugin } from "@executioncontrolprotocol/plugin-sdk"
 import {
   azureBlobConfigSchema,
+  deleteAcceptsSchema,
+  deleteReturnsSchema,
   downloadAcceptsSchema,
   downloadReturnsSchema,
   sasAcceptsSchema,
@@ -14,6 +16,8 @@ export {
   azureBlobConfigSchema,
   DEFAULT_SAS_EXPIRES_IN_SECONDS,
   DEFAULT_SAS_PERMISSIONS,
+  deleteAcceptsSchema,
+  deleteReturnsSchema,
   downloadAcceptsSchema,
   downloadReturnsSchema,
   fileRefSchema,
@@ -24,6 +28,8 @@ export {
 } from "./schemas.js"
 export type {
   AzureBlobConfig,
+  DeleteInput,
+  DeleteOutput,
   DownloadInput,
   DownloadOutput,
   SasInput,
@@ -86,18 +92,40 @@ export const sas = capability({
 })
 
 /**
- * Azure Blob Storage plugin: upload, download and SAS URLs.
+ * Delete capability definition.
+ * @category Plugins
+ */
+export const deleteCapability = capability({
+  summary: "Delete one blob from Azure Blob Storage.",
+  description:
+    "Removes a block blob by name. Without `container` the config's defaultContainer is used. Set `ifMissing` to `ignore` to treat a missing blob as success with `deleted: false`; the default `error` fails the step with ECP_PROVIDER_ERROR (HTTP 404 from Azure).",
+  useCases: [
+    "Remove temporary uploads after an external service has read them",
+    "Clean up staging blobs once downstream steps no longer need them",
+  ],
+  projections: [
+    "Check `deleted` to see whether Azure removed the blob (`false` only when `ifMissing` is `ignore` and the blob was absent)",
+    "Reuse `blobName` and `container` to confirm which object was addressed",
+  ],
+  accepts: deleteAcceptsSchema,
+  returns: deleteReturnsSchema,
+  handler: () => import("./capabilities/delete.js"),
+})
+
+/**
+ * Azure Blob Storage plugin: upload, download, SAS URLs and delete.
  * @category Plugins
  */
 export default definePlugin({
   id: "@executioncontrolprotocol/azure-blob-storage",
-  summary: "Upload, download and mint SAS URLs for Azure Blob Storage.",
+  summary: "Upload, download, delete and mint SAS URLs for Azure Blob Storage.",
   description:
-    "Blob storage for executions that persist media, share time-limited links or bring stored objects into a run as artifacts. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
+    "Blob storage for executions that persist media, share time-limited links, bring stored objects into a run as artifacts, or remove blobs after use. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
   config: azureBlobConfigSchema,
   capabilities: {
     upload,
     download,
     sas,
+    delete: deleteCapability,
   },
 })

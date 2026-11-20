@@ -5,16 +5,19 @@ vi.mock("../src/azure-client.js", () => ({
   uploadBytes: vi.fn(),
   downloadBytes: vi.fn(),
   createSas: vi.fn(),
+  deleteBlob: vi.fn(),
 }))
 
 const client = await import("../src/azure-client.js")
 const { default: upload } = await import("../src/capabilities/upload.js")
 const { default: download } = await import("../src/capabilities/download.js")
 const { default: sas } = await import("../src/capabilities/sas.js")
+const { default: deleteHandler } = await import("../src/capabilities/delete.js")
 
 const uploadBytes = vi.mocked(client.uploadBytes)
 const downloadBytes = vi.mocked(client.downloadBytes)
 const createSas = vi.mocked(client.createSas)
+const deleteBlob = vi.mocked(client.deleteBlob)
 
 const CONFIG = { connectionString: "UseDevelopmentStorage=true", defaultContainer: "ecp" }
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
@@ -57,6 +60,7 @@ beforeEach(() => {
   uploadBytes.mockReset()
   downloadBytes.mockReset()
   createSas.mockReset()
+  deleteBlob.mockReset()
   uploadBytes.mockImplementation(async (_config, options) => ({
     blobUrl: `https://acct.blob.core.windows.net/${options.container}/${options.blobName}`,
   }))
@@ -230,6 +234,60 @@ describe("download", () => {
       details: { status: 404 },
     })
     expect(context.written).toEqual([])
+  })
+})
+
+describe("delete", () => {
+  it("deletes a blob in the default container", async () => {
+    deleteBlob.mockResolvedValueOnce({ deleted: true })
+
+    const result = await deleteHandler({ blobName: "psd-layers/run.psd" }, ctx())
+
+    expect(result).toEqual({ blobName: "psd-layers/run.psd", container: "ecp", deleted: true })
+    expect(deleteBlob).toHaveBeenCalledWith(CONFIG, {
+      container: "ecp",
+      blobName: "psd-layers/run.psd",
+      ifMissing: "error",
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it("returns deleted false when the blob is missing and ifMissing is ignore", async () => {
+    deleteBlob.mockResolvedValueOnce({ deleted: false })
+
+    const result = await deleteHandler({ blobName: "gone.psd", ifMissing: "ignore" }, ctx())
+
+    expect(result.deleted).toBe(false)
+    expect(deleteBlob.mock.calls[0]![1].ifMissing).toBe("ignore")
+  })
+
+  it("surfaces a 404 with provider text and details.body when ifMissing is error", async () => {
+    deleteBlob.mockRejectedValueOnce(
+      Object.assign(new Error("Azure Blob Storage returned HTTP 404 for ecp/missing.psd: The specified blob does not exist."), {
+        code: "ECP_PROVIDER_ERROR",
+        details: {
+          status: 404,
+          azureCode: "BlobNotFound",
+          body: { code: "BlobNotFound", message: "The specified blob does not exist." },
+        },
+      }),
+    )
+
+    await expect(deleteHandler({ blobName: "missing.psd" }, ctx())).rejects.toMatchObject({
+      code: "ECP_PROVIDER_ERROR",
+      message: expect.stringContaining("The specified blob does not exist"),
+      details: {
+        status: 404,
+        body: { code: "BlobNotFound", message: "The specified blob does not exist." },
+      },
+    })
+  })
+
+  it("uses the input container", async () => {
+    deleteBlob.mockResolvedValueOnce({ deleted: true })
+    await deleteHandler({ blobName: "a.psd", container: "staging" }, ctx())
+
+    expect(deleteBlob.mock.calls[0]![1].container).toBe("staging")
   })
 })
 
