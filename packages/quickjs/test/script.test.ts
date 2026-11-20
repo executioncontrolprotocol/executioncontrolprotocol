@@ -56,6 +56,31 @@ describe("QuickJsExpressionEngine evaluateScript", () => {
     )
   })
 
+  it("reports the memory limit, syntax errors, and undefined input as null", async () => {
+    await withEngine({ transformOptions: { memoryBytes: 2 * 1024 * 1024 } } as never, async (engine) => {
+      await expect(
+        engine.evaluateScript("const a = []; while (true) a.push('x'.repeat(1024)); return a", {}),
+      ).rejects.toMatchObject({ code: "ECP_SCRIPT_FAILED", message: "Script exceeded the memory limit." })
+      await expect(engine.evaluateScript("return {", {})).rejects.toMatchObject({ code: "ECP_SCRIPT_FAILED" })
+      await expect(engine.evaluateScript("return input", undefined)).resolves.toBeNull()
+    })
+  })
+
+  it("takes transform limits from host settings", async () => {
+    const engine = new QuickJsExpressionEngine({
+      settings: { transform: { timeoutMs: 30, memoryBytes: 32 * 1024 * 1024, maxResultBytes: 16 } } as never,
+    })
+    await engine.start()
+    try {
+      await expect(engine.evaluateScript('return "x".repeat(20)', {})).rejects.toMatchObject({
+        code: "ECP_OUTPUT_INVALID",
+      })
+      await expect(engine.evaluateScript("while (true) {}", {})).rejects.toMatchObject({ code: "ECP_SCRIPT_TIMEOUT" })
+    } finally {
+      await engine.stop()
+    }
+  })
+
   it("starts the runtime on first script evaluation", async () => {
     const engine = new QuickJsExpressionEngine()
     await expect(engine.evaluateScript("return 1", {})).resolves.toBe(1)
