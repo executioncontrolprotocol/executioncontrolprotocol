@@ -17,6 +17,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["$schema","accessToken","folderId"]},
     bodySchema: schemas.In_rest_base_FileFrameIO,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-create-space-from-next-frame-io-v2": {
     method: "POST",
@@ -26,6 +27,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["$schema","accessToken","accountId","folderId"]},
     bodySchema: schemas.In_rest_base_FileNextFrameIO,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-create-space-url-v2": {
     method: "POST",
@@ -34,6 +36,7 @@ export const operations: Record<string, AdobeOperation> = {
     asyncMode: "none",
     bodySchema: z.array(schemas.In_rest_base_FileURL).nullable(),
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-v1-composites-compose": {
     method: "POST",
@@ -43,6 +46,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"headers":["X-User-Token"],"body":["$schema","cameraName","contentClass","customModelId","enableGroundPlane","environment","environmentExposure","heroAsset","lightingSeeds","modelVersion","numVariations","prompt","scene","sceneFile","seeds","size","sources","styleImage"]},
     bodySchema: schemas.In_restv1_ComposeSceneRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-v1-scenes-assemble": {
     method: "POST",
@@ -52,6 +56,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"body":["$schema","encoding","fileBaseName","scene","sources"]},
     bodySchema: schemas.In_restv1beta_CreateSceneRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-v1-scenes-convert": {
     method: "POST",
@@ -61,6 +66,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"body":["$schema","format","modelEntrypoint","sources"]},
     bodySchema: schemas.In_restv1beta_ModelConvertRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-v1-scenes-describe": {
     method: "POST",
@@ -70,6 +76,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"body":["$schema","sceneFile","sources"]},
     bodySchema: schemas.In_restv1beta_SceneDescRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "substance3d-v1-scenes-render": {
     method: "POST",
@@ -79,6 +86,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
     bodySchema: schemas.In_restv1beta_RenderSceneRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
+    fileRefBodyFields: ["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"],
   },
   "substance3d-v1-scenes-render-basic": {
     method: "POST",
@@ -88,6 +97,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"query":["wait"],"body":["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"]},
     bodySchema: schemas.In_restv1beta_RenderModelRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
+    fileRefBodyFields: ["$schema","autoFraming","background","cameraName","extraOutputs","groundPlane","scene","size","sources"],
   },
 }
 

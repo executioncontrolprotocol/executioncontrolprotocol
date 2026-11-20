@@ -244,9 +244,19 @@ export const METADATA_OVERRIDES = {
   },
   "photoshop-generate-manifest": {
     useCases: ["Extract layer and text metadata from a PSD for templating workflows"],
-    projections: [
-      "Read `outputs[0].content.layers` and `outputs[0].content.document` (or the same fields under `destination.content` when embedded JSON is used).",
-    ],
+    projections: ["Read `layers` and `document` from the manifest object (width, height from document bounds; layer names, types, ids and nested children)."],
+  },
+  "firefly-generate-images-v3-async": {
+    useCases: ["Create images from a prompt with optional style or structure references"],
+    projections: ["Bind `images.0` (url FileRef) or pass seeds into a later edit; each ref carries `mediaType`."],
+  },
+  "firefly-generate-images-v5-async": {
+    useCases: ["Generate images with the Image5 model and reference blobs"],
+    projections: ["Bind `images.0` (url FileRef) into Photoshop composite or download steps."],
+  },
+  "photoshop-create-composite": {
+    useCases: ["Assemble layered composites from Smart Object definitions"],
+    projections: ["Bind `png` and `psd` FileRefs (or other tokens matching your requested `outputs[].mediaType`)."],
   },
   "substance3d-create-space-from-frame-io-v2": {
     useCases: ["Stage Frame.io folders as a Substance space for later 3D jobs"],

@@ -493,23 +493,6 @@ export const Out_CustomModelsFF3pInfo: z.ZodType = z.lazy(() => z.looseObject({
 }))
 
 /**
- * OpenAPI component `JobOutput`, response (open).
- * @category Generated
- */
-export const Out_JobOutput: z.ZodType = z.lazy(() => z.looseObject({
-  seed: z.number().int().describe("Random seed used for generation."),
-  image: Out_PublicBinary_Output.describe("The generated output image.")
-})).describe("A single output entry from the job.")
-
-/**
- * OpenAPI component `JobResult`, response (open).
- * @category Generated
- */
-export const Out_JobResult: z.ZodType = z.lazy(() => z.looseObject({
-  outputs: z.array(Out_JobOutput).describe("List of generated outputs.")
-})).describe("Contains output data returned by a successfully completed job.")
-
-/**
  * OpenAPI component `Link`, response (open).
  * @category Generated
  */
@@ -527,32 +510,3 @@ export const Out_Links: z.ZodType = z.lazy(() => z.looseObject({
   page: Out_Link.optional(),
   next: Out_Link.optional()
 })).describe("Collection of hypermedia links for pagination, navigation, etc.")
-
-/**
- * OpenAPI component `PreciseUpsamplerResponse`, response (open).
- * @category Generated
- */
-export const Out_PreciseUpsamplerResponse: z.ZodType = z.lazy(() => z.looseObject({
-  outputs: z.array(Out_UpscaleBinaryOutput).describe("The list of upscaled images (storage items)."),
-  version: z.string().describe("The version of the upscale feature.")
-})).describe("Upscale result. Each item in outputs is a storage reference for an upscaled image.")
-
-/**
- * OpenAPI component `PublicBinary-Output`, response (open).
- * @category Generated
- */
-export const Out_PublicBinary_Output: z.ZodType = z.lazy(() => z.looseObject({
-  url: z.string().describe("Temporary pre-signed URL to access the output file.")
-})).describe("Represents binary output (e.g., image, mesh, etc.) with pre-signed URL or storage ID.")
-
-/**
- * OpenAPI component `UpscaleBinaryOutput`, response (open).
- * @category Generated
- */
-export const Out_UpscaleBinaryOutput: z.ZodType = z.lazy(() => z.looseObject({
-  id: z.string().optional().describe("The internal ID for a storage item."),
-  presignedUrl: z.string().min(1).max(4096).optional().describe("URL to download the file. Expires in one hour."),
-  creativeCloudFileId: z.string().optional().describe("Optional ID of the file in ACP. Must be an ACP File asset ID."),
-  creativeCloudComponentId: z.string().optional().describe("Optional ID of the component in ACP. Must be an ACP Component asset ID."),
-  name: z.string().optional().describe("Optional name for the item (for example for lookup in multipart responses).")
-})).describe("Reference to output binary (for example an upscaled image). Use id in subsequent API calls or the presigned URL to download.")

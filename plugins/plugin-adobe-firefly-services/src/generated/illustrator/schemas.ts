@@ -129,27 +129,6 @@ export const In_VectorizeRequest: z.ZodType = z.lazy(() => z.strictObject({
 })).describe("Request body for an Image Trace job. Input accepts PNG or JPEG; output is SVG.")
 
 /**
- * OpenAPI component `CreateRenditionJobApiResponse`, response (open).
- * @category Generated
- */
-export const Out_CreateRenditionJobApiResponse: z.ZodType = z.lazy(() => z.looseObject({
-  status: z.enum(["succeeded"]).describe("The job status."),
-  jobId: z.string().describe("The job ID."),
-  outputs: z.array(Out_CreateRenditionOutput).describe("Array of converted output files (one for each artboard).")
-})).describe("Returned when a Create Rendition job completes successfully. Output items do not include a CSV row index.")
-
-/**
- * OpenAPI component `CreateRenditionOutput`, response (open).
- * @category Generated
- */
-export const Out_CreateRenditionOutput: z.ZodType = z.lazy(() => z.looseObject({
-  destination: z.looseObject({
-    url: z.string().describe("The URL to the output file.")
-  }).describe("Details of the location where the output is located."),
-  mediaType: z.string().describe("Media type of the output.")
-}))
-
-/**
  * OpenAPI component `CustomScriptJobConversionDetails`, response (open).
  * @category Generated
  */

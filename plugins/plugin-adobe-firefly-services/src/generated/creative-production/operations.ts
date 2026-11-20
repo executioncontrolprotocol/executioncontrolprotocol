@@ -16,6 +16,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"headers":["api-version"],"body":["workflow"]},
     bodySchema: schemas.In_BatchExecuteRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "creative-production-list-batch-executions": {
     method: "GET",
@@ -23,6 +24,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://run-workflow.adobe.io",
     asyncMode: "none",
     parameters: {"path":["batchId"],"query":["status","limit","offset"],"headers":["api-version"]},
+    productShape: {"kind":"passthrough"},
   },
   "creative-production-list-batches": {
     method: "GET",
@@ -30,6 +32,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://run-workflow.adobe.io",
     asyncMode: "none",
     parameters: {"query":["status","workflowId","createdAfter","createdBefore","limit","offset"],"headers":["api-version"]},
+    productShape: {"kind":"passthrough"},
   },
 }
 

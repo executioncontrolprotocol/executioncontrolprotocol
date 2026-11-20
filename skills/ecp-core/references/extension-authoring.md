@@ -88,3 +88,11 @@ file-roundtrip, call, bounded).
 
 Provider failures must surface as `ECP_PROVIDER_ERROR` with a readable `message` and optional
 `details` (see `.cursor/rules/extensions.mdc` and spec `08-plugins`).
+
+## Product-shaped HTTP outputs (Adobe Firefly Services)
+
+Generated Adobe capabilities return **product shapes**, not raw job JSON: Firefly image jobs expose
+`images` (url `FileRef`s) and `seeds`; Photoshop composite steps expose one `FileRef` per requested
+output keyed by a media-type token (`png`, `psd`, …); `photoshop-generate-manifest` returns the
+layer document (`layers`, `document`). Bind `state.generate.images.0` or `state.banner.png`, not
+`outputs[0].image.url`. Image inputs on Adobe steps are url `FileRefs` only (`kind: "url"`).

@@ -2,6 +2,7 @@
 /* Source: audio-video/audio-video-api.json, audio-video/translate-lipsync-openapi.json */
 import { capability } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
+import { fileRefSchema } from "../../schemas.js"
 import * as schemas from "./schemas.js"
 
 /**
@@ -32,7 +33,7 @@ export const audioVideoCapabilities = {
       lipSync: z.boolean().optional().describe("If `true`, a high-quality composited lip sync will be used in the video output."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_FireflyJobResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-dub")),
   }),
@@ -49,7 +50,7 @@ export const audioVideoCapabilities = {
       lipSync: z.boolean().optional().describe("If `true`, a high-quality composited lip sync will be used in the video output."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_FireflyJobResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-dub-translate-lipsync")),
   }),
@@ -70,7 +71,7 @@ export const audioVideoCapabilities = {
       }).optional(),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_StatusAPIResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-generate-avatar")),
   }),
@@ -80,12 +81,7 @@ export const audioVideoCapabilities = {
     useCases: ["Reframe clips when only the older reframe endpoint is available"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      video: z.strictObject({
-        source: z.strictObject({
-          url: z.string().describe("The pre-signed URL pointing to the input source.")
-        }).describe("Details of the source including a pre-signed URL. See the [list of allowed domains for storage](https://developer.adobe.com/audio-video-firefly-services/getting-started/storage-solutions/)."),
-        mediaType: z.enum(["video/mp4", "video/quicktime"]).describe("Supported video media types.")
-      }).optional().describe("Video input details."),
+      video: fileRefSchema.optional().describe("Video input details."),
       sceneEditDetection: z.boolean().optional().describe("Apply Scene Edit Detection before reframing."),
       overlays: z.array(schemas.In_Overlay).optional().describe("Configuration details for video overlays."),
       outputConfig: z.strictObject({
@@ -93,7 +89,7 @@ export const audioVideoCapabilities = {
       }).optional().describe("Configuration details for the generated reframed video."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_StatusAPIResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-generate-reframed-video")),
   }),
@@ -103,7 +99,7 @@ export const audioVideoCapabilities = {
     useCases: ["Change video aspect ratio or framing with the current reframe API"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      video: schemas.In_VideoInputV2.optional(),
+      video: fileRefSchema.optional(),
       analysis: schemas.In_AnalysisV2.optional(),
       composition: schemas.In_CompositionV2.optional(),
       output: z.strictObject({
@@ -120,7 +116,7 @@ export const audioVideoCapabilities = {
       }).optional().describe("Output configuration details for generating the reframed video."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_StatusAPIResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-generate-reframed-video-v2")),
   }),
@@ -137,7 +133,7 @@ export const audioVideoCapabilities = {
       }).optional(),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_StatusAPIResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-generate-speech")),
   }),
@@ -179,7 +175,7 @@ export const audioVideoCapabilities = {
       compName: z.string().optional().describe("Name of the After Effects composition to describe. Required when `type` is `aep`; not applicable to `mogrt`. This composition name within the AEP project must be unique so that `compName` resolves to a single composition."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_StatusAPIResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-template-describe")),
   }),
@@ -270,7 +266,7 @@ export const audioVideoCapabilities = {
       video: schemas.In_VideoInput.optional(),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_FireflyJobResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-transcribe")),
   }),
@@ -286,7 +282,7 @@ export const audioVideoCapabilities = {
       video: schemas.In_VideoInput.optional(),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_FireflyJobResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("audio-video-transcribe-translate-lipsync")),
   }),

@@ -211,7 +211,7 @@ describe("scale path regression", () => {
     expect(first.documentCompileCount).toBe(1)
 
     const bumped = schemaFingerprints.map((item, index) =>
-      index === 0 ? { ...item, hash: `${item.hash.slice(0, 63)}f` } : item,
+      index === 0 ? { ...item, hash: `${item.hash}bumped` } : item,
     )
     const second = await HostSchemaSet.create(capabilities, {
       loadPluginSchema,

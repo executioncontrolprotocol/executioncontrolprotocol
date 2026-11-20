@@ -78,6 +78,13 @@ interface HandlerContext<Config> {
 - `FileRef` kinds: `file` (`{ kind, path, mediaType? }`), `url` (`{ kind, url, headers?, mediaType? })`,
   `artifact` (`{ kind, uri: "ecp://runs/<runId>/artifacts/<name>", mediaType?, name?, sizeBytes? }`).
   The legacy `buffer` kind is dropped.
+- **Product-shaped media I/O:** capabilities that produce files return `FileRef`s in the
+  capability `returns` schema (for example Firefly `generate-images` → `{ images: FileRef[] }`;
+  Photoshop composite → one `FileRef` per requested output, keyed by a media-type token such as
+  `png` or `psd`). Media inputs use the same `FileRef` at the capability boundary; the plugin
+  expands `kind: "url"` into the vendor request envelope. Adobe media capabilities reject
+  `kind: "file"` and `kind: "artifact"` at the handler with `ECP_INPUT_INVALID` and a hint to
+  upload to allowlisted URL storage first.
 - **`file` path resolution** (in the host's `files.read`, not in plugins): an absolute path is
   used as-is. A relative path joins the execution directory (directory of the `.ecp.json` for
   path-started runs, or `executions/<id>.ecp.json` for id-started runs). Inline executions (no
@@ -199,4 +206,4 @@ reset touch the marker when the data dir changed.
 | `plugin-test` | `echo`, `fail` (throws with a given code), `delay` (ms, honours `signal`), `stage` (writes via `$state` handle), `config-echo` (returns which config keys it received and the length of `secret`, never the value), `file-roundtrip` (reads a FileRef, writes an artifact), `call` (uses `ctx.call`), `bounded` (echo length-limited string / `$script` into `maxLength`; id `@executioncontrolprotocol/test.bounded`) | Test harness for every executor/host feature; not a dependency of the host |
 | `plugin-anthropic` | `generate` | Port from legacy; live test needs `ECP_SECRET_ANTHROPIC_APIKEY` |
 | `plugin-azure-blob-storage` | `upload`, `download`, `sas`, `delete` | Port; live tests use Azurite if available, else skip |
-| `plugin-adobe-firefly-services` | All generated families except skipped `content-tagging` (**63** capabilities) | Keep the HTTP input/output rules in `extensions.mdc`; `photoshop-actions` accepts `options.uxp.source.content` as a string (the `$script` target). |
+| `plugin-adobe-firefly-services` | All generated families except skipped `content-tagging` (**63** capabilities) | Product-shaped returns: image jobs → `images` + `seeds`; Photoshop multi-output → token keys; manifest → layer document. Image inputs are url `FileRef`s; `photoshop-actions` accepts `options.uxp.source.content` as a string (the `$script` target). |

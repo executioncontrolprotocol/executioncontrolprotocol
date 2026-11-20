@@ -895,12 +895,3 @@ export const In_XmpInput: z.ZodType = z.lazy(() => z.strictObject({
   orientation: z.enum(["top_left", "top_right", "bottom_right", "bottom_left", "left_top", "right_top", "right_bottom", "left_bottom"]).optional().describe("XMP orientation values following EXIF/TIFF specification"),
   source: In_FileResourceInput
 })).describe("XMP metadata input. Requires source (external file reference). Inline content is not supported.")
-
-/**
- * OpenAPI component `Result`, response (open).
- * @category Generated
- */
-export const Out_Result: z.ZodType = z.lazy(() => z.looseObject({
-  additionalFields: z.record(z.string(), z.looseObject({})).optional(),
-  outputs: z.array(z.looseObject({})).optional().describe("Output assets produced by the job (runtime shape; Adobe's published Result schema incorrectly typed this as an object).")
-}))

@@ -16,6 +16,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["assets","params","outputs"]},
     bodySchema: schemas.In_ConvertToInDesignRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-data-merge": {
     method: "POST",
@@ -25,6 +26,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["assets","params","outputs"]},
     bodySchema: schemas.In_MergeDataRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-data-merge-tags": {
     method: "POST",
@@ -34,6 +36,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["assets","params"]},
     bodySchema: schemas.In_MergeDataTagsRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-delete-custom-script": {
     method: "DELETE",
@@ -41,6 +44,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://indesign.adobe.io",
     asyncMode: "none",
     parameters: {"path":["script_name"]},
+    productShape: {"kind":"passthrough"},
   },
   "indesign-execute-custom-script": {
     method: "POST",
@@ -50,6 +54,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"path":["script_id","script_name"],"body":["assets","params","outputs"]},
     bodySchema: schemas.In_BaseJobRequestWithOutput,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-get-custom-script-details": {
     method: "GET",
@@ -57,6 +62,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://indesign.adobe.io",
     asyncMode: "none",
     parameters: {"path":["script_name"]},
+    productShape: {"kind":"passthrough"},
   },
   "indesign-get-document-info": {
     method: "POST",
@@ -66,12 +72,14 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["assets","params"]},
     bodySchema: schemas.In_DocumentInfoRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-list-app-versions": {
     method: "GET",
     path: "/v3/app-versions",
     serverUrl: "https://indesign.adobe.io",
     asyncMode: "none",
+    productShape: {"kind":"passthrough"},
   },
   "indesign-list-custom-scripts": {
     method: "GET",
@@ -79,6 +87,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://indesign.adobe.io",
     asyncMode: "none",
     parameters: {"query":["page"]},
+    productShape: {"kind":"passthrough"},
   },
   "indesign-remap-links": {
     method: "POST",
@@ -88,6 +97,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"headers":["x-aem-token"],"body":["assets","params","outputs"]},
     bodySchema: schemas.In_RemapLinksRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "indesign-rendition-job": {
     method: "POST",
@@ -97,6 +107,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["assets","params","outputs"]},
     bodySchema: schemas.In_CreateRenditionRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "indesign-update-script-app-version": {
     method: "PUT",
@@ -106,6 +117,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"path":["script_name"],"body":["appVersionStrategy","majorAppVersion","minorAppVersion"]},
     bodySchema: schemas.In_AppVersionUpdateRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
 }
 

@@ -96,22 +96,6 @@ export const Out_DocumentPageDetails: z.ZodType = z.lazy(() => z.looseObject({
 })).describe("The details of a single page in the Express Document.")
 
 /**
- * OpenAPI component `ErrorResponseDetails`, response (open).
- * @category Generated
- */
-export const Out_ErrorResponseDetails: z.ZodType = z.lazy(() => z.looseObject({
-  error_code: z.string().describe("The error code."),
-  message: z.string().optional().describe("The error message."),
-  validation_errors: z.array(z.string()).optional().describe("Validation error messages.")
-})).describe("Details of the error response.")
-
-/**
- * OpenAPI component `ExportRenditionResponse`, response (open).
- * @category Generated
- */
-export const Out_ExportRenditionResponse: z.ZodType = z.lazy(() => Out_OneOf_PageRenditionResponse_or_PdfRenditionResponse).describe("Response payload for the \"export-rendition\" API.")
-
-/**
  * OpenAPI component `ExpressDocument`, response (open).
  * @category Generated
  */
@@ -136,36 +120,6 @@ export const Out_GenerateVariationResponse: z.ZodType = z.lazy(() => z.looseObje
  * @category Generated
  */
 export const Out_JobStatus: z.ZodType = z.lazy(() => z.enum(["cancel_requested", "cancelled", "failed", "partially_succeeded", "pending", "running", "succeeded"])).describe("Various statuses of a job.")
-
-/**
- * Union of OpenAPI components `FailedPageRendition`, `SuccessfulPageRendition`, response (open).
- * @category Generated
- */
-export const Out_OneOf_FailedPageRendition_or_SuccessfulPageRendition: z.ZodType = z.lazy(() => z.looseObject({
-  pageNumber: z.number().describe("The page number for which the rendition export request was made."),
-  renditionUrl: z.string().optional().describe("Pre-signed URL where the rendition result can be downloaded from."),
-  error: Out_ErrorResponseDetails.optional().describe("Error object indicating the reason for the failure.")
-}))
-
-/**
- * Union of OpenAPI components `FailedPdfRendition`, `SuccessfulPdfRendition`, response (open).
- * @category Generated
- */
-export const Out_OneOf_FailedPdfRendition_or_SuccessfulPdfRendition: z.ZodType = z.lazy(() => z.looseObject({
-  renditionUrl: z.string().optional().describe("The URL of the PDF rendition."),
-  error: Out_ErrorResponseDetails.optional().describe("Error object indicating the reason for the failure.")
-}))
-
-/**
- * Union of OpenAPI components `PageRenditionResponse`, `PdfRenditionResponse`, response (open).
- * @category Generated
- */
-export const Out_OneOf_PageRenditionResponse_or_PdfRenditionResponse: z.ZodType = z.lazy(() => z.looseObject({
-  id: z.string().describe("The identifier of the document for which the rendition request was made."),
-  pageRenditionsResult: z.union([z.array(Out_OneOf_FailedPageRendition_or_SuccessfulPageRendition), z.array(Out_OneOf_FailedPdfRendition_or_SuccessfulPdfRendition)]),
-  jobId: z.string().describe("The identifier of the job."),
-  status: Out_JobStatus.describe("The status of the job.")
-}))
 
 /**
  * OpenAPI component `Pagination`, response (open).

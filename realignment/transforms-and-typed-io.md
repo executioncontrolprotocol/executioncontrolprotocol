@@ -70,7 +70,11 @@ into (`outputs[0].image.url`).
 - **Who runs scripts:** for `code: "script"` the executor runs the script in QuickJS under host sandbox limits; the core
   plugin only registers the capability and carries the flag. The host never switches on a capability id.
 - **Output keys for media:** state paths can't contain `/`, so multi-output capabilities key `FileRef`s by a token
-  derived from the media type (`png`, `jpeg`, `psd`, …); each `FileRef` keeps its `mediaType`.
+  derived from the media type (`image/png` → `png`, `image/jpeg` → `jpeg`, `image/vnd.adobe.photoshop` → `psd`,
+  `application/pdf` → `pdf`; otherwise the MIME subtype with non-identifier characters replaced by `-`). Each
+  `FileRef` keeps its `mediaType`. When the caller requests the same type twice (`outputs[]` in the composite request),
+  keys repeat with a numeric suffix (`png`, `png2`, …). The runtime pairs polled response entries with request
+  `outputs[]` by index, then keys the shaped result by that token.
 - **Adobe inputs accept `url` FileRefs only.** A local `file` or run `artifact` is rejected with a hint to upload it
   first (the PSD examples upload to Azure and pass a `url` FileRef).
 - **Cleanup:** the PSD examples delete the uploaded *input* copy of the template after Adobe has read it; Adobe hosts the

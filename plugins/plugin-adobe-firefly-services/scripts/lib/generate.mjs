@@ -28,6 +28,12 @@ import {
   resolveOutputForOperation,
 } from "./operation-class.mjs"
 import {
+  USES_FILE_REF_IMPORT,
+  applyProductShape,
+  collectBodyFieldSchemas,
+  reshapeCapabilityAccepts,
+} from "./product-shape.mjs"
+import {
   assertAgentMetadata,
   deriveDefaultUseCases,
   formatSummaryPhrase,
@@ -524,7 +530,10 @@ export function generateFamily(family, specs) {
         }
 
         const resolved = resolveOutputForOperation(name, opClass, operation, doc)
-        const returns = resolved.schema ? output.schemaToZod(resolved.schema, `${context}.output`) : "z.looseObject({})"
+        const bodyFieldSchemas = collectBodyFieldSchemas(operation, doc)
+        const acceptShape = reshapeCapabilityAccepts(built, operation, doc, bodyFieldSchemas)
+        const shaped = applyProductShape(name, opClass, operation, doc, resolved, output, `${context}.output`)
+        const returns = shaped.returnsZod
         if (resolved.unknownFinal) errors.push(`${context}: async operation ${name} has no final output mapping`)
 
         seen.add(name)
@@ -536,6 +545,9 @@ export function generateFamily(family, specs) {
           opClass,
           built,
           returns,
+          usesFileRef: shaped.usesFileRef || acceptShape.usesFileRef,
+          productShape: shaped.productShape,
+          fileRefBodyFields: acceptShape.usesFileRef ? [...built.parameters.body] : [],
           defaultManifestOutputs: Boolean(resolved.defaultManifestOutputs),
           metadata: deriveMetadata(operation, family, name, opClass),
         })
@@ -562,9 +574,12 @@ export function generateFamily(family, specs) {
 
   const capLines = []
   let capUsesSchemas = false
+  let capUsesFileRef = false
   for (const op of ops) {
-    const accepts = op.built.fields.length ? `z.strictObject({\n${op.built.fields.join(",\n")}\n})` : "z.strictObject({})"
-    const returns = op.returns
+    const acceptsRaw = op.built.fields.length ? `z.strictObject({\n${op.built.fields.join(",\n")}\n})` : "z.strictObject({})"
+    const accepts = acceptsRaw.replaceAll(USES_FILE_REF_IMPORT, "fileRefSchema")
+    const returns = op.returns.replaceAll(USES_FILE_REF_IMPORT, "fileRefSchema")
+    if (accepts.includes("fileRefSchema") || returns.includes("fileRefSchema")) capUsesFileRef = true
     if (hasRefs(accepts) || hasRefs(returns)) capUsesSchemas = true
     const indent = (text, pad) => text.split("\n").join(`\n${pad}`)
     capLines.push(`  ${JSON.stringify(op.name)}: capability<z.ZodType, z.ZodType>({`)
@@ -583,6 +598,7 @@ export function generateFamily(family, specs) {
     `/* Source: ${rels} */`,
     `import { capability } from "@executioncontrolprotocol/plugin-sdk"`,
     `import { z } from "zod"`,
+    ...(capUsesFileRef ? [`import { fileRefSchema } from "../../schemas.js"`] : []),
     ...(capUsesSchemas ? [`import * as schemas from "./schemas.js"`] : []),
     ``,
     `/**`,
@@ -620,6 +636,8 @@ export function generateFamily(family, specs) {
     }
     if (op.built.defaultCaiClaimVersion) opLines.push(`    defaultCaiClaimVersion: true,`)
     if (op.defaultManifestOutputs) opLines.push(`    defaultManifestOutputs: true,`)
+    if (op.productShape) opLines.push(`    productShape: ${JSON.stringify(op.productShape)},`)
+    if (op.fileRefBodyFields?.length) opLines.push(`    fileRefBodyFields: ${JSON.stringify(op.fileRefBodyFields)},`)
     opLines.push(`  },`)
   }
   const operationsTs = [

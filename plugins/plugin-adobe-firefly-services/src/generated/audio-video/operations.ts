@@ -14,6 +14,7 @@ export const operations: Record<string, AdobeOperation> = {
     path: "/v1/avatars",
     serverUrl: "https://audio-video-api.adobe.io",
     asyncMode: "none",
+    productShape: {"kind":"passthrough"},
   },
   "audio-video-dub": {
     method: "POST",
@@ -23,6 +24,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["targetLocaleCodes","transcripts","audio","video","lipSync"]},
     bodySchema: schemas.In_DubRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-dub-translate-lipsync": {
     method: "POST",
@@ -32,6 +34,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["targetLocaleCodes","transcripts","audio","video","lipSync"]},
     bodySchema: schemas.In_DubRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-generate-avatar": {
     method: "POST",
@@ -41,6 +44,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["script","voiceId","avatarId","output","audio"]},
     bodySchema: schemas.In_AvatarRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-generate-reframed-video": {
     method: "POST",
@@ -62,6 +66,8 @@ export const operations: Record<string, AdobeOperation> = {
       }).describe("Configuration details for the generated reframed video.")
     }),
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
+    fileRefBodyFields: ["video","sceneEditDetection","overlays","outputConfig"],
   },
   "audio-video-generate-reframed-video-v2": {
     method: "POST",
@@ -87,6 +93,8 @@ export const operations: Record<string, AdobeOperation> = {
       }).describe("Output configuration details for generating the reframed video.")
     }),
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
+    fileRefBodyFields: ["video","analysis","composition","output"],
   },
   "audio-video-generate-speech": {
     method: "POST",
@@ -96,12 +104,14 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["script","voiceId","output"]},
     bodySchema: schemas.In_TTSRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-get-presets": {
     method: "GET",
     path: "/v1/presets",
     serverUrl: "https://audio-video-api.adobe.io",
     asyncMode: "none",
+    productShape: {"kind":"passthrough"},
   },
   "audio-video-list-render-jobs": {
     method: "GET",
@@ -109,6 +119,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://audio-video-api.adobe.io",
     asyncMode: "none",
     parameters: {"query":["filter","limit","cursor"],"headers":["x-request-id"]},
+    productShape: {"kind":"passthrough"},
   },
   "audio-video-template-describe": {
     method: "POST",
@@ -118,6 +129,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["type","source","compName"]},
     bodySchema: schemas.In_TemplateDescribeRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-template-render": {
     method: "POST",
@@ -127,6 +139,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["type","source","compName","fonts","config","assets","presets","variations","layerOperations","outputs"]},
     bodySchema: schemas.In_TemplateRenderRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "audio-video-transcribe": {
     method: "POST",
@@ -136,6 +149,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["targetLocaleCodes","captions","audio","video"]},
     bodySchema: schemas.In_TranscribeRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-transcribe-translate-lipsync": {
     method: "POST",
@@ -145,12 +159,14 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["targetLocaleCodes","captions","audio","video"]},
     bodySchema: schemas.In_TranscribeRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "audio-video-voices": {
     method: "GET",
     path: "/v1/voices",
     serverUrl: "https://audio-video-api.adobe.io",
     asyncMode: "none",
+    productShape: {"kind":"passthrough"},
   },
 }
 

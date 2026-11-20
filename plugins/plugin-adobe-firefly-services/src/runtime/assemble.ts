@@ -1,5 +1,6 @@
 import type { z } from "zod"
 import { AdobeServiceError, INPUT_INVALID } from "../errors.js"
+import { expandFileRefInputs } from "./product-shape.js"
 
 /**
  * Which top-level input keys are path, query, header and hoisted JSON-body fields.
@@ -29,6 +30,8 @@ export interface AdobeBodyRules {
   bodyRequired?: boolean
   /** Default `caiClaimVersion` to 2 when the body has an image input (Firefly v3 image APIs). */
   defaultCaiClaimVersion?: boolean
+  /** Body fields supplied as url FileRefs at the capability boundary. */
+  fileRefBodyFields?: string[]
 }
 
 /**
@@ -111,19 +114,23 @@ export function ensureDefaultCaiClaimVersion(body: unknown): unknown {
  * @category Runtime
  */
 export function assembleAdobeOperationInput(input: Record<string, unknown>, rules: AdobeBodyRules = {}): AssembledAdobeRequest {
+  const flat =
+    rules.fileRefBodyFields && rules.fileRefBodyFields.length > 0
+      ? expandFileRefInputs(input, rules.fileRefBodyFields)
+      : input
   const parameters = rules.parameters ?? {}
-  const path = scalars(pickDefined(input, parameters.path ?? []))
-  const query = scalars(pickDefined(input, parameters.query ?? []))
+  const path = scalars(pickDefined(flat, parameters.path ?? []))
+  const query = scalars(pickDefined(flat, parameters.query ?? []))
   const headers: Record<string, string> = {}
-  for (const [key, value] of Object.entries(pickDefined(input, parameters.headers ?? []))) headers[key] = String(scalar(value))
+  for (const [key, value] of Object.entries(pickDefined(flat, parameters.headers ?? []))) headers[key] = String(scalar(value))
 
-  const bodyParams = pickDefined(input, parameters.body ?? [])
+  const bodyParams = pickDefined(flat, parameters.body ?? [])
   const hasBodyParam = Object.keys(bodyParams).length > 0
-  const hasBody = input.body !== undefined
+  const hasBody = flat.body !== undefined
 
   let body: unknown
   if (rules.bodySchema && (hasBody || hasBodyParam || rules.bodyRequired)) {
-    const merged = mergeParameterBody(input.body, bodyParams) ?? {}
+    const merged = mergeParameterBody(flat.body, bodyParams) ?? {}
     const parsed = rules.bodySchema.safeParse(merged)
     if (!parsed.success) {
       throw new AdobeServiceError(INPUT_INVALID, "The Adobe request body does not match the API schema.", {
@@ -132,7 +139,7 @@ export function assembleAdobeOperationInput(input: Record<string, unknown>, rule
     }
     body = rules.defaultCaiClaimVersion ? ensureDefaultCaiClaimVersion(parsed.data) : parsed.data
   } else if (hasBody) {
-    body = input.body
+    body = flat.body
   }
 
   return { path, query, headers, ...(body === undefined ? {} : { body }) }

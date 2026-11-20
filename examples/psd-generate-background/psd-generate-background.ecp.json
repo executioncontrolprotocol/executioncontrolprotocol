@@ -47,11 +47,11 @@
       "properties": {
         "background": {
           "type": "object",
-          "description": "Firefly result: outputs[0].image.url is the generated image."
+          "description": "Firefly product shape: images[] url FileRefs (bind images.0)."
         },
         "banner": {
           "type": "object",
-          "description": "Photoshop result: hosted PNG and PSD output URLs."
+          "description": "Composite outputs: png and psd url FileRefs."
         }
       }
     }
@@ -142,7 +142,14 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "background": { "type": "object" },
+          "background": {
+            "type": "object",
+            "properties": {
+              "kind": { "const": "url" },
+              "url": { "type": "string" }
+            },
+            "required": ["kind", "url"]
+          },
           "backgroundLayer": { "type": "string" },
           "headline": { "type": "string" },
           "headlineLayer": { "type": "string" },
@@ -161,7 +168,7 @@
         "additionalProperties": false
       },
       "input": {
-        "background": { "$ref": "state.background" },
+        "background": { "$ref": "state.background.images.0" },
         "backgroundLayer": { "$ref": "state.backgroundLayer", "optional": true, "fallback": "Background" },
         "headline": { "$ref": "state.headline", "optional": true, "fallback": "" },
         "headlineLayer": { "$ref": "state.headlineLayer", "optional": true, "fallback": "Headline" },
@@ -180,11 +187,11 @@
       "config": "adobe-firefly-services/default",
       "input": {
         "image": {
-          "source": {
-            "url": {
-              "$ref": "state.upload.sasUrl"
-            }
-          }
+          "kind": "url",
+          "url": {
+            "$ref": "state.upload.sasUrl"
+          },
+          "mediaType": "image/vnd.adobe.photoshop"
         },
         "edits": {
           "layers": {

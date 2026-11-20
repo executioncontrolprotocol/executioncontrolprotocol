@@ -16,6 +16,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["background","object","numVariations","seeds","harmonization","shadowIntensity","preserveBackground","output"]},
     bodySchema: schemas.In_AdaptiveCompositeRequest,
     bodyRequired: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["background","object","numVariations","seeds","harmonization","shadowIntensity","preserveBackground","output"],
   },
   "firefly-expand-images-v3-async": {
     method: "POST",
@@ -26,6 +28,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_ExpandImageRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["image","mask","numVariations","placement","prompt","seeds","size","caiClaimVersion"],
   },
   "firefly-fill-images-v3-async": {
     method: "POST",
@@ -36,6 +40,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_FillImageRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["image","mask","negativePrompt","numVariations","prompt","promptBiasingLocaleCode","seeds","size","caiClaimVersion"],
   },
   "firefly-generate-images-v3-async": {
     method: "POST",
@@ -46,6 +52,7 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_GenerateImagesRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
   },
   "firefly-generate-images-v5-async": {
     method: "POST",
@@ -56,6 +63,7 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_ImageGenerateRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
   },
   "firefly-generate-object-composite-v3-async": {
     method: "POST",
@@ -66,6 +74,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_GenerateObjectCompositeRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["contentClass","image","mask","numVariations","placement","prompt","seeds","size","style","caiClaimVersion"],
   },
   "firefly-generate-similar-images-v3-async": {
     method: "POST",
@@ -76,6 +86,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_GenerateSimilarImagesRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["image","numVariations","seeds","size","caiClaimVersion"],
   },
   "firefly-generate-video-v3": {
     method: "POST",
@@ -85,6 +97,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"headers":["x-model-version"],"body":["bitRateFactor","image","prompt","seeds","sizes","videoSettings"]},
     bodySchema: schemas.In_GenerateVideoRequestV3,
     bodyRequired: true,
+    productShape: {"kind":"video-job","mediaArray":"videos"},
+    fileRefBodyFields: ["bitRateFactor","image","prompt","seeds","sizes","videoSettings"],
   },
   "firefly-get-custom-models": {
     method: "GET",
@@ -92,6 +106,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://firefly-api.adobe.io",
     asyncMode: "none",
     parameters: {"query":["sortBy","start","limit","publishedState"],"headers":["x-user-token","x-request-id"]},
+    productShape: {"kind":"passthrough"},
   },
   "firefly-precise-composite": {
     method: "POST",
@@ -101,6 +116,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["background","object","numVariations","seeds","blend","output"]},
     bodySchema: schemas.In_PreciseCompositeRequest,
     bodyRequired: true,
+    productShape: {"kind":"image-job","mediaArray":"images"},
+    fileRefBodyFields: ["background","object","numVariations","seeds","blend","output"],
   },
   "firefly-precise-upsampler-v3-async": {
     method: "POST",
@@ -111,6 +128,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_PreciseUpsamplerRequestV3,
     bodyRequired: true,
     defaultCaiClaimVersion: true,
+    productShape: {"kind":"upscaler"},
+    fileRefBodyFields: ["image","seeds","upscaleFactor","caiClaimVersion"],
   },
 }
 

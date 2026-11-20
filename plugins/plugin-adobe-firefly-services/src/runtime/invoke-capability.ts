@@ -11,6 +11,7 @@ import {
   withDefaultManifestOutputs,
   type AdobeBodyRules,
 } from "./assemble.js"
+import { shapeAdobeOutput, type AdobeProductShape } from "./product-shape.js"
 
 /**
  * One generated operation: the HTTP call behind a capability. Generated into
@@ -28,6 +29,10 @@ export interface AdobeOperation extends AdobeBodyRules {
   asyncMode: "submit" | "none"
   /** Fill photoshop generate-manifest `outputs` with embedded JSON when unset. */
   defaultManifestOutputs?: boolean
+  /** How to map the API document to product-shaped capability output. */
+  productShape?: AdobeProductShape
+  /** Body fields that accept a url FileRef at the capability boundary. */
+  fileRefBodyFields?: string[]
 }
 
 /**
@@ -75,7 +80,9 @@ export function createAdobeHandler(name: string, operation: AdobeOperation): Ado
       headers: assembled.headers,
       signal: ctx.signal,
     })
-    if (operation.asyncMode !== "submit") return response ?? {}
+    if (operation.asyncMode !== "submit") {
+      return shapeAdobeOutput(response ?? {}, operation.productShape, flat)
+    }
 
     const statusUrl = extractAdobeStatusUrl(response)
     if (!statusUrl) {
@@ -92,7 +99,8 @@ export function createAdobeHandler(name: string, operation: AdobeOperation): Ado
       intervalMs: config.pollIntervalMs,
       timeoutMs: config.pollTimeoutMs,
     })
-    const unwrapped = unwrapAdobeResult(final) ?? {}
-    return operation.defaultManifestOutputs ? liftManifestOutputContent(unwrapped) : unwrapped
+    let unwrapped: unknown = unwrapAdobeResult(final) ?? {}
+    if (operation.defaultManifestOutputs) unwrapped = liftManifestOutputContent(unwrapped)
+    return shapeAdobeOutput(unwrapped, operation.productShape, flat)
   }
 }

@@ -84,11 +84,11 @@
       "config": "adobe-firefly-services/default",
       "input": {
         "image": {
-          "source": {
-            "url": {
-              "$ref": "state.upload.sasUrl"
-            }
-          }
+          "kind": "url",
+          "url": {
+            "$ref": "state.upload.sasUrl"
+          },
+          "mediaType": "image/vnd.adobe.photoshop"
         }
       },
       "as": "manifest"

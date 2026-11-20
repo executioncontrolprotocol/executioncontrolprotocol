@@ -409,21 +409,6 @@ export const In_VideoInputV2: z.ZodType = z.lazy(() => z.strictObject({
 })).describe("Video input details for generate reframed video request.")
 
 /**
- * OpenAPI component `AudioOutput`, response (open).
- * @category Generated
- */
-export const Out_AudioOutput: z.ZodType = z.lazy(() => z.looseObject({
-  mediaType: Out_AudioOutputMediaType.optional(),
-  destination: Out_Destination.optional()
-})).describe("Audio output in dubbing response.")
-
-/**
- * OpenAPI component `AudioOutputMediaType`, response (open).
- * @category Generated
- */
-export const Out_AudioOutputMediaType: z.ZodType = z.lazy(() => z.enum(["audio/wav"])).describe("Media type of the audio output")
-
-/**
  * OpenAPI component `AvatarEntity`, response (open).
  * @category Generated
  */
@@ -456,50 +441,6 @@ export const Out_AvatarEntity: z.ZodType = z.lazy(() => z.looseObject({
     mp4: z.string().optional().describe("A pre-signed URL for downloading avatar sample video in MP4 format.")
   }).optional()
 })).describe("Details of the avatar entity.")
-
-/**
- * OpenAPI component `CaptionOutput`, response (open).
- * @category Generated
- */
-export const Out_CaptionOutput: z.ZodType = z.lazy(() => z.array(z.looseObject({
-  destination: Out_Destination.optional(),
-  format: Out_TargetCaptionFormats.optional().describe("Format of the caption")
-}))).describe("Captions output")
-
-/**
- * OpenAPI component `Destination`, response (open).
- * @category Generated
- */
-export const Out_Destination: z.ZodType = z.lazy(() => z.looseObject({
-  url: z.string().optional().describe("The pre-signed URL pointing to the output source.")
-}))
-
-/**
- * OpenAPI component `DubJobResponse`, response (open).
- * @category Generated
- */
-export const Out_DubJobResponse: z.ZodType = z.lazy(() => Out_OneOf_DubPartialFailure_or_DubSuccess).describe("Dubbing success response")
-
-/**
- * OpenAPI component `ErrorBody`, response (open).
- * @category Generated
- */
-export const Out_ErrorBody: z.ZodType = z.lazy(() => z.looseObject({
-  message: z.string().describe("The error message."),
-  error_code: z.string().describe("Associated error code.")
-})).describe("The error response object.")
-
-/**
- * OpenAPI component `FireflyJobApiResponseStatus`, response (open).
- * @category Generated
- */
-export const Out_FireflyJobApiResponseStatus: z.ZodType = z.lazy(() => z.enum(["pending", "running", "failed", "succeeded"])).describe("Status of the job.")
-
-/**
- * OpenAPI component `FireflyJobResponse`, response (open).
- * @category Generated
- */
-export const Out_FireflyJobResponse: z.ZodType = z.lazy(() => Out_OneOf_FireflyJobApiResponse_or_FireflyJobErrorResponse).describe("Firefly job response.")
 
 /**
  * OpenAPI component `JobStatus`, response (open).
@@ -574,103 +515,6 @@ export const Out_JobStatus: z.ZodType = z.lazy(() => z.looseObject({
 }))
 
 /**
- * Union of OpenAPI components `DubPartialFailure`, `DubSuccess`, response (open).
- * @category Generated
- */
-export const Out_OneOf_DubPartialFailure_or_DubSuccess: z.ZodType = z.lazy(() => z.looseObject({
-  audioOutput: Out_AudioOutput.optional(),
-  videoOutput: Out_VideoOutput.optional(),
-  transcriptOutput: Out_TranscribeOutput.optional(),
-  error: Out_ErrorBody.optional()
-}))
-
-/**
- * Union of OpenAPI components `FireflyJobApiResponse`, `FireflyJobErrorResponse`, response (open).
- * @category Generated
- */
-export const Out_OneOf_FireflyJobApiResponse_or_FireflyJobErrorResponse: z.ZodType = z.lazy(() => z.looseObject({
-  status: Out_FireflyJobApiResponseStatus,
-  jobId: z.string().describe("Associated job ID."),
-  outputs: z.array(z.union([Out_DubJobResponse, Out_TranscribeOutput])).optional().describe("Job response details."),
-  message: z.string().optional().describe("The error message."),
-  error_code: z.string().optional().describe("Associated error code.")
-}))
-
-/**
- * Union of OpenAPI components `JobStatus`, `StatusAPICompletedResponse`, `StatusAPIFailedResponse`, `StatusAPIInprogressResponse`, response (open).
- * @category Generated
- */
-export const Out_OneOf_JobStatus_and_3_more_d82ea6: z.ZodType = z.lazy(() => z.looseObject({
-  jobId: z.string().optional(),
-  status: z.union([Out_StatusAPIResponseStatus, z.enum(["not_started", "running", "canceling", "canceled", "succeeded", "failed", "partially_succeeded"])]).optional(),
-  output: z.looseObject({
-    destination: Out_Destination.optional(),
-    fonts: z.array(z.looseObject({
-      name: z.string().describe("PostScript name of the font."),
-      uploadRequired: z.boolean().optional().describe("Whether the font needs to be uploaded in the render request.")
-    })).optional().describe("Array of fonts from the template."),
-    elements: z.array(z.looseObject({
-      id: z.string().optional().describe("Unique identifier for the element."),
-      type: z.enum(["mogrt", "aep"]).describe("Type of the element."),
-      controls: z.array(z.looseObject({
-        variableId: z.string().optional().describe("Unique identifier for the template variable."),
-        id: z.string().optional().describe("Unique identifier for the control."),
-        label: z.string().optional().describe("Human-readable label for the control."),
-        type: z.enum(["text", "media", "dropdown", "checkbox", "slider", "audio", "comment"]).optional().describe("Type of the control."),
-        defaultData: z.looseObject({}).optional().describe("Default or current values for the control (e.g., text, fontName, selectedCheckboxValue, selectedDropdownValue, selectedSliderValue, scale)."),
-        data: z.looseObject({}).optional().describe("Data associated with the control."),
-        options: z.union([z.record(z.string(), z.string()), z.array(z.string())]).optional().describe("Available options (object for dropdown; array for checkbox)."),
-        range: z.looseObject({
-          minimum: z.number().optional(),
-          maximum: z.number().optional()
-        }).optional().describe("Minimum and maximum values for slider controls."),
-        size: z.looseObject({
-          width: z.number().int().optional(),
-          height: z.number().int().optional()
-        }).optional().describe("Dimensions for media controls."),
-        possibleScaleValues: z.array(z.string()).optional().describe("Possible scale values for media controls."),
-        durationInSeconds: z.number().optional().describe("Duration in seconds for audio controls."),
-        possibleAudioPreferences: z.array(z.string()).optional().describe("Possible audio preferences (e.g., replace, mix) for audio controls."),
-        text: z.string().optional().describe("Comment text for comment controls.")
-      })).describe("Array of controls from the template."),
-      layers: z.array(z.looseObject({
-        id: z.string().optional().describe("Composite ID of the form `c{comp}:l{layer}:layer`."),
-        name: z.string().optional().describe("Layer name as displayed in After Effects."),
-        compName: z.string().optional().describe("Name of the composition that contains the layer.")
-      })).optional().describe("Layers of the described AEP composition, in render order (top-to-bottom). Present only for `aep` elements. Use a layer's composite `id` as the `layerId` in render `layerOperations`.")
-    })).optional().describe("Array of elements from the template.")
-  }).optional(),
-  error_code: z.string().optional(),
-  message: z.string().optional(),
-  percentCompleted: z.string().optional().describe("Percentage of job completed, as a string."),
-  outputs: z.array(z.looseObject({
-    variationIndex: z.number().int().describe("Zero-based index of the variation that was rendered."),
-    presetIndex: z.number().int().describe("Zero-based index of the preset that was used for rendering."),
-    destination: z.looseObject({
-      url: z.string().describe("URL from which the rendered video can be downloaded.")
-    }),
-    sidecarDestination: z.looseObject({
-      url: z.string().describe("URL from which the collected After Effects project archive can be downloaded. Present only when `config.sidecar` was set to `aep`.")
-    }).optional(),
-    startedDate: z.string().optional().describe("ISO 8601 date-time when this output item started rendering. Present only for render jobs (`POST /v1/templates/render`)."),
-    completedDate: z.string().optional().describe("ISO 8601 date-time when this output item finished rendering. Present only for render jobs (`POST /v1/templates/render`).")
-  })).optional().describe("Array of output files with destination URLs, keyed by variation and preset indices."),
-  errors: z.array(z.looseObject({
-    variationIndex: z.number().int().describe("Zero-based index of the variation that failed."),
-    presetIndex: z.number().int().describe("Zero-based index of the preset that was used for the failed variation."),
-    error: z.looseObject({
-      error_code: z.string().describe("Error code for the failure."),
-      message: z.string().describe("Error message describing the failure.")
-    }),
-    startedDate: z.string().optional().describe("ISO 8601 date-time when this item started processing. Present only for render jobs (`POST /v1/templates/render`)."),
-    completedDate: z.string().optional().describe("ISO 8601 date-time when this item reached a terminal failure state. Present only for render jobs (`POST /v1/templates/render`).")
-  })).optional().describe("Array of errors for failed variations (only present when status is partially_succeeded)."),
-  createdDate: z.string().optional().describe("ISO 8601 date-time when the job was submitted. Present only for render jobs (`POST /v1/templates/render`)."),
-  totalJobItems: z.number().int().optional().describe("Total number of output items (variation × preset combinations) in this render job. Present once the job has been dispatched to workers. Applies only to render jobs (`POST /v1/templates/render`)."),
-  retryPayloadUrl: z.string().optional().describe("Pre-built retry payload URL containing only the failed items. Present only when `status` is `partially_succeeded`. Applies only to render jobs (`POST /v1/templates/render`).")
-}))
-
-/**
  * OpenAPI component `PagingInfo`, response (open).
  * @category Generated
  */
@@ -733,18 +577,6 @@ export const Out_RenderJobListResponse: z.ZodType = z.lazy(() => z.looseObject({
 })).describe("Response body for `GET /v1/templates/render-jobs`. Contains render jobs submitted via `POST /v1/templates/render` only.")
 
 /**
- * OpenAPI component `StatusAPIResponse`, response (open).
- * @category Generated
- */
-export const Out_StatusAPIResponse: z.ZodType = z.lazy(() => Out_OneOf_JobStatus_and_3_more_d82ea6).describe("Response object for job status queries.")
-
-/**
- * OpenAPI component `StatusAPIResponseStatus`, response (open).
- * @category Generated
- */
-export const Out_StatusAPIResponseStatus: z.ZodType = z.lazy(() => z.enum(["pending", "running", "failed", "succeeded"])).describe("Status of the job.")
-
-/**
  * OpenAPI component `SuccessfulAvatarsResponse`, response (open).
  * @category Generated
  */
@@ -759,43 +591,6 @@ export const Out_SuccessfulAvatarsResponse: z.ZodType = z.lazy(() => z.looseObje
 export const Out_SuccessfulVoicesResponse: z.ZodType = z.lazy(() => z.looseObject({
   voices: z.array(Out_VoiceEntity).optional()
 })).describe("List of available voices.")
-
-/**
- * OpenAPI component `TargetCaptionFormats`, response (open).
- * @category Generated
- */
-export const Out_TargetCaptionFormats: z.ZodType = z.lazy(() => z.enum(["SRT"])).describe("Supported target formats for caption generation")
-
-/**
- * OpenAPI component `TranscribeOutput`, response (open).
- * @category Generated
- */
-export const Out_TranscribeOutput: z.ZodType = z.lazy(() => z.array(z.looseObject({
-  destination: Out_Destination.optional(),
-  captions: Out_CaptionOutput.optional(),
-  localeCode: Out_TranscriptInputLocale.optional()
-}))).describe("Transcribe success response")
-
-/**
- * OpenAPI component `TranscriptInputLocale`, response (open).
- * @category Generated
- */
-export const Out_TranscriptInputLocale: z.ZodType = z.lazy(() => z.enum(["da-DK", "en-IN", "en-GB", "es-AR", "es-419", "fr-CA", "hi-IN", "ja-JP", "ko-KR", "nb-NO", "nl-NL", "pt-BR", "sv-SE", "zh-CN", "en-US", "es-ES", "de-DE", "fr-FR", "it-IT", "pt-PT"])).describe("The languages that the transcript will be generated in. Use supported locale codes.")
-
-/**
- * OpenAPI component `VideoOutput`, response (open).
- * @category Generated
- */
-export const Out_VideoOutput: z.ZodType = z.lazy(() => z.looseObject({
-  mediaType: Out_VideoOutputMediaType.optional(),
-  destination: Out_Destination.optional()
-})).describe("Video output in dubbing response.")
-
-/**
- * OpenAPI component `VideoOutputMediaType`, response (open).
- * @category Generated
- */
-export const Out_VideoOutputMediaType: z.ZodType = z.lazy(() => z.enum(["video/mp4", "video/mov"])).describe("Media type of the video output")
 
 /**
  * OpenAPI component `VoiceEntity`, response (open).

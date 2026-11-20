@@ -16,6 +16,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["image","options","outputs"]},
     bodySchema: schemas.In_ActionsRequest,
     bodyRequired: true,
+    productShape: {"kind":"photoshop-multi"},
+    fileRefBodyFields: ["image","options","outputs"],
   },
   "photoshop-auto-crop": {
     method: "POST",
@@ -25,6 +27,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["aspectRatio","focus","image","mode","outputType","zoom"]},
     bodySchema: schemas.In_AutoCropRequest,
     bodyRequired: true,
+    productShape: {"kind":"photoshop-multi"},
+    fileRefBodyFields: ["aspectRatio","focus","image","mode","outputType","zoom"],
   },
   "photoshop-create-artboard": {
     method: "POST",
@@ -34,6 +38,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["artboardSpacing","images","outputs"]},
     bodySchema: schemas.In_CreateArtboardRequest,
     bodyRequired: true,
+    productShape: {"kind":"photoshop-multi"},
   },
   "photoshop-create-composite": {
     method: "POST",
@@ -43,6 +48,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["edits","fontOptions","image","outputs"]},
     bodySchema: schemas.In_CreateCompositeRequest,
     bodyRequired: true,
+    productShape: {"kind":"photoshop-multi"},
+    fileRefBodyFields: ["edits","fontOptions","image","outputs"],
   },
   "photoshop-edit": {
     method: "POST",
@@ -52,6 +59,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["edits","image","outputs"]},
     bodySchema: schemas.In_EditRequest,
     bodyRequired: true,
+    productShape: {"kind":"photoshop-multi"},
+    fileRefBodyFields: ["edits","image","outputs"],
   },
   "photoshop-generate-manifest": {
     method: "POST",
@@ -62,6 +71,8 @@ export const operations: Record<string, AdobeOperation> = {
     bodySchema: schemas.In_GenerateManifestRequest,
     bodyRequired: true,
     defaultManifestOutputs: true,
+    productShape: {"kind":"manifest"},
+    fileRefBodyFields: ["exportOptions","extractSmartObjectData","image","includeLayerThumbnails","includeXmp","maximumThumbnailDepth","outputs","trimToTransparency"],
   },
 }
 
