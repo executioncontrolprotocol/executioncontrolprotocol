@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { describe, expect, it } from "vitest"
 import { BlobServiceClient } from "@azure/storage-blob"
-import { createSas, downloadBytes, uploadBytes } from "../src/azure-client.js"
+import { createSas, deleteBlob, downloadBytes, uploadBytes } from "../src/azure-client.js"
 
 // Runs against Azurite (or a real account) only when a connection string is provided.
 const connectionString = process.env.ECP_TEST_AZURE_STORAGE_CONNECTION_STRING
@@ -24,6 +24,13 @@ describe.skipIf(!connectionString)("azure-client (live)", () => {
       const res = await fetch(sasUrl)
       expect(res.status).toBe(200)
       expect(await res.text()).toBe("hello azurite")
+
+      expect(await deleteBlob(config, { container, blobName: "hello.txt", ifMissing: "error" })).toEqual({
+        deleted: true,
+      })
+      await expect(downloadBytes(config, { container, blobName: "hello.txt" })).rejects.toMatchObject({
+        code: "ECP_PROVIDER_ERROR",
+      })
     } finally {
       await containerClient.deleteIfExists()
     }

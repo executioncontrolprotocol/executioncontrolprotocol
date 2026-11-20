@@ -6,7 +6,9 @@ Reads every layer of a local PSD, including layers inside groups:
    allowlisted cloud storage).
 2. `adobe-firefly-services.photoshop-generate-manifest` returns the document manifest (embedded
    JSON).
-3. A `$expr` flattens the layer tree into a list: `name`, `type`, `id`, group `path`, `depth`,
+3. `azure-blob-storage.delete` removes the uploaded PSD copy from the container (`ifMissing:
+   ignore`).
+4. A `$expr` flattens the layer tree into a list: `name`, `type`, `id`, group `path`, `depth`,
    `visible`, and `text` for text layers, plus document `width`, `height` and `mode`.
 
 ## Setup
@@ -39,5 +41,3 @@ ecp execute psd-layers.ecp.json --input '{"psdPath": "C:\\path\\to\\banner.psd"}
 
 - The flattening step uses `test.echo` to carry the computed value into state, so the result is
   wrapped as `psd.echo`. ECP has no built-in transform step yet.
-- Each run uploads a copy of the PSD under `psd-layers/` in the configured container; the Azure plugin
-  has no delete capability, so clean up there.

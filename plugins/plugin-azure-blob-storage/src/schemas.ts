@@ -131,6 +131,26 @@ export const sasReturnsSchema = z.object({
 })
 
 /**
+ * Input of the `delete` capability.
+ * @category Plugins
+ */
+export const deleteAcceptsSchema = z.object({
+  blobName,
+  container,
+  ifMissing: z.enum(["error", "ignore"]).default("error"),
+})
+
+/**
+ * Output of the `delete` capability.
+ * @category Plugins
+ */
+export const deleteReturnsSchema = z.object({
+  blobName: z.string(),
+  container: z.string(),
+  deleted: z.boolean(),
+})
+
+/**
  * Typed input of `upload`.
  * @category Plugins
  */
@@ -165,3 +185,15 @@ export type SasInput = z.infer<typeof sasAcceptsSchema>
  * @category Plugins
  */
 export type SasOutput = z.infer<typeof sasReturnsSchema>
+
+/**
+ * Typed input of `delete`.
+ * @category Plugins
+ */
+export type DeleteInput = z.input<typeof deleteAcceptsSchema>
+
+/**
+ * Typed output of `delete`.
+ * @category Plugins
+ */
+export type DeleteOutput = z.infer<typeof deleteReturnsSchema>

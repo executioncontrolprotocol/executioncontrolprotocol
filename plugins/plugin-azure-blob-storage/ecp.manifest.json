@@ -1,6 +1,20 @@
 {
   "capabilities": [
     {
+      "description": "Removes a block blob by name. Without `container` the config's defaultContainer is used. Set `ifMissing` to `ignore` to treat a missing blob as success with `deleted: false`; the default `error` fails the step with ECP_PROVIDER_ERROR (HTTP 404 from Azure).",
+      "id": "@executioncontrolprotocol/azure-blob-storage.delete",
+      "name": "delete",
+      "projections": [
+        "Check `deleted` to see whether Azure removed the blob (`false` only when `ifMissing` is `ignore` and the blob was absent)",
+        "Reuse `blobName` and `container` to confirm which object was addressed"
+      ],
+      "summary": "Delete one blob from Azure Blob Storage.",
+      "useCases": [
+        "Remove temporary uploads after an external service has read them",
+        "Clean up staging blobs once downstream steps no longer need them"
+      ]
+    },
+    {
       "description": "Fetches one blob into memory and writes it as a run artifact named after the last segment of the blob name, with the blob's Content-Type. Missing blobs fail the step with ECP_PROVIDER_ERROR and status 404.",
       "id": "@executioncontrolprotocol/azure-blob-storage.download",
       "name": "download",
@@ -40,16 +54,16 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "18fdf8e45ad487ceac22fff58b9529056277eb7a1e039689db899387d93b9414",
+  "hash": "fa218b696ce7f3f0aeba8c14900523a927771e7eecc7b09792aaa4cebf5749e8",
   "plugin": {
-    "description": "Blob storage for executions that persist media, share time-limited links or bring stored objects into a run as artifacts. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
+    "description": "Blob storage for executions that persist media, share time-limited links, bring stored objects into a run as artifacts, or remove blobs after use. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
     "package": "@executioncontrolprotocol/plugin-azure-blob-storage",
-    "summary": "Upload, download and mint SAS URLs for Azure Blob Storage.",
+    "summary": "Upload, download, delete and mint SAS URLs for Azure Blob Storage.",
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "0b4be5eed0ff182a11e515c5fa4a1a852b9f2817b73fdadb31744f74b9ba7214",
+    "hash": "29e7dae646d2e064049781408b939b865403a55f78aa148d32b6d830ec5cc6e4",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",
