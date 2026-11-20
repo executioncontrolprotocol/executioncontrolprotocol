@@ -3,7 +3,6 @@ import {
   EXPR_HANDLE_ID,
   OUTPUT_HANDLE_ID,
   parseStateRef,
-  walkInputExprs,
   walkInputRefs,
 } from "./extract-data-edges.js"
 import {
@@ -78,14 +77,6 @@ function setRef(port: ReactFlowPort, rawRef: string, optional: boolean): void {
   if (optional) port.refOptional = true
 }
 
-function setExpr(port: ReactFlowPort, source: string): void {
-  clearBinding(port)
-  port.binding = "expr"
-  port.exprSource = source
-  port.valueTitle = source
-  port.valuePreview = truncateLiteralPreview(source.replace(/\s+/g, " ").trim())
-}
-
 function setScript(port: ReactFlowPort, script: { source?: string; path?: string }): void {
   clearBinding(port)
   port.binding = "script"
@@ -125,10 +116,6 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
       setRef(port, directRef, isRefMarker(value) && value.optional === true)
       continue
     }
-    if (isExprMarker(value)) {
-      setExpr(port, value.$expr)
-      continue
-    }
     if (isScriptMarker(value)) {
       setScript(port, value.$script)
       continue
@@ -144,11 +131,6 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
       const nested = getOrCreateInput(inputs, byName, inputPath)
       if (nested.binding === "script") return
       setRef(nested, rawRef, false)
-    })
-    walkInputExprs(value, name, (inputPath, source) => {
-      const nested = getOrCreateInput(inputs, byName, inputPath)
-      if (nested.binding === "script") return
-      setExpr(nested, source)
     })
     setLiteral(port, value)
   }
@@ -217,7 +199,7 @@ export function ensureInputPort(inputs: ReactFlowPort[], handleId: string): void
 /**
  * Build input and output ports for a step from its capability's JSON Schemas, falling
  * back to the step's `input` keys, then annotate each input with its binding
- * (literal, `$ref` / `$state`, `$expr` or `$script`). A gated step gets an `expr` port.
+ * (literal, `$ref` / `$state`, or `$script`). A gated step gets an `expr` port.
  * Outputs always include the whole-document `output` handle.
  * @category App
  */

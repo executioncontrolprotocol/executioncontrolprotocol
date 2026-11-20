@@ -88,7 +88,10 @@ export function filterMarkerExplainedErrors(
 ): MarkerAjvError[] {
   const markPaths = marks instanceof Map ? marks : new Map([...marks].map((path) => [path, "$ref" as MarkerKey]))
   const under = (path: string): boolean =>
-    [...markPaths.keys()].some((marker) => path === marker || path.startsWith(`${marker}/`))
+    [...markPaths.keys()].some((marker) => {
+      if (markPaths.get(marker) === "$expr") return false
+      return path === marker || path.startsWith(`${marker}/`)
+    })
   const explained = (error: MarkerAjvError): boolean => {
     if (under(error.instancePath)) return true
     if (error.keyword === "additionalProperties") {

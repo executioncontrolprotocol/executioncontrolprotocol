@@ -34,6 +34,38 @@
   },
   "steps": [
     {
+      "id": "prompt",
+      "label": "Build the translation prompt",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "locale": { "type": "string" },
+          "texts": { "type": "object" },
+          "headline": { "type": ["string", "null"] }
+        },
+        "required": ["locale"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string" }
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      },
+      "input": {
+        "locale": { "$ref": "state.locale" },
+        "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
+        "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
+      },
+      "script": {
+        "$script": { "lang": "js", "path": "scripts/translate-prompt.js" }
+      },
+      "as": "prompt"
+    },
+    {
       "id": "translate",
       "label": "Translate text layers",
       "uses": "@executioncontrolprotocol/anthropic.generate",
@@ -41,12 +73,47 @@
       "expr": "(state) => state.locale !== 'en'",
       "input": {
         "prompt": {
-          "$expr": "(state) => `Translate every string value in this JSON into locale \"${state.locale}\". Keep the same JSON shape and keys. Return only JSON, no markdown.\\n${JSON.stringify({ texts: state.texts || {}, headline: state.headline ?? null })}`"
+          "$ref": "state.prompt.prompt"
         },
         "system": "You translate PSD text-layer copy. Reply with a single raw JSON object only. No markdown fences, no commentary."
       },
       "as": "translation",
       "mode": "replace"
+    },
+    {
+      "id": "parsed",
+      "label": "Parse model JSON for UXP params",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "locale": { "type": "string" },
+          "translation": { "type": "object" },
+          "texts": { "type": "object" },
+          "headline": { "type": ["string", "null"] }
+        },
+        "required": ["locale"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "texts": { "type": "object" },
+          "headline": { "type": ["string", "null"] }
+        },
+        "required": ["texts", "headline"],
+        "additionalProperties": false
+      },
+      "input": {
+        "locale": { "$ref": "state.locale" },
+        "translation": { "$ref": "state.translation", "optional": true, "fallback": {} },
+        "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
+        "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
+      },
+      "script": {
+        "$script": { "lang": "js", "path": "scripts/parsed-translation.js" }
+      },
+      "as": "parsed"
     },
     {
       "id": "actions",
@@ -67,10 +134,10 @@
                   "path": "scripts/relabel-text-layers.uxp.js",
                   "params": {
                     "texts": {
-                      "$expr": "(state) => { if (state.locale === 'en' || !(state.translation && state.translation.text)) return state.texts || {}; const raw = String(state.translation.text); const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i); const candidate = ((fenced && fenced[1]) || raw).trim(); try { const parsed = JSON.parse(candidate || '{}'); return parsed.texts && typeof parsed.texts === 'object' ? parsed.texts : (state.texts || {}); } catch { return state.texts || {}; } }"
+                      "$ref": "state.parsed.texts"
                     },
                     "headline": {
-                      "$expr": "(state) => { if (state.locale === 'en' || !(state.translation && state.translation.text)) return state.headline ?? null; const raw = String(state.translation.text); const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i); const candidate = ((fenced && fenced[1]) || raw).trim(); try { const parsed = JSON.parse(candidate || '{}'); return parsed.headline !== undefined ? parsed.headline : (state.headline ?? null); } catch { return state.headline ?? null; } }"
+                      "$ref": "state.parsed.headline"
                     }
                   }
                 }

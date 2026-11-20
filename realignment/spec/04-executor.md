@@ -85,8 +85,6 @@ Recursive over the JSON value, depth-first, object keys in insertion order:
 - `$ref`: read the path from state. Missing (any segment `undefined`) → if `optional`: use
   `fallback` when present, else omit the property (or `null` when inside an array); if not
   optional → fail `ECP_REF_UNRESOLVED` (run-time; the validator should have caught most cases).
-- `$expr`: evaluate with the current state (value position). Result must be JSON
-  (`ECP_EXPR_RESULT_INVALID` otherwise).
 - `$state`: becomes `{ "$state": "<path>" }` handle object passed through untouched.
 - `$script`: resolve `params`, read `source` or the file at `path`, syntax-check (02), produce
   `const params = <JSON.stringify(params)>;\n<script text>`. Errors: `ECP_SCRIPT_INVALID`.

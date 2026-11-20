@@ -286,7 +286,7 @@ function pushReadEdge(
 
 /**
  * Data edges from step `input` reads: `$ref` / `$state` paths (including nested input
- * paths and `$script.params`) and the state paths a `$expr` reads.
+ * paths and `$script.params`).
  * A read resolves to the last earlier step committing that key, else the Inputs node when
  * `acceptsKeys` has it, else any other step committing it (a loop-carried value).
  * @category App
@@ -312,10 +312,6 @@ export function extractDataEdges(
     for (const [name, value] of Object.entries(step.input)) {
       walkInputRefs(value, name, (inputPath, refPath) => {
         pushReadEdge(ctx, step, refPath, resolveInputHandle(inputPath, inputPortIds), false)
-      })
-      walkInputExprs(value, name, (inputPath, source) => {
-        const target = resolveInputHandle(inputPath, inputPortIds)
-        for (const read of stateReadsFromExpr(source)) pushReadEdge(ctx, step, read, target, true)
       })
     }
   }

@@ -77,11 +77,6 @@ export async function resolveValue(
   }
   if (!isRecord(value)) return value
   if (typeof value.$ref === "string") return resolveRef(value, state)
-  if (typeof value.$expr === "string") {
-    const result = await expression.evaluate(value.$expr, state, "value")
-    if (!isJson(result)) throw new ResolveError("ECP_EXPR_RESULT_INVALID", "Expression result is not JSON.")
-    return result
-  }
   if (typeof value.$state === "string") return { $state: value.$state }
   if (isRecord(value.$script)) return resolveScript(value.$script, state, expression, readText, executionDir)
   const output: Record<string, unknown> = {}
@@ -147,16 +142,6 @@ function resolvePath(directory: string | undefined, filePath: string): string | 
   if (!directory) return undefined
   const separator = directory.includes("\\") ? "\\" : "/"
   return `${directory.replace(/[\\/]$/, "")}${separator}${filePath}`
-}
-
-function isJson(value: unknown): boolean {
-  if (value === undefined) return false
-  try {
-    JSON.stringify(value)
-    return true
-  } catch {
-    return false
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

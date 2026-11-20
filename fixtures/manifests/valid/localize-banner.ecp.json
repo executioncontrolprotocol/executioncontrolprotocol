@@ -55,6 +55,36 @@
       "mode": "create"
     },
     {
+      "id": "prompt",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "headline": { "type": "string" }
+        },
+        "required": ["headline"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string" }
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      },
+      "input": {
+        "headline": { "$ref": "state.doc.echo.headline" }
+      },
+      "script": {
+        "$script": {
+          "lang": "js",
+          "source": "return { prompt: `Translate: ${input.headline}` }"
+        }
+      },
+      "as": "prompt"
+    },
+    {
       "id": "translate",
       "label": "Translate headline",
       "uses": "@executioncontrolprotocol/anthropic.generate",
@@ -62,7 +92,7 @@
       "expr": "(state) => state.locale !== 'en'",
       "input": {
         "prompt": {
-          "$expr": "(state) => `Translate: ${state.doc.echo.headline}`"
+          "$ref": "state.prompt.prompt"
         }
       },
       "as": "translation",
@@ -149,9 +179,7 @@
           "id": "score",
           "uses": "@executioncontrolprotocol/test.echo",
           "input": {
-            "value": {
-              "$expr": "(state) => 1"
-            }
+            "value": 1
           },
           "as": "score",
           "mode": "replace"

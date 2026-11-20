@@ -44,10 +44,12 @@ function capabilitiesOf(manifestFile: string): CapabilityEntry[] {
     description: capability.description,
     useCases: capability.useCases,
     projections: capability.projections,
-    accepts: schemaDocument.$defs[`${capability.name}.accepts`]!,
-    returns: schemaDocument.$defs[`${capability.name}.returns`]!,
+    accepts: schemaDocument.$defs[`${capability.name}.accepts`],
+    returns: schemaDocument.$defs[`${capability.name}.returns`],
     configSchema,
     timeoutMs: capability.timeoutMs,
+    ...(capability.contract ? { contract: capability.contract } : {}),
+    ...(capability.code ? { code: capability.code } : {}),
   }))
 }
 
@@ -59,6 +61,12 @@ const testPluginSchema = JSON.parse(
 ) as PluginSchemaDocument
 const testCapabilities = capabilitiesOf(path.join(root, "fixtures/plugins/fixture-plugin/ecp.manifest.json"))
 const creativeCapabilities = capabilitiesOf(path.join(root, "fixtures/plugins/fixture-creative/ecp.manifest.json"))
+const corePluginManifestPath = path.join(root, "plugins/plugin-core/ecp.manifest.json")
+const coreCapabilities = capabilitiesOf(corePluginManifestPath)
+const corePlugin = JSON.parse(readFileSync(corePluginManifestPath, "utf8")) as PluginManifest
+const corePluginSchema = JSON.parse(
+  readFileSync(path.join(root, "plugins/plugin-core/ecp.schema.json"), "utf8"),
+) as PluginSchemaDocument
 
 const anthropicConfig: ConfigObject = {
   schema: "@executioncontrolprotocol.config",
@@ -134,11 +142,14 @@ const creativePluginSchema = JSON.parse(
 describe("manifest conformance", () => {
   it("accepts every valid fixture", { timeout: 30_000 }, async () => {
     const dir = path.join(manifests, "valid")
-    const capabilities = [...testCapabilities, ...creativeCapabilities]
+    const capabilities = [...testCapabilities, ...creativeCapabilities, ...coreCapabilities]
     const loadPluginSchema = async (pluginId: string) => {
       if (pluginId === testPlugin.plugin.id || pluginId === testPlugin.plugin.package) return testPluginSchema
       if (pluginId === creativePlugin.plugin.id || pluginId === creativePlugin.plugin.package) {
         return creativePluginSchema
+      }
+      if (pluginId === corePlugin.plugin.id || pluginId === corePlugin.plugin.package) {
+        return corePluginSchema
       }
       return undefined
     }
@@ -152,6 +163,11 @@ describe("manifest conformance", () => {
         pluginId: creativePlugin.plugin.id,
         version: creativePlugin.plugin.version,
         hash: creativePlugin.pluginSchema.hash,
+      },
+      {
+        pluginId: corePlugin.plugin.id,
+        version: corePlugin.plugin.version,
+        hash: corePlugin.pluginSchema.hash,
       },
     ]
     const schemaSet = await HostSchemaSet.create(capabilities, { loadPluginSchema, schemaFingerprints })

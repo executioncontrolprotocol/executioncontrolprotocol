@@ -152,7 +152,7 @@ JSON object). Unknown id â†’ `ECP_PATCH_INVALID`. A patch that fails to apply â†
 | `ECP_TYPE_MISMATCH` | Referenced type can't fit the target | 422 | 2 |
 | `ECP_COMMIT_CONFLICT` | Two writers for one key, `create` in a loop, `create` on an existing key | 422 / run-time | 2 / 1 |
 | `ECP_RETURNS_UNRESOLVED` | `execution.returns` key never produced (error) or maybe (warning) | 422 | 2 |
-| `ECP_EXPR_INVALID` | `expr`/`$expr` syntax | 422 | 2 |
+| `ECP_EXPR_INVALID` | `expr`/`$expr` syntax, or `$expr` used in an input | 422 | 2 |
 | `ECP_SCRIPT_INVALID` | `$script` syntax, missing file, both/neither of source/path | 422 / run-time | 2 / 1 |
 | `ECP_CONFIG_UNKNOWN` | Named config doesn't exist | 422 | 2 |
 | `ECP_CONFIG_INVALID` | Config fails the plugin's config schema | 422 | 2 |

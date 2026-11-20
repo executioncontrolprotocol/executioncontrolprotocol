@@ -8,7 +8,7 @@ Reads every layer of a local PSD, including layers inside groups:
    JSON).
 3. `azure-blob-storage.delete` removes the uploaded PSD copy from the container (`ifMissing:
    ignore`).
-4. A `$expr` flattens the layer tree into a list: `name`, `type`, `id`, group `path`, `depth`,
+4. A `core.transform` step flattens the layer tree into a list: `name`, `type`, `id`, group `path`, `depth`,
    `visible`, and `text` for text layers, plus document `width`, `height` and `mode`.
 
 ## Setup
@@ -19,7 +19,6 @@ Configs `azure-blob-storage/default` and `adobe-firefly-services/default`, with 
 ```sh
 ecp plugins link ../../plugins/plugin-azure-blob-storage
 ecp plugins link ../../plugins/plugin-adobe-firefly-services
-ecp plugins link ../../plugins/plugin-test
 ```
 
 ## Run
@@ -39,5 +38,6 @@ ecp execute psd-layers.ecp.json --input '{"psdPath": "C:\\path\\to\\banner.psd"}
 
 ## Notes
 
-- The flattening step uses `test.echo` to carry the computed value into state, so the result is
-  wrapped as `psd.echo`. ECP has no built-in transform step yet.
+- Two `core.transform` steps do the reshaping, each with its own `accepts`/`returns`:
+  `scripts/blob-name.js` builds the upload name and `scripts/layer-names.js` flattens the layer
+  tree. The result is `psd.document`, `psd.layers`, `psd.names` and `psd.count`.

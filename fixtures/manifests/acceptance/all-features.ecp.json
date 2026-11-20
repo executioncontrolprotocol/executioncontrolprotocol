@@ -33,10 +33,30 @@
   "steps": [
     {
       "id": "greet",
-      "uses": "@executioncontrolprotocol/test.echo",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" }
+        },
+        "required": ["value"],
+        "additionalProperties": false
+      },
       "input": {
-        "value": {
-          "$expr": "(state) => `hello ${state.name}`"
+        "name": { "$ref": "state.name" }
+      },
+      "script": {
+        "$script": {
+          "lang": "js",
+          "source": "return { value: `hello ${input.name}` }"
         }
       },
       "as": "greeting",
@@ -141,10 +161,10 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$expr": "(state) => state.greeting.echo"
+          "$ref": "state.greeting.value"
         },
         "fromRef": {
-          "$ref": "state.greeting.echo",
+          "$ref": "state.greeting.value",
           "optional": true,
           "fallback": "missing"
         },

@@ -64,6 +64,34 @@
       "branches": [
         [
           {
+            "id": "blob",
+            "label": "Build the blob name",
+            "uses": "@executioncontrolprotocol/core.transform",
+            "accepts": {
+              "type": "object",
+              "properties": {
+                "psdPath": { "type": "string" }
+              },
+              "required": ["psdPath"],
+              "additionalProperties": false
+            },
+            "returns": {
+              "type": "object",
+              "properties": {
+                "blobName": { "type": "string" }
+              },
+              "required": ["blobName"],
+              "additionalProperties": false
+            },
+            "input": {
+              "psdPath": { "$ref": "state.psdPath" }
+            },
+            "script": {
+              "$script": { "lang": "js", "path": "scripts/blob-name.js" }
+            },
+            "as": "blob"
+          },
+          {
             "id": "upload",
             "label": "Upload the PSD and sign a read URL",
             "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
@@ -77,7 +105,7 @@
                 "mediaType": "image/vnd.adobe.photoshop"
               },
               "blobName": {
-                "$expr": "(state) => `psd-generate-background/${Date.now()}-${String(state.psdPath).split(/[\\\\/]/).pop()}`"
+                "$ref": "state.blob.blobName"
               },
               "contentType": "image/vnd.adobe.photoshop",
               "createReadSas": true
@@ -108,6 +136,44 @@
       ]
     },
     {
+      "id": "layers",
+      "label": "Build composite layer edits",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "background": { "type": "object" },
+          "backgroundLayer": { "type": "string" },
+          "headline": { "type": "string" },
+          "headlineLayer": { "type": "string" },
+          "subhead": { "type": "string" },
+          "subheadLayer": { "type": "string" }
+        },
+        "required": ["background", "backgroundLayer", "headline", "headlineLayer", "subhead", "subheadLayer"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "layers": { "type": "array" }
+        },
+        "required": ["layers"],
+        "additionalProperties": false
+      },
+      "input": {
+        "background": { "$ref": "state.background" },
+        "backgroundLayer": { "$ref": "state.backgroundLayer", "optional": true, "fallback": "Background" },
+        "headline": { "$ref": "state.headline", "optional": true, "fallback": "" },
+        "headlineLayer": { "$ref": "state.headlineLayer", "optional": true, "fallback": "Headline" },
+        "subhead": { "$ref": "state.subhead", "optional": true, "fallback": "" },
+        "subheadLayer": { "$ref": "state.subheadLayer", "optional": true, "fallback": "Subhead" }
+      },
+      "script": {
+        "$script": { "lang": "js", "path": "scripts/composite-layers.js" }
+      },
+      "as": "layers"
+    },
+    {
       "id": "composite",
       "label": "Replace the background and set the text",
       "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
@@ -122,7 +188,7 @@
         },
         "edits": {
           "layers": {
-            "$expr": "(state) => { const layers = [{ name: state.backgroundLayer || 'Background', type: 'layer', operation: { type: 'edit' }, image: { source: { url: state.background.outputs[0].image.url } }, transformMode: 'fill' }]; const text = (name, content) => { if (typeof content === 'string' && content.length > 0) layers.push({ name, type: 'text_layer', operation: { type: 'edit' }, text: { content } }); }; text(state.headlineLayer || 'Headline', state.headline); text(state.subheadLayer || 'Subhead', state.subhead); return layers; }"
+            "$ref": "state.layers.layers"
           }
         },
         "outputs": [

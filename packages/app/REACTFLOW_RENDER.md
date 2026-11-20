@@ -12,8 +12,8 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   structure.
 - **Data edges** come from what a step reads:
   - `$ref` and `$state` paths in `input`, including nested input paths and `$script.params`.
-  - The state paths a `$expr` reads (`state.a.b`, `state?.a`, `state["a"]` on the function's
-    parameter), into the input port that holds the `$expr`.
+  - Step `expr` gate reads (same state-path rules as below) into the synthetic `expr` input
+    port on a gated step.
   - The state paths a step `expr` gate reads, into the synthetic `expr` input handle.
   - `execution.returns` keys, from the step that writes the key (or the Inputs node).
   A read resolves to the last earlier step whose `as` is the key, else the Inputs node when
@@ -33,7 +33,7 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   node (possibly empty); `execution.returns` becomes the `ecp:returns` node when it declares
   properties.
 - **Ports.** Input ports come from the capability `accepts` properties, then from `input` keys.
-  Each input records its binding: `literal`, `ref` (`$ref` / `$state`), `expr` (`$expr`, with
+  Each input records its binding: `literal`, `ref` (`$ref` / `$state`), `expr` (step gate only, with
   the source) or `script` (`$script`, with its `source` or `path`; the host never runs it).
   A literal object holding markers keeps its literal preview and gets a dotted port per marker.
   Output ports are the whole-document `output` handle plus the flattened `returns` properties.

@@ -4,7 +4,6 @@ import { allowsString } from "../validate/markers.js"
 import type { JsonSchema } from "./json-schema.js"
 
 const REF_VALUE: JsonSchema = { $ref: "#/$defs/refValue" }
-const EXPR_VALUE: JsonSchema = { $ref: "#/$defs/exprValue" }
 const STATE_VALUE: JsonSchema = { $ref: "#/$defs/stateValue" }
 const SCRIPT_VALUE: JsonSchema = { $ref: "#/$defs/scriptValue" }
 
@@ -130,7 +129,7 @@ export function generatePluginEditorSchema(
 }
 
 /** Marker definitions live in the root editor schema, one directory up from plugin files. */
-const MARKER_REF = /^#\/\$defs\/(refValue|exprValue|stateValue|scriptValue)$/
+const MARKER_REF = /^#\/\$defs\/(refValue|stateValue|scriptValue)$/
 
 function pointMarkersAtRoot(schema: JsonSchema): JsonSchema {
   return JSON.parse(JSON.stringify(schema), (key, value: unknown) =>
@@ -163,7 +162,7 @@ export function wrapValue(schema: JsonSchema): JsonSchema {
         then: REF_VALUE,
         else: {
           if: marker("$expr"),
-          then: EXPR_VALUE,
+          then: rejectWith(INPUT_EXPR_REJECTION),
           else: {
             if: marker("$state"),
             then: STATE_VALUE,
@@ -174,6 +173,8 @@ export function wrapValue(schema: JsonSchema): JsonSchema {
     },
   }
 }
+
+const INPUT_EXPR_REJECTION = "Use a transform step. Data edges are $ref only."
 
 const MARKER_REJECTIONS: Record<string, string> = {
   $secret: "$secret is not allowed in an execution; put it in a config object and set the step's config field.",

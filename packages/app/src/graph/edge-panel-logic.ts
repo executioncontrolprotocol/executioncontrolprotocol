@@ -1,8 +1,6 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { isExprMarker } from "./markers.js"
 import {
   dataEdgeInspectorMeta,
-  readManifestPointer,
   replaceManifestPointer,
   routeEdgeInspectorMeta,
   type DataEdgeInspectorMeta,
@@ -21,12 +19,7 @@ export function applyDataEdgeDraft(
   exprText: string,
 ): ExecutionManifest | undefined {
   const meta = dataEdgeInspectorMeta(manifest, targetStepId, data.inputPath)
-  if (!meta || meta.markerKind === "ref") return undefined
-  if (meta.markerKind === "expr") {
-    const current = readManifestPointer(manifest, meta.manifestPointer)
-    const next = isExprMarker(current) ? { ...current, $expr: exprText } : { $expr: exprText }
-    return replaceManifestPointer(manifest, meta.manifestPointer, next)
-  }
+  if (!meta || meta.markerKind !== "expr-gate") return undefined
   return replaceManifestPointer(manifest, meta.manifestPointer, exprText)
 }
 
@@ -49,7 +42,7 @@ export function applyRouteEdgeDraft(
  * @category App
  */
 export function dataEdgeEditable(meta: DataEdgeInspectorMeta | undefined): boolean {
-  return meta?.markerKind === "expr" || meta?.markerKind === "expr-gate"
+  return meta?.markerKind === "expr-gate"
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { ExecutionManifest, Node, StepNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
-import { isExprMarker, isRefMarker, refPathFromValue } from "./markers.js"
+import { isRefMarker, refPathFromValue } from "./markers.js"
 import type { ReactFlowRouteEdgeData } from "./types.js"
 
 /**
@@ -134,14 +134,6 @@ export function dataEdgeInspectorMeta(
   const pointer = inputManifestPointer(manifest, targetStepId, targetHandle)
   if (!pointer) return undefined
   const value = readManifestPointer(manifest, pointer)
-  if (isExprMarker(value)) {
-    return {
-      manifestPointer: pointer,
-      validatePointer: `${pointer}/$expr`,
-      markerKind: "expr",
-      exprSource: value.$expr,
-    }
-  }
   const refPath = refPathFromValue(value)
   if (refPath !== undefined) {
     return {
