@@ -3,6 +3,8 @@
 | Path | Role |
 | --- | --- |
 | `examples/echo/` | Smallest v2 execution |
+| `examples/transform/` | Bundled core QuickJS transform |
+| `examples/transform-jsonata/` | Optional JSONata transform |
 | `examples/weekly-brief/` | Multi-step example |
 | `examples/localize-banner/` | A10 Firefly + Anthropic + Azure dogfood |
 | `fixtures/manifests/valid/` | Must validate with zero errors |

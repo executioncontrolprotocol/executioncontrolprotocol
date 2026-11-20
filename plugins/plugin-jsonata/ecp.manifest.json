@@ -1,0 +1,35 @@
+{
+  "capabilities": [
+    {
+      "code": "expression",
+      "contract": "step",
+      "description": "Compiles the step expression with JSONata, evaluates it on the resolved input object, and returns JSON for the host returns check.",
+      "id": "@executioncontrolprotocol/jsonata.transform",
+      "name": "transform",
+      "projections": [
+        "Take the JSON value JSONata returns; match it to the step returns schema"
+      ],
+      "summary": "Evaluate a JSONata expression against resolved step input.",
+      "timeoutMs": 1000,
+      "useCases": [
+        "Project or filter fields with JSONata instead of a sandbox script"
+      ]
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "02230abe9957a9deffc952591d0f53d80751fe15eb4834a73d3ebb2430a6eb3c",
+  "plugin": {
+    "description": "Registers the optional transform capability for step-level JSONata expressions. Install separately from the host.",
+    "id": "@executioncontrolprotocol/jsonata",
+    "package": "@executioncontrolprotocol/plugin-jsonata",
+    "summary": "JSONata transforms for execution steps.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "8e317e831a89e6ca6f08dea4221f31c4a92e79e71b8f999969bbe63d98a58461",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "0.60.0",
+  "version": "2.0"
+}

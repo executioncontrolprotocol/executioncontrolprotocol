@@ -788,6 +788,8 @@ function checkStepContract(
   capability: CapabilityEntry | undefined,
   issues: ValidationIssue[],
 ): void {
+  // Unknown capability (plugin not installed): its contract is unknown, so only the missing-plugin issue applies.
+  if (!capability) return
   const stepContract = capability?.contract === "step"
   const hasAccepts = node.accepts !== undefined
   const hasReturns = node.returns !== undefined

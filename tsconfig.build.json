@@ -13,6 +13,7 @@
     { "path": "packages/app" },
     { "path": "plugins/plugin-test" },
     { "path": "plugins/plugin-core" },
+    { "path": "plugins/plugin-jsonata" },
     { "path": "plugins/plugin-anthropic" },
     { "path": "plugins/plugin-azure-blob-storage" },
     { "path": "plugins/plugin-adobe-firefly-services" }

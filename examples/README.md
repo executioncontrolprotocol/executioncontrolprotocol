@@ -6,6 +6,8 @@ Portable v2 executions for the realignment host. Each folder has a `*.ecp.json` 
 | Example | Plugins |
 | --- | --- |
 | `echo/` | `plugin-test` |
+| `transform/` | bundled `plugin-core` |
+| `transform-jsonata/` | `plugin-jsonata` |
 | `weekly-brief/` | `plugin-anthropic` |
 | `branch-loop/` | `plugin-test` |
 | `dogfood-reshape/` | `plugin-test` (`$expr`) |
