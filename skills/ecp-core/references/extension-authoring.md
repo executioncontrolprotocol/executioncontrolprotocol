@@ -67,6 +67,16 @@ Minimal execution step (bundled `@executioncontrolprotocol/core.transform`):
 
 See `examples/transform/` for a runnable workflow.
 
+### JSONata vs core transform
+
+Use **core.transform** (`code: "script"`) when you need full JavaScript on step input inside the host
+QuickJS sandbox (default transform budget 1000 ms). Use **jsonata.transform**
+(`@executioncontrolprotocol/jsonata`, `code: "expression"`) for declarative field projection and
+filtering with JSONata; install the plugin separately. Each JSONata step runs in its own short-lived
+process (64 MiB heap, 1000 ms), so it costs roughly 75 ms more than a QuickJS transform.
+
+See `examples/transform-jsonata/` for a JSONata workflow.
+
 Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
 The installable package also needs an empty `"oclif": {}` key in `package.json` (first-party
 plugins include it).

@@ -80,6 +80,7 @@ describe("error catalogue", () => {
     expect(firstPartyPlugin("@executioncontrolprotocol/anthropic")?.short).toBe("anthropic")
     expect(firstPartyPlugin("@other/plugin")).toBeUndefined()
     expect(firstPartyInstallCommand("@executioncontrolprotocol/test")).toBe("ecp plugins install test")
+    expect(firstPartyInstallCommand("@executioncontrolprotocol/jsonata")).toBe("ecp plugins install jsonata")
     expect(firstPartyInstallCommand("@executioncontrolprotocol/core")).toBeUndefined()
     expect(firstPartyPlugin("@executioncontrolprotocol/core")?.bundled).toBe(true)
     expect(firstPartyInstallCommand("@other/plugin")).toBeUndefined()

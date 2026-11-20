@@ -38,6 +38,10 @@ export const FIRST_PARTY_PLUGINS: Readonly<Record<string, FirstPartyPlugin>> = {
     short: "core",
     bundled: true,
   },
+  "@executioncontrolprotocol/jsonata": {
+    packageName: "@executioncontrolprotocol/plugin-jsonata",
+    short: "jsonata",
+  },
 }
 
 /**

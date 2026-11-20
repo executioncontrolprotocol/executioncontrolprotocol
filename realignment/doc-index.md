@@ -18,10 +18,10 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Agent rules | 13 |
 | Plan / phases / spec | 33 |
 | Package READMEs | 10 |
-| Plugin READMEs | 5 |
+| Plugin READMEs | 6 |
 | Contributor skill | 4 |
-| Examples | 11 |
-| Other | 14 |
+| Examples | 12 |
+| Other | 15 |
 
 ## All files
 
@@ -96,6 +96,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `plugins/plugin-anthropic/README.md` | Plugin READMEs | current |
 | `plugins/plugin-azure-blob-storage/README.md` | Plugin READMEs | current |
 | `plugins/plugin-core/README.md` | Plugin READMEs | current |
+| `plugins/plugin-jsonata/README.md` | Plugin READMEs | current |
 | `plugins/plugin-test/README.md` | Plugin READMEs | current |
 | `skills/ecp-core/SKILL.md` | Contributor skill | current |
 | `skills/ecp-core/references/examples.md` | Contributor skill | current |
@@ -110,6 +111,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/localize-banner/README.md` | Examples | current |
 | `examples/psd-generate-background/README.md` | Examples | current |
 | `examples/psd-layers/README.md` | Examples | current |
+| `examples/transform-jsonata/README.md` | Examples | current |
 | `examples/transform/README.md` | Examples | current |
 | `examples/weekly-brief/README.md` | Examples | current |
 | `.changeset/0.52.0-applied.md` | Other | current |
@@ -117,6 +119,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/host-auto-start.md` | Other | current |
+| `.changeset/jsonata-transform-plugin.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |
 | `.changeset/plugin-manifest-2.md` | Other | current |

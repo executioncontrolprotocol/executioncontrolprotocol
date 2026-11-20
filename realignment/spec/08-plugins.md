@@ -195,6 +195,7 @@ reset touch the marker when the data dir changed.
 | Package | Capabilities | Notes |
 | --- | --- | --- |
 | `plugin-core` | `transform` (`@executioncontrolprotocol/core.transform`, `contract: "step"`, `code: "script"`) | Bundled with the host (`source: "core"` in `retrieve`); not installed under `$ECP_DATA_DIR`; survives `ecp plugins reset`; cannot be uninstalled |
+| `plugin-jsonata` | `transform` (`@executioncontrolprotocol/jsonata.transform`, `contract: "step"`, `code: "expression"`) | Optional; not bundled. Each evaluation runs in a short-lived child Node process with a 64 MiB heap, killed when the step times out (capability `timeoutMs`, 1000 ms) or is cancelled, so a runaway or memory-hungry expression never affects the host. Costs roughly 75 ms of process start per step. Install with `ecp plugins install jsonata`. |
 | `plugin-test` | `echo`, `fail` (throws with a given code), `delay` (ms, honours `signal`), `stage` (writes via `$state` handle), `config-echo` (returns which config keys it received and the length of `secret`, never the value), `file-roundtrip` (reads a FileRef, writes an artifact), `call` (uses `ctx.call`), `bounded` (echo length-limited string / `$script` into `maxLength`; id `@executioncontrolprotocol/test.bounded`) | Test harness for every executor/host feature; not a dependency of the host |
 | `plugin-anthropic` | `generate` | Port from legacy; live test needs `ECP_SECRET_ANTHROPIC_APIKEY` |
 | `plugin-azure-blob-storage` | `upload`, `download`, `sas`, `delete` | Port; live tests use Azurite if available, else skip |
