@@ -26,9 +26,9 @@ lists via host `retrieve --type plugin`.
 | `ecp plugins` | `--json`, `--no-start-host` | Host plugin list: columns `package`, `version`, `source`, `manifest` (`ok` or first-issue summary). `--json` → `{ ok, data: { type: "plugin", items, total } }` |
 | `ecp plugins install` (alias `plugins add`) | `<package>`, `--force`, `--verbose`, `--json` | Install from npm, friendly name (`test` → `@executioncontrolprotocol/plugin-test`), or tarball path (converted to `file:` URL). Already installed without `--force` → exit 0 `alreadyInstalled`. Manifest invalid → exit 2 `ECP_MANIFEST_INVALID` (package stays). Missing `"oclif": {}` → exit 2 with regenerate hint |
 | `ecp plugins link` | `[path]` (default `.`), `--install` / `--no-install`, `--verbose`, `--json` | Link a local package; manifest check; touches marker before envelope |
-| `ecp plugins uninstall` (aliases `plugins unlink`, `plugins remove`) | `<package>`, `--verbose`, `--json` | Required arg; missing plugin → exit 2 `ECP_NOT_FOUND` |
+| `ecp plugins uninstall` (aliases `plugins unlink`, `plugins remove`) | `<package>`, `--verbose`, `--json` | Required arg; missing plugin → exit 2 `ECP_NOT_FOUND`. Uninstall of the bundled core plugin (`core`, `plugin-core`) → exit 2 with a clear message that it is bundled with the host |
 | `ecp plugins update` | `--verbose`, `--json` | User `type` entries only; no user plugins → exit 0, no npm |
-| `ecp plugins reset` | `--hard`, `--reinstall`, `--verbose`, `--json` | Same effects as oclif reset (no checkmark emoji in human output); envelope `{ action: "reset", removed, hard, reinstall }` |
+| `ecp plugins reset` | `--hard`, `--reinstall`, `--verbose`, `--json` | Same effects as oclif reset (no checkmark emoji in human output); envelope `{ action: "reset", removed, hard, reinstall }`. Removes user and linked plugins only; the bundled core plugin stays loaded (`source: "core"`) |
 | `ecp plugins inspect` | `PLUGIN…`, `--verbose`, `--json` | Installation properties for a linked/user plugin (resolved from `$ECP_DATA_DIR`, not oclif's loaded plugin list) |
 | `ecp config secrets set` | `<key>`, `--value <v>` or stdin or interactive hidden prompt | Writes to the local `SecretsProvider`; never echoes the value |
 | `ecp config secrets unset` | `<key>` | Delete; exit 2 if missing |

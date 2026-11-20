@@ -72,6 +72,26 @@ describe("safePluginId", () => {
 })
 
 describe("generateEditorRootSchema", () => {
+  it("omits step-contract capabilities from input allOf branches", () => {
+    const transform: CapabilityEntry = {
+      ...echo,
+      id: "@executioncontrolprotocol/core.transform",
+      plugin: "@executioncontrolprotocol/core",
+      package: "@executioncontrolprotocol/plugin-core",
+      contract: "step",
+      code: "script",
+    }
+    const root = generateEditorRootSchema([echo, transform])
+    const allOf = (root.$defs as { step: { allOf: unknown[] } }).step.allOf
+    expect(allOf).toHaveLength(1)
+    const uses = (root.$defs as { step: { properties: { uses: { enum: string[] } } } }).step.properties.uses.enum
+    expect(uses).toEqual(
+      ["@executioncontrolprotocol/core.transform", "@executioncontrolprotocol/test.echo"].sort((left, right) =>
+        left < right ? -1 : 1,
+      ),
+    )
+  })
+
   it("gives editors readable messages: no bare false for markers, descriptions on uses", () => {
     const root = generateEditorRootSchema([echo])
     expect(JSON.stringify(root)).not.toMatch(/"then":false/)

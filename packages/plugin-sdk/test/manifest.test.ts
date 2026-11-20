@@ -116,4 +116,33 @@ describe("buildPluginManifest", () => {
     expect(schemaDocument.$defs.config).toMatchObject({ type: "object" })
     expect(serializePluginSchema(schemaDocument)).toContain("$schema")
   })
+
+  it("omits capability $defs and stamps contract on step-contract capabilities", async () => {
+    const step = capability({
+      contract: "step",
+      code: "script",
+      summary: "Transform.",
+      description: "Step contract.",
+      useCases: ["Reshape data"],
+      projections: ["Take the object your step returns"],
+      accepts: z.object({}).strict(),
+      returns: z.object({}).strict(),
+      handler: () => import("./fixtures/echo-handler.js"),
+    })
+    const core = definePlugin({
+      id: "@executioncontrolprotocol/core",
+      summary: "Core.",
+      description: "Bundled.",
+      capabilities: { transform: step },
+    })
+    const packageJson = { name: "@executioncontrolprotocol/plugin-core", version: "1.0.0" }
+    const schemaDocument = await buildPluginSchemaDocument({ definition: core, packageJson })
+    expect(schemaDocument.$defs).toEqual({})
+    const manifest = await buildPluginManifest({ definition: core, packageJson, schemaDocument })
+    expect(manifest.capabilities[0]).toMatchObject({
+      id: "@executioncontrolprotocol/core.transform",
+      contract: "step",
+      code: "script",
+    })
+  })
 })

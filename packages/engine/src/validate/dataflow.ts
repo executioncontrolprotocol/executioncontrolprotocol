@@ -88,7 +88,8 @@ function walkStep(
   capabilities: Map<string, CapabilityEntry>,
 ): Env {
   const capability = node.uses ? capabilities.get(node.uses) : undefined
-  const accepts = capability?.accepts as JsonSchema | undefined
+  const stepAccepts = isRecord(node.accepts) ? (node.accepts as JsonSchema) : undefined
+  const accepts = (capability?.contract === "step" ? stepAccepts : capability?.accepts) as JsonSchema | undefined
   visitValues(node.input, accepts, `${node.path}/input`, (value, schema, pointer) => {
     if (!isRecord(value)) return
     if (typeof value.$ref === "string") {
@@ -109,7 +110,9 @@ function walkStep(
       ),
     )
   }
-  const returns = (capability?.returns as JsonSchema | undefined) ?? {}
+  const stepReturns = isRecord(node.returns) ? (node.returns as JsonSchema) : undefined
+  const returns =
+    (capability?.contract === "step" ? stepReturns : (capability?.returns as JsonSchema | undefined)) ?? {}
   const schema = schemaForMode(mode, existing?.schema, returns)
   const next = cloneEnv(env)
   next.set(node.as, {
@@ -484,6 +487,8 @@ interface NodeLike {
   uses?: string
   expr?: string
   input?: unknown
+  accepts?: unknown
+  returns?: unknown
   as?: string
   mode?: string
   steps?: NodeLike[]
@@ -505,6 +510,8 @@ function asNode(node: ExecutionManifest["steps"][number], path: string): NodeLik
     uses: typeof record.uses === "string" ? record.uses : undefined,
     expr: typeof record.expr === "string" ? record.expr : undefined,
     input: record.input,
+    accepts: record.accepts,
+    returns: record.returns,
     as: typeof record.as === "string" ? record.as : undefined,
     mode: typeof record.mode === "string" ? record.mode : undefined,
   }

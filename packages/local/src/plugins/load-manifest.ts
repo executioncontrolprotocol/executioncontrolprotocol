@@ -367,6 +367,7 @@ function validateSchemaContents(
     })
   }
   for (const capability of manifest.capabilities) {
+    if (capability.contract === "step") continue
     const acceptsKey = `${capability.name}.accepts`
     const returnsKey = `${capability.name}.returns`
     if (!schemaDocument.$defs[acceptsKey]) {

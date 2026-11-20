@@ -28,6 +28,8 @@ interface RegisteredPlugin {
   handlers: Map<string, (input: unknown, ctx: unknown) => Promise<unknown>>
 }
 
+const BUNDLED_CORE_PLUGIN_ID = "@executioncontrolprotocol/core"
+
 /**
  * Options for {@link LocalPluginRegistration}.
  * @category Plugins
@@ -98,6 +100,32 @@ export class LocalPluginRegistration implements PluginAdapter {
       }
 
       const { loaded } = result
+      if (
+        loaded.manifest.plugin.id === BUNDLED_CORE_PLUGIN_ID &&
+        this.registrations.some((item) => item.info.id === BUNDLED_CORE_PLUGIN_ID && item.info.manifestOk)
+      ) {
+        this.registrations.push({
+          info: {
+            package: loaded.packageName,
+            id: loaded.manifest.plugin.id,
+            version: loaded.packageVersion,
+            source: root.source,
+            capabilities: [],
+            loaded: false,
+            manifestOk: false,
+            issues: [
+              {
+                code: "ECP_PLUGIN_LOAD_FAILED",
+                severity: "error",
+                message: `Plugin ${BUNDLED_CORE_PLUGIN_ID} is bundled with the host; a duplicate install was ignored.`,
+                path: "",
+              },
+            ],
+          },
+          handlers: new Map(),
+        })
+        continue
+      }
       const duplicateIssues: ValidationIssue[] = []
       for (const capability of loaded.manifest.capabilities) {
         const owner = seenCapabilities.get(capability.id)
@@ -165,6 +193,8 @@ export class LocalPluginRegistration implements PluginAdapter {
           useCases: capability.useCases,
           projections: capability.projections,
           timeoutMs: capability.timeoutMs,
+          ...(capability.contract === undefined ? {} : { contract: capability.contract }),
+          ...(capability.code === undefined ? {} : { code: capability.code }),
         })
       }
     }

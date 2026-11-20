@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import path from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
@@ -39,6 +40,27 @@ import {
 import { LocalEditorSchemaFiles, type EditorSchemaWriteRef } from "./editor-schema-files.js"
 import { HttpApiEndpoint } from "./http/http-api-endpoint.js"
 import { generateHostToken } from "./token.js"
+
+const require = createRequire(import.meta.url)
+
+/**
+ * Absolute package root of the bundled core plugin (`@executioncontrolprotocol/plugin-core`).
+ * @category Host
+ */
+export function resolveBundledCorePluginRoot(): string {
+  return path.dirname(require.resolve("@executioncontrolprotocol/plugin-core/ecp.manifest.json"))
+}
+
+/**
+ * Prepend the bundled core plugin to host `extraPlugins`, without duplicating the same root.
+ * @category Host
+ */
+export function mergeCoreExtraPlugins(extraPlugins?: string[]): string[] {
+  const coreRoot = path.resolve(resolveBundledCorePluginRoot())
+  const merged = [...(extraPlugins ?? [])]
+  if (!merged.some((entry) => path.resolve(entry) === coreRoot)) merged.unshift(coreRoot)
+  return merged
+}
 
 /**
  * Options for {@link createLocalHost}.
@@ -109,6 +131,7 @@ export interface LocalHost extends Host {
 export async function createLocalHost(options: CreateLocalHostOptions): Promise<LocalHost> {
   const mode = options.mode ?? "in-process"
   const started = Date.now()
+  const extraPlugins = mergeCoreExtraPlugins(options.extraPlugins)
   await mkdir(options.home, { recursive: true })
 
   const writeTextFile = async (filePath: string, text: string): Promise<void> => {
@@ -127,7 +150,7 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     .use(LocalPluginRegistration as ServiceClass<PluginAdapterService>, PluginAdapter, {
       options: {
         dataDir: path.join(options.home, "plugins"),
-        extraPlugins: options.extraPlugins,
+        extraPlugins,
       },
     })
     .use(LocalStorage as ServiceClass<StorageProviderService>, StorageProvider)
@@ -158,7 +181,7 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
   const host = await env.start({
     home: options.home,
     mode,
-    extraPlugins: options.extraPlugins,
+    extraPlugins,
     logLevel: options.logLevel,
     defaultStepTimeoutMs: options.defaultStepTimeoutMs,
     defaultMaxConcurrency: options.defaultMaxConcurrency,

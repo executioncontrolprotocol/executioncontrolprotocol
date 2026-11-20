@@ -69,6 +69,15 @@ export const DEFAULT_FORMATTER_ID = "@executioncontrolprotocol/formatters.json"
 /** Expression evaluation budget in milliseconds. @category Definitions */
 export const EXPR_BUDGET_MS = 50
 
+/** Transform script evaluation budget in milliseconds. @category Definitions */
+export const TRANSFORM_BUDGET_MS = 1000
+
+/** Transform script memory cap in bytes. @category Definitions */
+export const TRANSFORM_MEMORY_BYTES = 32 * 1024 * 1024
+
+/** Transform script maximum JSON result size in bytes. @category Definitions */
+export const TRANSFORM_MAX_RESULT_BYTES = 4 * 1024 * 1024
+
 /** Maximum editor schema bytes returned inline on `retrieve` type `schema` with `include: ["document"]`. @category Definitions */
 export const SCHEMA_DOCUMENT_INLINE_MAX_BYTES = 262_144
 

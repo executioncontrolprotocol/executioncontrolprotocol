@@ -84,6 +84,8 @@ export interface HandlerContextInit {
   round?: number
   /** State snapshot at step start. */
   state: Record<string, unknown>
+  /** Step-level expression for `code: "expression"` capabilities. */
+  expression?: string
 }
 
 /**
@@ -141,6 +143,8 @@ export interface HandlerContext<Config = Record<string, unknown> | undefined> {
     /** Append one usage entry. */
     record(entry: { kind: string; amount: number; unit: string; detail?: unknown }): void
   }
+  /** Step `expression` for capabilities with `code: "expression"`. */
+  expression?: string
 }
 
 /**
@@ -182,6 +186,12 @@ export interface PluginCapabilityManifest {
   projections: string[]
   /** Step timeout in milliseconds. */
   timeoutMs?: number
+  /**
+   * `"step"` when the step declares `accepts` / `returns`; omitted means the capability schema is the contract.
+   */
+  contract?: "step"
+  /** How the host runs the step when {@link PluginCapabilityManifest.contract} is `"step"`. */
+  code?: "script" | "expression"
 }
 
 /**

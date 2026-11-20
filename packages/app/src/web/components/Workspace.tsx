@@ -263,6 +263,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               ) : (
                 <NodePanel
                   client={client}
+                  source={source}
+                  storedVersion={doc.storedVersion}
+                  draft={draftManifest}
+                  onDraftChange={(next) => {
+                    setDraftDiscardNote(undefined)
+                    setDraftManifest(next)
+                  }}
                   manifest={effectiveManifest}
                   executionPath={source.kind === "path" ? source.path : undefined}
                   node={selectedNode}
@@ -270,6 +277,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   issues={selectedId ? (nodeErrors[selectedId] ?? []) : []}
                   runStep={selectedId ? overlay.steps[selectedId] : undefined}
                   reloadKey={doc.loads}
+                  onUnauthorized={onUnauthorized}
                 />
               )
             ) : null}

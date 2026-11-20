@@ -16,12 +16,12 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 32 |
+| Plan / phases / spec | 33 |
 | Package READMEs | 10 |
-| Plugin READMEs | 4 |
+| Plugin READMEs | 5 |
 | Contributor skill | 4 |
-| Examples | 10 |
-| Other | 13 |
+| Examples | 11 |
+| Other | 14 |
 
 ## All files
 
@@ -81,6 +81,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `realignment/spec/12-testing-and-acceptance.md` | Plan / phases / spec | current |
 | `realignment/spec/README.md` | Plan / phases / spec | current |
 | `realignment/spikes/schema-scale/README.md` | Plan / phases / spec | current |
+| `realignment/transforms-and-typed-io.md` | Plan / phases / spec | current |
 | `packages/app/README.md` | Package READMEs | current |
 | `packages/cli/README.md` | Package READMEs | current |
 | `packages/engine/README.md` | Package READMEs | current |
@@ -94,6 +95,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `plugins/plugin-adobe-firefly-services/README.md` | Plugin READMEs | current |
 | `plugins/plugin-anthropic/README.md` | Plugin READMEs | current |
 | `plugins/plugin-azure-blob-storage/README.md` | Plugin READMEs | current |
+| `plugins/plugin-core/README.md` | Plugin READMEs | current |
 | `plugins/plugin-test/README.md` | Plugin READMEs | current |
 | `skills/ecp-core/SKILL.md` | Contributor skill | current |
 | `skills/ecp-core/references/examples.md` | Contributor skill | current |
@@ -108,10 +110,12 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/localize-banner/README.md` | Examples | current |
 | `examples/psd-generate-background/README.md` | Examples | current |
 | `examples/psd-layers/README.md` | Examples | current |
+| `examples/transform/README.md` | Examples | current |
 | `examples/weekly-brief/README.md` | Examples | current |
 | `.changeset/0.52.0-applied.md` | Other | current |
 | `.changeset/README.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
+| `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/host-auto-start.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |

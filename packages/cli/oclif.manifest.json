@@ -846,7 +846,7 @@
     "plugins:reset": {
       "aliases": [],
       "args": {},
-      "description": "Remove every linked and user-installed plugin under $ECP_DATA_DIR; optional --hard deletes node_modules and lockfiles.",
+      "description": "Remove linked and user-installed plugins under $ECP_DATA_DIR; the bundled core plugin stays loaded. Optional --hard deletes node_modules and lockfiles.",
       "enableJsonFlag": false,
       "examples": [
         {

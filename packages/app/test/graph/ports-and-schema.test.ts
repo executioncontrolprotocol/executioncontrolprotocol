@@ -135,6 +135,24 @@ describe("portsForStep", () => {
     expect(ports.inputs.find((p) => p.id === "o.inner")).toMatchObject({ binding: "script", scriptSource: "x" })
   })
 
+  it("prefers step accepts and returns over capability schemas", () => {
+    const ports = portsForStep(
+      {
+        id: "t",
+        uses: "@executioncontrolprotocol/core.transform",
+        accepts: { type: "object", properties: { name: { type: "string" } } },
+        returns: { type: "object", properties: { greeting: { type: "string" } } },
+      },
+      {
+        accepts: { type: "object", properties: { other: { type: "number" } } },
+        returns: { type: "object", properties: { ignored: { type: "boolean" } } },
+      },
+    )
+    expect(ports.inputs.map((p) => p.id)).toEqual(["name"])
+    expect(ports.outputs.some((p) => p.id === "greeting")).toBe(true)
+    expect(ports.outputs.some((p) => p.id === "ignored")).toBe(false)
+  })
+
   it("keeps a declared output port named output and types nested outputs", () => {
     const ports = portsForStep(
       { id: "s", uses: "@x/p.c" },

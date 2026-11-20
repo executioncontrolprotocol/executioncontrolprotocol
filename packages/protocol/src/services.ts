@@ -49,6 +49,15 @@ export interface ExpressionError extends Error {
 }
 
 /**
+ * Thrown when transform script evaluation fails. `code` is an `ECP_SCRIPT_*` catalogue code.
+ * @category Services
+ */
+export interface ScriptError extends Error {
+  /** Catalogue code. */
+  code: "ECP_SCRIPT_FAILED" | "ECP_SCRIPT_TIMEOUT" | "ECP_OUTPUT_INVALID"
+}
+
+/**
  * Reads manifests and calls capabilities. Must not import plugin code until `call`.
  * @category Services
  */
@@ -228,6 +237,11 @@ export interface ExpressionEngine extends Lifecycle {
    * Throws {@link ExpressionError}.
    */
   evaluate(source: string, state: unknown, kind: "control" | "value"): Promise<unknown>
+  /**
+   * Evaluate one transform script body against a frozen input object.
+   * Throws {@link ScriptError}.
+   */
+  evaluateScript(source: string, input: unknown): Promise<unknown>
 }
 
 /**
@@ -281,6 +295,15 @@ export interface HostSettings {
     /** Memory limit in bytes. Default 32 MiB. */
     memoryBytes: number
     /** Maximum JSON result size in bytes. Default 1 MiB. */
+    maxResultBytes: number
+  }
+  /** QuickJS limits for transform scripts (`code: "script"`). */
+  transform?: {
+    /** Evaluation budget in milliseconds. Default 1000. */
+    timeoutMs: number
+    /** Memory limit in bytes. Default 32 MiB. */
+    memoryBytes: number
+    /** Maximum JSON result size in bytes. Default 4 MiB. */
     maxResultBytes: number
   }
   /** Extra plugin roots for tests. */

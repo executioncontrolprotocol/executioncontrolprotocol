@@ -13,8 +13,8 @@ import type {
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
-import { HostSchemaSet, mapCapabilityInputIssues } from "../validate/validate.js"
-import { resolveValue, type ScriptReader } from "./resolve.js"
+import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
+import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
 
 /**
  * One line in an execute response.
@@ -89,6 +89,8 @@ export interface RunDependencies {
   store?: Pick<RunStore, "writeStep" | "writeState" | "appendEvent">
   /** Compiled schemas for run-time input and output checks. */
   schemas?: HostSchemaSet
+  /** Resolve a capability row when the run-time list does not already include it. */
+  lookupCapability?: (capabilityId: string) => CapabilityEntry | undefined
 }
 
 /**
@@ -129,6 +131,10 @@ interface NodeLike {
   uses?: string
   expr?: string
   input?: unknown
+  accepts?: Record<string, unknown>
+  returns?: Record<string, unknown>
+  script?: unknown
+  expression?: string
   as?: string
   mode?: string
   config?: string
@@ -344,7 +350,9 @@ async function runStep(
     }
   }
   runtime.steps.push(summary)
-  const capability = runtime.deps.capabilities.find((item) => item.id === node.uses)
+  const capability =
+    (node.uses ? runtime.deps.lookupCapability?.(node.uses) : undefined) ??
+    runtime.deps.capabilities.find((item) => item.id === node.uses)
   emit("step.start", { nodeId: node.id, round, capabilityId: node.uses })
   const staged: StagedWrite[] = []
   const store = createStore(staged)
@@ -354,9 +362,24 @@ async function runStep(
   const timer = setTimeout(() => timeout.abort(), timeoutMs)
   const signal = AbortSignal.any([runtime.controller.signal, timeout.signal])
   let resolvedInput: unknown = {}
+  let ranScript: string | undefined
+  let ranExpression: string | undefined
   try {
     resolvedInput = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
-    if (capability && runtime.schemas) {
+    const stepContract = capability?.contract === "step"
+    const stepAccepts = stepContract && node.accepts ? node.accepts : undefined
+    const stepReturns = stepContract && node.returns ? node.returns : undefined
+    if (runtime.schemas && stepAccepts) {
+      const inputErrors = runtime.schemas.validateStepAccepts(stepAccepts, resolvedInput)
+      if (inputErrors.length > 0) {
+        const issues = mapCapabilityInputIssues(inputErrors, `${stepPointer}/input`)
+        const first = issues[0]
+        throw Object.assign(new Error(first?.message ?? "Input is invalid."), {
+          code: "ECP_INPUT_INVALID",
+          path: first?.path ?? `${stepPointer}/input`,
+        })
+      }
+    } else if (capability && runtime.schemas) {
       const inputErrors = runtime.schemas.validateInput(capability, resolvedInput)
       if (inputErrors.length > 0) {
         const issues = mapCapabilityInputIssues(inputErrors, `${stepPointer}/input`)
@@ -370,27 +393,65 @@ async function runStep(
       assertSchema(capability.accepts, resolvedInput, "ECP_INPUT_INVALID")
     }
     const config = await resolveConfig(node, runtime.deps, runtime.secrets)
-    const output = await runtime.deps.call(
-      {
-        capabilityId: node.uses ?? "",
-        input: resolvedInput,
-        config,
-        context: { runId: runtime.runId, stepId: node.id, round, state },
+    let output: unknown
+    const scriptStep =
+      capability?.code === "script" ||
+      (capability?.contract === "step" && capability?.code !== "expression" && node.script !== undefined)
+    if (scriptStep) {
+      ranScript = await resolveStepScript(node.script, runtime.deps.readText, runtime.deps.executionDir)
+      output = await runtime.deps.expression.evaluateScript(ranScript, resolvedInput)
+    } else if (capability?.code === "expression") {
+      ranExpression = typeof node.expression === "string" ? node.expression : undefined
+      output = await runtime.deps.call(
+        {
+          capabilityId: node.uses ?? "",
+          input: resolvedInput,
+          config,
+          context: { runId: runtime.runId, stepId: node.id, round, state, expression: ranExpression },
+          store,
+          ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
+        },
+        signal,
         store,
-        ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
-      },
-      signal,
-      store,
-    )
+      )
+    } else {
+      output = await runtime.deps.call(
+        {
+          capabilityId: node.uses ?? "",
+          input: resolvedInput,
+          config,
+          context: { runId: runtime.runId, stepId: node.id, round, state },
+          store,
+          ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
+        },
+        signal,
+        store,
+      )
+    }
     if (!isJson(output)) throw Object.assign(new Error("Capability output is not JSON."), { code: "ECP_OUTPUT_INVALID" })
-    if (capability) assertSchema(capability.returns, output, "ECP_OUTPUT_INVALID")
+    if (output === undefined) {
+      throw Object.assign(new Error("Step output is not JSON."), { code: "ECP_OUTPUT_INVALID" })
+    }
+    if (runtime.schemas && stepReturns) {
+      const outputErrors = runtime.schemas.validateOutput(stepReturns, output)
+      if (outputErrors.length > 0) {
+        const issues = mapStepOutputIssues(outputErrors, stepPointer)
+        const first = issues[0]
+        throw Object.assign(new Error(first?.message ?? "Output is invalid."), {
+          code: "ECP_OUTPUT_INVALID",
+          path: first?.path ?? stepPointer,
+        })
+      }
+    } else if (capability && !stepContract) {
+      assertSchema(capability.returns, output, "ECP_OUTPUT_INVALID")
+    }
     const redacted = redact(output, runtime.secrets)
     applyStaged(state, staged, runtime.secrets)
     commitAs(state, node, redacted)
     summary.status = "completed"
     summary.durationMs = Date.now() - started
     emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
-    await persistStep(runtime, node, summary, resolvedInput, redacted, null)
+    await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression)
     await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
     summary.durationMs = Date.now() - started
@@ -403,19 +464,19 @@ async function runStep(
         path: stepPointer,
       }
       emit("step.error", { nodeId: node.id, round, error: issue })
-      await persistStep(runtime, node, summary, resolvedInput, null, issue)
+      await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression)
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
     }
     if (runtime.interrupted || runtime.controller.signal.aborted || signal.aborted) {
       summary.status = "cancelled"
-      await persistStep(runtime, node, summary, resolvedInput, null, null)
+      await persistStep(runtime, node, summary, resolvedInput, null, null, ranScript, ranExpression)
       if (runtime.interrupted) return
       throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
     const issue = toIssue(error, runtime.secrets, stepPointer)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
-    await persistStep(runtime, node, summary, resolvedInput, null, issue)
+    await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression)
     throw Object.assign(new Error(issue.message), {
       code: issue.code,
       path: issue.path,
@@ -546,6 +607,8 @@ async function persistStep(
   input: unknown,
   output: unknown,
   error: ValidationIssue | null,
+  script?: string,
+  expression?: string,
 ): Promise<void> {
   if (!runtime.deps.store) return
   const record: StepRecord = {
@@ -558,6 +621,8 @@ async function persistStep(
     error,
     startedAt: new Date().toISOString(),
     durationMs: summary.durationMs,
+    ...(script !== undefined ? { script } : {}),
+    ...(expression !== undefined ? { expression } : {}),
   }
   await runtime.deps.store.writeStep(runtime.runId, record)
 }

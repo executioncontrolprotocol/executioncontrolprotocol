@@ -225,7 +225,8 @@ export function portsForStep(
   step: StepNode,
   capabilitySchemas?: CapabilityIoSchemas,
 ): { inputs: ReactFlowPort[]; outputs: ReactFlowPort[] } {
-  const acceptsSchema = capabilitySchemas?.accepts
+  const acceptsSchema = step.accepts ?? capabilitySchemas?.accepts
+  const returnsSchema = step.returns ?? capabilitySchemas?.returns
   const inputHints = valueSchemasFromCapabilitySchema(acceptsSchema)
 
   const inputs: ReactFlowPort[] = []
@@ -243,7 +244,7 @@ export function portsForStep(
   applyInputBindings(inputs, step)
 
   const outputs: ReactFlowPort[] = []
-  const outputFields = flattenJsonSchemaProperties(capabilitySchemas?.returns)
+  const outputFields = flattenJsonSchemaProperties(returnsSchema)
   if (!outputFields.some((field) => field.name === OUTPUT_HANDLE_ID)) {
     outputs.push({
       id: OUTPUT_HANDLE_ID,

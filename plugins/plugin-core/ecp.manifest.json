@@ -1,0 +1,34 @@
+{
+  "capabilities": [
+    {
+      "code": "script",
+      "contract": "step",
+      "description": "Resolves step input, evaluates the step script in QuickJS, and returns JSON matching the step returns schema. The handler is not called.",
+      "id": "@executioncontrolprotocol/core.transform",
+      "name": "transform",
+      "projections": [
+        "Take the object your step returns schema describes"
+      ],
+      "summary": "Run a JavaScript transform in the host sandbox.",
+      "useCases": [
+        "Reshape data between capability steps without a domain plugin"
+      ]
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "249678a8d9be3f2177800563750ca45ad556b7415e6b2102f68a008b75ceecc3",
+  "plugin": {
+    "description": "Supplies step-contract capabilities so executions can declare accepts, returns and scripts on the step node.",
+    "id": "@executioncontrolprotocol/core",
+    "package": "@executioncontrolprotocol/plugin-core",
+    "summary": "Core transform and step-contract capabilities bundled with the host.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "4844207c0b15f248b61d85d930c9ff1d9e81a29ce7f92d362659be4cd6ac92c3",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "0.60.0",
+  "version": "2.0"
+}

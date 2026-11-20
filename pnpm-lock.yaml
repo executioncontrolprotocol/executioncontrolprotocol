@@ -248,6 +248,9 @@ importers:
       '@executioncontrolprotocol/local':
         specifier: workspace:*
         version: link:../local
+      '@executioncontrolprotocol/plugin-core':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-core
       '@executioncontrolprotocol/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -363,6 +366,15 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+
+  plugins/plugin-core:
+    devDependencies:
+      '@executioncontrolprotocol/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       zod:
         specifier: 'catalog:'
         version: 4.6.7

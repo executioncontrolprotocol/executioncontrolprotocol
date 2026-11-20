@@ -55,6 +55,8 @@ export const ERROR_CATALOGUE = {
   ECP_EXPR_FAILED: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_EXPR_TIMEOUT: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_EXPR_RESULT_INVALID: { httpStatus: null, exitCode: 1, kind: "runtime" },
+  ECP_SCRIPT_FAILED: { httpStatus: null, exitCode: 1, kind: "runtime" },
+  ECP_SCRIPT_TIMEOUT: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_PLUGIN_LOAD_FAILED: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_PROVIDER_ERROR: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_RUN_CANCELLED: { httpStatus: null, exitCode: 1, kind: "runtime" },

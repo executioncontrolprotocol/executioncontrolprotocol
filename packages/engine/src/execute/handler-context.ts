@@ -69,5 +69,6 @@ export function createHandlerContext<Config = Record<string, unknown> | undefine
     call: (capabilityId, input, callOptions) => options.deps.call(capabilityId, input, callOptions),
     logger: options.deps.logger,
     usage: options.deps.usage,
+    ...(options.init.expression === undefined ? {} : { expression: options.init.expression }),
   }
 }

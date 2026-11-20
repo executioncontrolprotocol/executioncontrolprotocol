@@ -1,6 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react"
-import { AlertTriangle, Box, FileCode2 } from "lucide-react"
-import type { CapabilityEntry, ExecutionManifest, StepNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { AlertTriangle, Box, FileCode2, Save } from "lucide-react"
+import type {
+  CapabilityEntry,
+  ExecutionManifest,
+  Node,
+  ScriptMarker,
+  StepNode,
+  ValidationIssue,
+} from "@executioncontrolprotocol/protocol"
 import { resolveScriptPath, UnauthorizedError, type AppHostClient } from "../../client/index.js"
 import {
   collectSteps,
@@ -10,15 +17,24 @@ import {
   type ReactFlowStepData,
   type RunGraphStep,
 } from "../../graph/index.js"
+import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 
 /**
  * Props for {@link NodePanel}.
  * @category App
  */
 export interface NodePanelProps {
-  /** Host client, for `$script.path` text. */
+  /** Host client, for `$script.path` text and saves. */
   client: AppHostClient
-  /** Open execution manifest. */
+  /** How the execution was opened (path vs id). */
+  source: ExecutionSource
+  /** Stored version for id-backed commits. */
+  storedVersion?: number
+  /** Draft manifest while editing; `undefined` when the panel is read-only. */
+  draft?: ExecutionManifest
+  /** Update or clear the workspace draft. */
+  onDraftChange: (manifest: ExecutionManifest | undefined) => void
+  /** Open execution manifest (includes unsaved draft). */
   manifest?: ExecutionManifest
   /** Execution file path, when opened by path (resolves relative script paths). */
   executionPath?: string
@@ -32,6 +48,8 @@ export interface NodePanelProps {
   runStep?: RunGraphStep
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
+  /** Switch the App to its unauthorised screen. */
+  onUnauthorized: () => void
 }
 
 function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode | undefined {
@@ -39,6 +57,27 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   const steps: StepNode[] = []
   collectSteps(manifest.steps, steps)
   return steps.find((step) => step.id === id)
+}
+
+function patchStep(
+  manifest: ExecutionManifest,
+  stepId: string,
+  patch: (step: StepNode) => StepNode,
+): ExecutionManifest {
+  const walk = (nodes: Node[]): Node[] =>
+    nodes.map((node) => {
+      if (node.type === "branch") {
+        return {
+          ...node,
+          branches: node.branches.map((arm) => ({ ...arm, steps: walk(arm.steps) })),
+        }
+      }
+      if (node.type === "loop") return { ...node, steps: walk(node.steps) }
+      if (node.type === "parallel") return { ...node, branches: node.branches.map((branch) => walk(branch)) }
+      if ((node as StepNode).id === stepId) return patch(node as StepNode)
+      return node
+    })
+  return { ...manifest, steps: walk(manifest.steps) }
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -61,7 +100,7 @@ function JsonBlock({ title, value, testId }: { title: string; value: unknown; te
   )
 }
 
-function ScriptText({ client, path, reloadKey }: { client: AppHostClient; path: string; reloadKey: number }) {
+function ReadOnlyFileBody({ client, path, reloadKey }: { client: AppHostClient; path: string; reloadKey: number }) {
   const [text, setText] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   useEffect(() => {
@@ -80,9 +119,83 @@ function ScriptText({ client, path, reloadKey }: { client: AppHostClient; path: 
   }, [client, path, reloadKey])
   if (error) return <p className="text-[11px] text-error">{error}</p>
   return (
-    <pre data-testid="node-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
+    <pre data-testid="node-input-script-file" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
       {text ?? "Loading…"}
     </pre>
+  )
+}
+
+function ScriptText({
+  client,
+  path,
+  reloadKey,
+  editable,
+  text,
+  onTextChange,
+  onSave,
+  saving,
+  saveError,
+}: {
+  client: AppHostClient
+  path: string
+  reloadKey: number
+  editable: boolean
+  text: string
+  onTextChange: (next: string) => void
+  onSave: () => void
+  saving: boolean
+  saveError?: string
+}) {
+  const [loadError, setLoadError] = useState<string | undefined>(undefined)
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let alive = true
+    setLoadError(undefined)
+    setLoaded(false)
+    client
+      .getFile(path)
+      .then((body) => {
+        if (!alive) return
+        setLoaded(true)
+        onTextChange(body)
+      })
+      .catch((caught: unknown) => {
+        if (!alive || caught instanceof UnauthorizedError) return
+        setLoadError(caught instanceof Error ? caught.message : String(caught))
+      })
+    return () => {
+      alive = false
+    }
+  }, [client, path, reloadKey, onTextChange])
+  if (loadError) return <p className="text-[11px] text-error">{loadError}</p>
+  if (!editable) {
+    return (
+      <pre data-testid="node-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
+        {loaded ? text : "Loading…"}
+      </pre>
+    )
+  }
+  return (
+    <div className="space-y-2">
+      <textarea
+        data-testid="node-script-editor"
+        className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+        value={text}
+        onChange={(event) => onTextChange(event.target.value)}
+        disabled={!loaded || saving}
+      />
+      {saveError ? <p className="text-[11px] text-error">{saveError}</p> : null}
+      <button
+        type="button"
+        data-testid="node-script-save"
+        className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
+        disabled={!loaded || saving}
+        onClick={onSave}
+      >
+        <Save className="h-3 w-3" aria-hidden="true" />
+        Save script file
+      </button>
+    </div>
   )
 }
 
@@ -128,7 +241,7 @@ function InputBinding({
         </pre>
       ) : null}
       {port.binding === "script" && port.scriptSource ? (
-        <pre data-testid="node-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
+        <pre data-testid="node-input-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
           {port.scriptSource}
         </pre>
       ) : null}
@@ -138,7 +251,7 @@ function InputBinding({
             <FileCode2 className="h-3 w-3" aria-hidden="true" />
             {scriptPath}
           </p>
-          <ScriptText client={client} path={scriptPath} reloadKey={reloadKey} />
+          <ReadOnlyFileBody client={client} path={scriptPath} reloadKey={reloadKey} />
         </div>
       ) : null}
     </li>
@@ -161,6 +274,213 @@ function IoPanel({ node, manifest }: { node: ReactFlowNode; manifest?: Execution
   )
 }
 
+function TransformCodePanel({
+  client,
+  source,
+  storedVersion,
+  manifest,
+  draft,
+  onDraftChange,
+  step,
+  capability,
+  reloadKey,
+  executionPath,
+  onUnauthorized,
+}: {
+  client: AppHostClient
+  source: ExecutionSource
+  storedVersion?: number
+  manifest: ExecutionManifest
+  draft?: ExecutionManifest
+  onDraftChange: (manifest: ExecutionManifest | undefined) => void
+  step: StepNode
+  capability?: CapabilityEntry
+  reloadKey: number
+  executionPath?: string
+  onUnauthorized: () => void
+}) {
+  const editable = source.kind === "path" || storedVersion !== undefined
+  const effective = draft ?? manifest
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | undefined>(undefined)
+  const code = capability?.code
+
+  const inlineScript = step.script?.$script.source ?? ""
+  const pathScript = step.script?.$script.path
+  const resolvedPath =
+    pathScript && executionPath ? resolveScriptPath(executionPath, pathScript) : pathScript
+  const [pathText, setPathText] = useState("")
+  const [sourceText, setSourceText] = useState(inlineScript)
+  const [expressionText, setExpressionText] = useState(step.expression ?? "")
+
+  useEffect(() => {
+    setSourceText(step.script?.$script.source ?? "")
+    setExpressionText(step.expression ?? "")
+  }, [step.script?.$script.source, step.expression, step.id])
+
+  const persistManifest = useCallback(
+    async (next: ExecutionManifest): Promise<boolean> => {
+      onDraftChange(next)
+      try {
+        if (source.kind === "path") {
+          await client.putFile(source.path, `${JSON.stringify(next, null, 2)}\n`)
+        } else if (storedVersion !== undefined) {
+          const response = await client.commit({
+            type: "execution",
+            action: "update",
+            object: next,
+            ifVersion: storedVersion,
+          })
+          if (!response.ok) {
+            setSaveError(response.error.message)
+            return false
+          }
+        } else {
+          setSaveError("Stored version is not loaded.")
+          return false
+        }
+        onDraftChange(undefined)
+        return true
+      } catch (error) {
+        if (error instanceof UnauthorizedError) onUnauthorized()
+        else setSaveError(error instanceof Error ? error.message : String(error))
+        return false
+      }
+    },
+    [client, onDraftChange, onUnauthorized, source, storedVersion],
+  )
+
+  const onSaveInlineScript = useCallback(() => {
+    if (code !== "script" || step.script?.$script.source === undefined) return
+    setSaving(true)
+    setSaveError(undefined)
+    void (async () => {
+      const marker: ScriptMarker = {
+        $script: { lang: "js", source: sourceText },
+      }
+      const next = patchStep(effective, step.id, (current) => ({ ...current, script: marker }))
+      await persistManifest(next)
+      setSaving(false)
+    })()
+  }, [code, effective, pathScript, persistManifest, sourceText, step.id])
+
+  const onSavePathScript = useCallback(() => {
+    if (!resolvedPath) return
+    setSaving(true)
+    setSaveError(undefined)
+    void (async () => {
+      try {
+        await client.putFile(resolvedPath, pathText.endsWith("\n") ? pathText : `${pathText}\n`)
+        setSaving(false)
+      } catch (error) {
+        if (error instanceof UnauthorizedError) onUnauthorized()
+        else setSaveError(error instanceof Error ? error.message : String(error))
+        setSaving(false)
+      }
+    })()
+  }, [client, onUnauthorized, pathText, resolvedPath])
+
+  const onSaveExpression = useCallback(() => {
+    if (code !== "expression") return
+    setSaving(true)
+    setSaveError(undefined)
+    void (async () => {
+      const next = patchStep(effective, step.id, (current) => ({ ...current, expression: expressionText }))
+      await persistManifest(next)
+      setSaving(false)
+    })()
+  }, [code, effective, expressionText, persistManifest, step.id])
+
+  if (code === "script") {
+    const hasInline = step.script?.$script.source !== undefined
+    const hasPath = Boolean(resolvedPath)
+    return (
+      <div className="space-y-3">
+        <p className="font-mono text-label uppercase text-on-surface-variant">Transform script</p>
+        {hasInline ? (
+          editable ? (
+            <div className="space-y-2">
+              <textarea
+                data-testid="node-transform-script"
+                className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+                value={sourceText}
+                onChange={(event) => setSourceText(event.target.value)}
+                disabled={saving}
+              />
+              {saveError ? <p className="text-[11px] text-error">{saveError}</p> : null}
+              <button
+                type="button"
+                data-testid="node-transform-script-save"
+                className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
+                disabled={saving || sourceText === inlineScript}
+                onClick={onSaveInlineScript}
+              >
+                <Save className="h-3 w-3" aria-hidden="true" />
+                Save script
+              </button>
+            </div>
+          ) : (
+            <pre className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
+              {inlineScript}
+            </pre>
+          )
+        ) : null}
+        {hasPath ? (
+          <ScriptText
+            client={client}
+            path={resolvedPath!}
+            reloadKey={reloadKey}
+            editable={editable}
+            text={pathText}
+            onTextChange={setPathText}
+            onSave={onSavePathScript}
+            saving={saving}
+            saveError={saveError}
+          />
+        ) : null}
+        {!hasInline && !hasPath ? (
+          <p className="text-[12px] text-on-surface-variant">This transform step has no script yet.</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (code === "expression") {
+    return (
+      <div className="space-y-2">
+        <p className="font-mono text-label uppercase text-on-surface-variant">Expression</p>
+        {editable ? (
+          <>
+            <textarea
+              data-testid="node-transform-expression"
+              className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+              value={expressionText}
+              onChange={(event) => setExpressionText(event.target.value)}
+              disabled={saving}
+            />
+            <button
+              type="button"
+              data-testid="node-transform-expression-save"
+              className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
+              disabled={saving || expressionText === (step.expression ?? "")}
+              onClick={onSaveExpression}
+            >
+              <Save className="h-3 w-3" aria-hidden="true" />
+              Save expression
+            </button>
+          </>
+        ) : (
+          <pre className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
+            {step.expression ?? ""}
+          </pre>
+        )}
+      </div>
+    )
+  }
+
+  return null
+}
+
 /**
  * Details of the selected node: capability, bindings (with script text), `expr`, config,
  * validation issues and the capability's `accepts` / `returns` schemas.
@@ -168,6 +488,10 @@ function IoPanel({ node, manifest }: { node: ReactFlowNode; manifest?: Execution
  */
 export function NodePanel({
   client,
+  source,
+  storedVersion,
+  draft,
+  onDraftChange,
   manifest,
   executionPath,
   node,
@@ -175,7 +499,15 @@ export function NodePanel({
   issues,
   runStep,
   reloadKey,
+  onUnauthorized,
 }: NodePanelProps) {
+  const stepContractSchemas = useMemo(() => {
+    if (!node || node.type === "ecp-io" || !manifest) return undefined
+    const step = findStep(manifest, node.id)
+    if (!step?.accepts && !step?.returns) return undefined
+    return { accepts: step.accepts, returns: step.returns }
+  }, [manifest, node])
+
   if (!node) {
     return (
       <section data-testid="node-panel" className="space-y-2 text-[12px] text-on-surface-variant">
@@ -216,6 +548,21 @@ export function NodePanel({
       {capability?.description ? (
         <p className="whitespace-pre-wrap text-[12px] text-on-surface-variant">{capability.description}</p>
       ) : null}
+      {step && manifest && capability?.contract === "step" ? (
+        <TransformCodePanel
+          client={client}
+          source={source}
+          storedVersion={storedVersion}
+          manifest={manifest}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          step={step}
+          capability={capability}
+          reloadKey={reloadKey}
+          executionPath={executionPath}
+          onUnauthorized={onUnauthorized}
+        />
+      ) : null}
       {issues.length > 0 ? (
         <ul className="space-y-2">
           {issues.map((issue, index) => (
@@ -246,7 +593,16 @@ export function NodePanel({
           <p className="text-[12px] text-on-surface-variant">This step takes no input.</p>
         )}
       </div>
-      {capability ? (
+      {stepContractSchemas ? (
+        <div className="space-y-2">
+          {stepContractSchemas.accepts ? (
+            <JsonBlock title="step accepts" value={stepContractSchemas.accepts} testId="node-step-accepts" />
+          ) : null}
+          {stepContractSchemas.returns ? (
+            <JsonBlock title="step returns" value={stepContractSchemas.returns} testId="node-step-returns" />
+          ) : null}
+        </div>
+      ) : capability ? (
         <div className="space-y-2">
           <JsonBlock title="accepts" value={capability.accepts} testId="node-accepts" />
           <JsonBlock title="returns" value={capability.returns} testId="node-returns" />

@@ -15,7 +15,7 @@ import { writeEnvelope } from "../../lib/output.js"
  */
 export default class PluginsReset extends Command {
   static override description =
-    "Remove every linked and user-installed plugin under $ECP_DATA_DIR; optional --hard deletes node_modules and lockfiles."
+    "Remove linked and user-installed plugins under $ECP_DATA_DIR; the bundled core plugin stays loaded. Optional --hard deletes node_modules and lockfiles."
 
   static override examples = [
     {
@@ -91,6 +91,7 @@ export default class PluginsReset extends Command {
         human: () => {
           if (removed.length === 0) this.log("No plugins to reset.")
           else for (const row of removed) this.log(`removed ${row.package} (${row.type})`)
+          this.log("Bundled core plugin (@executioncontrolprotocol/core) remains loaded with the host.")
         },
         exitCode: 0,
       },

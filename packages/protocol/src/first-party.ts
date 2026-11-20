@@ -7,6 +7,8 @@ export interface FirstPartyPlugin {
   readonly packageName: string
   /** Short name passed to `ecp plugins install`. */
   readonly short: string
+  /** When true, the host bundles the plugin and install is not suggested. */
+  readonly bundled?: boolean
 }
 
 /**
@@ -30,6 +32,11 @@ export const FIRST_PARTY_PLUGINS: Readonly<Record<string, FirstPartyPlugin>> = {
   "@executioncontrolprotocol/adobe-firefly-services": {
     packageName: "@executioncontrolprotocol/plugin-adobe-firefly-services",
     short: "adobe-firefly-services",
+  },
+  "@executioncontrolprotocol/core": {
+    packageName: "@executioncontrolprotocol/plugin-core",
+    short: "core",
+    bundled: true,
   },
 }
 
@@ -59,5 +66,6 @@ export function firstPartyPlugin(pluginId: string): FirstPartyPlugin | undefined
  */
 export function firstPartyInstallCommand(pluginId: string): string | undefined {
   const entry = FIRST_PARTY_PLUGINS[pluginId]
-  return entry === undefined ? undefined : `ecp plugins install ${entry.short}`
+  if (entry === undefined || entry.bundled) return undefined
+  return `ecp plugins install ${entry.short}`
 }

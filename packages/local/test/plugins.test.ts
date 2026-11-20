@@ -195,6 +195,24 @@ describe("LocalPluginRegistration", () => {
     await host.stop()
   })
 
+  it("ignores a duplicate install of bundled core", async () => {
+    const coreRoot = path.resolve(repoRoot, "plugins/plugin-core")
+    const host = await createEnvironment()
+      .use(LocalPluginRegistration, PluginAdapter, {
+        options: { extraPlugins: [coreRoot], linkedPlugins: [coreRoot] },
+      })
+      .start({ home: "/tmp/ecp" })
+    const adapter = host.services.get(PluginAdapter)
+    const plugins = adapter.plugins()
+    const coreRows = plugins.filter((row) => row.id === "@executioncontrolprotocol/core")
+    expect(coreRows.some((row) => row.manifestOk)).toBe(true)
+    expect(coreRows.some((row) => row.manifestOk === false && row.issues?.[0]?.message.includes("ignored"))).toBe(
+      true,
+    )
+    expect(adapter.capabilities().filter((row) => row.id.endsWith(".transform"))).toHaveLength(1)
+    await host.stop()
+  })
+
   it("detects duplicate capability ids across plugins", async () => {
     const dupRoot = path.join(tempRoot, "dup")
     await mkdir(path.join(dupRoot, "dist"), { recursive: true })

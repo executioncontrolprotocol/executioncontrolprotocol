@@ -82,6 +82,7 @@ export async function buildPluginSchemaDocument(
   for (const name of names) {
     const cap = definition.capabilities[name]
     if (!cap) continue
+    if (cap.contract === "step") continue
     defs[`${name}.accepts`] = zodToJsonSchema(cap.accepts, "input")
     defs[`${name}.returns`] = zodToJsonSchema(cap.returns, "output")
   }
@@ -176,6 +177,8 @@ function toCapabilityManifest(
     useCases: [...cap.useCases],
     projections: [...cap.projections],
     ...(cap.timeoutMs === undefined ? {} : { timeoutMs: cap.timeoutMs }),
+    ...(cap.contract === undefined ? {} : { contract: cap.contract }),
+    ...(cap.code === undefined ? {} : { code: cap.code }),
   }
 }
 

@@ -52,7 +52,7 @@ export function checkExpression(source: string): SyntaxFailure | undefined {
  */
 export function checkScript(source: string, ecmaVersion = 2020): SyntaxFailure | undefined {
   try {
-    parse(source, { ecmaVersion: ecmaVersion as 2020, allowReturnOutsideFunction: false })
+    parse(source, { ecmaVersion: ecmaVersion as 2020, allowReturnOutsideFunction: true })
     return undefined
   } catch (error) {
     return fromAcorn(error, "Script syntax is invalid.")
