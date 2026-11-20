@@ -20,7 +20,7 @@ export const expressCapabilities = {
       options: schemas.In_OneOf_ImageRenditionOptions_or_PdfRenditionOptions_or_VideoRenditionOptions.optional().describe("Options for the requested rendition."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_ExportRenditionResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("express-export-rendition")),
   }),

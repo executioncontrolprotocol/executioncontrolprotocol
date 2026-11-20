@@ -71,15 +71,18 @@ Non-HTTP capabilities (transforms, image processing) do not grow a `body` field.
 
 ## API capability outputs
 
-HTTP capabilities return the nested result document. Binding surfaces keep the whole object
-accessible and also list known **object primitives** as dotted ports. **Arrays stay one port.**
+Capabilities return **product-shaped** values: what the agent needs next, not the provider's job
+envelope. The host and App bind `$ref` to those shapes (typed ports).
 
-- After a successful async poll, if the JSON has a `result` object, that object **is** the
-  capability output. Drop `status`, `statusUrl`, `cancelUrl`, `jobId`, and poll timestamps.
-- Known primitives under objects are bindable dotted ports (`image.locator`, `version`).
-  Recurse objects; stop at arrays and file refs.
-- Arrays stay one port (`outputs`). Pick items with a `$ref` path
-  (`state.generate.outputs.0.image.url`) or a transform step that narrows the shape.
+- Media outputs are `FileRef`s with `mediaType` (for example `images.0`, `png`, `psd`). Multi-file
+  Photoshop outputs use path-safe tokens derived from the requested `outputs[].mediaType` (`png`,
+  `jpeg`, `psd`, …); each ref still carries `mediaType`.
+- JSON document capabilities (for example Photoshop manifest) return the document object, not
+  `outputs[0].content`.
+- After a successful async poll, drop job identifiers and status URLs; the plugin maps the final
+  API document to the product shape inside the handler.
+- Known primitives under objects are bindable dotted ports. Arrays stay one port (`images`);
+  bind `images.0` or add a transform step when you need a narrower shape.
 - Do not expose `statusUrl`, poll knobs, or job identifiers for the caller to poll. Poll
   internally. Optional poll timing belongs on plugin config, not capability inputs.
 - Capabilities that take a script for a remote runtime (for example Photoshop UXP) accept it as

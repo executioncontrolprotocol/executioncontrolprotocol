@@ -373,7 +373,7 @@ export const indesignCapabilities = {
       outputs: z.array(schemas.In_OutputAsset).optional(),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_succeededEvent,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("indesign-rendition-job")),
   }),

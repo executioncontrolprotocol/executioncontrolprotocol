@@ -28,7 +28,10 @@
       "type": "object",
       "properties": {
         "translation": { "type": "object" },
-        "banner": { "type": "object" }
+        "banner": {
+          "type": "object",
+          "description": "Photoshop Actions output: png url FileRef when outputs request image/png."
+        }
       }
     }
   },
@@ -121,9 +124,9 @@
       "config": "adobe-firefly-services/default",
       "input": {
         "image": {
-          "source": {
-            "url": { "$ref": "state.sourceImageUrl" }
-          }
+          "kind": "url",
+          "url": { "$ref": "state.sourceImageUrl" },
+          "mediaType": "image/vnd.adobe.photoshop"
         },
         "options": {
           "uxp": {

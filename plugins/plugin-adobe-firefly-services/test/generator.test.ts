@@ -13,6 +13,7 @@ import {
   loadFamilySpecs,
 } from "../scripts/lib/generate.mjs"
 import { assertAgentMetadata } from "../scripts/lib/metadata-prose.mjs"
+import { applyProductShape, classifyProductShape } from "../scripts/lib/product-shape.mjs"
 import { cleanDescription, resolveRefs, ZodEmitter } from "../scripts/lib/zod-emitter.mjs"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -326,5 +327,25 @@ describe("naming and metadata", () => {
     expect(long.length).toBeLessThanOrEqual(100)
     expect(long.endsWith(".")).toBe(true)
     expect(cleanDescription("x".repeat(50), 20)).toBe(`${"x".repeat(17)}...`)
+  })
+})
+
+describe("product-shape codegen", () => {
+  it("classifies image jobs, manifest, and photoshop multi-output", () => {
+    expect(classifyProductShape("firefly-generate-images-v3-async", { schema: { $ref: "#/components/schemas/JobResult" } })).toBe(
+      "image-job",
+    )
+    expect(classifyProductShape("photoshop-generate-manifest", { defaultManifestOutputs: true })).toBe("manifest")
+    expect(classifyProductShape("photoshop-create-composite", { schema: { $ref: "#/components/schemas/Result" } })).toBe(
+      "photoshop-multi",
+    )
+  })
+
+  it("emits FileRef returns for JobResult async capabilities", () => {
+    const emitter = new ZodEmitter(new Map(), { mode: "output" })
+    const resolved = { schema: { $ref: "#/components/schemas/JobResult" } }
+    const shaped = applyProductShape("firefly-generate-images-v3-async", "async-submit", {}, {}, resolved, emitter, "t")
+    expect(shaped.returnsZod).toContain("images: z.array")
+    expect(shaped.productShape).toEqual({ kind: "image-job", mediaArray: "images" })
   })
 })

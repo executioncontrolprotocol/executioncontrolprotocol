@@ -41,7 +41,7 @@ ecp execute psd-generate-background.ecp.json --input '{
 | `backgroundLayer` | no | `Background` |
 | `headlineLayer`, `subheadLayer` | no | `Headline`, `Subhead` |
 
-The result has `background.outputs[0].image.url` (the generated image, valid for an hour) and
+The result has `background.images.0` (a url `FileRef` for the generated image, valid for an hour) and
 `banner.outputs[]` with the hosted PNG and PSD URLs (`destination.url`, valid for a day). Verified with
 [`../localize-banner/fixtures/banner-with-text.psd`](../localize-banner/fixtures/banner-with-text.psd);
 running [`../psd-layers`](../psd-layers/README.md) on the output PSD shows the edited text layers.

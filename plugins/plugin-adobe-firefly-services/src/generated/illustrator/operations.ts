@@ -16,6 +16,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["input","output","settings"]},
     bodySchema: schemas.In_CreateRenditionRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
+    fileRefBodyFields: ["input","output","settings"],
   },
   "illustrator-data-merge": {
     method: "POST",
@@ -25,6 +27,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["data","template","fontFiles","settings","output"]},
     bodySchema: schemas.In_DataMergeRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
+    fileRefBodyFields: ["data","template","fontFiles","settings","output"],
   },
   "illustrator-execute-custom-script-capability": {
     method: "POST",
@@ -34,6 +38,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"path":["orgId","capabilityName"],"body":["assets","params"]},
     bodySchema: schemas.In_CustomScriptExecuteRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "illustrator-trace-image": {
     method: "POST",
@@ -43,6 +48,8 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["input","settings"]},
     bodySchema: schemas.In_VectorizeRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
+    fileRefBodyFields: ["input","settings"],
   },
 }
 

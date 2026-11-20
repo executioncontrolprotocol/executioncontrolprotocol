@@ -16,6 +16,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["id","pages","options"]},
     bodySchema: schemas.In_ExportRenditionRequest,
     bodyRequired: true,
+    productShape: {"kind":"url-blob"},
   },
   "express-generate-variation": {
     method: "POST",
@@ -25,6 +26,7 @@ export const operations: Record<string, AdobeOperation> = {
     parameters: {"body":["id","variationDetails"]},
     bodySchema: schemas.In_GenerateVariationRequest,
     bodyRequired: true,
+    productShape: {"kind":"passthrough"},
   },
   "express-tagged-document-details": {
     method: "GET",
@@ -32,6 +34,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://express-api.adobe.io",
     asyncMode: "none",
     parameters: {"path":["documentId"],"query":["start"]},
+    productShape: {"kind":"passthrough"},
   },
   "express-tagged-documents": {
     method: "GET",
@@ -39,6 +42,7 @@ export const operations: Record<string, AdobeOperation> = {
     serverUrl: "https://express-api.adobe.io",
     asyncMode: "none",
     parameters: {"query":["start","limit","sortBy"]},
+    productShape: {"kind":"passthrough"},
   },
 }
 

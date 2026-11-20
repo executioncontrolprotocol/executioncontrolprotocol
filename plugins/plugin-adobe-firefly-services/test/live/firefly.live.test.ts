@@ -16,10 +16,10 @@ describe.skipIf(!live || !clientId || !clientSecret)("adobe firefly (live)", () 
     )
 
     const result = (await handler({ prompt: "A small red paper boat on calm water, studio light", numVariations: 1 }, ctx)) as {
-      outputs: Array<{ image: { url: string } }>
+      images: Array<{ kind: string; url: string }>
     }
 
-    expect(result.outputs).toHaveLength(1)
-    expect(result.outputs[0]!.image.url).toMatch(/^https:\/\//)
+    expect(result.images).toHaveLength(1)
+    expect(result.images[0]!.url).toMatch(/^https:\/\//)
   }, 300_000)
 })

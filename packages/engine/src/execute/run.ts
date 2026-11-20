@@ -442,6 +442,16 @@ async function runStep(
           path: first?.path ?? stepPointer,
         })
       }
+    } else if (capability && runtime.schemas && capability.returns && !stepContract) {
+      const outputErrors = runtime.schemas.validateOutput(capability.returns, output)
+      if (outputErrors.length > 0) {
+        const issues = mapStepOutputIssues(outputErrors, stepPointer)
+        const first = issues[0]
+        throw Object.assign(new Error(first?.message ?? "Output is invalid."), {
+          code: "ECP_OUTPUT_INVALID",
+          path: first?.path ?? stepPointer,
+        })
+      }
     } else if (capability && !stepContract) {
       assertSchema(capability.returns, output, "ECP_OUTPUT_INVALID")
     }

@@ -14,17 +14,15 @@ const walk = (layers, parents) => {
     if (Array.isArray(layer.children)) walk(layer.children, [...parents, layer.name]);
   }
 };
-const first = ((input.manifest && input.manifest.outputs) || [])[0] || {};
-const content = first.content ?? (first.destination && first.destination.content);
-walk(first.layers || (content && content.layers), []);
-const document =
-  content && content.document
-    ? {
-        width: content.document.bounds.right - content.document.bounds.left,
-        height: content.document.bounds.bottom - content.document.bounds.top,
-        mode: content.document.imageMode,
-      }
-    : undefined;
+const manifest = input.manifest || {};
+walk(manifest.layers || [], []);
+const document = manifest.document
+  ? {
+      width: manifest.document.bounds.right - manifest.document.bounds.left,
+      height: manifest.document.bounds.bottom - manifest.document.bounds.top,
+      mode: manifest.document.imageMode,
+    }
+  : undefined;
 return {
   document,
   layers: out,

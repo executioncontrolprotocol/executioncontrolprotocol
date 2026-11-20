@@ -2,6 +2,7 @@
 /* Source: photoshop/photoshopv2-api.json */
 import { capability } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
+import { fileRefSchema } from "../../schemas.js"
 import * as schemas from "./schemas.js"
 
 /**
@@ -15,12 +16,12 @@ export const photoshopCapabilities = {
     useCases: ["Edit text layers, swap images or apply adjustments in a PSD with a UXP script","Replay a recorded Photoshop action set over an image"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      image: schemas.In_ImageSource.optional(),
+      image: fileRefSchema.optional(),
       options: schemas.In_ActionsOptions.optional(),
       outputs: z.array(schemas.In_OneOf_JpegOutput_and_5_more_21ce4a).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_Result,
+    returns: z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …)."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-actions")),
   }),
@@ -32,13 +33,13 @@ export const photoshopCapabilities = {
     accepts: z.strictObject({
       aspectRatio: z.union([schemas.In_AutoCropAspectRatio, z.array(schemas.In_AutoCropAspectRatio)]).optional().describe("Desired aspect ratio(s) for generated crops. Accepts either a single enum string or an array of up to 20 strings. Allowed only for 'smartCrop' and 'subjectCrop'. When omitted, the service defaults to 1:1. An empty array is treated as absent."),
       focus: z.array(z.string()).optional().describe("Focus labels, ordered by preference, used to prioritize objects during cropping or as detection targets. Required for 'subjectCrop' and 'objectDetection'; must be empty for 'smartCrop' and 'fullSceneDetection'."),
-      image: schemas.In_AutoCropInputImage.optional(),
+      image: fileRefSchema.optional(),
       mode: schemas.In_AutoCropMode.optional(),
       outputType: schemas.In_AutoCropOutputType.optional(),
       zoom: z.union([z.number(), z.array(z.number())]).optional().describe("Optional zoom level(s) paired with aspectRatio. Accepts either a number or an array of up to 20 numbers in (0, 1]. Must not be sent without aspectRatio. When aspectRatio is an array, zoom may be omitted or must be a matching non-empty array."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_Result,
+    returns: z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …)."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-auto-crop")),
   }),
@@ -53,7 +54,7 @@ export const photoshopCapabilities = {
       outputs: z.array(schemas.In_OneOf_JpegOutput_and_5_more_21ce4a).min(1).max(25).optional().describe("List of output asset details. Each output specifies destination and output options. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_Result,
+    returns: z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …)."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-create-artboard")),
   }),
@@ -61,15 +62,15 @@ export const photoshopCapabilities = {
     summary: "Create or edit a composite (Adobe Photoshop).",
     description: "Create or edit a composite (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
     useCases: ["Assemble layered composites from Smart Object definitions"],
-    projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
+    projections: ["Bind `png` and `psd` FileRefs (or other tokens matching your requested `outputs[].mediaType`)."],
     accepts: z.strictObject({
       edits: schemas.In_Edits.optional(),
       fontOptions: schemas.In_FontOptions.optional(),
-      image: schemas.In_OneOf_ImageParameters_or_ImageSource.optional(),
+      image: fileRefSchema.optional(),
       outputs: z.array(schemas.In_OneOf_JpegOutput_and_5_more_21ce4a).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_Result,
+    returns: z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …)."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-create-composite")),
   }),
@@ -80,11 +81,11 @@ export const photoshopCapabilities = {
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       edits: schemas.In_LightroomEdits.optional(),
-      image: schemas.In_EditImageInput.optional(),
+      image: fileRefSchema.optional(),
       outputs: z.array(schemas.In_OneOf_LrDngOutput_or_LrJpegOutput_or_LrPngOutput_or_XmpOutput).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_Result,
+    returns: z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …)."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-edit")),
   }),
@@ -92,11 +93,11 @@ export const photoshopCapabilities = {
     summary: "Generate a manifest for given input image (Adobe Photoshop).",
     description: "Generate a manifest for given input image (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
     useCases: ["Extract layer and text metadata from a PSD for templating workflows"],
-    projections: ["Read `outputs[0].content.layers` and `outputs[0].content.document` (or the same fields under `destination.content` when embedded JSON is used)."],
+    projections: ["Read `layers` and `document` from the manifest object (width, height from document bounds; layer names, types, ids and nested children)."],
     accepts: z.strictObject({
       exportOptions: schemas.In_OneOf_JpegExportOptions_or_PngExportOptions.optional(),
       extractSmartObjectData: z.boolean().optional().describe("Optional. Extract embedded smart objects and include presigned URLs in the manifest. Only applies to embedded (non-linked) smart objects. Default is false."),
-      image: schemas.In_Image.optional(),
+      image: fileRefSchema.optional(),
       includeLayerThumbnails: z.boolean().optional().describe("Optional. Indicates whether to generate renditions. Default is false."),
       includeXmp: z.boolean().optional().describe("Optional. Include the XMP metadata in the response."),
       maximumThumbnailDepth: z.number().int().min(0).optional().describe("Optional. Depth for layer renditions. If provided, must be greater than or equal to 0. 0 signifies no limit."),
@@ -107,7 +108,27 @@ export const photoshopCapabilities = {
       trimToTransparency: z.boolean().optional().describe("Optional. Trim the layer to remove the transparent pixels."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: z.looseObject({}),
+    returns: z.looseObject({
+  document: z.looseObject({
+    bounds: z.looseObject({
+      left: z.number().optional(),
+      top: z.number().optional(),
+      right: z.number().optional(),
+      bottom: z.number().optional()
+    }).optional(),
+    imageMode: z.string().optional()
+  }).optional().describe("Canvas metadata."),
+  layers: z.array(z.looseObject({
+    id: z.number().int().optional(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    visible: z.boolean().optional(),
+    children: z.array(z.looseObject({})).optional(),
+    text: z.looseObject({
+      content: z.string().optional()
+    }).optional()
+  })).optional().describe("Top-level layers; nested groups use children.")
+}),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-generate-manifest")),
   }),

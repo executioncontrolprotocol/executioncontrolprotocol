@@ -99,7 +99,11 @@ describe("async capability: firefly-generate-images-v3-async", () => {
       ctx,
     )
 
-    expect(result).toEqual({ outputs, size: { width: 1, height: 1 } })
+    expect(result).toMatchObject({
+      images: [{ kind: "url", url: "https://cdn.test/out.png", mediaType: "image/png" }],
+      seeds: [1],
+      size: { width: 1, height: 1 },
+    })
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
       `POST ${FIREFLY}/v3/images/generate-async`,
       `GET ${statusUrl}`,
@@ -173,14 +177,16 @@ describe("photoshop-actions", () => {
 
     const result = await handler(
       {
-        image: { source: { url: "https://store.test/in.psd" } },
+        image: { kind: "url", url: "https://store.test/in.psd" },
         options: { uxp: { source: { content: script } } },
         outputs: [{ destination: { url: "https://store.test/out.psd" }, mediaType: "image/vnd.adobe.photoshop" }],
       },
       makeCtx({ ...CONFIG, baseUrl: "https://proxy.test" }),
     )
 
-    expect(result).toEqual({ outputs: [{ destination: { url: "x" } }] })
+    expect(result).toMatchObject({
+      psd: { kind: "url", url: "x", mediaType: "image/vnd.adobe.photoshop" },
+    })
     expect(calls[0]!.url).toBe("https://proxy.test/v2/execute-actions")
     expect(calls[0]!.body).toMatchObject({ options: { uxp: { source: { content: script } } } })
     expect(calls[0]!.body).not.toHaveProperty("caiClaimVersion")
@@ -192,7 +198,7 @@ describe("photoshop-actions", () => {
     await expect(
       handler(
         {
-          image: { source: { url: "https://store.test/in.psd" } },
+          image: { kind: "url", url: "https://store.test/in.psd" },
           options: { uxp: { source: { content: "x".repeat(51_201) } } },
           outputs: [{ destination: { url: "https://store.test/o" }, mediaType: "image/png" }],
         },
@@ -211,9 +217,12 @@ describe("photoshop-generate-manifest", () => {
         : jsonResponse(200, { status: "succeeded", result: { outputs: [{ layers: [] }] } }),
     )
     const handler = await handlerFor("photoshop-generate-manifest")
-    const result = await handler({ image: { source: { url: "https://store.test/in.psd" } } }, makeCtx(CONFIG))
+    const result = await handler(
+      { image: { kind: "url", url: "https://store.test/in.psd" } },
+      makeCtx(CONFIG),
+    )
     expect(calls[0]!.body).toMatchObject({ outputs: [{ destination: { embedded: "json" }, mediaType: "application/json" }] })
-    expect(result).toEqual({ outputs: [{ layers: [] }] })
+    expect(result).toEqual({ layers: [] })
   })
 
   it("lifts destination.content onto outputs[i].content", async () => {
@@ -234,11 +243,8 @@ describe("photoshop-generate-manifest", () => {
           }),
     )
     const handler = await handlerFor("photoshop-generate-manifest")
-    const result = (await handler({ image: { source: { url: "https://store.test/in.psd" } } }, makeCtx(CONFIG))) as {
-      outputs: Array<Record<string, unknown>>
-    }
-    expect(result.outputs[0]?.content).toEqual({ layers, document })
-    expect((result.outputs[0]?.destination as { content: unknown }).content).toEqual({ layers, document })
+    const result = await handler({ image: { kind: "url", url: "https://store.test/in.psd" } }, makeCtx(CONFIG))
+    expect(result).toEqual({ layers, document })
   })
 
   it("parses embedded JSON strings and lifts each output independently", async () => {
@@ -256,11 +262,8 @@ describe("photoshop-generate-manifest", () => {
           }),
     )
     const handler = await handlerFor("photoshop-generate-manifest")
-    const result = (await handler({ image: { source: { url: "https://store.test/in.psd" } } }, makeCtx(CONFIG))) as {
-      outputs: Array<{ content: unknown }>
-    }
-    expect(result.outputs[0]?.content).toEqual({ layers: [{ id: 1 }] })
-    expect(result.outputs[1]?.content).toBe("{not-json")
+    const result = await handler({ image: { kind: "url", url: "https://store.test/in.psd" } }, makeCtx(CONFIG))
+    expect(result).toEqual({ layers: [{ id: 1 }] })
   })
 })
 

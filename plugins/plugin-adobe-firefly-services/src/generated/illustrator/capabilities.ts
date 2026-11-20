@@ -2,6 +2,7 @@
 /* Source: illustrator/illustrator-api-beta.json, illustrator/illustrator-api.json */
 import { capability } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
+import { fileRefSchema } from "../../schemas.js"
 import * as schemas from "./schemas.js"
 
 /**
@@ -15,12 +16,7 @@ export const illustratorCapabilities = {
     useCases: ["Export Illustrator artwork to PNG, PDF or other formats from cloud storage URLs"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      input: z.strictObject({
-        source: z.strictObject({
-          url: z.string().describe("The URL pointing to the Adobe Illustrator file. Only the following allow-listed domains can be used: amazonaws.com, windows.net, dropboxusercontent.com, assets.frame.io, storage.googleapis.com.")
-        }).describe("The source containing the Adobe Illustrator file."),
-        mediaType: schemas.In_CreateRenditionSourceMediaType.optional().describe("The media type of the source file. Optional, defaults to application/illustrator.")
-      }).optional().describe("The input object containing source and media type."),
+      input: fileRefSchema.optional().describe("The input object containing source and media type."),
       output: z.strictObject({
         mediaType: schemas.In_CreateRenditionOutputMediaType
       }).optional().describe("Output specification for the rendition operation with desired media type."),
@@ -31,7 +27,7 @@ export const illustratorCapabilities = {
       }).optional().describe("Settings for controlling the rendition process."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: schemas.Out_CreateRenditionJobApiResponse,
+    returns: z.looseObject({}).describe("Top-level url fields are promoted to url FileRefs where present."),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("illustrator-create-rendition")),
   }),
@@ -41,16 +37,8 @@ export const illustratorCapabilities = {
     useCases: ["Personalize Illustrator templates with rows from a CSV dataset"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      data: z.strictObject({
-        source: z.strictObject({
-          url: z.string().describe("The URL pointing to the resource. Only the following allow-listed domains can be used: amazonaws.com, windows.net, dropboxusercontent.com, assets.frame.io, storage.googleapis.com.")
-        }).describe("The source containing the CSV file with variable data. The media type defaults to `text/csv`.")
-      }).optional().describe("The data source containing variable data. Must be a CSV file."),
-      template: z.strictObject({
-        source: z.strictObject({
-          url: z.string().describe("The URL pointing to the resource. Only the following allow-listed domains can be used: amazonaws.com, windows.net, dropboxusercontent.com, assets.frame.io, storage.googleapis.com.")
-        }).describe("The source containing the Adobe Illustrator template file.")
-      }).optional().describe("The template source (Adobe Illustrator file)."),
+      data: fileRefSchema.optional().describe("The data source containing variable data. Must be a CSV file."),
+      template: fileRefSchema.optional().describe("The template source (Adobe Illustrator file)."),
       fontFiles: z.array(schemas.In_DataMergeFontFile).optional().describe("Optional array of font files to be used in the template. Supports .ttf and .otf font formats."),
       settings: z.strictObject({
         fontSettings: z.strictObject({
@@ -101,12 +89,7 @@ export const illustratorCapabilities = {
     useCases: ["Vectorize a PNG or JPEG logo or illustration for scalable output"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      input: z.strictObject({
-        source: z.strictObject({
-          url: z.string().describe("The URL pointing to the input raster file.")
-        }).describe("The source containing the raster file to vectorize."),
-        mediaType: schemas.In_VectorizeInputMediaType.describe("The media type of the source file.")
-      }).optional().describe("Input raster source and media type."),
+      input: fileRefSchema.optional().describe("Input raster source and media type."),
       settings: z.strictObject({
         preset: z.enum(["enhanced_general", "high_fidelity_photo"]).optional().describe("Vectorization preset. `enhanced_general` favors a clean, vector-style look. `high_fidelity_photo` favors photorealistic tracing. Omit to use the service default. Other values return 400.")
       }).optional().describe("Optional vectorization preset (`preset` only)."),
