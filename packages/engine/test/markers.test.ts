@@ -66,7 +66,7 @@ describe("validateWithMarkers (scale3 cases)", () => {
     ).toEqual([])
     expect(
       validateWithMarkers(validate, {
-        prompt: { $expr: "(s) => s.x" },
+        prompt: { $ref: "state.doc.prompt" },
         size: { $ref: "state.doc.size" },
         outputs: { $ref: "state.outs" },
       }),

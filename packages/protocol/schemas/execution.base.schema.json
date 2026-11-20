@@ -174,12 +174,9 @@
       },
       "then": { "$ref": "#/$defs/refValue" },
       "else": {
-        "if": { "type": "object", "required": ["$expr"] },
-        "then": { "$ref": "#/$defs/exprValue" },
+        "if": { "type": "object", "required": ["$state"] },
+        "then": { "$ref": "#/$defs/stateValue" },
         "else": {
-          "if": { "type": "object", "required": ["$state"] },
-          "then": { "$ref": "#/$defs/stateValue" },
-          "else": {
             "if": { "type": "object", "required": ["$script"] },
             "then": { "$ref": "#/$defs/scriptValue" },
             "else": {
@@ -191,7 +188,6 @@
                 "else": { "$ref": "#/$defs/plain" }
               }
             }
-          }
         }
       }
     },
@@ -204,12 +200,6 @@
         "optional": { "type": "boolean" },
         "fallback": {}
       }
-    },
-    "exprValue": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["$expr"],
-      "properties": { "$expr": { "type": "string", "minLength": 1 } }
     },
     "stateValue": {
       "type": "object",

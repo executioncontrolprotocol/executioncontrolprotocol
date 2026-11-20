@@ -5,8 +5,8 @@ Dogfood execution for Adobe Firefly Services + Anthropic (no `test.echo` steps):
 1. Optionally translate every string with `anthropic.generate` when `locale` is not `en`
    (model returns JSON `{ texts, headline }`).
 2. Run `adobe-firefly-services.photoshop-actions` with
-   `scripts/relabel-text-layers.uxp.js` (`$script.path`). `$expr` on the script params
-   parses the model JSON (or falls back to input `texts` / `headline`) and the UXP walks
+   `scripts/relabel-text-layers.uxp.js` (`$script.path`). A `core.transform` step parses the model JSON
+   (or falls back to input `texts` / `headline`) into `$ref` params; the UXP walks
    the document (including groups) rewriting **every** text layer by name.
 3. Return `translation` and `banner`.
 

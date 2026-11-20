@@ -322,7 +322,8 @@ describe("validation", () => {
       ] as ExecutionManifest["steps"]),
       { capabilities: [numberCap, stringCap] },
     )
-    expect(expr.issues.some((issue) => issue.code === "ECP_TYPE_MISMATCH")).toBe(false)
+    expect(expr.valid).toBe(false)
+    expect(expr.issues.some((issue) => issue.code === "ECP_EXPR_INVALID")).toBe(true)
 
     const unknown = await validateExecution(
       execution([

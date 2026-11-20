@@ -103,25 +103,26 @@ describe("portsForStep", () => {
       expr: "(state) => true",
       input: {
         a: "lit",
-        extra: { $expr: "(state) =>   state.q" },
+        extra: { nested: { $ref: "state.q" } },
         s: { $script: { lang: "js", path: "x.js", params: { p: { $ref: "state.k" } } } },
         both: { $script: { lang: "js", source: "1", path: "ignored-preview.js" } },
-        list: [{ $ref: "state.k.items" }, { $expr: "(s) => s.k" }, { $script: { lang: "js", source: "2" } }],
+        list: [{ $ref: "state.k.items" }, { $ref: "state.k" }, { $script: { lang: "js", source: "2" } }],
       },
     }
     const ports = portsForStep(step, {
       accepts: { type: "object", properties: { a: { type: "string" }, b: { type: "number" } }, required: ["a"] },
     })
     const byId = new Map(ports.inputs.map((p) => [p.id, p]))
-    expect([...byId.keys()]).toEqual(["a", "b", "extra", "s", "both", "list", "list.2", "list.0", "list.1", "expr"])
+    expect([...byId.keys()]).toEqual(["a", "b", "extra", "extra.nested", "s", "both", "list", "list.2", "list.0", "list.1", "expr"])
     expect(byId.get("a")).toMatchObject({ typeLabel: "string!", binding: "literal", valuePreview: "lit", valueSchema: { type: "string" } })
     expect(byId.get("b")?.binding).toBeUndefined()
-    expect(byId.get("extra")).toMatchObject({ binding: "expr", valuePreview: "(state) => state.q" })
+    expect(byId.get("extra")).toMatchObject({ binding: "literal" })
+    expect(byId.get("extra.nested")).toMatchObject({ binding: "ref", refPath: "q" })
     expect(byId.get("s")).toMatchObject({ binding: "script", scriptPath: "x.js" })
     expect(byId.get("both")).toMatchObject({ scriptSource: "1", scriptPath: "ignored-preview.js", valuePreview: "1" })
     expect(byId.get("list")).toMatchObject({ binding: "literal" })
     expect(byId.get("list.0")).toMatchObject({ binding: "ref", refPath: "k.items" })
-    expect(byId.get("list.1")).toMatchObject({ binding: "expr", exprSource: "(s) => s.k" })
+    expect(byId.get("list.1")).toMatchObject({ binding: "ref", refPath: "k" })
     expect(byId.get("list.2")).toMatchObject({ binding: "script", scriptSource: "2" })
     expect(byId.get("expr")).toMatchObject({ binding: "expr", exprSource: "(state) => true" })
   })

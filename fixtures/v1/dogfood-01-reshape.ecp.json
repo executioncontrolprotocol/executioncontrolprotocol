@@ -27,10 +27,39 @@
   "steps": [
     {
       "id": "Reshape",
-      "uses": "@executioncontrolprotocol/test.echo",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" }
+              }
+            }
+          }
+        },
+        "required": ["items"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "count": { "type": "integer" }
+        },
+        "required": ["title", "count"],
+        "additionalProperties": false
+      },
       "input": {
-        "value": {
-          "$expr": "(state) => ({ title: state.items[0].title, count: state.items.length })"
+        "items": { "$ref": "state.items" }
+      },
+      "script": {
+        "$script": {
+          "lang": "js",
+          "source": "return { title: input.items[0].title, count: input.items.length }"
         }
       },
       "as": "summary"

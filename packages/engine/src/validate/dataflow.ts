@@ -447,7 +447,7 @@ function visitValues(
 }
 
 function isMarker(value: Record<string, unknown>): boolean {
-  return "$ref" in value || "$expr" in value || "$state" in value || "$script" in value
+  return "$ref" in value || "$state" in value || "$script" in value
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

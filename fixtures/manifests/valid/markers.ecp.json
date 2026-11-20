@@ -11,6 +11,36 @@
       "as": "seed"
     },
     {
+      "id": "fromExpr",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "seed": { "type": "string" }
+        },
+        "required": ["seed"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" }
+        },
+        "required": ["value"],
+        "additionalProperties": false
+      },
+      "input": {
+        "seed": { "$ref": "state.seed.echo" }
+      },
+      "script": {
+        "$script": {
+          "lang": "js",
+          "source": "return { value: input.seed }"
+        }
+      },
+      "as": "fromExpr"
+    },
+    {
       "id": "marked",
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
@@ -19,8 +49,8 @@
           "optional": true,
           "fallback": "missing"
         },
-        "fromExpr": {
-          "$expr": "(state) => state.seed.echo"
+        "fromTransform": {
+          "$ref": "state.fromExpr.value"
         },
         "handle": {
           "$state": "bucket"

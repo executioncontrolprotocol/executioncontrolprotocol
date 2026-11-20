@@ -8,10 +8,8 @@
   "status": "completed",
   "result": {
     "summary": {
-      "echo": {
-        "title": "Widget",
-        "count": 2
-      }
+      "title": "Widget",
+      "count": 2
     }
   },
   "steps": [
@@ -26,5 +24,5 @@
     "step.end",
     "run.end"
   ],
-  "note": "Phase 8 retarget: jsonata.transform replaced by test.echo + $expr."
+  "note": "core.transform reshape of execution accepts items."
 }

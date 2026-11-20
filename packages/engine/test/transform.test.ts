@@ -243,6 +243,72 @@ describe("transform execution", () => {
     expect(outcome.error?.code).toBe("ECP_OUTPUT_INVALID")
   })
 
+  it("rejects inline $expr in step input", async () => {
+    const manifest: ExecutionManifest = {
+      schema: EXECUTION_SCHEMA,
+      version: EXECUTION_VERSION,
+      steps: [
+        {
+          id: "bad",
+          uses: echoCapability.id,
+          input: { value: { $expr: "(state) => 1" } },
+          as: "bad",
+        },
+      ],
+    }
+    const result = await validateExecution(manifest, { capabilities: [echoCapability] })
+    expect(result.valid).toBe(false)
+    expect(result.issues.some((issue) => issue.code === "ECP_EXPR_INVALID")).toBe(true)
+    expect(result.issues.some((issue) => issue.suggestions?.includes("Use a transform step. Data edges are $ref only."))).toBe(
+      true,
+    )
+  })
+
+  it("reports an inline $expr once, without a type mismatch on the marker", async () => {
+    const typed: CapabilityEntry = {
+      ...echoCapability,
+      accepts: { type: "object", properties: { value: { type: "string" } } },
+    }
+    const manifest: ExecutionManifest = {
+      schema: EXECUTION_SCHEMA,
+      version: EXECUTION_VERSION,
+      steps: [{ id: "bad", uses: typed.id, input: { value: { $expr: "(state) => 'x'" } }, as: "bad" }],
+    }
+    const result = await validateExecution(manifest, {
+      capabilities: [typed],
+      schemas: await HostSchemaSet.create([typed]),
+    })
+    expect(result.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ["ECP_EXPR_INVALID", "/steps/0/input/value/$expr"],
+    ])
+  })
+
+  it("rejects $expr nested under $script.params", async () => {
+    const manifest: ExecutionManifest = {
+      schema: EXECUTION_SCHEMA,
+      version: EXECUTION_VERSION,
+      steps: [
+        {
+          id: "uxp",
+          uses: echoCapability.id,
+          input: {
+            value: {
+              $script: {
+                lang: "js",
+                source: "1",
+                params: { n: { $expr: "(state) => 1" } },
+              },
+            },
+          },
+          as: "uxp",
+        },
+      ],
+    }
+    const result = await validateExecution(manifest, { capabilities: [echoCapability] })
+    expect(result.valid).toBe(false)
+    expect(result.issues.some((issue) => issue.path.includes("/$expr") && issue.code === "ECP_EXPR_INVALID")).toBe(true)
+  })
+
   it("records the script source on the step", async () => {
     const source = "return { greeting: 'stored' }"
     const manifest = transformManifest({

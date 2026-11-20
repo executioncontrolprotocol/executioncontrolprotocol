@@ -147,18 +147,22 @@ describe("route edges", () => {
 })
 
 describe("data edges and ports", () => {
-  it("markers: $ref, $expr and $script inputs bind ports; $ref and $expr reads draw edges", () => {
+  it("markers: $ref, transform output and $script inputs bind ports; $ref reads draw edges", () => {
     const doc = executionToReactFlow(load("markers.ecp.json"))
     const marked = step(doc, "marked")
     const byName = new Map(marked.inputs.map((p) => [p.name, p]))
     expect(byName.get("fromRef")).toMatchObject({ binding: "ref", refPath: "seed.echo", refOptional: true })
-    expect(byName.get("fromExpr")).toMatchObject({ binding: "expr", exprSource: "(state) => state.seed.echo" })
+    expect(byName.get("fromTransform")).toMatchObject({ binding: "ref", refPath: "fromExpr.value" })
     expect(byName.get("handle")).toMatchObject({ binding: "ref", refPath: "bucket" })
     expect(byName.get("script")).toMatchObject({ binding: "script", scriptSource: "1" })
 
     const edges = dataEdges(doc)
     expect(edges.find((e) => e.targetHandle === "fromRef")).toMatchObject({ source: "seed", target: "marked", sourceHandle: "echo" })
-    expect(edges.find((e) => e.targetHandle === "fromExpr")).toMatchObject({ source: "seed", target: "marked", sourceHandle: "output" })
+    expect(edges.find((e) => e.targetHandle === "fromTransform")).toMatchObject({
+      source: "fromExpr",
+      target: "marked",
+      sourceHandle: "value",
+    })
     expect(edges.some((e) => e.targetHandle === "handle")).toBe(false)
   })
 
@@ -199,10 +203,10 @@ describe("data edges and ports", () => {
     expect(translate.inputs.find((p) => p.id === "expr")).toMatchObject({ binding: "expr" })
   })
 
-  it("$expr reads resolve to the earlier writer's whole output", () => {
+  it("transform output feeds capability inputs through $ref edges", () => {
     const doc = executionToReactFlow(load("localize-banner.ecp.json"))
     const edge = dataEdges(doc).find((e) => e.target === "translate" && e.targetHandle === "prompt")
-    expect(edge).toMatchObject({ source: "doc", sourceHandle: "output" })
+    expect(edge).toMatchObject({ source: "prompt", sourceHandle: "prompt" })
   })
 
   it("$ref reads use the last earlier writer of the key", () => {
@@ -223,6 +227,14 @@ describe("data edges and ports", () => {
       ["localized", "localized"],
       ["banner", "banner"],
     ])
+  })
+
+  it("optional-fallback: expr gate port stays editable when the gate is false", () => {
+    const doc = executionToReactFlow(load("optional-fallback.ecp.json"))
+    expect(step(doc, "gated").inputs.find((p) => p.id === "expr")).toMatchObject({
+      binding: "expr",
+      exprSource: "(state) => false",
+    })
   })
 
   it("optional-fallback: gated step, then a ref to its key", () => {

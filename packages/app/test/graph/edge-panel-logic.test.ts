@@ -8,24 +8,7 @@ import {
   routeEdgeEditable,
 } from "../../src/graph/edge-panel-logic.js"
 
-const manifest: ExecutionManifest = {
-  schema: "@executioncontrolprotocol.execution",
-  version: "2.0",
-  steps: [
-    {
-      id: "step",
-      uses: "@executioncontrolprotocol/test.echo",
-      input: { value: { $expr: "(state) => state.ok" } },
-    },
-  ],
-}
-
 describe("applyDataEdgeDraft", () => {
-  it("updates the $expr source", () => {
-    const next = applyDataEdgeDraft(manifest, "step", { kind: "data", inputPath: "value", statePath: "ok" }, "(state) => false")
-    expect(next?.steps?.[0]).toMatchObject({ input: { value: { $expr: "(state) => false" } } })
-  })
-
   it("updates a step expr gate", () => {
     const gated: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -38,7 +21,8 @@ describe("applyDataEdgeDraft", () => {
 
   it("does not write a ref-only binding", () => {
     const refManifest: ExecutionManifest = {
-      ...manifest,
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
       steps: [{ id: "step", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.x" } } }],
     }
     expect(applyDataEdgeDraft(refManifest, "step", { kind: "data", inputPath: "value", statePath: "x" }, "nope")).toBeUndefined()
@@ -46,8 +30,8 @@ describe("applyDataEdgeDraft", () => {
 })
 
 describe("dataEdgeEditable", () => {
-  it("allows expr markers only", () => {
-    expect(dataEdgeEditable({ manifestPointer: "/x", validatePointer: "/x/$expr", markerKind: "expr" })).toBe(true)
+  it("allows step expr gates only", () => {
+    expect(dataEdgeEditable({ manifestPointer: "/x", validatePointer: "/x/$expr", markerKind: "expr" })).toBe(false)
     expect(dataEdgeEditable({ manifestPointer: "/x", validatePointer: "/x", markerKind: "ref", refPath: "state.x" })).toBe(false)
     expect(dataEdgeEditable({ manifestPointer: "/x", validatePointer: "/x", markerKind: "expr-gate" })).toBe(true)
   })

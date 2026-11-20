@@ -20,7 +20,7 @@ const manifest: ExecutionManifest = {
       input: {
         flat: { $ref: "state.seed", optional: true, fallback: "x" },
         nested: {
-          $expr: "(state) => state.doc.title",
+          $ref: "state.doc.title",
         },
       },
       as: "out",
@@ -52,11 +52,10 @@ describe("dataEdgeInspectorMeta", () => {
     expect(meta?.refPath).toBe("state.seed")
   })
 
-  it("reads $expr on a nested input path", () => {
+  it("reads $ref on a nested input path", () => {
     const meta = dataEdgeInspectorMeta(manifest, "reader", "nested")
-    expect(meta?.markerKind).toBe("expr")
-    expect(meta?.validatePointer).toMatch(/\/\$expr$/)
-    expect(meta?.exprSource).toContain("state.doc.title")
+    expect(meta?.markerKind).toBe("ref")
+    expect(meta?.refPath).toBe("state.doc.title")
   })
 
   it("returns undefined for a missing input path", () => {
@@ -142,29 +141,12 @@ describe("routeEdgeInspectorMeta", () => {
 })
 
 describe("replaceManifestPointer", () => {
-  it("replaces an $expr body", () => {
+  it("replaces a $ref target", () => {
     const pointer = inputManifestPointer(manifest, "reader", "nested")
     expect(pointer).toBeDefined()
-    const next = replaceManifestPointer(manifest, pointer!, { $expr: "(state) => 1" })
+    const next = replaceManifestPointer(manifest, pointer!, { $ref: "state.other" })
     const value = readManifestPointer(next, pointer!)
-    expect(value).toEqual({ $expr: "(state) => 1" })
-  })
-
-  it("replaces array entries under parallel branches", () => {
-    const parallel: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "parallel",
-          id: "p",
-          branches: [[{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: { $expr: "1" } } }]],
-        },
-      ],
-    }
-    const pointer = inputManifestPointer(parallel, "inner", "value")
-    const next = replaceManifestPointer(parallel, pointer!, { $expr: "2" })
-    expect(readManifestPointer(next, pointer!)).toEqual({ $expr: "2" })
+    expect(value).toEqual({ $ref: "state.other" })
   })
 })
 
@@ -206,7 +188,7 @@ describe("edge-manifest structure walks", () => {
         branches: [
           {
             expr: "(state) => state.on",
-            steps: [{ id: "armStep", uses: "@x/a", input: { v: { $expr: "(state) => state.a" } }, as: "a" }],
+            steps: [{ id: "armStep", uses: "@x/a", input: { v: { $ref: "state.a" } }, as: "a" }],
           },
         ],
       },
@@ -221,7 +203,7 @@ describe("edge-manifest structure walks", () => {
   }
 
   it("finds steps inside branch arms and loop bodies", () => {
-    expect(dataEdgeInspectorMeta(nested, "armStep", "v")?.exprSource).toBe("(state) => state.a")
+    expect(dataEdgeInspectorMeta(nested, "armStep", "v")?.refPath).toBe("state.a")
     expect(dataEdgeInspectorMeta(nested, "bodyStep", "w")?.refPath).toBe("state.a")
     // The step's own expr gate is found through the loop too.
     expect(dataEdgeInspectorMeta(nested, "bodyStep", "expr")?.exprSource).toBe("(state) => true")

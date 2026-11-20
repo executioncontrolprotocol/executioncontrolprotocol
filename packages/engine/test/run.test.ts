@@ -30,6 +30,19 @@ const schemaDocument = JSON.parse(
   readFileSync(path.join(root, "fixtures/plugins/fixture-plugin/ecp.schema.json"), "utf8"),
 ) as PluginSchemaDocument
 
+const coreTransform: CapabilityEntry = {
+  id: "@executioncontrolprotocol/core.transform",
+  plugin: "@executioncontrolprotocol/core",
+  package: "@executioncontrolprotocol/plugin-core",
+  pluginVersion: "0.0.0",
+  summary: "Transform",
+  description: "",
+  useCases: [],
+  projections: [],
+  contract: "step",
+  code: "script",
+}
+
 const capabilities: CapabilityEntry[] = manifest.capabilities.map((capability) => ({
   id: capability.id,
   plugin: manifest.plugin.id,
@@ -215,18 +228,36 @@ describe("run fixtures", () => {
         steps: [
           { id: "seed", uses: "@executioncontrolprotocol/test.echo", input: { value: "hi" }, as: "seed" },
           { id: "use", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.seed.echo" } }, as: "use" },
-          { id: "expr", uses: "@executioncontrolprotocol/test.echo", input: { value: { $expr: "(state) => state.seed.echo + '!'" } }, as: "expr" },
+          {
+            id: "expr",
+            uses: "@executioncontrolprotocol/core.transform",
+            accepts: {
+              type: "object",
+              properties: { seed: { type: "string" } },
+              required: ["seed"],
+              additionalProperties: false,
+            },
+            returns: {
+              type: "object",
+              properties: { value: { type: "string" } },
+              required: ["value"],
+              additionalProperties: false,
+            },
+            input: { seed: { $ref: "state.seed.echo" } },
+            script: { $script: { lang: "js", source: "return { value: input.seed + '!' }" } },
+            as: "expr",
+          },
           { id: "opt", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.missing", optional: true, fallback: "fb" } }, as: "opt" },
           { id: "script", uses: "@executioncontrolprotocol/test.bounded", input: { text: { $script: { lang: "js", source: "1" } } }, as: "script" },
           { id: "stage", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "doc.history" }, op: "append", value: "note" }, as: "staged" },
         ],
       },
       {},
-      { capabilities, call: invoke, expression: engine },
+      { capabilities: [...capabilities, coreTransform], call: invoke, expression: engine },
     )
     expect(resolved.status).toBe("completed")
     expect(resolved.result.use).toEqual({ echo: "hi" })
-    expect(resolved.result.expr).toEqual({ echo: "hi!" })
+    expect(resolved.result.expr).toEqual({ value: "hi!" })
     expect(resolved.result.opt).toEqual({ echo: "fb" })
     expect(resolved.result.script).toEqual({ text: "const params = {};\n1" })
     expect(resolved.result.doc).toEqual({ history: ["note"] })
@@ -309,7 +340,9 @@ describe("run fixtures", () => {
     await expect(resolveValue([{ $ref: "state.missing", optional: true }], state, engine)).resolves.toEqual([null])
     await expect(resolveValue({ $ref: "state.nope" }, state, engine)).rejects.toMatchObject({ code: "ECP_REF_UNRESOLVED" })
     await expect(resolveValue({ $ref: "not-a-path" }, state, engine)).rejects.toMatchObject({ code: "ECP_REF_UNRESOLVED" })
-    await expect(resolveValue({ $expr: "(state) => state.seed.echo" }, state, engine)).resolves.toBe("hi")
+    await expect(resolveValue({ $expr: "(state) => state.seed.echo" }, state, engine)).resolves.toEqual({
+      $expr: "(state) => state.seed.echo",
+    })
     await expect(resolveValue({ $state: "bucket" }, state, engine)).resolves.toEqual({ $state: "bucket" })
     await expect(resolveValue({ keep: 1, drop: { $ref: "state.missing", optional: true } }, state, engine)).resolves.toEqual({ keep: 1 })
     await expect(resolveValue({ $script: { lang: "js", source: "1", params: { n: { $ref: "state.seed.echo" } } } }, state, engine)).resolves.toContain('"n":"hi"')

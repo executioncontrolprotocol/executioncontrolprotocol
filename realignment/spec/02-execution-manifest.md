@@ -34,9 +34,15 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 ### Step
 
 ```json
+{ "id": "prompt", "uses": "@executioncontrolprotocol/core.transform",
+  "accepts": { "type": "object", "properties": { "headline": { "type": "string" } }, "required": ["headline"] },
+  "returns": { "type": "object", "properties": { "prompt": { "type": "string" } }, "required": ["prompt"] },
+  "input": { "headline": { "$ref": "state.doc.echo.headline" } },
+  "script": { "$script": { "lang": "js", "source": "return { prompt: `Translate: ${input.headline}` }" } },
+  "as": "prompt" },
 { "id": "translate", "label": "Translate headline", "uses": "@executioncontrolprotocol/anthropic.generate",
   "config": "anthropic/default", "expr": "(state) => state.locale !== 'en'",
-  "input": { "prompt": { "$expr": "(state) => `Translate: ${state.doc.headline}`" } },
+  "input": { "prompt": { "$ref": "state.prompt.prompt" } },
   "as": "translation", "mode": "replace" }
 ```
 
@@ -125,7 +131,6 @@ keys is always a marker; other keys besides the listed ones are errors):
 | --- | --- | --- |
 | Ref | `{ "$ref": "state.<path>", "optional"?: true, "fallback"?: <json> }` | The value at that state path. Missing + `optional` → `fallback` if given, otherwise the property is omitted |
 | State handle | `{ "$state": "<path>" }` | A handle object passed to the capability for staged writes (`ctx.store`) |
-| Expression | `{ "$expr": "<function source>" }` | The JSON value returned by the function, evaluated in QuickJS with the state |
 | Script | `{ "$script": { "lang": "js", "source"?: "<code>", "path"?: "<file>", "params"?: { … }, "ecmaVersion"?: 2020 } }` | A string: `const params = <JSON>;\n` + the script text. Never executed by ECP |
 
 Path syntax: `state` followed by one or more segments; a segment is a property name
@@ -138,7 +143,7 @@ Path syntax: `state` followed by one or more segments; a segment is a property n
 - `path` is resolved relative to the directory of the execution file (file-referenced
   executions) or of the stored execution (`commit`-saved executions). Inline executions sent
   over MCP/HTTP can only use absolute paths. The file MUST exist and be UTF-8.
-- `params` values may be literals, `$ref` or `$expr` (resolved first, recursively). The
+- `params` values may be literals or `$ref` (resolved first, recursively). The
   serialised params object MUST be JSON (no `undefined`, functions, `NaN`).
 - The script text is parsed (never run) with acorn as a `script` (`ecmaVersion` default 2020,
   `allowReturnOutsideFunction: false`); failure → `ECP_SCRIPT_INVALID` with line and column
@@ -166,5 +171,5 @@ into a config object (05).
 
 `fixtures/manifests/valid/localize-banner.ecp.json` (written in Phase 0) uses every feature:
 accepts/returns, sequence, `$ref` with `optional`/`fallback`, gated step, branch with default
-arm, parallel, loop, all commit modes, `$state`, `$expr`, `$script` by `path` and by `source`,
+arm, parallel, loop, all commit modes, `$state`, transforms, `$script` by `path` and by `source`,
 and `config` on steps.

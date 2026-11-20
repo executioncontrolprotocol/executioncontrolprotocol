@@ -29,6 +29,8 @@ import {
   type MarkerAjvError,
 } from "./markers.js"
 
+const INPUT_EXPR_SUGGESTION = "Use a transform step. Data edges are $ref only."
+
 /**
  * Light-manifest schema fingerprint for {@link HostSchemaSet} `schemaHash`.
  * @category Validation
@@ -615,6 +617,9 @@ async function checkCapabilityInputs(
           const acceptsLabel = stepContract ? "step accepts" : "capability accepts"
           for (const error of rawErrors) {
             const relative = ajvPointer(error)
+            const value = readPointer(input, relative === "/" ? "" : relative)
+            // An inline $expr is already reported as ECP_EXPR_INVALID; a type mismatch on it is noise.
+            if (isRecord(value) && "$expr" in value) continue
             const fullPath = relative === "/" ? inputPath : `${inputPath}${relative === "" ? "" : relative}`
             issues.push({
               code: "ECP_INPUT_INVALID",
@@ -648,12 +653,31 @@ async function checkCapabilityInputs(
   return issues
 }
 
+function inputExprIssue(manifest: unknown, errorPath: string): ValidationIssue | undefined {
+  const candidates = [errorPath, errorPath.replace(/\/[^/]+$/, "") || "/"]
+  for (const candidate of candidates) {
+    const value = readPointer(manifest, candidate)
+    if (isRecord(value) && typeof value.$expr === "string") {
+      return {
+        code: "ECP_EXPR_INVALID",
+        severity: "error",
+        message: "Inline $expr is not allowed in step input.",
+        path: `${candidate}/$expr`,
+        suggestions: [INPUT_EXPR_SUGGESTION],
+      }
+    }
+  }
+  return undefined
+}
+
 function mapAjvErrors(errors: AjvError[], manifest: unknown, capabilities: readonly CapabilityEntry[]): ValidationIssue[] {
   const ids = capabilities.map((capability) => capability.id)
   const noisy = new Set(["if", "then", "else", "allOf"])
   const kept = errors.filter((error) => !noisy.has(error.keyword))
   return (kept.length > 0 ? kept : errors).map((error) => {
     const path = ajvPointer(error)
+    const inputExpr = inputExprIssue(manifest, path)
+    if (inputExpr) return inputExpr
     const uses = path.endsWith("/uses") && (error.keyword === "enum" || error.keyword === "const")
     const input = path.includes("/input") && !path.endsWith("/uses") && error.keyword !== "false"
     let code: ValidationIssue["code"] = "ECP_MANIFEST_INVALID"
@@ -941,8 +965,14 @@ async function checkScripts(
   }
   if (!isRecord(value)) return
   if (typeof value.$expr === "string") {
-    const failure = checkExpression(value.$expr)
-    if (failure) issues.push(syntaxIssue("ECP_EXPR_INVALID", `${pointer}/$expr`, failure, nodeId))
+    issues.push({
+      code: "ECP_EXPR_INVALID",
+      severity: "error",
+      message: "Inline $expr is not allowed in step input.",
+      path: `${pointer}/$expr`,
+      nodeId,
+      suggestions: [INPUT_EXPR_SUGGESTION],
+    })
   }
   if (isRecord(value.$script)) {
     const script = value.$script
@@ -1023,7 +1053,7 @@ function markerValue(manifest: unknown, pointer: string): boolean {
   const candidates = [pointer, pointer.split("/").slice(0, -1).join("/")]
   return candidates.some((candidate) => {
     const value = readPointer(manifest, candidate || "/")
-    return isRecord(value) && ("$ref" in value || "$expr" in value || "$state" in value || "$script" in value || "$secret" in value || "$env" in value)
+    return isRecord(value) && ("$ref" in value || "$state" in value || "$script" in value || "$secret" in value || "$env" in value)
   })
 }
 

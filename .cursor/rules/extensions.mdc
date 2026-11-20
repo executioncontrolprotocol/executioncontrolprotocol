@@ -79,7 +79,7 @@ accessible and also list known **object primitives** as dotted ports. **Arrays s
 - Known primitives under objects are bindable dotted ports (`image.locator`, `version`).
   Recurse objects; stop at arrays and file refs.
 - Arrays stay one port (`outputs`). Pick items with a `$ref` path
-  (`state.generate.outputs.0.image.url`) or an `$expr`.
+  (`state.generate.outputs.0.image.url`) or a transform step that narrows the shape.
 - Do not expose `statusUrl`, poll knobs, or job identifiers for the caller to poll. Poll
   internally. Optional poll timing belongs on plugin config, not capability inputs.
 - Capabilities that take a script for a remote runtime (for example Photoshop UXP) accept it as

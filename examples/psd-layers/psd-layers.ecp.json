@@ -22,12 +22,40 @@
       "properties": {
         "psd": {
           "type": "object",
-          "description": "echo.document (width, height, mode), echo.layers (flat list with name, type, id, group path, depth, visible, and text for text layers), echo.names (in document order), echo.count."
+          "description": "document (width, height, mode), layers (flat list with name, type, id, group path, depth, visible, and text for text layers), names (in document order), and count."
         }
       }
     }
   },
   "steps": [
+    {
+      "id": "blob",
+      "label": "Build the blob name",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "psdPath": { "type": "string" }
+        },
+        "required": ["psdPath"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "blobName": { "type": "string" }
+        },
+        "required": ["blobName"],
+        "additionalProperties": false
+      },
+      "input": {
+        "psdPath": { "$ref": "state.psdPath" }
+      },
+      "script": {
+        "$script": { "lang": "js", "path": "scripts/blob-name.js" }
+      },
+      "as": "blob"
+    },
     {
       "id": "upload",
       "label": "Upload the PSD and sign a read URL",
@@ -42,7 +70,7 @@
           "mediaType": "image/vnd.adobe.photoshop"
         },
         "blobName": {
-          "$expr": "(state) => `psd-layers/${Date.now()}-${String(state.psdPath).split(/[\\\\/]/).pop()}`"
+          "$ref": "state.blob.blobName"
         },
         "contentType": "image/vnd.adobe.photoshop",
         "createReadSas": true
@@ -80,11 +108,31 @@
     {
       "id": "collect",
       "label": "Flatten the layer tree",
-      "uses": "@executioncontrolprotocol/test.echo",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "manifest": { "type": "object" }
+        },
+        "required": ["manifest"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "document": { "type": "object" },
+          "layers": { "type": "array" },
+          "names": { "type": "array", "items": { "type": "string" } },
+          "count": { "type": "integer" }
+        },
+        "required": ["layers", "names", "count"],
+        "additionalProperties": false
+      },
       "input": {
-        "value": {
-          "$expr": "(state) => { const out = []; const walk = (layers, parents) => { for (const layer of layers || []) { const row = { name: layer.name, type: layer.type, id: layer.id, path: [...parents, layer.name].join(' / '), depth: parents.length, visible: layer.visible }; if (layer.text && typeof layer.text.content === 'string') row.text = layer.text.content; out.push(row); if (Array.isArray(layer.children)) walk(layer.children, [...parents, layer.name]); } }; const first = ((state.manifest && state.manifest.outputs) || [])[0] || {}; const content = first.content ?? (first.destination && first.destination.content); walk(first.layers || (content && content.layers), []); return { document: content && content.document ? { width: content.document.bounds.right - content.document.bounds.left, height: content.document.bounds.bottom - content.document.bounds.top, mode: content.document.imageMode } : undefined, layers: out, names: out.map((layer) => layer.name), count: out.length }; }"
-        }
+        "manifest": { "$ref": "state.manifest" }
+      },
+      "script": {
+        "$script": { "lang": "js", "path": "scripts/layer-names.js" }
       },
       "as": "psd"
     }

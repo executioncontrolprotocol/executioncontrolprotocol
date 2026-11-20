@@ -59,6 +59,8 @@ function loadCapabilities(): {
         useCases: capability.useCases,
         projections: capability.projections,
         timeoutMs: capability.timeoutMs,
+        ...(capability.contract ? { contract: capability.contract } : {}),
+        ...(capability.code ? { code: capability.code } : {}),
       })
     }
   }
@@ -188,7 +190,7 @@ describe("scale path regression", () => {
     })
     const seen = JSON.stringify(result.issues, null, 1)
     expect(result.issues.map((issue) => `${issue.code} ${issue.path}`), seen).toEqual([
-      "ECP_CONFIG_UNKNOWN /steps/1/config",
+      "ECP_CONFIG_UNKNOWN /steps/2/config",
     ])
   }, 30_000)
 
