@@ -230,6 +230,10 @@ export interface StepRecord {
   endedAt?: string
   /** Wall time in milliseconds. */
   durationMs?: number
+  /** Transform script source that ran, when the step used `code: "script"`. */
+  script?: string
+  /** Transform expression that ran, when the step used `code: "expression"`. */
+  expression?: string
   /** Staged writes applied because the step succeeded. */
   staged?: StagedWritePreview[]
 }
@@ -342,6 +346,12 @@ export interface CapabilityEntry {
   configSchema?: Record<string, unknown>
   /** Step timeout in milliseconds. */
   timeoutMs?: number
+  /**
+   * `"step"` when the step declares `accepts` / `returns`; omitted means the capability schema is the contract.
+   */
+  contract?: "step"
+  /** How the host runs the step when {@link CapabilityEntry.contract} is `"step"`. */
+  code?: "script" | "expression"
 }
 
 /**

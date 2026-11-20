@@ -27,6 +27,36 @@ export class ResolveError extends Error {
 export type ScriptReader = (absolutePath: string) => Promise<string>
 
 /**
+ * Read a step-level transform `$script` marker to source text (no UXP `params` prefix).
+ * @category Environment
+ */
+export async function resolveStepScript(
+  value: unknown,
+  readText?: ScriptReader,
+  executionDir?: string,
+): Promise<string> {
+  if (!isRecord(value) || !isRecord(value.$script)) {
+    throw new ResolveError("ECP_SCRIPT_INVALID", "Transform step requires script.")
+  }
+  const script = value.$script
+  let source = typeof script.source === "string" ? script.source : undefined
+  if (source === undefined && typeof script.path === "string") {
+    const absolute = resolvePath(executionDir, script.path)
+    if (!absolute || !readText) throw new ResolveError("ECP_SCRIPT_INVALID", `Script file ${script.path} cannot be read.`)
+    try {
+      source = await readText(absolute)
+    } catch {
+      throw new ResolveError("ECP_SCRIPT_INVALID", `Script file ${script.path} was not found.`)
+    }
+  }
+  if (source === undefined) throw new ResolveError("ECP_SCRIPT_INVALID", "Script must set source or path.")
+  const version = typeof script.ecmaVersion === "number" ? script.ecmaVersion : 2020
+  const failure = checkScript(source, version)
+  if (failure) throw new ResolveError("ECP_SCRIPT_INVALID", failure.message)
+  return source
+}
+
+/**
  * Resolve markers in a step input. `$state` handles pass through unchanged.
  * @category Environment
  */

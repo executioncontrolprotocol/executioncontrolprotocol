@@ -94,6 +94,18 @@ export interface StepNode {
   expr?: string
   /** Input, validated against the capability `accepts` after markers resolve. */
   input?: Record<string, JsonValue | ValueMarker>
+  /**
+   * Step input contract (JSON Schema). Used when the capability `contract` is `"step"`.
+   */
+  accepts?: Record<string, unknown>
+  /**
+   * Step output contract (JSON Schema). Used when the capability `contract` is `"step"`.
+   */
+  returns?: Record<string, unknown>
+  /** Transform script (`code: "script"`). Syntax-checked at validation; run in QuickJS. */
+  script?: ScriptMarker
+  /** JSONata or other expression source (`code: "expression"`). */
+  expression?: string
   /** State key for the output. */
   as?: string
   /** Commit mode. Requires `as`. */

@@ -83,7 +83,8 @@ export function generateEditorRootSchema(capabilities: readonly CapabilityEntry[
     errorMessage:
       "Unknown capability id. Use completion here, or run `ecp retrieve --type capability` to list installed capabilities.",
   }
-  step.allOf = capabilities.map((capability) => {
+  const capabilityBound = capabilities.filter((capability) => capability.contract !== "step")
+  step.allOf = capabilityBound.map((capability) => {
     const name = capabilityNameFromId(capability.id)
     const relative = pluginEditorSchemaRelativePath(capability.plugin)
     return {

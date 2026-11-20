@@ -24,6 +24,49 @@ export default definePlugin({
 })
 ```
 
+## Step contracts (transforms)
+
+Set `contract: "step"` and `code: "script" | "expression"` on the capability. The manifest
+omits that capability's `accepts`/`returns` `$defs`; the execution step declares both schemas.
+
+```ts
+export const transform = capability({
+  summary: "Run a JavaScript transform in the host sandbox.",
+  description: "Reads resolved step input and returns JSON declared on the step.",
+  useCases: ["Map or reshape data between steps"],
+  projections: ["Take the fields declared in the step returns schema"],
+  contract: "step",
+  code: "script",
+  accepts: z.object({}), // omitted from ecp.schema.json $defs when contract is step
+  returns: z.object({}),
+  handler: () => import("./capabilities/transform.js"),
+})
+```
+
+Minimal execution step (bundled `@executioncontrolprotocol/core.transform`):
+
+```json
+{
+  "id": "Reshape",
+  "uses": "@executioncontrolprotocol/core.transform",
+  "accepts": {
+    "type": "object",
+    "properties": { "value": { "type": "string" } },
+    "required": ["value"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": { "upper": { "type": "string" } },
+    "required": ["upper"]
+  },
+  "script": { "$script": { "lang": "js", "source": "return { upper: input.value.toUpperCase() }" } },
+  "input": { "value": { "$ref": "state.doc.value" } },
+  "as": "upper"
+}
+```
+
+See `examples/transform/` for a runnable workflow.
+
 Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
 The installable package also needs an empty `"oclif": {}` key in `package.json` (first-party
 plugins include it).

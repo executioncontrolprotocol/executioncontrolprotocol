@@ -34,13 +34,21 @@ the MVP; runs start immediately.)
    commit. Non-boolean → fail `ECP_EXPR_RESULT_INVALID`.
 2. Resolve `input` (below).
 3. Resolve config (below).
-4. Validate the resolved input against the capability's `accepts` → `ECP_INPUT_INVALID` (this
-   catches values that only exist at run time, like a ref'd value of the wrong shape).
-5. Call the capability through `PluginAdapter.call` with an `AbortSignal` and the step timeout
-   (capability `timeoutMs` from its manifest, else the host default 600 000 ms) →
+4. Validate the resolved input with Ajv against step `accepts` when `contract` is `"step"`, else
+   the capability's `accepts` → `ECP_INPUT_INVALID`.
+5. When `code` is `"script"`: resolve the step `script` to source (no `const params =` prefix),
+   run it in QuickJS with a frozen `input` clone only (limits from `HostSettings.transform`:
+   default 1000 ms, 32 MiB memory, 4 MiB result). The plugin handler is not called. Thrown
+   script → `ECP_SCRIPT_FAILED`; transform timeout → `ECP_SCRIPT_TIMEOUT`.
+   When `code` is `"expression"`: call `PluginAdapter.call` with resolved `input` and
+   `context.expression` (same step timeout as other plugin calls).
+   Otherwise: call the capability through `PluginAdapter.call` with an `AbortSignal` and the step
+   timeout (capability `timeoutMs` from its manifest, else the host default 600 000 ms) →
    `ECP_STEP_TIMEOUT` on timeout. A thrown error → `ECP_STEP_FAILED` with the original message
    and, if present, the error's `code` and `details`.
-6. Validate the output against `returns` → `ECP_OUTPUT_INVALID`.
+6. Validate the output with Ajv against step `returns` when `contract` is `"step"`, else the
+   capability's `returns`. `"returns": {}` skips the schema check but the value must still be
+   JSON → `ECP_OUTPUT_INVALID` on mismatch or non-JSON.
 7. Redact (below), then commit atomically: staged `$state` writes in order, then the `as`
    output by `mode`. Persist the step record and `state.json`.
 

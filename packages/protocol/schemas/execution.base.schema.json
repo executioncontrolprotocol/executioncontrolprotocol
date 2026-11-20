@@ -89,6 +89,10 @@
         "config": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]{0,63}$" },
         "expr": { "type": "string", "minLength": 1 },
         "input": { "$ref": "#/$defs/inputObject" },
+        "accepts": { "$ref": "#/$defs/objectSchema" },
+        "returns": { "$ref": "#/$defs/objectSchema" },
+        "script": { "$ref": "#/$defs/scriptValue" },
+        "expression": { "type": "string", "minLength": 1 },
         "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
         "mode": { "enum": ["create", "replace", "merge", "append"] }
       }

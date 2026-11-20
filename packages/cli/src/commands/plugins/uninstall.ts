@@ -8,6 +8,21 @@ import {
 } from "../../lib/plugin-mgmt.js"
 import { writeEnvelope } from "../../lib/output.js"
 
+const BUNDLED_CORE_PACKAGES = new Set([
+  "@executioncontrolprotocol/core",
+  "@executioncontrolprotocol/plugin-core",
+])
+
+/**
+ * Whether the name refers to the bundled core plugin (cannot be uninstalled).
+ * @category CLI
+ */
+export function isBundledCorePluginName(name: string, expanded: string): boolean {
+  const trimmed = name.trim().toLowerCase()
+  if (trimmed === "core" || trimmed === "plugin-core") return true
+  return BUNDLED_CORE_PACKAGES.has(expanded) || BUNDLED_CORE_PACKAGES.has(name.trim())
+}
+
 /**
  * `ecp plugins uninstall` — remove a linked or installed ECP plugin.
  * @category CLI
@@ -47,6 +62,17 @@ export default class PluginsUninstall extends Command {
   override async run(): Promise<void> {
     const { args, flags } = await this.parse(PluginsUninstall)
     const expanded = expandFriendlyName(args.package, this.config)
+    if (isBundledCorePluginName(args.package, expanded)) {
+      const message = "The core plugin is bundled with the host and cannot be uninstalled."
+      writeEnvelope(
+        { ok: false, error: { code: "ECP_USAGE", message, path: "" } },
+        {
+          json: flags.json,
+          human: () => this.error(message, { exit: 2 }),
+          exitCode: 2,
+        },
+      )
+    }
     if (isCliPackageName(expanded, this.config)) {
       writeEnvelope(
         { ok: false, error: { code: "ECP_USAGE", message: "Cannot uninstall the ecp CLI package.", path: "" } },

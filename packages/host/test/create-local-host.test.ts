@@ -5,7 +5,13 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import { StorageProvider, type ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { checkHealth, createLocalHost, VERSION } from "../src/index.js"
+import {
+  checkHealth,
+  createLocalHost,
+  mergeCoreExtraPlugins,
+  resolveBundledCorePluginRoot,
+  VERSION,
+} from "../src/index.js"
 
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -19,6 +25,14 @@ const tiny: ExecutionManifest = {
 }
 
 describe("createLocalHost", () => {
+  it("prepends bundled core plugin root to extraPlugins", () => {
+    const coreRoot = path.resolve(resolveBundledCorePluginRoot())
+    const merged = mergeCoreExtraPlugins([pluginTestRoot])
+    expect(merged[0]).toBe(coreRoot)
+    expect(merged).toContain(pluginTestRoot)
+    expect(mergeCoreExtraPlugins([coreRoot, pluginTestRoot])).toEqual([coreRoot, pluginTestRoot])
+  })
+
   it("starts in-process, writes schema, and marks leftover runs interrupted", async () => {
     const home = await mkdtemp(path.join(os.tmpdir(), "ecp-host-unit-"))
     const seed = await createLocalHost({

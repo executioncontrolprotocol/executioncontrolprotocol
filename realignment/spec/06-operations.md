@@ -166,6 +166,8 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_EXPR_FAILED` | Expression threw or exceeded memory | — (in run) | 1 |
 | `ECP_EXPR_TIMEOUT` | Expression exceeded 50 ms | — (in run) | 1 |
 | `ECP_EXPR_RESULT_INVALID` | Non-boolean in a control position, or non-JSON value | — (in run) | 1 |
+| `ECP_SCRIPT_FAILED` | Transform script threw or exceeded memory | — (in run) | 1 |
+| `ECP_SCRIPT_TIMEOUT` | Transform script exceeded 1000 ms | — (in run) | 1 |
 | `ECP_PLUGIN_LOAD_FAILED` | Plugin module failed to import or has no handler | — (in run) | 1 |
 | `ECP_PROVIDER_ERROR` | Upstream provider (HTTP / cloud SDK) returned an error | — (in run) | 1 |
 | `ECP_RUN_CANCELLED` | Run ended by cancel | — (in run) | 1 |

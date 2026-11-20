@@ -136,7 +136,9 @@ Also emitted by `ecp-plugin-manifest` (same build step as the light manifest; re
 
 - Draft 2020-12 document with `$id: ecp://plugins/<plugin-id>/<version>/schema.json`.
 - `$defs.<capabilityName>.accepts` / `$defs.<capabilityName>.returns` (raw schemas, no marker
-  wrapping); `$defs.config` when the plugin has a config schema.
+  wrapping) for capabilities whose manifest row does **not** set `contract: "step"`. Step-contract
+  capabilities omit those `$defs` entries; the execution step carries `accepts` and `returns`.
+  `$defs.config` when the plugin has a config schema.
 - JSON Schemas from zod with `z.toJSONSchema(schema, { target: "draft-2020-12", io: "input" })`
   for `accepts`/`config` and `io: "output"` for `returns`; `$schema` keys stripped inside `$defs`
   (the document itself keeps `$schema`).
@@ -158,7 +160,8 @@ Also emitted by `ecp-plugin-manifest` (same build step as the light manifest; re
    `package.json` `ecp.manifest`). Validate it against the plugin-manifest schema (version
    **2.0**); check `plugin.version === package.json.version`. Load `ecp.schema.json` (path from
    `pluginSchema.path`, else `package.json` `ecp.schema`, else `./ecp.schema.json`), validate
-   the envelope, verify `$id` and that every capability has `.accepts`/`.returns` `$defs`, and
+   the envelope, verify `$id` and that every non-step-contract capability has `.accepts`/`.returns`
+   `$defs` (step-contract capabilities skip those entries), and
    verify `pluginSchema.hash` matches the canonical schema document. Linked plugins: regenerate
    **both** documents in memory by importing the definition entry (dev loop; no handler code is
    imported because handlers are lazy); disk schema files are not required in link mode.
@@ -191,6 +194,7 @@ reset touch the marker when the data dir changed.
 
 | Package | Capabilities | Notes |
 | --- | --- | --- |
+| `plugin-core` | `transform` (`@executioncontrolprotocol/core.transform`, `contract: "step"`, `code: "script"`) | Bundled with the host (`source: "core"` in `retrieve`); not installed under `$ECP_DATA_DIR`; survives `ecp plugins reset`; cannot be uninstalled |
 | `plugin-test` | `echo`, `fail` (throws with a given code), `delay` (ms, honours `signal`), `stage` (writes via `$state` handle), `config-echo` (returns which config keys it received and the length of `secret`, never the value), `file-roundtrip` (reads a FileRef, writes an artifact), `call` (uses `ctx.call`), `bounded` (echo length-limited string / `$script` into `maxLength`; id `@executioncontrolprotocol/test.bounded`) | Test harness for every executor/host feature; not a dependency of the host |
 | `plugin-anthropic` | `generate` | Port from legacy; live test needs `ECP_SECRET_ANTHROPIC_APIKEY` |
 | `plugin-azure-blob-storage` | `upload`, `download`, `sas`, `delete` | Port; live tests use Azurite if available, else skip |

@@ -618,14 +618,16 @@ async function startAndAwait(
   const controller = new AbortController()
   const schemas = await getHostSchemaSet(services, schemaCache)
   const light = plugins.capabilities()
-  const usedPlugins = new Set(collectUsedCapabilityIds(manifest).map((id) => light.find((entry) => entry.id === id)?.plugin).filter(Boolean) as string[])
   const documentByPlugin = new Map<string, PluginSchemaDocument | undefined>()
-  for (const pluginId of usedPlugins) {
+  for (const pluginId of [...new Set(light.map((entry) => entry.plugin))]) {
     documentByPlugin.set(pluginId, await plugins.loadPluginSchema(pluginId))
   }
-  const capabilities = light.map((entry) =>
-    usedPlugins.has(entry.plugin) ? assembleCapabilityEntry(entry, documentByPlugin.get(entry.plugin)) : entry,
-  )
+  const capabilities = light.map((entry) => assembleCapabilityEntry(entry, documentByPlugin.get(entry.plugin)))
+  const lookupCapability = (capabilityId: string): CapabilityEntry | undefined => {
+    const entry = plugins.capabilities().find((item) => item.id === capabilityId)
+    if (!entry) return undefined
+    return assembleCapabilityEntry(entry, documentByPlugin.get(entry.plugin))
+  }
   const executionDir = dirnameOf(ref.path)
   const handle = startExecution(manifest, runInput, {
     capabilities,
@@ -642,6 +644,7 @@ async function startAndAwait(
     runId,
     store: storage.runs,
     schemas,
+    lookupCapability,
     call: async (request, signal, store) => plugins.call({ ...request, store }, signal),
   })
 
@@ -990,31 +993,6 @@ function isConfig(value: unknown): value is ConfigObject {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-/** Capability ids referenced by step `uses` in a manifest. */
-function collectUsedCapabilityIds(manifest: ExecutionManifest): string[] {
-  const ids: string[] = []
-  const visit = (nodes: unknown[]): void => {
-    for (const node of nodes) {
-      if (!isRecord(node)) continue
-      const type = typeof node.type === "string" ? node.type : "step"
-      if (type === "step" && typeof node.uses === "string") ids.push(node.uses)
-      if (type === "branch" && Array.isArray(node.branches)) {
-        for (const branch of node.branches) {
-          if (isRecord(branch) && Array.isArray(branch.steps)) visit(branch.steps)
-        }
-      }
-      if (type === "loop" && Array.isArray(node.steps)) visit(node.steps)
-      if (type === "parallel" && Array.isArray(node.branches)) {
-        for (const branch of node.branches) {
-          if (Array.isArray(branch)) visit(branch)
-        }
-      }
-    }
-  }
-  visit(manifest.steps)
-  return ids
 }
 
 /** Parent directory of an absolute execution path (POSIX or Windows). */

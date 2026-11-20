@@ -42,8 +42,16 @@
           "description": { "type": "string" },
           "useCases": { "type": "array", "items": { "type": "string" } },
           "projections": { "type": "array", "items": { "type": "string" } },
-          "timeoutMs": { "type": "integer", "minimum": 1 }
-        }
+          "timeoutMs": { "type": "integer", "minimum": 1 },
+          "contract": { "const": "step" },
+          "code": { "enum": ["script", "expression"] }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "contract": { "const": "step" } }, "required": ["contract"] },
+            "then": { "required": ["code"] }
+          }
+        ]
       }
     },
     "entry": { "type": "string" },

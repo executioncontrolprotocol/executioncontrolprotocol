@@ -1,4 +1,10 @@
-import { EXECUTION_SCHEMA, EXECUTION_VERSION, firstPartyInstallCommand, firstPartyPlugin, pluginIdFromCapability } from "@executioncontrolprotocol/protocol"
+import {
+  EXECUTION_SCHEMA,
+  EXECUTION_VERSION,
+  firstPartyInstallCommand,
+  firstPartyPlugin,
+  pluginIdFromCapability,
+} from "@executioncontrolprotocol/protocol"
 import type {
   CapabilityEntry,
   ConfigObject,
@@ -101,6 +107,7 @@ export class HostSchemaSet {
   private readonly inputAjv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly documentValidator: ReturnType<AjvLike["compile"]>
   private readonly inputValidators = new Map<string, ReturnType<AjvLike["compile"]>>()
+  private readonly outputValidators = new Map<string, ReturnType<AjvLike["compile"]>>()
   private readonly pluginSchemas = new Map<string, PluginSchemaDocument>()
   private readonly addedPluginSchemaIds = new Set<string>()
   private inputCompileCountInternal = 0
@@ -256,6 +263,42 @@ export class HostSchemaSet {
     const name = capabilityName(capability.id)
     return document?.$defs[`${name}.returns`] ?? capability.returns ?? { type: "object" }
   }
+
+  /**
+   * Validate one resolved step input against a step-declared accepts schema with marker filtering.
+   * @category Validation
+   */
+  validateStepAccepts(accepts: Record<string, unknown>, input: unknown): AjvError[] {
+    const cacheKey = `${this.schemaHash}:step-accepts:${JSON.stringify(accepts)}`
+    let validator = this.inputValidators.get(cacheKey)
+    if (!validator) {
+      validator = this.inputAjv.compile(accepts)
+      this.inputValidators.set(cacheKey, validator)
+      this.inputCompileCountInternal += 1
+    }
+    return validateWithMarkers(validator as ((data: unknown) => boolean) & { errors?: MarkerAjvError[] | null }, input) as AjvError[]
+  }
+
+  /**
+   * Validate output against a returns schema. An empty schema object skips validation.
+   * @category Validation
+   */
+  validateOutput(schema: Record<string, unknown>, output: unknown): AjvError[] {
+    if (skipsOutputSchemaCheck(schema)) return []
+    const cacheKey = `${this.schemaHash}:output:${JSON.stringify(schema)}`
+    let validator = this.outputValidators.get(cacheKey)
+    if (!validator) {
+      validator = this.inputAjv.compile(schema)
+      this.outputValidators.set(cacheKey, validator)
+    }
+    validator(output)
+    return (validator.errors ?? []) as AjvError[]
+  }
+}
+
+/** True when returns validation should accept any JSON value (`{}` on the step). */
+function skipsOutputSchemaCheck(schema: Record<string, unknown>): boolean {
+  return Object.keys(schema).length === 0
 }
 
 /** Ajv keywords that only aggregate sub-schema failures. */
@@ -462,6 +505,21 @@ export function mapCapabilityInputIssues(errors: AjvError[], stepInputPointer: s
   )
 }
 
+/**
+ * Map Ajv output errors for a step to validation issues.
+ * @category Validation
+ */
+export function mapStepOutputIssues(errors: AjvError[], stepPointer: string): ValidationIssue[] {
+  return dedupeIssues(
+    errors.map((error) => ({
+      code: "ECP_OUTPUT_INVALID" as const,
+      severity: "error" as const,
+      message: `Output does not match the step returns schema. ${error.message ?? "Invalid output."}`,
+      path: `${stepPointer}${ajvPointer(error) === "/" ? "" : ajvPointer(error)}`,
+    })),
+  )
+}
+
 function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEntry[]): ValidationIssue[] {
   if (!isRecord(manifest) || !Array.isArray(manifest.steps)) return []
   const ids = capabilities.map((capability) => capability.id)
@@ -507,10 +565,14 @@ function unknownCapabilityIssue(
     : false
   const firstParty = pluginId ? firstPartyPlugin(pluginId) : undefined
   if (firstParty && pluginId && !pluginInstalled) {
+    const install = firstPartyInstallCommand(pluginId)
+    const message = firstParty.bundled
+      ? `Plugin ${firstParty.short} is bundled with the host and is not loaded.`
+      : `Plugin ${firstParty.short} is not installed. ${install ?? ""}`.trim()
     return {
       code: "ECP_PLUGINS_MISSING",
       severity: "error",
-      message: `Plugin ${firstParty.short} is not installed. ${firstPartyInstallCommand(pluginId)}`,
+      message,
       path,
       actual: trim(actual, 1024),
     }
@@ -543,15 +605,21 @@ async function checkCapabilityInputs(
         if (capability) {
           const input = node.input ?? {}
           const inputPath = `${path}/input`
-          const accepts = await schemas.rawAccepts(capability)
-          const rawErrors = await schemas.validateCapabilityInput(capability, input)
+          const stepContract = capability.contract === "step"
+          const stepAccepts = stepContract && isRecord(node.accepts) ? node.accepts : undefined
+          if (stepContract && !stepAccepts) continue
+          const accepts = stepAccepts ?? (await schemas.rawAccepts(capability))
+          const rawErrors = stepAccepts
+            ? schemas.validateStepAccepts(stepAccepts, input)
+            : await schemas.validateCapabilityInput(capability, input)
+          const acceptsLabel = stepContract ? "step accepts" : "capability accepts"
           for (const error of rawErrors) {
             const relative = ajvPointer(error)
             const fullPath = relative === "/" ? inputPath : `${inputPath}${relative === "" ? "" : relative}`
             issues.push({
               code: "ECP_INPUT_INVALID",
               severity: "error",
-              message: `Input does not match the capability accepts schema. ${error.message ?? "Invalid input."}`,
+              message: `Input does not match the ${acceptsLabel} schema. ${error.message ?? "Invalid input."}`,
               path: fullPath,
               actual: trim(readPointer(input, relative === "/" ? "" : relative), 1024),
             })
@@ -600,7 +668,10 @@ function mapAjvErrors(errors: AjvError[], manifest: unknown, capabilities: reado
       const firstParty = pluginId ? firstPartyPlugin(pluginId) : undefined
       if (firstParty && pluginId && !pluginInstalled) {
         code = "ECP_PLUGINS_MISSING"
-        message = `Plugin ${firstParty.short} is not installed. ${firstPartyInstallCommand(pluginId)}`
+        const install = firstPartyInstallCommand(pluginId)
+        message = firstParty.bundled
+          ? `Plugin ${firstParty.short} is bundled with the host and is not loaded.`
+          : `Plugin ${firstParty.short} is not installed. ${install ?? ""}`.trim()
       } else {
         code = "ECP_CAPABILITY_UNKNOWN"
         message = `Capability ${String(actual)} is not installed.`
@@ -664,7 +735,14 @@ async function walkSemantics(
     }
     await checkScripts(node.input, `${path}/input`, id, options, issues)
     const type = typeof node.type === "string" ? node.type : "step"
-    if (type === "step") checkStep(node, path, id, state, issues, inputNames, configs, options)
+    if (type === "step") {
+      checkStep(node, path, id, state, issues, inputNames, configs, options)
+      const capability = options.capabilities.find((item) => item.id === node.uses)
+      checkStepContract(node, path, id, capability, issues)
+      if (capability?.contract === "step" && capability.code === "script") {
+        await checkTransformScript(node.script, `${path}/script`, id, options, issues)
+      }
+    }
     if (type === "branch" && Array.isArray(node.branches)) checkBranch(node.branches, path, issues)
     if (type === "branch" && Array.isArray(node.branches)) {
       for (let arm = 0; arm < node.branches.length; arm += 1) {
@@ -701,6 +779,56 @@ function checkBranch(arms: unknown[], path: string, issues: ValidationIssue[]): 
       )
     }
   })
+}
+
+function checkStepContract(
+  node: Record<string, unknown>,
+  path: string,
+  id: string | undefined,
+  capability: CapabilityEntry | undefined,
+  issues: ValidationIssue[],
+): void {
+  const stepContract = capability?.contract === "step"
+  const hasAccepts = node.accepts !== undefined
+  const hasReturns = node.returns !== undefined
+  const hasScript = node.script !== undefined
+  const hasExpression = node.expression !== undefined
+  if (stepContract) {
+    if (!hasAccepts || !isRecord(node.accepts)) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "Step contract requires accepts.", `${path}/accepts`, id))
+    }
+    if (!hasReturns || !isRecord(node.returns)) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "Step contract requires returns.", `${path}/returns`, id))
+    }
+    if (capability?.code === "script" && !hasScript) {
+      issues.push(semantic("ECP_SCRIPT_INVALID", "Transform step requires script.", `${path}/script`, id))
+    } else if (capability?.code === "script" && hasExpression) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "expression is not allowed when code is script.", `${path}/expression`, id))
+    }
+    if (capability?.code === "expression" && (typeof node.expression !== "string" || node.expression.length === 0)) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "Transform step requires expression.", `${path}/expression`, id))
+    } else if (capability?.code === "expression" && hasScript) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "script is not allowed when code is expression.", `${path}/script`, id))
+    }
+    if (capability?.code === undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "Step contract capability is missing code.", `${path}/uses`, id))
+    }
+    return
+  }
+  if (hasAccepts) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "accepts is only allowed on step-contract capabilities.", `${path}/accepts`, id))
+  }
+  if (hasReturns) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "returns is only allowed on step-contract capabilities.", `${path}/returns`, id))
+  }
+  if (hasScript) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "script is only allowed on step-contract capabilities.", `${path}/script`, id))
+  }
+  if (hasExpression) {
+    issues.push(
+      semantic("ECP_MANIFEST_INVALID", "expression is only allowed on step-contract capabilities.", `${path}/expression`, id),
+    )
+  }
 }
 
 function checkStep(
@@ -740,6 +868,58 @@ function checkStep(
     const validator = ajv.compile(capability.configSchema)
     if (!validator(maskSecrets(config.values))) {
       issues.push(semantic("ECP_CONFIG_INVALID", `Config ${config.id} does not match the plugin schema.`, `${path}/config`, id))
+    }
+  }
+}
+
+async function checkTransformScript(
+  value: unknown,
+  pointer: string,
+  nodeId: string | undefined,
+  options: ValidateOptions,
+  issues: ValidationIssue[],
+): Promise<void> {
+  if (!isRecord(value) || !isRecord(value.$script)) {
+    return
+  }
+  const script = value.$script
+  if (script.lang !== "js") {
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script lang must be js.", `${pointer}/$script/lang`, nodeId))
+  }
+  if (script.params !== undefined) {
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script must not set params.", `${pointer}/$script/params`, nodeId))
+  }
+  const source = typeof script.source === "string" ? script.source : undefined
+  const scriptPath = typeof script.path === "string" ? script.path : undefined
+  if (source !== undefined && scriptPath !== undefined) {
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path, not both.", `${pointer}/$script`, nodeId))
+  } else if (source === undefined && scriptPath === undefined) {
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path.", `${pointer}/$script`, nodeId))
+  } else if (source !== undefined) {
+    const version = typeof script.ecmaVersion === "number" ? script.ecmaVersion : 2020
+    const failure = checkScript(source, version)
+    if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/$script/source`, failure, nodeId))
+  } else if (scriptPath !== undefined) {
+    const absolute = resolvePath(options.executionDir, scriptPath)
+    if (!absolute) {
+      issues.push(
+        semantic(
+          "ECP_SCRIPT_INVALID",
+          `Script path ${scriptPath} is not absolute and the execution has no directory.`,
+          `${pointer}/$script/path`,
+          nodeId,
+        ),
+      )
+    } else if (!options.readText) {
+      issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} cannot be read.`, `${pointer}/$script/path`, nodeId))
+    } else {
+      try {
+        const text = await options.readText(absolute)
+        const failure = checkScript(text, typeof script.ecmaVersion === "number" ? script.ecmaVersion : 2020)
+        if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/$script/path`, failure, nodeId))
+      } catch {
+        issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} was not found.`, `${pointer}/$script/path`, nodeId))
+      }
     }
   }
 }

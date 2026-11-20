@@ -48,7 +48,11 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 | `uses` | yes | Capability id `@scope/name.capability`, must be installed |
 | `config` | no | Config object id (`<plugin-short>/<name>`); default: `<plugin-short>/default` if it exists |
 | `expr` | no | Gate. JS function source `(state) => boolean`; `false` skips the step |
-| `input` | no | Object validated against the capability's `accepts` (after value markers resolve) |
+| `input` | no | Object validated against step `accepts` when the capability `contract` is `"step"`, otherwise the capability's `accepts` (after value markers resolve) |
+| `accepts` | when `contract` is `"step"` | Step input JSON Schema (object). Required with `returns` on step-contract capabilities |
+| `returns` | when `contract` is `"step"` | Step output JSON Schema (object). `{}` means any JSON at run time |
+| `script` | when capability `code` is `"script"` | Transform script (`$script` with `lang: "js"`, exactly one of `source` / `path`; no `params`) |
+| `expression` | when capability `code` is `"expression"` | Expression string (for example JSONata); host does not syntax-check it |
 | `as` | no | State key for the output: `^[A-Za-z_][A-Za-z0-9_]*$`, must not be an execution input name |
 | `mode` | no | `create` (default), `replace`, `merge`, `append`. Requires `as` |
 
@@ -97,6 +101,20 @@ it to `replace`).
   generator. Otherwise `ECP_EXPR_INVALID` with line and column.
 - In control positions (step `expr`, arm `expr`, loop `expr`) the result MUST be a boolean; any
   other value fails the run with `ECP_EXPR_RESULT_INVALID`.
+
+### Step-level contracts (transforms)
+
+Capabilities that declare `contract: "step"` in their manifest require both `accepts` and
+`returns` on the step. Those schemas define the input ports, output ports, and run-time
+validation. The sibling manifest field `code` selects how the host runs the step:
+
+| `code` | Step fields | Behaviour |
+| --- | --- | --- |
+| `"script"` | `script` required, `expression` forbidden | QuickJS runs the script with a frozen `input` clone (see 04); the plugin handler is not called |
+| `"expression"` | `expression` required, `script` forbidden | The host calls the plugin handler with resolved `input` and `ctx.expression` |
+
+On non-step-contract capabilities, step-level `accepts`, `returns`, `script`, and `expression`
+are `ECP_MANIFEST_INVALID`.
 
 ## Value markers (inside `input`, recursively, and inside `$script.params`)
 

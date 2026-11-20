@@ -357,4 +357,14 @@ export default definePlugin({
       expect(schema.document.$defs["ping.accepts"]).toEqual({ type: "object" })
     }
   })
+
+  it("accepts step-contract-only plugin schemas with empty $defs", async () => {
+    const coreRoot = path.join(repoRoot, "plugins/plugin-core")
+    const result = await loadPluginPackage(coreRoot, "core")
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const schema = await loadPluginSchemaDocument(result.loaded)
+    expect(schema.ok).toBe(true)
+    if (schema.ok) expect(Object.keys(schema.document.$defs)).toHaveLength(0)
+  })
 })

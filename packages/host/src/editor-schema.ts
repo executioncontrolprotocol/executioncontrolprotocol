@@ -3,7 +3,7 @@ import path from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import type { Host } from "@executioncontrolprotocol/engine"
 import { atomicWriteText } from "@executioncontrolprotocol/local"
-import { PluginAdapter } from "@executioncontrolprotocol/protocol"
+import { PluginAdapter, type CapabilityEntry } from "@executioncontrolprotocol/protocol"
 import baseSchema from "@executioncontrolprotocol/protocol/schemas/execution.base.schema.json" with { type: "json" }
 
 /**
@@ -145,6 +145,7 @@ export async function writeEditorSchemaFiles(
 
     const missingPluginFiles: string[] = []
     for (const pluginId of pluginIds) {
+      if (!pluginNeedsEditorSchemaFile(pluginId, light)) continue
       const target = path.join(pluginsDir, `${safePluginId(pluginId)}.editor.schema.json`)
       try {
         await stat(target)
@@ -171,7 +172,11 @@ export async function writeEditorSchemaFiles(
     }
     // Remove editor files no current plugin owns: uninstalled plugins and files from an older
     // naming scheme (e.g. percent-encoded names that editors could not resolve).
-    const expected = new Set(pluginIds.map((pluginId) => `${safePluginId(pluginId)}.editor.schema.json`))
+    const expected = new Set(
+      pluginIds
+        .filter((pluginId) => pluginNeedsEditorSchemaFile(pluginId, light))
+        .map((pluginId) => `${safePluginId(pluginId)}.editor.schema.json`),
+    )
     for (const name of await readdir(pluginsDir).catch(() => [] as string[])) {
       if (name.endsWith(".editor.schema.json") && !expected.has(name)) {
         await rm(path.join(pluginsDir, name), { force: true })
@@ -179,6 +184,7 @@ export async function writeEditorSchemaFiles(
     }
 
     for (const pluginId of changedPluginIds) {
+      if (!pluginNeedsEditorSchemaFile(pluginId, light)) continue
       const document = await plugins.loadPluginSchema(pluginId)
       if (!document) continue
       const pluginCaps = light.filter((entry) => entry.plugin === pluginId)
@@ -245,4 +251,10 @@ function recordsEqual(left: Record<string, string>, right: Record<string, string
     if (left[key] !== right[key]) return false
   }
   return true
+}
+
+/** Step-contract plugins use step-level `accepts`/`returns`; they need no per-plugin editor file. */
+function pluginNeedsEditorSchemaFile(pluginId: string, capabilities: readonly CapabilityEntry[]): boolean {
+  const owned = capabilities.filter((entry) => entry.plugin === pluginId)
+  return owned.some((entry) => entry.contract !== "step")
 }

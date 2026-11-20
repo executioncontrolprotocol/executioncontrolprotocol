@@ -1,0 +1,43 @@
+{
+  "name": "@executioncontrolprotocol/plugin-core",
+  "version": "0.60.0",
+  "private": true,
+  "description": "Bundled core capabilities: transform steps executed in the host sandbox.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin"
+  ],
+  "ecp": {
+    "manifest": "./ecp.manifest.json",
+    "schema": "./ecp.schema.json"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ecp.manifest.json": "./ecp.manifest.json",
+    "./ecp.schema.json": "./ecp.schema.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "ecp.manifest.json",
+    "ecp.schema.json"
+  ],
+  "scripts": {
+    "build": "tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
+  },
+  "peerDependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
+    "zod": "catalog:"
+  }
+}

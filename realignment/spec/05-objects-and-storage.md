@@ -104,10 +104,15 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
 ```json
 { "nodeId": "translate", "round": null, "capabilityId": "…", "status": "completed",
   "input": { … }, "output": { … }, "error": null,
+  "script": "return { greeting: input.name }", "expression": null,
   "config": { "id": "anthropic/default", "version": 3 },
   "startedAt": "…", "endedAt": "…", "durationMs": 912,
   "staged": [ { "op": "append", "path": "history", "valuePreview": "…" } ] }
 ```
+
+When a transform runs in QuickJS, `script` holds the source text that ran (inline `source` or
+resolved `path` file). When `code` is `"expression"`, `expression` holds the step's expression
+string. The run's manifest snapshot does not embed bytes from a `path` script file.
 
 Status: `completed`, `failed`, `skipped`, `cancelled`.
 
@@ -117,8 +122,13 @@ Status: `completed`, `failed`, `skipped`, `cancelled`.
 { "id": "@executioncontrolprotocol/anthropic.generate", "plugin": "@executioncontrolprotocol/anthropic",
   "package": "@executioncontrolprotocol/plugin-anthropic", "pluginVersion": "1.0.0",
   "summary": "…", "description": "…", "useCases": ["…"], "projections": ["…"],
-  "accepts": { … }, "returns": { … }, "configSchema": { … }, "timeoutMs": 120000 }
+  "accepts": { … }, "returns": { … }, "configSchema": { … }, "timeoutMs": 120000,
+  "contract": "step", "code": "script" }
 ```
+
+`contract` and `code` appear on capabilities that opt into step-level schemas (transforms). When
+`contract` is `"step"`, listing may omit embedded `accepts`/`returns`; full `retrieve --id` still
+includes `code`.
 
 Summaries (search results) contain `id`, `plugin`, `summary` only.
 

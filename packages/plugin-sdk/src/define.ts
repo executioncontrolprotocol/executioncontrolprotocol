@@ -54,6 +54,12 @@ export interface CapabilityDefinition<
   returns: TReturns
   /** Step timeout in milliseconds. */
   timeoutMs?: number
+  /**
+   * `"step"` when accepts/returns live on the execution step; omitted means the capability schema is the contract.
+   */
+  contract?: "step"
+  /** How the host runs the step when {@link CapabilityDefinition.contract} is `"step"`. */
+  code?: "script" | "expression"
   /** Lazy import of the handler module. */
   handler: HandlerThunk<z.infer<TAccepts>, z.infer<TReturns>, TConfig>
 }
@@ -142,6 +148,19 @@ export function capability<TAccepts extends z.ZodType, TReturns extends z.ZodTyp
   if (!options.summary || !options.description) {
     throw new PluginDefinitionError("ECP_PLUGIN_DEFINITION", "Each capability needs summary and description.")
   }
+  if (options.contract === "step") {
+    if (options.code !== "script" && options.code !== "expression") {
+      throw new PluginDefinitionError(
+        "ECP_PLUGIN_DEFINITION",
+        'Capabilities with contract "step" require code "script" or "expression".',
+      )
+    }
+  } else if (options.code !== undefined) {
+    throw new PluginDefinitionError(
+      "ECP_PLUGIN_DEFINITION",
+      'code is only allowed when contract is "step".',
+    )
+  }
   return {
     summary: options.summary,
     description: options.description,
@@ -150,6 +169,8 @@ export function capability<TAccepts extends z.ZodType, TReturns extends z.ZodTyp
     accepts: options.accepts,
     returns: options.returns,
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+    ...(options.contract === undefined ? {} : { contract: options.contract }),
+    ...(options.code === undefined ? {} : { code: options.code }),
     handler: options.handler,
   }
 }

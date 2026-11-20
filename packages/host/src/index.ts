@@ -3,7 +3,11 @@
  * @category Host
  */
 export { VERSION } from "./version.js"
-export { createLocalHost } from "./create-local-host.js"
+export {
+  createLocalHost,
+  mergeCoreExtraPlugins,
+  resolveBundledCorePluginRoot,
+} from "./create-local-host.js"
 export type { CreateLocalHostOptions, LocalHost, LocalHostTiming } from "./create-local-host.js"
 export {
   computeEditorSchemaHash,
