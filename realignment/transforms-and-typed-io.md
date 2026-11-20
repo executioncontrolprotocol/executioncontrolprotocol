@@ -62,8 +62,19 @@ into (`outputs[0].image.url`).
 }
 ```
 
-Open for the implementation plan: where `script` sits on the step (a step-level field next to `input`, as above, or a
-reserved input key), and the exact manifest flag name for D5.
+## Details settled in the implementation plan
+
+- **Step shape:** `script` is a step-level field next to `input` (for JSONata, a step-level `expression`). A transform's
+  `$script` takes no `params`; data enters only through `input`.
+- **D5 flag:** the capability row in `ecp.manifest.json` carries `contract: "step"` and `code: "script" | "expression"`.
+- **Who runs scripts:** for `code: "script"` the executor runs the script in QuickJS under host sandbox limits; the core
+  plugin only registers the capability and carries the flag. The host never switches on a capability id.
+- **Output keys for media:** state paths can't contain `/`, so multi-output capabilities key `FileRef`s by a token
+  derived from the media type (`png`, `jpeg`, `psd`, …); each `FileRef` keeps its `mediaType`.
+- **Adobe inputs accept `url` FileRefs only.** A local `file` or run `artifact` is rejected with a hint to upload it
+  first (the PSD examples upload to Azure and pass a `url` FileRef).
+- **Cleanup:** the PSD examples delete the uploaded *input* copy of the template after Adobe has read it; Adobe hosts the
+  outputs separately, so deleting the input never affects them.
 
 ## Gap (rough order)
 
