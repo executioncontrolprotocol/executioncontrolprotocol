@@ -94,6 +94,7 @@ export type {
   RetrieveType,
 } from "./operations.js"
 export {
+  ArtifactStore,
   Auth,
   Endpoint,
   ExpressionEngine,
@@ -101,9 +102,32 @@ export {
   Formatter,
   IMPLEMENTATION_IDS,
   PluginAdapter,
+  ScratchSpace,
   SecretsProvider,
   StorageProvider,
+  resolveFileMaxBytes,
 } from "./services.js"
+export {
+  DEFAULT_FILE_CAPTURE_MAX_BYTES,
+  DEFAULT_FILE_MAX_BYTES,
+  DEFAULT_FILE_MAX_BYTES_SETTINGS,
+} from "./file-limits.js"
+export type { FileMaxBytesSettings } from "./file-limits.js"
+export {
+  artifactUri,
+  assertSafeArtifactName,
+  assertSafeRunId,
+  isSafeArtifactName,
+  parseArtifactUri,
+  toSafeArtifactName,
+} from "./artifact-names.js"
+export type {
+  FileMediaTypeNote,
+  FilePathHandle,
+  FileStepNotes,
+  FileStreamHandle,
+  HandlerFiles,
+} from "./handler-files.js"
 export type {
   Auth as AuthService,
   CapabilityCall,
@@ -119,7 +143,10 @@ export type {
   PluginAdapter as PluginAdapterService,
   PluginInfo,
   PluginSchemaFingerprint,
+  ArtifactStat,
+  ArtifactStore as ArtifactStoreService,
   RunStore,
+  ScratchSpace as ScratchSpaceService,
   SecretsProvider as SecretsProviderService,
   ServiceToken,
   StorageProvider as StorageProviderService,

@@ -3,12 +3,14 @@ import type {
   CommitInput,
   ExecuteData,
   ExecuteInput,
+  FileMaxBytesSettings,
   HostSettings,
   OperationResponse,
   RetrieveData,
   RetrieveInput,
   ServiceToken,
 } from "@executioncontrolprotocol/protocol"
+import { resolveFileMaxBytes } from "@executioncontrolprotocol/protocol"
 import {
   DEFAULT_EXPR_MAX_RESULT_BYTES,
   DEFAULT_EXPR_MEMORY_BYTES,
@@ -104,6 +106,8 @@ export interface ResolvedHostSettings {
   extraPlugins: string[]
   /** Log level. */
   logLevel: "debug" | "info" | "warn" | "error"
+  /** File service size caps. */
+  files: FileMaxBytesSettings
   /** Write `output.path` files. Injected by the host. */
   writeTextFile?: (path: string, text: string) => Promise<void>
 }
@@ -178,6 +182,7 @@ export function resolveHostSettings(settings: HostSettings & { writeTextFile?: (
     },
     extraPlugins: settings.extraPlugins ?? [],
     logLevel: settings.logLevel ?? "info",
+    files: resolveFileMaxBytes(settings.files),
     writeTextFile: settings.writeTextFile,
   }
 }

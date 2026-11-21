@@ -23,20 +23,35 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
       merge() {},
       append() {},
     },
-    files: {
-      async read() {
-        return { bytes: new Uint8Array([1, 2, 3]), mediaType: "application/octet-stream", name: "in.bin" }
-      },
-      async writeArtifact(bytes, options): Promise<ArtifactFileRef> {
-        return {
-          kind: "artifact",
-          uri: `ecp://runs/run-1/artifacts/${options.name ?? "out.bin"}`,
-          mediaType: options.mediaType,
-          name: options.name,
-          sizeBytes: bytes.byteLength,
-        }
-      },
-    },
+    files: (() => {
+      const read = async () => ({
+        bytes: new Uint8Array([1, 2, 3]),
+        mediaType: "application/octet-stream",
+        name: "in.bin",
+      })
+      const fromBytes = async (bytes: Uint8Array, options?: { mediaType?: string; name?: string }): Promise<ArtifactFileRef> => ({
+        kind: "artifact",
+        uri: `ecp://runs/run-1/artifacts/${options?.name ?? "out.bin"}`,
+        mediaType: options?.mediaType,
+        name: options?.name,
+        sizeBytes: bytes.byteLength,
+      })
+      return {
+        read,
+        bytes: read,
+        stream: async () => ({ stream: new ReadableStream(), async cancel() {} }),
+        path: async () => ({ path: "/tmp/in.bin", temporary: false }),
+        url: async (ref: { kind: "url"; url: string }) => ref,
+        fromBytes,
+        fromStream: async (stream: ReadableStream<Uint8Array>, options?: { mediaType?: string; name?: string }) => {
+          const { value } = await stream.getReader().read()
+          return fromBytes(value ?? new Uint8Array(), options)
+        },
+        fromPath: async () => ({ kind: "artifact" as const, uri: "ecp://runs/run-1/artifacts/x" }),
+        fromUrl: async (url: string) => ({ kind: "url" as const, url }),
+        writeArtifact: (bytes: Uint8Array, options: { mediaType: string; name?: string }) => fromBytes(bytes, options),
+      }
+    })(),
     async call() {
       return { echo: "nested" }
     },
@@ -187,12 +202,26 @@ describe("plugin-test capabilities", () => {
     ).resolves.toEqual({ result: { ok: true } })
     expect(nested).toHaveBeenCalledWith("@executioncontrolprotocol/test.echo", {}, {})
 
+    const base = ctx()
     const round = await fileRoundtrip(
       { file: { kind: "file", path: "/tmp/in.bin" } },
       ctx({
         files: {
+          ...base.files,
           async read() {
             return { bytes: new Uint8Array([1]) }
+          },
+          async bytes() {
+            return { bytes: new Uint8Array([1]) }
+          },
+          async fromBytes(bytes, options) {
+            return {
+              kind: "artifact",
+              uri: "ecp://runs/run-1/artifacts/artifact.bin",
+              mediaType: options?.mediaType,
+              name: options?.name,
+              sizeBytes: bytes.byteLength,
+            }
           },
           async writeArtifact(bytes, options) {
             return {

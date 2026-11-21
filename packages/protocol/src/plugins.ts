@@ -1,3 +1,5 @@
+import type { HandlerFiles } from "./handler-files.js"
+
 /**
  * Opaque handle produced by resolving a `$state` marker.
  * @category Plugins
@@ -118,13 +120,8 @@ export interface HandlerContext<Config = Record<string, unknown> | undefined> {
   state: Readonly<Record<string, unknown>>
   /** Staged writes for `$state` handles. */
   store: HandlerStore
-  /** Read refs and write artifacts. */
-  files: {
-    /** Read a file, URL or artifact ref. */
-    read(ref: FileRef): Promise<FileBytes>
-    /** Write bytes into the run artifact directory. */
-    writeArtifact(bytes: Uint8Array, options: { mediaType: string; name?: string }): Promise<ArtifactFileRef>
-  }
+  /** Activate and passivate file refs for this step. */
+  files: HandlerFiles
   /** Call another capability through the host. Counts as a nested step. */
   call(capabilityId: string, input: unknown, options?: { config?: string }): Promise<unknown>
   /** Structured log. */

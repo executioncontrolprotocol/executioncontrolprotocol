@@ -1,9 +1,7 @@
 import type {
-  ArtifactFileRef,
-  FileBytes,
-  FileRef,
   HandlerContext,
   HandlerContextInit,
+  HandlerFiles,
   HandlerStore,
 } from "@executioncontrolprotocol/protocol"
 
@@ -12,10 +10,8 @@ import type {
  * @category Environment
  */
 export interface HandlerContextDeps {
-  /** Read a file, URL or artifact ref. */
-  readFile(ref: FileRef): Promise<FileBytes>
-  /** Write bytes into the run artifact directory. */
-  writeArtifact(bytes: Uint8Array, options: { mediaType: string; name?: string }): Promise<ArtifactFileRef>
+  /** File activation and passivation for the step. */
+  files: HandlerFiles
   /** Nested capability call through the host. */
   call(capabilityId: string, input: unknown, options?: { config?: string }): Promise<unknown>
   /** Host logger. */
@@ -62,10 +58,7 @@ export function createHandlerContext<Config = Record<string, unknown> | undefine
     },
     state: deepFreeze({ ...options.init.state }),
     store: options.store,
-    files: {
-      read: (ref) => options.deps.readFile(ref),
-      writeArtifact: (bytes, writeOptions) => options.deps.writeArtifact(bytes, writeOptions),
-    },
+    files: options.deps.files,
     call: (capabilityId, input, callOptions) => options.deps.call(capabilityId, input, callOptions),
     logger: options.deps.logger,
     usage: options.deps.usage,

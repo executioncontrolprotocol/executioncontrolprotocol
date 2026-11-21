@@ -61,7 +61,7 @@ describe("MemoryStorage", () => {
   })
 
   it("versions configs, filters by plugin, and reads files only through the injected reader", async () => {
-    const storage = new MemoryStorage("/tmp/ecp", {
+    const storage = new MemoryStorage({
       read: async (path) => `contents:${path}`,
     })
     await storage.putConfig(config(), { create: true })
@@ -76,7 +76,7 @@ describe("MemoryStorage", () => {
   })
 
   it("stores runs, steps, events and state, and filters the list", async () => {
-    const storage = new MemoryStorage("/home/ecp")
+    const storage = new MemoryStorage()
     await storage.runs.create(runRecord("run-1"), manifest)
     await storage.runs.create(runRecord("run-2", "completed"), manifest)
     await storage.runs.writeStep("run-1", {
@@ -100,7 +100,6 @@ describe("MemoryStorage", () => {
     expect(await storage.runs.getManifest("run-1")).toEqual(expect.objectContaining({ version: "2.0" }))
     expect(await storage.runs.list({ status: "completed" }, 10)).toHaveLength(2)
     expect(await storage.runs.list({ executionId: "missing" }, 10)).toEqual([])
-    expect(storage.runs.artifactDir("run-1")).toBe("/home/ecp/runs/run-1/artifacts")
     await expect(storage.runs.update("missing", { status: "failed" })).rejects.toMatchObject({ code: "ECP_NOT_FOUND" })
     expect(await storage.runs.get("missing")).toBeUndefined()
   })

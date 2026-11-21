@@ -77,6 +77,19 @@ function handlerContextFromInit(
       async read() {
         return { bytes: new Uint8Array(), mediaType: "application/octet-stream" }
       },
+      bytes() {
+        return this.read({ kind: "file", path: "/tmp/x" })
+      },
+      stream: async () => ({
+        stream: new ReadableStream(),
+        async cancel() {},
+      }),
+      path: async () => ({ path: "/tmp/x", temporary: false }),
+      url: async (ref) => ref,
+      fromBytes: async () => ({ kind: "artifact", uri: "ecp://runs/run-1/artifacts/out", mediaType: "application/octet-stream" }),
+      fromStream: async () => ({ kind: "artifact", uri: "ecp://runs/run-1/artifacts/out" }),
+      fromPath: async () => ({ kind: "artifact", uri: "ecp://runs/run-1/artifacts/out" }),
+      fromUrl: async (url: string) => ({ kind: "url", url }),
       async writeArtifact() {
         return { kind: "artifact", uri: "ecp://runs/run-1/artifacts/out", mediaType: "application/octet-stream" }
       },

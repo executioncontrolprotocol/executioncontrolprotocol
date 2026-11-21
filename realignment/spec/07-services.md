@@ -41,6 +41,7 @@ interface HostSettings {
   defaultStepTimeoutMs: number     // 600000
   defaultMaxConcurrency: number    // 4
   expression: { timeoutMs: number; memoryBytes: number; maxResultBytes: number }   // 50, 32 MiB, 1 MiB
+  files?: { maxBytes?: { bytes?: number; stream?: number; path?: number; url?: number; capture?: number } }   // default 512 MiB per method, capture 256 MiB
 }
 ```
 
@@ -67,6 +68,8 @@ catalogue as internal codes.)
 | --- | --- | --- | --- | --- |
 | `PluginAdapter` | `@executioncontrolprotocol/plugin-adapter` | no | `LocalPluginRegistration` (`@executioncontrolprotocol/local.plugins`) | `local` |
 | `StorageProvider` | `@executioncontrolprotocol/storage` | no | `LocalStorage` (`@executioncontrolprotocol/local.storage`) | `local` |
+| `ArtifactStore` | `@executioncontrolprotocol/artifact-store` | no | `LocalArtifactStore` (`@executioncontrolprotocol/local.artifact-store`) | `local` |
+| `ScratchSpace` | `@executioncontrolprotocol/scratch-space` | no | `LocalScratchSpace` (`@executioncontrolprotocol/local.scratch-space`) | `local` |
 | `SecretsProvider` | `@executioncontrolprotocol/secrets` | no | `LocalSecrets` (`@executioncontrolprotocol/local.secrets`) | `local` |
 | `ExpressionEngine` | `@executioncontrolprotocol/expression-engine` | no | `QuickJsExpressionEngine` (`@executioncontrolprotocol/quickjs`) | `quickjs` |
 | `Formatter` | `@executioncontrolprotocol/formatter` | yes | `JsonFormatter` (`…/formatters.json`, default), `ToonFormatter` (`…/formatters.toon`) | `formatters` |
@@ -110,8 +113,24 @@ interface RunStore {
   get(id: string, include?: Array<"steps" | "events" | "state">): Promise<RunDetail | undefined>
   getManifest(id: string): Promise<ExecutionManifest | undefined>
   list(filter: RunFilter, limit: number): Promise<RunRecord[]>
-  artifactDir(runId: string): string
 }
+
+interface ArtifactStore extends Lifecycle {
+  put(runId: string, name: string, body: ReadableStream<Uint8Array> | Uint8Array, options?: { mediaType?: string }): Promise<ArtifactFileRef>
+  getStream(runId: string, name: string): Promise<ReadableStream<Uint8Array>>
+  getBytes(runId: string, name: string): Promise<Uint8Array>
+  stat(runId: string, name: string): Promise<{ name: string; sizeBytes: number; mediaType?: string } | undefined>
+  list(runId: string): Promise<Array<{ name: string; sizeBytes: number; mediaType?: string }>>
+  deleteRun(runId: string): Promise<void>
+  uri(runId: string, name: string): string
+}
+
+interface ScratchSpace extends Lifecycle {
+  writeBytes(runId: string, stepId: string, name: string, bytes: Uint8Array): Promise<string>
+  copyFromPath(runId: string, stepId: string, sourcePath: string, name: string): Promise<string>
+  releaseStep(runId: string, stepId: string): Promise<void>
+}
+
 type StorageChange = { type: "execution" | "config" | "run"; id: string; action: "put" | "delete" }
 
 interface SecretsProvider {

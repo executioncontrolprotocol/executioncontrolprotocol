@@ -66,8 +66,16 @@ interface HandlerContext<Config> {
     append(handle: StateHandle, value: unknown): void
   }
   files: {
-    read(ref: FileRef): Promise<{ bytes: Uint8Array; mediaType?: string; name?: string }>
-    writeArtifact(bytes: Uint8Array, options: { mediaType: string; name?: string }): Promise<ArtifactFileRef>
+    bytes(ref: FileRef): Promise<{ bytes: Uint8Array; mediaType?: string; name?: string }>
+    stream(ref: FileRef): Promise<{ stream: ReadableStream<Uint8Array>; mediaType?: string; name?: string; cancel(): Promise<void> }>
+    path(ref: FileRef): Promise<{ path: string; mediaType?: string; name?: string; temporary: boolean }>
+    url(ref: FileRef): Promise<FileRefUrl>
+    fromBytes(bytes: Uint8Array, options?: { mediaType?: string; name?: string }): Promise<ArtifactFileRef>
+    fromStream(stream: ReadableStream<Uint8Array>, options?: { mediaType?: string; name?: string }): Promise<ArtifactFileRef>
+    fromPath(filePath: string, options?: { mediaType?: string; name?: string }): Promise<ArtifactFileRef>
+    fromUrl(url: string, options?: { mediaType?: string; name?: string; headers?: Record<string, string>; persist?: boolean }): Promise<FileRefUrl | ArtifactFileRef>
+    read(ref: FileRef): Promise<{ bytes: Uint8Array; mediaType?: string; name?: string }>   // alias of bytes
+    writeArtifact(bytes: Uint8Array, options: { mediaType: string; name?: string }): Promise<ArtifactFileRef>   // alias of fromBytes
   }
   call(capabilityId: string, input: unknown, options?: { config?: string }): Promise<unknown>   // mediated: full validation + config resolution through the host
   logger: { debug(m: string, d?: unknown): void; info(…): void; warn(…): void; error(…): void }
@@ -85,11 +93,19 @@ interface HandlerContext<Config> {
   expands `kind: "url"` into the vendor request envelope. Adobe media capabilities reject
   `kind: "file"` and `kind: "artifact"` at the handler with `ECP_INPUT_INVALID` and a hint to
   upload to allowlisted URL storage first.
-- **`file` path resolution** (in the host's `files.read`, not in plugins): an absolute path is
-  used as-is. A relative path joins the execution directory (directory of the `.ecp.json` for
-  path-started runs, or `executions/<id>.ecp.json` for id-started runs). Inline executions (no
+- **File service:** built on the {@link ArtifactStore} and {@link ScratchSpace} services; run
+  artifacts are written only through the store. Handlers activate on demand (no prefetch). The
+  host sniffs the first 32 bytes, reconciles `mediaType`, and records corrections on the step
+  (`mediaTypes`). `url` access on non-url refs fails with `ECP_INPUT_INVALID` (publish hint). URL
+  fetch failures use `ECP_PROVIDER_ERROR`; logs and messages strip the query string. There is
+  **no URL allowlist and no path sandbox** in the MVP; {@link HostSettings.files.maxBytes}
+  caps `bytes`, `stream`, `path`, `url`, and `capture` (default 512 MiB per method, 256 MiB for
+  capture). Per-step scratch copies are removed when the step ends.
+- **`file` path resolution** (in the host's `files.bytes` / `read`, not in plugins): an absolute
+  path is used as-is. A relative path joins the execution directory (directory of the `.ecp.json`
+  for path-started runs, or `executions/<id>.ecp.json` for id-started runs). Inline executions (no
   file) reject relative paths at read time with `ECP_INPUT_INVALID` (message names the path and
-  requires an absolute path). `..` is allowed like `$script.path`; not a sandbox.
+  requires an absolute path). `..` is allowed like `$script.path`.
   `CapabilityCall.executionDir` carries that directory from the executor to the adapter.
 - `ctx.call` counts as a nested step for events (`step.start` with `parentNodeId`) and is
   subject to the same timeout budget as the calling step.

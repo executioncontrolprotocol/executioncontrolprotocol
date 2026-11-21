@@ -5,9 +5,14 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createEnvironment } from "@executioncontrolprotocol/engine"
-import { PluginAdapter } from "@executioncontrolprotocol/protocol"
+import { ArtifactStore, PluginAdapter, ScratchSpace } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
-import { LocalPluginRegistration } from "../src/index.js"
+import { LocalArtifactStore, LocalPluginRegistration, LocalScratchSpace } from "../src/index.js"
+
+/** Plugin adapter tests need artifact and scratch services registered. */
+function withFileServices<T extends ReturnType<typeof createEnvironment>>(env: T): T {
+  return env.use(LocalArtifactStore, ArtifactStore).use(LocalScratchSpace, ScratchSpace) as T
+}
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const pluginTestRoot = path.join(repoRoot, "plugins/plugin-test")
@@ -77,7 +82,7 @@ describe("LocalPluginRegistration", () => {
   })
 
   it("registers plugin-test from manifests without importing handlers until first call", async () => {
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [pluginTestRoot] } })
       .start({ home: "/tmp/ecp" })
 
@@ -115,7 +120,7 @@ describe("LocalPluginRegistration", () => {
     const linkedRoot = path.join(tempRoot, "linked")
     await writeLinkedPlugin(linkedRoot, true)
 
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { linkedPlugins: [linkedRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
@@ -186,7 +191,7 @@ describe("LocalPluginRegistration", () => {
     )
     await writeFile(path.join(badRoot, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
 
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [badRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
@@ -197,7 +202,7 @@ describe("LocalPluginRegistration", () => {
 
   it("ignores a duplicate install of bundled core", async () => {
     const coreRoot = path.resolve(repoRoot, "plugins/plugin-core")
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, {
         options: { extraPlugins: [coreRoot], linkedPlugins: [coreRoot] },
       })
@@ -264,7 +269,7 @@ describe("LocalPluginRegistration", () => {
     )
     await writeFile(path.join(dupRoot, "ecp.schema.json"), `${JSON.stringify(schemaDocument, null, 2)}\n`)
 
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, {
         options: { extraPlugins: [pluginTestRoot, dupRoot] },
       })
@@ -277,7 +282,7 @@ describe("LocalPluginRegistration", () => {
   })
 
   it("keeps listing light and loads accepts/returns via loadPluginSchema", async () => {
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [pluginTestRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
@@ -339,7 +344,7 @@ describe("LocalPluginRegistration", () => {
         $defs: { only: { type: "string" } },
       }),
     )
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [badSchemaRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
@@ -362,7 +367,7 @@ describe("LocalPluginRegistration", () => {
         ecp: { manifest: "./ecp.manifest.json" },
       }),
     )
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { extraPlugins: [missingRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)
@@ -372,19 +377,19 @@ describe("LocalPluginRegistration", () => {
   })
 
   it("exercises delay abort, staged writes, files, usage and nested call through the real plugin", async () => {
-    const artifactRoot = path.join(tempRoot, "artifacts")
-    await mkdir(artifactRoot, { recursive: true })
-    const samplePath = path.join(artifactRoot, "in.bin")
+    const samplePath = path.join(tempRoot, "in.bin")
     await writeFile(samplePath, Buffer.from([1, 2, 3, 4]))
 
-    const host = await createEnvironment()
+    const home = path.join(tempRoot, "ecp-home")
+    await mkdir(path.join(home, "runs", "run-3", "artifacts"), { recursive: true })
+
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, {
         options: {
           extraPlugins: [pluginTestRoot],
-          artifactDirForRun: () => artifactRoot,
         },
       })
-      .start({ home: "/tmp/ecp" })
+      .start({ home })
     const adapter = host.services.get(PluginAdapter)
 
     const controller = new AbortController()
@@ -585,7 +590,7 @@ export default async function handler(_input, ctx) {
 `,
     )
 
-    const host = await createEnvironment()
+    const host = await withFileServices(createEnvironment())
       .use(LocalPluginRegistration, PluginAdapter, { options: { linkedPlugins: [linkedRoot] } })
       .start({ home: "/tmp/ecp" })
     const adapter = host.services.get(PluginAdapter)

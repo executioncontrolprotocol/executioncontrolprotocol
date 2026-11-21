@@ -12,7 +12,9 @@ import type {
 } from "./objects.js"
 import type { RunEvent } from "./objects.js"
 import type { ValidationIssue } from "./validation.js"
-import type { HandlerContextInit, HandlerStore, PluginSchemaDocument } from "./plugins.js"
+import type { FileStepNotes } from "./handler-files.js"
+import { DEFAULT_FILE_MAX_BYTES_SETTINGS, type FileMaxBytesSettings } from "./file-limits.js"
+import type { ArtifactFileRef, HandlerContextInit, HandlerStore, PluginSchemaDocument } from "./plugins.js"
 
 /**
  * Token for one service interface. `multiple` allows more than one implementation.
@@ -144,6 +146,8 @@ export interface CapabilityCall {
   }
   /** Directory of the execution file for resolving relative `file` refs and `$script` paths. */
   executionDir?: string
+  /** Sniff corrections and other per-step file notes written onto the step record. */
+  fileNotes?: FileStepNotes
 }
 
 /**
@@ -191,6 +195,72 @@ export interface StorageProvider extends Lifecycle {
  * Run records under a {@link StorageProvider}.
  * @category Services
  */
+/**
+ * Stat for one artifact in a run.
+ * @category Services
+ */
+export interface ArtifactStat {
+  /** File name under `artifacts/`. */
+  name: string
+  /** Size in bytes. */
+  sizeBytes: number
+  /** Media type, when known. */
+  mediaType?: string
+}
+
+/**
+ * Run artifact storage: the only way run files are written and read. The local host stores them on disk; a hosted
+ * deployment can back this with object storage. URIs are `ecp://runs/<runId>/artifacts/<name>` whatever the backing
+ * store ({@link artifactUri}).
+ *
+ * Every implementation must reject unsafe run ids and names with `ECP_INPUT_INVALID`
+ * ({@link assertSafeRunId}, {@link assertSafeArtifactName}), and `put` must write a stream without holding the
+ * whole file in memory. A `put` is atomic: readers never see a partial artifact.
+ * @category Services
+ */
+export interface ArtifactStore extends Lifecycle {
+  /** Store bytes or a stream and return the artifact ref. Overwrites an artifact of the same name. */
+  put(
+    runId: string,
+    name: string,
+    body: ReadableStream<Uint8Array> | Uint8Array,
+    options?: { mediaType?: string },
+  ): Promise<ArtifactFileRef>
+  /** Open a read stream. `ECP_NOT_FOUND` when missing. */
+  getStream(runId: string, name: string): Promise<ReadableStream<Uint8Array>>
+  /** Read full contents. `ECP_NOT_FOUND` when missing. */
+  getBytes(runId: string, name: string): Promise<Uint8Array>
+  /** Stat one artifact; `undefined` when missing. */
+  stat(runId: string, name: string): Promise<ArtifactStat | undefined>
+  /** List artifacts for a run. */
+  list(runId: string): Promise<ArtifactStat[]>
+  /** Remove all artifacts for a run. */
+  deleteRun(runId: string): Promise<void>
+  /** Canonical URI for a stored name. */
+  uri(runId: string, name: string): string
+  /**
+   * Optional. The artifact's path on this machine, for stores whose bytes are local disk files, so
+   * `files.path()` can skip a scratch copy. Stores without local files omit it; callers then copy to scratch.
+   */
+  localPath?(runId: string, name: string): string | undefined
+}
+
+/**
+ * Per-step scratch directories for temporary local copies (`files.path()` on a file that isn't already local).
+ * Removed when the step settles. Names follow the same rules as artifact names.
+ * @category Services
+ */
+export interface ScratchSpace extends Lifecycle {
+  /** Write bytes into the step scratch dir and return the absolute path. */
+  writeBytes(runId: string, stepId: string, name: string, bytes: Uint8Array): Promise<string>
+  /** Write a stream into the step scratch dir without buffering it, and return the absolute path. */
+  writeStream(runId: string, stepId: string, name: string, body: ReadableStream<Uint8Array>): Promise<string>
+  /** Copy an on-disk file into scratch. */
+  copyFromPath(runId: string, stepId: string, sourcePath: string, name: string): Promise<string>
+  /** Remove the step scratch directory. */
+  releaseStep(runId: string, stepId: string): Promise<void>
+}
+
 export interface RunStore {
   /** Create a run and store the manifest copy used to resume. */
   create(record: RunRecord, manifest: ExecutionManifest): Promise<void>
@@ -208,8 +278,6 @@ export interface RunStore {
   getManifest(id: string): Promise<ExecutionManifest | undefined>
   /** List runs, most recent first. */
   list(filter: RunFilter, limit: number): Promise<RunRecord[]>
-  /** Directory for artifacts of one run. */
-  artifactDir(runId: string): string
 }
 
 /**
@@ -310,6 +378,28 @@ export interface HostSettings {
   extraPlugins?: string[]
   /** Log level. */
   logLevel?: "debug" | "info" | "warn" | "error"
+  /**
+   * File service size caps. Numbers default to {@link DEFAULT_FILE_MAX_BYTES_SETTINGS};
+   * partial objects merge on top of those defaults.
+   */
+  files?: {
+    maxBytes?: Partial<FileMaxBytesSettings>
+  }
+}
+
+/**
+ * Resolved file caps for one host instance.
+ * @category Services
+ */
+export function resolveFileMaxBytes(settings?: HostSettings["files"]): FileMaxBytesSettings {
+  const partial = settings?.maxBytes ?? {}
+  return {
+    bytes: partial.bytes ?? DEFAULT_FILE_MAX_BYTES_SETTINGS.bytes,
+    stream: partial.stream ?? DEFAULT_FILE_MAX_BYTES_SETTINGS.stream,
+    path: partial.path ?? DEFAULT_FILE_MAX_BYTES_SETTINGS.path,
+    url: partial.url ?? DEFAULT_FILE_MAX_BYTES_SETTINGS.url,
+    capture: partial.capture ?? DEFAULT_FILE_MAX_BYTES_SETTINGS.capture,
+  }
 }
 
 /**
@@ -359,6 +449,18 @@ export const StorageProvider: ServiceToken<StorageProvider> = {
   multiple: false,
 }
 
+/** Token for {@link ArtifactStore}. @category Services */
+export const ArtifactStore: ServiceToken<ArtifactStore> = {
+  id: "@executioncontrolprotocol/artifact-store",
+  multiple: false,
+}
+
+/** Token for {@link ScratchSpace}. @category Services */
+export const ScratchSpace: ServiceToken<ScratchSpace> = {
+  id: "@executioncontrolprotocol/scratch-space",
+  multiple: false,
+}
+
 /** Token for {@link SecretsProvider}. @category Services */
 export const SecretsProvider: ServiceToken<SecretsProvider> = {
   id: "@executioncontrolprotocol/secrets",
@@ -396,6 +498,9 @@ export const Auth: ServiceToken<Auth> = {
 export const IMPLEMENTATION_IDS = {
   localPlugins: "@executioncontrolprotocol/local.plugins",
   localStorage: "@executioncontrolprotocol/local.storage",
+  localArtifactStore: "@executioncontrolprotocol/local.artifact-store",
+  localScratchSpace: "@executioncontrolprotocol/local.scratch-space",
+  memoryArtifactStore: "@executioncontrolprotocol/testing.artifact-store",
   localSecrets: "@executioncontrolprotocol/local.secrets",
   quickjs: "@executioncontrolprotocol/quickjs",
   jsonFormatter: "@executioncontrolprotocol/formatters.json",

@@ -20,7 +20,7 @@ export default async function handler(input: UploadInput, ctx: HandlerContext): 
   const container = resolveContainer(config, input.container)
   ctx.signal.throwIfAborted()
 
-  const read = await ctx.files.read(input.file)
+  const read = await ctx.files.bytes(input.file)
   const blobName = input.blobName ?? randomUUID()
   const contentType = input.contentType ?? read.mediaType ?? input.file.mediaType ?? DEFAULT_CONTENT_TYPE
 

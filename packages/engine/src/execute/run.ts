@@ -364,6 +364,7 @@ async function runStep(
   let resolvedInput: unknown = {}
   let ranScript: string | undefined
   let ranExpression: string | undefined
+  const fileNotes = { mediaTypes: [] as Array<{ path: string; declared?: string; sniffed: string }> }
   try {
     resolvedInput = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
     const stepContract = capability?.contract === "step"
@@ -409,6 +410,7 @@ async function runStep(
           config,
           context: { runId: runtime.runId, stepId: node.id, round, state, expression: ranExpression },
           store,
+          fileNotes,
           ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
         },
         signal,
@@ -422,6 +424,7 @@ async function runStep(
           config,
           context: { runId: runtime.runId, stepId: node.id, round, state },
           store,
+          fileNotes,
           ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
         },
         signal,
@@ -461,7 +464,7 @@ async function runStep(
     summary.status = "completed"
     summary.durationMs = Date.now() - started
     emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
-    await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression)
+    await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes)
     await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
     summary.durationMs = Date.now() - started
@@ -474,19 +477,19 @@ async function runStep(
         path: stepPointer,
       }
       emit("step.error", { nodeId: node.id, round, error: issue })
-      await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression)
+      await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes)
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
     }
     if (runtime.interrupted || runtime.controller.signal.aborted || signal.aborted) {
       summary.status = "cancelled"
-      await persistStep(runtime, node, summary, resolvedInput, null, null, ranScript, ranExpression)
+      await persistStep(runtime, node, summary, resolvedInput, null, null, ranScript, ranExpression, fileNotes)
       if (runtime.interrupted) return
       throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
     const issue = toIssue(error, runtime.secrets, stepPointer)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
-    await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression)
+    await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes)
     throw Object.assign(new Error(issue.message), {
       code: issue.code,
       path: issue.path,
@@ -619,6 +622,7 @@ async function persistStep(
   error: ValidationIssue | null,
   script?: string,
   expression?: string,
+  fileNotes?: { mediaTypes: Array<{ path: string; declared?: string; sniffed: string }> },
 ): Promise<void> {
   if (!runtime.deps.store) return
   const record: StepRecord = {
@@ -633,6 +637,7 @@ async function persistStep(
     durationMs: summary.durationMs,
     ...(script !== undefined ? { script } : {}),
     ...(expression !== undefined ? { expression } : {}),
+    ...(fileNotes && fileNotes.mediaTypes.length > 0 ? { mediaTypes: fileNotes.mediaTypes } : {}),
   }
   await runtime.deps.store.writeStep(runtime.runId, record)
 }

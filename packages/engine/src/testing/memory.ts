@@ -72,11 +72,9 @@ export class MemoryStorage implements StorageProvider {
   readonly runs: RunStore
 
   /**
-   * @param home Used only to build artifact directory paths.
    * @param files Optional reader for execution and script files.
    */
   constructor(
-    private readonly home = "/tmp/ecp",
     private readonly files?: TextFileReader,
   ) {
     this.runs = this.createRunStore()
@@ -230,7 +228,6 @@ export class MemoryStorage implements StorageProvider {
   private createRunStore(): RunStore {
     const runs = this.runRecords
     const emit = (change: StorageChange): void => this.emit(change)
-    const home = this.home
     return {
       async create(record: RunRecord, manifest: ExecutionManifest): Promise<void> {
         runs.set(record.id, { record, manifest, steps: [], events: [] })
@@ -277,9 +274,6 @@ export class MemoryStorage implements StorageProvider {
           })
           .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
           .slice(0, limit)
-      },
-      artifactDir(runId: string): string {
-        return `${home}/runs/${runId}/artifacts`
       },
     }
   }
