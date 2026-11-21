@@ -110,6 +110,8 @@ export interface StepNode {
   as?: string
   /** Commit mode. Requires `as`. */
   mode?: CommitMode
+  /** When false, skip uniform capture of output file refs for this step. Default true. */
+  persist?: boolean
 }
 
 /**

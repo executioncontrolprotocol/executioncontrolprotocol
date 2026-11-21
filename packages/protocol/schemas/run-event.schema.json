@@ -14,6 +14,7 @@
         "step.skip",
         "step.end",
         "step.error",
+        "step.warning",
         "branch.select",
         "loop.round",
         "loop.exhausted",

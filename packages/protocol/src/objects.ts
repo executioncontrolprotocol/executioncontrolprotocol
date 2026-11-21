@@ -1,5 +1,5 @@
 import type { ExecutionManifest, JsonValue } from "./manifest.js"
-import type { FileRef } from "./plugins.js"
+import type { ArtifactFileRef, FileRef } from "./plugins.js"
 import type { ValidationIssue } from "./validation.js"
 
 /**
@@ -249,6 +249,36 @@ export interface StagedWritePreview {
 }
 
 /**
+ * Original file ref recorded on a captured output entry.
+ * @category Definitions
+ */
+export interface CapturedFileSource {
+  /** Source ref kind (unchanged after capture). */
+  kind: "file" | "url" | "artifact"
+  /** Url source with query stripped, when `kind` is `url`. */
+  url?: string
+  /** Path source, when `kind` is `file`. */
+  path?: string
+  /** Artifact uri, when `kind` is `artifact`. */
+  uri?: string
+}
+
+/**
+ * One captured {@link FileRef} from a successful step output.
+ * @category Definitions
+ */
+export interface CapturedFileRecord {
+  /** JSON pointer to the ref in the step output. */
+  path: string
+  /** Source ref at capture time. */
+  source: CapturedFileSource
+  /** Stored artifact, when capture succeeded. */
+  artifact?: ArtifactFileRef
+  /** Failure, when capture did not store a copy. */
+  error?: { code: string; message: string }
+}
+
+/**
  * Persisted step record.
  * @category Definitions
  */
@@ -283,6 +313,8 @@ export interface StepRecord {
   staged?: StagedWritePreview[]
   /** Declared vs sniffed media types corrected during the step. */
   mediaTypes?: Array<{ path: string; declared?: string; sniffed: string }>
+  /** Files captured from step output (uniform capture). */
+  captured?: CapturedFileRecord[]
 }
 
 /**
@@ -310,6 +342,7 @@ export type RunEventType =
   | "step.skip"
   | "step.end"
   | "step.error"
+  | "step.warning"
   | "branch.select"
   | "loop.round"
   | "loop.exhausted"

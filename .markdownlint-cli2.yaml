@@ -5,3 +5,5 @@ ignores:
   - "**/node_modules/**"
   - ".changeset/**"
   - ".git/**"
+  - "test-results/**"
+  - "playwright-report/**"

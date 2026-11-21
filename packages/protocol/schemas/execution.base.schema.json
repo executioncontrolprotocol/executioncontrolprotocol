@@ -94,7 +94,8 @@
         "script": { "$ref": "#/$defs/scriptValue" },
         "expression": { "type": "string", "minLength": 1 },
         "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "mode": { "enum": ["create", "replace", "merge", "append"] }
+        "mode": { "enum": ["create", "replace", "merge", "append"] },
+        "persist": { "type": "boolean" }
       }
     },
     "branch": {

@@ -112,8 +112,14 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   "script": "return { greeting: input.name }", "expression": null,
   "config": { "id": "anthropic/default", "version": 3 },
   "startedAt": "…", "endedAt": "…", "durationMs": 912,
-  "staged": [ { "op": "append", "path": "history", "valuePreview": "…" } ] }
+  "staged": [ { "op": "append", "path": "history", "valuePreview": "…" } ],
+  "captured": [ { "path": "image", "source": { "kind": "url", "url": "https://example.test/a.png" },
+    "artifact": { "kind": "artifact", "uri": "ecp://runs/<runId>/artifacts/<name>", "mediaType": "image/png" } } ] }
 ```
+
+`captured` lists every `FileRef` the executor processed on a successful step: `path` (JSON
+pointer in the step output), `source` (kind plus url without query, path, or uri), optional
+`artifact`, or `error` when capture failed.
 
 When a transform runs in QuickJS, `script` holds the source text that ran (inline `source` or
 resolved `path` file). When `code` is `"expression"`, `expression` holds the step's expression

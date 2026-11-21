@@ -3,7 +3,9 @@ import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 import type { Operations, ServiceContext } from "@executioncontrolprotocol/engine"
+import { readRunArtifactForHttp } from "@executioncontrolprotocol/local"
 import {
+  ArtifactStore,
   Auth,
   IMPLEMENTATION_IDS,
   PluginAdapter,
@@ -282,6 +284,35 @@ export class HttpApiEndpoint implements Endpoint {
           return
         }
         this.writeJson(res, 200, { ok: true, data: { files: listExecutionFiles(dir) } })
+        return
+      }
+      const artifactMatch = /^\/v1\/runs\/([^/]+)\/artifacts\/([^/]+)$/.exec(pathName)
+      if (method === "GET" && artifactMatch) {
+        const runId = decodeURIComponent(artifactMatch[1] ?? "")
+        const name = decodeURIComponent(artifactMatch[2] ?? "")
+        const store = this.ctx.services.get(ArtifactStore)
+        const artifact = await readRunArtifactForHttp(store, runId, name)
+        if ("code" in artifact) {
+          this.writeJson(res, 404, refuse(artifact.code, artifact.message))
+          return
+        }
+        res.statusCode = 200
+        res.setHeader("Content-Type", artifact.mediaType)
+        if (artifact.body instanceof Uint8Array) {
+          res.end(Buffer.from(artifact.body))
+          return
+        }
+        const reader = artifact.body.getReader()
+        try {
+          while (true) {
+            const chunk = await reader.read()
+            if (chunk.done) break
+            res.write(chunk.value)
+          }
+          res.end()
+        } catch {
+          res.end()
+        }
         return
       }
       if (method === "POST" && pathName === "/v1/admin/drain") {

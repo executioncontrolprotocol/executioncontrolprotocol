@@ -101,6 +101,11 @@ export const deleteBlob = capability({
 Callers bind the upload `file` output into url-only Adobe inputs. The host records each publish on
 the run and marks deletions when an unpublish locator matches.
 
+After a successful step, the host **captures every `FileRef` in the output** (unless the step sets
+`persist: false`): downloads urls, copies files, records artifacts, and adds optional `archive` on
+each ref while keeping its `kind`. Capture failures go on `step.captured[]` and `step.warning`
+events; they do not fail the step. Use `fileRefSchema` so `archive` is not stripped from JSON Schema.
+
 Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
 The installable package also needs an empty `"oclif": {}` key in `package.json` (first-party
 plugins include it).

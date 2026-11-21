@@ -28,6 +28,7 @@ import {
   SecretsProvider,
   StorageProvider,
 } from "@executioncontrolprotocol/protocol"
+import type { CaptureOneDelegate } from "../execute/capture-output.js"
 import type { ActiveRun } from "../execute/run.js"
 import { startExecution } from "../execute/run.js"
 import type { Operations, ResolvedHostSettings, ServiceLookup } from "../container/environment.js"
@@ -56,6 +57,8 @@ export interface OperationsOptions {
   hostPid?: number
   /** Override run id creation. */
   createRunId?: () => string
+  /** Build output capture delegate for runs. */
+  createCaptureOutput?: (services: ServiceLookup, settings: ResolvedHostSettings) => CaptureOneDelegate
 }
 
 interface LiveRun {
@@ -630,6 +633,10 @@ async function startAndAwait(
     return assembleCapabilityEntry(entry, documentByPlugin.get(entry.plugin))
   }
   const executionDir = dirnameOf(ref.path)
+  const captureOutput =
+    options.createCaptureOutput && options.settings
+      ? options.createCaptureOutput(services, options.settings)
+      : undefined
   const handle = startExecution(manifest, runInput, {
     capabilities,
     expression: expression as ExpressionEngineService,
@@ -646,6 +653,7 @@ async function startAndAwait(
     store: storage.runs,
     schemas,
     lookupCapability,
+    ...(captureOutput ? { captureOutput } : {}),
     call: async (request, signal, store) => plugins.call({ ...request, store }, signal),
   })
 

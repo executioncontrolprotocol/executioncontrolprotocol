@@ -69,7 +69,7 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "5f6289c65f77a9dbb1b84e164257708a6efe305f4eb304c97b1ef59d8ab8fd21",
+  "hash": "c2a205648c121af31dde8fb558cfe977ebfec7ebeccaf79821470f3ef69b96a5",
   "plugin": {
     "description": "Blob storage for executions that persist media, share time-limited links, bring stored objects into a run as artifacts, or remove blobs after use. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
@@ -78,7 +78,7 @@
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "7d27716d35770197af1a7efcdf74d42f28290ae04be81b5743de11c0111c6f3c",
+    "hash": "a8ee1ff8987fa1dc5f58a0f1c78b4953ede7e0854afd6f1f83d991ebe0087743",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

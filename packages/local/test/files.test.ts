@@ -174,6 +174,10 @@ describe("file service on the local stores", () => {
       ["image/jpeg", "image/png"],
       ["image/jpeg", "image/png"],
     ])
+    // The store records the corrected type, not the declared one, so later reads and previews get it right.
+    expect((await svc.files.path(labelled)).mediaType).toBe("image/png")
+    const tiny = await svc.files.fromBytes(new Uint8Array([1, 2, 3]), { name: "tiny.bin" })
+    expect(tiny).toMatchObject({ mediaType: "application/octet-stream", sizeBytes: 3 })
     await svc.stop()
   })
 

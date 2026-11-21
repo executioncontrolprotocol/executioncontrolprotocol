@@ -1,4 +1,5 @@
 import type {
+  CapturedFileRecord,
   CapabilityCall,
   CapabilityEntry,
   ConfigObject,
@@ -14,6 +15,7 @@ import type {
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
 import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
+import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
 import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
 
@@ -92,6 +94,8 @@ export interface RunDependencies {
   schemas?: HostSchemaSet
   /** Resolve a capability row when the run-time list does not already include it. */
   lookupCapability?: (capabilityId: string) => CapabilityEntry | undefined
+  /** Capture output {@link FileRef}s into the run artifact store. */
+  captureOutput?: CaptureOneDelegate
 }
 
 /**
@@ -143,6 +147,8 @@ interface NodeLike {
   branches?: unknown
   maxRounds?: number
   maxConcurrency?: number
+  /** When false, skip uniform output capture. Default true. */
+  persist?: boolean
 }
 
 interface Runtime {
@@ -462,13 +468,27 @@ async function runStep(
     } else if (capability && !stepContract) {
       assertSchema(capability.returns, output, "ECP_OUTPUT_INVALID")
     }
+    let captured: CapturedFileRecord[] = []
+    if (runtime.deps.captureOutput) {
+      const capturedOutput = await captureStepOutput(output, {
+        stepId: node.id,
+        ...(typeof round === "number" ? { round } : {}),
+        persist: node.persist !== false,
+        runId: runtime.runId,
+        ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
+        delegate: runtime.deps.captureOutput,
+        onWarning: (issue) => emit("step.warning", { nodeId: node.id, round, warning: issue }),
+      })
+      output = capturedOutput.output
+      captured = capturedOutput.captured
+    }
     const redacted = redact(output, runtime.secrets)
     applyStaged(state, staged, runtime.secrets)
     commitAs(state, node, redacted)
     summary.status = "completed"
     summary.durationMs = Date.now() - started
     emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
-    await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes)
+    await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes, captured)
     await runtime.publishes?.record(capability, node.id, round, resolvedInput, redacted)
     await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
@@ -482,19 +502,19 @@ async function runStep(
         path: stepPointer,
       }
       emit("step.error", { nodeId: node.id, round, error: issue })
-      await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes)
+      await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes, [])
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
     }
     if (runtime.interrupted || runtime.controller.signal.aborted || signal.aborted) {
       summary.status = "cancelled"
-      await persistStep(runtime, node, summary, resolvedInput, null, null, ranScript, ranExpression, fileNotes)
+      await persistStep(runtime, node, summary, resolvedInput, null, null, ranScript, ranExpression, fileNotes, [])
       if (runtime.interrupted) return
       throw Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" })
     }
     const issue = toIssue(error, runtime.secrets, stepPointer)
     summary.status = "failed"
     emit("step.error", { nodeId: node.id, round, error: issue })
-    await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes)
+    await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes, [])
     throw Object.assign(new Error(issue.message), {
       code: issue.code,
       path: issue.path,
@@ -628,6 +648,7 @@ async function persistStep(
   script?: string,
   expression?: string,
   fileNotes?: { mediaTypes: Array<{ path: string; declared?: string; sniffed: string }> },
+  captured: CapturedFileRecord[] = [],
 ): Promise<void> {
   if (!runtime.deps.store) return
   const record: StepRecord = {
@@ -643,6 +664,7 @@ async function persistStep(
     ...(script !== undefined ? { script } : {}),
     ...(expression !== undefined ? { expression } : {}),
     ...(fileNotes && fileNotes.mediaTypes.length > 0 ? { mediaTypes: fileNotes.mediaTypes } : {}),
+    ...(captured.length > 0 ? { captured } : {}),
   }
   await runtime.deps.store.writeStep(runtime.runId, record)
 }

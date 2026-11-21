@@ -20,7 +20,7 @@ describe("LocalArtifactStore", () => {
     const ref = await store.put("run-a", "one.bin", new Uint8Array([5, 4]), { mediaType: "application/octet-stream" })
     expect(ref.uri).toBe("ecp://runs/run-a/artifacts/one.bin")
     const listed = await store.list("run-a")
-    expect(listed).toEqual([{ name: "one.bin", sizeBytes: 2 }])
+    expect(listed).toEqual([{ name: "one.bin", sizeBytes: 2, mediaType: "application/octet-stream" }])
     const onDisk = path.join(home, "runs", "run-a", "artifacts", "one.bin")
     await mkdir(path.dirname(onDisk), { recursive: true })
     expect(await readFile(onDisk)).toEqual(Buffer.from([5, 4]))
@@ -42,6 +42,23 @@ describe("LocalArtifactStore", () => {
 
     await store.deleteRun("run-a")
     expect(await store.list("run-a")).toEqual([])
+    await host.stop()
+  })
+
+  it("keeps each artifact's media type, hides its metadata, and clears it on rewrite without one", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "ecp-artifact-media-"))
+    const host = await createEnvironment().use(LocalArtifactStore, ArtifactStore).start({ home: root })
+    const store = host.services.get(ArtifactStore)
+    await store.put("run-m", "pic.png", new Uint8Array([1, 2]), { mediaType: "image/png" })
+    await store.put("run-m", "plain.bin", new Uint8Array([3]))
+    expect(await store.stat("run-m", "pic.png")).toEqual({ name: "pic.png", sizeBytes: 2, mediaType: "image/png" })
+    expect(await store.list("run-m")).toEqual([
+      { name: "pic.png", sizeBytes: 2, mediaType: "image/png" },
+      { name: "plain.bin", sizeBytes: 1 },
+    ])
+    await store.put("run-m", "pic.png", new Uint8Array([9]))
+    expect(await store.stat("run-m", "pic.png")).toEqual({ name: "pic.png", sizeBytes: 1 })
+    await expect(store.stat("run-m", ".meta")).rejects.toMatchObject({ code: "ECP_INPUT_INVALID" })
     await host.stop()
   })
 })

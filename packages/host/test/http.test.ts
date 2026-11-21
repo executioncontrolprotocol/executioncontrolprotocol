@@ -15,6 +15,7 @@ import {
 } from "../src/index.js"
 import { rawRequest } from "./http-raw.js"
 
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../plugins/plugin-test",
@@ -523,4 +524,64 @@ describe("HttpApiEndpoint", () => {
     const resumed = await client2.execute({ resume: forceId })
     expect(resumed.ok).toBe(true)
   }, 20_000)
+
+  it("returns run artifacts and rejects traversal", async () => {
+    await start()
+    const client = new HostClient(baseUrl, token)
+    const binPath = path.join(repoRoot, "packages/host/test/fixtures/payload.bin")
+    mkdirSync(path.dirname(binPath), { recursive: true })
+    writeFileSync(binPath, Buffer.from([7, 8, 9]))
+    const manifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "round",
+          uses: "@executioncontrolprotocol/test.file-roundtrip",
+          input: { file: { kind: "file", path: binPath, mediaType: "application/octet-stream", name: "payload.bin" } },
+          as: "out",
+        },
+      ],
+    }
+    const execPath = path.join(repoRoot, "packages/host/test/fixtures/file-roundtrip.ecp.json")
+    writeFileSync(execPath, JSON.stringify(manifest, null, 2))
+    const run = await client.execute({ execution: { path: execPath }, wait: true })
+    expect(run.ok).toBe(true)
+    if (!run.ok || !("runId" in run.data)) return
+    const runId = run.data.runId as string
+    const detail = await client.retrieve({ type: "run", id: runId, include: ["steps"] })
+    expect(detail.ok).toBe(true)
+    const steps = detail.ok && "item" in detail.data ? (detail.data.item as { steps?: Array<{ captured?: Array<{ artifact?: { name?: string } }> }> }).steps : undefined
+    const name = steps?.[0]?.captured?.[0]?.artifact?.name
+    expect(name).toBeTruthy()
+  const ok = await rawRequest({
+      baseUrl,
+      method: "GET",
+      path: `/v1/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(name!)}`,
+      headers: { Authorization: `Bearer ${token}`, Host: new URL(baseUrl).host },
+    })
+    expect(ok.status).toBe(200)
+    expect(Buffer.from(ok.body, "latin1")).toEqual(Buffer.from([7, 8, 9]))
+    const missing = await rawRequest({
+      baseUrl,
+      method: "GET",
+      path: `/v1/runs/${encodeURIComponent(runId)}/artifacts/nope.bin`,
+      headers: { Authorization: `Bearer ${token}`, Host: new URL(baseUrl).host },
+    })
+    expect(missing.status).toBe(404)
+    const traversal = await rawRequest({
+      baseUrl,
+      method: "GET",
+      path: `/v1/runs/${encodeURIComponent(runId)}/artifacts/..`,
+      headers: { Authorization: `Bearer ${token}`, Host: new URL(baseUrl).host },
+    })
+    expect(traversal.status).toBe(404)
+    const unauth = await rawRequest({
+      baseUrl,
+      method: "GET",
+      path: `/v1/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(name!)}`,
+      headers: { Host: new URL(baseUrl).host },
+    })
+    expect(unauth.status).toBe(401)
+  })
 })

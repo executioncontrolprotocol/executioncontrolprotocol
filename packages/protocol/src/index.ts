@@ -52,11 +52,19 @@ export type {
   ValueMarker,
 } from "./manifest.js"
 export type { ValidationIssue, ValidationResult, ValidationSeverity } from "./validation.js"
+export {
+  captureSourceFromRef,
+  isFileRefValue,
+  walkFileRefs,
+} from "./file-ref-shape.js"
+export type { FileRefWithArchive } from "./file-ref-shape.js"
 export type {
   CapabilityEntry,
   CapabilityPublishMetadata,
   CapabilityRole,
   CapabilitySummary,
+  CapturedFileRecord,
+  CapturedFileSource,
   ConfigObject,
   EnvRef,
   RunCursor,

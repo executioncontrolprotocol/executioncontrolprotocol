@@ -19,6 +19,7 @@ import {
   DEFAULT_STEP_TIMEOUT_MS,
   ServiceError,
 } from "./constants.js"
+import type { CaptureOneDelegate } from "../execute/capture-output.js"
 import { createOperations } from "../operations/operations.js"
 
 /**
@@ -110,6 +111,8 @@ export interface ResolvedHostSettings {
   files: FileMaxBytesSettings
   /** Write `output.path` files. Injected by the host. */
   writeTextFile?: (path: string, text: string) => Promise<void>
+  /** Build uniform output capture for the executor. Injected by the host. */
+  createCaptureOutput?: (services: ServiceLookup, settings: ResolvedHostSettings) => CaptureOneDelegate
 }
 
 /**
@@ -169,7 +172,12 @@ const silentLogger: Logger = {
  * Fill the MVP defaults for omitted host settings.
  * @category Services
  */
-export function resolveHostSettings(settings: HostSettings & { writeTextFile?: (path: string, text: string) => Promise<void> }): ResolvedHostSettings {
+export function resolveHostSettings(
+  settings: HostSettings & {
+    writeTextFile?: (path: string, text: string) => Promise<void>
+    createCaptureOutput?: (services: ServiceLookup, settings: ResolvedHostSettings) => CaptureOneDelegate
+  },
+): ResolvedHostSettings {
   return {
     home: settings.home,
     mode: settings.mode ?? "in-process",
@@ -184,6 +192,7 @@ export function resolveHostSettings(settings: HostSettings & { writeTextFile?: (
     logLevel: settings.logLevel ?? "info",
     files: resolveFileMaxBytes(settings.files),
     writeTextFile: settings.writeTextFile,
+    createCaptureOutput: settings.createCaptureOutput,
   }
 }
 
@@ -267,6 +276,7 @@ export function createEnvironment(): Environment {
         operations: createOperations(lookup, {
           settings: resolved,
           writeTextFile: resolved.writeTextFile,
+          createCaptureOutput: resolved.createCaptureOutput,
           hostPid: process.pid,
         }),
         settings: resolved,

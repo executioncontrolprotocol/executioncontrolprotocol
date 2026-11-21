@@ -207,6 +207,26 @@ export class AppHostClient {
     return Array.isArray(files) ? files.filter((file): file is string => typeof file === "string") : []
   }
 
+  /** Absolute URL of `GET /v1/runs/:runId/artifacts/:name`. */
+  artifactPath(runId: string, name: string): string {
+    return this.url(
+      `/v1/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(name)}`,
+    )
+  }
+
+  /** Download one run artifact with local-token auth. */
+  async fetchArtifact(runId: string, name: string): Promise<Blob> {
+    const response = await this.send(
+      `/v1/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(name)}`,
+      { method: "GET" },
+    )
+    if (!response.ok) {
+      const text = await response.text()
+      throw this.refusal(response.status, text)
+    }
+    return await response.blob()
+  }
+
   /** Absolute URL of the `/v1/watch` server-sent events stream. */
   watchUrl(options: WatchUrlOptions = {}): string {
     const params = new URLSearchParams()

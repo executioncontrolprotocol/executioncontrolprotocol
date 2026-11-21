@@ -44,6 +44,10 @@ Path-opened executions use three host routes (09):
 - `GET /v1/watch?path=<absolute>` streams a change event whenever that execution file **or any
   of its `$script.path` files** changes (`fs.watch`, 100 ms debounce, 2 s poll fallback). The set
   of watched script files is recomputed after each reload.
+- `GET /v1/runs/:runId/artifacts/:name` streams a captured artifact (same Bearer auth as the API).
+  Names must pass `assertSafeArtifactName`; unknown or invalid names return `ECP_NOT_FOUND`. The
+  run output panel loads `image/*` captures inline when `sizeBytes` is at most 8 MiB; other types
+  are download links.
 
 ## Behaviour
 

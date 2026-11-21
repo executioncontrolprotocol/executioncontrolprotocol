@@ -65,6 +65,13 @@ Staged `$state` writes use `ctx.store.set | replace | merge | append(handle, val
 same meanings at the handle's path (`set` = `replace`). They are applied before the `as` commit,
 in call order, and discarded if the step fails.
 
+**Uniform capture (F6):** after output passes `returns` validation and before staged writes and
+`as` commit, the executor walks the output for `FileRef` shapes. When `persist` is not `false`,
+each ref is copied into `ArtifactStore` through the host-injected file service (`url` download,
+`file` copy, `artifact` record only). Successful captures add optional `archive` on the ref
+while keeping its `kind`. Failures append `captured[].error`, emit `step.warning`, and do not
+fail the step.
+
 **Branch:** evaluate arm `expr`s in order (control); run the first `true` arm; else the default
 arm; else nothing. Event `branch.select` with the arm index (or `null`).
 

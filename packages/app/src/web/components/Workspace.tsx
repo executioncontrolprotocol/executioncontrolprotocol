@@ -289,7 +289,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 onSelectNode={selectFromIssue}
               />
             ) : null}
-            {tab === "run" ? <RunView manifest={doc.manifest} run={live} onRun={onRun} /> : null}
+            {tab === "run" ? <RunView manifest={doc.manifest} run={live} onRun={onRun} client={client} /> : null}
             {tab === "runs" ? (
               <RunsView
                 client={client}

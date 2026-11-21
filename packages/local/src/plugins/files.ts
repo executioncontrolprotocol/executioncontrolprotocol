@@ -149,7 +149,10 @@ export function createFileService(options: CreateFileServiceOptions): FileServic
     return { bytes, mediaType, name: opened.name }
   }
 
-  /** Write a stream to the artifact store, sniffing its first bytes on the way through. */
+  /**
+   * Write a stream to the artifact store. The first bytes are read up front so the media type is settled
+   * (sniffed and reconciled) before the store records it; the rest streams through without buffering.
+   */
   async function store(
     body: ReadableStream<Uint8Array>,
     writeOptions: { mediaType?: string; name?: string } | undefined,
@@ -157,20 +160,35 @@ export function createFileService(options: CreateFileServiceOptions): FileServic
   ): Promise<ArtifactFileRef> {
     const name = writeOptions?.name ?? defaultArtifactName()
     assertSafeArtifactName(name)
+    const reader = capStream(body, options.maxBytes.bytes, "File").getReader()
+    const prefix: Uint8Array[] = []
     let head: Uint8Array = new Uint8Array()
-    const peek = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        if (head.byteLength < SNIFF_BYTES) head = concat(head, chunk.subarray(0, SNIFF_BYTES - head.byteLength))
-        controller.enqueue(chunk)
+    let done = false
+    while (!done && head.byteLength < SNIFF_BYTES) {
+      const next = await reader.read()
+      done = next.done
+      if (next.value) {
+        prefix.push(next.value)
+        head = concat(head, next.value.subarray(0, SNIFF_BYTES - head.byteLength))
+      }
+    }
+    const mediaType = reconcile(head, writeOptions?.mediaType, label) ?? DEFAULT_OCTET
+    const rest = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of prefix) controller.enqueue(chunk)
+        if (done) controller.close()
+      },
+      async pull(controller) {
+        if (done) return
+        const next = await reader.read()
+        if (next.done) controller.close()
+        else controller.enqueue(next.value)
+      },
+      cancel(reason) {
+        return reader.cancel(reason)
       },
     })
-    const ref = await options.artifacts.put(
-      options.runId,
-      name,
-      capStream(body, options.maxBytes.bytes, "File").pipeThrough(peek),
-      writeOptions?.mediaType ? { mediaType: writeOptions.mediaType } : undefined,
-    )
-    const mediaType = reconcile(head, writeOptions?.mediaType, label) ?? DEFAULT_OCTET
+    const ref = await options.artifacts.put(options.runId, name, rest, { mediaType })
     return { ...ref, mediaType }
   }
 

@@ -17,7 +17,15 @@ import type {
   PluginSchemaDocument,
 } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
-import { HostSchemaSet, resolveValue, runExecution, startExecution, VERSION, type StateStore } from "../src/index.js"
+import {
+  HostSchemaSet,
+  resolveValue,
+  runExecution,
+  startExecution,
+  VERSION,
+  type CaptureOneDelegate,
+  type StateStore,
+} from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
 import type { RunRecord } from "@executioncontrolprotocol/protocol"
 
@@ -802,5 +810,131 @@ describe("run fixtures", () => {
       { capabilities, call: track, expression: engine, executionDir: "/tmp/exec-dir" },
     )
     expect(seen[0]?.executionDir).toBe("/tmp/exec-dir")
+  })
+
+  it("invokes capture after success and skips when persist is false", async () => {
+    const storage = new MemoryStorage()
+    const runRecord = (id: string): RunRecord => ({
+      schema: "@executioncontrolprotocol.run",
+      version: "1.0",
+      id,
+      execution: { path: null, manifestHash: "abc" },
+      status: "running",
+      input: {},
+      result: null,
+      error: null,
+      startedAt: "2026-11-14T00:00:00.000Z",
+      plugins: {},
+      host: { version: VERSION, pid: 1, mode: "in-process" },
+      warnings: [],
+      publishes: [],
+    })
+    let captureCalls = 0
+    const captureOutput: CaptureOneDelegate = async (input) => {
+      captureCalls += 1
+      const archive = {
+        kind: "artifact" as const,
+        uri: `ecp://runs/${input.runId}/artifacts/${input.artifactName}`,
+        name: input.artifactName,
+      }
+      ;(input.ref as { archive?: typeof archive }).archive = archive
+      return {
+        record: { path: input.outputPath, source: { kind: "url" as const, url: "https://example.test" }, artifact: archive },
+      }
+    }
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "out",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: { kind: "url", url: "https://example.test/a.png", mediaType: "image/png" } },
+          as: "file",
+        },
+      ],
+    }
+    await storage.runs.create(runRecord("run-cap-int"), manifest)
+    await runExecution(manifest, {}, {
+      capabilities,
+      call: invoke,
+      expression: engine,
+      runId: "run-cap-int",
+      store: storage.runs,
+      captureOutput,
+    })
+    expect(captureCalls).toBe(1)
+    const detail = await storage.runs.get("run-cap-int", ["steps"])
+    expect(detail?.steps?.[0]?.captured?.length).toBe(1)
+
+    const skipManifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "skip",
+          uses: "@executioncontrolprotocol/test.echo",
+          persist: false,
+          input: { value: { kind: "url", url: "https://example.test/b.png" } },
+          as: "file",
+        },
+      ],
+    }
+    await storage.runs.create(runRecord("run-cap-skip"), skipManifest)
+    await runExecution(skipManifest, {}, {
+      capabilities,
+      call: invoke,
+      expression: engine,
+      runId: "run-cap-skip",
+      store: storage.runs,
+      captureOutput,
+    })
+    expect(captureCalls).toBe(1)
+  })
+
+  it("emits step.warning when capture records an error", async () => {
+    const storage = new MemoryStorage()
+    const runId = "run-cap-warn"
+    await storage.runs.create(
+      {
+        schema: "@executioncontrolprotocol.run",
+        version: "1.0",
+        id: runId,
+        execution: { path: null, manifestHash: "abc" },
+        status: "running",
+        input: {},
+        result: null,
+        error: null,
+        startedAt: "2026-11-14T00:00:00.000Z",
+        plugins: {},
+        host: { version: VERSION, pid: 1, mode: "in-process" },
+        warnings: [],
+        publishes: [],
+      } satisfies RunRecord,
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "out", uses: "@executioncontrolprotocol/test.echo", input: { value: { kind: "url", url: "https://x" } }, as: "f" }],
+      },
+    )
+    const captureOutput: CaptureOneDelegate = async (input) => ({
+      record: {
+        path: input.outputPath,
+        source: { kind: "url", url: "https://x" },
+        error: { code: "ECP_PROVIDER_ERROR", message: "fetch failed" },
+      },
+    })
+    await runExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [{ id: "out", uses: "@executioncontrolprotocol/test.echo", input: { value: { kind: "url", url: "https://x" } }, as: "f" }],
+      },
+      {},
+      { capabilities, call: invoke, expression: engine, runId, store: storage.runs, captureOutput },
+    )
+    const detail = await storage.runs.get(runId, ["steps", "events"])
+    expect(detail?.steps?.[0]?.status).toBe("completed")
+    expect(detail?.events?.some((event) => event.type === "step.warning")).toBe(true)
   })
 })
