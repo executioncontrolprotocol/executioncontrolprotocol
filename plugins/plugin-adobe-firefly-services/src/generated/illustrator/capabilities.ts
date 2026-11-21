@@ -16,7 +16,7 @@ export const illustratorCapabilities = {
     useCases: ["Export Illustrator artwork to PNG, PDF or other formats from cloud storage URLs"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      input: fileRefSchema.optional().describe("The input object containing source and media type."),
+      input: fileRefSchema({ access: "url" }).optional().describe("The input object containing source and media type."),
       output: z.strictObject({
         mediaType: schemas.In_CreateRenditionOutputMediaType
       }).optional().describe("Output specification for the rendition operation with desired media type."),
@@ -37,8 +37,8 @@ export const illustratorCapabilities = {
     useCases: ["Personalize Illustrator templates with rows from a CSV dataset"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      data: fileRefSchema.optional().describe("The data source containing variable data. Must be a CSV file."),
-      template: fileRefSchema.optional().describe("The template source (Adobe Illustrator file)."),
+      data: fileRefSchema({ access: "url" }).optional().describe("The data source containing variable data. Must be a CSV file."),
+      template: fileRefSchema({ access: "url" }).optional().describe("The template source (Adobe Illustrator file)."),
       fontFiles: z.array(schemas.In_DataMergeFontFile).optional().describe("Optional array of font files to be used in the template. Supports .ttf and .otf font formats."),
       settings: z.strictObject({
         fontSettings: z.strictObject({
@@ -89,7 +89,7 @@ export const illustratorCapabilities = {
     useCases: ["Vectorize a PNG or JPEG logo or illustration for scalable output"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      input: fileRefSchema.optional().describe("Input raster source and media type."),
+      input: fileRefSchema({ access: "url" }).optional().describe("Input raster source and media type."),
       settings: z.strictObject({
         preset: z.enum(["enhanced_general", "high_fidelity_photo"]).optional().describe("Vectorization preset. `enhanced_general` favors a clean, vector-style look. `high_fidelity_photo` favors photorealistic tracing. Omit to use the service default. Other values return 400.")
       }).optional().describe("Optional vectorization preset (`preset` only)."),

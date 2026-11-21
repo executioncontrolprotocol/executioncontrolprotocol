@@ -64,7 +64,25 @@ export interface BuildPluginSchemaOptions {
  */
 export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
   const raw = z.toJSONSchema(schema, { target: "draft-2020-12", io }) as Record<string, unknown>
-  return stripSchemaKeys(sortKeys(raw)) as Record<string, unknown>
+  return hoistZodJsonSchemaMeta(stripSchemaKeys(sortKeys(raw))) as Record<string, unknown>
+}
+
+function hoistZodJsonSchemaMeta(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => hoistZodJsonSchemaMeta(item))
+  if (typeof value !== "object" || value === null) return value
+  const record = value as Record<string, unknown>
+  const output: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(record)) {
+    output[key] = hoistZodJsonSchemaMeta(child)
+  }
+  const meta = record.jsonSchema
+  if (typeof meta === "object" && meta !== null && !Array.isArray(meta)) {
+  for (const [metaKey, metaValue] of Object.entries(meta as Record<string, unknown>)) {
+      output[metaKey] = metaValue
+    }
+    delete output.jsonSchema
+  }
+  return output
 }
 
 /**

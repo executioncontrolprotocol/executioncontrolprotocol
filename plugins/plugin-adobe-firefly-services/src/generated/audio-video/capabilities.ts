@@ -81,7 +81,7 @@ export const audioVideoCapabilities = {
     useCases: ["Reframe clips when only the older reframe endpoint is available"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      video: fileRefSchema.optional().describe("Video input details."),
+      video: fileRefSchema({ access: "url", mediaTypes: ["video/mp4","video/quicktime"] }).optional().describe("Video input details."),
       sceneEditDetection: z.boolean().optional().describe("Apply Scene Edit Detection before reframing."),
       overlays: z.array(schemas.In_Overlay).optional().describe("Configuration details for video overlays."),
       outputConfig: z.strictObject({
@@ -99,7 +99,7 @@ export const audioVideoCapabilities = {
     useCases: ["Change video aspect ratio or framing with the current reframe API"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      video: fileRefSchema.optional(),
+      video: fileRefSchema({ access: "url" }).optional(),
       analysis: schemas.In_AnalysisV2.optional(),
       composition: schemas.In_CompositionV2.optional(),
       output: z.strictObject({

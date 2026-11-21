@@ -281,6 +281,8 @@ describe("value schema hints", () => {
   it("labels types", () => {
     expect(typeLabelFromSchema(undefined, false)).toBe("unknown")
     expect(typeLabelFromSchema({ "x-ecp-file": true }, true)).toBe("file!")
+    expect(typeLabelFromSchema({ "x-ecp-file": { access: "url" } }, false)).toBe("url")
+    expect(typeLabelFromSchema({ "x-ecp-file": { access: "url" } }, true)).toBe("url!")
     expect(typeLabelFromSchema({ type: "boolean" }, true)).toBe("boolean!")
   })
 })

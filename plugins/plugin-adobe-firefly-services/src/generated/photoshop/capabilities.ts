@@ -16,7 +16,7 @@ export const photoshopCapabilities = {
     useCases: ["Edit text layers, swap images or apply adjustments in a PSD with a UXP script","Replay a recorded Photoshop action set over an image"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      image: fileRefSchema.optional(),
+      image: fileRefSchema({ access: "url" }).optional(),
       options: schemas.In_ActionsOptions.optional(),
       outputs: z.array(schemas.In_OneOf_JpegOutput_and_5_more_21ce4a).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
@@ -33,7 +33,7 @@ export const photoshopCapabilities = {
     accepts: z.strictObject({
       aspectRatio: z.union([schemas.In_AutoCropAspectRatio, z.array(schemas.In_AutoCropAspectRatio)]).optional().describe("Desired aspect ratio(s) for generated crops. Accepts either a single enum string or an array of up to 20 strings. Allowed only for 'smartCrop' and 'subjectCrop'. When omitted, the service defaults to 1:1. An empty array is treated as absent."),
       focus: z.array(z.string()).optional().describe("Focus labels, ordered by preference, used to prioritize objects during cropping or as detection targets. Required for 'subjectCrop' and 'objectDetection'; must be empty for 'smartCrop' and 'fullSceneDetection'."),
-      image: fileRefSchema.optional(),
+      image: fileRefSchema({ access: "url" }).optional(),
       mode: schemas.In_AutoCropMode.optional(),
       outputType: schemas.In_AutoCropOutputType.optional(),
       zoom: z.union([z.number(), z.array(z.number())]).optional().describe("Optional zoom level(s) paired with aspectRatio. Accepts either a number or an array of up to 20 numbers in (0, 1]. Must not be sent without aspectRatio. When aspectRatio is an array, zoom may be omitted or must be a matching non-empty array."),
@@ -66,7 +66,7 @@ export const photoshopCapabilities = {
     accepts: z.strictObject({
       edits: schemas.In_Edits.optional(),
       fontOptions: schemas.In_FontOptions.optional(),
-      image: fileRefSchema.optional(),
+      image: fileRefSchema({ access: "url" }).optional(),
       outputs: z.array(schemas.In_OneOf_JpegOutput_and_5_more_21ce4a).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
@@ -81,7 +81,7 @@ export const photoshopCapabilities = {
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       edits: schemas.In_LightroomEdits.optional(),
-      image: fileRefSchema.optional(),
+      image: fileRefSchema({ access: "url" }).optional(),
       outputs: z.array(schemas.In_OneOf_LrDngOutput_or_LrJpegOutput_or_LrPngOutput_or_XmpOutput).min(1).max(25).optional().describe("List of output asset details. Required. Maximum of 25 outputs allowed."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
@@ -97,7 +97,7 @@ export const photoshopCapabilities = {
     accepts: z.strictObject({
       exportOptions: schemas.In_OneOf_JpegExportOptions_or_PngExportOptions.optional(),
       extractSmartObjectData: z.boolean().optional().describe("Optional. Extract embedded smart objects and include presigned URLs in the manifest. Only applies to embedded (non-linked) smart objects. Default is false."),
-      image: fileRefSchema.optional(),
+      image: fileRefSchema({ access: "url" }).optional(),
       includeLayerThumbnails: z.boolean().optional().describe("Optional. Indicates whether to generate renditions. Default is false."),
       includeXmp: z.boolean().optional().describe("Optional. Include the XMP metadata in the response."),
       maximumThumbnailDepth: z.number().int().min(0).optional().describe("Optional. Depth for layer renditions. If provided, must be greater than or equal to 0. 0 signifies no limit."),

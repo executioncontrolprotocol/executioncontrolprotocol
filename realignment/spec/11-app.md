@@ -59,6 +59,9 @@ Path-opened executions use three host routes (09):
   `extract-data-edges.ts`, `layout.ts`, `map-run-events.ts`, `ports-from-schema.ts`,
   `EcpStepNode`, `EcpDataEdge`, `EcpRouteEdge`, `EcpIoNode`, `RunInputForm`, `RunOutputView`,
   styles). Adapt to v2 (`expr`, markers, `uses`); ports come from JSON Schema (`accepts`/`returns`).
+  Port type labels: `file` / `file!` for `x-ecp-file` without `access: "url"` (including legacy
+  `x-ecp-file: true`); `url` / `url!` when `access` is `url`, so the graph shows a publish step
+  is required before binding.
 - UI: dark mode, Tailwind + shadcn, Lucide icons, Monaco, design tokens from
   `packages/app/DESIGN.md`. Not a chat client.
 

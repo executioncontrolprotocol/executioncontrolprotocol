@@ -272,7 +272,8 @@
               ],
               "type": "object"
             }
-          ]
+          ],
+          "x-ecp-file": {}
         }
       },
       "required": [

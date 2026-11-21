@@ -11,6 +11,8 @@ const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "../..")
 
 /** Zod expression imported as `fileRefSchema` from ../../schemas.js in generated capabilities. */
 export const USES_FILE_REF_IMPORT = "fileRefSchema"
+const FILE_REF_RETURNS = "fileRefSchema()"
+const FILE_REF_ANNOTATION = { "x-ecp-file": {} }
 
 /** Photoshop multi-output token map (RFC media type → state key). */
 export const MEDIA_TYPE_TOKEN = {
@@ -87,14 +89,13 @@ function loadManifestSchema() {
  * @returns {{ returnsZod: string, productShape: object, usesFileRef: boolean, returnsJsonSchema?: object }}
  */
 export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
-  const ref = USES_FILE_REF_IMPORT
   switch (kind) {
     case "image-job":
       return {
         usesFileRef: true,
         productShape: { kind: "image-job", mediaArray: "images" },
         returnsZod: `z.strictObject({
-  images: z.array(${ref}),
+  images: z.array(${FILE_REF_RETURNS}),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -103,7 +104,7 @@ export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
           type: "object",
           required: ["images"],
           properties: {
-            images: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef" } },
+            images: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef", ...FILE_REF_ANNOTATION } },
             seeds: { type: "array", items: { type: "integer" } },
             size: {
               type: "object",
@@ -119,7 +120,7 @@ export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
         usesFileRef: true,
         productShape: { kind: "video-job", mediaArray: "videos" },
         returnsZod: `z.strictObject({
-  videos: z.array(${ref}),
+  videos: z.array(${FILE_REF_RETURNS}),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
 })`,
@@ -127,7 +128,7 @@ export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
           type: "object",
           required: ["videos"],
           properties: {
-            videos: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef" } },
+            videos: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef", ...FILE_REF_ANNOTATION } },
             seeds: { type: "array", items: { type: "integer" } },
           },
           additionalProperties: false,
@@ -137,11 +138,13 @@ export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
       return {
         usesFileRef: true,
         productShape: { kind: "upscaler" },
-        returnsZod: `z.strictObject({ images: z.array(${ref}) })`,
+        returnsZod: `z.strictObject({ images: z.array(${FILE_REF_RETURNS}) })`,
         returnsJsonSchema: {
           type: "object",
           required: ["images"],
-          properties: { images: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef" } } },
+          properties: {
+            images: { type: "array", items: { $ref: "#/components/schemas/EcpFileRef", ...FILE_REF_ANNOTATION } },
+          },
           additionalProperties: false,
         },
       }
@@ -152,7 +155,7 @@ export function shapeCapabilityReturns(opName, kind, outputEmitter, context) {
         returnsZod: `z.looseObject({}).describe("One url FileRef per requested output, keyed by media type token (png, psd, …).")`,
         returnsJsonSchema: {
           type: "object",
-          additionalProperties: { $ref: "#/components/schemas/EcpFileRef" },
+          additionalProperties: { $ref: "#/components/schemas/EcpFileRef", ...FILE_REF_ANNOTATION },
         },
       }
     case "manifest": {
@@ -235,6 +238,49 @@ function resolveRef(doc, ref) {
  * @param {any} bodySchemaRef
  * @param {any} doc
  */
+/**
+ * @param {any} propSchema
+ * @param {any} doc
+ * @returns {string[] | undefined}
+ */
+function mediaTypesFromOpenApi(propSchema, doc) {
+  let current = propSchema
+  const seen = new Set()
+  while (current?.$ref) {
+    if (seen.has(current.$ref)) break
+    seen.add(current.$ref)
+    current = resolveRef(doc, current.$ref)
+  }
+  const types = []
+  if (typeof current?.contentMediaType === "string") types.push(current.contentMediaType)
+  if (Array.isArray(current?.contentMediaType)) {
+    for (const item of current.contentMediaType) {
+      if (typeof item === "string") types.push(item)
+    }
+  }
+  if (current?.properties?.mediaType) {
+    const mt = current.properties.mediaType
+    if (Array.isArray(mt?.enum)) {
+      for (const item of mt.enum) {
+        if (typeof item === "string" && item.includes("/")) types.push(item)
+      }
+    }
+  }
+  return types.length ? [...new Set(types)] : undefined
+}
+
+/**
+ * @param {Record<string, unknown>} options
+ * @returns {string}
+ */
+function fileRefAcceptsExpr(options) {
+  const parts = ['access: "url"']
+  if (options.mediaTypes?.length) {
+    parts.push(`mediaTypes: ${JSON.stringify(options.mediaTypes)}`)
+  }
+  return `fileRefSchema({ ${parts.join(", ")} })`
+}
+
 export function bodyFieldAcceptsFileRef(fieldName, bodySchemaRef, doc) {
   if (fieldName === "image" || fieldName === "mask" || fieldName === "background" || fieldName === "object") {
     return true
@@ -254,7 +300,6 @@ export function bodyFieldAcceptsFileRef(fieldName, bodySchemaRef, doc) {
  */
 export function reshapeCapabilityAccepts(built, operation, doc, bodyFieldSchemas) {
   let usesFileRef = false
-  const ref = USES_FILE_REF_IMPORT
   const nextFields = []
   for (const line of built.fields) {
     const match = /^\s+"?([a-zA-Z0-9_-]+)"?:\s*/.exec(line)
@@ -264,7 +309,9 @@ export function reshapeCapabilityAccepts(built, operation, doc, bodyFieldSchemas
       const descMatch = line.match(/\.describe\((.+)\)\s*,?\s*$/)
       const describe = descMatch ? `.describe(${descMatch[1]})` : ""
       const opt = optional ? ".optional()" : ""
-      nextFields.push(`  ${fieldName}: ${ref}${opt}${describe}`)
+      const mediaTypes = mediaTypesFromOpenApi(bodyFieldSchemas.get(fieldName), doc)
+      const expr = fileRefAcceptsExpr({ mediaTypes })
+      nextFields.push(`  ${fieldName}: ${expr}${opt}${describe}`)
       usesFileRef = true
     } else {
       nextFields.push(line)

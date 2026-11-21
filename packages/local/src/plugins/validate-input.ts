@@ -1,3 +1,4 @@
+import { registerXEcpFileKeyword } from "@executioncontrolprotocol/engine"
 import Ajv2020 from "ajv/dist/2020.js"
 import addFormatsModule from "ajv-formats"
 import type { JsonSchema } from "@executioncontrolprotocol/protocol"
@@ -9,12 +10,15 @@ interface AjvValidator {
 
 interface AjvLike {
   compile(schema: object): AjvValidator
+  addKeyword(def: object): unknown
 }
 
 const Ajv = Ajv2020 as unknown as new (options?: object) => AjvLike
 const addFormats = addFormatsModule as unknown as (ajv: AjvLike) => AjvLike
 
-const ajv = addFormats(new Ajv({ allErrors: true, strict: false }))
+const ajvInstance = addFormats(new Ajv({ allErrors: true, strict: false }))
+registerXEcpFileKeyword(ajvInstance)
+const ajv = ajvInstance
 const cache = new WeakMap<object, AjvValidator>()
 
 /**

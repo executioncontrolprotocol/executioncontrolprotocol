@@ -152,47 +152,86 @@
     "file-roundtrip.accepts": {
       "properties": {
         "file": {
-          "properties": {
-            "headers": {
-              "additionalProperties": {
-                "type": "string"
+          "oneOf": [
+            {
+              "properties": {
+                "kind": {
+                  "const": "file",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
               },
-              "propertyNames": {
-                "type": "string"
-              },
+              "required": [
+                "kind",
+                "path"
+              ],
               "type": "object"
             },
-            "kind": {
-              "enum": [
-                "file",
-                "url",
-                "artifact"
+            {
+              "properties": {
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "url",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
               ],
-              "type": "string"
+              "type": "object"
             },
-            "mediaType": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            },
-            "sizeBytes": {
-              "type": "number"
-            },
-            "uri": {
-              "type": "string"
-            },
-            "url": {
-              "type": "string"
+            {
+              "properties": {
+                "kind": {
+                  "const": "artifact",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "uri": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "uri"
+              ],
+              "type": "object"
             }
-          },
-          "required": [
-            "kind"
           ],
-          "type": "object"
+          "x-ecp-file": {}
         }
       },
       "required": [
