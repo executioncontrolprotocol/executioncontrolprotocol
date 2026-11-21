@@ -90,7 +90,7 @@ function bind<T>(id: string, instance: T): ServiceClass<T> {
 }
 
 async function startHost(files?: { read: (path: string) => Promise<string> }) {
-  const storage = new MemoryStorage("/tmp/ecp", files)
+  const storage = new MemoryStorage(files)
   const secrets = new MemorySecrets()
   const plugins = new FixturePluginAdapter(pluginManifest, handlers(), pluginSchema)
   const expression = new QuickJsExpressionEngine()

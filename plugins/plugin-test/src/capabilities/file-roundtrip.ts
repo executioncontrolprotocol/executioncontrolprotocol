@@ -17,8 +17,8 @@ export default async function handler(
   ctx: HandlerContext,
 ): Promise<{ artifact: { kind: "artifact"; uri: string; mediaType?: string; name?: string; sizeBytes?: number } }> {
   const ref = input.file as FileRef
-  const read = await ctx.files.read(ref)
-  const artifact = await ctx.files.writeArtifact(read.bytes, {
+  const read = await ctx.files.bytes(ref)
+  const artifact = await ctx.files.fromBytes(read.bytes, {
     mediaType: read.mediaType ?? input.file.mediaType ?? "application/octet-stream",
     name: read.name ?? input.file.name ?? "artifact.bin",
   })

@@ -91,7 +91,10 @@ Recursive over the JSON value, depth-first, object keys in insertion order:
 - Anything else: copied.
 
 Relative paths on a `file` ref in capability input are not resolved here (the path may still
-be a `$ref` that becomes a string at run time). The host's `files.read` resolves them when the
+be a `$ref` that becomes a string at run time). The host's file service (`files.bytes`, with
+`read` as an alias) resolves them when the handler activates a ref. Sniff corrections appear on
+the step record as `mediaTypes`. Scratch copies for `path` activation on url refs are released
+when the step ends (success, failure, or cancel).
 plugin reads the ref: absolute paths are used as-is; relative paths join the **execution
 directory** (the directory of the `.ecp.json` when the run started by path, or
 `executions/<id>.ecp.json` when started by id—the same directory `$script.path` uses). An inline

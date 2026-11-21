@@ -106,7 +106,6 @@ describe("LocalStorage", () => {
     expect(detail?.steps?.[0]?.nodeId).toBe("echo")
     expect(detail?.events?.[0]?.type).toBe("run.start")
     expect(detail?.state).toEqual({ out: { echo: "x" } })
-    expect(existsSync(storage.runs.artifactDir("run-1"))).toBe(true)
     await host.stop()
   })
 

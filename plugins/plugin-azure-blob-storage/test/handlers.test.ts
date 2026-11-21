@@ -32,21 +32,38 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext & { written:
     step: { id: "step-1" },
     state: Object.freeze({}),
     store: { set() {}, merge() {}, append() {} },
-    files: {
-      async read() {
-        return { bytes: PNG, mediaType: "image/png", name: "product.png" }
-      },
-      async writeArtifact(bytes, options): Promise<ArtifactFileRef> {
-        written.push({ bytes, ...options })
+    files: (() => {
+      const read = async () => ({ bytes: PNG, mediaType: "image/png", name: "product.png" })
+      const fromBytes = async (bytes: Uint8Array, options?: { mediaType?: string; name?: string }): Promise<ArtifactFileRef> => {
+        written.push({ bytes, mediaType: options?.mediaType ?? "application/octet-stream", name: options?.name })
         return {
           kind: "artifact",
-          uri: `ecp://runs/run-1/artifacts/${options.name ?? "artifact.bin"}`,
-          mediaType: options.mediaType,
-          ...(options.name === undefined ? {} : { name: options.name }),
+          uri: `ecp://runs/run-1/artifacts/${options?.name ?? "artifact.bin"}`,
+          mediaType: options?.mediaType,
+          ...(options?.name === undefined ? {} : { name: options.name }),
           sizeBytes: bytes.byteLength,
         }
-      },
-    },
+      }
+      return {
+        read,
+        bytes: read,
+        stream: async () => ({
+          stream: new ReadableStream(),
+          async cancel() {},
+        }),
+        path: async () => ({ path: "/abs/product.png", temporary: false }),
+        url: async (ref: { kind: "url"; url: string }) => ref,
+        fromBytes,
+        fromStream: async (stream: ReadableStream<Uint8Array>, options?: { mediaType?: string; name?: string }) => {
+          const reader = stream.getReader()
+          const { value } = await reader.read()
+          return fromBytes(value ?? new Uint8Array(), options)
+        },
+        fromPath: async () => ({ kind: "artifact" as const, uri: "ecp://runs/run-1/artifacts/x" }),
+        fromUrl: async (url: string) => ({ kind: "url" as const, url }),
+        writeArtifact: (bytes: Uint8Array, options: { mediaType: string; name?: string }) => fromBytes(bytes, options),
+      }
+    })(),
     async call() {
       return undefined
     },
@@ -112,13 +129,15 @@ describe("upload", () => {
   })
 
   it("falls back to the ref media type, then application/octet-stream", async () => {
+    const base = ctx()
     const noMedia = ctx({
       files: {
-        async read() {
+        ...base.files,
+        async bytes() {
           return { bytes: PNG }
         },
-        async writeArtifact(): Promise<ArtifactFileRef> {
-          return { kind: "artifact", uri: "ecp://runs/run-1/artifacts/x" }
+        async read() {
+          return { bytes: PNG }
         },
       },
     })
@@ -138,7 +157,10 @@ describe("upload", () => {
     })
     const context = ctx({
       files: {
-        async read() {
+        bytes: async () => {
+          throw missing
+        },
+        read: async () => {
           throw missing
         },
         async writeArtifact(): Promise<ArtifactFileRef> {
@@ -159,7 +181,7 @@ describe("upload", () => {
     await expect(
       upload(
         { file: { kind: "file", path: "/abs/product.png" } },
-        ctx({ signal: controller.signal, files: { read, writeArtifact: vi.fn() } }),
+        ctx({ signal: controller.signal, files: { bytes: read, read, writeArtifact: vi.fn() } }),
       ),
     ).rejects.toMatchObject({ name: "AbortError" })
     expect(read).not.toHaveBeenCalled()

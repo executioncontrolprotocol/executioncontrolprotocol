@@ -15,9 +15,13 @@ import type {
   PluginSchemaFingerprint,
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
-import { IMPLEMENTATION_IDS, StorageProvider } from "@executioncontrolprotocol/protocol"
+import {
+  ArtifactStore,
+  IMPLEMENTATION_IDS,
+  ScratchSpace,
+} from "@executioncontrolprotocol/protocol"
 import { discoverPluginRoots } from "./discover.js"
-import { createPluginFiles } from "./files.js"
+import { createFileService } from "./files.js"
 import { loadPluginPackage, loadPluginSchemaDocument, type LoadedPluginPackage } from "./load-manifest.js"
 import { validateCapabilityInput } from "./validate-input.js"
 
@@ -41,8 +45,6 @@ export interface LocalPluginRegistrationOptions {
   extraPlugins?: string[]
   /** Linked package roots (dev). Manifests are regenerated in memory. */
   linkedPlugins?: string[]
-  /** Override artifact directory for a run. */
-  artifactDirForRun?: (runId: string) => string
 }
 
 /**
@@ -264,14 +266,17 @@ export class LocalPluginRegistration implements PluginAdapter {
     }
     const usage = request.usage ?? { record() {} }
     const runId = request.context.runId
-    const artifactDir =
-      this.options.artifactDirForRun?.(runId) ??
-      (this.ctx.services.has(StorageProvider)
-        ? this.ctx.services.get(StorageProvider).runs.artifactDir(runId)
-        : `/tmp/ecp/runs/${runId}/artifacts`)
-    const files = createPluginFiles({
-      artifactDir,
+    const stepId = request.context.stepId
+    const artifacts = this.ctx.services.get(ArtifactStore)
+    const scratch = this.ctx.services.get(ScratchSpace)
+    const fileNotes = request.fileNotes ?? { mediaTypes: [] }
+    const fileService = createFileService({
       runId,
+      stepId,
+      artifacts,
+      scratch,
+      maxBytes: this.ctx.settings.files,
+      mediaTypeNotes: fileNotes.mediaTypes,
       ...(request.executionDir ? { executionDir: request.executionDir } : {}),
     })
     const ctx = createHandlerContext({
@@ -280,8 +285,7 @@ export class LocalPluginRegistration implements PluginAdapter {
       init: request.context,
       store,
       deps: {
-        readFile: (ref) => files.read(ref),
-        writeArtifact: (bytes, options) => files.writeArtifact(bytes, options),
+        files: fileService.files,
         call: async (capabilityId, input, options) => {
           if (options?.config) {
             throw Object.assign(
@@ -302,6 +306,7 @@ export class LocalPluginRegistration implements PluginAdapter {
               },
               store,
               usage,
+              fileNotes,
               ...(request.executionDir ? { executionDir: request.executionDir } : {}),
             },
             signal,
@@ -309,18 +314,22 @@ export class LocalPluginRegistration implements PluginAdapter {
         },
         logger: {
           debug: (message, detail) =>
-            this.ctx.logger.debug(`[${runId}/${request.context.stepId}] ${message}`, detail),
+            this.ctx.logger.debug(`[${runId}/${stepId}] ${message}`, detail),
           info: (message, detail) =>
-            this.ctx.logger.info(`[${runId}/${request.context.stepId}] ${message}`, detail),
+            this.ctx.logger.info(`[${runId}/${stepId}] ${message}`, detail),
           warn: (message, detail) =>
-            this.ctx.logger.warn(`[${runId}/${request.context.stepId}] ${message}`, detail),
+            this.ctx.logger.warn(`[${runId}/${stepId}] ${message}`, detail),
           error: (message, detail) =>
-            this.ctx.logger.error(`[${runId}/${request.context.stepId}] ${message}`, detail),
+            this.ctx.logger.error(`[${runId}/${stepId}] ${message}`, detail),
         },
         usage,
       },
     })
-    return handler(request.input, ctx)
+    try {
+      return await handler(request.input, ctx)
+    } finally {
+      await fileService.releaseStep()
+    }
   }
 
   private findRegistration(pluginId: string): RegisteredPlugin | undefined {

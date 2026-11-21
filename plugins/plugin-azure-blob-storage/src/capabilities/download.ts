@@ -16,7 +16,7 @@ export default async function handler(input: DownloadInput, ctx: HandlerContext)
 
   const blob = await downloadBytes(config, { container, blobName: input.blobName, signal: ctx.signal })
   const name = input.blobName.split("/").filter(Boolean).pop() ?? DEFAULT_ARTIFACT_NAME
-  const file = await ctx.files.writeArtifact(blob.bytes, {
+  const file = await ctx.files.fromBytes(blob.bytes, {
     mediaType: blob.contentType ?? DEFAULT_CONTENT_TYPE,
     name,
   })

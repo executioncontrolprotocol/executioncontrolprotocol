@@ -36,7 +36,6 @@ export class LocalRunStore implements RunStore {
   async create(record: RunRecord, manifest: ExecutionManifest): Promise<void> {
     mkdirSync(this.paths.runDir(record.id), { recursive: true })
     mkdirSync(this.paths.runStepsDir(record.id), { recursive: true })
-    mkdirSync(this.paths.runArtifacts(record.id), { recursive: true })
     await atomicWriteText(this.paths.runRecord(record.id), stableStringify(record))
     await atomicWriteText(this.paths.runManifest(record.id), stableStringify(manifest))
     this.emit({ type: "run", id: record.id, action: "put" })
@@ -123,11 +122,6 @@ export class LocalRunStore implements RunStore {
       records.push(record)
     }
     return records.sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1)).slice(0, limit)
-  }
-
-  /** Absolute artifacts directory. */
-  artifactDir(runId: string): string {
-    return this.paths.runArtifacts(runId)
   }
 
   /** Flush pending event batches (also called from stop). */

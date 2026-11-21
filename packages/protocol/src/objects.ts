@@ -236,6 +236,8 @@ export interface StepRecord {
   expression?: string
   /** Staged writes applied because the step succeeded. */
   staged?: StagedWritePreview[]
+  /** Declared vs sniffed media types corrected during the step. */
+  mediaTypes?: Array<{ path: string; declared?: string; sniffed: string }>
 }
 
 /**

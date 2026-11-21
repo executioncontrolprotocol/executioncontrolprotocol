@@ -16,12 +16,12 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 33 |
+| Plan / phases / spec | 34 |
 | Package READMEs | 10 |
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 12 |
-| Other | 17 |
+| Other | 18 |
 
 ## All files
 
@@ -52,6 +52,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `realignment/README.md` | Plan / phases / spec | current |
 | `realignment/doc-index.md` | Plan / phases / spec | current |
 | `realignment/evidence/a10-localize-banner.md` | Plan / phases / spec | current |
+| `realignment/file-access.md` | Plan / phases / spec | current |
 | `realignment/mvp-audit-fixes.md` | Plan / phases / spec | current |
 | `realignment/phase-0-groundwork.md` | Plan / phases / spec | current |
 | `realignment/phase-1-engine.md` | Plan / phases / spec | current |
@@ -118,6 +119,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/README.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |
+| `.changeset/file-service-pr1.md` | Other | current |
 | `.changeset/host-auto-start.md` | Other | current |
 | `.changeset/jsonata-transform-plugin.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |

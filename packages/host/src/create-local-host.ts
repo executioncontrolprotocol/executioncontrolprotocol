@@ -5,19 +5,24 @@ import { setTimeout as delay } from "node:timers/promises"
 import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
 import {
+  LocalArtifactStore,
   LocalPluginRegistration,
+  LocalScratchSpace,
   LocalSecrets,
   LocalStorage,
 } from "@executioncontrolprotocol/local"
 import {
+  ArtifactStore,
   Auth,
   Endpoint,
   EditorSchemaFiles,
   ExpressionEngine,
   Formatter,
   PluginAdapter,
+  ScratchSpace,
   SecretsProvider,
   StorageProvider,
+  type ArtifactStore as ArtifactStoreService,
   type Auth as AuthService,
   type Endpoint as EndpointService,
   type EditorSchemaFiles as EditorSchemaFilesService,
@@ -26,6 +31,7 @@ import {
   type HostSettings,
   type PluginAdapter as PluginAdapterService,
   type RunRecord,
+  type ScratchSpace as ScratchSpaceService,
   type SecretsProvider as SecretsProviderService,
   type StorageProvider as StorageProviderService,
 } from "@executioncontrolprotocol/protocol"
@@ -154,6 +160,8 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
       },
     })
     .use(LocalStorage as ServiceClass<StorageProviderService>, StorageProvider)
+    .use(LocalArtifactStore as ServiceClass<ArtifactStoreService>, ArtifactStore)
+    .use(LocalScratchSpace as ServiceClass<ScratchSpaceService>, ScratchSpace)
     .use(LocalSecrets as ServiceClass<SecretsProviderService>, SecretsProvider)
     .use(QuickJsExpressionEngine as ServiceClass<ExpressionEngineService>, ExpressionEngine)
     .use(JsonFormatter as ServiceClass<FormatterService>, Formatter, { default: true })

@@ -16,18 +16,44 @@ describe("createHandlerContext", () => {
         append() {},
       },
       deps: {
-        async readFile() {
-          return { bytes: new Uint8Array([9]), mediaType: "text/plain", name: "a.txt" }
-        },
-        async writeArtifact(bytes, options) {
-          return {
-            kind: "artifact",
-            uri: `ecp://runs/run-1/artifacts/${options.name ?? "out"}`,
-            mediaType: options.mediaType,
-            name: options.name,
+        files: (() => {
+          const read = async () => ({ bytes: new Uint8Array([9]), mediaType: "text/plain", name: "a.txt" })
+          const fromBytes = async (bytes: Uint8Array, options?: { mediaType?: string; name?: string }) => ({
+            kind: "artifact" as const,
+            uri: `ecp://runs/run-1/artifacts/${options?.name ?? "out"}`,
+            mediaType: options?.mediaType,
+            name: options?.name,
             sizeBytes: bytes.byteLength,
+          })
+          return {
+            read: (_ref: { kind: "file"; path: string }) => read(),
+            bytes: (_ref: { kind: "file"; path: string }) => read(),
+            stream: async () => {
+              const loaded = await read()
+              return {
+                stream: new ReadableStream({
+                  start(c) {
+                    c.enqueue(loaded.bytes)
+                    c.close()
+                  },
+                }),
+                async cancel() {},
+              }
+            },
+            path: async () => ({ path: "/tmp/a.txt", temporary: false }),
+            url: async (ref: { kind: "url"; url: string }) => ref,
+            fromBytes,
+            fromStream: async (stream: ReadableStream<Uint8Array>, options?: { mediaType?: string; name?: string }) => {
+              const reader = stream.getReader()
+              const { value } = await reader.read()
+              return fromBytes(value ?? new Uint8Array(), options)
+            },
+            fromPath: async () => ({ kind: "artifact" as const, uri: "ecp://runs/run-1/artifacts/x" }),
+            fromUrl: async (url: string) => ({ kind: "url" as const, url }),
+            writeArtifact: (bytes: Uint8Array, options: { mediaType: string; name?: string }) =>
+              fromBytes(bytes, options),
           }
-        },
+        })(),
         call,
         logger: { debug() {}, info() {}, warn() {}, error() {} },
         usage: { record: usage },
