@@ -114,6 +114,13 @@ export {
 } from "./file-limits.js"
 export type { FileMaxBytesSettings } from "./file-limits.js"
 export {
+  FILE_ACCESS_PUBLISH_SUGGESTION,
+  isFileRefJsonSchema,
+  mediaTypeMatchesAllowList,
+  parseXEcpFile,
+} from "./file-schema.js"
+export type { FileRefAccess, XEcpFileAnnotation } from "./file-schema.js"
+export {
   artifactUri,
   assertSafeArtifactName,
   assertSafeRunId,

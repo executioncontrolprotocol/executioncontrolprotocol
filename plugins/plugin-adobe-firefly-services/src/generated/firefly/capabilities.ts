@@ -16,8 +16,8 @@ export const fireflyCapabilities = {
     useCases: ["Place a product or object into a scene with lighting-aware compositing"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      background: fileRefSchema.optional().describe("Background image and fill area mask."),
-      object: fileRefSchema.optional().describe("Object image and optional mask."),
+      background: fileRefSchema({ access: "url" }).optional().describe("Background image and fill area mask."),
+      object: fileRefSchema({ access: "url" }).optional().describe("Object image and optional mask."),
       numVariations: z.number().int().min(1).max(3).optional().describe("Number of output variations to generate."),
       seeds: z.array(z.number().int()).min(1).max(3).optional().describe("Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. If specified alongside numVariations, the number of seeds must equal numVariations. Defaults: 1 variation → [333], 2 → [333, 222], 3 → [333, 222, 111]."),
       harmonization: z.number().min(0).max(1).optional().describe("Controls how much the object's colors and lighting are adjusted to match the background scene."),
@@ -27,7 +27,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -41,8 +41,8 @@ export const fireflyCapabilities = {
     useCases: ["Extend an image past its borders to a new aspect ratio or larger canvas"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      image: fileRefSchema.optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
-      mask: fileRefSchema.optional().describe("Mask image which will be used to expand the given image."),
+      image: fileRefSchema({ access: "url" }).optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
+      mask: fileRefSchema({ access: "url" }).optional().describe("Mask image which will be used to expand the given image."),
       numVariations: z.number().int().min(1).max(4).optional().describe("Generate this number of variations. numVariations defaults to the number of seed images, or to 1 if you do not specify seeds."),
       placement: schemas.In_Placement.optional().describe("The position of the source image after Firefly resizes it. The value describes the horizontal and vertical placement and dimensions of the image in the output. Note you cannot use placement for source images when you also apply a mask image."),
       prompt: z.string().min(1).max(1024).optional().describe("An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs."),
@@ -55,7 +55,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -69,8 +69,8 @@ export const fireflyCapabilities = {
     useCases: ["Inpaint or extend masked regions of an image from a text prompt"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      image: fileRefSchema.optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
-      mask: fileRefSchema.optional().describe("Required. Selected areas of a background image that Firefly uses to fill the source image."),
+      image: fileRefSchema({ access: "url" }).optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
+      mask: fileRefSchema({ access: "url" }).optional().describe("Required. Selected areas of a background image that Firefly uses to fill the source image."),
       negativePrompt: z.string().max(1024).optional().describe("An optional text prompt up to 1024 characters. Avoid these characteristics in the generated image. Not supported for Firefly Custom Models on Image Model 3 or Firefly Custom Models on Image Model 4."),
       numVariations: z.number().int().min(1).max(4).optional().describe("Generate this number of variations. numVariations defaults to the number of seed images, or to 1 if you do not specify seeds."),
       prompt: z.string().min(1).max(1024).optional().describe("An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs."),
@@ -84,7 +84,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -118,7 +118,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -145,7 +145,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -160,8 +160,8 @@ export const fireflyCapabilities = {
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       contentClass: schemas.In_ContentClassV3.optional(),
-      image: fileRefSchema.optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
-      mask: fileRefSchema.optional().describe("Selected areas of a background image that Firefly uses to fill the source image."),
+      image: fileRefSchema({ access: "url" }).optional().describe("The image to expand. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains for input URLs in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
+      mask: fileRefSchema({ access: "url" }).optional().describe("Selected areas of a background image that Firefly uses to fill the source image."),
       numVariations: z.number().int().min(1).max(4).optional().describe("Generate this number of variations. Defaults to the number of seed images, or to 1 if you do not specify seeds."),
       placement: schemas.In_Placement.optional().describe("The position of the source image after Firefly adjusts it. The value describes the horizontal and vertical placement and dimensions of the image in the output. Note you cannot use placement for source images when you also apply a mask image."),
       prompt: z.string().min(1).max(1024).optional().describe("A text prompt up to 1024 characters. The longer the prompt the better Firefly performs."),
@@ -175,7 +175,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -190,7 +190,7 @@ export const fireflyCapabilities = {
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["image3", "image4_standard", "image4_ultra"]).optional().describe("Specify the Firefly model version to use for the image generation."),
-      image: fileRefSchema.optional().describe("Firefly will create similar variations. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
+      image: fileRefSchema({ access: "url" }).optional().describe("Firefly will create similar variations. Use a URL or an uploadID as the source for the image. Firefly only allows these listed domains: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com ."),
       numVariations: z.number().int().min(1).max(4).optional().describe("Generate this number of variations. numVariations defaults to the number of seed images, or to 1 if you do not specify `seeds`."),
       seeds: z.array(z.number().int()).min(1).max(4).optional().describe("Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. If specified along with numVariations , the number of seeds must equal numVariations ."),
       size: z.strictObject({
@@ -201,7 +201,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -217,7 +217,7 @@ export const fireflyCapabilities = {
     accepts: z.strictObject({
       "x-model-version": z.enum(["video1_standard"]).describe("Specify the Firefly model version to use for the video generation."),
       bitRateFactor: z.number().int().min(0).max(63).optional().describe("The constant rate factor for encoding video. 0 indicates a lossless generation, with the highest quality and largest file size. 63 indicates the worst quality generation with the smallest file size. The suggested value range is 17-23."),
-      image: fileRefSchema.optional().describe("The details of the image used as a keyframe for the generated video. Provided images are used as a first frame or final frame to guide the video generation."),
+      image: fileRefSchema({ access: "url" }).optional().describe("The details of the image used as a keyframe for the generated video. Provided images are used as a first frame or final frame to guide the video generation."),
       prompt: z.string().optional().describe("The prompt used to generate the video. The longer the prompt, the better."),
       seeds: z.array(z.number().int()).min(1).max(1).optional().describe("The seed reference value. Currently only 1 seed is supported."),
       sizes: z.array(schemas.In_ClinetoSize).optional().describe("The dimensions of the generated video. Consult the [supported aspect ratios in the usage notes](https://developer.adobe.com/firefly-services/docs/firefly-api/getting-started/usage-notes/#supported-aspect-ratios) for allowed values."),
@@ -225,7 +225,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  videos: z.array(fileRefSchema),
+  videos: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
 }),
@@ -255,8 +255,8 @@ export const fireflyCapabilities = {
     useCases: ["Blend a foreground object into a background with precise placement control"],
     projections: ["Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."],
     accepts: z.strictObject({
-      background: fileRefSchema.optional().describe("Background image and fill area mask specifying object placement."),
-      object: fileRefSchema.optional().describe("Object image to be placed on the background."),
+      background: fileRefSchema({ access: "url" }).optional().describe("Background image and fill area mask specifying object placement."),
+      object: fileRefSchema({ access: "url" }).optional().describe("Object image to be placed on the background."),
       numVariations: z.number().int().min(1).max(3).optional().describe("Number of output variations to generate."),
       seeds: z.array(z.number().int()).min(1).max(3).optional().describe("Random seeds for each variation. Count must match numVariations if both are provided. Defaults: 1 variation → [333], 2 → [333, 222], 3 → [333, 222, 111]."),
       blend: z.number().min(0).max(1).optional().describe("Controls blend between harmonized and original object appearance (0.0 = fully harmonized, 1.0 = original preserved)."),
@@ -264,7 +264,7 @@ export const fireflyCapabilities = {
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
     returns: z.strictObject({
-  images: z.array(fileRefSchema),
+  images: z.array(fileRefSchema()),
   seeds: z.array(z.number().int()).optional(),
   size: z.strictObject({ width: z.number().int(), height: z.number().int() }).optional(),
   contentClass: z.string().optional(),
@@ -279,13 +279,13 @@ export const fireflyCapabilities = {
     projections: ["Take the ids or asset URLs the next step needs from the response."],
     accepts: z.strictObject({
       "x-model-version": z.enum(["precise_upsampler_v1"]).optional().describe("Model version for the upscale operation. Only `precise_upsampler_v1` is supported. Passing `creative_upsampler_v1` will return a 422 validation error."),
-      image: fileRefSchema.optional().describe("The input image for the upsampler (source uploadId or url)."),
+      image: fileRefSchema({ access: "url" }).optional().describe("The input image for the upsampler (source uploadId or url)."),
       seeds: z.array(z.number().int()).min(1).max(4).optional().describe("The seed for each variation. Provide one seed per output (1–4 seeds)."),
       upscaleFactor: schemas.In_UpsampleFactor.optional().describe("The upscale factor (2, 3, 4, or 6). Output dimensions are input dimensions multiplied by this factor."),
       caiClaimVersion: z.union([z.literal(1), z.literal(2)]).optional().describe("Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."),
       body: z.looseObject({}).optional().describe("Rest of the JSON request document. Fields also set as top-level parameters replace the same keys here.")
     }),
-    returns: z.strictObject({ images: z.array(fileRefSchema) }),
+    returns: z.strictObject({ images: z.array(fileRefSchema()) }),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("firefly-precise-upsampler-v3-async")),
   }),

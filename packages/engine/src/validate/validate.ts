@@ -20,6 +20,7 @@ import { canonicalJson, sha256Hex } from "../schema/canonical.js"
 import type { JsonSchema } from "../schema/json-schema.js"
 import { closeMatches } from "../schema/suggest.js"
 import { checkDataFlow } from "./dataflow.js"
+import { registerXEcpFileKeyword } from "./file-access.js"
 import { checkExpression, checkScript, syntaxIssue } from "./expr.js"
 import {
   assertScriptPositions,
@@ -86,6 +87,7 @@ interface AjvError {
 interface AjvLike {
   compile: (schema: unknown) => ((data: unknown) => boolean) & { errors?: AjvError[] | null }
   addSchema: (schema: unknown) => AjvLike
+  addKeyword: (def: object) => unknown
   getSchema: (keyRef: string) => (((data: unknown) => boolean) & { errors?: AjvError[] | null }) | undefined
 }
 
@@ -106,6 +108,9 @@ export class HostSchemaSet {
   /** How many times the base document schema was compiled (always 1 per set). */
   readonly documentCompileCount = 1
   private readonly ajv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
+  /** L1 manifest input validation (no `x-ecp-file` keyword; L3 handles declared access). */
+  private readonly manifestInputAjv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
+  /** Resolved step/capability input at run time (`x-ecp-file` keyword). */
   private readonly inputAjv = new Ajv({ allErrors: true, strict: false, useDefaults: false })
   private readonly documentValidator: ReturnType<AjvLike["compile"]>
   private readonly inputValidators = new Map<string, ReturnType<AjvLike["compile"]>>()
@@ -129,7 +134,9 @@ export class HostSchemaSet {
     this.capabilities = options.capabilities ?? []
     this.loadPluginSchema = options.loadPluginSchema
     addFormats(this.ajv)
+    addFormats(this.manifestInputAjv)
     addFormats(this.inputAjv)
+    registerXEcpFileKeyword(this.inputAjv)
     this.documentValidator = this.ajv.compile(schema)
   }
 
@@ -216,6 +223,7 @@ export class HostSchemaSet {
     }
     if (!document) return undefined
     if (!this.addedPluginSchemaIds.has(document.$id)) {
+      this.manifestInputAjv.addSchema(document)
       this.inputAjv.addSchema(document)
       this.addedPluginSchemaIds.add(document.$id)
     }
@@ -236,9 +244,9 @@ export class HostSchemaSet {
     let validator = this.inputValidators.get(cacheKey)
     if (!validator) {
       if (document?.$defs[`${name}.accepts`]) {
-        validator = this.inputAjv.compile({ $ref: `${document.$id}#/$defs/${name}.accepts` })
+        validator = this.manifestInputAjv.compile({ $ref: `${document.$id}#/$defs/${name}.accepts` })
       } else {
-        validator = this.inputAjv.compile(capability.accepts ?? { type: "object" })
+        validator = this.manifestInputAjv.compile(capability.accepts ?? { type: "object" })
       }
       this.inputValidators.set(cacheKey, validator)
       this.inputCompileCountInternal += 1

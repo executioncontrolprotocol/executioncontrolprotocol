@@ -95,4 +95,6 @@ Generated Adobe capabilities return **product shapes**, not raw job JSON: Firefl
 `images` (url `FileRef`s) and `seeds`; Photoshop composite steps expose one `FileRef` per requested
 output keyed by a media-type token (`png`, `psd`, …); `photoshop-generate-manifest` returns the
 layer document (`layers`, `document`). Bind `state.generate.images.0` or `state.banner.png`, not
-`outputs[0].image.url`. Image inputs on Adobe steps are url `FileRefs` only (`kind: "url"`).
+`outputs[0].image.url`. Image inputs on Adobe steps are url `FileRefs` only (`kind: "url"`). Author them with
+`fileRefSchema({ access: "url", mediaTypes?: [...] })` from `@executioncontrolprotocol/plugin-sdk`
+so `x-ecp-file` lands in `ecp.schema.json` for L3 and the App (`url` port labels).

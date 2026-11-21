@@ -34,8 +34,18 @@ export function fileRefValueSchemaHint(): ValueSchemaHint {
  * binary format, or an object whose `kind` enum names a file ref kind).
  * @category App
  */
+function xEcpFileAccess(schema: Record<string, unknown>): string | undefined {
+  const raw = schema["x-ecp-file"]
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    const access = (raw as Record<string, unknown>).access
+    return typeof access === "string" ? access : undefined
+  }
+  return undefined
+}
+
 export function isFileValueSchemaHint(schema: Record<string, unknown>): boolean {
   if (schema["x-ecp-file"] === true) return true
+  if (typeof schema["x-ecp-file"] === "object" && schema["x-ecp-file"] !== null) return true
   const media = schema.contentMediaType
   if (typeof media === "string" && media.length > 0) return true
   if (Array.isArray(media) && media.length > 0) return true
@@ -102,7 +112,11 @@ export function typeLabelFromSchema(
   schema: Record<string, unknown> | undefined,
   required: boolean,
 ): string {
-  if (schema && isFileValueSchemaHint(schema)) return required ? "file!" : "file"
+  if (schema && isFileValueSchemaHint(schema)) {
+    const access = xEcpFileAccess(schema)
+    if (access === "url") return required ? "url!" : "url"
+    return required ? "file!" : "file"
+  }
   const type = schema?.type
   const base = typeof type === "string" ? type : Array.isArray(schema?.enum) ? "enum" : "unknown"
   return required ? `${base}!` : base

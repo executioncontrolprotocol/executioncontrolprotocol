@@ -18,6 +18,8 @@ export type {
   PluginConfig,
   PluginDefinition,
 } from "./define.js"
+export { fileRefSchema } from "./file-ref.js"
+export type { FileRefSchemaOptions } from "./file-ref.js"
 export {
   buildPluginManifest,
   buildPluginSchemaDocument,

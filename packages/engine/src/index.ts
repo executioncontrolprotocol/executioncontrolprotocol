@@ -35,6 +35,7 @@ export {
 } from "./schema/editor-schema.js"
 export { canonicalJson, sha256Hex } from "./schema/canonical.js"
 export { closeMatches, damerauLevenshtein } from "./schema/suggest.js"
+export { registerXEcpFileKeyword } from "./validate/file-access.js"
 export {
   dedupeIssues,
   HostSchemaSet,

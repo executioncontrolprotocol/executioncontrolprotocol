@@ -1,4 +1,4 @@
-import { capability, definePlugin } from "@executioncontrolprotocol/plugin-sdk"
+import { capability, definePlugin, fileRefSchema } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
 
 /**
@@ -108,16 +108,7 @@ export const fileRoundtrip = capability({
   useCases: ["Exercise files.read and writeArtifact"],
   projections: ["Take `artifact`"],
   accepts: z.object({
-    file: z.object({
-      kind: z.enum(["file", "url", "artifact"]),
-      path: z.string().optional(),
-      url: z.string().optional(),
-      uri: z.string().optional(),
-      mediaType: z.string().optional(),
-      name: z.string().optional(),
-      headers: z.record(z.string(), z.string()).optional(),
-      sizeBytes: z.number().optional(),
-    }),
+    file: fileRefSchema(),
   }),
   returns: z.object({
     artifact: z.object({

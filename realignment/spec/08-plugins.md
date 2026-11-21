@@ -86,6 +86,10 @@ interface HandlerContext<Config> {
 - `FileRef` kinds: `file` (`{ kind, path, mediaType? }`), `url` (`{ kind, url, headers?, mediaType? })`,
   `artifact` (`{ kind, uri: "ecp://runs/<runId>/artifacts/<name>", mediaType?, name?, sizeBytes? }`).
   The legacy `buffer` kind is dropped.
+- **Declared access** on a whole `FileRef` schema: `x-ecp-file: { access?: "bytes" | "stream" | "path" | "url", mediaTypes?: string[] }`
+  (legacy `x-ecp-file: true` means any kind). Plugin SDK {@link fileRefSchema} stamps this into generated
+  `ecp.schema.json`. Omitted `access` accepts all kinds. Omitted `mediaType` on the ref skips L3 media checks.
+  Adobe url-only inputs use `access: "url"`. Returns annotate `x-ecp-file` without `access`.
 - **Product-shaped media I/O:** capabilities that produce files return `FileRef`s in the
   capability `returns` schema (for example Firefly `generate-images` → `{ images: FileRef[] }`;
   Photoshop composite → one `FileRef` per requested output, keyed by a media-type token such as

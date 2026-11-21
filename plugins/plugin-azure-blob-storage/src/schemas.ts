@@ -1,3 +1,4 @@
+import { fileRefSchema } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
 
 /**
@@ -29,28 +30,7 @@ export const azureBlobConfigSchema = z.union([
  */
 export type AzureBlobConfig = z.infer<typeof azureBlobConfigSchema>
 
-const mediaType = z.string().optional()
-
-/**
- * Portable file reference: an absolute local path, a URL or a run artifact.
- * @category Plugins
- */
-export const fileRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("file"), path: z.string().min(1), mediaType }),
-  z.object({
-    kind: z.literal("url"),
-    url: z.string().url(),
-    headers: z.record(z.string(), z.string()).optional(),
-    mediaType,
-  }),
-  z.object({
-    kind: z.literal("artifact"),
-    uri: z.string().min(1),
-    mediaType,
-    name: z.string().optional(),
-    sizeBytes: z.number().int().nonnegative().optional(),
-  }),
-])
+export { fileRefSchema }
 
 /**
  * Artifact reference returned by `download`.
@@ -72,7 +52,7 @@ const blobName = z.string().min(1)
  * @category Plugins
  */
 export const uploadAcceptsSchema = z.object({
-  file: fileRefSchema,
+  file: fileRefSchema(),
   blobName: blobName.optional(),
   container,
   createReadSas: z.boolean().optional(),

@@ -1,5 +1,6 @@
 import type { CapabilityEntry, ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { closeMatches } from "../schema/suggest.js"
+import { fileAccessBindingIssue, fileAccessValueIssues } from "./file-access.js"
 
 type JsonSchema = Record<string, unknown>
 
@@ -94,6 +95,12 @@ function walkStep(
     if (!isRecord(value)) return
     if (typeof value.$ref === "string") {
       checkRef(value, schema, pointer, node.id, env, ctx, issues)
+      return
+    }
+    if (!isMarker(value)) {
+      for (const issue of fileAccessValueIssues(value, schema, pointer, node.id)) {
+        issues.push(issue)
+      }
     }
   })
   if (!node.as) return env
@@ -272,6 +279,8 @@ function checkRef(
         actual: trim(binding.schema, 1024),
       })
     }
+    const accessIssue = fileAccessBindingIssue(binding.schema, undefined, target, `${pointer}/$ref`, nodeId)
+    if (accessIssue) issues.push(accessIssue)
     return
   }
   const walked = walkSchema(binding.schema, parsed.rest)
@@ -290,6 +299,8 @@ function checkRef(
       actual: trim(walked.schema, 1024),
     })
   }
+  const accessIssue = fileAccessBindingIssue(walked.schema, undefined, target, `${pointer}/$ref`, nodeId)
+  if (accessIssue) issues.push(accessIssue)
 }
 
 function parseRef(ref: string): { key: string; rest: string[] } | undefined {
