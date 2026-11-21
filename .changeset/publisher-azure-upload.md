@@ -1,5 +1,5 @@
 ---
-"@executioncontrolprotocol/azure-blob-storage": minor
+"@executioncontrolprotocol/plugin-azure-blob-storage": minor
 "@executioncontrolprotocol/protocol": patch
 "@executioncontrolprotocol/plugin-sdk": patch
 "@executioncontrolprotocol/engine": patch
