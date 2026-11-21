@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./file-refs": {
+      "types": "./dist/file-ref-shape.d.ts",
+      "import": "./dist/file-ref-shape.js"
+    },
     "./schemas/*": "./schemas/*"
   },
   "types": "./dist/index.d.ts",

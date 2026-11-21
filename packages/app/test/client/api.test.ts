@@ -218,6 +218,34 @@ describe("AppHostClient file routes", () => {
   })
 })
 
+describe("AppHostClient artifacts", () => {
+  const client = new AppHostClient(BASE, TOKEN)
+
+  it("builds artifactPath with encoded name", () => {
+    expect(client.artifactPath("run-1", "out.png")).toBe(`${BASE}/v1/runs/run-1/artifacts/out.png`)
+    expect(client.artifactPath("run-1", "a b.png")).toContain("artifacts/a%20b.png")
+  })
+
+  it("fetchArtifact returns a blob on success", async () => {
+    const { fetch, calls } = mockFetch(() => new Response("png-bytes", { status: 200, headers: { "Content-Type": "image/png" } }))
+    const blob = await new AppHostClient(BASE, TOKEN, { fetch }).fetchArtifact("run-1", "out.png")
+    expect(blob.type).toBe("image/png")
+    expect(calls[0]?.url).toBe(`${BASE}/v1/runs/run-1/artifacts/out.png`)
+    expect(headerOf(calls[0]?.init, "Authorization")).toBe(`Bearer ${TOKEN}`)
+  })
+
+  it("fetchArtifact throws HostRequestError on 404", async () => {
+    const { fetch } = mockFetch(() =>
+      jsonResponse(404, { ok: false, error: { code: "ECP_NOT_FOUND", message: "missing" } }),
+    )
+    const error = await new AppHostClient(BASE, TOKEN, { fetch })
+      .fetchArtifact("run-1", "nope")
+      .catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(HostRequestError)
+    expect((error as HostRequestError).code).toBe("ECP_NOT_FOUND")
+  })
+})
+
 describe("AppHostClient.watchUrl", () => {
   const client = new AppHostClient(BASE, TOKEN)
 

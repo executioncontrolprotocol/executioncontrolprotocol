@@ -257,6 +257,24 @@ describe("file access run time (Ajv keyword)", () => {
     })
     expect(errors.length).toBeGreaterThan(0)
   })
+
+  it("accepts a captured url ref that keeps kind url with archive", async () => {
+    const set = await HostSchemaSet.create([adobeLike])
+    const errors = set.validateInput(adobeLike, {
+      image: {
+        kind: "url",
+        url: "https://example.test/a.png?sig=1",
+        mediaType: "image/png",
+        archive: {
+          kind: "artifact",
+          uri: "ecp://runs/run-1/artifacts/a.png",
+          name: "a.png",
+          mediaType: "image/png",
+        },
+      },
+    })
+    expect(errors).toHaveLength(0)
+  })
 })
 
 describe("mediaTypeMatchesAllowList", () => {

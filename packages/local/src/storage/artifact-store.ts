@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto"
 import { createReadStream, createWriteStream } from "node:fs"
-import { mkdir, readFile, readdir, rm, stat } from "node:fs/promises"
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
@@ -76,6 +76,14 @@ export class LocalArtifactStore implements ArtifactStore {
       await rm(temp, { force: true })
       throw error
     }
+    // Media types live beside the bytes in `.meta/` (a dot-name can never be an artifact name, so no collisions).
+    const meta = this.metaPath(runId, name)
+    if (options?.mediaType) {
+      await mkdir(path.dirname(meta), { recursive: true })
+      await writeFile(meta, JSON.stringify({ mediaType: options.mediaType }))
+    } else {
+      await rm(meta, { force: true })
+    }
     const sizeBytes = (await stat(target)).size
     return {
       kind: "artifact",
@@ -106,7 +114,9 @@ export class LocalArtifactStore implements ArtifactStore {
   /** {@inheritDoc ArtifactStore.stat} */
   async stat(runId: string, name: string): Promise<ArtifactStat | undefined> {
     const info = await stat(this.localPath(runId, name)).catch(() => undefined)
-    return info?.isFile() ? { name, sizeBytes: info.size } : undefined
+    if (!info?.isFile()) return undefined
+    const mediaType = await this.readMediaType(runId, name)
+    return { name, sizeBytes: info.size, ...(mediaType ? { mediaType } : {}) }
   }
 
   /** {@inheritDoc ArtifactStore.list} */
@@ -116,11 +126,26 @@ export class LocalArtifactStore implements ArtifactStore {
     const names = await readdir(dir).catch(() => [] as string[])
     const out: ArtifactStat[] = []
     for (const name of names) {
-      if (name.endsWith(TEMP_SUFFIX)) continue
-      const info = await stat(path.join(dir, name)).catch(() => undefined)
-      if (info?.isFile()) out.push({ name, sizeBytes: info.size })
+      if (name.endsWith(TEMP_SUFFIX) || name.startsWith(".")) continue
+      const item = await this.stat(runId, name)
+      if (item) out.push(item)
     }
     return out.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  private metaPath(runId: string, name: string): string {
+    return path.join(this.paths.runArtifacts(runId), ".meta", `${name}.json`)
+  }
+
+  private async readMediaType(runId: string, name: string): Promise<string | undefined> {
+    const text = await readFile(this.metaPath(runId, name), "utf8").catch(() => undefined)
+    if (!text) return undefined
+    try {
+      const parsed = JSON.parse(text) as { mediaType?: unknown }
+      return typeof parsed.mediaType === "string" ? parsed.mediaType : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** {@inheritDoc ArtifactStore.deleteRun} */

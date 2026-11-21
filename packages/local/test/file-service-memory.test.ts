@@ -3,10 +3,9 @@ import http from "node:http"
 import os from "node:os"
 import path from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { createFileService } from "@executioncontrolprotocol/local"
+import { createFileService } from "../src/plugins/files.js"
 import { DEFAULT_FILE_MAX_BYTES_SETTINGS } from "@executioncontrolprotocol/protocol"
-import { MemoryArtifactStore } from "../src/testing/artifact-store.js"
-import { MemoryScratchSpace } from "../src/testing/scratch-space.js"
+import { MemoryArtifactStore, MemoryScratchSpace } from "@executioncontrolprotocol/engine/testing"
 
 describe("file service with in-memory artifact store", () => {
   let tempRoot: string

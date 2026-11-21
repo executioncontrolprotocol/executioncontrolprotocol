@@ -2,7 +2,14 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
-import { createEnvironment, type Host, type ResolvedHostSettings, type ServiceClass } from "@executioncontrolprotocol/engine"
+import {
+  createEnvironment,
+  type CaptureOneDelegate,
+  type Host,
+  type ResolvedHostSettings,
+  type ServiceClass,
+  type ServiceLookup,
+} from "@executioncontrolprotocol/engine"
 import { JsonFormatter, ToonFormatter } from "@executioncontrolprotocol/formatters"
 import {
   LocalArtifactStore,
@@ -10,6 +17,7 @@ import {
   LocalScratchSpace,
   LocalSecrets,
   LocalStorage,
+  createCaptureOneDelegate,
 } from "@executioncontrolprotocol/local"
 import {
   ArtifactStore,
@@ -194,7 +202,12 @@ export async function createLocalHost(options: CreateLocalHostOptions): Promise<
     defaultStepTimeoutMs: options.defaultStepTimeoutMs,
     defaultMaxConcurrency: options.defaultMaxConcurrency,
     writeTextFile,
-  } as HostSettings & { writeTextFile: typeof writeTextFile })
+    createCaptureOutput: (lookup: ServiceLookup, settings: ResolvedHostSettings): CaptureOneDelegate =>
+      createCaptureOneDelegate(lookup, settings.files),
+  } as HostSettings & {
+    writeTextFile: typeof writeTextFile
+    createCaptureOutput: (lookup: ServiceLookup, settings: ResolvedHostSettings) => CaptureOneDelegate
+  })
 
   const startMs = Date.now() - started
 

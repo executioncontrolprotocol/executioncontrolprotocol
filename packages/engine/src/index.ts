@@ -57,6 +57,13 @@ export {
 } from "./validate/markers.js"
 export { runExecution, startExecution } from "./execute/run.js"
 export type { ActiveRun, RunDependencies, RunOutcome, StateStore, StepSummary } from "./execute/run.js"
+export { captureStepOutput } from "./execute/capture-output.js"
+export type {
+  CaptureOneDelegate,
+  CaptureOneInput,
+  CaptureOneResult,
+  CaptureStepOutputOptions,
+} from "./execute/capture-output.js"
 export { resolveValue } from "./execute/resolve.js"
 export { createHandlerContext, deepFreeze } from "./execute/handler-context.js"
 export type { HandlerContextDeps } from "./execute/handler-context.js"

@@ -198,6 +198,34 @@
           "oneOf": [
             {
               "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
                 "kind": {
                   "const": "file",
                   "type": "string"
@@ -218,6 +246,34 @@
             },
             {
               "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
                 "headers": {
                   "additionalProperties": {
                     "type": "string"
@@ -247,6 +303,34 @@
             },
             {
               "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
                 "kind": {
                   "const": "artifact",
                   "type": "string"

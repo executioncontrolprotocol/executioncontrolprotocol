@@ -1,5 +1,6 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { Repeat, Split } from "lucide-react"
+import type { AppHostClient } from "../../client/index.js"
 import type { LiveRunState } from "../hooks/useLiveRun.js"
 import { RunInputForm } from "./RunInputForm.js"
 import { RunOutputView } from "./RunOutputView.js"
@@ -13,6 +14,8 @@ export interface RunViewProps {
   manifest?: ExecutionManifest
   /** Live run state. */
   run: LiveRunState
+  /** Host client for artifact preview. */
+  client?: AppHostClient
   /** Start a run with the collected input. */
   onRun: (input: Record<string, unknown>) => void
 }
@@ -32,7 +35,7 @@ export function runStatusClass(status: string | undefined): string {
  * the result or error.
  * @category App
  */
-export function RunView({ manifest, run, onRun }: RunViewProps) {
+export function RunView({ manifest, run, onRun, client }: RunViewProps) {
   const status = run.busy ? "running" : run.status
   const steps = Object.entries(run.graph.steps)
   const loops = Object.entries(run.graph.loops)
@@ -94,7 +97,12 @@ export function RunView({ manifest, run, onRun }: RunViewProps) {
         </ul>
       ) : null}
       {!run.busy && (run.status || run.error) ? (
-        <RunOutputView result={run.result ?? (run.status === "completed" ? {} : null)} error={run.error} />
+        <RunOutputView
+          result={run.result ?? (run.status === "completed" ? {} : null)}
+          error={run.error}
+          runId={run.runId}
+          client={client}
+        />
       ) : null}
       {run.refusalIssues && run.refusalIssues.length > 0 ? (
         <ul className="space-y-1">

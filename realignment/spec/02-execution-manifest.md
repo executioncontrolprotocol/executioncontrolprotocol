@@ -61,6 +61,7 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 | `expression` | when capability `code` is `"expression"` | Expression string (for example JSONata); host does not syntax-check it |
 | `as` | no | State key for the output: `^[A-Za-z_][A-Za-z0-9_]*$`, must not be an execution input name |
 | `mode` | no | `create` (default), `replace`, `merge`, `append`. Requires `as` |
+| `persist` | no | When `false`, skip uniform capture of output `FileRef`s into the run artifact store. Default `true` |
 
 The legacy `version` mode is removed (it behaved exactly like `replace`; the v1 converter maps
 it to `replace`).

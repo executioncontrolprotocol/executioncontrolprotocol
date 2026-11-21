@@ -20,6 +20,8 @@ export interface FileRefFile {
   path: string
   /** Media type, when known. */
   mediaType?: string
+  /** Run artifact copy after uniform capture (F6). */
+  archive?: ArtifactFileRef
 }
 
 /**
@@ -35,6 +37,8 @@ export interface FileRefUrl {
   headers?: Record<string, string>
   /** Media type, when known. */
   mediaType?: string
+  /** Run artifact copy after uniform capture (F6). */
+  archive?: ArtifactFileRef
 }
 
 /**
@@ -52,6 +56,8 @@ export interface ArtifactFileRef {
   name?: string
   /** Size in bytes. */
   sizeBytes?: number
+  /** Self-reference after uniform capture when this ref is already stored (F6). */
+  archive?: ArtifactFileRef
 }
 
 /**

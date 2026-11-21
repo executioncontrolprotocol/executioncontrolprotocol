@@ -83,8 +83,10 @@ interface HandlerContext<Config> {
 }
 ```
 
-- `FileRef` kinds: `file` (`{ kind, path, mediaType? }`), `url` (`{ kind, url, headers?, mediaType? })`,
-  `artifact` (`{ kind, uri: "ecp://runs/<runId>/artifacts/<name>", mediaType?, name?, sizeBytes? }`).
+- `FileRef` kinds: `file` (`{ kind, path, mediaType?, archive? }`), `url` (`{ kind, url, headers?, mediaType?, archive? })`,
+  `artifact` (`{ kind, uri: "ecp://runs/<runId>/artifacts/<name>", mediaType?, name?, sizeBytes?, archive? }`).
+  After uniform capture, output refs may include `archive` (an `artifact` ref) while keeping their
+  original `kind`.
   The legacy `buffer` kind is dropped.
 - **Declared access** on a whole `FileRef` schema: `x-ecp-file: { access?: "bytes" | "stream" | "path" | "url", mediaTypes?: string[] }`
   (legacy `x-ecp-file: true` means any kind). Plugin SDK {@link fileRefSchema} stamps this into generated

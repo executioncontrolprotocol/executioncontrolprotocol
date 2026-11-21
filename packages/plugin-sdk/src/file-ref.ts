@@ -14,21 +14,24 @@ export interface FileRefSchemaOptions {
   mediaTypes?: string[]
 }
 
+const artifactRef = z.object({
+  kind: z.literal("artifact"),
+  uri: z.string().min(1),
+  mediaType,
+  name: z.string().optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+})
+
 const fileRefUnion = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("file"), path: z.string().min(1), mediaType }),
+  z.object({ kind: z.literal("file"), path: z.string().min(1), mediaType, archive: artifactRef.optional() }),
   z.object({
     kind: z.literal("url"),
     url: z.string().url(),
     headers: z.record(z.string(), z.string()).optional(),
     mediaType,
+    archive: artifactRef.optional(),
   }),
-  z.object({
-    kind: z.literal("artifact"),
-    uri: z.string().min(1),
-    mediaType,
-    name: z.string().optional(),
-    sizeBytes: z.number().int().nonnegative().optional(),
-  }),
+  artifactRef.extend({ archive: artifactRef.optional() }),
 ])
 
 /** Inferred {@link FileRef} from the shared union. */

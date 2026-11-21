@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 12 |
-| Other | 20 |
+| Other | 21 |
 
 ## All files
 
@@ -118,6 +118,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/0.52.0-applied.md` | Other | current |
 | `.changeset/README.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
+| `.changeset/capture-pr4.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/declared-file-access-pr2.md` | Other | current |
 | `.changeset/file-service-pr1.md` | Other | current |

@@ -12,4 +12,14 @@ describe("fileRefSchema", () => {
     const schema = zodToJsonSchema(fileRefSchema(), "output")
     expect(schema["x-ecp-file"]).toEqual({})
   })
+
+  it("parses optional archive on url refs", () => {
+    const schema = fileRefSchema()
+    const parsed = schema.parse({
+      kind: "url",
+      url: "https://example.test/a.png",
+      archive: { kind: "artifact", uri: "ecp://runs/r/artifacts/a.png", name: "a.png" },
+    })
+    expect(parsed.archive?.name).toBe("a.png")
+  })
 })

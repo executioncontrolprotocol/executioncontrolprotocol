@@ -37,10 +37,15 @@ function duration(run: RunRecord): string {
   return run.durationMs !== undefined ? `${run.durationMs} ms` : ""
 }
 
-function ReplayDetail({ detail }: { detail: RunDetail }) {
+function ReplayDetail({ detail, client }: { detail: RunDetail; client: AppHostClient }) {
   return (
     <div data-testid="run-replay" data-run-id={detail.id} className="space-y-3">
-      <RunOutputView result={detail.result ?? (detail.status === "completed" ? {} : null)} error={detail.error} />
+      <RunOutputView
+        result={detail.result ?? (detail.status === "completed" ? {} : null)}
+        error={detail.error}
+        runId={detail.id}
+        client={client}
+      />
       {detail.steps && detail.steps.length > 0 ? (
         <div className="space-y-2">
           <p className="font-mono text-label uppercase text-on-surface-variant">Steps</p>
@@ -172,7 +177,7 @@ export function RunsView({ client, source, executionId, refreshKey, replay, onRe
               Clear replay
             </button>
           </div>
-          <ReplayDetail detail={replay} />
+          <ReplayDetail detail={replay} client={client} />
         </div>
       ) : null}
     </section>
