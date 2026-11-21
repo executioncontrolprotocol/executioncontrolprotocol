@@ -34,6 +34,7 @@ function runRecord(id: string, status: RunRecord["status"] = "running"): RunReco
     plugins: {},
     host: { version: VERSION, pid: 1, mode: "in-process" },
     warnings: [],
+    publishes: [],
   }
 }
 

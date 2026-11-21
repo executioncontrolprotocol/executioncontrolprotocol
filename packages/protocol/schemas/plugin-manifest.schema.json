@@ -44,7 +44,21 @@
           "projections": { "type": "array", "items": { "type": "string" } },
           "timeoutMs": { "type": "integer", "minimum": 1 },
           "contract": { "const": "step" },
-          "code": { "enum": ["script", "expression"] }
+          "code": { "enum": ["script", "expression"] },
+          "role": { "enum": ["publish", "unpublish"] },
+          "publish": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["locatorFields"],
+            "properties": {
+              "fileField": { "type": "string", "minLength": 1 },
+              "locatorFields": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "minItems": 1
+              }
+            }
+          }
         },
         "allOf": [
           {

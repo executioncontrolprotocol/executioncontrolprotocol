@@ -14,6 +14,7 @@ import type {
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
 import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
+import { createPublishLedger, type PublishLedger } from "./publish.js"
 import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
 
 /**
@@ -85,8 +86,8 @@ export interface RunDependencies {
   cursor?: RunCursor
   /** Run id used when writing to {@link RunDependencies.store}. */
   runId?: string
-  /** Persist steps, state and events. */
-  store?: Pick<RunStore, "writeStep" | "writeState" | "appendEvent">
+  /** Persist steps, state, publish entries and events. */
+  store?: Pick<RunStore, "writeStep" | "writeState" | "appendEvent" | "get" | "update">
   /** Compiled schemas for run-time input and output checks. */
   schemas?: HostSchemaSet
   /** Resolve a capability row when the run-time list does not already include it. */
@@ -158,6 +159,8 @@ interface Runtime {
   completed: Set<string>
   schemas?: HostSchemaSet
   runId: string
+  /** Publish entries for this run; present when there is a run store. */
+  publishes?: PublishLedger
 }
 
 /**
@@ -204,6 +207,7 @@ export function startExecution(
     completed: new Set(deps.cursor?.completed ?? []),
     schemas: deps.schemas,
     runId: deps.runId ?? "run",
+    publishes: deps.store ? createPublishLedger(deps.store, deps.runId ?? "run") : undefined,
   }
   const state: Record<string, unknown> = { ...input }
   const emit = (type: RunEventType, data: Record<string, unknown>): void => {
@@ -465,6 +469,7 @@ async function runStep(
     summary.durationMs = Date.now() - started
     emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
     await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes)
+    await runtime.publishes?.record(capability, node.id, round, resolvedInput, redacted)
     await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
     summary.durationMs = Date.now() - started

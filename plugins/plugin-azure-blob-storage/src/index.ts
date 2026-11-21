@@ -45,16 +45,18 @@ export type {
 export const upload = capability({
   summary: "Upload a file to Azure Blob Storage.",
   description:
-    "Reads a file ref (local path, URL or run artifact) and stores it as a block blob, overwriting any blob with the same name. Without `blobName` a random UUID is used; without `container` the config's defaultContainer is used. Set `createReadSas` to also get a one-hour read-only signed URL, which needs an account key in the config. Use `sas` for other permissions or lifetimes.",
+    "Reads a file ref (local path, URL or run artifact) and stores it as a block blob, overwriting any blob with the same name. Without `blobName` it picks a unique name, `ecp/<runId>/<stepId>/<name>-<8 hex>` plus the file extension; without `container` the config's defaultContainer is used. By default the returned `file` url is a one-hour read SAS (`createReadSas`, default true); set it to false for the bare blob URL on public containers. Use `sas` for other permissions or lifetimes.",
   useCases: [
     "Persist generated media or reports so later steps or people can fetch them",
-    "Hand a file to an external service that only accepts URLs (with `createReadSas`)",
+    "Hand a file to an external service that only accepts URLs (bind `file` into url-only inputs)",
   ],
   projections: [
-    "Take `blobName` and `container` to address the blob later; `sasUrl` is the shareable link when requested; `blobUrl` works only for public containers",
+    "Bind `file` (a url FileRef) into url-only capability inputs; keep `blobName` and `container` for delete or sas",
   ],
   accepts: uploadAcceptsSchema,
   returns: uploadReturnsSchema,
+  role: "publish",
+  publish: { fileField: "file", locatorFields: ["blobName", "container"] },
   handler: () => import("./capabilities/upload.js"),
 })
 
@@ -109,6 +111,8 @@ export const deleteCapability = capability({
   ],
   accepts: deleteAcceptsSchema,
   returns: deleteReturnsSchema,
+  role: "unpublish",
+  publish: { locatorFields: ["blobName", "container"] },
   handler: () => import("./capabilities/delete.js"),
 })
 

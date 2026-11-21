@@ -197,6 +197,8 @@ export class LocalPluginRegistration implements PluginAdapter {
           timeoutMs: capability.timeoutMs,
           ...(capability.contract === undefined ? {} : { contract: capability.contract }),
           ...(capability.code === undefined ? {} : { code: capability.code }),
+          ...(capability.role === undefined ? {} : { role: capability.role }),
+          ...(capability.publish === undefined ? {} : { publish: capability.publish }),
         })
       }
     }

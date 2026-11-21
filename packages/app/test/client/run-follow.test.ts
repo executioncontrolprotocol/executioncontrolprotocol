@@ -25,6 +25,7 @@ function detail(status: RunDetail["status"], events: RunEvent[]): RunDetail {
     plugins: {},
     host: { version: VERSION, pid: 1, mode: "in-process" },
     warnings: [],
+    publishes: [],
     events,
   }
 }

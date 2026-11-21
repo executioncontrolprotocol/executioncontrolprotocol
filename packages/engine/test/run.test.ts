@@ -497,6 +497,7 @@ describe("run fixtures", () => {
         plugins: {},
         host: { version: VERSION, pid: 1, mode: "in-process" },
         warnings: [],
+        publishes: [],
       } satisfies RunRecord,
       {
         schema: "@executioncontrolprotocol.execution",

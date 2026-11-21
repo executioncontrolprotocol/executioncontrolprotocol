@@ -197,6 +197,8 @@ function toCapabilityManifest(
     ...(cap.timeoutMs === undefined ? {} : { timeoutMs: cap.timeoutMs }),
     ...(cap.contract === undefined ? {} : { contract: cap.contract }),
     ...(cap.code === undefined ? {} : { code: cap.code }),
+    ...(cap.role === undefined ? {} : { role: cap.role }),
+    ...(cap.publish === undefined ? {} : { publish: cap.publish }),
   }
 }
 

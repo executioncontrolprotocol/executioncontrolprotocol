@@ -136,6 +136,7 @@ describe("JSON Schemas", () => {
       startedAt: "2026-11-14T00:00:00.000Z",
       plugins: {},
       warnings: [],
+      publishes: [],
     }
     const validate = ajv().compile(readJson(path.join(schemaDir, "run.schema.json")) as object)
     expect(validate({ ...base, host: { version: PROTOCOL_VERSION, pid: 0, mode: "in-process" } })).toBe(false)
@@ -167,6 +168,7 @@ describe("JSON Schemas", () => {
         plugins: {},
         host: { version: PROTOCOL_VERSION, pid: 1, mode: "in-process" },
         warnings: [],
+        publishes: [],
       },
       "step-record.schema.json": {
         nodeId: "echo",

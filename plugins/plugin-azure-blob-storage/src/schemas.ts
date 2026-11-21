@@ -51,11 +51,18 @@ const blobName = z.string().min(1)
  * Input of the `upload` capability.
  * @category Plugins
  */
+const urlFileRefSchema = z.object({
+  kind: z.literal("url"),
+  url: z.string().url(),
+  headers: z.record(z.string(), z.string()).optional(),
+  mediaType: z.string().optional(),
+})
+
 export const uploadAcceptsSchema = z.object({
   file: fileRefSchema(),
   blobName: blobName.optional(),
   container,
-  createReadSas: z.boolean().optional(),
+  createReadSas: z.boolean().optional().default(true),
   contentType: z.string().optional(),
 })
 
@@ -66,8 +73,7 @@ export const uploadAcceptsSchema = z.object({
 export const uploadReturnsSchema = z.object({
   blobName: z.string(),
   container: z.string(),
-  blobUrl: z.string(),
-  sasUrl: z.string().optional(),
+  file: urlFileRefSchema,
 })
 
 /**

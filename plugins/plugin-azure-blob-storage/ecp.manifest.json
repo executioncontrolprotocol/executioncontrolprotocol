@@ -8,6 +8,13 @@
         "Check `deleted` to see whether Azure removed the blob (`false` only when `ifMissing` is `ignore` and the blob was absent)",
         "Reuse `blobName` and `container` to confirm which object was addressed"
       ],
+      "publish": {
+        "locatorFields": [
+          "blobName",
+          "container"
+        ]
+      },
+      "role": "unpublish",
       "summary": "Delete one blob from Azure Blob Storage.",
       "useCases": [
         "Remove temporary uploads after an external service has read them",
@@ -40,21 +47,29 @@
       ]
     },
     {
-      "description": "Reads a file ref (local path, URL or run artifact) and stores it as a block blob, overwriting any blob with the same name. Without `blobName` a random UUID is used; without `container` the config's defaultContainer is used. Set `createReadSas` to also get a one-hour read-only signed URL, which needs an account key in the config. Use `sas` for other permissions or lifetimes.",
+      "description": "Reads a file ref (local path, URL or run artifact) and stores it as a block blob, overwriting any blob with the same name. Without `blobName` it picks a unique name, `ecp/<runId>/<stepId>/<name>-<8 hex>` plus the file extension; without `container` the config's defaultContainer is used. By default the returned `file` url is a one-hour read SAS (`createReadSas`, default true); set it to false for the bare blob URL on public containers. Use `sas` for other permissions or lifetimes.",
       "id": "@executioncontrolprotocol/azure-blob-storage.upload",
       "name": "upload",
       "projections": [
-        "Take `blobName` and `container` to address the blob later; `sasUrl` is the shareable link when requested; `blobUrl` works only for public containers"
+        "Bind `file` (a url FileRef) into url-only capability inputs; keep `blobName` and `container` for delete or sas"
       ],
+      "publish": {
+        "fileField": "file",
+        "locatorFields": [
+          "blobName",
+          "container"
+        ]
+      },
+      "role": "publish",
       "summary": "Upload a file to Azure Blob Storage.",
       "useCases": [
         "Persist generated media or reports so later steps or people can fetch them",
-        "Hand a file to an external service that only accepts URLs (with `createReadSas`)"
+        "Hand a file to an external service that only accepts URLs (bind `file` into url-only inputs)"
       ]
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "70766e5d93ec91e23bb99c065d0f61961be580bd4b3b59991616fa7ca78ab489",
+  "hash": "5f6289c65f77a9dbb1b84e164257708a6efe305f4eb304c97b1ef59d8ab8fd21",
   "plugin": {
     "description": "Blob storage for executions that persist media, share time-limited links, bring stored objects into a run as artifacts, or remove blobs after use. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
@@ -63,7 +78,7 @@
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "c190ba5d6e86a3ae57a86116406df68d2c5aede904a3fc3c0dbcb6d5cd6ed61e",
+    "hash": "7d27716d35770197af1a7efcdf74d42f28290ae04be81b5743de11c0111c6f3c",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

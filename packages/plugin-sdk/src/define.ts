@@ -1,4 +1,9 @@
-import type { Handler as ProtocolHandler, HandlerContext } from "@executioncontrolprotocol/protocol"
+import type {
+  CapabilityPublishMetadata,
+  CapabilityRole,
+  Handler as ProtocolHandler,
+  HandlerContext,
+} from "@executioncontrolprotocol/protocol"
 import type { z } from "zod"
 
 const PLUGIN_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/
@@ -60,6 +65,10 @@ export interface CapabilityDefinition<
   contract?: "step"
   /** How the host runs the step when {@link CapabilityDefinition.contract} is `"step"`. */
   code?: "script" | "expression"
+  /** Publisher role for capabilities that upload or delete remote files. */
+  role?: CapabilityRole
+  /** How the host records publish entries when {@link CapabilityDefinition.role} is set. */
+  publish?: CapabilityPublishMetadata
   /** Lazy import of the handler module. */
   handler: HandlerThunk<z.infer<TAccepts>, z.infer<TReturns>, TConfig>
 }
@@ -171,6 +180,8 @@ export function capability<TAccepts extends z.ZodType, TReturns extends z.ZodTyp
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     ...(options.contract === undefined ? {} : { contract: options.contract }),
     ...(options.code === undefined ? {} : { code: options.code }),
+    ...(options.role === undefined ? {} : { role: options.role }),
+    ...(options.publish === undefined ? {} : { publish: options.publish }),
     handler: options.handler,
   }
 }

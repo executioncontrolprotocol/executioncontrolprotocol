@@ -64,34 +64,6 @@
       "branches": [
         [
           {
-            "id": "blob",
-            "label": "Build the blob name",
-            "uses": "@executioncontrolprotocol/core.transform",
-            "accepts": {
-              "type": "object",
-              "properties": {
-                "psdPath": { "type": "string" }
-              },
-              "required": ["psdPath"],
-              "additionalProperties": false
-            },
-            "returns": {
-              "type": "object",
-              "properties": {
-                "blobName": { "type": "string" }
-              },
-              "required": ["blobName"],
-              "additionalProperties": false
-            },
-            "input": {
-              "psdPath": { "$ref": "state.psdPath" }
-            },
-            "script": {
-              "$script": { "lang": "js", "path": "scripts/blob-name.js" }
-            },
-            "as": "blob"
-          },
-          {
             "id": "upload",
             "label": "Upload the PSD and sign a read URL",
             "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
@@ -104,11 +76,7 @@
                 },
                 "mediaType": "image/vnd.adobe.photoshop"
               },
-              "blobName": {
-                "$ref": "state.blob.blobName"
-              },
-              "contentType": "image/vnd.adobe.photoshop",
-              "createReadSas": true
+              "contentType": "image/vnd.adobe.photoshop"
             },
             "as": "upload"
           }
@@ -187,11 +155,7 @@
       "config": "adobe-firefly-services/default",
       "input": {
         "image": {
-          "kind": "url",
-          "url": {
-            "$ref": "state.upload.sasUrl"
-          },
-          "mediaType": "image/vnd.adobe.photoshop"
+          "$ref": "state.upload.file"
         },
         "edits": {
           "layers": {
