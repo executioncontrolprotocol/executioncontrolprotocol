@@ -105,6 +105,16 @@ interface HandlerContext<Config> {
   **no URL allowlist and no path sandbox** in the MVP; {@link HostSettings.files.maxBytes}
   caps `bytes`, `stream`, `path`, `url`, and `capture` (default 512 MiB per method, 256 MiB for
   capture). Per-step scratch copies are removed when the step ends.
+- **Publisher role (F5):** a capability may set `role: "publish"` or `role: "unpublish"` on its
+  manifest entry, plus `publish: { fileField?: string; locatorFields: string[] }`. After a
+  successful publish step the host appends to `RunRecord.publishes` (source `FileRef`, published
+  `url`, locator map; source headers stripped). After a successful unpublish it sets `deletedAt` /
+  `deleteStepId` on the entry whose locator matches (`locatorFields`); no match is not an error.
+  The host never branches on capability ids. **Azure Blob Storage:** `upload` is
+  `role: "publish"` with `fileField: "file"` and `locatorFields: ["blobName", "container"]`; it
+  returns `{ file: FileRefUrl, blobName, container }` (`createReadSas` defaults to true; omitted
+  `blobName` is `ecp/<runId>/<stepId>/<name>-<8 hex><.ext>`, each segment sanitized and the extension kept). `delete` is `role: "unpublish"`
+  with the same locator fields; its input shape is unchanged.
 - **`file` path resolution** (in the host's `files.bytes` / `read`, not in plugins): an absolute
   path is used as-is. A relative path joins the execution directory (directory of the `.ecp.json`
   for path-started runs, or `executions/<id>.ecp.json` for id-started runs). Inline executions (no

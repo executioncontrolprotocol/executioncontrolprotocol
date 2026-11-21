@@ -77,6 +77,30 @@ process (64 MiB heap, 1000 ms), so it costs roughly 75 ms more than a QuickJS tr
 
 See `examples/transform-jsonata/` for a JSONata workflow.
 
+## Publishing (F5)
+
+Upload-to-URL capabilities are explicit execution steps, not hidden host work:
+
+```ts
+export const upload = capability({
+  // …
+  returns: z.object({ file: urlFileRefSchema, blobName: z.string(), container: z.string() }),
+  role: "publish",
+  publish: { fileField: "file", locatorFields: ["blobName", "container"] },
+  handler: () => import("./capabilities/upload.js"),
+})
+
+export const deleteBlob = capability({
+  // …
+  role: "unpublish",
+  publish: { locatorFields: ["blobName", "container"] },
+  handler: () => import("./capabilities/delete.js"),
+})
+```
+
+Callers bind the upload `file` output into url-only Adobe inputs. The host records each publish on
+the run and marks deletions when an unpublish locator matches.
+
 Build writes light `ecp.manifest.json` (2.0) and `ecp.schema.json` via `ecp-plugin-manifest`.
 The installable package also needs an empty `"oclif": {}` key in `package.json` (first-party
 plugins include it).

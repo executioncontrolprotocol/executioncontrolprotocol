@@ -2,7 +2,8 @@
 
 Turns a template PSD into a new banner from a prompt and two strings:
 
-1. In parallel: `azure-blob-storage.upload` uploads the template and signs a read URL, and
+1. In parallel: `azure-blob-storage.upload` uploads the template and returns a url `FileRef` on
+   `file`, and
    `adobe-firefly-services.firefly-generate-images-v3-async` generates the background (2304×1792,
    `contentClass: photo`).
 2. `adobe-firefly-services.photoshop-create-composite` replaces the background layer's pixels with the

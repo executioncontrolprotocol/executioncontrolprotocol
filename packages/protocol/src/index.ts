@@ -54,6 +54,8 @@ export type {
 export type { ValidationIssue, ValidationResult, ValidationSeverity } from "./validation.js"
 export type {
   CapabilityEntry,
+  CapabilityPublishMetadata,
+  CapabilityRole,
   CapabilitySummary,
   ConfigObject,
   EnvRef,
@@ -65,6 +67,7 @@ export type {
   RunFilter,
   RunHostInfo,
   RunHostMode,
+  PublishRecord,
   RunRecord,
   RunStatus,
   SecretRef,

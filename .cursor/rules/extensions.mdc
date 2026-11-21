@@ -103,6 +103,11 @@ envelope. The host and App bind `$ref` to those shapes (typed ports).
 - For binary data, use {@link fileRefSchema} from the plugin SDK for every `FileRef` field. Declare
   `access` (`url` for handlers that call `ctx.files.url()`, and so on) and `mediaTypes` when the
   handler cares about the declared type. Don't hand-roll the `kind` union or skip `x-ecp-file`.
+- **Publishing is a node.** Capabilities that copy a file to remote storage set `role: "publish"`
+  and `publish: { fileField?: string; locatorFields: string[] }`; cleanup capabilities set
+  `role: "unpublish"` with the same locator fields. Return a url `FileRef` (for example Azure
+  `upload` returns `{ file, blobName, container }`). The host appends `RunRecord.publishes`; never
+  branch on capability ids in the host.
 - Don't reimplement fs, fetch or artifact maps.
 
 ## Provider and handler failures

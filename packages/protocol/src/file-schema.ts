@@ -71,7 +71,7 @@ function branchList(value: unknown): Record<string, unknown>[] {
  * @category Definitions
  */
 export const FILE_ACCESS_PUBLISH_SUGGESTION =
-  "Publish the file first: add an upload step (for example @executioncontrolprotocol/azure-blob-storage.upload with createReadSas) and pass the URL it returns as a url FileRef."
+  "Publish the file first: add an upload step (for example @executioncontrolprotocol/azure-blob-storage.upload) and bind its `file` output."
 
 /**
  * Compare a declared media type to an allow-list (supports `type/*` wildcards).

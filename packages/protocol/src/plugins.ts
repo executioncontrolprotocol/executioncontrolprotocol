@@ -189,6 +189,10 @@ export interface PluginCapabilityManifest {
   contract?: "step"
   /** How the host runs the step when {@link PluginCapabilityManifest.contract} is `"step"`. */
   code?: "script" | "expression"
+  /** Publisher role, when the capability uploads or deletes remote file storage. */
+  role?: import("./objects.js").CapabilityRole
+  /** How the host records publish entries; required when `role` is set. */
+  publish?: import("./objects.js").CapabilityPublishMetadata
 }
 
 /**

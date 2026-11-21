@@ -610,6 +610,7 @@ async function startAndAwait(
     clientRequestId: input.clientRequestId,
     cursor,
     warnings: validation.issues.filter((issue) => issue.severity === "warning"),
+    publishes: [],
   }
   if (!resuming) await storage.runs.create(record, manifest)
   else await storage.runs.update(runId, { status: "running", cursor })

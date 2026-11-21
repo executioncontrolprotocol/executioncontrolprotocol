@@ -2,8 +2,8 @@
 
 Reads every layer of a local PSD, including layers inside groups:
 
-1. `azure-blob-storage.upload` uploads the file and signs a read URL (Adobe only reads inputs from
-   allowlisted cloud storage).
+1. `azure-blob-storage.upload` uploads the file and returns a url `FileRef` on `file` (read SAS by
+   default).
 2. `adobe-firefly-services.photoshop-generate-manifest` returns the document manifest (embedded
    JSON).
 3. `azure-blob-storage.delete` removes the uploaded PSD copy from the container (`ifMissing:
@@ -38,6 +38,5 @@ ecp execute psd-layers.ecp.json --input '{"psdPath": "C:\\path\\to\\banner.psd"}
 
 ## Notes
 
-- Two `core.transform` steps do the reshaping, each with its own `accepts`/`returns`:
-  `scripts/blob-name.js` builds the upload name and `scripts/layer-names.js` flattens the layer
-  tree. The result is `psd.document`, `psd.layers`, `psd.names` and `psd.count`.
+- The manifest step binds `state.upload.file` into the Adobe `image` input. `scripts/layer-names.js`
+  flattens the layer tree into `psd.document`, `psd.layers`, `psd.names` and `psd.count`.

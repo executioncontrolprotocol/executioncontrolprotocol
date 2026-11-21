@@ -169,6 +169,39 @@ describe("file access L3", () => {
     expect(result.issues.some((issue) => issue.code === "ECP_TYPE_MISMATCH")).toBe(false)
   })
 
+  it("accepts azure upload file binding into access url", async () => {
+    const azureUpload: CapabilityEntry = {
+      ...urlProducer,
+      id: "@executioncontrolprotocol/azure-blob-storage.upload",
+      returns: {
+        type: "object",
+        properties: {
+          file: {
+            type: "object",
+            properties: { kind: { const: "url" }, url: { type: "string" }, mediaType: { type: "string" } },
+            required: ["kind", "url"],
+          },
+          blobName: { type: "string" },
+          container: { type: "string" },
+        },
+        required: ["file", "blobName", "container"],
+      },
+    }
+    const result = await validateExecution(
+      execution([
+        {
+          id: "upload",
+          uses: azureUpload.id,
+          input: { file: { kind: "file", path: "/tmp/a.psd" } },
+          as: "upload",
+        },
+        { id: "use", uses: adobeLike.id, input: { image: { $ref: "state.upload.file" } } },
+      ]),
+      { capabilities: [adobeLike, azureUpload] },
+    )
+    expect(result.issues.some((issue) => issue.code === "ECP_TYPE_MISMATCH")).toBe(false)
+  })
+
   it("allows any FileRef kind when access is omitted", async () => {
     const open = {
       ...adobeLike,

@@ -97,8 +97,11 @@ describe("upload", () => {
     expect(result).toEqual({
       blobName: "product.png",
       container: "ecp",
-      blobUrl: "https://acct.blob.core.windows.net/ecp/product.png",
-      sasUrl: "https://acct.blob.core.windows.net/ecp/product.png?sp=r&sig=x",
+      file: {
+        kind: "url",
+        url: "https://acct.blob.core.windows.net/ecp/product.png?sp=r&sig=x",
+        mediaType: "image/png",
+      },
     })
     expect(uploadBytes).toHaveBeenCalledWith(CONFIG, {
       container: "ecp",
@@ -115,17 +118,38 @@ describe("upload", () => {
     })
   })
 
-  it("uses the input container and content type, a random blob name, and skips SAS by default", async () => {
+  it("uses the input container, mints SAS by default, and generates a scoped blob name", async () => {
     const result = await upload(
-      { file: { kind: "artifact", uri: "ecp://runs/run-1/artifacts/a.bin" }, container: "media", contentType: "text/plain" },
+      { file: { kind: "artifact", uri: "ecp://runs/run-1/artifacts/a.bin", name: "a.bin" }, container: "media", contentType: "text/plain" },
       ctx(),
     )
 
     expect(result.container).toBe("media")
-    expect(result.blobName).toMatch(/^[0-9a-f-]{36}$/)
-    expect(result).not.toHaveProperty("sasUrl")
+    expect(result.blobName).toMatch(/^ecp\/run-1\/step-1\/a-[0-9a-f]{8}\.bin$/)
+    expect(result.file.kind).toBe("url")
+    expect(result.file.url).toContain("?sp=")
     expect(uploadBytes.mock.calls[0]![1].contentType).toBe("text/plain")
+    expect(createSas).toHaveBeenCalled()
+  })
+
+  it("returns the bare blob URL when createReadSas is false", async () => {
+    const result = await upload(
+      { file: { kind: "file", path: "/abs/product.png" }, createReadSas: false },
+      ctx(),
+    )
+
+    expect(result.file.url).toMatch(/^https:\/\/acct\.blob\.core\.windows\.net\/ecp\/[^?]+$/)
+    expect(result.file.url).not.toContain("?")
     expect(createSas).not.toHaveBeenCalled()
+  })
+
+  it("keeps explicit blobName and generates unique default names per call", async () => {
+    const first = await upload({ file: { kind: "file", path: "/abs/a.png" } }, ctx())
+    const second = await upload({ file: { kind: "file", path: "/abs/a.png" } }, ctx())
+    await upload({ file: { kind: "file", path: "/abs/product.png" }, blobName: "dir/custom.png" }, ctx())
+
+    expect(first.blobName).not.toBe(second.blobName)
+    expect(uploadBytes.mock.calls[2]![1].blobName).toBe("dir/custom.png")
   })
 
   it("falls back to the ref media type, then application/octet-stream", async () => {

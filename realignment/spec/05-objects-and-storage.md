@@ -89,9 +89,14 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   "host": { "version": "1.0.0", "pid": 1234, "mode": "server" },
   "clientRequestId": "…",
   "cursor": { "completed": ["doc", "check-headline", "translate"], "inProgress": "banner", "loops": { "refine": 1 }, "branches": { "check-headline": 1 } },
-  "warnings": [], "timing": { … } }
+  "warnings": [], "publishes": [], "timing": { … } }
 ```
 
+- `publishes`: one entry per successful publish step (`role: "publish"` on the capability). Each
+  records `stepId`, `round`, `capabilityId`, `at`, the source `FileRef` (headers stripped),
+  the published `url` (query retained), and a `locator` map from `publish.locatorFields` on the
+  manifest. A successful unpublish step sets `deletedAt` and `deleteStepId` on the matching entry;
+  no match is not an error. Visible through `retrieve` on the run.
 - `host.pid`: integer ≥ 1 (the process that ran the operation).
 - `host.mode`: `"in-process"` or `"server"` (required with `pid`).
 - Run id: `run-<UTC yyyymmddTHHMMSSZ>-<6 hex>`.
@@ -122,9 +127,13 @@ Status: `completed`, `failed`, `skipped`, `cancelled`.
 { "id": "@executioncontrolprotocol/anthropic.generate", "plugin": "@executioncontrolprotocol/anthropic",
   "package": "@executioncontrolprotocol/plugin-anthropic", "pluginVersion": "1.0.0",
   "summary": "…", "description": "…", "useCases": ["…"], "projections": ["…"],
-  "accepts": { … }, "returns": { … }, "configSchema": { … }, "timeoutMs": 120000,
-  "contract": "step", "code": "script" }
+  "accepts": { … }, "returns": { … },   "configSchema": { … }, "timeoutMs": 120000,
+  "contract": "step", "code": "script",
+  "role": "publish", "publish": { "fileField": "file", "locatorFields": ["blobName", "container"] } }
 ```
+
+`role` and `publish` appear on publisher capabilities (for example Azure Blob `upload` and
+`delete`). The host never branches on capability ids; it reads this metadata from the manifest.
 
 `contract` and `code` appear on capabilities that opt into step-level schemas (transforms). When
 `contract` is `"step"`, listing may omit embedded `accepts`/`returns`; full `retrieve --id` still

@@ -3,7 +3,7 @@
   "$id": "ecp://protocol/run.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "version", "id", "execution", "status", "input", "result", "error", "startedAt", "plugins", "host", "warnings"],
+  "required": ["schema", "version", "id", "execution", "status", "input", "result", "error", "startedAt", "plugins", "host", "warnings", "publishes"],
   "properties": {
     "schema": { "const": "@executioncontrolprotocol.run" },
     "version": { "const": "1.0" },
@@ -40,6 +40,25 @@
     "clientRequestId": { "type": "string" },
     "cursor": { "type": "object" },
     "warnings": { "type": "array" },
+    "publishes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepId", "round", "capabilityId", "at", "source", "url", "locator"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "round": { "type": ["integer", "null"] },
+          "capabilityId": { "type": "string" },
+          "at": { "type": "string" },
+          "source": { "type": "object" },
+          "url": { "type": "string" },
+          "locator": { "type": "object", "additionalProperties": { "type": "string" } },
+          "deletedAt": { "type": "string" },
+          "deleteStepId": { "type": "string" }
+        }
+      }
+    },
     "timing": { "type": "object" }
   }
 }

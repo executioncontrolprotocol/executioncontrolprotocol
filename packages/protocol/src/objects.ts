@@ -1,4 +1,5 @@
 import type { ExecutionManifest, JsonValue } from "./manifest.js"
+import type { FileRef } from "./plugins.js"
 import type { ValidationIssue } from "./validation.js"
 
 /**
@@ -150,6 +151,48 @@ export interface RunHostInfo {
 }
 
 /**
+ * Metadata describing how a capability publishes or unpublishes a file.
+ * @category Definitions
+ */
+export interface CapabilityPublishMetadata {
+  /** Input/output field that carries the source {@link FileRef} on publish. Default `file`. */
+  fileField?: string
+  /** Output/input fields that identify the remote object for matching entries. */
+  locatorFields: string[]
+}
+
+/**
+ * Publisher role on a capability manifest.
+ * @category Definitions
+ */
+export type CapabilityRole = "publish" | "unpublish"
+
+/**
+ * One publish tracked on the run record after a successful publish step.
+ * @category Definitions
+ */
+export interface PublishRecord {
+  /** Step that published the file. */
+  stepId: string
+  /** Loop round when the step ran inside a loop. */
+  round: number | null
+  /** Capability id that performed the publish. */
+  capabilityId: string
+  /** ISO-8601 timestamp when the publish was recorded. */
+  at: string
+  /** Source ref sent to the publisher (headers stripped). */
+  source: FileRef
+  /** Fetchable URL returned by the publisher (`file.url`); query kept for later steps. */
+  url: string
+  /** Locator values (for example blob name and container). */
+  locator: Record<string, string>
+  /** ISO-8601 when an unpublish step matched this entry. */
+  deletedAt?: string
+  /** Step id of the matching unpublish. */
+  deleteStepId?: string
+}
+
+/**
  * Persisted run record (`run.json`).
  * @category Definitions
  */
@@ -186,6 +229,8 @@ export interface RunRecord {
   cursor?: RunCursor
   /** Warnings collected during the run. */
   warnings: ValidationIssue[]
+  /** Files published during the run (publish steps append; unpublish steps mark `deletedAt`). */
+  publishes: PublishRecord[]
   /** Per-phase timing when captured. */
   timing?: Record<string, number>
 }
@@ -354,6 +399,10 @@ export interface CapabilityEntry {
   contract?: "step"
   /** How the host runs the step when {@link CapabilityEntry.contract} is `"step"`. */
   code?: "script" | "expression"
+  /** Publisher role, when the capability uploads or deletes remote file storage. */
+  role?: CapabilityRole
+  /** How to record publish entries; required when {@link CapabilityEntry.role} is set. */
+  publish?: CapabilityPublishMetadata
 }
 
 /**
