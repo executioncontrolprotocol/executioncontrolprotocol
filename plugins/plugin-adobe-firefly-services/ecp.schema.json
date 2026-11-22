@@ -2813,6 +2813,12 @@
           "format": "uri",
           "type": "string"
         },
+        "maxRequestsPerMinute": {
+          "description": "Most API requests to start per minute with these credentials, across every step and run in the host. Requests are spaced evenly; job status polls (GET) are not counted. Omit for no limit.",
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "type": "integer"
+        },
         "pollIntervalMs": {
           "description": "Delay between async job status checks. Defaults to 2000.",
           "exclusiveMinimum": 0,

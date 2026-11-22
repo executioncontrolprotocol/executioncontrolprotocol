@@ -3,7 +3,7 @@ import { AdobeServiceError, CONFIG_INVALID } from "./errors.js"
 
 /**
  * Plugin config: OAuth server-to-server credentials from the Adobe Developer Console, plus
- * optional endpoint overrides and poll timing.
+ * optional endpoint overrides, poll timing and a request limit.
  * @category Plugins
  */
 export const adobeConfigSchema = z.object({
@@ -30,6 +30,15 @@ export const adobeConfigSchema = z.object({
     .positive()
     .optional()
     .describe("Longest wait for an async job before the step fails. Defaults to 570000."),
+  maxRequestsPerMinute: z
+    .number()
+    .int()
+    .positive()
+    .max(100_000)
+    .optional()
+    .describe(
+      "Most API requests to start per minute with these credentials, across every step and run in the host. Requests are spaced evenly; job status polls (GET) are not counted. Omit for no limit.",
+    ),
 })
 
 /**

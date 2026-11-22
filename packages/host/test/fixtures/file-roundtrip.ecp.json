@@ -8,7 +8,7 @@
       "input": {
         "file": {
           "kind": "file",
-          "path": "C:\\Workspaces\\executioncontrolprotocol\\executioncontrolprotocol\\packages\\host\\test\\fixtures\\payload.bin",
+          "path": "C:\\Workspaces\\executioncontrolprotocol\\ecp-adobe-limit\\packages\\host\\test\\fixtures\\payload.bin",
           "mediaType": "application/octet-stream",
           "name": "payload.bin"
         }

@@ -1,6 +1,7 @@
 import { AdobeServiceError, errorMessage, isAbortError, PROVIDER_ERROR } from "../errors.js"
 import type { AccessTokenProvider } from "../auth/ims.js"
 import { sleep } from "../runtime/abort.js"
+import type { RequestLimiter } from "./request-limit.js"
 
 /**
  * HTTP methods used by the generated operations.
@@ -49,6 +50,11 @@ export interface AdobeHttpClientOptions {
   maxRetries?: number
   /** Base backoff in milliseconds when no Retry-After header is sent. Defaults to 1000. */
   retryBaseMs?: number
+  /**
+   * Request budget for the credential set. Every non-GET attempt (job submissions and other calls,
+   * including a retry after 429) waits for a slot; GET requests such as job status polls do not.
+   */
+  limiter?: RequestLimiter
 }
 
 /**
@@ -88,6 +94,7 @@ export function createAdobeHttpClient(options: AdobeHttpClientOptions): AdobeHtt
           body = JSON.stringify(req.body)
         }
 
+        if (options.limiter && req.method !== "GET") await options.limiter.acquire(req.signal)
         let res: Response
         try {
           res = await fetchImpl(req.url, { method: req.method, headers, body, signal: req.signal })
