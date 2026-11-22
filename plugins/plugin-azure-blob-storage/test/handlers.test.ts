@@ -340,7 +340,7 @@ describe("delete", () => {
 describe("sas", () => {
   it("defaults to read-only for an hour", async () => {
     await expect(sas({ blobName: "product.png" }, ctx())).resolves.toEqual({
-      sasUrl: "https://acct.blob.core.windows.net/ecp/product.png?sp=r&sig=x",
+      file: { kind: "url", url: "https://acct.blob.core.windows.net/ecp/product.png?sp=r&sig=x" },
       expiresOn: "2026-11-15T17:00:00.000Z",
     })
     expect(createSas).toHaveBeenCalledWith(CONFIG, {

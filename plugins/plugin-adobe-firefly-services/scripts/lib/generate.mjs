@@ -31,6 +31,7 @@ import {
   USES_FILE_REF_IMPORT,
   applyProductShape,
   collectBodyFieldSchemas,
+  patchNestedFileRefSchemas,
   reshapeCapabilityAccepts,
 } from "./product-shape.mjs"
 import {
@@ -570,11 +571,13 @@ export function generateFamily(family, specs) {
       schemaLines.push(`export const ${ident}: z.ZodType = ${resolveRefs(expr, "")}`, ``)
     }
   }
-  const schemasTs = `${schemaLines.join("\n").trimEnd()}\n`
+  let schemasTs = `${schemaLines.join("\n").trimEnd()}\n`
+  const nestedPatch = patchNestedFileRefSchemas(schemasTs, family)
+  schemasTs = nestedPatch.text
 
   const capLines = []
   let capUsesSchemas = false
-  let capUsesFileRef = false
+  let capUsesFileRef = nestedPatch.nestedFileRefFields > 0
   for (const op of ops) {
     const acceptsRaw = op.built.fields.length ? `z.strictObject({\n${op.built.fields.join(",\n")}\n})` : "z.strictObject({})"
     const accepts = acceptsRaw.replaceAll(USES_FILE_REF_IMPORT, "fileRefSchema")

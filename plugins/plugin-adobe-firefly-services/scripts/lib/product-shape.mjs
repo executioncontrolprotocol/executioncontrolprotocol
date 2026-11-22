@@ -358,3 +358,52 @@ export function applyProductShape(opName, opClass, operation, doc, resolved, out
   if (!shaped.returnsZod) shaped.returnsZod = "z.looseObject({})"
   return { ...shaped, productShapeKind: kind }
 }
+
+/** Named nested inputs promoted to url `FileRef` at the capability boundary (PR 5). */
+const URL_FILE_REF_EXPR = 'fileRefSchema({ access: "url" })'
+
+/**
+ * Post-process generated `schemas.ts`: nested Firefly and Photoshop file inputs become url
+ * `FileRef`s (not hand-edited). `thumbnailUrl`, `statusUrl`, and output `presignedUrl` are untouched.
+ * @param {string} schemasTs
+ * @param {string} family
+ * @returns {{ text: string, nestedFileRefFields: number }}
+ */
+export function patchNestedFileRefSchemas(schemasTs, family) {
+  /** @type {Array<[RegExp, string]>} */
+  const replacements = []
+  if (family === "firefly") {
+    replacements.push(
+      [/imageReference: In_StructureImageReferenceV3\.optional\(\)/g, `imageReference: ${URL_FILE_REF_EXPR}.optional()`],
+      [/imageReference: In_StylesImageReferenceV3\.optional\(\)/g, `imageReference: ${URL_FILE_REF_EXPR}.optional()`],
+      [/source: In_ReferenceBlobSourceV3\.describe/g, `source: ${URL_FILE_REF_EXPR}.describe`],
+    )
+  }
+  if (family === "photoshop") {
+    replacements.push(
+      [/image: In_ImageSource\.optional\(\)/g, `image: ${URL_FILE_REF_EXPR}.optional()`],
+      [
+        /export const In_SmartObjectFile: z\.ZodType = z\.lazy\(\(\) => z\.strictObject\(\{\s*source: In_FileResourceInput\.optional\(\)\s*\}\)\)/s,
+        `export const In_SmartObjectFile: z.ZodType = ${URL_FILE_REF_EXPR}`,
+      ],
+    )
+  }
+  let text = schemasTs
+  let nestedFileRefFields = 0
+  for (const [pattern, replacement] of replacements) {
+    const next = text.replace(pattern, replacement)
+    const delta = (text.match(pattern) ?? []).length
+    if (delta > 0) nestedFileRefFields += delta
+    text = next
+  }
+  if (nestedFileRefFields > 0 && !text.includes("fileRefSchema")) {
+    throw new Error(`[${family}] nested FileRef patch did not apply fileRefSchema`)
+  }
+  if (text.includes('fileRefSchema') && !text.includes('import { fileRefSchema }')) {
+    text = text.replace(
+      'import { z } from "zod"',
+      'import { z } from "zod"\nimport { fileRefSchema } from "../../schemas.js"',
+    )
+  }
+  return { text, nestedFileRefFields }
+}

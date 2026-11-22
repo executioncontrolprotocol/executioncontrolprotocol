@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 12 |
-| Other | 22 |
+| Other | 23 |
 
 ## All files
 
@@ -125,6 +125,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/host-auto-start.md` | Other | current |
 | `.changeset/jsonata-transform-plugin.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |
+| `.changeset/nested-file-ref-sweep.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |
 | `.changeset/plugin-manifest-2.md` | Other | current |
 | `.changeset/plugin-package-names.md` | Other | current |

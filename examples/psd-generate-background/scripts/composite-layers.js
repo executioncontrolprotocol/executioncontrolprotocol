@@ -3,7 +3,7 @@ const layers = [
     name: input.backgroundLayer,
     type: "layer",
     operation: { type: "edit" },
-    image: { source: { url: input.background.url } },
+    image: input.background,
     transformMode: "fill",
   },
 ];

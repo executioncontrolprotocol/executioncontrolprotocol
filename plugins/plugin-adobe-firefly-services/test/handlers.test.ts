@@ -117,8 +117,14 @@ describe("async capability: firefly-generate-images-v3-async", () => {
   it("defaults caiClaimVersion to 2 when a style image is set", async () => {
     const { calls } = fireflyRoute({ status: "succeeded", result: { outputs: [] } }, [])
     const handler = await handlerFor("firefly-generate-images-v3-async")
-    await handler({ prompt: "p", style: { imageReference: { source: { url: "https://cdn.test/s.png" } } } }, makeCtx(CONFIG))
-    expect(calls[0]!.body).toMatchObject({ caiClaimVersion: 2 })
+    await handler(
+      { prompt: "p", style: { imageReference: { kind: "url", url: "https://cdn.test/s.png" } } },
+      makeCtx(CONFIG),
+    )
+    expect(calls[0]!.body).toMatchObject({
+      caiClaimVersion: 2,
+      style: { imageReference: { source: { url: "https://cdn.test/s.png" } } },
+    })
   })
 
   it("fails with ECP_INPUT_INVALID before any HTTP call when the merged body misses prompt", async () => {

@@ -87,7 +87,7 @@ export const sas = capability({
     "Share a stored blob with a person or service for a limited time",
     "Give an external service a write URL (`cw`) to upload a result directly",
   ],
-  projections: ["Take `sasUrl` as the link; `expiresOn` says when it stops working"],
+  projections: ["Bind `file` (a url FileRef) into url-only inputs; `expiresOn` says when the SAS stops working"],
   accepts: sasAcceptsSchema,
   returns: sasReturnsSchema,
   handler: () => import("./capabilities/sas.js"),

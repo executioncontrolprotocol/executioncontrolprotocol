@@ -6075,26 +6075,172 @@
           "description": "An object with the reference image details for structure.",
           "properties": {
             "imageReference": {
-              "additionalProperties": false,
-              "properties": {
-                "source": {
-                  "additionalProperties": false,
+              "oneOf": [
+                {
                   "properties": {
-                    "uploadId": {
-                      "description": "The `uploadId` from the storage API response.",
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "file",
                       "type": "string"
                     },
-                    "url": {
-                      "description": "The pre-signed URL of an uploaded file. Use a URL or an `uploadID` as the source for the image. Firefly only allows these listed domains in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com .",
-                      "maxLength": 2083,
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "path": {
                       "minLength": 1,
                       "type": "string"
                     }
                   },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "headers": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "url",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "format": "uri",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "url"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
                   "type": "object"
                 }
-              },
-              "type": "object"
+              ],
+              "x-ecp-file": {
+                "access": "url"
+              }
             },
             "strength": {
               "description": "Control how strictly Firefly adheres to the reference image when it generates the image variations. 0 means no adherence. 100 means full adherence.",
@@ -6110,26 +6256,172 @@
           "description": "An object with the reference image details for style.",
           "properties": {
             "imageReference": {
-              "additionalProperties": false,
-              "properties": {
-                "source": {
-                  "additionalProperties": false,
+              "oneOf": [
+                {
                   "properties": {
-                    "uploadId": {
-                      "description": "The `uploadId` from the storage API response.",
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "file",
                       "type": "string"
                     },
-                    "url": {
-                      "description": "The pre-signed URL of an uploaded file. Use a URL or an `uploadID` as the source for the image. Firefly only allows these listed domains in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com .",
-                      "maxLength": 2083,
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "path": {
                       "minLength": 1,
                       "type": "string"
                     }
                   },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "headers": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "url",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "format": "uri",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "url"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
                   "type": "object"
                 }
-              },
-              "type": "object"
+              ],
+              "x-ecp-file": {
+                "access": "url"
+              }
             },
             "presets": {
               "description": "The style presets. Specify an ID for a style of image to generate.",
@@ -6470,19 +6762,173 @@
             "description": "Reference blob for V3 API. Style Guide compliant: The source property specifies the input location, and other properties like usage are peers of source .",
             "properties": {
               "source": {
-                "additionalProperties": false,
                 "description": "The source location of the reference image.",
-                "properties": {
-                  "uploadId": {
-                    "description": "The ID of an asset previously uploaded to the Firefly Upload Image API.",
-                    "type": "string"
+                "oneOf": [
+                  {
+                    "properties": {
+                      "archive": {
+                        "properties": {
+                          "kind": {
+                            "const": "artifact",
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "uri": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "uri"
+                        ],
+                        "type": "object"
+                      },
+                      "kind": {
+                        "const": "file",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "path"
+                    ],
+                    "type": "object"
                   },
-                  "url": {
-                    "description": "URL of the reference image.",
-                    "type": "string"
+                  {
+                    "properties": {
+                      "archive": {
+                        "properties": {
+                          "kind": {
+                            "const": "artifact",
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "uri": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "uri"
+                        ],
+                        "type": "object"
+                      },
+                      "headers": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "type": "object"
+                      },
+                      "kind": {
+                        "const": "url",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "url"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "archive": {
+                        "properties": {
+                          "kind": {
+                            "const": "artifact",
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "uri": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "uri"
+                        ],
+                        "type": "object"
+                      },
+                      "kind": {
+                        "const": "artifact",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sizeBytes": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "uri": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "uri"
+                    ],
+                    "type": "object"
                   }
-                },
-                "type": "object"
+                ],
+                "x-ecp-file": {
+                  "access": "url"
+                }
               },
               "usage": {
                 "description": "The usage of the reference blob. Available options: 'general' for general reference.",
@@ -7227,26 +7673,172 @@
           "additionalProperties": false,
           "properties": {
             "imageReference": {
-              "additionalProperties": false,
-              "properties": {
-                "source": {
-                  "additionalProperties": false,
+              "oneOf": [
+                {
                   "properties": {
-                    "uploadId": {
-                      "description": "The `uploadId` from the storage API response.",
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "file",
                       "type": "string"
                     },
-                    "url": {
-                      "description": "The pre-signed URL of an uploaded file. Use a URL or an `uploadID` as the source for the image. Firefly only allows these listed domains in the request: amazonaws.com windows.net dropboxusercontent.com storage.googleapis.com .",
-                      "maxLength": 2083,
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "path": {
                       "minLength": 1,
                       "type": "string"
                     }
                   },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "headers": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "url",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "format": "uri",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "url"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "archive": {
+                      "properties": {
+                        "kind": {
+                          "const": "artifact",
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "uri": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "uri"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
                   "type": "object"
                 }
-              },
-              "type": "object"
+              ],
+              "x-ecp-file": {
+                "access": "url"
+              }
             },
             "presets": {
               "description": "The style presets. Specify an ID for a style of image to generate.",
@@ -14685,41 +15277,172 @@
                     "type": "integer"
                   },
                   "image": {
-                    "additionalProperties": false,
-                    "description": "The image input for the actions operation. Required.",
-                    "properties": {
-                      "source": {
-                        "additionalProperties": false,
-                        "description": "The resource input for the image. Required. Must be a valid FileResourceInput subtype: UrlResourceInput, CreativeCloudResourceInput, CreativeCloudFileIdResourceInput, or LightroomResourceInput.",
+                    "oneOf": [
+                      {
                         "properties": {
-                          "creativeCloudFileId": {
-                            "description": "The file ID of the asset in Creative Cloud. Required. Must start with 'urn:aaid' (case-insensitive).",
+                          "archive": {
+                            "properties": {
+                              "kind": {
+                                "const": "artifact",
+                                "type": "string"
+                              },
+                              "mediaType": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "uri": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "uri"
+                            ],
+                            "type": "object"
+                          },
+                          "kind": {
+                            "const": "file",
                             "type": "string"
                           },
-                          "creativeCloudPath": {
-                            "description": "The path to the asset in Creative Cloud. Required.",
+                          "mediaType": {
                             "type": "string"
                           },
-                          "creativeCloudProjectId": {
-                            "description": "The Creative Cloud project ID. Optional. Must be a valid URN starting with 'urn:aaid:sc:'. Example: urn:aaid:sc:US:a21c8629-413f-55d9-...",
-                            "type": "string"
-                          },
-                          "lightroomPath": {
-                            "description": "The path to the asset in Lightroom. Required.",
-                            "type": "string"
-                          },
-                          "url": {
-                            "description": "The pre-signed URL of the resource. Required.",
+                          "path": {
+                            "minLength": 1,
                             "type": "string"
                           }
                         },
+                        "required": [
+                          "kind",
+                          "path"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "archive": {
+                            "properties": {
+                              "kind": {
+                                "const": "artifact",
+                                "type": "string"
+                              },
+                              "mediaType": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "uri": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "uri"
+                            ],
+                            "type": "object"
+                          },
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "kind": {
+                            "const": "url",
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "format": "uri",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "url"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "archive": {
+                            "properties": {
+                              "kind": {
+                                "const": "artifact",
+                                "type": "string"
+                              },
+                              "mediaType": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "uri": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "uri"
+                            ],
+                            "type": "object"
+                          },
+                          "kind": {
+                            "const": "artifact",
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "uri": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "uri"
+                        ],
                         "type": "object"
                       }
-                    },
-                    "required": [
-                      "source"
                     ],
-                    "type": "object"
+                    "x-ecp-file": {
+                      "access": "url"
+                    }
                   },
                   "isClipped": {
                     "type": "boolean"
@@ -14881,38 +15604,173 @@
                         "type": "boolean"
                       },
                       "smartObjectFile": {
-                        "additionalProperties": false,
                         "description": "File reference for the smart object. Supported file formats: PSD, PNG, JPEG, TIFF, SVG. Optional.",
-                        "properties": {
-                          "source": {
-                            "additionalProperties": false,
-                            "description": "The resource input for the image. Required. Must be a valid FileResourceInput subtype: UrlResourceInput, CreativeCloudResourceInput, CreativeCloudFileIdResourceInput, or LightroomResourceInput.",
+                        "oneOf": [
+                          {
                             "properties": {
-                              "creativeCloudFileId": {
-                                "description": "The file ID of the asset in Creative Cloud. Required. Must start with 'urn:aaid' (case-insensitive).",
+                              "archive": {
+                                "properties": {
+                                  "kind": {
+                                    "const": "artifact",
+                                    "type": "string"
+                                  },
+                                  "mediaType": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "sizeBytes": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "uri": {
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "uri"
+                                ],
+                                "type": "object"
+                              },
+                              "kind": {
+                                "const": "file",
                                 "type": "string"
                               },
-                              "creativeCloudPath": {
-                                "description": "The path to the asset in Creative Cloud. Required.",
+                              "mediaType": {
                                 "type": "string"
                               },
-                              "creativeCloudProjectId": {
-                                "description": "The Creative Cloud project ID. Optional. Must be a valid URN starting with 'urn:aaid:sc:'. Example: urn:aaid:sc:US:a21c8629-413f-55d9-...",
-                                "type": "string"
-                              },
-                              "lightroomPath": {
-                                "description": "The path to the asset in Lightroom. Required.",
-                                "type": "string"
-                              },
-                              "url": {
-                                "description": "The pre-signed URL of the resource. Required.",
+                              "path": {
+                                "minLength": 1,
                                 "type": "string"
                               }
                             },
+                            "required": [
+                              "kind",
+                              "path"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "archive": {
+                                "properties": {
+                                  "kind": {
+                                    "const": "artifact",
+                                    "type": "string"
+                                  },
+                                  "mediaType": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "sizeBytes": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "uri": {
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "uri"
+                                ],
+                                "type": "object"
+                              },
+                              "headers": {
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "type": "object"
+                              },
+                              "kind": {
+                                "const": "url",
+                                "type": "string"
+                              },
+                              "mediaType": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "format": "uri",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "url"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "archive": {
+                                "properties": {
+                                  "kind": {
+                                    "const": "artifact",
+                                    "type": "string"
+                                  },
+                                  "mediaType": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "sizeBytes": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "uri": {
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "uri"
+                                ],
+                                "type": "object"
+                              },
+                              "kind": {
+                                "const": "artifact",
+                                "type": "string"
+                              },
+                              "mediaType": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "uri": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "uri"
+                            ],
                             "type": "object"
                           }
-                        },
-                        "type": "object"
+                        ],
+                        "x-ecp-file": {
+                          "access": "url"
+                        }
                       }
                     },
                     "type": "object"
