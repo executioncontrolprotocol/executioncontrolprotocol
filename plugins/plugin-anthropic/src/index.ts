@@ -16,10 +16,11 @@ export type { AnthropicConfig, GenerateInput, GenerateOutput } from "./schemas.j
 export const generate = capability({
   summary: "Generate text with a Claude model.",
   description:
-    "Sends one user prompt, with an optional system prompt, to the Anthropic Messages API using the model from the config object, and returns the reply text with token usage. Provider failures (bad key, rate limit, overload) fail the step with ECP_PROVIDER_ERROR and the HTTP status in details.",
+    "Sends one user prompt, with an optional system prompt and optional images (FileRefs in JPEG, PNG, GIF or WebP, up to 5 MB each, read by the host), to the Anthropic Messages API using the model from the config object, and returns the reply text with token usage. Provider failures (bad key, rate limit, overload) fail the step with ECP_PROVIDER_ERROR and the HTTP status in details.",
   useCases: [
     "Draft, rewrite, summarise or translate text from a prompt",
     "Turn upstream step output into a short caption, title or brief",
+    "Review or describe rendered images, such as checking a layout rendition against criteria",
   ],
   projections: [
     "Take `text` for the reply; `usage` reports input and output tokens for cost tracking",

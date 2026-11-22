@@ -204,3 +204,65 @@ describe("anthropic generate", () => {
     await expect(generate({ prompt: "p" }, ctx({ apiKey: "k" }))).rejects.toThrow("fetch failed")
   })
 })
+
+describe("anthropic generate with images", () => {
+  const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+  function withFiles(read: (ref: unknown) => Promise<{ bytes: Uint8Array; mediaType?: string }>) {
+    return ctx({ apiKey: "k" }, { files: { bytes: read, read } as unknown as HandlerContext["files"] })
+  }
+
+  it("sends each image as a base64 block before the prompt, reading bytes through the host", async () => {
+    const fetchMock = stubFetch(async () =>
+      jsonResponse(200, { content: [{ type: "text", text: "{\"pass\":true}" }], usage: { input_tokens: 9, output_tokens: 2 } }),
+    )
+    const seen: unknown[] = []
+    const result = await generate(
+      {
+        prompt: "Review these.",
+        images: [
+          { kind: "url", url: "https://cdn.test/a.jpg", mediaType: "image/jpeg" },
+          { kind: "artifact", uri: "ecp://runs/run-1/artifacts/b.png" },
+        ],
+      },
+      withFiles(async (ref) => {
+        seen.push(ref)
+        return seen.length === 1 ? { bytes: new Uint8Array([1, 2, 3]), mediaType: "image/jpeg" } : { bytes: PNG, mediaType: "image/png" }
+      }),
+    )
+    expect(result.text).toBe("{\"pass\":true}")
+    expect(seen).toHaveLength(2)
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1].body)) as {
+      messages: Array<{ content: Array<{ type: string; source?: { media_type: string; data: string }; text?: string }> }>
+    }
+    const content = body.messages[0]!.content
+    expect(content.map((block) => block.type)).toEqual(["image", "image", "text"])
+    expect(content[0]!.source).toEqual({ type: "base64", media_type: "image/jpeg", data: "AQID" })
+    expect(content[1]!.source?.media_type).toBe("image/png")
+    expect(content[2]!.text).toBe("Review these.")
+  })
+
+  it("keeps a plain string prompt when there are no images", async () => {
+    const fetchMock = stubFetch(async () => jsonResponse(200, { content: [], usage: {} }))
+    await generate({ prompt: "Hi", images: [] }, ctx({ apiKey: "k" }))
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1].body)) as { messages: Array<{ content: unknown }> }
+    expect(body.messages[0]!.content).toBe("Hi")
+  })
+
+  it("rejects an image Claude can't read, and one over 5 MB, before calling the API", async () => {
+    const fetchMock = stubFetch(async () => jsonResponse(200, {}))
+    await expect(
+      generate(
+        { prompt: "p", images: [{ kind: "file", path: "/tmp/a.psd" }] },
+        withFiles(async () => ({ bytes: new Uint8Array([1]), mediaType: "image/vnd.adobe.photoshop" })),
+      ),
+    ).rejects.toMatchObject({ code: "ECP_INPUT_INVALID", message: expect.stringContaining("images[0]") })
+    await expect(
+      generate(
+        { prompt: "p", images: [{ kind: "file", path: "/tmp/big.jpg" }] },
+        withFiles(async () => ({ bytes: new Uint8Array(5 * 1024 * 1024 + 1), mediaType: "image/jpeg" })),
+      ),
+    ).rejects.toMatchObject({ code: "ECP_INPUT_INVALID", message: expect.stringContaining("5 MB") })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})

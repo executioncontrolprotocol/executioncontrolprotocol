@@ -20,8 +20,8 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Package READMEs | 10 |
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
-| Examples | 12 |
-| Other | 23 |
+| Examples | 13 |
+| Other | 24 |
 
 ## All files
 
@@ -110,6 +110,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/dogfood-reshape/README.md` | Examples | current |
 | `examples/echo/README.md` | Examples | current |
 | `examples/localize-banner/README.md` | Examples | current |
+| `examples/psd-artboards/README.md` | Examples | current |
 | `examples/psd-generate-background/README.md` | Examples | current |
 | `examples/psd-layers/README.md` | Examples | current |
 | `examples/transform-jsonata/README.md` | Examples | current |
@@ -117,6 +118,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/weekly-brief/README.md` | Examples | current |
 | `.changeset/0.52.0-applied.md` | Other | current |
 | `.changeset/README.md` | Other | current |
+| `.changeset/anthropic-images-psd-artboards.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/capture-pr4.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |

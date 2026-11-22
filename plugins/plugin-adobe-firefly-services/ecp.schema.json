@@ -17698,22 +17698,23 @@
           "type": "object"
         },
         "layers": {
-          "description": "Top-level layers; nested groups use children.",
+          "description": "Top-level layers; groups and artboards list theirs under layers.",
           "items": {
             "additionalProperties": {},
             "properties": {
-              "children": {
+              "id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "layers": {
+                "description": "Layers inside a group or artboard (same shape, nested).",
                 "items": {
                   "additionalProperties": {},
                   "properties": {},
                   "type": "object"
                 },
                 "type": "array"
-              },
-              "id": {
-                "maximum": 9007199254740991,
-                "minimum": -9007199254740991,
-                "type": "integer"
               },
               "name": {
                 "type": "string"

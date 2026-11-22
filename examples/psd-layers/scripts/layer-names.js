@@ -11,7 +11,9 @@ const walk = (layers, parents) => {
     };
     if (layer.text && typeof layer.text.content === "string") row.text = layer.text.content;
     out.push(row);
-    if (Array.isArray(layer.children)) walk(layer.children, [...parents, layer.name]);
+    // Groups and artboards list their contents under `layers` in Photoshop manifests.
+    const nested = layer.layers || layer.children;
+    if (Array.isArray(nested)) walk(nested, [...parents, layer.name]);
   }
 };
 const manifest = input.manifest || {};
