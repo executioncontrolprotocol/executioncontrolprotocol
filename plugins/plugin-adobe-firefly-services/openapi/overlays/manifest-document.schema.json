@@ -22,7 +22,7 @@
     },
     "layers": {
       "type": "array",
-      "description": "Top-level layers; nested groups use children.",
+      "description": "Top-level layers; groups and artboards list theirs under layers.",
       "items": {
         "type": "object",
         "properties": {
@@ -30,7 +30,8 @@
           "name": { "type": "string" },
           "type": { "type": "string" },
           "visible": { "type": "boolean" },
-          "children": {
+          "layers": {
+            "description": "Layers inside a group or artboard (same shape, nested).",
             "type": "array",
             "items": { "type": "object", "additionalProperties": true }
           },

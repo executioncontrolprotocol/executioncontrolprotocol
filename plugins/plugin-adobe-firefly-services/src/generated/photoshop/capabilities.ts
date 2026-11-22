@@ -123,11 +123,11 @@ export const photoshopCapabilities = {
     name: z.string().optional(),
     type: z.string().optional(),
     visible: z.boolean().optional(),
-    children: z.array(z.looseObject({})).optional(),
+    layers: z.array(z.looseObject({})).optional().describe("Layers inside a group or artboard (same shape, nested)."),
     text: z.looseObject({
       content: z.string().optional()
     }).optional()
-  })).optional().describe("Top-level layers; nested groups use children.")
+  })).optional().describe("Top-level layers; groups and artboards list theirs under layers.")
 }),
     timeoutMs: 600000,
     handler: () => import("./operations.js").then((operations) => operations.load("photoshop-generate-manifest")),

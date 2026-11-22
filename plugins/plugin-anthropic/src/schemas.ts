@@ -1,4 +1,11 @@
+import { fileRefSchema } from "@executioncontrolprotocol/plugin-sdk"
 import { z } from "zod"
+
+/**
+ * Image media types the Messages API accepts.
+ * @category Plugins
+ */
+export const ANTHROPIC_IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const
 
 /**
  * Model used when the config object doesn't name one.
@@ -30,6 +37,11 @@ export const generateAcceptsSchema = z.object({
   prompt: z.string(),
   system: z.string().optional(),
   maxTokens: z.number().int().positive().optional(),
+  /** Images the model looks at with the prompt. Any FileRef kind: the host reads the bytes. */
+  images: z
+    .array(fileRefSchema({ access: "bytes", mediaTypes: [...ANTHROPIC_IMAGE_MEDIA_TYPES] }))
+    .max(20)
+    .optional(),
 })
 
 /**
