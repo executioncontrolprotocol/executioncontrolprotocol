@@ -95,13 +95,8 @@ class ThrottleGate {
           this.timestamps.push(now)
           return
         }
-        const oldest = this.timestamps[0] ?? now
-        const waitMs = oldest + windowMs - now
-        if (waitMs <= 0) {
-          this.timestamps.shift()
-          continue
-        }
-        await clock.sleep(waitMs, signal)
+        // Every stamp left is inside the window, so the oldest one leaving it is always in the future.
+        await clock.sleep(this.timestamps[0]! + windowMs - now, signal)
         if (signal.aborted) return
       }
     }))

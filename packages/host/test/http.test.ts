@@ -15,7 +15,6 @@ import {
 } from "../src/index.js"
 import { rawRequest } from "./http-raw.js"
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const pluginTestRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../plugins/plugin-test",
@@ -528,8 +527,9 @@ describe("HttpApiEndpoint", () => {
   it("returns run artifacts and rejects traversal", async () => {
     await start()
     const client = new HostClient(baseUrl, token)
-    const binPath = path.join(repoRoot, "packages/host/test/fixtures/payload.bin")
-    mkdirSync(path.dirname(binPath), { recursive: true })
+    // Written to a temp dir: the manifest holds an absolute path, which must not land in the repository.
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-artifacts-"))
+    const binPath = path.join(dir, "payload.bin")
     writeFileSync(binPath, Buffer.from([7, 8, 9]))
     const manifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -543,7 +543,7 @@ describe("HttpApiEndpoint", () => {
         },
       ],
     }
-    const execPath = path.join(repoRoot, "packages/host/test/fixtures/file-roundtrip.ecp.json")
+    const execPath = path.join(dir, "file-roundtrip.ecp.json")
     writeFileSync(execPath, JSON.stringify(manifest, null, 2))
     const run = await client.execute({ execution: { path: execPath }, wait: true })
     expect(run.ok).toBe(true)

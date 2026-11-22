@@ -22,9 +22,15 @@ import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpRouteEdge } from "./EcpRouteEdge.js"
+import { EcpForEachNode, type EcpForEachNodeData } from "./EcpForEachNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 
-const nodeTypes = { "ecp-step": EcpStepNode, "ecp-io": EcpIoNode, "ecp-frame": EcpFrameNode }
+const nodeTypes = {
+  "ecp-step": EcpStepNode,
+  "ecp-io": EcpIoNode,
+  "ecp-frame": EcpFrameNode,
+  "ecp-foreach": EcpForEachNode,
+}
 const edgeTypes = { "ecp-data": EcpDataEdge, "ecp-route": EcpRouteEdge }
 const EDGE_INTERACTION_WIDTH = 20
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 }
@@ -105,11 +111,20 @@ function buildNodes(
         ...connected,
         ...(status ? { status } : {}),
         ...(runStep?.round !== undefined ? { round: runStep.round } : {}),
+        ...(runStep?.item !== undefined ? { item: runStep.item } : {}),
         ...(issues.length > 0 ? { invalid: true } : {}),
       }
       const message = runStep?.status === "failed" ? runStep.message : issues[0]?.message
       if (message) step.errorMessage = message
       data = step as unknown as Record<string, unknown>
+    } else if (node.type === "ecp-foreach") {
+      const foreachRun = run.forEaches[node.id]
+      const foreach: EcpForEachNodeData = {
+        ...(node.data as EcpForEachNodeData),
+        ...connected,
+        ...(foreachRun ? { done: foreachRun.done, count: foreachRun.count } : {}),
+      }
+      data = foreach as unknown as Record<string, unknown>
     } else {
       data = { ...node.data, ...connected }
     }
