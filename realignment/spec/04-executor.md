@@ -75,26 +75,29 @@ fail the step.
 **Branch:** evaluate arm `expr`s in order (control); run the first `true` arm; else the default
 arm; else nothing. Event `branch.select` with the arm index (or `null`).
 
-**Loop:** `round = 0`; while `round < maxRounds` and `expr(state) === true`: run the body,
+**Loop `while` (default):** resolve the driver from `ref` or `expr` before each round (including
+the first). `round = 0`; while `round < maxRounds` and the driver is `true`: run the body,
 `round++`. Event `loop.round` per round; `loop.exhausted` when it stops because of `maxRounds`.
-Step records inside loops are keyed `<nodeId>#<round>` (rounds start at 0).
+Non-boolean driver → `ECP_TYPE_MISMATCH`.
 
-**forEach:** resolve `items` once (not an array → `ECP_TYPE_MISMATCH`; more than 10 000 →
+**Loop `for`:** read the driver once (`ref` or `expr`; must be a non-negative integer, `0..1000`;
+otherwise `ECP_TYPE_MISMATCH` / `ECP_LIMIT_EXCEEDED`). For each iteration, bind `state.<as>` to
+the index, run the body on shared state, emit `loop.round`, then remove `state.<as>` when the
+loop ends (including after resume).
+
+**Loop `forEach`:** read the driver once (must be an array; more than 10 000 items →
 `ECP_LIMIT_EXCEEDED`) and snapshot the state. Each item runs the body on its own deep copy of
-that snapshot plus `state.<as>` (the item) and `state.<as>Index`; body commits stay in the copy
-and `state.json` is not written for them. After the body, the value at `collect` (in the item's
-scope) is the item's result. Up to `concurrency` items (1–32, default 1) run at once, started in
-index order; `throttle: { starts, perSeconds }` lets at most `starts` items start in any
-`perSeconds` window. When every item has finished, `state.<into>` = the results in item order
-(`create`), then `state.json` is written.
-`onError: "fail"` (default): a failed item stops new items from starting; items already
-running finish; the node fails with the lowest-index failure (`details.index`) and commits
-nothing. `"continue"`: the failed item's result is `null` and `{ index, error }` is added to
-`state.<into>Errors` (always written, sorted by index). Step records inside a `forEach` carry
-`items` (the item path, outermost first). Nesting: a `loop` or `parallel` inside the body works
-on the item's copy; a nested `forEach` snapshots the outer item and collects into it. Nested
-concurrencies multiply; keeping the product within a provider's limits is the author's job
-(a plugin may also cap its own request rate, as the Adobe plugin's `maxRequestsPerMinute` does).
+that snapshot plus `state.<as>` and `state.<as>Index`; body commits stay in the copy and
+`state.json` is not written for them. After the body, resolve `collect` in the item's scope.
+Up to `concurrency` items (1–32, default 1) run at once, started in index order. When every item
+has finished, `state.<into>` = the results in item order (`create`), then `state.json` is
+written. `onError: "fail"` (default): stop starting items, let running ones finish, fail with the
+lowest-index error, commit nothing. `"continue"`: failed item → `null`, append to
+`state.<into>Errors`. Step records inside `forEach` carry `items` (outermost first). Nested
+`forEach` snapshots the outer item; nested `while`/`for` use the item copy.
+
+`while` / `for` step records are keyed `<nodeId>#<round>` (rounds from 0); `forEach` uses
+`<nodeId>#i<index>`.
 
 **Parallel:** run each line as a sequence, at most `maxConcurrency` lines at a time (lines start
 in array order). All lines share the run's state object; validation (03) guarantees they don't
@@ -169,8 +172,8 @@ This includes capability outputs (a plugin echoing a key back).
 
 `execute { cancel: runId }` aborts the run's `AbortSignal`. In-flight capability calls receive
 the abort; the run ends `cancelled` once they settle (or after 10 s, whichever first). Nodes
-not started are not run. A `forEach` stops starting items, aborts running ones and does not commit
-`into`.
+not started are not run. A `forEach` loop stops starting items, aborts running ones and does not
+commit `into`.
 
 ## Resume
 
@@ -181,8 +184,8 @@ not started are not run. A `forEach` stops starting items, aborts running ones a
   skip every node recorded as completed or skipped, and re-run the node that was in progress
   from scratch (its staged writes were never committed). Loop round counters and branch
   selections are restored from the run record. The same run id continues; event `run.resume`.
-- `forEach`: the outermost `forEach` records each finished item's result in
-  `runs/<id>/for-each/<nodeId>.json` (05). On resume, recorded items are skipped and their results
+- `forEach` mode: the outermost `forEach` loop records each finished item's result in
+  `runs/<id>/loop-items/<nodeId>.json` (05). On resume, recorded items are skipped and their results
   reused; an item that was running restarts from its first step (its writes lived only in its copy).
   A nested `forEach` keeps no file: a crash inside it restarts the outer item.
 - A capability that is not idempotent may repeat side effects for the re-run node; this is
@@ -198,13 +201,13 @@ not started are not run. A `forEach` stops starting items, aborts running ones a
 | `step.end` | `nodeId`, `round?`, `item?`, `items?`, `durationMs`, `as?` |
 | `step.error` | `nodeId`, `round?`, `item?`, `items?`, `error` (issue) |
 | `branch.select` | `nodeId`, `arm` (index or `null`) |
-| `loop.round` | `nodeId`, `round` |
-| `loop.exhausted` | `nodeId`, `rounds` |
-| `forEach.start` | `nodeId`, `count` |
-| `forEach.item.start` | `nodeId`, `index` |
-| `forEach.item.end` | `nodeId`, `index`, `durationMs` |
-| `forEach.item.error` | `nodeId`, `index`, `error` (issue) |
-| `forEach.end` | `nodeId`, `count`, `failed` |
+| `loop.round` | `nodeId`, `round` (`while`, `for`) |
+| `loop.exhausted` | `nodeId`, `rounds` (`while` only) |
+| `loop.start` | `nodeId`, `count` (`forEach`) |
+| `loop.item.start` | `nodeId`, `index` |
+| `loop.item.end` | `nodeId`, `index`, `durationMs` |
+| `loop.item.error` | `nodeId`, `index`, `error` (issue) |
+| `loop.end` | `nodeId`, `count`, `failed` |
 | `run.interrupted` | `reason` (`host-restart` / `host-crash`) |
 | `run.resume` | `rerunNodeId?` |
 | `run.end` | `status`, `durationMs`, `error?` |

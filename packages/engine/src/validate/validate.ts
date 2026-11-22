@@ -367,7 +367,7 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
       ? []
       : checkDataFlow(manifest, enriched)
   const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
-  const combined = collapseScriptPositionIssues([...layerErrors, ...flow, ...inputIssues])
+  const combined = collapseLoopFieldIssues(collapseScriptPositionIssues([...layerErrors, ...flow, ...inputIssues]))
   return finish(dedupeIssues(combined), manifestHash, schemas.schemaHash)
 }
 
@@ -493,6 +493,25 @@ export function dedupeIssues(issues: ValidationIssue[]): ValidationIssue[] {
   return out
 }
 
+/** Loop-field issues mapped to the loop node's path, so generic schema errors on that loop can be collapsed. */
+const loopFieldIssuePaths = new WeakMap<ValidationIssue, string>()
+
+/**
+ * When a loop has a mode-specific field issue, drop generic schema errors on that loop's own fields (the
+ * if/then and exactly-one-of noise); errors inside its `steps` still surface.
+ */
+function collapseLoopFieldIssues(issues: ValidationIssue[]): ValidationIssue[] {
+  const loopPaths = new Set(issues.map((issue) => loopFieldIssuePaths.get(issue)).filter((path) => path !== undefined))
+  if (loopPaths.size === 0) return issues
+  const onLoopFields = (path: string): boolean =>
+    [...loopPaths].some(
+      (loopPath) => path === loopPath || (path.startsWith(`${loopPath}/`) && !path.startsWith(`${loopPath}/steps/`)),
+    )
+  return issues.filter(
+    (issue) => loopFieldIssuePaths.has(issue) || issue.code !== "ECP_MANIFEST_INVALID" || !onLoopFields(issue.path),
+  )
+}
+
 /** When `ECP_SCRIPT_INVALID` is present at a path, drop co-located schema noise (F2). */
 function collapseScriptPositionIssues(issues: ValidationIssue[]): ValidationIssue[] {
   const scriptPaths = new Set(issues.filter((issue) => issue.code === "ECP_SCRIPT_INVALID").map((issue) => issue.path))
@@ -551,7 +570,6 @@ function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEn
         }
       }
       if (type === "loop" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
-      if (type === "forEach" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
       if (type === "parallel" && Array.isArray(node.branches)) {
         for (let line = 0; line < node.branches.length; line += 1) {
           const branch = node.branches[line]
@@ -650,7 +668,6 @@ async function checkCapabilityInputs(
         }
       }
       if (type === "loop" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
-      if (type === "forEach" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
       if (type === "parallel" && Array.isArray(node.branches)) {
         for (let line = 0; line < node.branches.length; line += 1) {
           const branch = node.branches[line]
@@ -786,11 +803,13 @@ async function walkSemantics(
         }
       }
     }
-    if (type === "loop" && Array.isArray(node.steps)) {
-      await walkSemantics(node.steps, `${path}/steps`, { inLoop: true }, issues, seen, inputNames, configs, options)
-    }
-    if (type === "forEach" && Array.isArray(node.steps)) {
-      await walkSemantics(node.steps, `${path}/steps`, state, issues, seen, inputNames, configs, options)
+    if (type === "loop") {
+      checkLoopFields(node, path, id, issues)
+      const loopMode = typeof node.mode === "string" ? node.mode : "while"
+      const childState: SemanticState = loopMode === "forEach" ? state : { inLoop: true }
+      if (Array.isArray(node.steps)) {
+        await walkSemantics(node.steps, `${path}/steps`, childState, issues, seen, inputNames, configs, options)
+      }
     }
     if (type === "parallel" && Array.isArray(node.branches)) {
       for (let line = 0; line < node.branches.length; line += 1) {
@@ -911,6 +930,72 @@ function checkStep(
   }
 }
 
+function checkLoopFields(node: Record<string, unknown>, path: string, id: string | undefined, all: ValidationIssue[]): void {
+  const issues = { push: (issue: ValidationIssue) => (loopFieldIssuePaths.set(issue, path), all.push(issue)) }
+  const mode = typeof node.mode === "string" ? node.mode : "while"
+  const hasRef = typeof node.ref === "string"
+  const hasExpr = typeof node.expr === "string"
+  if (hasRef === hasExpr) {
+    issues.push(
+      semantic(
+        "ECP_MANIFEST_INVALID",
+        `Loop in ${mode} mode requires exactly one of ref and expr.`,
+        hasRef || hasExpr ? path : `${path}/ref`,
+        id,
+      ),
+    )
+  }
+  if (node.throttle !== undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", `Loop in ${mode} mode does not support throttle.`, `${path}/throttle`, id))
+  }
+  if (mode === "while") {
+    if (node.maxRounds === undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "while loop requires maxRounds.", `${path}/maxRounds`, id))
+    }
+    for (const [field, pointer] of [
+      ["as", "as"],
+      ["collect", "collect"],
+      ["into", "into"],
+      ["concurrency", "concurrency"],
+      ["onError", "onError"],
+    ] as const) {
+      if (node[field] !== undefined) {
+        issues.push(
+          semantic("ECP_MANIFEST_INVALID", `${field} is not allowed in while loop mode.`, `${path}/${pointer}`, id),
+        )
+      }
+    }
+  }
+  if (mode === "for") {
+    if (node.as === undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "for loop requires as.", `${path}/as`, id))
+    }
+    for (const [field, pointer] of [
+      ["maxRounds", "maxRounds"],
+      ["collect", "collect"],
+      ["into", "into"],
+      ["concurrency", "concurrency"],
+      ["onError", "onError"],
+    ] as const) {
+      if (node[field] !== undefined) {
+        issues.push(
+          semantic("ECP_MANIFEST_INVALID", `${field} is not allowed in for loop mode.`, `${path}/${pointer}`, id),
+        )
+      }
+    }
+  }
+  if (mode === "forEach") {
+    for (const field of ["as", "collect", "into"] as const) {
+      if (node[field] === undefined) {
+        issues.push(semantic("ECP_MANIFEST_INVALID", `forEach loop requires ${field}.`, `${path}/${field}`, id))
+      }
+    }
+    if (node.maxRounds !== undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "maxRounds is not allowed in forEach loop mode.", `${path}/maxRounds`, id))
+    }
+  }
+}
+
 async function checkTransformScript(
   value: unknown,
   pointer: string,
@@ -918,26 +1003,37 @@ async function checkTransformScript(
   options: ValidateOptions,
   issues: ValidationIssue[],
 ): Promise<void> {
-  if (!isRecord(value) || !isRecord(value.$script)) {
+  if (!isRecord(value)) {
     return
   }
-  const script = value.$script
+  if (isRecord(value.$script)) {
+    issues.push(
+      semantic(
+        "ECP_SCRIPT_INVALID",
+        'Transform step script must be a plain object `{ "lang": "js", "source"?: "...", "path"?: "...", "ecmaVersion"?: n }`, not `{ "$script": ... }`.',
+        pointer,
+        nodeId,
+      ),
+    )
+    return
+  }
+  const script = value
   if (script.lang !== "js") {
-    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script lang must be js.", `${pointer}/$script/lang`, nodeId))
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script lang must be js.", `${pointer}/lang`, nodeId))
   }
   if (script.params !== undefined) {
-    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script must not set params.", `${pointer}/$script/params`, nodeId))
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Transform script must not set params.", `${pointer}/params`, nodeId))
   }
   const source = typeof script.source === "string" ? script.source : undefined
   const scriptPath = typeof script.path === "string" ? script.path : undefined
   if (source !== undefined && scriptPath !== undefined) {
-    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path, not both.", `${pointer}/$script`, nodeId))
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path, not both.", pointer, nodeId))
   } else if (source === undefined && scriptPath === undefined) {
-    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path.", `${pointer}/$script`, nodeId))
+    issues.push(semantic("ECP_SCRIPT_INVALID", "Script must set source or path.", pointer, nodeId))
   } else if (source !== undefined) {
     const version = typeof script.ecmaVersion === "number" ? script.ecmaVersion : 2020
     const failure = checkScript(source, version)
-    if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/$script/source`, failure, nodeId))
+    if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/source`, failure, nodeId))
   } else if (scriptPath !== undefined) {
     const absolute = resolvePath(options.executionDir, scriptPath)
     if (!absolute) {
@@ -945,19 +1041,19 @@ async function checkTransformScript(
         semantic(
           "ECP_SCRIPT_INVALID",
           `Script path ${scriptPath} is not absolute and the execution has no directory.`,
-          `${pointer}/$script/path`,
+          `${pointer}/path`,
           nodeId,
         ),
       )
     } else if (!options.readText) {
-      issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} cannot be read.`, `${pointer}/$script/path`, nodeId))
+      issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} cannot be read.`, `${pointer}/path`, nodeId))
     } else {
       try {
         const text = await options.readText(absolute)
         const failure = checkScript(text, typeof script.ecmaVersion === "number" ? script.ecmaVersion : 2020)
-        if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/$script/path`, failure, nodeId))
+        if (failure) issues.push(syntaxIssue("ECP_SCRIPT_INVALID", `${pointer}/path`, failure, nodeId))
       } catch {
-        issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} was not found.`, `${pointer}/$script/path`, nodeId))
+        issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} was not found.`, `${pointer}/path`, nodeId))
       }
     }
   }
@@ -1002,7 +1098,14 @@ async function checkScripts(
     } else if (scriptPath !== undefined) {
       const absolute = resolvePath(options.executionDir, scriptPath)
       if (!absolute) {
-        issues.push(semantic("ECP_SCRIPT_INVALID", `Script path ${scriptPath} is not absolute and the execution has no directory.`, `${pointer}/$script/path`, nodeId))
+        issues.push(
+          semantic(
+            "ECP_SCRIPT_INVALID",
+            `Script path ${scriptPath} is not absolute and the execution has no directory.`,
+            `${pointer}/$script/path`,
+            nodeId,
+          ),
+        )
       } else if (!options.readText) {
         issues.push(semantic("ECP_SCRIPT_INVALID", `Script file ${scriptPath} cannot be read.`, `${pointer}/$script/path`, nodeId))
       } else {

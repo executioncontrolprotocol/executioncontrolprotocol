@@ -197,11 +197,9 @@
         }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "path": "scripts/plan-layout.js"
-        }
-      },
+        },
       "as": "plan"
     },
     {
@@ -326,11 +324,9 @@
         }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "path": "scripts/check-structure.js"
-        }
-      },
+        },
       "as": "structure"
     },
     {
@@ -381,11 +377,9 @@
         }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "path": "scripts/review-images.js"
-        }
-      },
+        },
       "as": "reviewImages"
     },
     {
@@ -443,11 +437,9 @@
         }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "path": "scripts/eval-prompt.js"
-        }
-      },
+        },
       "as": "reviewPrompt"
     },
     {
@@ -528,11 +520,9 @@
         }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "path": "scripts/parse-verdict.js"
-        }
-      },
+        },
       "as": "verdict"
     }
   ]

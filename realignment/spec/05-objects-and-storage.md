@@ -26,7 +26,7 @@ $ECP_HOME/
 │   ├── manifest.ecp.json           exact manifest that ran (for resume and audit)
 │   ├── state.json                  latest committed state (see note below)
 │   ├── steps/<nodeId>[#i<items>][#<round>].json
-│   ├── for-each/<nodeId>.json      finished items of an outermost forEach (resume)
+│   ├── loop-items/<nodeId>.json    finished items of an outermost forEach loop (resume)
 │   ├── events.ndjson
 │   └── artifacts/                  files written by capabilities (08)
 ```
@@ -89,7 +89,7 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   "plugins": { "@executioncontrolprotocol/anthropic": "1.0.0" },
   "host": { "version": "1.0.0", "pid": 1234, "mode": "server" },
   "clientRequestId": "…",
-  "cursor": { "completed": ["doc", "check-headline", "translate"], "inProgress": "banner", "loops": { "refine": 1 }, "branches": { "check-headline": 1 }, "forEach": { "variants": { "completed": [0, 1] } } },
+  "cursor": { "completed": ["doc", "check-headline", "translate"], "inProgress": "banner", "loops": { "refine": 1 }, "branches": { "check-headline": 1 }, "loopItems": { "variants": { "completed": [0, 1] } } },
   "warnings": [], "publishes": [], "timing": { … } }
 ```
 
@@ -128,21 +128,21 @@ string. The run's manifest snapshot does not embed bytes from a `path` script fi
 
 Status: `completed`, `failed`, `skipped`, `cancelled`.
 
-Inside a `forEach`, the record carries `items` (item indexes, outermost first) and the file name
-adds `#i<items>` joined with `.` before any round: `render#i2.json`, `tick#i2.4#1.json`. The `i`
-keeps item 2 apart from loop round 2. Captured artifact names follow the same rule
+Inside a `forEach` loop, the record carries `items` (item indexes, outermost first) and the file
+name adds `#i<items>` joined with `.` before any round: `render#i2.json`, `tick#i2.4#1.json`. The
+`i` keeps item 2 apart from loop round 2. Captured artifact names follow the same rule
 (`step-i2.4-r1-…`).
 
-## forEach partial results (`for-each/<nodeId>.json`)
+## forEach partial results (`loop-items/<nodeId>.json`)
 
 ```json
 { "results": { "0": { … }, "2": null }, "errors": [ { "index": 2, "error": { … } } ] }
 ```
 
-Written atomically after each finished item of an outermost `forEach`. A present key is a recorded
-result (`null` for an item that failed under `onError: "continue"`). Resume reads this file; the
-cursor's `forEach` map is a summary written with the run record. A run record without `forEach`
-in its cursor reads as `{}`.
+Written atomically after each finished item of an outermost `forEach` loop. A present key is a
+recorded result (`null` for an item that failed under `onError: "continue"`). Resume reads this
+file; the cursor's `loopItems` map is a summary written with the run record. A run record without
+`loopItems` in its cursor reads as `{}`.
 
 ## Capability entry (`retrieve` item)
 

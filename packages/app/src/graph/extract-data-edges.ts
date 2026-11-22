@@ -1,13 +1,8 @@
-import type { ForEachNode, Node, StepNode } from "@executioncontrolprotocol/protocol"
+import type { Node, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, isStepNode } from "./io-from-schema.js"
 import { isJsonObject } from "./json-schema.js"
 import { isExprMarker, isScriptMarker, refPathFromValue } from "./markers.js"
-import {
-  FOREACH_COLLECT_HANDLE,
-  FOREACH_INTO_HANDLE,
-  FOREACH_ITEMS_HANDLE,
-  type ReactFlowEdge,
-} from "./types.js"
+import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_REF_HANDLE, type ReactFlowEdge } from "./types.js"
 
 /**
  * Whole-document output handle, used when a read has no field path.
@@ -35,7 +30,7 @@ export function collectSteps(nodes: Node[], out: StepNode[]): void {
       for (const line of node.branches) collectSteps(line, out)
     } else if (node.type === "branch") {
       for (const arm of node.branches) collectSteps(arm.steps, out)
-    } else if (node.type === "forEach") {
+    } else if (node.type === "loop" && (node.mode ?? "while") === "forEach") {
       collectSteps(node.steps, out)
     } else {
       collectSteps(node.steps, out)
@@ -43,20 +38,20 @@ export function collectSteps(nodes: Node[], out: StepNode[]): void {
   }
 }
 
-interface ForEachScope {
-  /** forEach node id. */
+interface LoopItemsScope {
+  /** Loop node id (`forEach` mode). */
   id: string
   /** Item state key. */
   as: string
   /** Output array key. */
   into: string
-  /** `items` ref path. */
-  itemsPath: string
-  /** `collect` ref path. */
+  /** `ref` path. */
+  refPath: string
+  /** `collect` path. */
   collectPath: string
   /** Body step ids. */
   bodyStepIds: Set<string>
-  /** Document order at the forEach node (before the body). */
+  /** Document order at the loop node (before the body). */
   startOrder: number
   /** Document order after the body. */
   endOrder: number
@@ -65,14 +60,14 @@ interface ForEachScope {
 interface StepPlacement {
   step: StepNode
   order: number
-  forEachId?: string
+  loopItemsId?: string
 }
 
 interface WalkState {
   order: number
-  forEachStack: ForEachNode[]
+  loopItemsStack: Array<{ id: string; as?: string; into?: string; ref?: string; collect?: string; steps: Node[] }>
   placements: StepPlacement[]
-  foreachById: Map<string, ForEachScope>
+  loopItemsById: Map<string, LoopItemsScope>
 }
 
 function walkPlacements(nodes: Node[], state: WalkState): void {
@@ -81,32 +76,32 @@ function walkPlacements(nodes: Node[], state: WalkState): void {
       state.placements.push({
         step: node,
         order: state.order++,
-        forEachId: state.forEachStack.at(-1)?.id,
+        loopItemsId: state.loopItemsStack.at(-1)?.id,
       })
-    } else if (node.type === "forEach") {
+    } else if (node.type === "loop" && (node.mode ?? "while") === "forEach") {
       const startOrder = state.order++
       const bodySteps: StepNode[] = []
       collectSteps(node.steps, bodySteps)
-      const scope: ForEachScope = {
+      const scope: LoopItemsScope = {
         id: node.id,
-        as: node.as,
-        into: node.into,
-        itemsPath: refPathFromValue(node.items) ?? "",
-        collectPath: refPathFromValue(node.collect) ?? "",
+        as: node.as ?? "",
+        into: node.into ?? "",
+        refPath: node.ref ?? "",
+        collectPath: node.collect ?? "",
         bodyStepIds: new Set(bodySteps.map((step) => step.id)),
         startOrder,
         endOrder: startOrder,
       }
-      state.foreachById.set(node.id, scope)
-      state.forEachStack.push(node)
+      state.loopItemsById.set(node.id, scope)
+      state.loopItemsStack.push(node)
       walkPlacements(node.steps, state)
-      state.forEachStack.pop()
+      state.loopItemsStack.pop()
       scope.endOrder = state.order++
     } else if (node.type === "parallel") {
       for (const line of node.branches) walkPlacements(line, state)
     } else if (node.type === "branch") {
       for (const arm of node.branches) walkPlacements(arm.steps, state)
-    } else {
+    } else if (node.type === "loop") {
       walkPlacements(node.steps, state)
     }
   }
@@ -114,11 +109,11 @@ function walkPlacements(nodes: Node[], state: WalkState): void {
 
 function walkManifestPlacements(nodes: Node[]): {
   placements: StepPlacement[]
-  foreachById: Map<string, ForEachScope>
+  loopItemsById: Map<string, LoopItemsScope>
 } {
-  const state: WalkState = { order: 0, forEachStack: [], placements: [], foreachById: new Map() }
+  const state: WalkState = { order: 0, loopItemsStack: [], placements: [], loopItemsById: new Map() }
   walkPlacements(nodes, state)
-  return { placements: state.placements, foreachById: state.foreachById }
+  return { placements: state.placements, loopItemsById: state.loopItemsById }
 }
 
 /**
@@ -305,30 +300,30 @@ export function stateKeyFromExpr(source: string): string | undefined {
 interface WriterHit {
   id: string
   order: number
-  forEachId?: string
+  loopItemsId?: string
 }
 
 interface SourceIndex {
   resolve(asKey: string, readerId: string, readerOrder?: number): string | undefined
-  resolveAtOrder(asKey: string, order: number, forEachId?: string): string | undefined
-  foreachIds: ReadonlySet<string>
+  resolveAtOrder(asKey: string, order: number, loopItemsId?: string): string | undefined
+  loopItemsIds: ReadonlySet<string>
 }
 
 function buildSourceIndex(
   placements: StepPlacement[],
-  foreachById: Map<string, ForEachScope>,
+  loopItemsById: Map<string, LoopItemsScope>,
   acceptsKeys?: ReadonlySet<string>,
 ): SourceIndex {
   const orderById = new Map(placements.map((placement) => [placement.step.id, placement.order]))
-  const readerForEach = new Map(placements.map((placement) => [placement.step.id, placement.forEachId]))
+  const readerLoopItems = new Map(placements.map((placement) => [placement.step.id, placement.loopItemsId]))
   const globalWriters = new Map<string, WriterHit[]>()
   const bodyWriters = new Map<string, WriterHit[]>()
 
   for (const placement of placements) {
-    const { step, order, forEachId } = placement
+    const { step, order, loopItemsId } = placement
     if (!step.as) continue
-    const hit: WriterHit = { id: step.id, order, ...(forEachId ? { forEachId } : {}) }
-    if (forEachId) {
+    const hit: WriterHit = { id: step.id, order, ...(loopItemsId ? { loopItemsId } : {}) }
+    if (loopItemsId) {
       const list = bodyWriters.get(step.as) ?? []
       list.push(hit)
       bodyWriters.set(step.as, list)
@@ -339,7 +334,7 @@ function buildSourceIndex(
     }
   }
 
-  for (const scope of foreachById.values()) {
+  for (const scope of loopItemsById.values()) {
     const list = globalWriters.get(scope.into) ?? []
     list.push({ id: scope.id, order: scope.endOrder })
     globalWriters.set(scope.into, list)
@@ -347,24 +342,24 @@ function buildSourceIndex(
 
   function isBodyOnlyKey(asKey: string): boolean {
     if (globalWriters.has(asKey)) return false
-    for (const scope of foreachById.values()) {
+    for (const scope of loopItemsById.values()) {
       if (asKey === scope.as || asKey === `${scope.as}Index`) return true
     }
     return (bodyWriters.get(asKey) ?? []).length > 0
   }
 
-  function lastBefore(hits: WriterHit[], maxOrder: number, forEachId?: string): string | undefined {
+  function lastBefore(hits: WriterHit[], maxOrder: number, loopItemsId?: string): string | undefined {
     const filtered = hits.filter((hit) => {
       if (hit.order >= maxOrder) return false
-      if (forEachId && hit.forEachId && hit.forEachId !== forEachId) return false
+      if (loopItemsId && hit.loopItemsId && hit.loopItemsId !== loopItemsId) return false
       return true
     })
     return filtered.at(-1)?.id
   }
 
-  function resolveAtOrder(asKey: string, maxOrder: number, forEachId?: string): string | undefined {
-    if (forEachId) {
-      const body = lastBefore(bodyWriters.get(asKey) ?? [], maxOrder, forEachId)
+  function resolveAtOrder(asKey: string, maxOrder: number, loopItemsId?: string): string | undefined {
+    if (loopItemsId) {
+      const body = lastBefore(bodyWriters.get(asKey) ?? [], maxOrder, loopItemsId)
       if (body) return body
     }
     const global = lastBefore(globalWriters.get(asKey) ?? [], maxOrder)
@@ -376,10 +371,10 @@ function buildSourceIndex(
   return {
     resolve(asKey, readerId, readerOrder) {
       const placementOrder = readerOrder ?? orderById.get(readerId) ?? Number.POSITIVE_INFINITY
-      const enclosing = readerForEach.get(readerId) ?? (foreachById.has(readerId) ? readerId : undefined)
+      const enclosing = readerLoopItems.get(readerId) ?? (loopItemsById.has(readerId) ? readerId : undefined)
       if (!enclosing && isBodyOnlyKey(asKey)) return undefined
       if (enclosing) {
-        for (const scope of foreachById.values()) {
+        for (const scope of loopItemsById.values()) {
           if (scope.id !== enclosing && (asKey === scope.as || asKey === `${scope.as}Index`)) return undefined
         }
       }
@@ -387,14 +382,14 @@ function buildSourceIndex(
       if (resolved) return resolved
       const candidates = [
         ...(globalWriters.get(asKey) ?? []),
-        ...(enclosing ? (bodyWriters.get(asKey) ?? []).filter((hit) => hit.forEachId === enclosing) : []),
+        ...(enclosing ? (bodyWriters.get(asKey) ?? []).filter((hit) => hit.loopItemsId === enclosing) : []),
       ]
       return candidates.map((hit) => hit.id).find((id) => id !== readerId)
     },
-    resolveAtOrder(asKey, order, forEachId) {
-      return resolveAtOrder(asKey, order, forEachId)
+    resolveAtOrder(asKey, order, loopItemsId) {
+      return resolveAtOrder(asKey, order, loopItemsId)
     },
-    foreachIds: new Set(foreachById.keys()),
+    loopItemsIds: new Set(loopItemsById.keys()),
   }
 }
 
@@ -421,8 +416,8 @@ function pushReadEdge(
   let sourceHandle: string
   if (sourceId === EXECUTION_ACCEPTS_NODE_ID) {
     sourceHandle = parsed.asKey
-  } else if (ctx.index.foreachIds.has(sourceId)) {
-    sourceHandle = FOREACH_INTO_HANDLE
+  } else if (ctx.index.loopItemsIds.has(sourceId)) {
+    sourceHandle = LOOP_INTO_HANDLE
   } else if (wholeFallback) {
     sourceHandle =
       longestPrefixId(parsed.fieldPath, ctx.outputPortIdsByStepId?.get(sourceId)) ?? OUTPUT_HANDLE_ID
@@ -443,14 +438,14 @@ function pushReadEdge(
   })
 }
 
-function pushForEachStructureEdges(
+function pushLoopItemsStructureEdges(
   ctx: ReadEdgeInput,
-  foreachById: Map<string, ForEachScope>,
+  loopItemsById: Map<string, LoopItemsScope>,
   outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
 ): void {
-  for (const scope of foreachById.values()) {
-    if (scope.itemsPath) {
-      const parsed = parseStateRef(scope.itemsPath)
+  for (const scope of loopItemsById.values()) {
+    if (scope.refPath) {
+      const parsed = parseStateRef(scope.refPath)
       if (parsed) {
         const sourceId = ctx.index.resolveAtOrder(parsed.asKey, scope.startOrder + 1)
         if (sourceId) {
@@ -458,16 +453,16 @@ function pushForEachStructureEdges(
             sourceId === EXECUTION_ACCEPTS_NODE_ID
               ? parsed.asKey
               : longestMatchingPortId(parsed.fieldPath, outputPortIdsByStepId?.get(sourceId))
-          const key = `${sourceId}|${sourceHandle}|${scope.id}|${FOREACH_ITEMS_HANDLE}`
+          const key = `${sourceId}|${sourceHandle}|${scope.id}|${LOOP_REF_HANDLE}`
           if (!ctx.seen.has(key)) {
             ctx.seen.add(key)
             ctx.edges.push({
-              id: `data-foreach-items-${scope.id}-${sourceId}`,
+              id: `data-loop-ref-${scope.id}-${sourceId}`,
               source: sourceId,
               target: scope.id,
               sourceHandle,
-              targetHandle: FOREACH_ITEMS_HANDLE,
-              data: { kind: "data", inputPath: FOREACH_ITEMS_HANDLE, statePath: scope.itemsPath },
+              targetHandle: LOOP_REF_HANDLE,
+              data: { kind: "data", inputPath: LOOP_REF_HANDLE, statePath: scope.refPath },
             })
           }
         }
@@ -479,16 +474,16 @@ function pushForEachStructureEdges(
         const sourceId = ctx.index.resolveAtOrder(parsed.asKey, scope.endOrder, scope.id)
         if (sourceId && sourceId !== scope.id) {
           const sourceHandle = longestMatchingPortId(parsed.fieldPath, outputPortIdsByStepId?.get(sourceId))
-          const key = `${sourceId}|${sourceHandle}|${scope.id}|${FOREACH_COLLECT_HANDLE}`
+          const key = `${sourceId}|${sourceHandle}|${scope.id}|${LOOP_COLLECT_HANDLE}`
           if (!ctx.seen.has(key)) {
             ctx.seen.add(key)
             ctx.edges.push({
-              id: `data-foreach-collect-${scope.id}-${sourceId}`,
+              id: `data-loop-collect-${scope.id}-${sourceId}`,
               source: sourceId,
               target: scope.id,
               sourceHandle,
-              targetHandle: FOREACH_COLLECT_HANDLE,
-              data: { kind: "data", inputPath: FOREACH_COLLECT_HANDLE, statePath: scope.collectPath },
+              targetHandle: LOOP_COLLECT_HANDLE,
+              data: { kind: "data", inputPath: LOOP_COLLECT_HANDLE, statePath: scope.collectPath },
             })
           }
         }
@@ -510,11 +505,11 @@ export function extractDataEdges(
   outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
   inputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
 ): ReactFlowEdge[] {
-  const { placements, foreachById } = walkManifestPlacements(nodes)
+  const { placements, loopItemsById } = walkManifestPlacements(nodes)
   const ctx: ReadEdgeInput = {
     edges: [],
     seen: new Set(),
-    index: buildSourceIndex(placements, foreachById, acceptsKeys),
+    index: buildSourceIndex(placements, loopItemsById, acceptsKeys),
     ...(outputPortIdsByStepId ? { outputPortIdsByStepId } : {}),
     prefix: "data",
   }
@@ -527,7 +522,7 @@ export function extractDataEdges(
       })
     }
   }
-  pushForEachStructureEdges(ctx, foreachById, outputPortIdsByStepId)
+  pushLoopItemsStructureEdges(ctx, loopItemsById, outputPortIdsByStepId)
   return ctx.edges
 }
 
@@ -540,11 +535,11 @@ export function extractExprEdges(
   acceptsKeys?: ReadonlySet<string>,
   outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
 ): ReactFlowEdge[] {
-  const { placements, foreachById } = walkManifestPlacements(nodes)
+  const { placements, loopItemsById } = walkManifestPlacements(nodes)
   const ctx: ReadEdgeInput = {
     edges: [],
     seen: new Set(),
-    index: buildSourceIndex(placements, foreachById, acceptsKeys),
+    index: buildSourceIndex(placements, loopItemsById, acceptsKeys),
     ...(outputPortIdsByStepId ? { outputPortIdsByStepId } : {}),
     prefix: "data-expr",
   }

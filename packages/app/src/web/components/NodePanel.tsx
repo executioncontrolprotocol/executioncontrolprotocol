@@ -3,9 +3,9 @@ import { AlertTriangle, Box, FileCode2, Save } from "lucide-react"
 import type {
   CapabilityEntry,
   ExecutionManifest,
-  ForEachNode,
+  LoopNode,
   Node,
-  ScriptMarker,
+  ScriptDescriptor,
   StepNode,
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
@@ -14,10 +14,10 @@ import {
   collectSteps,
   type ReactFlowIoData,
   type ReactFlowNode,
-  type ReactFlowForEachData,
+  type ReactFlowLoopItemsData,
   type ReactFlowPort,
   type ReactFlowStepData,
-  type RunGraphForEach,
+  type RunGraphLoopItems,
   type RunGraphStep,
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
@@ -49,8 +49,8 @@ export interface NodePanelProps {
   issues: ValidationIssue[]
   /** Run status of the selected node. */
   runStep?: RunGraphStep
-  /** Run progress when the selected node is a `forEach`. */
-  runForEach?: RunGraphForEach
+  /** Run progress when the selected node is a `forEach` loop. */
+  runLoopItems?: RunGraphLoopItems
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
   /** Switch the App to its unauthorised screen. */
@@ -64,11 +64,11 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   return steps.find((step) => step.id === id)
 }
 
-function findForEach(manifest: ExecutionManifest | undefined, id: string): ForEachNode | undefined {
+function findLoopItems(manifest: ExecutionManifest | undefined, id: string): LoopNode | undefined {
   if (!manifest || !Array.isArray(manifest.steps)) return undefined
-  const walk = (nodes: Node[]): ForEachNode | undefined => {
+  const walk = (nodes: Node[]): LoopNode | undefined => {
     for (const node of nodes) {
-      if (node.type === "forEach" && node.id === id) return node
+      if (node.type === "loop" && node.id === id && (node.mode ?? "while") === "forEach") return node
       if (node.type === "parallel") {
         for (const line of node.branches) {
           const hit = walk(line)
@@ -79,7 +79,7 @@ function findForEach(manifest: ExecutionManifest | undefined, id: string): ForEa
           const hit = walk(arm.steps)
           if (hit) return hit
         }
-      } else if (node.type === "loop" || node.type === "forEach") {
+      } else if (node.type === "loop") {
         const hit = walk(node.steps)
         if (hit) return hit
       }
@@ -103,7 +103,6 @@ function patchStep(
         }
       }
       if (node.type === "loop") return { ...node, steps: walk(node.steps) }
-      if (node.type === "forEach") return { ...node, steps: walk(node.steps) }
       if (node.type === "parallel") return { ...node, branches: node.branches.map((branch) => walk(branch)) }
       if ((node as StepNode).id === stepId) return patch(node as StepNode)
       return node
@@ -111,20 +110,20 @@ function patchStep(
   return { ...manifest, steps: walk(manifest.steps) }
 }
 
-function ForEachPanel({
+function LoopItemsPanel({
   node,
   data,
   manifest,
   issues,
-  foreachRun,
+  loopRun,
 }: {
   node: ReactFlowNode
-  data: ReactFlowForEachData
+  data: ReactFlowLoopItemsData
   manifest?: ExecutionManifest
   issues: ValidationIssue[]
-  foreachRun?: RunGraphForEach
+  loopRun?: RunGraphLoopItems
 }) {
-  const source = findForEach(manifest, node.id)
+  const source = findLoopItems(manifest, node.id)
   return (
     <section data-testid="node-panel" data-node-id={node.id} className="space-y-4">
       <header className="space-y-1">
@@ -132,25 +131,24 @@ function ForEachPanel({
           <Box className="h-4 w-4 text-primary" aria-hidden="true" />
           {data.label}
         </h3>
-        <p className="text-[12px] text-on-surface-variant">forEach structure (read-only in the App).</p>
+        <p className="text-[12px] text-on-surface-variant">Loop (forEach mode, read-only in the App).</p>
       </header>
       <div className="space-y-1.5">
         <Row label="Id">{node.id}</Row>
-        <Row label="Items">{data.itemsRef ? `state.${data.itemsRef}` : source?.items ? JSON.stringify(source.items) : ""}</Row>
+        <Row label="Ref">
+          {data.refPath ? `state.${data.refPath}` : source?.ref ?? source?.expr ?? ""}
+        </Row>
         <Row label="As">{data.as}</Row>
-        <Row label="Collect">{data.collectRef ? `state.${data.collectRef}` : ""}</Row>
+        <Row label="Collect">
+          {data.collectPath ? data.collectPath : source?.collect ?? ""}
+        </Row>
         <Row label="Into">{data.into}</Row>
         <Row label="Concurrency">{data.concurrency}</Row>
-        {data.throttle ? (
-          <Row label="Throttle">
-            {data.throttle.starts} / {data.throttle.perSeconds}s
-          </Row>
-        ) : null}
         <Row label="On error">{data.onError}</Row>
-        {foreachRun ? (
+        {loopRun ? (
           <Row label="Progress">
-            {foreachRun.done} / {foreachRun.count}
-            {foreachRun.failed > 0 ? ` (${foreachRun.failed} failed)` : ""}
+            {loopRun.done} / {loopRun.count}
+            {loopRun.failed > 0 ? ` (${loopRun.failed} failed)` : ""}
           </Row>
         ) : null}
       </div>
@@ -395,8 +393,8 @@ function TransformCodePanel({
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
   const code = capability?.code
 
-  const inlineScript = step.script?.$script.source ?? ""
-  const pathScript = step.script?.$script.path
+  const inlineScript = step.script?.source ?? ""
+  const pathScript = step.script?.path
   const resolvedPath =
     pathScript && executionPath ? resolveScriptPath(executionPath, pathScript) : pathScript
   const [pathText, setPathText] = useState("")
@@ -404,9 +402,9 @@ function TransformCodePanel({
   const [expressionText, setExpressionText] = useState(step.expression ?? "")
 
   useEffect(() => {
-    setSourceText(step.script?.$script.source ?? "")
+    setSourceText(step.script?.source ?? "")
     setExpressionText(step.expression ?? "")
-  }, [step.script?.$script.source, step.expression, step.id])
+  }, [step.script?.source, step.expression, step.id])
 
   const persistManifest = useCallback(
     async (next: ExecutionManifest): Promise<boolean> => {
@@ -441,14 +439,12 @@ function TransformCodePanel({
   )
 
   const onSaveInlineScript = useCallback(() => {
-    if (code !== "script" || step.script?.$script.source === undefined) return
+    if (code !== "script" || step.script?.source === undefined) return
     setSaving(true)
     setSaveError(undefined)
     void (async () => {
-      const marker: ScriptMarker = {
-        $script: { lang: "js", source: sourceText },
-      }
-      const next = patchStep(effective, step.id, (current) => ({ ...current, script: marker }))
+      const script: ScriptDescriptor = { lang: "js", source: sourceText }
+      const next = patchStep(effective, step.id, (current) => ({ ...current, script }))
       await persistManifest(next)
       setSaving(false)
     })()
@@ -482,7 +478,7 @@ function TransformCodePanel({
   }, [code, effective, expressionText, persistManifest, step.id])
 
   if (code === "script") {
-    const hasInline = step.script?.$script.source !== undefined
+    const hasInline = step.script?.source !== undefined
     const hasPath = Boolean(resolvedPath)
     return (
       <div className="space-y-3">
@@ -588,7 +584,7 @@ export function NodePanel({
   capability,
   issues,
   runStep,
-  runForEach,
+  runLoopItems,
   reloadKey,
   onUnauthorized,
 }: NodePanelProps) {
@@ -607,14 +603,14 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
-  if (node.type === "ecp-foreach") {
+  if (node.type === "ecp-loop") {
     return (
-      <ForEachPanel
+      <LoopItemsPanel
         node={node}
-        data={node.data as ReactFlowForEachData}
+        data={node.data as ReactFlowLoopItemsData}
         manifest={manifest}
         issues={issues}
-        foreachRun={runForEach}
+        loopRun={runLoopItems}
       />
     )
   }

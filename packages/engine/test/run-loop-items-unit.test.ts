@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest"
-import { executeForEach, type ExecuteForEachDeps, type ForEachRuntime } from "../src/execute/run-foreach.js"
+import { executeLoopItems, type ExecuteForEachDeps, type LoopItemsRuntime } from "../src/execute/run-loop-items.js"
 
-function runtime(overrides: Partial<ForEachRuntime> = {}): ForEachRuntime {
+function runtime(overrides: Partial<LoopItemsRuntime> = {}): LoopItemsRuntime {
   return {
     runId: "r",
-    forEachDepth: 0,
+    loopItemsDepth: 0,
     controller: new AbortController(),
     interrupted: false,
     completed: new Set(),
-    cursor: { forEach: {} },
+    cursor: { loopItems: {} },
     deps: {},
     ...overrides,
   }
@@ -24,22 +24,22 @@ const deps: ExecuteForEachDeps = {
   }),
 }
 
-describe("executeForEach unit", () => {
+describe("executeLoopItems unit", () => {
   it("rejects incomplete nodes", async () => {
     await expect(
-      executeForEach({ id: "x" }, {}, runtime(), () => {}, "/steps/0", deps),
+      executeLoopItems({ id: "x" }, {}, runtime(), () => {}, "/steps/0", deps),
     ).rejects.toMatchObject({ code: "ECP_STEP_FAILED" })
   })
 
   it("rejects when into already exists", async () => {
     const state = { rows: [1], into: [] }
     await expect(
-      executeForEach(
+      executeLoopItems(
         {
           id: "f",
-          items: { $ref: "state.rows" },
+          ref: "state.rows",
           as: "row",
-          collect: { $ref: "state.row" },
+          collect: "state.row",
           into: "into",
           steps: [],
         },
@@ -55,12 +55,12 @@ describe("executeForEach unit", () => {
   it("records continue errors in the partial file", async () => {
     let lastPartial: unknown
     const state = { rows: [1] }
-    await executeForEach(
+    await executeLoopItems(
       {
         id: "f",
-        items: { $ref: "state.rows" },
+        ref: "state.rows",
         as: "row",
-        collect: { $ref: "state.row" },
+        collect: "state.row",
         into: "collected",
         onError: "continue",
         steps: [],
@@ -69,7 +69,7 @@ describe("executeForEach unit", () => {
       runtime({
         deps: {
           store: {
-            writeForEachPartial: async (_runId, _nodeId, file) => {
+            writeLoopPartial: async (_runId, _nodeId, file) => {
               lastPartial = file
             },
           },
@@ -92,12 +92,12 @@ describe("executeForEach unit", () => {
   it("loads existing partial results before starting items", async () => {
     const state = { rows: [1, 2] }
     let writes = 0
-    await executeForEach(
+    await executeLoopItems(
       {
         id: "f",
-        items: { $ref: "state.rows" },
+        ref: "state.rows",
         as: "row",
-        collect: { $ref: "state.row" },
+        collect: "state.row",
         into: "collected",
         concurrency: 1,
         steps: [],
@@ -106,8 +106,8 @@ describe("executeForEach unit", () => {
       runtime({
         deps: {
           store: {
-            readForEachPartial: async () => ({ results: { "0": 1 }, errors: [] }),
-            writeForEachPartial: async () => {
+            readLoopPartial: async () => ({ results: { "0": 1 }, errors: [] }),
+            writeLoopPartial: async () => {
               writes += 1
             },
           },
@@ -124,21 +124,21 @@ describe("executeForEach unit", () => {
   it("does not write partial files for nested forEach nodes", async () => {
     let writes = 0
     const state: Record<string, unknown> = { rows: [1] }
-    await executeForEach(
+    await executeLoopItems(
       {
         id: "inner",
-        items: { $ref: "state.rows" },
+        ref: "state.rows",
         as: "row",
-        collect: { $ref: "state.row" },
+        collect: "state.row",
         into: "collected",
         steps: [],
       },
       state,
       runtime({
-        forEachDepth: 1,
+        loopItemsDepth: 1,
         deps: {
           store: {
-            writeForEachPartial: async () => {
+            writeLoopPartial: async () => {
               writes += 1
             },
           },
@@ -155,12 +155,12 @@ describe("executeForEach unit", () => {
   it("rejects when intoErrors already exists on continue", async () => {
     const state = { rows: [1] }
     await expect(
-      executeForEach(
+      executeLoopItems(
         {
           id: "f",
-          items: { $ref: "state.rows" },
+          ref: "state.rows",
           as: "row",
-          collect: { $ref: "state.row" },
+          collect: "state.row",
           into: "collected",
           onError: "continue",
           steps: [],
@@ -180,12 +180,12 @@ describe("executeForEach unit", () => {
     const emit = (): void => {
       rt.interrupted = true
     }
-    await executeForEach(
+    await executeLoopItems(
       {
         id: "f",
-        items: { $ref: "state.rows" },
+        ref: "state.rows",
         as: "row",
-        collect: { $ref: "state.row" },
+        collect: "state.row",
         into: "collected",
         concurrency: 1,
         steps: [],

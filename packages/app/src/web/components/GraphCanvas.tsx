@@ -22,14 +22,14 @@ import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpRouteEdge } from "./EcpRouteEdge.js"
-import { EcpForEachNode, type EcpForEachNodeData } from "./EcpForEachNode.js"
+import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 
 const nodeTypes = {
   "ecp-step": EcpStepNode,
   "ecp-io": EcpIoNode,
   "ecp-frame": EcpFrameNode,
-  "ecp-foreach": EcpForEachNode,
+  "ecp-loop": EcpLoopNode,
 }
 const edgeTypes = { "ecp-data": EcpDataEdge, "ecp-route": EcpRouteEdge }
 const EDGE_INTERACTION_WIDTH = 20
@@ -117,14 +117,14 @@ function buildNodes(
       const message = runStep?.status === "failed" ? runStep.message : issues[0]?.message
       if (message) step.errorMessage = message
       data = step as unknown as Record<string, unknown>
-    } else if (node.type === "ecp-foreach") {
-      const foreachRun = run.forEaches[node.id]
-      const foreach: EcpForEachNodeData = {
-        ...(node.data as EcpForEachNodeData),
+    } else if (node.type === "ecp-loop") {
+      const loopRun = run.loopItems[node.id]
+      const loopNode: EcpLoopNodeData = {
+        ...(node.data as EcpLoopNodeData),
         ...connected,
-        ...(foreachRun ? { done: foreachRun.done, count: foreachRun.count } : {}),
+        ...(loopRun ? { done: loopRun.done, count: loopRun.count } : {}),
       }
-      data = foreach as unknown as Record<string, unknown>
+      data = loopNode as unknown as Record<string, unknown>
     } else {
       data = { ...node.data, ...connected }
     }

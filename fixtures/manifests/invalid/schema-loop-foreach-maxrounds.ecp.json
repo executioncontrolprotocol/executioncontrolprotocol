@@ -3,20 +3,23 @@
   "version": "2.0",
   "steps": [
     {
-      "type": "forEach",
+      "type": "loop",
+      "mode": "forEach",
       "id": "items",
-      "items": { "$ref": "state.rows" },
+      "ref": "state.rows",
       "as": "row",
-      "concurrency": 0,
+      "maxRounds": 3,
       "steps": [
         {
           "id": "echo",
           "uses": "@executioncontrolprotocol/test.echo",
-          "input": { "value": "x" },
+          "input": {
+            "value": "x"
+          },
           "as": "out"
         }
       ],
-      "collect": { "$ref": "state.out" },
+      "collect": "state.out",
       "into": "results"
     }
   ]

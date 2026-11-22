@@ -17,9 +17,10 @@ import type {
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
 import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
 import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
-import { executeForEach, type ForEachRuntime } from "./run-foreach.js"
+import { executeLoopItems, type LoopItemsRuntime } from "./run-loop-items.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
-import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
+import { resolveStatePath, resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
+import { MAX_ROUNDS_LIMIT } from "@executioncontrolprotocol/protocol"
 
 /**
  * One line in an execute response.
@@ -93,14 +94,17 @@ export interface RunDependencies {
   /** Run id used when writing to {@link RunDependencies.store}. */
   runId?: string
   /** Persist steps, state, publish entries and events. */
-  store?: Pick<RunStore, "writeStep" | "writeState" | "appendEvent" | "get" | "update">
+  store?: Pick<
+    RunStore,
+    "writeStep" | "writeState" | "appendEvent" | "get" | "update" | "readLoopPartial" | "writeLoopPartial"
+  >
   /** Compiled schemas for run-time input and output checks. */
   schemas?: HostSchemaSet
   /** Resolve a capability row when the run-time list does not already include it. */
   lookupCapability?: (capabilityId: string) => CapabilityEntry | undefined
   /** Capture output {@link FileRef}s into the run artifact store. */
   captureOutput?: CaptureOneDelegate
-  /** Injectable clock for `forEach` throttling. */
+  /** Injectable clock for loop item timing. */
   clock?: RunClock
 }
 
@@ -148,6 +152,7 @@ interface NodeLike {
   expression?: string
   as?: string
   mode?: string
+  ref?: string
   config?: string
   steps?: NodeLike[]
   branches?: unknown
@@ -155,11 +160,9 @@ interface NodeLike {
   maxConcurrency?: number
   /** When false, skip uniform output capture. Default true. */
   persist?: boolean
-  items?: unknown
-  collect?: unknown
+  collect?: string
   into?: string
   concurrency?: number
-  throttle?: { starts: number; perSeconds: number }
   onError?: "fail" | "continue"
 }
 
@@ -181,8 +184,8 @@ interface Runtime {
   publishes?: PublishLedger
   /** `forEach` item indexes, outermost first. */
   items?: number[]
-  /** Nesting depth of active `forEach` nodes (0 at root). */
-  forEachDepth: number
+  /** Nesting depth of active `forEach` loops (0 at root). */
+  loopItemsDepth: number
 }
 
 /**
@@ -225,13 +228,13 @@ export function startExecution(
       inProgress: deps.cursor?.inProgress,
       loops: { ...(deps.cursor?.loops ?? {}) },
       branches: { ...(deps.cursor?.branches ?? {}) },
-      forEach: { ...(deps.cursor?.forEach ?? {}) },
+      loopItems: { ...(deps.cursor?.loopItems ?? {}) },
     },
     completed: new Set(deps.cursor?.completed ?? []),
     schemas: deps.schemas,
     runId: deps.runId ?? "run",
     publishes: deps.store ? createPublishLedger(deps.store, deps.runId ?? "run") : undefined,
-    forEachDepth: 0,
+    loopItemsDepth: 0,
   }
   const state: Record<string, unknown> = { ...input }
   const emit = (type: RunEventType, data: Record<string, unknown>): void => {
@@ -311,7 +314,7 @@ function finish(
       inProgress: runtime.cursor.inProgress,
       loops: { ...runtime.cursor.loops },
       branches: { ...runtime.cursor.branches },
-      forEach: { ...runtime.cursor.forEach },
+      loopItems: { ...runtime.cursor.loopItems },
     },
     state: redact(state, runtime.secrets) as Record<string, unknown>,
   }
@@ -346,11 +349,16 @@ async function runNode(
   if (node.type === "branch") {
     await runBranch(node, state, runtime, emit, round, nodePointer)
   } else if (node.type === "loop") {
-    await runLoop(node, state, runtime, emit, nodePointer)
+    const loopMode = typeof node.mode === "string" ? node.mode : "while"
+    if (loopMode === "forEach") {
+      await runLoopItemsNode(node, state, runtime, emit, nodePointer)
+    } else if (loopMode === "for") {
+      await runLoopFor(node, state, runtime, emit, nodePointer)
+    } else {
+      await runLoopWhile(node, state, runtime, emit, nodePointer)
+    }
   } else if (node.type === "parallel") {
     await runParallel(node, state, runtime, emit, round, nodePointer)
-  } else if (node.type === "forEach") {
-    await runForEachNode(node, state, runtime, emit, nodePointer)
   } else {
     await runStep(node, state, runtime, emit, round, nodePointer)
   }
@@ -517,7 +525,7 @@ async function runStep(
     emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs, ...stepItemFields(runtime) })
     await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes, captured)
     await runtime.publishes?.record(capability, node.id, round, resolvedInput, redacted)
-    // Inside a forEach item, state is the item's scope; the run's state is written when the forEach commits.
+    // Inside a forEach loop item, state is the item scope; the run state is written when the loop commits.
     if (!runtime.items?.length) await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
     summary.durationMs = Date.now() - started
@@ -585,7 +593,7 @@ async function runBranch(
   if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, runtime, emit, round, `${nodePointer}/branches/${selected}/steps`)
 }
 
-async function runLoop(
+async function runLoopWhile(
   node: NodeLike,
   state: Record<string, unknown>,
   runtime: Runtime,
@@ -598,7 +606,7 @@ async function runLoop(
   let round = resumeRound ?? 0
   while (round < maxRounds) {
     if (runtime.controller.signal.aborted || runtime.interrupted) return
-    const gate = await runtime.deps.expression.evaluate(node.expr ?? "(state) => false", state, "control")
+    const gate = await evaluateLoopGate(node, state, runtime, nodePointer)
     if (gate !== true) break
     const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
     if (!isResumeRound) {
@@ -612,6 +620,100 @@ async function runLoop(
     round += 1
   }
   if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: round })
+}
+
+async function runLoopFor(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  emit: (type: RunEventType, data: Record<string, unknown>) => void,
+  nodePointer: string,
+): Promise<void> {
+  const asKey = node.as
+  if (!asKey) {
+    throw Object.assign(new Error("for loop requires as."), { code: "ECP_STEP_FAILED", path: nodePointer })
+  }
+  const resumeRound = runtime.deps.cursor?.loops[node.id]
+  // On resume the saved state still holds `as` from the interrupted iteration; it is this loop's own binding.
+  if (resumeRound === undefined && Object.prototype.hasOwnProperty.call(state, asKey)) {
+    throw Object.assign(new Error(`for loop binds ${asKey}, which already exists.`), {
+      code: "ECP_COMMIT_CONFLICT",
+      path: `${nodePointer}/as`,
+    })
+  }
+  const count = await resolveLoopCount(node, state, runtime, nodePointer)
+  const resumeNode = runtime.deps.cursor?.inProgress
+  let round = resumeRound ?? 0
+  try {
+    while (round < count) {
+      if (runtime.controller.signal.aborted || runtime.interrupted) return
+      const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
+      if (!isResumeRound) {
+        for (const id of collectIds(node.steps ?? [])) {
+          runtime.completed.delete(id)
+        }
+      }
+      state[asKey] = round
+      runtime.cursor.loops[node.id] = round
+      emit("loop.round", { nodeId: node.id, round })
+      await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
+      round += 1
+    }
+  } finally {
+    delete state[asKey]
+  }
+}
+
+async function evaluateLoopGate(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  nodePointer: string,
+): Promise<boolean> {
+  if (typeof node.ref === "string") {
+    const value = resolveStatePath(node.ref, state)
+    if (typeof value !== "boolean") {
+      throw Object.assign(new Error("Loop gate must be a boolean."), {
+        code: "ECP_TYPE_MISMATCH",
+        path: `${nodePointer}/ref`,
+      })
+    }
+    return value
+  }
+  if (typeof node.expr === "string") {
+    const gate = await runtime.deps.expression.evaluate(node.expr, state, "control")
+    return gate === true
+  }
+  throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
+}
+
+async function resolveLoopCount(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  nodePointer: string,
+): Promise<number> {
+  let value: unknown
+  if (typeof node.ref === "string") {
+    value = resolveStatePath(node.ref, state)
+  } else if (typeof node.expr === "string") {
+    value = await runtime.deps.expression.evaluate(node.expr, state, "value")
+  } else {
+    throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw Object.assign(new Error("Loop count must be a non-negative integer."), {
+      code: "ECP_TYPE_MISMATCH",
+      path: nodePointer,
+    })
+  }
+  if (value > MAX_ROUNDS_LIMIT) {
+    throw Object.assign(new Error(`Loop count exceeds the limit of ${MAX_ROUNDS_LIMIT}.`), {
+      code: "ECP_LIMIT_EXCEEDED",
+      path: nodePointer,
+    })
+  }
+  return value
 }
 
 function collectIds(nodes: NodeLike[]): string[] {
@@ -666,21 +768,49 @@ async function runParallel(
   if (failure) throw failure
 }
 
-async function runForEachNode(
+async function runLoopItemsNode(
   node: NodeLike,
   state: Record<string, unknown>,
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   nodePointer: string,
 ): Promise<void> {
-  const foreachRuntime = runtime as unknown as ForEachRuntime
-  await executeForEach(node, state, foreachRuntime, emit, nodePointer, {
+  const itemsRuntime: LoopItemsRuntime = {
+    runId: runtime.runId,
+    loopItemsDepth: runtime.loopItemsDepth,
+    items: runtime.items,
+    completed: runtime.completed,
+    controller: runtime.controller,
+    interrupted: runtime.interrupted,
+    cursor: { loopItems: runtime.cursor.loopItems ?? {} },
+    deps: {
+      clock: runtime.deps.clock,
+      expression: runtime.deps.expression,
+      store: runtime.deps.store,
+      cursor: { loopItems: runtime.deps.cursor?.loopItems },
+    },
+  }
+  await executeLoopItems(node, state, itemsRuntime, emit, nodePointer, {
     runBody: async (steps, itemState, itemRuntime, itemEmit, prefix) => {
-      const child = itemRuntime as unknown as Runtime
+      const slice = itemRuntime as LoopItemsRuntime
+      const child = Object.assign(slice as unknown as Runtime, {
+        deps: { ...runtime.deps, cursor: undefined },
+        secrets: runtime.secrets,
+        steps: runtime.steps,
+        records: runtime.records,
+        events: runtime.events,
+        seq: runtime.seq,
+        schemas: runtime.schemas,
+        publishes: runtime.publishes,
+        runId: runtime.runId,
+        loopItemsDepth: slice.loopItemsDepth,
+        items: slice.items,
+      })
       await runNodes(asNodes(steps), itemState, child, itemEmit, undefined, prefix)
     },
     toIssue: (error) => toIssue(error, runtime.secrets, nodePointer),
   })
+  runtime.cursor.loopItems = itemsRuntime.cursor.loopItems
   if (!runtime.items?.length) await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { defaultRunClock } from "../src/execute/run-foreach.js"
+import { defaultRunClock } from "../src/execute/run-loop-items.js"
 import { validateExecution } from "../src/index.js"
 
 const echo = {
@@ -27,12 +27,13 @@ function manifest(accepts: Record<string, unknown>, items: string): ExecutionMan
     },
     steps: [
       {
-        type: "forEach",
+        type: "loop",
+        mode: "forEach",
         id: "each",
-        items: { $ref: items },
+        ref: items,
         as: "row",
         steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row.name" } }, as: "out" }],
-        collect: { $ref: "state.out.echo" },
+        collect: "state.out.echo",
         into: "names",
       } as ExecutionManifest["steps"][0],
     ],

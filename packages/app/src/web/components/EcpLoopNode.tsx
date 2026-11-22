@@ -1,13 +1,13 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
-import type { ReactFlowForEachData } from "../../graph/index.js"
+import type { ReactFlowLoopItemsData } from "../../graph/index.js"
 import { InputPortRow, OutputPortRow } from "./ports.js"
 
 /**
- * Data for {@link EcpForEachNode}: structure metadata plus run overlay counts.
+ * Data for {@link EcpLoopNode}: structure metadata plus run overlay counts.
  * @category App
  */
-export interface EcpForEachNodeData extends ReactFlowForEachData {
+export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
   /** Items finished so far. */
   done?: number
   /** Total item count. */
@@ -19,11 +19,11 @@ export interface EcpForEachNodeData extends ReactFlowForEachData {
 }
 
 /**
- * View-only React Flow node for a `forEach` structure: refs, concurrency and run counts.
+ * View-only React Flow node for a `forEach` mode loop: refs, concurrency and run counts.
  * @category App
  */
-export function EcpForEachNode({ id, data, selected }: NodeProps) {
-  const node = data as unknown as EcpForEachNodeData
+export function EcpLoopNode({ id, data, selected }: NodeProps) {
+  const node = data as unknown as EcpLoopNodeData
   const targets = new Set(node.connectedTargetHandles ?? [])
   const sources = new Set(node.connectedSourceHandles ?? [])
   const classes = [
@@ -33,7 +33,7 @@ export function EcpForEachNode({ id, data, selected }: NodeProps) {
 
   return (
     <div
-      data-testid={`ecp-foreach-${id}`}
+      data-testid={`ecp-loop-${id}`}
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
@@ -47,12 +47,11 @@ export function EcpForEachNode({ id, data, selected }: NodeProps) {
             as {node.as} → {node.into}
           </div>
           <div className="mt-1 font-mono text-[9px] text-on-surface-variant">
-            ×{node.concurrency}
-            {node.throttle ? ` · throttle ${node.throttle.starts}/${node.throttle.perSeconds}s` : ""}
+            forEach · ×{node.concurrency}
             {node.onError === "continue" ? " · onError: continue" : ""}
           </div>
           {node.count !== undefined ? (
-            <div className="mt-1 font-mono text-[9px] text-on-surface-variant" data-testid="ecp-foreach-progress">
+            <div className="mt-1 font-mono text-[9px] text-on-surface-variant" data-testid="ecp-loop-progress">
               {node.done ?? 0} / {node.count}
             </div>
           ) : null}

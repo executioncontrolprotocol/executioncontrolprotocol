@@ -95,9 +95,7 @@
       "input": {
         "manifest": { "$ref": "state.manifest" }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/layer-names.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/layer-names.js" },
       "as": "psd"
     }
   ]

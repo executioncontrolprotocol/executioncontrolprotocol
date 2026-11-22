@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest"
 import { LocalRunStore } from "../src/storage/run-store.js"
 import { HomePaths } from "../src/storage/paths.js"
 
-describe("forEach partial file", () => {
+describe("loop-items partial file", () => {
   it("writes and reads partial results atomically", async () => {
-    const home = mkdtempSync(path.join(os.tmpdir(), "ecp-foreach-"))
+    const home = mkdtempSync(path.join(os.tmpdir(), "ecp-loop-items-"))
     try {
       const paths = new HomePaths(home)
       const store = new LocalRunStore(paths, () => {})
@@ -23,8 +23,8 @@ describe("forEach partial file", () => {
         },
         { schema: "@executioncontrolprotocol.execution", version: "2.0", steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo" }] },
       )
-      await store.writeForEachPartial("run-1", "items", { results: { "0": { ok: true } }, errors: [] })
-      const read = await store.readForEachPartial("run-1", "items")
+      await store.writeLoopPartial("run-1", "items", { results: { "0": { ok: true } }, errors: [] })
+      const read = await store.readLoopPartial("run-1", "items")
       expect(read?.results["0"]).toEqual({ ok: true })
     } finally {
       rmSync(home, { recursive: true, force: true })

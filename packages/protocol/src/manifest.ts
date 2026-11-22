@@ -44,6 +44,22 @@ export interface ExprMarker {
 }
 
 /**
+ * Transform step script (`code: "script"`). Syntax-checked at validation; run in QuickJS.
+ * Exactly one of `source` and `path`.
+ * @category Definitions
+ */
+export interface ScriptDescriptor {
+  /** Language. Only `js` in the MVP. */
+  lang: "js"
+  /** Inline source. */
+  source?: string
+  /** Path relative to the execution file, or absolute for inline executions. */
+  path?: string
+  /** Acorn `ecmaVersion`. Default 2020. */
+  ecmaVersion?: number
+}
+
+/**
  * Script text the host syntax-checks and never runs. Resolves to a string.
  * @category Definitions
  */
@@ -102,8 +118,8 @@ export interface StepNode {
    * Step output contract (JSON Schema). Used when the capability `contract` is `"step"`.
    */
   returns?: Record<string, unknown>
-  /** Transform script (`code: "script"`). Syntax-checked at validation; run in QuickJS. */
-  script?: ScriptMarker
+  /** Transform script (`code: "script"`). */
+  script?: ScriptDescriptor
   /** JSONata or other expression source (`code: "expression"`). */
   expression?: string
   /** State key for the output. */
@@ -143,7 +159,8 @@ export interface BranchNode {
 }
 
 /**
- * Loop. `expr` is evaluated before every round, including the first.
+ * Loop. `mode` selects how it repeats: `while` (default), `for` or `forEach`.
+ * Exactly one of {@link LoopNode.ref} and {@link LoopNode.expr} drives the loop.
  * @category Definitions
  */
 export interface LoopNode {
@@ -153,51 +170,31 @@ export interface LoopNode {
   id: string
   /** Display label. */
   label?: string
-  /** `true` runs a round. */
-  expr: string
-  /** Inclusive upper bound, 1..1000. Reaching it ends the loop normally. */
-  maxRounds: number
+  /** How the loop repeats. Default `while`. */
+  mode?: "while" | "for" | "forEach"
+  /**
+   * State path driving the loop (same syntax as `$ref`, without the marker).
+   * Boolean in `while`, integer in `for`, array in `forEach`.
+   */
+  ref?: string
+  /**
+   * JavaScript function driving the loop. Checked before each round in `while`;
+   * read once in `for` and `forEach`.
+   */
+  expr?: string
+  /** Inclusive upper bound for `while` mode, 1..1000. */
+  maxRounds?: number
+  /** Iteration or item key for `for` and `forEach` modes. */
+  as?: string
   /** Body. */
   steps: Node[]
-}
-
-/**
- * Sliding-window throttle on how fast items may start in a `forEach`.
- * @category Definitions
- */
-export interface ForEachThrottle {
-  /** Maximum item starts in one window. */
-  starts: number
-  /** Window length in seconds. */
-  perSeconds: number
-}
-
-/**
- * Run the body once per element of an array.
- * @category Definitions
- */
-export interface ForEachNode {
-  /** Node kind. */
-  type: "forEach"
-  /** Unique node id. */
-  id: string
-  /** Display label. */
-  label?: string
-  /** Array to iterate; ref marker only. */
-  items: RefMarker
-  /** State key for the current item. */
-  as: string
-  /** Body steps. */
-  steps: Node[]
-  /** Value to collect per item; ref marker only. */
-  collect: RefMarker
-  /** State array key for collected results. */
-  into: string
-  /** Concurrent items. Default 1, max {@link MAX_FOREACH_CONCURRENCY}. */
+  /** State path collected per item in `forEach` mode. */
+  collect?: string
+  /** State array key for collected results in `forEach` mode. */
+  into?: string
+  /** Concurrent items in `forEach` mode. Default 1, max {@link MAX_LOOP_CONCURRENCY}. */
   concurrency?: number
-  /** Optional start throttle. */
-  throttle?: ForEachThrottle
-  /** Whether one failed item fails the run. Default `fail`. */
+  /** Whether one failed item fails the run in `forEach` mode. Default `fail`. */
   onError?: "fail" | "continue"
 }
 
@@ -222,7 +219,7 @@ export interface ParallelNode {
  * Any node in an execution.
  * @category Definitions
  */
-export type Node = StepNode | BranchNode | LoopNode | ParallelNode | ForEachNode
+export type Node = StepNode | BranchNode | LoopNode | ParallelNode
 
 /**
  * Optional document metadata. `id` is required to commit.

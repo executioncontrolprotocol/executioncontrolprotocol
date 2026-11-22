@@ -64,11 +64,9 @@
         "items": { "$ref": "state.items" }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "source": "return { title: input.items[0].title, count: input.items.length }"
-        }
-      },
+        },
       "as": "summary"
     }
   ]

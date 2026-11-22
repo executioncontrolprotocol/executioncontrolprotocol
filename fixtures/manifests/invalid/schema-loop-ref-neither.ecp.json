@@ -1,0 +1,22 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "loop",
+      "id": "neither",
+      "maxRounds": 1,
+      "steps": [
+        {
+          "id": "echo",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "x"
+          },
+          "as": "out",
+          "mode": "replace"
+        }
+      ]
+    }
+  ]
+}

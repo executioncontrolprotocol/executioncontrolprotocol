@@ -81,9 +81,9 @@ export class HomePaths {
     return path.join(this.runStepsDir(runId), name)
   }
 
-  /** Partial `forEach` results file for one node. */
-  runForEachPartial(runId: string, nodeId: string): string {
-    return path.join(this.runDir(runId), "for-each", `${nodeId}.json`)
+  /** Partial `forEach` loop results file for one node. */
+  runLoopItemsPartial(runId: string, nodeId: string): string {
+    return path.join(this.runDir(runId), "loop-items", `${nodeId}.json`)
   }
 
   /** Artifacts directory. */

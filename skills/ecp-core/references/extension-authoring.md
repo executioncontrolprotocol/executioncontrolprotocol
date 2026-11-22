@@ -64,7 +64,7 @@ Minimal execution step (bundled `@executioncontrolprotocol/core.transform`):
     "properties": { "upper": { "type": "string" } },
     "required": ["upper"]
   },
-  "script": { "$script": { "lang": "js", "source": "return { upper: input.value.toUpperCase() }" } },
+  "script": { "lang": "js", "source": "return { upper: input.value.toUpperCase() }" },
   "input": { "value": { "$ref": "state.doc.value" } },
   "as": "upper"
 }

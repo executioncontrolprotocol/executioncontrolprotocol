@@ -1,12 +1,4 @@
-import type {
-  BranchNode,
-  ExecutionManifest,
-  ForEachNode,
-  LoopNode,
-  Node,
-  ParallelNode,
-  StepNode,
-} from "@executioncontrolprotocol/protocol"
+import type { BranchNode, ExecutionManifest, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
 import {
   collectSteps,
   EXPR_HANDLE_ID,
@@ -31,19 +23,14 @@ import type {
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
-  ReactFlowForEachData,
   ReactFlowFrameData,
+  ReactFlowLoopItemsData,
   ReactFlowNode,
   ReactFlowPort,
   ReactFlowRouteEdgeData,
   ReactFlowStepData,
 } from "./types.js"
-import {
-  FOREACH_COLLECT_HANDLE,
-  FOREACH_INTO_HANDLE,
-  FOREACH_ITEMS_HANDLE,
-} from "./types.js"
-import { refPathFromValue } from "./markers.js"
+import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_REF_HANDLE } from "./types.js"
 
 interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
@@ -188,15 +175,23 @@ function renderBranch(node: BranchNode, ctx: EncodeContext): RenderSegment {
   return out
 }
 
+function loopMode(node: LoopNode): "while" | "for" | "forEach" {
+  return node.mode ?? "while"
+}
+
 function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
+  const mode = loopMode(node)
+  if (mode === "forEach") return renderLoopForEach(node, ctx)
   const seg = renderNodes(node.steps, ctx)
+  const gateLabel = node.expr ? formatExprBadge(node.expr) : node.ref ? `ref: ${node.ref}` : "loop"
   const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
     route: "loop",
     structureId: node.id,
+    loopMode: mode,
     ...(node.label ? { label: node.label } : {}),
-    exprBadge: formatExprBadge(node.expr),
-    exprSource: node.expr,
-    maxRounds: node.maxRounds,
+    exprBadge: gateLabel,
+    ...(node.expr ? { exprSource: node.expr } : {}),
+    ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
     stepIds: leafStepIds(node.steps),
   }
   const edges = [...seg.edges]
@@ -224,66 +219,66 @@ function stripStatePrefix(path: string): string {
   return path.startsWith("state.") ? path.slice("state.".length) : path
 }
 
-function forEachFrameLabel(node: ForEachNode): string {
+function loopItemsFrameLabel(node: LoopNode): string {
   const parts = ["forEach", `×${node.concurrency ?? 1}`]
-  if (node.throttle) parts.push(`throttle ${node.throttle.starts}/${node.throttle.perSeconds}s`)
   if (node.onError === "continue") parts.push("onError: continue")
   return parts.join(" ")
 }
 
-function forEachReactFlowNode(node: ForEachNode): ReactFlowNode {
-  const itemsRef = stripStatePrefix(refPathFromValue(node.items) ?? "")
-  const collectRef = stripStatePrefix(refPathFromValue(node.collect) ?? "")
+function loopItemsReactFlowNode(node: LoopNode): ReactFlowNode {
+  const refPath = stripStatePrefix(node.ref ?? "")
+  const collectPath = stripStatePrefix(node.collect ?? "")
   const inputs: ReactFlowPort[] = [
     {
-      id: FOREACH_ITEMS_HANDLE,
-      name: "items",
+      id: LOOP_REF_HANDLE,
+      name: "ref",
       typeLabel: "ref",
       binding: "ref",
-      refPath: itemsRef,
+      refPath,
     },
     {
-      id: FOREACH_COLLECT_HANDLE,
+      id: LOOP_COLLECT_HANDLE,
       name: "collect",
       typeLabel: "ref",
       binding: "ref",
-      refPath: collectRef,
+      refPath: collectPath,
     },
   ]
   const outputs: ReactFlowPort[] = [
     {
-      id: FOREACH_INTO_HANDLE,
+      id: LOOP_INTO_HANDLE,
       name: "into",
       typeLabel: "array",
     },
   ]
-  const data: ReactFlowForEachData = {
+  const data: ReactFlowLoopItemsData = {
     label: node.label ?? node.id,
-    itemsRef,
-    as: node.as,
-    collectRef,
-    into: node.into,
+    mode: "forEach",
+    refPath,
+    as: node.as ?? "",
+    collectPath,
+    into: node.into ?? "",
     concurrency: node.concurrency ?? 1,
-    ...(node.throttle ? { throttle: node.throttle } : {}),
     onError: node.onError ?? "fail",
     inputs,
     outputs,
   }
-  return { id: node.id, type: "ecp-foreach", position: { x: 0, y: 0 }, data }
+  return { id: node.id, type: "ecp-loop", position: { x: 0, y: 0 }, data }
 }
 
-function renderForEach(node: ForEachNode, ctx: EncodeContext): RenderSegment {
-  const head = forEachReactFlowNode(node)
+function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
+  const head = loopItemsReactFlowNode(node)
   const seg = renderNodes(node.steps, ctx)
   ctx.parallelFrames.push({
     frameId: `ecp:frame:${node.id}`,
     structureId: node.id,
     armIndex: 0,
-    label: forEachFrameLabel(node),
+    label: loopItemsFrameLabel(node),
     stepIds: leafStepIds(node.steps),
   })
   const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
-    route: "forEach",
+    route: "loop",
+    loopMode: "forEach",
     structureId: node.id,
     stepIds: leafStepIds(node.steps),
   }
@@ -292,7 +287,7 @@ function renderForEach(node: ForEachNode, ctx: EncodeContext): RenderSegment {
     edges,
     [node.id],
     seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
-    `foreach-${node.id}`,
+    `loop-items-${node.id}`,
   )
   return {
     nodes: [head, ...seg.nodes],
@@ -307,8 +302,7 @@ function renderNode(node: Node, ctx: EncodeContext): RenderSegment {
   if (node.type === "parallel") return renderParallel(node, ctx)
   if (node.type === "branch") return renderBranch(node, ctx)
   if (node.type === "loop") return renderLoop(node, ctx)
-  if (node.type === "forEach") return renderForEach(node, ctx)
-  return renderLoop(node as LoopNode, ctx)
+  return { nodes: [], edges: [], entryIds: [], exitIds: [] }
 }
 
 function renderNodes(nodes: Node[], ctx: EncodeContext): RenderSegment {
@@ -332,7 +326,7 @@ function renderNodes(nodes: Node[], ctx: EncodeContext): RenderSegment {
 }
 
 function returnsSourceHandle(node: ReactFlowNode): string {
-  if (node.type === "ecp-foreach") return FOREACH_INTO_HANDLE
+  if (node.type === "ecp-loop") return LOOP_INTO_HANDLE
   const data = node.data as ReactFlowStepData
   if (data.outputs.some((port) => port.id === OUTPUT_HANDLE_ID)) return OUTPUT_HANDLE_ID
   return data.outputs[0]?.id ?? OUTPUT_HANDLE_ID
@@ -345,8 +339,8 @@ function lastWriterByKey(nodes: ReactFlowNode[]): Map<string, ReactFlowNode> {
       const as = (node.data as ReactFlowStepData).as
       if (as) out.set(as, node)
     }
-    if (node.type === "ecp-foreach") {
-      const into = (node.data as ReactFlowForEachData).into
+    if (node.type === "ecp-loop") {
+      const into = (node.data as ReactFlowLoopItemsData).into
       out.set(into, node)
     }
   }
@@ -391,8 +385,8 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
     if (edge.sourceHandle && source?.type === "ecp-step") {
       ensureOutputPort((source.data as ReactFlowStepData).outputs, edge.sourceHandle)
     }
-    if (edge.sourceHandle && source?.type === "ecp-foreach") {
-      ensureOutputPort((source.data as ReactFlowForEachData).outputs, edge.sourceHandle)
+    if (edge.sourceHandle && source?.type === "ecp-loop") {
+      ensureOutputPort((source.data as ReactFlowLoopItemsData).outputs, edge.sourceHandle)
     }
     const target = nodesById.get(edge.target)
     if (edge.targetHandle && target?.type === "ecp-step") {
@@ -400,8 +394,8 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
       ensureInputPort(data.inputs, edge.targetHandle)
       if (edge.targetHandle === EXPR_HANDLE_ID && !data.exprBadge) data.exprBadge = EXPR_HANDLE_ID
     }
-    if (edge.targetHandle && target?.type === "ecp-foreach") {
-      ensureInputPort((target.data as ReactFlowForEachData).inputs, edge.targetHandle)
+    if (edge.targetHandle && target?.type === "ecp-loop") {
+      ensureInputPort((target.data as ReactFlowLoopItemsData).inputs, edge.targetHandle)
     }
   }
 }
@@ -474,8 +468,8 @@ export function executionToReactFlow(
       outputPortIds.set(node.id, data.outputs.map((port) => port.id))
       inputPortIds.set(node.id, data.inputs.map((port) => port.id))
     }
-    if (node.type === "ecp-foreach") {
-      const data = node.data as ReactFlowForEachData
+    if (node.type === "ecp-loop") {
+      const data = node.data as ReactFlowLoopItemsData
       outputPortIds.set(node.id, data.outputs.map((port) => port.id))
       inputPortIds.set(node.id, data.inputs.map((port) => port.id))
     }

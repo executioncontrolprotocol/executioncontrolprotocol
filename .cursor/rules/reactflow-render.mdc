@@ -13,11 +13,13 @@ Non-negotiables:
 
 - Published edges are **`data` or `route`**. Data edges come from `$ref` / `$state` (including
   nested paths) and from `expr` gates that read state, with handles. Route edges publish
-  parallel / branch / loop / `forEach` structure. Strip unlabeled layout-control edges; never
+  parallel / branch / loop (`while`, `for`, `forEach`) structure. Strip unlabeled layout-control
+  edges; never
   invent fake `$ref`s for structure.
 - Do not emit `ecp-group` / `parentId` containers. Parallel lines may use post-layout
   `ecp-frame` overlays (no `parentId`); branch and loop structure stay on route connectors.
-- Port bindings are literals, `$ref` / `$state`, and `$script` values; data edges are `$ref` only.
+- Port bindings are literals, `$ref` / `$state`, `$script` (in `input`), and plain transform
+  `script` objects; data edges are `$ref` only (plus loop `ref` / `collect` / `into` for `forEach`).
   Make sure output and nested input handles exist for every edged ref.
 - Ports come from capabilities' JSON Schemas in plugin manifests, not from zod at run time.
 - Fan-out through multiple `$ref`s is supported. Don't invent multi-source fan-in on one input

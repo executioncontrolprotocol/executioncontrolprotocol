@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest"
-import type { CapabilityCall, ExecutionManifest, RunClock } from "@executioncontrolprotocol/protocol"
-import { MAX_FOREACH_ITEMS } from "@executioncontrolprotocol/protocol"
+import type { CapabilityCall, ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { MAX_LOOP_ITEMS } from "@executioncontrolprotocol/protocol"
 import { QuickJsExpressionEngine as EngineImpl } from "../../quickjs/src/index.js"
 import { awaitTestDelay, resetDelayForTests } from "../../../plugins/plugin-test/src/capabilities/delay-hooks.js"
-import { defaultRunClock } from "../src/execute/run-foreach.js"
+import { defaultRunClock } from "../src/execute/run-loop-items.js"
 import { runExecution, startExecution, validateExecution, type StateStore } from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
 const engine = new EngineImpl()
@@ -47,9 +47,10 @@ function foreachManifest(extra: Partial<ExecutionManifest["steps"][0]> = {}): Ex
     version: "2.0",
     steps: [
       {
-        type: "forEach",
+        type: "loop",
+        mode: "forEach",
         id: "items",
-        items: { "$ref": "state.rows" },
+        ref: "state.rows",
         as: "row",
         concurrency: 2,
         steps: [
@@ -60,7 +61,7 @@ function foreachManifest(extra: Partial<ExecutionManifest["steps"][0]> = {}): Ex
             as: "out",
           },
         ],
-        collect: { "$ref": "state.out" },
+        collect: "state.out",
         into: "collected",
         ...extra,
       } as ExecutionManifest["steps"][0],
@@ -85,8 +86,8 @@ describe("run forEach", () => {
       { echo: "b" },
       { echo: "c" },
     ])
-    expect(outcome.events).toContain("forEach.start")
-    expect(outcome.events).toContain("forEach.end")
+    expect(outcome.events).toContain("loop.start")
+    expect(outcome.events).toContain("loop.end")
   })
 
   it("commits empty into for an empty items array", async () => {
@@ -97,6 +98,26 @@ describe("run forEach", () => {
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([])
+  })
+
+  it("resolves items from expr when ref is omitted", async () => {
+    const outcome = await runExecution(
+      foreachManifest({ ref: undefined, expr: "(state) => state.rows" }),
+      { rows: ["x", "y"] },
+      { capabilities: [echoCapability], expression: engine, call: echoCall },
+    )
+    expect(outcome.status).toBe("completed")
+    expect(outcome.state.collected).toEqual([{ echo: "x" }, { echo: "y" }])
+  })
+
+  it("fails when expr does not return an array", async () => {
+    const outcome = await runExecution(
+      foreachManifest({ ref: undefined, expr: "() => 1" }),
+      {},
+      { capabilities: [echoCapability], expression: engine, call: echoCall },
+    )
+    expect(outcome.status).toBe("failed")
+    expect(outcome.error?.code).toBe("ECP_TYPE_MISMATCH")
   })
 
   it("commits empty intoErrors for an empty array when onError is continue", async () => {
@@ -118,8 +139,8 @@ describe("run forEach", () => {
     expect(outcome.error?.code).toBe("ECP_TYPE_MISMATCH")
   })
 
-  it("fails when items exceed MAX_FOREACH_ITEMS", async () => {
-    const rows = Array.from({ length: MAX_FOREACH_ITEMS + 1 }, (_, index) => index)
+  it("fails when items exceed MAX_LOOP_ITEMS", async () => {
+    const rows = Array.from({ length: MAX_LOOP_ITEMS + 1 }, (_, index) => index)
     const outcome = await runExecution(foreachManifest(), { rows }, {
       capabilities: [echoCapability],
       expression: engine,
@@ -135,9 +156,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 3,
           onError: "fail",
@@ -148,7 +170,7 @@ describe("run forEach", () => {
               input: { message: { "$ref": "state.row" } },
             },
           ],
-          collect: { "$ref": "state.row" },
+          collect: "state.row",
           into: "collected",
         },
       ],
@@ -171,9 +193,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 1,
           onError: "continue",
@@ -193,7 +216,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -209,52 +232,6 @@ describe("run forEach", () => {
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([null, { echo: 1 }, null])
     expect(Array.isArray(outcome.state.collectedErrors)).toBe(true)
-  })
-
-  it("throttle admits starts then waits on a manual clock", async () => {
-    let now = 0
-    const clock: RunClock = {
-      now: () => now,
-      sleep: (ms) => {
-        now += ms
-        return Promise.resolve()
-      },
-    }
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "forEach",
-          id: "items",
-          items: { "$ref": "state.rows" },
-          as: "row",
-          concurrency: 1,
-          throttle: { starts: 2, perSeconds: 60 },
-          steps: [
-            {
-              id: "body",
-              uses: "@executioncontrolprotocol/test.echo",
-              input: { value: { "$ref": "state.row" } },
-              as: "out",
-            },
-          ],
-          collect: { "$ref": "state.out" },
-          into: "collected",
-        },
-      ],
-    }
-    const outcome = await runExecution(manifest, { rows: [1, 2, 3] }, {
-      capabilities: [echoCapability],
-      expression: engine,
-      call: echoCall,
-      clock,
-    })
-    const itemStarts = outcome.records
-      .filter((event) => event.type === "forEach.item.start")
-      .map((event) => (typeof event.data.index === "number" ? event.data.index : -1))
-    expect(itemStarts).toEqual([0, 1, 2])
-    expect(clock.now()).toBeGreaterThanOrEqual(60_000)
   })
 
   it("writes partial results under concurrency without losing entries", async () => {
@@ -276,9 +253,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 4,
           steps: [
@@ -289,7 +267,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -305,7 +283,7 @@ describe("run forEach", () => {
       runId: "r-partial",
     })
     expect(outcome.status).toBe("completed")
-    const partial = await storage.runs.readForEachPartial!("r-partial", "items")
+    const partial = await storage.runs.readLoopPartial!("r-partial", "items")
     expect(Object.keys(partial?.results ?? {}).sort()).toEqual(["0", "1", "2", "3"])
   })
 
@@ -322,12 +300,13 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "shared",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -342,9 +321,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 2,
           steps: [
@@ -355,7 +335,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -388,7 +368,7 @@ describe("run forEach", () => {
       },
       foreachManifest(),
     )
-    await storage.runs.writeForEachPartial!("r-resume", "items", {
+    await storage.runs.writeLoopPartial!("r-resume", "items", {
       results: { "0": { echo: "a" } },
       errors: [],
     })
@@ -398,7 +378,7 @@ describe("run forEach", () => {
       call: echoCall,
       store: storage.runs,
       runId: "r-resume",
-      cursor: { completed: [], loops: {}, branches: {}, forEach: { items: { completed: [0] } } },
+      cursor: { completed: [], loops: {}, branches: {}, loopItems: { items: { completed: [0] } } },
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
@@ -417,12 +397,13 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "rows",
         },
       ],
@@ -439,16 +420,18 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "outer",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 2,
           steps: [
             {
-              type: "forEach",
+              type: "loop",
+              mode: "forEach",
               id: "inner",
-              items: { "$ref": "state.row.parts" },
+              ref: "state.row.parts",
               as: "part",
               steps: [
                 {
@@ -458,11 +441,11 @@ describe("run forEach", () => {
                   as: "piece",
                 },
               ],
-              collect: { "$ref": "state.piece" },
+              collect: "state.piece",
               into: "partsOut",
             },
           ],
-          collect: { "$ref": "state.partsOut" },
+          collect: "state.partsOut",
           into: "bundles",
         },
       ],
@@ -474,46 +457,6 @@ describe("run forEach", () => {
     )
     expect(outcome.status).toBe("completed")
     expect(outcome.state.bundles).toHaveLength(2)
-  })
-
-  it("aborts throttle wait when the run is cancelled", async () => {
-    const now = 0
-    const sleepers: Array<{ ms: number; resolve: () => void; reject: (error: unknown) => void }> = []
-    const clock: RunClock = {
-      now: () => now,
-      sleep: (ms, signal) =>
-        new Promise((resolve, reject) => {
-          if (signal.aborted) {
-            reject(Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" }))
-            return
-          }
-          const entry = {
-            ms,
-            resolve: () => resolve(),
-            reject,
-          }
-          sleepers.push(entry)
-          signal.addEventListener(
-            "abort",
-            () => {
-              reject(Object.assign(new Error("The run was cancelled."), { code: "ECP_RUN_CANCELLED" }))
-            },
-            { once: true },
-          )
-        }),
-    }
-    const manifest = foreachManifest({ throttle: { starts: 1, perSeconds: 60 }, concurrency: 1 })
-    const active = startExecution(manifest, { rows: [1, 2] }, {
-      capabilities: [echoCapability],
-      expression: engine,
-      call: echoCall,
-      clock,
-    })
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    active.cancel()
-    const outcome = await active.outcome
-    expect(outcome.status).toBe("cancelled")
-    expect(sleepers.length).toBeGreaterThan(0)
   })
 
   it("defaultRunClock sleep rejects an aborted signal", async () => {
@@ -542,9 +485,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 1,
           steps: [
@@ -564,7 +508,7 @@ describe("run forEach", () => {
               ],
             },
           ],
-          collect: { "$ref": "state.tick" },
+          collect: "state.tick",
           into: "collected",
         },
       ],
@@ -588,9 +532,10 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           concurrency: 2,
           steps: [
@@ -610,7 +555,7 @@ describe("run forEach", () => {
               ],
             },
           ],
-          collect: { "$ref": "state.tick" },
+          collect: "state.tick",
           into: "collected",
         },
       ],
@@ -660,7 +605,7 @@ describe("run forEach", () => {
       capabilities: [echoCapability],
       expression: engine,
       call: echoCall,
-      cursor: { completed: [], inProgress: "tick", loops: { inner: 5 }, branches: {}, forEach: {} },
+      cursor: { completed: [], inProgress: "tick", loops: { inner: 5 }, branches: {}, loopItems: {} },
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([{ echo: "a" }])
@@ -679,9 +624,10 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           steps: [
             {
@@ -700,7 +646,7 @@ describe("run forEach", () => {
               ],
             },
           ],
-          collect: { "$ref": "state.scratch" },
+          collect: "state.scratch",
           into: "collected",
         },
       ],
@@ -724,12 +670,13 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.tag" },
+          ref: "state.tag",
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -751,9 +698,10 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           steps: [
             {
@@ -764,7 +712,7 @@ describe("run forEach", () => {
               mode: "create",
             },
           ],
-          collect: { "$ref": "state.scratch" },
+          collect: "state.scratch",
           into: "collected",
         },
       ],
@@ -779,12 +727,13 @@ describe("run forEach", () => {
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.missing" },
+          ref: "state.missing",
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -806,13 +755,14 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           onError: "continue",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],
@@ -840,9 +790,10 @@ describe("run forEach", () => {
       },
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { "$ref": "state.rows" },
+          ref: "state.rows",
           as: "row",
           steps: [
             {
@@ -853,7 +804,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: { "$ref": "state.out" },
+          collect: "state.out",
           into: "collected",
         },
       ],

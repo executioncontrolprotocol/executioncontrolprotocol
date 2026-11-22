@@ -98,9 +98,12 @@ The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
 - **Vendor-neutral host:** the host, CLI, relay and App must not branch on specific capability
   ids or output shapes. Domain knowledge lives in the plugin, surfaced through metadata and
   schemas.
-- **JS in executions:** host-evaluated JavaScript (`expr`, `$expr`) runs only in the QuickJS
-  sandbox, never with `new Function` or `eval` in the host process. `$script` is a value: the
-  host parses it and never runs it.
+- **JS in executions:** host-evaluated JavaScript (`expr` on gates and loop drivers) runs only
+  in the QuickJS sandbox, never with `new Function` or `eval` in the host process. `$script` in
+  `input` is a marker: the host parses it and never runs it. Transform step `script` is a plain
+  object (not a `$script` wrapper).
+- **Loops:** `type: "loop"` with `mode` `while` | `for` | `forEach` (design in `realignment/loops.md`).
+  No separate `forEach` node.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
   - Coverage floors live in `vitest.config.mts`; raise them toward 90%, never lower them to
