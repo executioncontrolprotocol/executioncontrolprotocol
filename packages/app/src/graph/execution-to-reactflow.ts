@@ -211,11 +211,17 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   }
 }
 
+function renderForEachFallback(node: { id: string; steps: Node[] }, ctx: EncodeContext): RenderSegment {
+  return renderNodes(node.steps, ctx)
+}
+
 function renderNode(node: Node, ctx: EncodeContext): RenderSegment {
   if (isStepNode(node)) return renderStep(node, ctx)
   if (node.type === "parallel") return renderParallel(node, ctx)
   if (node.type === "branch") return renderBranch(node, ctx)
-  return renderLoop(node, ctx)
+  if (node.type === "loop") return renderLoop(node, ctx)
+  if (node.type === "forEach") return renderForEachFallback(node, ctx)
+  return renderLoop(node as LoopNode, ctx)
 }
 
 function renderNodes(nodes: Node[], ctx: EncodeContext): RenderSegment {

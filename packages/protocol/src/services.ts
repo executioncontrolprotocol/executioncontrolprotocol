@@ -2,6 +2,7 @@ import type { ExecutionManifest } from "./manifest.js"
 import type {
   CapabilityEntry,
   ConfigObject,
+  ForEachPartialFile,
   RunDetail,
   RunFilter,
   RunRecord,
@@ -278,6 +279,21 @@ export interface RunStore {
   getManifest(id: string): Promise<ExecutionManifest | undefined>
   /** List runs, most recent first. */
   list(filter: RunFilter, limit: number): Promise<RunRecord[]>
+  /** Read partial results for an outer `forEach`. */
+  readForEachPartial?(runId: string, nodeId: string): Promise<ForEachPartialFile | undefined>
+  /** Atomically persist partial results for an outer `forEach`. */
+  writeForEachPartial?(runId: string, nodeId: string, file: ForEachPartialFile): Promise<void>
+}
+
+/**
+ * Injectable clock for run-time throttling (tests use a manual clock).
+ * @category Environment
+ */
+export interface RunClock {
+  /** Current time in milliseconds. */
+  now(): number
+  /** Sleep until `ms` elapses or `signal` aborts. */
+  sleep(ms: number, signal: AbortSignal): Promise<void>
 }
 
 /**

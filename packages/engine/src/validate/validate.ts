@@ -551,6 +551,7 @@ function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEn
         }
       }
       if (type === "loop" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
+      if (type === "forEach" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
       if (type === "parallel" && Array.isArray(node.branches)) {
         for (let line = 0; line < node.branches.length; line += 1) {
           const branch = node.branches[line]
@@ -649,6 +650,7 @@ async function checkCapabilityInputs(
         }
       }
       if (type === "loop" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
+      if (type === "forEach" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
       if (type === "parallel" && Array.isArray(node.branches)) {
         for (let line = 0; line < node.branches.length; line += 1) {
           const branch = node.branches[line]
@@ -786,6 +788,9 @@ async function walkSemantics(
     }
     if (type === "loop" && Array.isArray(node.steps)) {
       await walkSemantics(node.steps, `${path}/steps`, { inLoop: true }, issues, seen, inputNames, configs, options)
+    }
+    if (type === "forEach" && Array.isArray(node.steps)) {
+      await walkSemantics(node.steps, `${path}/steps`, state, issues, seen, inputNames, configs, options)
     }
     if (type === "parallel" && Array.isArray(node.branches)) {
       for (let line = 0; line < node.branches.length; line += 1) {

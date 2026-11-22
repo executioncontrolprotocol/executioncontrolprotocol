@@ -1,6 +1,7 @@
 import type {
   ConfigObject,
   ExecutionManifest,
+  ForEachPartialFile,
   RunDetail,
   RunEvent,
   RunFilter,
@@ -53,6 +54,7 @@ interface SavedRun {
   steps: StepRecord[]
   events: RunEvent[]
   state?: Record<string, unknown>
+  forEachPartials: Map<string, ForEachPartialFile>
 }
 
 /**
@@ -230,7 +232,7 @@ export class MemoryStorage implements StorageProvider {
     const emit = (change: StorageChange): void => this.emit(change)
     return {
       async create(record: RunRecord, manifest: ExecutionManifest): Promise<void> {
-        runs.set(record.id, { record, manifest, steps: [], events: [] })
+        runs.set(record.id, { record, manifest, steps: [], events: [], forEachPartials: new Map() })
         emit({ type: "run", id: record.id, action: "put" })
       },
       async update(id: string, patch: Partial<RunRecord>): Promise<void> {
@@ -240,9 +242,20 @@ export class MemoryStorage implements StorageProvider {
       },
       async writeStep(runId: string, step: StepRecord): Promise<void> {
         const saved = requireRun(runs, runId)
-        const index = saved.steps.findIndex((item) => item.nodeId === step.nodeId && item.round === step.round)
+        const index = saved.steps.findIndex(
+          (item) =>
+            item.nodeId === step.nodeId &&
+            item.round === step.round &&
+            sameItems(item.items, step.items),
+        )
         if (index >= 0) saved.steps[index] = step
         else saved.steps.push(step)
+      },
+      async readForEachPartial(runId: string, nodeId: string): Promise<ForEachPartialFile | undefined> {
+        return requireRun(runs, runId).forEachPartials.get(nodeId)
+      },
+      async writeForEachPartial(runId: string, nodeId: string, file: ForEachPartialFile): Promise<void> {
+        requireRun(runs, runId).forEachPartials.set(nodeId, file)
       },
       async writeState(runId: string, state: unknown): Promise<void> {
         const saved = requireRun(runs, runId)
@@ -277,6 +290,16 @@ export class MemoryStorage implements StorageProvider {
       },
     }
   }
+}
+
+function sameItems(left?: number[], right?: number[]): boolean {
+  const a = left ?? []
+  const b = right ?? []
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
 }
 
 function requireRun(runs: Map<string, SavedRun>, id: string): SavedRun {

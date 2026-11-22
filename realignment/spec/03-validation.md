@@ -48,7 +48,7 @@ candidate set: capability ids, property names in `accepts`/`returns`, state keys
 
 The host validates executions in two stages. Rules that keep errors precise (mandatory):
 
-1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds. This lives in the base execution schema shipped in `protocol`.
+1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else if forEach … else Step`. Never `oneOf`/`anyOf` across node kinds. This lives in the base execution schema shipped in `protocol`.
 2. **Base structure only at compile time:** the host compiles **one** base document validator (node shapes, marker object syntax via `$defs/value`, ids, `uses` as a string matching the capability-id pattern). It never inlines capability `accepts` and never enumerates installed capability ids in the schema. Unknown `uses` values are an engine check (`ECP_CAPABILITY_UNKNOWN` / `ECP_PLUGINS_MISSING`) with suggestions.
 3. **Per-step input against raw `accepts`:** for each step whose `uses` is installed, the host validates `input` against that capability's raw `accepts` schema (from the plugin's `ecp.schema.json`, loaded lazily). Markers are not wrapped into the schema. The engine walks `input`, records marker JSON Pointers, runs the raw validator, and **drops only errors explained by a marker**: errors at or under a marker position; `additionalProperties` naming a marker key; `anyOf`/`oneOf` failures where some branch's errors are all explained (matched by `schemaPath` prefix). Remaining input errors are `ECP_INPUT_INVALID`. Two rules that keep equivalence with today's wrapped path: (a) on an object schema without `additionalProperties: false`, an undeclared property accepts any value, so a `$script` there is allowed; (b) marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`) is still validated by the base schema's marker defs, independently of `accepts`.
 4. **`$script` positions:** resolve the raw subschema at the marker's path; the position is valid only if that subschema accepts a string (or is an open schema). Otherwise `ECP_SCRIPT_INVALID`. Setting both `source` and `path` on a `$script` object is a single `ECP_SCRIPT_INVALID` (not a schema oneOf failure). Inline `$expr` in `input` or `$script.params` → `ECP_EXPR_INVALID`.
@@ -86,6 +86,17 @@ pre-seeded as `maybe` (a later round sees an earlier round's output). After the 
 body produces are `maybe` (the loop can run zero rounds), unless they were already `definite`
 before it. `create` mode on any `as` inside a loop body → `ECP_COMMIT_CONFLICT` (a second round
 would fail); use `replace`/`append`/`merge`.
+
+**forEach:** `items` is checked in the entry environment and must be an array (`ECP_TYPE_MISMATCH`;
+an unknown schema is checked at run time). The body is checked from a copy of the entry
+environment plus `<as>` (the `items` element schema, `{}` when unknown) and `<as>Index`
+(integer), both `definite`; either key already in the environment → `ECP_COMMIT_CONFLICT`. The
+body runs once per item, so `create` is allowed in it (a nested `loop` still forbids it).
+`collect` is checked in the body's environment after the walk (a `maybe` producer →
+`ECP_REF_MAYBE_MISSING`). Nothing the body writes reaches the parent: after the node the
+environment gains only `<into>` (`definite`, an array of `collect`'s schema, or of that schema or
+`null` with `onError: "continue"`), plus `<into>Errors` (`[{ index, error }]`) with
+`"continue"`. Either already `definite` → `ECP_COMMIT_CONFLICT`.
 
 **Parallel:** check each line from a copy of the entry environment (no line sees another's
 output). Two lines producing the same key → `ECP_COMMIT_CONFLICT`. After: the union of all

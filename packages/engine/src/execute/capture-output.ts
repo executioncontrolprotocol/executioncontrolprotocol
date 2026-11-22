@@ -44,6 +44,8 @@ export interface CaptureStepOutputOptions {
   stepId: string
   /** Loop round, when the step runs in a loop: part of the artifact name so rounds don't overwrite each other. */
   round?: number
+  /** `forEach` item path for artifact names (`step-i2.4-r1-…`). */
+  items?: number[]
   /** When false, output is returned unchanged. */
   persist: boolean
   /** Run id for artifact writes. */
@@ -87,9 +89,23 @@ const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
   "text/plain": ".txt",
 }
 
-function baseArtifactName(stepId: string, round: number | undefined, outputPath: string, ref: FileRef): string {
+function stepArtifactPrefix(stepId: string, round: number | undefined, items?: number[]): string {
+  if (items !== undefined && items.length > 0) {
+    const itemPart = `i${items.join(".")}`
+    return round === undefined ? `${stepId}-${itemPart}` : `${stepId}-${itemPart}-r${round}`
+  }
+  return round === undefined ? stepId : `${stepId}-r${round}`
+}
+
+function baseArtifactName(
+  stepId: string,
+  round: number | undefined,
+  items: number[] | undefined,
+  outputPath: string,
+  ref: FileRef,
+): string {
   const pathPart = (outputPath.replace(/\//g, "-").replace(/^-/, "") || "output").slice(0, 80)
-  const step = round === undefined ? stepId : `${stepId}-r${round}`
+  const step = stepArtifactPrefix(stepId, round, items)
   let hint = sourceNameHint(ref)
   const ext = ref.mediaType ? EXTENSION_BY_MEDIA_TYPE[ref.mediaType.split(";")[0]!.trim().toLowerCase()] : undefined
   if (ext && !/\.[A-Za-z0-9]{1,10}$/.test(hint)) hint += ext
@@ -133,7 +149,10 @@ export async function captureStepOutput(
       captured.push({ path, source, artifact: ref.archive })
       continue
     }
-    const artifactName = uniqueArtifactName(baseArtifactName(options.stepId, options.round, path, ref), usedNames)
+    const artifactName = uniqueArtifactName(
+      baseArtifactName(options.stepId, options.round, options.items, path, ref),
+      usedNames,
+    )
     const result = await options.delegate({
       runId: options.runId,
       stepId: options.stepId,

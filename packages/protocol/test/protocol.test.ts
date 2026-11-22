@@ -8,6 +8,8 @@ import {
   ERROR_CATALOGUE,
   EXECUTION_SCHEMA,
   EXECUTION_VERSION,
+  MAX_FOREACH_CONCURRENCY,
+  MAX_FOREACH_ITEMS,
   PLUGIN_MANIFEST_VERSION,
   PROTOCOL_VERSION,
   catalogueEntry,
@@ -71,6 +73,19 @@ describe("error catalogue", () => {
 
   it("rejects an unknown code", () => {
     expect(isEcpErrorCode("ECP_NOT_A_CODE")).toBe(false)
+  })
+
+  it("exports forEach runtime caps", () => {
+    expect(MAX_FOREACH_CONCURRENCY).toBe(32)
+    expect(MAX_FOREACH_ITEMS).toBe(10000)
+  })
+
+  it("catalogues ECP_LIMIT_EXCEEDED as a runtime failure", () => {
+    expect(catalogueEntry("ECP_LIMIT_EXCEEDED")).toEqual({
+      httpStatus: null,
+      exitCode: 1,
+      kind: "runtime",
+    })
   })
 
   it("maps first-party plugins and ignores unknown ids", () => {

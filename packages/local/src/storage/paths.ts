@@ -76,9 +76,14 @@ export class HomePaths {
   }
 
   /** One step file. */
-  runStep(runId: string, nodeId: string, round?: number | null): string {
-    const name = round === undefined || round === null ? `${nodeId}.json` : `${nodeId}#${round}.json`
+  runStep(runId: string, nodeId: string, round?: number | null, items?: number[]): string {
+    const name = stepRecordFileName(nodeId, round, items)
     return path.join(this.runStepsDir(runId), name)
+  }
+
+  /** Partial `forEach` results file for one node. */
+  runForEachPartial(runId: string, nodeId: string): string {
+    return path.join(this.runDir(runId), "for-each", `${nodeId}.json`)
   }
 
   /** Artifacts directory. */
@@ -116,6 +121,17 @@ export class HomePaths {
  */
 export function stableStringify(value: unknown): string {
   return `${JSON.stringify(sortKeys(value), null, 2)}\n`
+}
+
+/**
+ * Step record filename (no directory).
+ * @category Storage
+ */
+export function stepRecordFileName(nodeId: string, round?: number | null, items?: number[]): string {
+  let base = nodeId
+  if (items !== undefined && items.length > 0) base += `#i${items.join(".")}`
+  if (round !== undefined && round !== null) base += `#${round}`
+  return `${base}.json`
 }
 
 function sortKeys(value: unknown): unknown {

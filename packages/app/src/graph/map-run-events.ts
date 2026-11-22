@@ -150,6 +150,12 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
         },
       }
     }
+    case "forEach.start":
+    case "forEach.item.start":
+    case "forEach.item.end":
+    case "forEach.item.error":
+    case "forEach.end":
+      return base
     case "run.interrupted":
       return { ...base, status: "interrupted", steps: cancelRunning(base.steps) }
     case "run.end": {
@@ -236,6 +242,12 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
         bus.emitLoopRound(nodeId, Math.max(0, rounds - 1), true)
       }
       return
+  case "forEach.start":
+  case "forEach.item.start":
+  case "forEach.item.end":
+  case "forEach.item.error":
+  case "forEach.end":
+    return
     case "run.interrupted":
       bus.emitDone({ ...lifecycle, outcome: "interrupted" })
       return

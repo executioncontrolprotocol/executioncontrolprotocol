@@ -87,6 +87,14 @@ export async function resolveValue(
   return output
 }
 
+/**
+ * Resolve a single `$ref` marker against state.
+ * @category Environment
+ */
+export async function resolveRefMarker(marker: Record<string, unknown>, state: Record<string, unknown>): Promise<unknown> {
+  return resolveRef(marker, state)
+}
+
 async function resolveRef(marker: Record<string, unknown>, state: Record<string, unknown>): Promise<unknown> {
   const ref = String(marker.$ref)
   const found = readRef(state, ref)
