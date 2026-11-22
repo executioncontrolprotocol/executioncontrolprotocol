@@ -2,6 +2,7 @@ import dagre from "@dagrejs/dagre"
 import type {
   ReactFlowDocument,
   ReactFlowEncodeOptions,
+  ReactFlowForEachData,
   ReactFlowIoData,
   ReactFlowNode,
   ReactFlowStepData,
@@ -16,9 +17,9 @@ const HEADER_ESTIMATE = 72
 export const FRAME_PADDING = { x: 20, y: 16, label: 28 }
 
 function estimateNodeHeight(node: ReactFlowNode, fallback: number): number {
-  const data = node.data as ReactFlowStepData | ReactFlowIoData
+  const data = node.data as ReactFlowStepData | ReactFlowIoData | ReactFlowForEachData
   const rows =
-    node.type === "ecp-step"
+    node.type === "ecp-step" || node.type === "ecp-foreach"
       ? Math.max(data.inputs.length, 1) + Math.max(data.outputs.length, 1)
       : Math.max(data.inputs.length + data.outputs.length, 1)
   return Math.max(fallback, HEADER_ESTIMATE + rows * PORT_ROW_ESTIMATE)

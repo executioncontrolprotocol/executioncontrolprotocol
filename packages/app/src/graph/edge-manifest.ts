@@ -192,7 +192,7 @@ function collectStepNodes(nodes: Node[], out: StepNode[]): void {
       for (const line of node.branches) collectStepNodes(line, out)
     } else if (node.type === "branch") {
       for (const arm of node.branches) collectStepNodes(arm.steps, out)
-    } else if (node.type === "loop") {
+    } else if (node.type === "loop" || node.type === "forEach") {
       collectStepNodes(node.steps, out)
     }
   }

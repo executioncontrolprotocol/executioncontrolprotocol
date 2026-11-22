@@ -18,6 +18,8 @@ export interface RunGraphStep {
   status: ReactFlowStepStatus
   /** Loop round of the latest status, when the step runs inside a loop. */
   round?: number
+  /** forEach item index of the latest status. */
+  item?: number
   /** Failure message, when the step failed. */
   message?: string
 }
@@ -34,6 +36,19 @@ export interface RunGraphLoop {
 }
 
 /**
+ * forEach progress on the graph.
+ * @category App
+ */
+export interface RunGraphForEach {
+  /** Total items from `forEach.start`. */
+  count: number
+  /** Items finished (`forEach.item.end`). */
+  done: number
+  /** Failed items from `forEach.end`. */
+  failed: number
+}
+
+/**
  * Run status as the graph shows it, folded from run events.
  * @category App
  */
@@ -46,6 +61,8 @@ export interface RunGraphState {
   arms: Record<string, number | null>
   /** Loop id to its progress. */
   loops: Record<string, RunGraphLoop>
+  /** forEach id to its progress. */
+  forEaches: Record<string, RunGraphForEach>
   /** Last `seq` applied. */
   lastSeq: number
 }
@@ -55,7 +72,7 @@ export interface RunGraphState {
  * @category App
  */
 export function createRunGraphState(): RunGraphState {
-  return { status: "idle", steps: {}, arms: {}, loops: {}, lastSeq: 0 }
+  return { status: "idle", steps: {}, arms: {}, loops: {}, forEaches: {}, lastSeq: 0 }
 }
 
 function stringField(data: Record<string, unknown>, key: string): string | undefined {
@@ -65,6 +82,16 @@ function stringField(data: Record<string, unknown>, key: string): string | undef
 
 function roundField(data: Record<string, unknown>): number | undefined {
   const value = data.round
+  return typeof value === "number" ? value : undefined
+}
+
+function itemField(data: Record<string, unknown>): number | undefined {
+  const value = data.item ?? data.index
+  return typeof value === "number" ? value : undefined
+}
+
+function countField(data: Record<string, unknown>): number | undefined {
+  const value = data.count
   return typeof value === "number" ? value : undefined
 }
 
@@ -83,11 +110,13 @@ function withStep(
   nodeId: string,
   status: ReactFlowStepStatus,
   round: number | undefined,
+  item: number | undefined,
   message?: string,
 ): RunGraphState {
   const step: RunGraphStep = {
     status,
     ...(round !== undefined ? { round } : {}),
+    ...(item !== undefined ? { item } : {}),
     ...(message ? { message } : {}),
   }
   return { ...state, steps: { ...state.steps, [nodeId]: step } }
@@ -111,6 +140,7 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
   const data = event.data ?? {}
   const nodeId = stringField(data, "nodeId")
   const round = roundField(data)
+  const item = itemField(data)
   const base = { ...state, lastSeq: Math.max(state.lastSeq, event.seq) }
 
   switch (event.type) {
@@ -119,16 +149,16 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
     case "run.resume":
       return { ...base, status: "running" }
     case "step.start":
-      return nodeId ? withStep(base, nodeId, "running", round) : base
+      return nodeId ? withStep(base, nodeId, "running", round, item) : base
     case "step.skip":
-      return nodeId ? withStep(base, nodeId, "skipped", round) : base
+      return nodeId ? withStep(base, nodeId, "skipped", round, item) : base
     case "step.end":
-      return nodeId ? withStep(base, nodeId, "completed", round) : base
+      return nodeId ? withStep(base, nodeId, "completed", round, item) : base
     case "step.error": {
       if (!nodeId) return base
       const issue = issueField(data)
       const status = issue?.code === CANCELLED_CODE ? "cancelled" : "failed"
-      return withStep(base, nodeId, status, round, issue?.message)
+      return withStep(base, nodeId, status, round, item, issue?.message)
     }
     case "branch.select": {
       if (!nodeId) return base
@@ -150,12 +180,35 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
         },
       }
     }
-    case "forEach.start":
+    case "forEach.start": {
+      if (!nodeId) return base
+      const count = countField(data) ?? 0
+      return {
+        ...base,
+        forEaches: { ...base.forEaches, [nodeId]: { count, done: 0, failed: 0 } },
+      }
+    }
+    case "forEach.item.end": {
+      if (!nodeId) return base
+      const current = base.forEaches[nodeId] ?? { count: 0, done: 0, failed: 0 }
+      return {
+        ...base,
+        forEaches: { ...base.forEaches, [nodeId]: { ...current, done: current.done + 1 } },
+      }
+    }
     case "forEach.item.start":
-    case "forEach.item.end":
     case "forEach.item.error":
-    case "forEach.end":
       return base
+    case "forEach.end": {
+      if (!nodeId) return base
+      const current = base.forEaches[nodeId] ?? { count: 0, done: 0, failed: 0 }
+      const failed = typeof data.failed === "number" ? data.failed : current.failed
+      const count = countField(data) ?? current.count
+      return {
+        ...base,
+        forEaches: { ...base.forEaches, [nodeId]: { count, done: current.done, failed } },
+      }
+    }
     case "run.interrupted":
       return { ...base, status: "interrupted", steps: cancelRunning(base.steps) }
     case "run.end": {
@@ -192,6 +245,7 @@ export function armRunState(
     return state.arms[route.structureId] === route.armIndex ? "taken" : "skipped"
   }
   if (route.route === "loop") return route.structureId in state.loops ? "taken" : "idle"
+  if (route.route === "forEach") return route.structureId in state.forEaches ? "taken" : "idle"
   return "idle"
 }
 
@@ -204,21 +258,23 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
   const data = event.data ?? {}
   const nodeId = stringField(data, "nodeId")
   const round = roundField(data)
+  const item = itemField(data)
   const lifecycle = runId ? { runId } : {}
   const roundExtra = round !== undefined ? { round } : {}
+  const itemExtra = item !== undefined ? { item } : {}
 
   switch (event.type) {
     case "run.start":
       bus.emitReset(lifecycle)
       return
     case "step.start":
-      if (nodeId) bus.emitStepStatus(nodeId, "running", roundExtra)
+      if (nodeId) bus.emitStepStatus(nodeId, "running", { ...roundExtra, ...itemExtra })
       return
     case "step.skip":
-      if (nodeId) bus.emitStepStatus(nodeId, "skipped", roundExtra)
+      if (nodeId) bus.emitStepStatus(nodeId, "skipped", { ...roundExtra, ...itemExtra })
       return
     case "step.end":
-      if (nodeId) bus.emitStepStatus(nodeId, "completed", roundExtra)
+      if (nodeId) bus.emitStepStatus(nodeId, "completed", { ...roundExtra, ...itemExtra })
       return
     case "step.error": {
       if (!nodeId) return
@@ -226,6 +282,7 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
       const status = issue?.code === CANCELLED_CODE ? "cancelled" : "failed"
       bus.emitStepStatus(nodeId, status, {
         ...roundExtra,
+        ...itemExtra,
         ...(issue?.message ? { message: issue.message } : {}),
       })
       return
@@ -242,12 +299,31 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
         bus.emitLoopRound(nodeId, Math.max(0, rounds - 1), true)
       }
       return
-  case "forEach.start":
-  case "forEach.item.start":
-  case "forEach.item.end":
-  case "forEach.item.error":
-  case "forEach.end":
-    return
+    case "forEach.start": {
+      if (!nodeId) return
+      const count = countField(data) ?? 0
+      bus.emitForEachProgress(nodeId, 0, count)
+      return
+    }
+    case "forEach.item.end": {
+      if (!nodeId) return
+      const current = bus.currentForEach(nodeId)
+      const count = current?.count ?? 0
+      const done = (current?.done ?? 0) + 1
+      bus.emitForEachProgress(nodeId, done, count, current?.failed)
+      return
+    }
+    case "forEach.end": {
+      if (!nodeId) return
+      const count = countField(data) ?? 0
+      const failed = typeof data.failed === "number" ? data.failed : 0
+      const current = bus.currentForEach(nodeId)
+      bus.emitForEachProgress(nodeId, current?.done ?? count, count, failed)
+      return
+    }
+    case "forEach.item.start":
+    case "forEach.item.error":
+      return
     case "run.interrupted":
       bus.emitDone({ ...lifecycle, outcome: "interrupted" })
       return

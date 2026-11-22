@@ -12,6 +12,8 @@ export interface EcpStepNodeData extends ReactFlowStepData {
   status?: ReactFlowStepStatus
   /** Loop round of the status, when inside a loop. */
   round?: number
+  /** forEach item index of the status. */
+  item?: number
   /** Failure message, or the first validation issue message. */
   errorMessage?: string
   /** True when validation reported an error on this node. */
@@ -70,6 +72,9 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
           ) : null}
           {step.round !== undefined ? (
             <div className="mt-1 font-mono text-[9px] text-on-surface-variant">round {step.round}</div>
+          ) : null}
+          {step.item !== undefined ? (
+            <div className="mt-1 font-mono text-[9px] text-on-surface-variant">item {step.item}</div>
           ) : null}
         </div>
         {showError ? (
