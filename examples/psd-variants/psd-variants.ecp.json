@@ -1,0 +1,486 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "psd-variants",
+    "label": "Build banner variants from a CSV and render every size",
+    "description": "One PSD template, a CSV of variants (title, subtitle, background file name) and the background files. Checks the CSV against the files, publishes the template and backgrounds, plans the artboard layout once, then for each row (forEach, two at a time): swaps the background and texts in the template, reflows it into the new artboard sizes with a UXP script, checks the result, and renders one JPEG per new artboard. Returns every rendition, row by row.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "psdPath": { "type": "string", "description": "The PSD template on this machine." },
+        "csvPath": { "type": "string", "description": "The variants CSV: columns title, subtitle, background (a background file name)." },
+        "backgroundPaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Background image files on this machine; rows refer to them by file name."
+        },
+        "layers": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "subtitle": { "type": "string" },
+            "background": { "type": "string" }
+          },
+          "description": "Template layer names for the title, subtitle and background. Defaults: Headline, Subhead, Background."
+        },
+        "sizes": {
+          "type": "array",
+          "description": "Artboards to create, each { name, width, height, rules? } in pixels (see psd-artboards-renditions).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "width": { "type": "integer", "minimum": 1 },
+              "height": { "type": "integer", "minimum": 1 },
+              "rules": { "type": "object" }
+            },
+            "required": ["name", "width", "height"]
+          }
+        },
+        "rules": { "type": "object", "description": "Layout overrides for plan-layout.js." }
+      },
+      "required": ["psdPath", "csvPath", "backgroundPaths"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "renditions": {
+          "type": "object",
+          "description": "files: one entry per rendition { row, title, background, name, file }, row by row and artboard by artboard (captured into the run)."
+        },
+        "variants": {
+          "type": "array",
+          "description": "One entry per row: { title, background, ok, problems, renditions }."
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "parse",
+      "label": "Read the variants CSV",
+      "uses": "@executioncontrolprotocol/core.parse-csv",
+      "input": { "file": { "kind": "file", "path": { "$ref": "state.csvPath" } } },
+      "as": "table"
+    },
+    {
+      "id": "check",
+      "label": "Match every row to a background file",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "table": { "type": "object" },
+          "backgroundPaths": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["table", "backgroundPaths"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "rows": { "type": "array", "items": { "type": "object" } },
+          "backgrounds": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "name": { "type": "string" }, "path": { "type": "string" } },
+              "required": ["name", "path"]
+            }
+          }
+        },
+        "required": ["rows", "backgrounds"],
+        "additionalProperties": false
+      },
+      "input": {
+        "table": { "$ref": "state.table" },
+        "backgroundPaths": { "$ref": "state.backgroundPaths" }
+      },
+      "script": { "$script": { "lang": "js", "path": "scripts/check-variants.js" } },
+      "as": "checked"
+    },
+    {
+      "id": "upload",
+      "label": "Publish the template so Photoshop can read it",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": { "kind": "file", "path": { "$ref": "state.psdPath" } },
+        "contentType": "image/vnd.adobe.photoshop"
+      },
+      "as": "upload"
+    },
+    {
+      "type": "forEach",
+      "id": "upload-backgrounds",
+      "label": "Publish each background",
+      "items": { "$ref": "state.checked.backgrounds" },
+      "as": "background",
+      "concurrency": 3,
+      "steps": [
+        {
+          "id": "upload-background",
+          "label": "Publish the background",
+          "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+          "config": "azure-blob-storage/default",
+          "input": { "file": { "kind": "file", "path": { "$ref": "state.background.path" } } },
+          "as": "published"
+        },
+        {
+          "id": "name-background",
+          "label": "Keep its file name",
+          "uses": "@executioncontrolprotocol/jsonata.transform",
+          "accepts": {
+            "type": "object",
+            "properties": { "name": { "type": "string" }, "published": { "type": "object" } },
+            "required": ["name", "published"],
+            "additionalProperties": false
+          },
+          "returns": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "blobName": { "type": "string" },
+              "file": { "type": "object" }
+            },
+            "required": ["name", "blobName", "file"],
+            "additionalProperties": false
+          },
+          "expression": "{ 'name': name, 'blobName': published.blobName, 'file': published.file }",
+          "input": {
+            "name": { "$ref": "state.background.name" },
+            "published": { "$ref": "state.published" }
+          },
+          "as": "named"
+        }
+      ],
+      "collect": { "$ref": "state.named" },
+      "into": "backgrounds"
+    },
+    {
+      "id": "source-manifest",
+      "label": "Read the template's layers",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "config": "adobe-firefly-services/default",
+      "input": { "image": { "$ref": "state.upload.file" } },
+      "as": "source"
+    },
+    {
+      "id": "edits",
+      "label": "List each variant's Photoshop edits",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "rows": { "type": "array" },
+          "uploaded": { "type": "array" },
+          "manifest": { "type": "object" },
+          "layers": { "type": "object" }
+        },
+        "required": ["rows", "uploaded", "manifest", "layers"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "subtitle": { "type": "string" },
+                "background": { "type": "string" },
+                "edits": { "type": "array" }
+              },
+              "required": ["title", "subtitle", "background", "edits"]
+            }
+          }
+        },
+        "required": ["rows"],
+        "additionalProperties": false
+      },
+      "input": {
+        "rows": { "$ref": "state.checked.rows" },
+        "uploaded": { "$ref": "state.backgrounds" },
+        "manifest": { "$ref": "state.source" },
+        "layers": {
+          "$ref": "state.layers",
+          "optional": true,
+          "fallback": { "title": "Headline", "subtitle": "Subhead", "background": "Background" }
+        }
+      },
+      "script": { "$script": { "lang": "js", "path": "scripts/variant-edits.js" } },
+      "as": "prepared"
+    },
+    {
+      "id": "plan",
+      "label": "Plan each artboard's layout (once, for every variant)",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "manifest": { "type": "object" },
+          "sizes": { "type": "array" },
+          "rules": { "type": "object" }
+        },
+        "required": ["manifest", "sizes", "rules"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "object" },
+          "artboards": { "type": "array" },
+          "outputs": { "type": "array" },
+          "debug": { "type": "boolean" }
+        },
+        "required": ["source", "artboards", "outputs"],
+        "additionalProperties": false
+      },
+      "input": {
+        "manifest": { "$ref": "state.source" },
+        "sizes": {
+          "$ref": "state.sizes",
+          "optional": true,
+          "fallback": [
+            { "name": "Square 1080", "width": 1080, "height": 1080, "rules": { "textScale": 1.15 } },
+            { "name": "Story 1080x1920", "width": 1080, "height": 1920, "rules": { "anchorY": 0.12, "textScale": 1.35 } },
+            { "name": "Landscape 1920x1080", "width": 1920, "height": 1080 },
+            { "name": "Rectangle 300x250", "width": 300, "height": 250, "rules": { "textScale": 1.8, "margin": 0.12 } }
+          ]
+        },
+        "rules": { "$ref": "state.rules", "optional": true, "fallback": {} }
+      },
+      "script": { "$script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/plan-layout.js" } },
+      "as": "plan"
+    },
+    {
+      "type": "forEach",
+      "id": "build-variants",
+      "label": "Build and render each variant",
+      "items": { "$ref": "state.prepared.rows" },
+      "as": "variant",
+      "concurrency": 2,
+      "throttle": { "starts": 2, "perSeconds": 60 },
+      "onError": "fail",
+      "steps": [
+        {
+          "id": "composite",
+          "label": "Swap the background and texts",
+          "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
+          "config": "adobe-firefly-services/default",
+          "input": {
+            "image": { "$ref": "state.upload.file" },
+            "edits": { "layers": { "$ref": "state.variant.edits" } },
+            "outputs": [{ "destination": { "validityPeriod": 86400 }, "mediaType": "image/vnd.adobe.photoshop" }]
+          },
+          "as": "composite"
+        },
+        {
+          "id": "reflow",
+          "label": "Build the artboards in Photoshop",
+          "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+          "config": "adobe-firefly-services/default",
+          "input": {
+            "image": { "$ref": "state.composite.psd" },
+            "options": {
+              "uxp": {
+                "source": {
+                  "content": {
+                    "$script": {
+                      "lang": "js",
+                      "path": "../psd-artboards-renditions/scripts/reflow-artboards.uxp.js",
+                      "params": { "plan": { "$ref": "state.plan" } }
+                    }
+                  }
+                }
+              }
+            },
+            "outputs": { "$ref": "state.plan.outputs" }
+          },
+          "as": "reflow"
+        },
+        {
+          "id": "inspect",
+          "label": "Read the variant's layout",
+          "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+          "config": "adobe-firefly-services/default",
+          "input": { "image": { "$ref": "state.reflow.psd" } },
+          "as": "result"
+        },
+        {
+          "id": "structure",
+          "label": "Check the variant against the plan",
+          "uses": "@executioncontrolprotocol/core.transform",
+          "accepts": {
+            "type": "object",
+            "properties": { "manifest": { "type": "object" }, "plan": { "type": "object" } },
+            "required": ["manifest", "plan"],
+            "additionalProperties": false
+          },
+          "returns": {
+            "type": "object",
+            "properties": {
+              "ok": { "type": "boolean" },
+              "errors": { "type": "array", "items": { "type": "string" } },
+              "problems": { "type": "array", "items": { "type": "string" } },
+              "artboards": { "type": "array" },
+              "layerTypes": { "type": "array" },
+              "notes": { "type": "string" }
+            },
+            "required": ["ok", "errors", "problems", "artboards"],
+            "additionalProperties": false
+          },
+          "input": { "manifest": { "$ref": "state.result" }, "plan": { "$ref": "state.plan" } },
+          "script": { "$script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/check-structure.js" } },
+          "as": "structure"
+        },
+        {
+          "id": "artboards",
+          "label": "Find the new artboards and list one rendition each",
+          "uses": "@executioncontrolprotocol/jsonata.transform",
+          "accepts": {
+            "type": "object",
+            "properties": { "manifest": { "type": "object" }, "plan": { "type": "object" } },
+            "required": ["manifest", "plan"],
+            "additionalProperties": false
+          },
+          "returns": {
+            "type": "object",
+            "properties": {
+              "names": { "type": "array", "items": { "type": "string" } },
+              "outputs": { "type": "array" }
+            },
+            "required": ["names", "outputs"],
+            "additionalProperties": false
+          },
+          "expression": "( $sizes := plan.artboards.name; $boards := manifest.layers[type = 'artboard' and name in $sizes]; { 'names': [$boards.name], 'outputs': [$boards.{ 'destination': { 'validityPeriod': 86400 }, 'mediaType': 'image/jpeg', 'quality': 'high', 'layers': [{ 'id': id }], 'cropMode': 'layer_bounds' }] } )",
+          "input": { "manifest": { "$ref": "state.result" }, "plan": { "$ref": "state.plan" } },
+          "as": "artboards"
+        },
+        {
+          "id": "render",
+          "label": "Render each new artboard as a JPEG",
+          "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
+          "config": "adobe-firefly-services/default",
+          "input": {
+            "image": { "$ref": "state.reflow.psd" },
+            "outputs": { "$ref": "state.artboards.outputs" }
+          },
+          "as": "rendered"
+        },
+        {
+          "id": "summary",
+          "label": "Name the variant's renditions",
+          "uses": "@executioncontrolprotocol/jsonata.transform",
+          "accepts": {
+            "type": "object",
+            "properties": {
+              "variant": { "type": "object" },
+              "structure": { "type": "object" },
+              "names": { "type": "array", "items": { "type": "string" } },
+              "rendered": { "type": "object" }
+            },
+            "required": ["variant", "structure", "names", "rendered"],
+            "additionalProperties": false
+          },
+          "returns": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "background": { "type": "string" },
+              "ok": { "type": "boolean" },
+              "problems": { "type": "array", "items": { "type": "string" } },
+              "renditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "name": { "type": "string" }, "file": { "type": "object" } },
+                  "required": ["name", "file"]
+                }
+              }
+            },
+            "required": ["title", "background", "ok", "problems", "renditions"],
+            "additionalProperties": false
+          },
+          "expression": "{ 'title': variant.title, 'background': variant.background, 'ok': structure.ok, 'problems': [structure.errors, structure.problems], 'renditions': [$map(names, function($name, $i) { { 'name': $name, 'file': $lookup(rendered, $i = 0 ? 'jpeg' : 'jpeg' & $string($i + 1)) } })] }",
+          "input": {
+            "variant": { "$ref": "state.variant" },
+            "structure": { "$ref": "state.structure" },
+            "names": { "$ref": "state.artboards.names" },
+            "rendered": { "$ref": "state.rendered" }
+          },
+          "as": "summary"
+        }
+      ],
+      "collect": { "$ref": "state.summary" },
+      "into": "variants"
+    },
+    {
+      "id": "cleanup-upload",
+      "label": "Remove the published template",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
+      "config": "azure-blob-storage/default",
+      "input": { "blobName": { "$ref": "state.upload.blobName" }, "ifMissing": "ignore" },
+      "as": "removedTemplate"
+    },
+    {
+      "type": "forEach",
+      "id": "cleanup-backgrounds",
+      "label": "Remove the published backgrounds",
+      "items": { "$ref": "state.backgrounds" },
+      "as": "published",
+      "concurrency": 3,
+      "steps": [
+        {
+          "id": "remove-background",
+          "label": "Remove the background",
+          "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
+          "config": "azure-blob-storage/default",
+          "input": { "blobName": { "$ref": "state.published.blobName" }, "ifMissing": "ignore" },
+          "as": "removed"
+        }
+      ],
+      "collect": { "$ref": "state.removed.deleted" },
+      "into": "removedBackgrounds"
+    },
+    {
+      "id": "flatten",
+      "label": "List every rendition",
+      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "accepts": {
+        "type": "object",
+        "properties": { "variants": { "type": "array" } },
+        "required": ["variants"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": { "type": "integer" },
+                "title": { "type": "string" },
+                "background": { "type": "string" },
+                "name": { "type": "string" },
+                "file": { "type": "object" }
+              },
+              "required": ["row", "title", "background", "name", "file"]
+            }
+          }
+        },
+        "required": ["files"],
+        "additionalProperties": false
+      },
+      "expression": "{ 'files': $reduce($map(variants, function($v, $row) { [$v.renditions.{ 'row': $row + 1, 'title': $v.title, 'background': $v.background, 'name': name, 'file': file }] }), $append, []) }",
+      "input": { "variants": { "$ref": "state.variants" } },
+      "as": "renditions"
+    }
+  ]
+}

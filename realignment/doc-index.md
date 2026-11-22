@@ -20,7 +20,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Package READMEs | 10 |
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
-| Examples | 14 |
+| Examples | 15 |
 | Other | 27 |
 
 ## All files
@@ -115,6 +115,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/psd-artboards/README.md` | Examples | current |
 | `examples/psd-generate-background/README.md` | Examples | current |
 | `examples/psd-layers/README.md` | Examples | current |
+| `examples/psd-variants/README.md` | Examples | current |
 | `examples/transform-jsonata/README.md` | Examples | current |
 | `examples/transform/README.md` | Examples | current |
 | `examples/weekly-brief/README.md` | Examples | current |
