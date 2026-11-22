@@ -48,7 +48,6 @@
     "topicSeparator": " ",
     "commands": "./dist/commands",
     "scope": "executioncontrolprotocol",
-    "pluginPrefix": "plugin",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-not-found"

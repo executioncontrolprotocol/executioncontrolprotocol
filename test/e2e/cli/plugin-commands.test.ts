@@ -46,13 +46,13 @@ describe("ecp plugins commands", () => {
     expect(againEnv.data.alreadyInstalled).toBe(true)
 
     const uninstall = await runEcp(
-      ["plugins", "uninstall", "@executioncontrolprotocol/plugin-minimal-fixture", "--json"],
+      ["plugins", "uninstall", "@executioncontrolprotocol/minimal-fixture", "--json"],
       { env },
     )
     expect(uninstall.code).toBe(0)
 
     const uninstallTwice = await runEcp(
-      ["plugins", "uninstall", "@executioncontrolprotocol/plugin-minimal-fixture", "--json"],
+      ["plugins", "uninstall", "@executioncontrolprotocol/minimal-fixture", "--json"],
       { env },
     )
     expect(uninstallTwice.code).toBe(2)
@@ -88,7 +88,7 @@ describe("ecp plugins commands", () => {
     const reset = await runEcp(["plugins", "reset", "--json"], { env, timeoutMs: 60_000 })
     expect(reset.code).toBe(0)
     const envBody = parseJsonStdout<{ data: { removed: Array<{ package: string }> } }>(reset.stdout)
-    expect(envBody.data.removed.some((row) => row.package.includes("plugin-test"))).toBe(true)
+    expect(envBody.data.removed.some((row) => row.package === "@executioncontrolprotocol/test")).toBe(true)
   })
 })
 

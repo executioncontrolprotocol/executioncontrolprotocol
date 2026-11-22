@@ -16,11 +16,11 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "b307f34a861c6be57946e30c416d1d1e3c3638764c8349d15176cbd961c6aea6",
+  "hash": "012aadb4dee98de973c9f24a24d15e2f6084d93cbd26e07270a39a48e7d812b3",
   "plugin": {
     "description": "Text generation with Claude through the Anthropic Messages API. The config object holds the API key (as a secret reference), the model and an optional base URL for proxies.",
     "id": "@executioncontrolprotocol/anthropic",
-    "package": "@executioncontrolprotocol/plugin-anthropic",
+    "package": "@executioncontrolprotocol/anthropic",
     "summary": "Claude models from Anthropic.",
     "version": "0.60.0"
   },

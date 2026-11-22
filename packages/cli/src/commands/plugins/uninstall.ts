@@ -10,7 +10,7 @@ import { writeEnvelope } from "../../lib/output.js"
 
 const BUNDLED_CORE_PACKAGES = new Set([
   "@executioncontrolprotocol/core",
-  "@executioncontrolprotocol/plugin-core",
+  "@executioncontrolprotocol/core",
 ])
 
 /**
@@ -85,7 +85,7 @@ export default class PluginsUninstall extends Command {
     }
     const logLevel = npmLogLevel(flags)
     const plugins = await createOclifPlugins(this.config, logLevel)
-    const unfriendly = plugins.unfriendlyName(expanded) ?? expanded
+    const unfriendly = expanded
     const present = await plugins.hasPlugin(unfriendly)
     if (!present) {
       writeEnvelope(

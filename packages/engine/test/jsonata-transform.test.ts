@@ -8,7 +8,7 @@ import { HostSchemaSet, runExecution, validateExecution } from "../src/index.js"
 const jsonataCapability: CapabilityEntry = {
   id: "@executioncontrolprotocol/jsonata.transform",
   plugin: "@executioncontrolprotocol/jsonata",
-  package: "@executioncontrolprotocol/plugin-jsonata",
+  package: "@executioncontrolprotocol/jsonata",
   pluginVersion: "0.60.0",
   summary: "JSONata transform",
   description: "",

@@ -180,7 +180,7 @@ describe("FixturePluginAdapter", () => {
       version: "2.0",
       plugin: {
         id: "@executioncontrolprotocol/test",
-        package: "@executioncontrolprotocol/plugin-test",
+        package: "@executioncontrolprotocol/test",
         version: "fixture.1",
         summary: "Test",
         description: "Test plugin",

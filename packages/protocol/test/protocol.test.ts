@@ -12,6 +12,7 @@ import {
   PROTOCOL_VERSION,
   catalogueEntry,
   firstPartyInstallCommand,
+  FIRST_PARTY_PLUGINS,
   firstPartyPlugin,
   isEcpErrorCode,
   pluginIdFromCapability,
@@ -84,6 +85,21 @@ describe("error catalogue", () => {
     expect(firstPartyInstallCommand("@executioncontrolprotocol/core")).toBeUndefined()
     expect(firstPartyPlugin("@executioncontrolprotocol/core")?.bundled).toBe(true)
     expect(firstPartyInstallCommand("@other/plugin")).toBeUndefined()
+  })
+
+  it("gives every first-party plugin one name: package name equals plugin id", () => {
+    for (const [id, entry] of Object.entries(FIRST_PARTY_PLUGINS)) {
+      expect(entry.packageName).toBe(id)
+      expect(id).toBe(`@executioncontrolprotocol/${entry.short}`)
+    }
+    const pluginsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../plugins")
+    for (const dir of readdirSync(pluginsDir)) {
+      const manifest = JSON.parse(readFileSync(path.join(pluginsDir, dir, "ecp.manifest.json"), "utf8")) as {
+        plugin: { id: string; package: string }
+      }
+      const pkg = JSON.parse(readFileSync(path.join(pluginsDir, dir, "package.json"), "utf8")) as { name: string }
+      expect([manifest.plugin.id, manifest.plugin.package]).toEqual([pkg.name, pkg.name])
+    }
   })
 })
 
@@ -208,7 +224,7 @@ describe("JSON Schemas", () => {
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/test",
-          package: "@executioncontrolprotocol/plugin-test",
+          package: "@executioncontrolprotocol/test",
           version: "1.0.0",
           summary: "Test.",
           description: "Test plugin.",

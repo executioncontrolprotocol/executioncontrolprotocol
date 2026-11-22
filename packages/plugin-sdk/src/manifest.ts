@@ -122,6 +122,13 @@ export async function buildPluginSchemaDocument(
 export async function buildPluginManifest(options: BuildManifestOptions): Promise<PluginManifest> {
   const { definition, packageJson } = options
   assertPackageJson(packageJson)
+  // One name per plugin: the host refuses to load a plugin whose id isn't its package name, so fail the build here.
+  if (definition.id !== packageJson.name) {
+    throw new PluginDefinitionError(
+      "ECP_PLUGIN_MANIFEST",
+      `Plugin id ${definition.id} does not match package.json name ${packageJson.name}; a plugin's id must be its npm package name.`,
+    )
+  }
 
   const schemaDocument =
     options.schemaDocument ??

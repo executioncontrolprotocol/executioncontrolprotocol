@@ -18,7 +18,7 @@ export default class PluginsInspect extends Command {
 
   static override examples = [
     {
-      description: "Prints where @executioncontrolprotocol/plugin-test is installed (friendly name: test).",
+      description: "Prints where @executioncontrolprotocol/test is installed (friendly name: test).",
       command: "<%= config.bin %> plugins inspect test",
     },
   ]

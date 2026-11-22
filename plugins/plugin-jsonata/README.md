@@ -1,4 +1,4 @@
-# @executioncontrolprotocol/plugin-jsonata
+# @executioncontrolprotocol/jsonata
 
 Optional first-party plugin. Supplies `@executioncontrolprotocol/jsonata.transform` for step-level
 `expression` transforms using [JSONata](https://jsonata.org/). Not bundled with the host; install

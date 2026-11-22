@@ -83,7 +83,7 @@ export async function createIsolatedOsDataDir(env: NodeJS.ProcessEnv): Promise<{
  * Write an oclif-shaped plugins package.json that links a plugin root.
  * @category Test
  */
-export function seedPluginLink(dataDir: string, pluginRoot: string, name = "@executioncontrolprotocol/plugin-test"): void {
+export function seedPluginLink(dataDir: string, pluginRoot: string, name = "@executioncontrolprotocol/test"): void {
   mkdirSync(path.join(dataDir, "node_modules"), { recursive: true })
   writeFileSync(
     path.join(dataDir, "package.json"),

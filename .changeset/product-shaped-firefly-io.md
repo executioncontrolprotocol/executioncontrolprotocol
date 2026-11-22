@@ -1,5 +1,5 @@
 ---
-"@executioncontrolprotocol/plugin-adobe-firefly-services": minor
+"@executioncontrolprotocol/adobe-firefly-services": minor
 "@executioncontrolprotocol/engine": patch
 ---
 

@@ -179,7 +179,7 @@ export async function loadPluginPackage(
         schemaDocument,
       })
       const issues = [
-        ...validateManifestShape(manifest, packageVersion),
+        ...validateManifestShape(manifest, packageVersion, packageName),
         ...validateSchemaContents(schemaDocument, manifest),
       ]
       if (issues.length > 0) return { ok: false, packageName, issues }
@@ -234,7 +234,7 @@ export async function loadPluginPackage(
   const versionIssue = rejectLegacyManifest(rawManifest)
   if (versionIssue) return { ok: false, packageName, issues: [versionIssue] }
 
-  const manifestIssues = validateManifestShape(rawManifest, packageVersion)
+  const manifestIssues = validateManifestShape(rawManifest, packageVersion, packageName)
   if (manifestIssues.length > 0) {
     return {
       ok: false,
@@ -278,7 +278,7 @@ function rejectLegacyManifest(raw: unknown): ValidationIssue | undefined {
   }
 }
 
-function validateManifestShape(raw: unknown, packageVersion: string): ValidationIssue[] {
+function validateManifestShape(raw: unknown, packageVersion: string, packageName: string): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const ok = validateManifestDocument(raw)
   if (!ok) {
@@ -309,6 +309,16 @@ function validateManifestShape(raw: unknown, packageVersion: string): Validation
       severity: "error",
       message: `plugin.version ${manifest.plugin.version} does not match package.json version ${packageVersion}.`,
       path: "/plugin/version",
+    })
+  }
+  // One name per plugin: its id is its npm package name (spec 08).
+  if (manifest.plugin.id !== packageName) {
+    issues.push({
+      code: "ECP_PLUGIN_LOAD_FAILED",
+      severity: "error",
+      message: `Plugin id ${manifest.plugin.id} does not match its npm package name ${packageName}; a plugin's id must be its package name.`,
+      path: "/plugin/id",
+      suggestions: [`Rename the package or the plugin id so both are ${manifest.plugin.id}.`],
     })
   }
   return issues

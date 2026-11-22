@@ -32,7 +32,7 @@ describe("loadPluginPackage", () => {
     await mkdir(root, { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-invalid", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/invalid", version: "1.0.0" }),
     )
     await writeFile(path.join(root, "ecp.manifest.json"), JSON.stringify({ not: "a manifest" }))
     const result = await loadPluginPackage(root, "core")
@@ -44,7 +44,7 @@ describe("loadPluginPackage", () => {
     await mkdir(path.join(root, "dist"), { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-empty", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/empty", version: "1.0.0" }),
     )
     await writeFile(path.join(root, "dist/index.js"), `export const nope = true;\n`)
     const result = await loadPluginPackage(root, "link")
@@ -57,7 +57,7 @@ describe("loadPluginPackage", () => {
     await mkdir(path.join(root, "dist"), { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-throws", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/throws", version: "1.0.0" }),
     )
     await writeFile(path.join(root, "dist/index.js"), `throw new Error("boom");\n`)
     const result = await loadPluginPackage(root, "link")
@@ -70,7 +70,7 @@ describe("loadPluginPackage", () => {
     await mkdir(path.join(root, "dist"), { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-ok", version: "1.2.3" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/ok", version: "1.2.3" }),
     )
     await writeFile(
       path.join(root, "dist/index.js"),
@@ -114,7 +114,7 @@ export default definePlugin({
     await mkdir(root, { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-missing-schema", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/missing-schema", version: "1.0.0" }),
     )
     await writeFile(
       path.join(root, "ecp.manifest.json"),
@@ -123,7 +123,7 @@ export default definePlugin({
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/missing-schema",
-          package: "@executioncontrolprotocol/plugin-missing-schema",
+          package: "@executioncontrolprotocol/missing-schema",
           version: "1.0.0",
           summary: "Missing schema.",
           description: "Missing schema.",
@@ -155,12 +155,59 @@ export default definePlugin({
     }
   })
 
+  it("rejects a plugin whose id is not its npm package name", async () => {
+    const root = path.join(tempRoot, "name-mismatch")
+    await mkdir(root, { recursive: true })
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@executioncontrolprotocol/plugin-renamed", version: "1.0.0" }),
+    )
+    await writeFile(
+      path.join(root, "ecp.manifest.json"),
+      JSON.stringify({
+        schema: "@executioncontrolprotocol.plugin-manifest",
+        version: "2.0",
+        plugin: {
+          id: "@executioncontrolprotocol/renamed",
+          package: "@executioncontrolprotocol/plugin-renamed",
+          version: "1.0.0",
+          summary: "Mismatch.",
+          description: "Mismatch.",
+        },
+        sdkVersion: "1.0.0",
+        pluginSchema: { path: "./ecp.schema.json", hash: "a".repeat(64) },
+        capabilities: [
+          {
+            id: "@executioncontrolprotocol/renamed.ping",
+            name: "ping",
+            summary: "Ping.",
+            description: "Ping.",
+            useCases: ["Ping"],
+            projections: ["Pong"],
+          },
+        ],
+        entry: "./dist/index.js",
+        hash: "b".repeat(64),
+      }),
+    )
+    const result = await loadPluginPackage(root, "core")
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "ECP_PLUGIN_LOAD_FAILED",
+        path: "/plugin/id",
+        message: expect.stringContaining("does not match its npm package name"),
+      }),
+    ])
+  })
+
   it("rejects corrupt schema JSON", async () => {
     const root = path.join(tempRoot, "corrupt-schema")
     await mkdir(root, { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-corrupt", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/corrupt", version: "1.0.0" }),
     )
     await writeFile(
       path.join(root, "ecp.manifest.json"),
@@ -169,7 +216,7 @@ export default definePlugin({
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/corrupt",
-          package: "@executioncontrolprotocol/plugin-corrupt",
+          package: "@executioncontrolprotocol/corrupt",
           version: "1.0.0",
           summary: "Corrupt.",
           description: "Corrupt.",
@@ -212,7 +259,7 @@ export default definePlugin({
     }
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-hash", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/hash", version: "1.0.0" }),
     )
     await writeFile(
       path.join(root, "ecp.manifest.json"),
@@ -221,7 +268,7 @@ export default definePlugin({
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/hash",
-          package: "@executioncontrolprotocol/plugin-hash",
+          package: "@executioncontrolprotocol/hash",
           version: "1.0.0",
           summary: "Hash.",
           description: "Hash.",
@@ -259,7 +306,7 @@ export default definePlugin({
     await mkdir(root, { recursive: true })
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-legacy", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/legacy", version: "1.0.0" }),
     )
     await writeFile(
       path.join(root, "ecp.manifest.json"),
@@ -268,7 +315,7 @@ export default definePlugin({
         version: "1.0",
         plugin: {
           id: "@executioncontrolprotocol/legacy",
-          package: "@executioncontrolprotocol/plugin-legacy",
+          package: "@executioncontrolprotocol/legacy",
           version: "1.0.0",
           summary: "Legacy.",
           description: "Legacy.",
@@ -312,7 +359,7 @@ export default definePlugin({
     const hash = await sha256Hex(canonicalJson(schemaDocument))
     await writeFile(
       path.join(root, "package.json"),
-      JSON.stringify({ name: "@executioncontrolprotocol/plugin-override", version: "1.0.0" }),
+      JSON.stringify({ name: "@executioncontrolprotocol/override", version: "1.0.0" }),
     )
     await writeFile(
       path.join(root, "ecp.manifest.json"),
@@ -321,7 +368,7 @@ export default definePlugin({
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/override",
-          package: "@executioncontrolprotocol/plugin-override",
+          package: "@executioncontrolprotocol/override",
           version: "1.0.0",
           summary: "Override.",
           description: "Override.",

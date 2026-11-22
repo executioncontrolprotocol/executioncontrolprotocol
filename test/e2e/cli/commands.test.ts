@@ -401,7 +401,7 @@ describe("cli e2e commands", () => {
     expect(link.code).toBe(0)
 
     const pluginSchema = await runEcp(
-      ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/plugin-test", "--json"],
+      ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/test", "--json"],
       { env },
     )
     expect(pluginSchema.code).toBe(0)
@@ -426,7 +426,7 @@ describe("cli e2e commands", () => {
       .poll(
         async () => {
           const pluginSchema = await runEcp(
-            ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/plugin-test", "--json"],
+            ["retrieve", "--type", "schema", "--id", "@executioncontrolprotocol/test", "--json"],
             { env, timeoutMs: 60_000 },
           )
           if (pluginSchema.code !== 0) return undefined

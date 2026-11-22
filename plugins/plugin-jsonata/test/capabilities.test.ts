@@ -32,7 +32,7 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
   }
 }
 
-describe("@executioncontrolprotocol/plugin-jsonata", () => {
+describe("@executioncontrolprotocol/jsonata", () => {
   it("declares transform as a step-contract expression capability", () => {
     expect(plugin.id).toBe("@executioncontrolprotocol/jsonata")
     const def = plugin.capabilities.transform

@@ -18,7 +18,7 @@ those tools — under plugins, with a journal you can inspect.
 ```bash
 # From a built checkout (see SETUP.md), or once packages are published:
 ecp host start
-ecp plugins link plugins/plugin-test   # or: ecp plugins install @executioncontrolprotocol/plugin-test
+ecp plugins link plugins/plugin-test   # or: ecp plugins install @executioncontrolprotocol/test
 
 # Write an execution (JSON), then run it:
 ecp execute path/to/echo.ecp.json --json

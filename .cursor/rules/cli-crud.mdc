@@ -45,7 +45,7 @@ Free-form values (paths, ids, URLs, secret keys) are not renamed.
 - **Flags only for top-level primitives.** Nested input goes in `--input <json | file>`, never
   in dotted or repeated flags (model output in flags is too loose).
 - Plugin install names are short: `ecp plugins install jsonata` resolves to
-  `@executioncontrolprotocol/plugin-jsonata` (scope + `plugin-` prefix).
+  `@executioncontrolprotocol/jsonata` (scope + `plugin-` prefix).
 
 ## Output
 

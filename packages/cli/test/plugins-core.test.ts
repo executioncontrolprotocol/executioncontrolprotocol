@@ -8,13 +8,13 @@ describe("bundled core plugin uninstall guard", () => {
   })
 
   it("rejects scoped package names", () => {
-    expect(isBundledCorePluginName("@executioncontrolprotocol/plugin-core", "x")).toBe(true)
+    expect(isBundledCorePluginName("@executioncontrolprotocol/core", "x")).toBe(true)
     expect(
-      isBundledCorePluginName("core", "@executioncontrolprotocol/plugin-core"),
+      isBundledCorePluginName("core", "@executioncontrolprotocol/core"),
     ).toBe(true)
   })
 
   it("allows other plugins", () => {
-    expect(isBundledCorePluginName("test", "@executioncontrolprotocol/plugin-test")).toBe(false)
+    expect(isBundledCorePluginName("test", "@executioncontrolprotocol/test")).toBe(false)
   })
 })

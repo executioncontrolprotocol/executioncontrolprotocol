@@ -5,7 +5,7 @@ import { validateExecution } from "../src/index.js"
 const openEcho: CapabilityEntry = {
   id: "@executioncontrolprotocol/test.echo",
   plugin: "@executioncontrolprotocol/test",
-  package: "@executioncontrolprotocol/plugin-test",
+  package: "@executioncontrolprotocol/test",
   pluginVersion: "fixture.1",
   summary: "Echo",
   description: "Echo",

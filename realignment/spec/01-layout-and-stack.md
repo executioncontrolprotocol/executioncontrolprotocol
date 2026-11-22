@@ -21,8 +21,8 @@ deletes `legacy/`. This removes npm-name collisions (new packages reuse names li
 │   ├── cli/                      @executioncontrolprotocol/cli   (bin: ecp)
 │   └── app/                      @executioncontrolprotocol/app
 ├── plugins/                      new plugins (pnpm workspace)
-│   ├── plugin-test/              @executioncontrolprotocol/plugin-test
-│   ├── plugin-anthropic/         @executioncontrolprotocol/plugin-anthropic
+│   ├── plugin-test/              @executioncontrolprotocol/test
+│   ├── plugin-anthropic/         @executioncontrolprotocol/anthropic
 │   ├── plugin-azure-blob-storage/
 │   └── plugin-adobe-firefly-services/
 ├── fixtures/                     conformance fixtures (see 12)

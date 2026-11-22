@@ -764,7 +764,7 @@ from the reset's design and `packages/core/src/types/errors.ts`:
 - Thin root CLI; plugins are separate npm packages managed with `@oclif/plugin-plugins`
   (`install`, `uninstall`, `link`, `update`).
 - Short install names through the scope and `plugin-` prefix: `ecp plugins install jsonata` →
-  `@executioncontrolprotocol/plugin-jsonata`.
+  `@executioncontrolprotocol/jsonata`.
 - `ecp plugins discover` searches npm for the keyword `ecosystem:ecp-plugin` (later; not in the
   MVP command table).
 - Unknown capability or topic → name the plugin that provides it and the install command
@@ -862,7 +862,7 @@ Startup and restart speed decide how often agents and CLI commands wait. Measure
 | Node + oclif cold start | 2026-11-14, Windows, published CLI `0.51.0` (`0.52` is not on npm). `node bin/ecp.js --help`, 5 runs: 1518, 1089, 1081, 1106, 1129 ms. Median 1106 ms. The process also stat'd linked plugin paths that Phase 0 had already moved, so this is an upper bound on oclif startup, not a clean echo run. | New CLI cold help under 1.5 s. Warm commands stay well under 1 s (decided with B1–B7 in Phase 5). |
 | QuickJS-WASM start | 2026-11-14, Windows, `quickjs-emscripten@0.31.0`. Runtime start 11.9 ms; one eval 9.2 ms. Script: `realignment/spikes/phase0-measure.mjs`. | Start under 50 ms. A single eval stays inside the 50 ms expression budget. |
 | JSON Schema compile (per capability) | Same script. Ajv 2020 compiled a generated schema of 84 capabilities × 40 string fields in 511 ms (about 6.1 ms per capability). One validation 61 ms. | Full generation under 1 s. Lazy per-capability compile under 20 ms. |
-| Firefly plugin import | 2026-11-14, Windows, `@executioncontrolprotocol/plugin-adobe-firefly-services@0.51.0`. Dynamic `import()` 239 ms, one sample. | Under 500 ms. |
+| Firefly plugin import | 2026-11-14, Windows, `@executioncontrolprotocol/adobe-firefly-services@0.51.0`. Dynamic `import()` 239 ms, one sample. | Under 500 ms. |
 | CLI warm-path phases (before fixes, 2026-11-17, Windows, `bench/phases.mjs`) | Module import ms (sequential): oclif-core 196.3, plugin-help 106.1, plugin-plugins 156.7, plugin-not-found 1120.3, host barrel 414.4 (no `host/client` yet). B1 warm retrieve wall median **757.5** ms (11 runs, plugin-test only). | Lazy `host/client` + oclif manifest (Group E). |
 | CLI warm-path phases (after fixes, same tools) | oclif-core 140.1, plugin-help 85.6, plugin-plugins 47.2, plugin-not-found 119.8, host barrel 310.2, **host/client 1.7**. B1 warm wall median **359.8** ms. `DEBUG=oclif*` on `node packages/cli/bin/ecp.js` shows `using manifest from …/packages/cli/oclif.manifest.json`. | Warm CLI target **1000** ms (`bench/targets.json`). |
 | `ecp retrieve` / `execute`, warm host (B1–B3, 2026-11-17, Windows) | All four MVP plugins linked; 11 runs. B1 warm **359.7** ms; B2 warm **364.5** ms; B3 warm **386.1** ms. Targets **1000** ms; budgets match targets. | `bench/baseline/2026-11-17-win32.json`. |

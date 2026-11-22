@@ -24,6 +24,11 @@ export default definePlugin({
 })
 ```
 
+**One name per plugin.** The plugin `id` must be the npm package name in `package.json` (`"name":
+"@executioncontrolprotocol/test"` above), with no `plugin-` prefix. Capability ids are `${id}.${name}`. The manifest
+build fails if the two differ, and the host refuses to load such a plugin. `ecp plugins install test` works because
+first-party short names map to the full name.
+
 ## Step contracts (transforms)
 
 Set `contract: "step"` and `code: "script" | "expression"` on the capability. The manifest

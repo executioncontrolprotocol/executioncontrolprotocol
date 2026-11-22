@@ -7,7 +7,7 @@ import { HostSchemaSet, runExecution, validateExecution } from "../src/index.js"
 const transformCapability: CapabilityEntry = {
   id: "@executioncontrolprotocol/core.transform",
   plugin: "@executioncontrolprotocol/core",
-  package: "@executioncontrolprotocol/plugin-core",
+  package: "@executioncontrolprotocol/core",
   pluginVersion: "0.0.0",
   summary: "Transform",
   description: "",
@@ -20,7 +20,7 @@ const transformCapability: CapabilityEntry = {
 const echoCapability: CapabilityEntry = {
   id: "@executioncontrolprotocol/test.echo",
   plugin: "@executioncontrolprotocol/test",
-  package: "@executioncontrolprotocol/plugin-test",
+  package: "@executioncontrolprotocol/test",
   pluginVersion: "0.0.0",
   summary: "echo",
   description: "",

@@ -19,16 +19,16 @@ describe("plugin-mgmt helpers", () => {
   it("expands friendly plugin names via oclif scope", async () => {
     const cliRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..")
     const config = await Config.load(cliRoot)
-    expect(expandFriendlyName("test", config)).toBe("@executioncontrolprotocol/plugin-test")
-    expect(expandFriendlyName("@executioncontrolprotocol/plugin-anthropic", config)).toBe(
-      "@executioncontrolprotocol/plugin-anthropic",
+    expect(expandFriendlyName("test", config)).toBe("@executioncontrolprotocol/test")
+    expect(expandFriendlyName("@executioncontrolprotocol/anthropic", config)).toBe(
+      "@executioncontrolprotocol/anthropic",
     )
   })
 
   it("splits package tags without breaking scoped names", () => {
     expect(splitPackageTag("test@beta")).toEqual({ packageName: "test", tag: "beta" })
-    expect(splitPackageTag("@executioncontrolprotocol/plugin-test@beta")).toEqual({
-      packageName: "@executioncontrolprotocol/plugin-test",
+    expect(splitPackageTag("@executioncontrolprotocol/test@beta")).toEqual({
+      packageName: "@executioncontrolprotocol/test",
       tag: "beta",
     })
     expect(splitPackageTag("@scope/pkg")).toEqual({ packageName: "@scope/pkg" })

@@ -1,4 +1,4 @@
-# `@executioncontrolprotocol/plugin-test`
+# `@executioncontrolprotocol/test`
 
 Harness capabilities for executor and host tests: `echo`, `fail`, `delay`, `stage`,
 `config-echo`, `file-roundtrip`, `call`, `bounded`.

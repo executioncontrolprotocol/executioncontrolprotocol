@@ -28,7 +28,7 @@ export default class Retrieve extends Command {
     },
     {
       description: "Writes a large plugin schema to a file.",
-      command: "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/plugin-adobe-firefly-services --include document --out firefly.schema.json",
+      command: "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/adobe-firefly-services --include document --out firefly.schema.json",
     },
   ]
 

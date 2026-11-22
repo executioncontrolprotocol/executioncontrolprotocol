@@ -1,4 +1,4 @@
-# `@executioncontrolprotocol/plugin-anthropic`
+# `@executioncontrolprotocol/anthropic`
 
 Anthropic generate capability for ECP executions.
 

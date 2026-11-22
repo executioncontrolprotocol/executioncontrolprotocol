@@ -33,10 +33,10 @@ const home = mkdtempSync(path.join(tmpdir(), "ecp-bench-"))
 const dataDir = path.join(home, "plugins")
 mkdirSync(dataDir, { recursive: true })
 const benchPlugins = [
-  { name: "@executioncontrolprotocol/plugin-test", root: pluginTest },
-  { name: "@executioncontrolprotocol/plugin-anthropic", root: pluginAnthropic },
-  { name: "@executioncontrolprotocol/plugin-azure-blob-storage", root: pluginAzure },
-  { name: "@executioncontrolprotocol/plugin-adobe-firefly-services", root: pluginFirefly },
+  { name: "@executioncontrolprotocol/test", root: pluginTest },
+  { name: "@executioncontrolprotocol/anthropic", root: pluginAnthropic },
+  { name: "@executioncontrolprotocol/azure-blob-storage", root: pluginAzure },
+  { name: "@executioncontrolprotocol/adobe-firefly-services", root: pluginFirefly },
 ]
 writeFileSync(
   path.join(dataDir, "package.json"),
@@ -155,10 +155,10 @@ try {
     waitHealthy,
     timeScenario,
     realPlugins: [
-      { name: "@executioncontrolprotocol/plugin-test", root: pluginTest },
-      { name: "@executioncontrolprotocol/plugin-anthropic", root: pluginAnthropic },
-      { name: "@executioncontrolprotocol/plugin-azure-blob-storage", root: pluginAzure },
-      { name: "@executioncontrolprotocol/plugin-adobe-firefly-services", root: pluginFirefly },
+      { name: "@executioncontrolprotocol/test", root: pluginTest },
+      { name: "@executioncontrolprotocol/anthropic", root: pluginAnthropic },
+      { name: "@executioncontrolprotocol/azure-blob-storage", root: pluginAzure },
+      { name: "@executioncontrolprotocol/adobe-firefly-services", root: pluginFirefly },
     ],
     echoFixture,
   })

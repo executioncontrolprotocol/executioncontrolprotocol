@@ -18,7 +18,7 @@
   "plugin": {
     "description": "Provides one capability so retrieve can see it after plugins install.",
     "id": "@executioncontrolprotocol/minimal-fixture",
-    "package": "@executioncontrolprotocol/plugin-minimal-fixture",
+    "package": "@executioncontrolprotocol/minimal-fixture",
     "summary": "Minimal fixture for CLI pack install.",
     "version": "1.0.0"
   },
