@@ -8,6 +8,27 @@ published Firefly Services OpenAPI).
 
 Used by the A10 localize-banner dogfood (`examples/localize-banner/`).
 
+## Request limit
+
+If your credentials allow only so many requests per minute, set `maxRequestsPerMinute` on the config. The plugin
+then spaces job submissions and other non-GET requests (including a retry after HTTP 429) evenly, shared by every
+step and run in the host that uses the same client id, endpoint and limit, so concurrent `forEach` items draw on
+one budget. Job status polls (GET) are not counted; `pollIntervalMs` sets their pace.
+
+```json
+{
+  "schema": "@executioncontrolprotocol.config",
+  "version": "1.0",
+  "id": "adobe-firefly-services/default",
+  "plugin": "@executioncontrolprotocol/adobe-firefly-services",
+  "values": {
+    "clientId": { "$secret": "adobe-firefly-services/client-id" },
+    "clientSecret": { "$secret": "adobe-firefly-services/client-secret" },
+    "maxRequestsPerMinute": 4
+  }
+}
+```
+
 ## Capabilities by family
 
 ### audio-video (14)

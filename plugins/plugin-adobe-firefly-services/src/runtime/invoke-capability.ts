@@ -4,6 +4,7 @@ import { resolveAdobeConfig } from "../config.js"
 import { AdobeServiceError, INPUT_INVALID, PROVIDER_ERROR } from "../errors.js"
 import { extractAdobeStatusUrl, pollAdobeJob } from "../http/async-job.js"
 import { buildUrl, createAdobeHttpClient, redactUrl, type AdobeHttpMethod } from "../http/client.js"
+import { sharedRequestLimiter } from "../http/request-limit.js"
 import {
   assembleAdobeOperationInput,
   liftManifestOutputContent,
@@ -70,7 +71,15 @@ export function createAdobeHandler(name: string, operation: AdobeOperation): Ado
     const assembled = assembleAdobeOperationInput(flat, operation)
 
     const getAccessToken = getImsTokenProvider(config)
-    const client = createAdobeHttpClient({ clientId: config.clientId, getAccessToken })
+    const limiter =
+      config.maxRequestsPerMinute === undefined
+        ? undefined
+        : sharedRequestLimiter({
+            clientId: config.clientId,
+            baseUrl: config.baseUrl,
+            maxRequestsPerMinute: config.maxRequestsPerMinute,
+          })
+    const client = createAdobeHttpClient({ clientId: config.clientId, getAccessToken, limiter })
     const url = buildUrl(config.baseUrl ?? operation.serverUrl, operation.path, assembled.path, assembled.query)
 
     const response = await client.request({
