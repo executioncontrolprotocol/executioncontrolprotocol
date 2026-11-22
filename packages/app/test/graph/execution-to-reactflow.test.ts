@@ -9,6 +9,7 @@ import {
   executionToReactFlow,
   LOOP_COLLECT_HANDLE,
   LOOP_INTO_HANDLE,
+  LOOP_ITEM_HANDLE,
   LOOP_REF_HANDLE,
   type ReactFlowDocument,
   type ReactFlowEdge,
@@ -49,7 +50,7 @@ function stepIds(manifestNodes: unknown[], out: string[] = []): string[] {
     else if (node.type === "branch") {
       for (const arm of node.branches as Array<{ steps: unknown[] }>) stepIds(arm.steps, out)
     } else if (node.type === "loop") {
-      if ((node.mode as string | undefined) === "forEach") out.push(node.id as string)
+      out.push(node.id as string)
       stepIds(node.steps as unknown[], out)
     } else stepIds(node.steps as unknown[], out)
   }
@@ -125,22 +126,25 @@ describe("route edges", () => {
     expect(routes.every((e) => e.data.label === undefined)).toBe(true)
   })
 
-  it("loop: entry route with expr and maxRounds plus a loop-back edge", () => {
+  it("loop: head node, entry route with expr and maxRounds plus loop-back to head", () => {
     const doc = executionToReactFlow(load("loop.ecp.json"))
+    expect(doc.nodes.some((n) => n.type === "ecp-loop" && n.id === "refine")).toBe(true)
     const routes = routeEdges(doc)
-    const entry = routes.find((e) => !e.data.loopBack)!
+    const entry = routes.find((e) => !e.data.loopBack && e.source === EXECUTION_ACCEPTS_NODE_ID)!
+    const intoBody = routes.find((e) => !e.data.loopBack && e.source === "refine")!
     const back = routes.find((e) => e.data.loopBack)!
-    expect(entry).toMatchObject({ source: EXECUTION_ACCEPTS_NODE_ID, target: "tick" })
+    expect(entry).toMatchObject({ target: "refine" })
+    expect(intoBody).toMatchObject({ target: "tick" })
     expect(entry.data).toMatchObject({ route: "loop", structureId: "refine", maxRounds: 2, exprBadge: "state.tick === undefined" })
-    expect(back).toMatchObject({ source: "tick", target: "tick" })
+    expect(back).toMatchObject({ source: "tick", target: "refine" })
   })
 
   it("nested: parallel line enters a loop whose body is a branch", () => {
     const doc = executionToReactFlow(load("nested.ecp.json"))
     const routes = routeEdges(doc)
-    expect(routes.some((e) => e.data.route === "parallel" && e.target === "nested")).toBe(true)
+    expect(routes.some((e) => e.data.route === "parallel" && e.target === "inner")).toBe(true)
     expect(routes.some((e) => e.data.route === "parallel" && e.target === "side")).toBe(true)
-    expect(routes.some((e) => e.data.route === "loop" && e.data.loopBack && e.target === "nested")).toBe(true)
+    expect(routes.some((e) => e.data.route === "loop" && e.data.loopBack && e.target === "inner")).toBe(true)
   })
 
   it("sequence after a structure uses route edges into the next structure", () => {
@@ -151,12 +155,14 @@ describe("route edges", () => {
     const intoParallel = routes.filter((e) => e.data.route === "parallel")
     expect(new Set(intoParallel.map((e) => e.source))).toEqual(new Set(["filled", "kept"]))
     const intoLoop = routes.filter((e) => e.data.route === "loop" && !e.data.loopBack)
-    expect(new Set(intoLoop.map((e) => e.source))).toEqual(new Set(["copy", "script"]))
+    expect(new Set(intoLoop.map((e) => e.source))).toEqual(new Set(["copy", "refine", "script"]))
   })
 
-  it("sequential steps publish no edge between them", () => {
+  it("sequential literal-only steps get sequence route edges when otherwise orphaned", () => {
     const doc = executionToReactFlow(load("commit-modes.ecp.json"))
-    expect(doc.edges).toEqual([])
+    expect(doc.edges.every((e) => e.data.kind === "route" && (e.data as ReactFlowRouteEdgeData).route === "sequence")).toBe(
+      true,
+    )
     expect(doc.nodes).toHaveLength(5)
   })
 })
@@ -258,9 +264,35 @@ describe("data edges and ports", () => {
     expect(dataEdges(doc)).toEqual([expect.objectContaining({ source: "gated", target: "echo", sourceHandle: "output" })])
   })
 
-  it("loop body reading its own key draws no self edge", () => {
+  it("loop expr on the head node draws edges from state the expr reads", () => {
     const doc = executionToReactFlow(load("loop.ecp.json"))
-    expect(dataEdges(doc)).toEqual([])
+    expect(dataEdges(doc)).toContainEqual(
+      expect.objectContaining({
+        target: "refine",
+        targetHandle: "expr",
+        source: "tick",
+        sourceHandle: "output",
+      }),
+    )
+  })
+
+  it("for loop: head node, item edge and ref driver", () => {
+    const doc = executionToReactFlow(load("loop-for.ecp.json"))
+    expect(doc.nodes.some((n) => n.id === "rounds" && n.type === "ecp-loop")).toBe(true)
+    expect(dataEdges(doc)).toContainEqual(
+      expect.objectContaining({
+        source: EXECUTION_ACCEPTS_NODE_ID,
+        target: "rounds",
+        targetHandle: LOOP_REF_HANDLE,
+      }),
+    )
+    expect(dataEdges(doc)).toContainEqual(
+      expect.objectContaining({
+        source: "rounds",
+        sourceHandle: LOOP_ITEM_HANDLE,
+        target: "tick",
+      }),
+    )
   })
 })
 
@@ -332,7 +364,7 @@ describe("forEach loop graph", () => {
     expect(routes.every((e) => !e.data.loopBack)).toBe(true)
     const ports = loopItemsNode(doc, "rows")
     expect(ports.inputs.map((p) => p.id).sort()).toEqual([LOOP_COLLECT_HANDLE, LOOP_REF_HANDLE].sort())
-    expect(ports.outputs.map((p) => p.id)).toEqual([LOOP_INTO_HANDLE])
+    expect(ports.outputs.map((p) => p.id).sort()).toEqual([LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE].sort())
   })
 
   it("wires ref and collect and exposes into from the loop node", () => {
@@ -457,6 +489,7 @@ describe("parallel frames", () => {
   it("branch and loop fixtures gain no frame", () => {
     expect(frameNodes(executionToReactFlow(load("branch.ecp.json")))).toHaveLength(0)
     expect(frameNodes(executionToReactFlow(load("loop.ecp.json")))).toHaveLength(0)
+    expect(frameNodes(executionToReactFlow(load("loop-for.ecp.json")))).toHaveLength(0)
   })
 
   it("a parallel whose line holds a loop and a branch still gets one enclosing frame", () => {

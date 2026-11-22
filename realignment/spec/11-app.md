@@ -57,11 +57,15 @@ Path-opened executions use three host routes (09):
   Reloading never interrupts a run in progress; the run panel keeps showing it. A dirty edge-edit
   draft is discarded on external reload with a one-line note.
 - Layout: dagre, left-to-right; parallel lines stacked with a non-parent `ecp-frame` overlay per
-  line (structure label on the frame, not repeated on route edges); `loop` with `mode: "forEach"`
-  uses a frame around the body with the loop node at its head (handles `ref`/`expr`, `collect`,
-  `into`); `while` / `for` loops use a back-edge into the body; branch arms fan out. Never set
-  `parentId`
-  (`.cursor/rules/reactflow-render.mdc`).
+  line (structure label on the frame, not repeated on route edges); every `loop` gets a head `ecp-loop`
+  node (`ref` / `expr` / `collect` inputs, `item` / `into` outputs as applicable); `forEach` adds a
+  frame around the body; `while` / `for` loop-backs go from body exits to the head; branch arms fan out.
+  Never set `parentId` (`.cursor/rules/reactflow-render.mdc`).
+- **Connectivity (graph).** C1: every state-bound step or loop input (`$ref` / `$state`, nested paths,
+  `$script.params`, step `expr`, loop `ref` / `expr` / `collect`, loop item, execution inputs,
+  `forEach` `into`, `returns` keys) has a visible data edge from its source. C2: every non-frame node has
+  at least one visible edge; otherwise-orphaned nodes keep sequence routes (`route: "sequence"`). See
+  `packages/app/REACTFLOW_RENDER.md`.
 - The App was ported from the pre-realignment tree into `packages/app` (`execution-to-reactflow.ts`,
   `extract-data-edges.ts`, `layout.ts`, `map-run-events.ts`, `ports-from-schema.ts`,
   `EcpStepNode`, `EcpDataEdge`, `EcpRouteEdge`, `EcpIoNode`, `RunInputForm`, `RunOutputView`,

@@ -17,6 +17,7 @@ import {
   type ReactFlowLoopItemsData,
   type ReactFlowPort,
   type ReactFlowStepData,
+  type RunGraphLoop,
   type RunGraphLoopItems,
   type RunGraphStep,
 } from "../../graph/index.js"
@@ -51,6 +52,8 @@ export interface NodePanelProps {
   runStep?: RunGraphStep
   /** Run progress when the selected node is a `forEach` loop. */
   runLoopItems?: RunGraphLoopItems
+  /** Run round when the selected node is a `while` / `for` loop. */
+  runLoop?: RunGraphLoop
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
   /** Switch the App to its unauthorised screen. */
@@ -64,11 +67,11 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   return steps.find((step) => step.id === id)
 }
 
-function findLoopItems(manifest: ExecutionManifest | undefined, id: string): LoopNode | undefined {
+function findLoop(manifest: ExecutionManifest | undefined, id: string): LoopNode | undefined {
   if (!manifest || !Array.isArray(manifest.steps)) return undefined
   const walk = (nodes: Node[]): LoopNode | undefined => {
     for (const node of nodes) {
-      if (node.type === "loop" && node.id === id && (node.mode ?? "while") === "forEach") return node
+      if (node.type === "loop" && node.id === id) return node
       if (node.type === "parallel") {
         for (const line of node.branches) {
           const hit = walk(line)
@@ -116,14 +119,17 @@ function LoopItemsPanel({
   manifest,
   issues,
   loopRun,
+  loopRound,
 }: {
   node: ReactFlowNode
   data: ReactFlowLoopItemsData
   manifest?: ExecutionManifest
   issues: ValidationIssue[]
   loopRun?: RunGraphLoopItems
+  loopRound?: RunGraphLoop
 }) {
-  const source = findLoopItems(manifest, node.id)
+  const source = findLoop(manifest, node.id)
+  const mode = data.mode ?? "while"
   return (
     <section data-testid="node-panel" data-node-id={node.id} className="space-y-4">
       <header className="space-y-1">
@@ -131,26 +137,38 @@ function LoopItemsPanel({
           <Box className="h-4 w-4 text-primary" aria-hidden="true" />
           {data.label}
         </h3>
-        <p className="text-[12px] text-on-surface-variant">Loop (forEach mode, read-only in the App).</p>
+        <p className="text-[12px] text-on-surface-variant">Loop ({mode} mode, read-only in the App).</p>
       </header>
       <div className="space-y-1.5">
         <Row label="Id">{node.id}</Row>
-        <Row label="Ref">
-          {data.refPath ? `state.${data.refPath}` : source?.ref ?? source?.expr ?? ""}
-        </Row>
-        <Row label="As">{data.as}</Row>
-        <Row label="Collect">
-          {data.collectPath ? data.collectPath : source?.collect ?? ""}
-        </Row>
-        <Row label="Into">{data.into}</Row>
-        <Row label="Concurrency">{data.concurrency}</Row>
-        <Row label="On error">{data.onError}</Row>
+        <Row label="Mode">{mode}</Row>
+        {data.refPath !== undefined || source?.ref ? (
+          <Row label="Ref">
+            {data.refPath ? `state.${data.refPath}` : (source?.ref ?? "")}
+          </Row>
+        ) : null}
+        {source?.expr ?? data.exprBadge ? (
+          <Row label="Expr">{source?.expr ?? data.exprBadge}</Row>
+        ) : null}
+        {data.as !== undefined ? <Row label="As">{data.as}</Row> : null}
+        {mode === "forEach" ? (
+          <>
+            <Row label="Collect">
+              {data.collectPath ? data.collectPath : (source?.collect ?? "")}
+            </Row>
+            <Row label="Into">{data.into}</Row>
+            <Row label="Concurrency">{data.concurrency}</Row>
+            <Row label="On error">{data.onError}</Row>
+          </>
+        ) : null}
+        {mode === "while" && data.maxRounds !== undefined ? <Row label="Max rounds">{data.maxRounds}</Row> : null}
         {loopRun ? (
           <Row label="Progress">
             {loopRun.done} / {loopRun.count}
             {loopRun.failed > 0 ? ` (${loopRun.failed} failed)` : ""}
           </Row>
         ) : null}
+        {loopRound ? <Row label="Round">{loopRound.round + 1}</Row> : null}
       </div>
       {issues.length > 0 ? (
         <ul className="space-y-2">
@@ -585,6 +603,7 @@ export function NodePanel({
   issues,
   runStep,
   runLoopItems,
+  runLoop,
   reloadKey,
   onUnauthorized,
 }: NodePanelProps) {
@@ -611,6 +630,7 @@ export function NodePanel({
         manifest={manifest}
         issues={issues}
         loopRun={runLoopItems}
+        loopRound={runLoop}
       />
     )
   }

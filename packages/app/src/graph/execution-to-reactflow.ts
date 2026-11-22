@@ -30,7 +30,7 @@ import type {
   ReactFlowRouteEdgeData,
   ReactFlowStepData,
 } from "./types.js"
-import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_REF_HANDLE } from "./types.js"
+import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "./types.js"
 
 interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
@@ -182,6 +182,7 @@ function loopMode(node: LoopNode): "while" | "for" | "forEach" {
 function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   const mode = loopMode(node)
   if (mode === "forEach") return renderLoopForEach(node, ctx)
+  const head = loopReactFlowNode(node)
   const seg = renderNodes(node.steps, ctx)
   const gateLabel = node.expr ? formatExprBadge(node.expr) : node.ref ? `ref: ${node.ref}` : "loop"
   const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
@@ -195,23 +196,27 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     stepIds: leafStepIds(node.steps),
   }
   const edges = [...seg.edges]
+  connectRoutes(
+    edges,
+    [node.id],
+    seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    `loop-${node.id}`,
+  )
   let i = 0
   for (const from of seg.exitIds) {
-    for (const to of seg.entryIds) {
-      edges.push({
-        id: `route-loop-back-${node.id}-${i++}-${from}-${to}`,
-        source: from,
-        target: to,
-        data: { kind: "route", ...routeBase, loopBack: true },
-      })
-    }
+    edges.push({
+      id: `route-loop-back-${node.id}-${i++}-${from}-${node.id}`,
+      source: from,
+      target: node.id,
+      data: { kind: "route", ...routeBase, loopBack: true },
+    })
   }
   return {
-    nodes: seg.nodes,
+    nodes: [head, ...seg.nodes],
     edges,
-    entryIds: seg.entryIds,
+    entryIds: [node.id],
     exitIds: seg.exitIds,
-    routeEntries: seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    routeEntries: [{ entryId: node.id, data: routeBase }],
   }
 }
 
@@ -225,41 +230,65 @@ function loopItemsFrameLabel(node: LoopNode): string {
   return parts.join(" ")
 }
 
-function loopItemsReactFlowNode(node: LoopNode): ReactFlowNode {
-  const refPath = stripStatePrefix(node.ref ?? "")
-  const collectPath = stripStatePrefix(node.collect ?? "")
-  const inputs: ReactFlowPort[] = [
-    {
+function loopReactFlowNode(node: LoopNode): ReactFlowNode {
+  const mode = loopMode(node)
+  const refPath = node.ref ? stripStatePrefix(node.ref) : undefined
+  const collectPath = node.collect ? stripStatePrefix(node.collect) : undefined
+  const inputs: ReactFlowPort[] = []
+  const outputs: ReactFlowPort[] = []
+  if (refPath !== undefined) {
+    inputs.push({
       id: LOOP_REF_HANDLE,
       name: "ref",
       typeLabel: "ref",
       binding: "ref",
       refPath,
-    },
-    {
+    })
+  }
+  if (node.expr !== undefined) {
+    inputs.push({
+      id: EXPR_HANDLE_ID,
+      name: "expr",
+      typeLabel: "expr",
+      binding: "expr",
+      exprSource: node.expr,
+    })
+  }
+  if (mode === "forEach" && collectPath !== undefined) {
+    inputs.push({
       id: LOOP_COLLECT_HANDLE,
       name: "collect",
       typeLabel: "ref",
       binding: "ref",
       refPath: collectPath,
-    },
-  ]
-  const outputs: ReactFlowPort[] = [
-    {
+    })
+  }
+  if ((mode === "for" || mode === "forEach") && node.as) {
+    outputs.push({
+      id: LOOP_ITEM_HANDLE,
+      name: "item",
+      typeLabel: mode === "forEach" ? "item" : "integer",
+    })
+  }
+  if (mode === "forEach" && node.into) {
+    outputs.push({
       id: LOOP_INTO_HANDLE,
       name: "into",
       typeLabel: "array",
-    },
-  ]
+    })
+  }
   const data: ReactFlowLoopItemsData = {
     label: node.label ?? node.id,
-    mode: "forEach",
-    refPath,
-    as: node.as ?? "",
-    collectPath,
-    into: node.into ?? "",
-    concurrency: node.concurrency ?? 1,
-    onError: node.onError ?? "fail",
+    mode,
+    ...(refPath !== undefined ? { refPath } : {}),
+    ...(node.as !== undefined ? { as: node.as } : {}),
+    ...(collectPath !== undefined ? { collectPath } : {}),
+    ...(node.into !== undefined ? { into: node.into } : {}),
+    ...(node.expr !== undefined ? { exprBadge: formatExprBadge(node.expr) } : {}),
+    ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
+    ...(mode === "forEach"
+      ? { concurrency: node.concurrency ?? 1, onError: node.onError ?? "fail" }
+      : {}),
     inputs,
     outputs,
   }
@@ -267,7 +296,7 @@ function loopItemsReactFlowNode(node: LoopNode): ReactFlowNode {
 }
 
 function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
-  const head = loopItemsReactFlowNode(node)
+  const head = loopReactFlowNode(node)
   const seg = renderNodes(node.steps, ctx)
   ctx.parallelFrames.push({
     frameId: `ecp:frame:${node.id}`,
@@ -326,7 +355,10 @@ function renderNodes(nodes: Node[], ctx: EncodeContext): RenderSegment {
 }
 
 function returnsSourceHandle(node: ReactFlowNode): string {
-  if (node.type === "ecp-loop") return LOOP_INTO_HANDLE
+  if (node.type === "ecp-loop") {
+    const data = node.data as ReactFlowLoopItemsData
+    return data.outputs.some((port) => port.id === LOOP_INTO_HANDLE) ? LOOP_INTO_HANDLE : LOOP_ITEM_HANDLE
+  }
   const data = node.data as ReactFlowStepData
   if (data.outputs.some((port) => port.id === OUTPUT_HANDLE_ID)) return OUTPUT_HANDLE_ID
   return data.outputs[0]?.id ?? OUTPUT_HANDLE_ID
@@ -340,8 +372,8 @@ function lastWriterByKey(nodes: ReactFlowNode[]): Map<string, ReactFlowNode> {
       if (as) out.set(as, node)
     }
     if (node.type === "ecp-loop") {
-      const into = (node.data as ReactFlowLoopItemsData).into
-      out.set(into, node)
+      const loopData = node.data as ReactFlowLoopItemsData
+      if (loopData.into) out.set(loopData.into, node)
     }
   }
   return out
@@ -395,9 +427,48 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
       if (edge.targetHandle === EXPR_HANDLE_ID && !data.exprBadge) data.exprBadge = EXPR_HANDLE_ID
     }
     if (edge.targetHandle && target?.type === "ecp-loop") {
-      ensureInputPort((target.data as ReactFlowLoopItemsData).inputs, edge.targetHandle)
+      const loopData = target.data as ReactFlowLoopItemsData
+      ensureInputPort(loopData.inputs, edge.targetHandle)
+      if (edge.targetHandle === EXPR_HANDLE_ID && !loopData.exprBadge) loopData.exprBadge = EXPR_HANDLE_ID
     }
   }
+}
+
+/**
+ * Keep layout-only control edges as visible `sequence` routes for nodes that would
+ * otherwise have no published edge (C2 orphan guard).
+ */
+function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFlowEdge[]): ReactFlowEdge[] {
+  const frameIds = new Set(nodes.filter((node) => node.type === "ecp-frame").map((node) => node.id))
+  const published = layoutEdges.filter((edge) => edge.data.kind !== "control")
+  const connected = new Set<string>()
+  for (const edge of published) {
+    connected.add(edge.source)
+    connected.add(edge.target)
+  }
+  const orphans = new Set(
+    nodes.filter((node) => node.type !== "ecp-frame" && !frameIds.has(node.id) && !connected.has(node.id)).map((n) => n.id),
+  )
+  if (orphans.size === 0) return published
+
+  const out = [...published]
+  const seen = new Set(published.map((edge) => edge.id))
+  for (const edge of layoutEdges) {
+    if (edge.data.kind !== "control") continue
+    if (!orphans.has(edge.source) && !orphans.has(edge.target)) continue
+    const routeEdge: ReactFlowEdge = {
+      id: `route-seq-${edge.id}`,
+      source: edge.source,
+      target: edge.target,
+      data: { kind: "route", route: "sequence", structureId: edge.source },
+    }
+    if (seen.has(routeEdge.id)) continue
+    seen.add(routeEdge.id)
+    out.push(routeEdge)
+    connected.add(edge.source)
+    connected.add(edge.target)
+  }
+  return out
 }
 
 function frameNodesForParallel(
@@ -499,8 +570,9 @@ export function executionToReactFlow(
 
   const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options)
   const frames = frameNodesForParallel(laid, parallelFrames, options)
+  const allNodes = [...frames, ...laid.nodes]
   return {
-    nodes: [...frames, ...laid.nodes],
-    edges: laid.edges.filter((edge) => edge.data.kind !== "control"),
+    nodes: allNodes,
+    edges: publishOrphanSequenceEdges(allNodes, laid.edges),
   }
 }

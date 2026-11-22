@@ -119,10 +119,12 @@ function buildNodes(
       data = step as unknown as Record<string, unknown>
     } else if (node.type === "ecp-loop") {
       const loopRun = run.loopItems[node.id]
+      const loopRound = run.loops[node.id]
       const loopNode: EcpLoopNodeData = {
         ...(node.data as EcpLoopNodeData),
         ...connected,
         ...(loopRun ? { done: loopRun.done, count: loopRun.count } : {}),
+        ...(loopRound ? { round: loopRound.round } : {}),
       }
       data = loopNode as unknown as Record<string, unknown>
     } else {

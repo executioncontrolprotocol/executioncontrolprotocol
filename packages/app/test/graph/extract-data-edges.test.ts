@@ -148,6 +148,33 @@ describe("extractDataEdges / extractExprEdges", () => {
     ])
   })
 
+  it("loop item reads inside forEach resolve to the loop head item handle", () => {
+    const nodes: Node[] = [
+      {
+        type: "loop",
+        mode: "forEach",
+        id: "items",
+        ref: "state.list",
+        as: "row",
+        into: "out",
+        steps: [
+          {
+            id: "body",
+            uses: "@x/p.c",
+            input: { a: { $ref: "state.row" }, b: { $ref: "state.rowIndex" } },
+          },
+        ],
+      },
+    ]
+    const edges = extractDataEdges(nodes)
+    expect(edges).toContainEqual(
+      expect.objectContaining({ source: "items", target: "body", sourceHandle: "item", targetHandle: "a" }),
+    )
+    expect(edges).toContainEqual(
+      expect.objectContaining({ source: "items", target: "body", sourceHandle: "item", targetHandle: "b" }),
+    )
+  })
+
   it("a reader with no earlier writer uses a later writer, never itself", () => {
     const loopCarried: Node[] = [
       { id: "reader", uses: "@x/p.c", input: { v: { $ref: "state.acc" } } },
