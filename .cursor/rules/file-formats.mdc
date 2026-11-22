@@ -14,7 +14,7 @@ TypeScript").
   `~/.ecp/host.json`:** JSON, written and read by the host and CLI.
 - **Fluent TypeScript** is an optional SDK: it compiles to the JSON manifest at build time.
   TS logic runs at build time only; run-time decisions must use the manifest's own `branch`,
-  `loop` and `expr`.
+  `loop`, `forEach` and `expr`.
 - **The host never evaluates TypeScript or JavaScript files to read an execution.** If a Fluent
   text format is adopted for agents, it is parsed into a syntax tree and never run.
 - Secret values never appear in any file. Config objects hold `{ "$secret": "key" }`

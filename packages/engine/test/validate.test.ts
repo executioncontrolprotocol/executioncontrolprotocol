@@ -391,6 +391,35 @@ describe("validation output contract (F2–F4)", () => {
     ])
   })
 
+  it("validates a forEach manifest produced by the valid fixture", async () => {
+    const manifest = JSON.parse(
+      readFileSync(path.resolve(here, "../../../fixtures/manifests/valid/for-each.ecp.json"), "utf8"),
+    ) as ExecutionManifest
+    const coreManifest = JSON.parse(
+      readFileSync(path.resolve(here, "../../../plugins/plugin-core/ecp.manifest.json"), "utf8"),
+    ) as { plugin: { id: string; package: string; version: string }; capabilities: Array<Record<string, unknown>> }
+    const coreSchema = JSON.parse(
+      readFileSync(path.resolve(here, "../../../plugins/plugin-core/ecp.schema.json"), "utf8"),
+    ) as { $defs: Record<string, Record<string, unknown>> }
+    const coreCapabilities: CapabilityEntry[] = coreManifest.capabilities.map((capability) => ({
+      id: String(capability.id),
+      plugin: coreManifest.plugin.id,
+      package: coreManifest.plugin.package,
+      pluginVersion: coreManifest.plugin.version,
+      summary: String(capability.summary),
+      description: String(capability.description),
+      useCases: capability.useCases as string[],
+      projections: capability.projections as string[],
+      accepts: coreSchema.$defs[`${String(capability.name)}.accepts`],
+      returns: coreSchema.$defs[`${String(capability.name)}.returns`],
+      configSchema: coreSchema.$defs.config,
+      contract: capability.contract as "step",
+      code: capability.code as "script",
+    }))
+    const result = await validateExecution(manifest, { capabilities: [...capabilities, ...coreCapabilities] })
+    expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
+  })
+
   it("reports schema-secret-positions without schema noise", async () => {
     const manifest = JSON.parse(
       readFileSync(

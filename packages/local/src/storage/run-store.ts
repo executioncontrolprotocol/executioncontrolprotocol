@@ -2,6 +2,7 @@ import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, 
 import path from "node:path"
 import type {
   ExecutionManifest,
+  ForEachPartialFile,
   RunDetail,
   RunEvent,
   RunFilter,
@@ -53,7 +54,21 @@ export class LocalRunStore implements RunStore {
   /** Write one step record. */
   async writeStep(runId: string, step: StepRecord): Promise<void> {
     mkdirSync(this.paths.runStepsDir(runId), { recursive: true })
-    await atomicWriteText(this.paths.runStep(runId, step.nodeId, step.round), stableStringify(step))
+    await atomicWriteText(this.paths.runStep(runId, step.nodeId, step.round, step.items), stableStringify(step))
+  }
+
+  /** Read partial results for an outer `forEach`. */
+  async readForEachPartial(runId: string, nodeId: string): Promise<ForEachPartialFile | undefined> {
+    const file = this.paths.runForEachPartial(runId, nodeId)
+    if (!existsSync(file)) return undefined
+    return JSON.parse(readFileSync(file, "utf8")) as ForEachPartialFile
+  }
+
+  /** Atomically persist partial results for an outer `forEach`. */
+  async writeForEachPartial(runId: string, nodeId: string, partial: ForEachPartialFile): Promise<void> {
+    const file = this.paths.runForEachPartial(runId, nodeId)
+    mkdirSync(path.dirname(file), { recursive: true })
+    await atomicWriteText(file, stableStringify(partial))
   }
 
   /** Persist state after a committed step. */

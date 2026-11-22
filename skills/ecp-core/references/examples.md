@@ -1,7 +1,7 @@
 # Examples and fixtures
 
 Transforms move data between steps (`examples/transform/`, core plugin); `expr` on steps, branch
-arms, and loops is control only (boolean gates). Do not put `$expr` in step `input`.
+arms, loops, and `forEach` scopes is control only (boolean gates on steps/loops; `forEach` has no node `expr`). Do not put `$expr` in step `input`.
 
 | Path | Role |
 | --- | --- |

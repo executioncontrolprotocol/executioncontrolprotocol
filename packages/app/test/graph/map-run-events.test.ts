@@ -113,7 +113,20 @@ describe("reduceRunEvent / replayRunEvents", () => {
 
   it("ignores events without a node id or with bad fields", () => {
     const start = createRunGraphState()
-    for (const type of ["step.start", "step.skip", "step.end", "step.error", "branch.select", "loop.round", "loop.exhausted"] as const) {
+    for (const type of [
+      "step.start",
+      "step.skip",
+      "step.end",
+      "step.error",
+      "branch.select",
+      "loop.round",
+      "loop.exhausted",
+      "forEach.start",
+      "forEach.item.start",
+      "forEach.item.end",
+      "forEach.item.error",
+      "forEach.end",
+    ] as const) {
       const next = reduceRunEvent(start, ev(type, {}))
       expect(next.steps).toEqual({})
       expect(next.arms).toEqual({})

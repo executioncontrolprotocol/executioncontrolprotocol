@@ -83,3 +83,9 @@ export const SCHEMA_DOCUMENT_INLINE_MAX_BYTES = 262_144
 
 /** Loop `maxRounds` upper bound. @category Definitions */
 export const MAX_ROUNDS_LIMIT = 1000
+
+/** `forEach` `concurrency` upper bound. @category Definitions */
+export const MAX_FOREACH_CONCURRENCY = 32
+
+/** Maximum items in one `forEach` at run time. @category Definitions */
+export const MAX_FOREACH_ITEMS = 10000

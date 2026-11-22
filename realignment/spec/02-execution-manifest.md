@@ -99,6 +99,19 @@ it to `replace`).
   order; lists run concurrently.
 - `maxConcurrency`: optional integer `>= 1`; default = host setting (4).
 
+### forEach
+
+```json
+{ "type": "forEach", "id": "variants", "items": { "$ref": "state.rows" }, "as": "row",
+  "steps": [ … ], "collect": { "$ref": "state.itemResult" }, "into": "results",
+  "concurrency": 2, "throttle": { "starts": 4, "perSeconds": 60 }, "onError": "continue" }
+```
+
+- `items` and `collect` are `$ref` markers only. `as` binds the current element and
+  `asIndex` is `as + "Index"`.
+- `concurrency`: integer `1..32`, default `1`. Runtime item cap `10000` (`ECP_LIMIT_EXCEEDED`).
+- `onError`: `"fail"` (default) or `"continue"`.
+
 ## Expressions (`expr` fields)
 
 - A string containing **one JavaScript function expression** (arrow or `function`) with at most

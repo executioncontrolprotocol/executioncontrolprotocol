@@ -37,7 +37,7 @@ Ground rules:
 
 ## What ECP is
 
-An **ECP host** runs **executions**: JSON manifests of capability steps with routing (parallel,
+An **ECP host** runs **executions**: JSON manifests of capability steps with routing (parallel, forEach,
 branch, loop, `expr` gates). The host validates every capability call against the
 capability's `accepts`/`returns` schemas. Plugins only provide capabilities; they're loaded into
 the host process on first call, from per-plugin manifests. Agents use exactly three

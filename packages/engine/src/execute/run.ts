@@ -5,6 +5,7 @@ import type {
   ConfigObject,
   ExecutionManifest,
   ExpressionEngine,
+  RunClock,
   RunCursor,
   RunEvent,
   RunEventType,
@@ -16,6 +17,7 @@ import type {
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
 import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
 import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
+import { executeForEach, type ForEachRuntime } from "./run-foreach.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
 import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
 
@@ -28,6 +30,8 @@ export interface StepSummary {
   nodeId: string
   /** Loop round, when the step ran inside a loop. */
   round?: number
+  /** `forEach` item path, when the step ran inside a `forEach`. */
+  items?: number[]
   /** Step status. */
   status: StepStatus
   /** Wall time in milliseconds. */
@@ -96,6 +100,8 @@ export interface RunDependencies {
   lookupCapability?: (capabilityId: string) => CapabilityEntry | undefined
   /** Capture output {@link FileRef}s into the run artifact store. */
   captureOutput?: CaptureOneDelegate
+  /** Injectable clock for `forEach` throttling. */
+  clock?: RunClock
 }
 
 /**
@@ -149,6 +155,12 @@ interface NodeLike {
   maxConcurrency?: number
   /** When false, skip uniform output capture. Default true. */
   persist?: boolean
+  items?: unknown
+  collect?: unknown
+  into?: string
+  concurrency?: number
+  throttle?: { starts: number; perSeconds: number }
+  onError?: "fail" | "continue"
 }
 
 interface Runtime {
@@ -167,6 +179,10 @@ interface Runtime {
   runId: string
   /** Publish entries for this run; present when there is a run store. */
   publishes?: PublishLedger
+  /** `forEach` item indexes, outermost first. */
+  items?: number[]
+  /** Nesting depth of active `forEach` nodes (0 at root). */
+  forEachDepth: number
 }
 
 /**
@@ -209,11 +225,13 @@ export function startExecution(
       inProgress: deps.cursor?.inProgress,
       loops: { ...(deps.cursor?.loops ?? {}) },
       branches: { ...(deps.cursor?.branches ?? {}) },
+      forEach: { ...(deps.cursor?.forEach ?? {}) },
     },
     completed: new Set(deps.cursor?.completed ?? []),
     schemas: deps.schemas,
     runId: deps.runId ?? "run",
     publishes: deps.store ? createPublishLedger(deps.store, deps.runId ?? "run") : undefined,
+    forEachDepth: 0,
   }
   const state: Record<string, unknown> = { ...input }
   const emit = (type: RunEventType, data: Record<string, unknown>): void => {
@@ -293,6 +311,7 @@ function finish(
       inProgress: runtime.cursor.inProgress,
       loops: { ...runtime.cursor.loops },
       branches: { ...runtime.cursor.branches },
+      forEach: { ...runtime.cursor.forEach },
     },
     state: redact(state, runtime.secrets) as Record<string, unknown>,
   }
@@ -330,6 +349,8 @@ async function runNode(
     await runLoop(node, state, runtime, emit, nodePointer)
   } else if (node.type === "parallel") {
     await runParallel(node, state, runtime, emit, round, nodePointer)
+  } else if (node.type === "forEach") {
+    await runForEachNode(node, state, runtime, emit, nodePointer)
   } else {
     await runStep(node, state, runtime, emit, round, nodePointer)
   }
@@ -348,13 +369,18 @@ async function runStep(
   round: number | undefined,
   stepPointer: string,
 ): Promise<void> {
-  const summary: StepSummary = { nodeId: node.id, status: "completed", ...(round === undefined ? {} : { round }) }
+  const summary: StepSummary = {
+    nodeId: node.id,
+    status: "completed",
+    ...(round === undefined ? {} : { round }),
+    ...(runtime.items?.length ? { items: [...runtime.items] } : {}),
+  }
   if (node.expr) {
     const gate = await runtime.deps.expression.evaluate(node.expr, state, "control")
     if (gate !== true) {
       summary.status = "skipped"
       runtime.steps.push(summary)
-      emit("step.skip", { nodeId: node.id, round })
+      emit("step.skip", { nodeId: node.id, round, ...stepItemFields(runtime) })
       await persistStep(runtime, node, summary, {}, null, null)
       return
     }
@@ -363,7 +389,7 @@ async function runStep(
   const capability =
     (node.uses ? runtime.deps.lookupCapability?.(node.uses) : undefined) ??
     runtime.deps.capabilities.find((item) => item.id === node.uses)
-  emit("step.start", { nodeId: node.id, round, capabilityId: node.uses })
+  emit("step.start", { nodeId: node.id, round, capabilityId: node.uses, ...stepItemFields(runtime) })
   const staged: StagedWrite[] = []
   const store = createStore(staged)
   const timeoutMs = capability?.timeoutMs ?? runtime.deps.defaultStepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS
@@ -477,7 +503,8 @@ async function runStep(
         runId: runtime.runId,
         ...(runtime.deps.executionDir ? { executionDir: runtime.deps.executionDir } : {}),
         delegate: runtime.deps.captureOutput,
-        onWarning: (issue) => emit("step.warning", { nodeId: node.id, round, warning: issue }),
+        onWarning: (issue) => emit("step.warning", { nodeId: node.id, round, ...stepItemFields(runtime), warning: issue }),
+        ...(runtime.items?.length ? { items: [...runtime.items] } : {}),
       })
       output = capturedOutput.output
       captured = capturedOutput.captured
@@ -487,10 +514,11 @@ async function runStep(
     commitAs(state, node, redacted)
     summary.status = "completed"
     summary.durationMs = Date.now() - started
-    emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs })
+    emit("step.end", { nodeId: node.id, round, as: node.as, durationMs: summary.durationMs, ...stepItemFields(runtime) })
     await persistStep(runtime, node, summary, resolvedInput, redacted, null, ranScript, ranExpression, fileNotes, captured)
     await runtime.publishes?.record(capability, node.id, round, resolvedInput, redacted)
-    await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
+    // Inside a forEach item, state is the item's scope; the run's state is written when the forEach commits.
+    if (!runtime.items?.length) await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
   } catch (error) {
     summary.durationMs = Date.now() - started
     if (timeout.signal.aborted && !runtime.controller.signal.aborted) {
@@ -501,7 +529,7 @@ async function runStep(
         message: "Step timed out.",
         path: stepPointer,
       }
-      emit("step.error", { nodeId: node.id, round, error: issue })
+      emit("step.error", { nodeId: node.id, round, error: issue, ...stepItemFields(runtime) })
       await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes, [])
       throw Object.assign(new Error("Step timed out."), { code: "ECP_STEP_TIMEOUT" })
     }
@@ -513,7 +541,7 @@ async function runStep(
     }
     const issue = toIssue(error, runtime.secrets, stepPointer)
     summary.status = "failed"
-    emit("step.error", { nodeId: node.id, round, error: issue })
+    emit("step.error", { nodeId: node.id, round, error: issue, ...stepItemFields(runtime) })
     await persistStep(runtime, node, summary, resolvedInput, null, issue, ranScript, ranExpression, fileNotes, [])
     throw Object.assign(new Error(issue.message), {
       code: issue.code,
@@ -638,6 +666,29 @@ async function runParallel(
   if (failure) throw failure
 }
 
+async function runForEachNode(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  emit: (type: RunEventType, data: Record<string, unknown>) => void,
+  nodePointer: string,
+): Promise<void> {
+  const foreachRuntime = runtime as unknown as ForEachRuntime
+  await executeForEach(node, state, foreachRuntime, emit, nodePointer, {
+    runBody: async (steps, itemState, itemRuntime, itemEmit, prefix) => {
+      const child = itemRuntime as unknown as Runtime
+      await runNodes(asNodes(steps), itemState, child, itemEmit, undefined, prefix)
+    },
+    toIssue: (error) => toIssue(error, runtime.secrets, nodePointer),
+  })
+  if (!runtime.items?.length) await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
+}
+
+function stepItemFields(runtime: Runtime): { item?: number; items?: number[] } {
+  if (!runtime.items?.length) return {}
+  return { item: runtime.items.at(-1), items: [...runtime.items] }
+}
+
 async function persistStep(
   runtime: Runtime,
   node: NodeLike,
@@ -654,6 +705,7 @@ async function persistStep(
   const record: StepRecord = {
     nodeId: node.id,
     round: summary.round ?? null,
+    ...(summary.items?.length ? { items: summary.items } : {}),
     capabilityId: node.uses ?? "",
     status: summary.status,
     input: redact(input, runtime.secrets),

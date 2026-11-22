@@ -162,6 +162,46 @@ export interface LoopNode {
 }
 
 /**
+ * Sliding-window throttle on how fast items may start in a `forEach`.
+ * @category Definitions
+ */
+export interface ForEachThrottle {
+  /** Maximum item starts in one window. */
+  starts: number
+  /** Window length in seconds. */
+  perSeconds: number
+}
+
+/**
+ * Run the body once per element of an array.
+ * @category Definitions
+ */
+export interface ForEachNode {
+  /** Node kind. */
+  type: "forEach"
+  /** Unique node id. */
+  id: string
+  /** Display label. */
+  label?: string
+  /** Array to iterate; ref marker only. */
+  items: RefMarker
+  /** State key for the current item. */
+  as: string
+  /** Body steps. */
+  steps: Node[]
+  /** Value to collect per item; ref marker only. */
+  collect: RefMarker
+  /** State array key for collected results. */
+  into: string
+  /** Concurrent items. Default 1, max {@link MAX_FOREACH_CONCURRENCY}. */
+  concurrency?: number
+  /** Optional start throttle. */
+  throttle?: ForEachThrottle
+  /** Whether one failed item fails the run. Default `fail`. */
+  onError?: "fail" | "continue"
+}
+
+/**
  * Concurrent lists of nodes. Each list runs in order.
  * @category Definitions
  */
@@ -182,7 +222,7 @@ export interface ParallelNode {
  * Any node in an execution.
  * @category Definitions
  */
-export type Node = StepNode | BranchNode | LoopNode | ParallelNode
+export type Node = StepNode | BranchNode | LoopNode | ParallelNode | ForEachNode
 
 /**
  * Optional document metadata. `id` is required to commit.

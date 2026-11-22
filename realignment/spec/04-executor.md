@@ -79,6 +79,23 @@ arm; else nothing. Event `branch.select` with the arm index (or `null`).
 `round++`. Event `loop.round` per round; `loop.exhausted` when it stops because of `maxRounds`.
 Step records inside loops are keyed `<nodeId>#<round>` (rounds start at 0).
 
+**forEach:** resolve `items` once (not an array → `ECP_TYPE_MISMATCH`; more than 10 000 →
+`ECP_LIMIT_EXCEEDED`) and snapshot the state. Each item runs the body on its own deep copy of
+that snapshot plus `state.<as>` (the item) and `state.<as>Index`; body commits stay in the copy
+and `state.json` is not written for them. After the body, the value at `collect` (in the item's
+scope) is the item's result. Up to `concurrency` items (1–32, default 1) run at once, started in
+index order; `throttle: { starts, perSeconds }` lets at most `starts` items start in any
+`perSeconds` window. When every item has finished, `state.<into>` = the results in item order
+(`create`), then `state.json` is written.
+`onError: "fail"` (default): a failed item stops new items from starting; items already
+running finish; the node fails with the lowest-index failure (`details.index`) and commits
+nothing. `"continue"`: the failed item's result is `null` and `{ index, error }` is added to
+`state.<into>Errors` (always written, sorted by index). Step records inside a `forEach` carry
+`items` (the item path, outermost first). Nesting: a `loop` or `parallel` inside the body works
+on the item's copy; a nested `forEach` snapshots the outer item and collects into it. Nested
+concurrencies multiply; keeping the product within a provider's limits is the author's job
+(a plugin may also cap its own request rate, as the Adobe plugin's `maxRequestsPerMinute` does).
+
 **Parallel:** run each line as a sequence, at most `maxConcurrency` lines at a time (lines start
 in array order). All lines share the run's state object; validation (03) guarantees they don't
 read each other's outputs or write the same key, so commits are safe (single-threaded JS).
@@ -152,7 +169,8 @@ This includes capability outputs (a plugin echoing a key back).
 
 `execute { cancel: runId }` aborts the run's `AbortSignal`. In-flight capability calls receive
 the abort; the run ends `cancelled` once they settle (or after 10 s, whichever first). Nodes
-not started are not run.
+not started are not run. A `forEach` stops starting items, aborts running ones and does not commit
+`into`.
 
 ## Resume
 
@@ -163,6 +181,10 @@ not started are not run.
   skip every node recorded as completed or skipped, and re-run the node that was in progress
   from scratch (its staged writes were never committed). Loop round counters and branch
   selections are restored from the run record. The same run id continues; event `run.resume`.
+- `forEach`: the outermost `forEach` records each finished item's result in
+  `runs/<id>/for-each/<nodeId>.json` (05). On resume, recorded items are skipped and their results
+  reused; an item that was running restarts from its first step (its writes lived only in its copy).
+  A nested `forEach` keeps no file: a crash inside it restarts the outer item.
 - A capability that is not idempotent may repeat side effects for the re-run node; this is
   documented behaviour, surfaced in the `run.resume` event data (`rerunNodeId`).
 
@@ -171,13 +193,18 @@ not started are not run.
 | Type | Data |
 | --- | --- |
 | `run.start` | `executionId?`, `path?`, `manifestHash`, `input` (redacted) |
-| `step.start` | `nodeId`, `round?`, `capabilityId` |
-| `step.skip` | `nodeId`, `round?` |
-| `step.end` | `nodeId`, `round?`, `durationMs`, `as?` |
-| `step.error` | `nodeId`, `round?`, `error` (issue) |
+| `step.start` | `nodeId`, `round?`, `item?`, `items?`, `capabilityId` |
+| `step.skip` | `nodeId`, `round?`, `item?`, `items?` |
+| `step.end` | `nodeId`, `round?`, `item?`, `items?`, `durationMs`, `as?` |
+| `step.error` | `nodeId`, `round?`, `item?`, `items?`, `error` (issue) |
 | `branch.select` | `nodeId`, `arm` (index or `null`) |
 | `loop.round` | `nodeId`, `round` |
 | `loop.exhausted` | `nodeId`, `rounds` |
+| `forEach.start` | `nodeId`, `count` |
+| `forEach.item.start` | `nodeId`, `index` |
+| `forEach.item.end` | `nodeId`, `index`, `durationMs` |
+| `forEach.item.error` | `nodeId`, `index`, `error` (issue) |
+| `forEach.end` | `nodeId`, `count`, `failed` |
 | `run.interrupted` | `reason` (`host-restart` / `host-crash`) |
 | `run.resume` | `rerunNodeId?` |
 | `run.end` | `status`, `durationMs`, `error?` |

@@ -18,6 +18,11 @@
         "branch.select",
         "loop.round",
         "loop.exhausted",
+        "forEach.start",
+        "forEach.item.start",
+        "forEach.item.end",
+        "forEach.item.error",
+        "forEach.end",
         "run.interrupted",
         "run.resume",
         "run.end"

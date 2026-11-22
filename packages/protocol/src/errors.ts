@@ -60,6 +60,7 @@ export const ERROR_CATALOGUE = {
   ECP_PLUGIN_LOAD_FAILED: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_PROVIDER_ERROR: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_RUN_CANCELLED: { httpStatus: null, exitCode: 1, kind: "runtime" },
+  ECP_LIMIT_EXCEEDED: { httpStatus: null, exitCode: 1, kind: "runtime" },
   ECP_HOST_RESTARTING: { httpStatus: 503, exitCode: 4, kind: "host" },
   ECP_HOST_UNAVAILABLE: { httpStatus: null, exitCode: 4, kind: "host" },
   ECP_UNAUTHORIZED: { httpStatus: 401, exitCode: 4, kind: "host" },

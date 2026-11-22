@@ -1,0 +1,63 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "rowA": { "type": "string", "default": "a" },
+        "rowB": { "type": "string", "default": "b" }
+      },
+      "required": ["rowA", "rowB"]
+    }
+  },
+  "steps": [
+    {
+      "id": "pack",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "rowA": { "type": "string" },
+          "rowB": { "type": "string" }
+        },
+        "required": ["rowA", "rowB"]
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "rows": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["rows"]
+      },
+      "script": {
+        "$script": {
+          "lang": "js",
+          "source": "return { rows: [input.rowA, input.rowB] }"
+        }
+      },
+      "input": {
+        "rowA": { "$ref": "state.rowA" },
+        "rowB": { "$ref": "state.rowB" }
+      },
+      "as": "packed"
+    },
+    {
+      "type": "forEach",
+      "id": "rows",
+      "items": { "$ref": "state.packed.rows" },
+      "as": "row",
+      "concurrency": 2,
+      "steps": [
+        {
+          "id": "echo",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": { "value": { "$ref": "state.row" } },
+          "as": "echoed"
+        }
+      ],
+      "collect": { "$ref": "state.echoed" },
+      "into": "results"
+    }
+  ]
+}
