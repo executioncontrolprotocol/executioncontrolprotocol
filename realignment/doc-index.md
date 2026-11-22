@@ -16,7 +16,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 34 |
+| Plan / phases / spec | 35 |
 | Package READMEs | 10 |
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
@@ -53,6 +53,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `realignment/doc-index.md` | Plan / phases / spec | current |
 | `realignment/evidence/a10-localize-banner.md` | Plan / phases / spec | current |
 | `realignment/file-access.md` | Plan / phases / spec | current |
+| `realignment/for-each.md` | Plan / phases / spec | current |
 | `realignment/mvp-audit-fixes.md` | Plan / phases / spec | current |
 | `realignment/phase-0-groundwork.md` | Plan / phases / spec | current |
 | `realignment/phase-1-engine.md` | Plan / phases / spec | current |
@@ -123,6 +124,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/anthropic-images-psd-artboards.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/capture-pr4.md` | Other | current |
+| `.changeset/core-parse-csv.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/declared-file-access-pr2.md` | Other | current |
 | `.changeset/file-service-pr1.md` | Other | current |

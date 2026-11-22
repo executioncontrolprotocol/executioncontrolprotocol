@@ -1,6 +1,18 @@
 {
   "capabilities": [
     {
+      "description": "Reads the file through the host file service and parses it as RFC 4180 CSV: quoted fields, escaped quotes, line breaks inside quotes, CRLF or LF, an optional UTF-8 BOM. With a header (the default) each row is an object keyed by column; every value is a string.",
+      "id": "@executioncontrolprotocol/core.parse-csv",
+      "name": "parse-csv",
+      "projections": [
+        "Take `rows` (objects keyed by `columns`)"
+      ],
+      "summary": "Parse a CSV file into rows.",
+      "useCases": [
+        "Turn a spreadsheet of variants into rows a forEach can run over"
+      ]
+    },
+    {
       "code": "script",
       "contract": "step",
       "description": "Resolves step input, evaluates the step script in QuickJS, and returns JSON matching the step returns schema. The handler is not called.",
@@ -16,16 +28,16 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "f1dcdee55b683acb15e9b8912d24b695a176036753ccab30fd692335035c1f19",
+  "hash": "dc109ca64cc985d8132e830565ceafc3717699251fa137281a5109bed9f08942",
   "plugin": {
     "description": "Supplies step-contract capabilities so executions can declare accepts, returns and scripts on the step node.",
     "id": "@executioncontrolprotocol/core",
     "package": "@executioncontrolprotocol/core",
-    "summary": "Core transform and step-contract capabilities bundled with the host.",
+    "summary": "Core transform, step-contract and CSV capabilities bundled with the host.",
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "4844207c0b15f248b61d85d930c9ff1d9e81a29ce7f92d362659be4cd6ac92c3",
+    "hash": "957f38478fdbd6c1c93c5b5f954ce5e3964eaace0a5daa93613b2e232011a7ff",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

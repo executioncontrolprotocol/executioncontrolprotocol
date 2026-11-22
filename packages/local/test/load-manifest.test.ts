@@ -405,13 +405,14 @@ export default definePlugin({
     }
   })
 
-  it("accepts step-contract-only plugin schemas with empty $defs", async () => {
+  it("adds no $defs for step-contract capabilities", async () => {
     const coreRoot = path.join(repoRoot, "plugins/plugin-core")
     const result = await loadPluginPackage(coreRoot, "core")
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const schema = await loadPluginSchemaDocument(result.loaded)
     expect(schema.ok).toBe(true)
-    if (schema.ok) expect(Object.keys(schema.document.$defs)).toHaveLength(0)
+    // transform is step-contract (no $defs); only parse-csv contributes schemas.
+    if (schema.ok) expect(Object.keys(schema.document.$defs).sort()).toEqual(["parse-csv.accepts", "parse-csv.returns"])
   })
 })
