@@ -393,7 +393,7 @@ describe("validation output contract (F2–F4)", () => {
 
   it("validates a forEach manifest produced by the valid fixture", async () => {
     const manifest = JSON.parse(
-      readFileSync(path.resolve(here, "../../../fixtures/manifests/valid/for-each.ecp.json"), "utf8"),
+      readFileSync(path.resolve(here, "../../../fixtures/manifests/valid/loop-foreach.ecp.json"), "utf8"),
     ) as ExecutionManifest
     const coreManifest = JSON.parse(
       readFileSync(path.resolve(here, "../../../plugins/plugin-core/ecp.manifest.json"), "utf8"),
@@ -417,6 +417,28 @@ describe("validation output contract (F2–F4)", () => {
       code: capability.code as "script",
     }))
     const result = await validateExecution(manifest, { capabilities: [...capabilities, ...coreCapabilities] })
+    expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
+  })
+
+  it("warns ECP_LOOP_UNTYPED when forEach uses expr for items", async () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          mode: "forEach",
+          id: "untyped",
+          expr: "(state) => state.rows ?? []",
+          as: "row",
+          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.row" } } }],
+          collect: "state.row",
+          into: "out",
+        },
+      ],
+    }
+    const result = await validateExecution(manifest, validateOpts)
+    expect(result.issues.some((issue) => issue.code === "ECP_LOOP_UNTYPED" && issue.severity === "warning")).toBe(true)
     expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
   })
 

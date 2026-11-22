@@ -32,15 +32,15 @@ export interface RunCursor {
   loops: Record<string, number>
   /** Branch id to the arm index that was selected. */
   branches: Record<string, number>
-  /** `forEach` node id to item indexes that finished. */
-  forEach?: Record<string, { completed: number[] }>
+  /** Outermost `forEach` loop id to item indexes that finished. */
+  loopItems?: Record<string, { completed: number[] }>
 }
 
 /**
- * Partial per-item results for an outer `forEach` (`runs/<runId>/for-each/<nodeId>.json`).
+ * Partial per-item results for an outer `forEach` loop (`runs/<runId>/loop-items/<nodeId>.json`).
  * @category Definitions
  */
-export interface ForEachPartialFile {
+export interface LoopPartialFile {
   /** Item index (string key) to collected value, or `null` when continuing past an error. */
   results: Record<string, JsonValue | null>
   /** Failed item indexes when `onError` is `continue`. */
@@ -300,7 +300,7 @@ export interface StepRecord {
   nodeId: string
   /** Loop round, or null outside a loop. */
   round: number | null
-  /** `forEach` item indexes, outermost first; absent outside a `forEach`. */
+  /** `forEach` item indexes, outermost first; absent outside a `forEach` loop. */
   items?: number[]
   /** Capability id. */
   capabilityId: string
@@ -361,11 +361,11 @@ export type RunEventType =
   | "branch.select"
   | "loop.round"
   | "loop.exhausted"
-  | "forEach.start"
-  | "forEach.item.start"
-  | "forEach.item.end"
-  | "forEach.item.error"
-  | "forEach.end"
+  | "loop.start"
+  | "loop.item.start"
+  | "loop.item.end"
+  | "loop.item.error"
+  | "loop.end"
   | "run.interrupted"
   | "run.resume"
   | "run.end"

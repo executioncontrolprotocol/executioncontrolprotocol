@@ -7,12 +7,12 @@ import {
   EXECUTION_ACCEPTS_NODE_ID,
   EXECUTION_RETURNS_NODE_ID,
   executionToReactFlow,
-  FOREACH_COLLECT_HANDLE,
-  FOREACH_INTO_HANDLE,
-  FOREACH_ITEMS_HANDLE,
+  LOOP_COLLECT_HANDLE,
+  LOOP_INTO_HANDLE,
+  LOOP_REF_HANDLE,
   type ReactFlowDocument,
   type ReactFlowEdge,
-  type ReactFlowForEachData,
+  type ReactFlowLoopItemsData,
   type ReactFlowIoData,
   type ReactFlowFrameData,
   type ReactFlowNode,
@@ -48,8 +48,8 @@ function stepIds(manifestNodes: unknown[], out: string[] = []): string[] {
     else if (node.type === "parallel") for (const line of node.branches as unknown[][]) stepIds(line, out)
     else if (node.type === "branch") {
       for (const arm of node.branches as Array<{ steps: unknown[] }>) stepIds(arm.steps, out)
-    } else if (node.type === "forEach") {
-      out.push(node.id as string)
+    } else if (node.type === "loop") {
+      if ((node.mode as string | undefined) === "forEach") out.push(node.id as string)
       stepIds(node.steps as unknown[], out)
     } else stepIds(node.steps as unknown[], out)
   }
@@ -88,12 +88,12 @@ describe("executionToReactFlow over fixtures/manifests/valid", () => {
       const sourceNode = byId.get(edge.source)
       const targetNode = byId.get(edge.target)
       const sourceOutputs =
-        sourceNode?.type === "ecp-foreach"
-          ? (sourceNode.data as ReactFlowForEachData).outputs
+        sourceNode?.type === "ecp-loop"
+          ? (sourceNode.data as ReactFlowLoopItemsData).outputs
           : (sourceNode?.data as ReactFlowStepData | ReactFlowIoData).outputs
       const targetInputs =
-        targetNode?.type === "ecp-foreach"
-          ? (targetNode.data as ReactFlowForEachData).inputs
+        targetNode?.type === "ecp-loop"
+          ? (targetNode.data as ReactFlowLoopItemsData).inputs
           : (targetNode?.data as ReactFlowStepData | ReactFlowIoData).inputs
       expect(sourceOutputs.map((p) => p.id)).toContain(edge.sourceHandle)
       expect(targetInputs.map((p) => p.id)).toContain(edge.targetHandle)
@@ -314,35 +314,35 @@ describe("capability schemas", () => {
   })
 })
 
-describe("forEach graph", () => {
-  function foreachNode(doc: ReactFlowDocument, id: string): ReactFlowForEachData {
+describe("forEach loop graph", () => {
+  function loopItemsNode(doc: ReactFlowDocument, id: string): ReactFlowLoopItemsData {
     const node = doc.nodes.find((n) => n.id === id)
-    if (!node || node.type !== "ecp-foreach") throw new Error(`no forEach ${id}`)
-    return node.data as ReactFlowForEachData
+    if (!node || node.type !== "ecp-loop") throw new Error(`no forEach loop ${id}`)
+    return node.data as ReactFlowLoopItemsData
   }
 
   it("renders a structure node, frame, route entry and data ports", () => {
-    const doc = executionToReactFlow(load("for-each.ecp.json"))
-    expect(doc.nodes.some((n) => n.type === "ecp-foreach" && n.id === "rows")).toBe(true)
+    const doc = executionToReactFlow(load("loop-foreach.ecp.json"))
+    expect(doc.nodes.some((n) => n.type === "ecp-loop" && n.id === "rows")).toBe(true)
     const frame = doc.nodes.find((n) => n.type === "ecp-frame" && (n.data as ReactFlowFrameData).structureId === "rows")
     expect(frame).toBeDefined()
     expect((frame?.data as ReactFlowFrameData).label).toBe("forEach ×2")
-    const routes = routeEdges(doc).filter((e) => e.data.route === "forEach")
+    const routes = routeEdges(doc).filter((e) => e.data.route === "loop" && e.data.loopMode === "forEach")
     expect(routes.some((e) => e.source === "rows" && e.target === "echo")).toBe(true)
     expect(routes.every((e) => !e.data.loopBack)).toBe(true)
-    const ports = foreachNode(doc, "rows")
-    expect(ports.inputs.map((p) => p.id).sort()).toEqual([FOREACH_COLLECT_HANDLE, FOREACH_ITEMS_HANDLE].sort())
-    expect(ports.outputs.map((p) => p.id)).toEqual([FOREACH_INTO_HANDLE])
+    const ports = loopItemsNode(doc, "rows")
+    expect(ports.inputs.map((p) => p.id).sort()).toEqual([LOOP_COLLECT_HANDLE, LOOP_REF_HANDLE].sort())
+    expect(ports.outputs.map((p) => p.id)).toEqual([LOOP_INTO_HANDLE])
   })
 
-  it("wires items and collect refs and exposes into from the forEach node", () => {
-    const doc = executionToReactFlow(load("for-each.ecp.json"))
+  it("wires ref and collect and exposes into from the loop node", () => {
+    const doc = executionToReactFlow(load("loop-foreach.ecp.json"))
     const edges = dataEdges(doc)
     expect(edges).toContainEqual(
       expect.objectContaining({
         source: "pack",
         target: "rows",
-        targetHandle: FOREACH_ITEMS_HANDLE,
+        targetHandle: LOOP_REF_HANDLE,
         sourceHandle: "rows",
       }),
     )
@@ -350,14 +350,14 @@ describe("forEach graph", () => {
       expect.objectContaining({
         source: "echo",
         target: "rows",
-        targetHandle: FOREACH_COLLECT_HANDLE,
+        targetHandle: LOOP_COLLECT_HANDLE,
         sourceHandle: "output",
       }),
     )
   })
 
   it("does not source body commit keys outside the frame", () => {
-    const manifest = load("for-each.ecp.json")
+    const manifest = load("loop-foreach.ecp.json")
     manifest.steps = [
       ...manifest.steps,
       {
@@ -370,8 +370,8 @@ describe("forEach graph", () => {
     expect(dataEdges(doc).some((e) => e.target === "peek")).toBe(false)
   })
 
-  it("sources state.into from the forEach node", () => {
-    const manifest = load("for-each.ecp.json")
+  it("sources state.into from the loop node", () => {
+    const manifest = load("loop-foreach.ecp.json")
     manifest.steps = [
       ...manifest.steps,
       {
@@ -382,19 +382,20 @@ describe("forEach graph", () => {
     ]
     const doc = executionToReactFlow(manifest)
     expect(dataEdges(doc)).toContainEqual(
-      expect.objectContaining({ source: "rows", sourceHandle: FOREACH_INTO_HANDLE, target: "after" }),
+      expect.objectContaining({ source: "rows", sourceHandle: LOOP_INTO_HANDLE, target: "after" }),
     )
   })
 
-  it("supports a loop nested in a forEach body", () => {
+  it("supports a while loop nested in a forEach loop body", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "forEach",
+          type: "loop",
+          mode: "forEach",
           id: "items",
-          items: { $ref: "state.list" },
+          ref: "state.list",
           as: "item",
           steps: [
             {
@@ -405,14 +406,14 @@ describe("forEach graph", () => {
               steps: [{ id: "tick", uses: "@executioncontrolprotocol/test.echo", as: "tick" }],
             },
           ],
-          collect: { $ref: "state.tick" },
+          collect: "state.tick",
           into: "ticks",
         },
       ],
     }
     const doc = executionToReactFlow(manifest)
     expect(routeEdges(doc).some((e) => e.data.route === "loop" && e.data.loopBack)).toBe(true)
-    expect(routeEdges(doc).some((e) => e.data.route === "forEach")).toBe(true)
+    expect(routeEdges(doc).some((e) => e.data.route === "loop" && e.data.loopMode === "forEach")).toBe(true)
   })
 })
 

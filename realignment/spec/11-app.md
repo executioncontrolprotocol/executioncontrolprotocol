@@ -27,7 +27,7 @@ read-only.
 | Node panel | Selected node: capability summary and description, input bindings (literal / ref / expr / script), step `accepts`/`returns` when declared on the step else capability schemas (collapsible JSON), transform `script` or `expression` in a textarea when editable (inline `source` via execution commit; `path` via `GET`/`PUT /v1/file`), config id | `retrieve { type: "capability", id }`, commit / file routes |
 | Edge panel | Selected data or route edge: source/target handles, `$ref` (optional / fallback) or step `expr` gate / route `expr` (textarea when editable); data bindings are `$ref` only. Syntax via `execute { mode: "validate", execution: <draft> }` (`ECP_EXPR_INVALID` at the edited pointer only); save via `PUT /v1/file` (path) or `commit { type: "execution", action: "update", ifVersion }` (id). Payloads: `retrieve { type: "run", include: ["steps", "state"] }` for the selected or live run (source from state along the read path, target from the step record's resolved `input`; not on `step.end` events) | Host execute / commit / file routes |
 | Validation | Issues list (code, message, path, suggestions); clicking an issue selects the node; nodes with errors get an error badge | `execute { mode: "validate" }` |
-| Run | Input form generated from `execution.accepts` (string, number, integer, boolean, enum, object/array as JSON textarea); Run button; live per-node status (running / completed / skipped / failed / cancelled), loop round and `forEach` item overlays (`done / count` on the structure node, `item N` on body steps), selected branch arm highlighted; result JSON; error with issues | `execute { wait: false }` then `/v1/watch?runId=` |
+| Run | Input form generated from `execution.accepts` (string, number, integer, boolean, enum, object/array as JSON textarea); Run button; live per-node status (running / completed / skipped / failed / cancelled), loop overlays (`while`/`for`: round on the loop node; `forEach`: `done / count` on the loop node, `item N` on body steps from `loop.item.*` events), selected branch arm highlighted; result JSON; error with issues | `execute { wait: false }` then `/v1/watch?runId=` |
 | Runs | Run history for this execution; selecting a run replays its statuses on the graph and shows step inputs/outputs (redacted) | `retrieve { type: "run", filter: { executionId }, include: ["steps"] }` |
 | JSON | Read-only Monaco view of the manifest | — |
 
@@ -57,9 +57,10 @@ Path-opened executions use three host routes (09):
   Reloading never interrupts a run in progress; the run panel keeps showing it. A dirty edge-edit
   draft is discarded on external reload with a one-line note.
 - Layout: dagre, left-to-right; parallel lines stacked with a non-parent `ecp-frame` overlay per
-  line (structure label on the frame, not repeated on route edges); `forEach` bodies use an
-  `ecp-foreach` node at the frame head (handles `items`, `collect`, `into`) plus a route edge into
-  the body; branch arms fan out; loop bodies use route edges. Never set `parentId`
+  line (structure label on the frame, not repeated on route edges); `loop` with `mode: "forEach"`
+  uses a frame around the body with the loop node at its head (handles `ref`/`expr`, `collect`,
+  `into`); `while` / `for` loops use a back-edge into the body; branch arms fan out. Never set
+  `parentId`
   (`.cursor/rules/reactflow-render.mdc`).
 - The App was ported from the pre-realignment tree into `packages/app` (`execution-to-reactflow.ts`,
   `extract-data-edges.ts`, `layout.ts`, `map-run-events.ts`, `ports-from-schema.ts`,

@@ -23,11 +23,9 @@
         "additionalProperties": false
       },
       "script": {
-        "$script": {
           "lang": "js",
           "source": "return { greeting: `Hello, ${input.name}!` }"
-        }
-      },
+        },
       "input": {
         "name": "world"
       },

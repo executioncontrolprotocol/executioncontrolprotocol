@@ -98,7 +98,7 @@
         "table": { "$ref": "state.table" },
         "backgroundPaths": { "$ref": "state.backgroundPaths" }
       },
-      "script": { "$script": { "lang": "js", "path": "scripts/check-variants.js" } },
+      "script": { "lang": "js", "path": "scripts/check-variants.js" },
       "as": "checked"
     },
     {
@@ -113,10 +113,11 @@
       "as": "upload"
     },
     {
-      "type": "forEach",
+      "type": "loop",
       "id": "upload-backgrounds",
       "label": "Publish each background",
-      "items": { "$ref": "state.checked.backgrounds" },
+      "mode": "forEach",
+      "ref": "state.checked.backgrounds",
       "as": "background",
       "concurrency": 3,
       "steps": [
@@ -156,7 +157,7 @@
           "as": "named"
         }
       ],
-      "collect": { "$ref": "state.named" },
+      "collect": "state.named",
       "into": "backgrounds"
     },
     {
@@ -212,7 +213,7 @@
           "fallback": { "title": "Headline", "subtitle": "Subhead", "background": "Background" }
         }
       },
-      "script": { "$script": { "lang": "js", "path": "scripts/variant-edits.js" } },
+      "script": { "lang": "js", "path": "scripts/variant-edits.js" },
       "as": "prepared"
     },
     {
@@ -254,17 +255,17 @@
         },
         "rules": { "$ref": "state.rules", "optional": true, "fallback": {} }
       },
-      "script": { "$script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/plan-layout.js" } },
+      "script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/plan-layout.js" },
       "as": "plan"
     },
     {
-      "type": "forEach",
+      "type": "loop",
       "id": "build-variants",
       "label": "Build and render each variant",
-      "items": { "$ref": "state.prepared.rows" },
+      "mode": "forEach",
+      "ref": "state.prepared.rows",
       "as": "variant",
       "concurrency": 2,
-      "throttle": { "starts": 2, "perSeconds": 60 },
       "onError": "fail",
       "steps": [
         {
@@ -335,7 +336,7 @@
             "additionalProperties": false
           },
           "input": { "manifest": { "$ref": "state.result" }, "plan": { "$ref": "state.plan" } },
-          "script": { "$script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/check-structure.js" } },
+          "script": { "lang": "js", "path": "../psd-artboards-renditions/scripts/check-structure.js" },
           "as": "structure"
         },
         {
@@ -416,7 +417,7 @@
           "as": "summary"
         }
       ],
-      "collect": { "$ref": "state.summary" },
+      "collect": "state.summary",
       "into": "variants"
     },
     {
@@ -428,10 +429,11 @@
       "as": "removedTemplate"
     },
     {
-      "type": "forEach",
+      "type": "loop",
       "id": "cleanup-backgrounds",
       "label": "Remove the published backgrounds",
-      "items": { "$ref": "state.backgrounds" },
+      "mode": "forEach",
+      "ref": "state.backgrounds",
       "as": "published",
       "concurrency": 3,
       "steps": [
@@ -444,7 +446,7 @@
           "as": "removed"
         }
       ],
-      "collect": { "$ref": "state.removed.deleted" },
+      "collect": "state.removed.deleted",
       "into": "removedBackgrounds"
     },
     {

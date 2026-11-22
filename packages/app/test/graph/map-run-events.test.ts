@@ -18,7 +18,7 @@ function ev(type: RunEventType, data: Record<string, unknown> = {}): RunEvent {
 
 function record(bus: ReactFlowRunProgress): Array<[string, unknown]> {
   const seen: Array<[string, unknown]> = []
-  for (const name of ["run:reset", "step:status", "arm:status", "loop:round", "forEach:progress", "run:done"]) {
+  for (const name of ["run:reset", "step:status", "arm:status", "loop:round", "loop:progress", "run:done"]) {
     bus.addEventListener(name, (event) => seen.push([name, (event as CustomEvent).detail]))
   }
   return seen
@@ -121,17 +121,17 @@ describe("reduceRunEvent / replayRunEvents", () => {
       "branch.select",
       "loop.round",
       "loop.exhausted",
-      "forEach.start",
-      "forEach.item.start",
-      "forEach.item.end",
-      "forEach.item.error",
-      "forEach.end",
+      "loop.start",
+      "loop.item.start",
+      "loop.item.end",
+      "loop.item.error",
+      "loop.end",
     ] as const) {
       const next = reduceRunEvent(start, ev(type, {}))
       expect(next.steps).toEqual({})
       expect(next.arms).toEqual({})
       expect(next.loops).toEqual({})
-      expect(next.forEaches).toEqual({})
+      expect(next.loopItems).toEqual({})
     }
     expect(reduceRunEvent(start, ev("loop.round", { nodeId: "l", round: "1" })).loops).toEqual({})
     expect(reduceRunEvent(start, ev("branch.select", { nodeId: "b", arm: "x" })).arms).toEqual({ b: null })
@@ -149,19 +149,19 @@ describe("reduceRunEvent / replayRunEvents", () => {
   })
 })
 
-describe("forEach run overlay", () => {
+describe("forEach loop run overlay", () => {
   it("tracks counts on the structure node and item labels on body steps", () => {
     const state = replayRunEvents([
       ev("run.start"),
-      ev("forEach.start", { nodeId: "rows", count: 3 }),
-      ev("forEach.item.start", { nodeId: "rows", index: 0 }),
+      ev("loop.start", { nodeId: "rows", count: 3 }),
+      ev("loop.item.start", { nodeId: "rows", index: 0 }),
       ev("step.start", { nodeId: "echo", item: 0 }),
       ev("step.end", { nodeId: "echo", item: 0 }),
-      ev("forEach.item.end", { nodeId: "rows", index: 0, durationMs: 2 }),
-      ev("forEach.item.error", { nodeId: "rows", index: 1, error: { code: "ECP_STEP_FAILED", message: "bad" } }),
-      ev("forEach.end", { nodeId: "rows", count: 3, failed: 1 }),
+      ev("loop.item.end", { nodeId: "rows", index: 0, durationMs: 2 }),
+      ev("loop.item.error", { nodeId: "rows", index: 1, error: { code: "ECP_STEP_FAILED", message: "bad" } }),
+      ev("loop.end", { nodeId: "rows", count: 3, failed: 1 }),
     ])
-    expect(state.forEaches.rows).toEqual({ count: 3, done: 1, failed: 1 })
+    expect(state.loopItems.rows).toEqual({ count: 3, done: 1, failed: 1 })
     expect(state.steps.echo).toEqual({ status: "completed", item: 0 })
   })
 })
@@ -178,9 +178,9 @@ describe("armRunState", () => {
     expect(armRunState({ route: "branch", structureId: "br", armIndex: 1 }, state)).toBe("skipped")
   })
 
-  it("marks a forEach route taken once the structure has started", () => {
-    const state = replayRunEvents([ev("run.start"), ev("forEach.start", { nodeId: "fe", count: 1 })])
-    expect(armRunState({ route: "forEach", structureId: "fe" }, state)).toBe("taken")
+  it("marks a forEach loop route taken once the structure has started", () => {
+    const state = replayRunEvents([ev("run.start"), ev("loop.start", { nodeId: "fe", count: 1 })])
+    expect(armRunState({ route: "loop", loopMode: "forEach", structureId: "fe" }, state)).toBe("taken")
   })
 
   it("is idle before selection, for parallel lines and for loops that never ran", () => {
@@ -223,16 +223,16 @@ describe("applyRunEvent", () => {
     ])
   })
 
-  it("emits forEach progress counts", () => {
+  it("emits loop item progress counts", () => {
     const bus = new ReactFlowRunProgress()
     const seen = record(bus)
-    applyRunEvent(bus, ev("forEach.start", { nodeId: "fe", count: 2 }))
-    applyRunEvent(bus, ev("forEach.item.end", { nodeId: "fe", index: 0 }))
-    applyRunEvent(bus, ev("forEach.end", { nodeId: "fe", count: 2, failed: 0 }))
-    expect(seen).toContainEqual(["forEach:progress", { structureId: "fe", done: 0, count: 2 }])
-    expect(seen).toContainEqual(["forEach:progress", { structureId: "fe", done: 1, count: 2 }])
-    expect(seen).toContainEqual(["forEach:progress", { structureId: "fe", done: 1, count: 2, failed: 0 }])
-    expect(bus.currentForEach("fe")).toEqual({ count: 2, done: 1, failed: 0 })
+    applyRunEvent(bus, ev("loop.start", { nodeId: "fe", count: 2 }))
+    applyRunEvent(bus, ev("loop.item.end", { nodeId: "fe", index: 0 }))
+    applyRunEvent(bus, ev("loop.end", { nodeId: "fe", count: 2, failed: 0 }))
+    expect(seen).toContainEqual(["loop:progress", { structureId: "fe", done: 0, count: 2 }])
+    expect(seen).toContainEqual(["loop:progress", { structureId: "fe", done: 1, count: 2 }])
+    expect(seen).toContainEqual(["loop:progress", { structureId: "fe", done: 1, count: 2, failed: 0 }])
+    expect(bus.currentLoopItems("fe")).toEqual({ count: 2, done: 1, failed: 0 })
   })
 
   it("emits nothing for events missing their node id or round, or for run.resume", () => {

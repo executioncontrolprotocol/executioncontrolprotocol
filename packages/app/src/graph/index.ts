@@ -89,15 +89,15 @@ export {
   createRunGraphState,
   reduceRunEvent,
   replayRunEvents,
-  type RunGraphForEach,
+  type RunGraphLoopItems,
   type RunGraphLoop,
   type RunGraphState,
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
-  FOREACH_COLLECT_HANDLE,
-  FOREACH_INTO_HANDLE,
-  FOREACH_ITEMS_HANDLE,
+  LOOP_COLLECT_HANDLE,
+  LOOP_INTO_HANDLE,
+  LOOP_REF_HANDLE,
 } from "./types.js"
 export type {
   CapabilityIoSchemas,
@@ -108,8 +108,8 @@ export type {
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
-  ReactFlowForEachData,
-  ReactFlowForEachProgressDetail,
+  ReactFlowLoopItemsData,
+  ReactFlowLoopProgressDetail,
   ReactFlowFrameData,
   ReactFlowIoData,
   ReactFlowIoKind,

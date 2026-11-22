@@ -2,7 +2,7 @@ import type { ExecutionManifest } from "./manifest.js"
 import type {
   CapabilityEntry,
   ConfigObject,
-  ForEachPartialFile,
+  LoopPartialFile,
   RunDetail,
   RunFilter,
   RunRecord,
@@ -279,10 +279,10 @@ export interface RunStore {
   getManifest(id: string): Promise<ExecutionManifest | undefined>
   /** List runs, most recent first. */
   list(filter: RunFilter, limit: number): Promise<RunRecord[]>
-  /** Read partial results for an outer `forEach`. */
-  readForEachPartial?(runId: string, nodeId: string): Promise<ForEachPartialFile | undefined>
-  /** Atomically persist partial results for an outer `forEach`. */
-  writeForEachPartial?(runId: string, nodeId: string, file: ForEachPartialFile): Promise<void>
+  /** Read partial results for an outer `forEach` loop. */
+  readLoopPartial?(runId: string, nodeId: string): Promise<LoopPartialFile | undefined>
+  /** Atomically persist partial results for an outer `forEach` loop. */
+  writeLoopPartial?(runId: string, nodeId: string, file: LoopPartialFile): Promise<void>
 }
 
 /**

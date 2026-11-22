@@ -77,11 +77,9 @@
         "headline": { "$ref": "state.doc.echo.headline" }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "source": "return { prompt: `Translate: ${input.headline}` }"
-        }
-      },
+        },
       "as": "prompt"
     },
     {

@@ -33,11 +33,9 @@
         "seed": { "$ref": "state.seed.echo" }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "source": "return { value: input.seed }"
-        }
-      },
+        },
       "as": "fromExpr"
     },
     {

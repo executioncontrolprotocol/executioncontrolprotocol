@@ -19,21 +19,23 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   A read resolves to the last earlier step whose `as` is the key, else the Inputs node when
   `execution.accepts` declares the key, else another step writing it (a loop-carried value).
   A step never gets an edge from itself.
+  - For `loop` nodes: a `ref` driver gets a data edge from its producer into the loop node.
+    In `forEach` mode, the body step that writes `collect` feeds `collect`; reads of `state.<into>`
+    after the loop start at the loop node's `into` handle. Body-only keys (`<as>`, `<as>Index`,
+    body `as` keys) do not source edges outside the frame.
 - **Route edges** publish structure (`data.kind: "route"`, `route`: `branch` / `parallel` /
-  `loop` / `forEach`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or
-  `defaultArm` for the arm without `expr`. Loops carry their `expr` and `maxRounds`, plus a
-  `loopBack` edge from the body's exits to its entries (excluded from dagre ranks). Parallel lines
-  use dashed route edges without repeating the structure label (the label is drawn on the frame).
-  `forEach` bodies use a route edge from the `ecp-foreach` node into the body entry (no loop-back).
+  `loop`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or
+  `defaultArm` for the arm without `expr`. `while` / `for` loops carry their driver (`ref` or
+  `expr` label), `maxRounds` when present, and a `loopBack` edge from the body's exits to its
+  entries (excluded from dagre ranks). `forEach` mode uses a route edge from the loop node into
+  the body entry (no loop-back). Parallel lines use dashed route edges without repeating the
+  structure label (the label is drawn on the frame).
 - **Parallel and forEach frames.** After dagre, emit one `ecp-frame` overlay per parallel node or
-  `forEach` body: a non-interactive box sized to the union of that structure's step nodes (with
-  padding). The parallel or `forEach` label is drawn on the frame, not on the route edges. Frames
-  are not dagre parents and never set `parentId`.
-- **`forEach` structure node.** Emit one selectable `ecp-foreach` node at the head of the body
-  frame with target handles `items` and `collect` and a source handle `into`. The `items` ref
-  reads end at `items`; the body step that produces the `collect` ref feeds `collect`; reads of
-  `state.<into>` after the node start at `into`. Body-only keys (`<as>`, `<as>Index`, body step
-  `as` keys) do not source edges outside the frame.
+  `forEach` loop body: a non-interactive box sized to the union of that structure's step nodes (with
+  padding). The structure label is drawn on the frame, not on the route edges. Frames are not dagre
+  parents and never set `parentId`.
+- **`forEach` loop node.** The same `loop` node type at the head of the body frame with target
+  handles for the driver (`ref` or labelled `expr`), `collect`, and source handle `into`.
 - **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch and loop
   structure stay on route edges; parallel structure uses frames plus route connectors.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
@@ -41,7 +43,8 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   properties.
 - **Ports.** Input ports come from the capability `accepts` properties, then from `input` keys.
   Each input records its binding: `literal`, `ref` (`$ref` / `$state`), `expr` (step gate only, with
-  the source) or `script` (`$script`, with its `source` or `path`; the host never runs it).
+  the source), transform `script` (plain object with `source` or `path`), or `script` marker (`$script`
+  in `input`, with its `source` or `path`).
   A literal object holding markers keeps its literal preview and gets a dotted port per marker.
   Output ports are the whole-document `output` handle plus the flattened `returns` properties.
   Ensure an output handle for every edged source path and an input handle for every edged
@@ -49,6 +52,7 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
 - **Fan-out.** Multiple reads of one output are fine. Do not invent multi-source fan-in on one
   input key.
 - **Run status** is folded from run events (`reduceRunEvent` / `replayRunEvents`) or pushed onto
-  the progress bus (`applyRunEvent`): `step.*` set step statuses (with the loop round),
-  `branch.select` marks the taken arm, `loop.round` / `loop.exhausted` track rounds, and steps
-  still running when the run ends become `cancelled`.
+  the progress bus (`applyRunEvent`): `step.*` set step statuses (with the loop round or item),
+  `branch.select` marks the taken arm, `loop.round` / `loop.exhausted` track `while` rounds,
+  `loop.start` / `loop.item.*` / `loop.end` track `forEach` progress, and steps still running
+  when the run ends become `cancelled`.

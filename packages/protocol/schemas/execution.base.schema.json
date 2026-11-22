@@ -67,18 +67,10 @@
         },
         {
           "if": {
-            "type": "object",
-            "required": ["type"],
-            "properties": { "type": { "const": "forEach" } }
-          },
-          "then": { "$ref": "#/$defs/forEach" }
-        },
-        {
-          "if": {
             "not": {
               "type": "object",
               "required": ["type"],
-              "properties": { "type": { "enum": ["branch", "loop", "parallel", "forEach"] } }
+              "properties": { "type": { "enum": ["branch", "loop", "parallel"] } }
             }
           },
           "then": { "$ref": "#/$defs/step" }
@@ -99,7 +91,7 @@
         "input": { "$ref": "#/$defs/inputObject" },
         "accepts": { "$ref": "#/$defs/objectSchema" },
         "returns": { "$ref": "#/$defs/objectSchema" },
-        "script": { "$ref": "#/$defs/scriptValue" },
+        "script": { "$ref": "#/$defs/plainScript" },
         "expression": { "type": "string", "minLength": 1 },
         "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
         "mode": { "enum": ["create", "replace", "merge", "append"] },
@@ -138,19 +130,74 @@
     "loop": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "expr", "maxRounds", "steps"],
+      "required": ["type", "id", "steps"],
       "properties": {
         "type": { "const": "loop" },
         "id": { "$ref": "#/$defs/nodeId" },
         "label": { "type": "string" },
+        "mode": { "enum": ["while", "for", "forEach"] },
+        "ref": { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" },
         "expr": { "type": "string", "minLength": 1 },
         "maxRounds": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "collect": { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" },
+        "into": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "concurrency": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "onError": { "enum": ["fail", "continue"] },
         "steps": {
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/node" }
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": { "required": ["ref", "expr"] }
+        },
+        {
+          "anyOf": [{ "required": ["ref"] }, { "required": ["expr"] }]
+        },
+        {
+          "if": {
+            "anyOf": [
+              { "not": { "required": ["mode"] } },
+              { "properties": { "mode": { "const": "while" } }, "required": ["mode"] }
+            ]
+          },
+          "then": {
+            "required": ["maxRounds"],
+            "properties": {
+              "as": false,
+              "collect": false,
+              "into": false,
+              "concurrency": false,
+              "onError": false
+            }
+          }
+        },
+        {
+          "if": { "properties": { "mode": { "const": "for" } }, "required": ["mode"] },
+          "then": {
+            "required": ["as"],
+            "properties": {
+              "maxRounds": false,
+              "collect": false,
+              "into": false,
+              "concurrency": false,
+              "onError": false
+            }
+          }
+        },
+        {
+          "if": { "properties": { "mode": { "const": "forEach" } }, "required": ["mode"] },
+          "then": {
+            "required": ["as", "collect", "into"],
+            "properties": {
+              "maxRounds": false
+            }
+          }
+        }
+      ]
     },
     "parallel": {
       "type": "object",
@@ -172,35 +219,20 @@
         }
       }
     },
-    "forEach": {
+    "plainScript": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "items", "as", "steps", "collect", "into"],
+      "required": ["lang"],
       "properties": {
-        "type": { "const": "forEach" },
-        "id": { "$ref": "#/$defs/nodeId" },
-        "label": { "type": "string" },
-        "items": { "$ref": "#/$defs/refValue" },
-        "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "steps": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/node" }
-        },
-        "collect": { "$ref": "#/$defs/refValue" },
-        "into": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "concurrency": { "type": "integer", "minimum": 1, "maximum": 32 },
-        "throttle": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["starts", "perSeconds"],
-          "properties": {
-            "starts": { "type": "integer", "minimum": 1, "maximum": 10000 },
-            "perSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
-          }
-        },
-        "onError": { "enum": ["fail", "continue"] }
-      }
+        "lang": { "const": "js" },
+        "source": { "type": "string" },
+        "path": { "type": "string", "minLength": 1 },
+        "ecmaVersion": { "type": "integer", "minimum": 3 }
+      },
+      "oneOf": [
+        { "required": ["source"], "not": { "required": ["path"] } },
+        { "required": ["path"], "not": { "required": ["source"] } }
+      ]
     },
     "inputObject": {
       "type": "object",

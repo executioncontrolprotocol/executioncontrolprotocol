@@ -54,11 +54,9 @@
         "name": { "$ref": "state.name" }
       },
       "script": {
-        "$script": {
           "lang": "js",
           "source": "return { value: `hello ${input.name}` }"
-        }
-      },
+        },
       "as": "greeting",
       "mode": "replace"
     },

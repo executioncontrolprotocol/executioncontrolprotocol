@@ -171,7 +171,8 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_PLUGIN_LOAD_FAILED` | Plugin module failed to import or has no handler | — (in run) | 1 |
 | `ECP_PROVIDER_ERROR` | Upstream provider (HTTP / cloud SDK) returned an error | — (in run) | 1 |
 | `ECP_RUN_CANCELLED` | Run ended by cancel | — (in run) | 1 |
-| `ECP_LIMIT_EXCEEDED` | Run-time cap exceeded (for example `forEach` item count) | — (in run) | 1 |
+| `ECP_LOOP_UNTYPED` | `forEach` loop uses `expr` instead of `ref` (items untyped at validation) | 422 (warning) | 0 |
+| `ECP_LIMIT_EXCEEDED` | Run-time cap exceeded (for example loop item count or `for` count) | — (in run) | 1 |
 | `ECP_HOST_RESTARTING` | Host draining; retry after `retryAfterMs` | 503 | 4 |
 | `ECP_HOST_UNAVAILABLE` | No host reachable and starting one failed | — | 4 |
 | `ECP_UNAUTHORIZED` | Missing/wrong token, bad `Host`/`Origin` | 401 | 4 |

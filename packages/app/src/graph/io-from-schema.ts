@@ -70,8 +70,8 @@ function collectCommitKeys(nodes: Node[], into: Set<string>, inForEachBody = fal
   for (const node of nodes) {
     if (isStepNode(node)) {
       if (node.as && !inForEachBody) into.add(node.as)
-    } else if (node.type === "forEach") {
-      into.add(node.into)
+    } else if (node.type === "loop" && (node.mode ?? "while") === "forEach") {
+      if (node.into) into.add(node.into)
       collectCommitKeys(node.steps, into, true)
     } else if (node.type === "parallel") {
       for (const line of node.branches) collectCommitKeys(line, into, inForEachBody)

@@ -163,9 +163,7 @@
         "subhead": { "$ref": "state.subhead", "optional": true, "fallback": "" },
         "subheadLayer": { "$ref": "state.subheadLayer", "optional": true, "fallback": "Subhead" }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/composite-layers.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/composite-layers.js" },
       "as": "layers"
     },
     {

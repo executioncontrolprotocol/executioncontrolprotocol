@@ -1,0 +1,29 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "loop",
+      "mode": "forEach",
+      "id": "items",
+      "ref": "state.rows",
+      "as": "row",
+      "throttle": {
+        "starts": 1,
+        "perSeconds": 60
+      },
+      "steps": [
+        {
+          "id": "echo",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "x"
+          },
+          "as": "out"
+        }
+      ],
+      "collect": "state.out",
+      "into": "results"
+    }
+  ]
+}

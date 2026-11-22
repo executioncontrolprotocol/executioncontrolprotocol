@@ -101,9 +101,7 @@
         },
         "rules": { "$ref": "state.rules", "optional": true, "fallback": {} }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/plan-layout.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/plan-layout.js" },
       "as": "plan"
     },
     {
@@ -182,9 +180,7 @@
         "manifest": { "$ref": "state.result" },
         "plan": { "$ref": "state.plan" }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/check-structure.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/check-structure.js" },
       "as": "structure"
     },
     {

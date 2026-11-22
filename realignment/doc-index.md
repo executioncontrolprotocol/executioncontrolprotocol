@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 15 |
-| Other | 28 |
+| Other | 27 |
 
 ## All files
 
@@ -53,7 +53,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `realignment/doc-index.md` | Plan / phases / spec | current |
 | `realignment/evidence/a10-localize-banner.md` | Plan / phases / spec | current |
 | `realignment/file-access.md` | Plan / phases / spec | current |
-| `realignment/for-each.md` | Plan / phases / spec | current |
+| `realignment/loops.md` | Plan / phases / spec | current |
 | `realignment/mvp-audit-fixes.md` | Plan / phases / spec | current |
 | `realignment/phase-0-groundwork.md` | Plan / phases / spec | current |
 | `realignment/phase-1-engine.md` | Plan / phases / spec | current |
@@ -129,10 +129,9 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/declared-file-access-pr2.md` | Other | current |
 | `.changeset/file-service-pr1.md` | Other | current |
-| `.changeset/for-each-app.md` | Other | current |
-| `.changeset/for-each-engine.md` | Other | current |
 | `.changeset/host-auto-start.md` | Other | current |
 | `.changeset/jsonata-transform-plugin.md` | Other | current |
+| `.changeset/loop-modes.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/nested-file-ref-sweep.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |

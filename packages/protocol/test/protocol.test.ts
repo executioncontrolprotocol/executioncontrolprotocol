@@ -8,8 +8,8 @@ import {
   ERROR_CATALOGUE,
   EXECUTION_SCHEMA,
   EXECUTION_VERSION,
-  MAX_FOREACH_CONCURRENCY,
-  MAX_FOREACH_ITEMS,
+  MAX_LOOP_CONCURRENCY,
+  MAX_LOOP_ITEMS,
   PLUGIN_MANIFEST_VERSION,
   PROTOCOL_VERSION,
   catalogueEntry,
@@ -75,9 +75,17 @@ describe("error catalogue", () => {
     expect(isEcpErrorCode("ECP_NOT_A_CODE")).toBe(false)
   })
 
-  it("exports forEach runtime caps", () => {
-    expect(MAX_FOREACH_CONCURRENCY).toBe(32)
-    expect(MAX_FOREACH_ITEMS).toBe(10000)
+  it("exports loop runtime caps", () => {
+    expect(MAX_LOOP_CONCURRENCY).toBe(32)
+    expect(MAX_LOOP_ITEMS).toBe(10000)
+  })
+
+  it("catalogues ECP_LOOP_UNTYPED as validation", () => {
+    expect(catalogueEntry("ECP_LOOP_UNTYPED")).toEqual({
+      httpStatus: 422,
+      exitCode: 2,
+      kind: "validation",
+    })
   })
 
   it("catalogues ECP_LIMIT_EXCEEDED as a runtime failure", () => {
@@ -279,6 +287,198 @@ describe("JSON Schemas", () => {
   })
 })
 
+/** Fixtures excluded from bulk schema acceptance (tracked separately if any). */
+describe("loop node schema", () => {
+  const validate = ajv().compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
+  const base = { schema: EXECUTION_SCHEMA, version: EXECUTION_VERSION }
+
+  it("accepts while loop with expr and maxRounds", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            id: "L",
+            expr: "(state) => true",
+            maxRounds: 3,
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(true)
+  })
+
+  it("accepts forEach loop with ref, collect as plain paths, and mode fields", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            mode: "forEach",
+            id: "items",
+            ref: "state.rows",
+            as: "row",
+            collect: "state.out",
+            into: "results",
+            concurrency: 2,
+            steps: [{ id: "echo", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(true)
+  })
+
+  it("accepts for loop with expr and as", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            mode: "for",
+            id: "count",
+            expr: "(state) => 3",
+            as: "i",
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(true)
+  })
+
+  it("rejects both ref and expr on a loop", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            id: "L",
+            ref: "state.flag",
+            expr: "(state) => true",
+            maxRounds: 1,
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("rejects neither ref nor expr on a loop", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            id: "L",
+            maxRounds: 1,
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("rejects maxRounds on forEach mode", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            mode: "forEach",
+            id: "L",
+            ref: "state.rows",
+            as: "row",
+            collect: "state.out",
+            into: "results",
+            maxRounds: 1,
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("rejects collect on while mode", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "loop",
+            id: "L",
+            expr: "(state) => true",
+            maxRounds: 1,
+            collect: "state.out",
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("rejects type forEach (no schema arm)", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            type: "forEach",
+            id: "L",
+            as: "row",
+            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("accepts plain transform script and rejects $script wrapper on step.script", () => {
+    const plain = {
+      ...base,
+      steps: [
+        {
+          id: "t",
+          uses: "@executioncontrolprotocol/core.transform",
+          script: { lang: "js", source: "return input" },
+        },
+      ],
+    }
+    expect(validate(plain)).toBe(true)
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            id: "t",
+            uses: "@executioncontrolprotocol/core.transform",
+            script: { $script: { lang: "js", source: "return input" } },
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+})
+
+describe("run event types", () => {
+  it("accepts loop forEach lifecycle events", () => {
+    const validate = ajv().compile(readJson(path.join(schemaDir, "run-event.schema.json")) as object)
+    for (const type of [
+      "loop.start",
+      "loop.item.start",
+      "loop.item.end",
+      "loop.item.error",
+      "loop.end",
+    ] as const) {
+      expect(validate({ seq: 1, at: "2026-11-14T00:00:00.000Z", type, data: { index: 0 } }), type).toBe(true)
+    }
+  })
+})
+
 describe("execution fixtures", () => {
   const compiler = ajv()
   const validate = compiler.compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
@@ -292,7 +492,8 @@ describe("execution fixtures", () => {
   })
 
   it("rejects every schema-level invalid fixture at the expected path", () => {
-    const names = readdirSync(invalidDir).filter((file) => file.startsWith("schema-") && file.endsWith(".ecp.json"))
+    const names = readdirSync(invalidDir)
+      .filter((file) => file.startsWith("schema-") && file.endsWith(".ecp.json"))
     expect(names.length).toBeGreaterThan(0)
     for (const name of names) {
       const manifest = readJson(path.join(invalidDir, name))

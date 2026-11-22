@@ -63,9 +63,7 @@
         "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
         "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/translate-prompt.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/translate-prompt.js" },
       "as": "prompt"
     },
     {
@@ -113,9 +111,7 @@
         "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
         "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
       },
-      "script": {
-        "$script": { "lang": "js", "path": "scripts/parsed-translation.js" }
-      },
+      "script": { "lang": "js", "path": "scripts/parsed-translation.js" },
       "as": "parsed"
     },
     {

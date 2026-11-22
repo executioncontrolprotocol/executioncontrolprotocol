@@ -40,7 +40,7 @@ function transformManifest(overrides: Partial<ExecutionManifest["steps"][number]
         uses: transformCapability.id,
         accepts: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
         returns: { type: "object", properties: { greeting: { type: "string" } }, required: ["greeting"] },
-        script: { $script: { lang: "js", source: "return { greeting: 'hi ' + input.name }" } },
+        script: { lang: "js", source: "return { greeting: 'hi ' + input.name }" },
         input: { name: "Ada" },
         as: "out",
         ...overrides,
@@ -65,7 +65,7 @@ describe("transform validation", () => {
 
   it("rejects params on a transform script", async () => {
     const manifest = transformManifest({
-      script: { $script: { lang: "js", source: "return {}", params: { x: 1 } } },
+      script: { lang: "js", source: "return {}", params: { x: 1 } },
     })
     const result = await validateExecution(manifest, { capabilities: [transformCapability] })
     expect(result.issues.some((issue) => issue.code === "ECP_SCRIPT_INVALID" && issue.path.includes("params"))).toBe(true)
@@ -88,7 +88,7 @@ describe("transform validation", () => {
     const manifest = transformManifest({ script: undefined, expression: undefined })
     const result = await validateExecution(manifest, { capabilities: [expressionCapability] })
     expect(result.issues.some((issue) => issue.path.endsWith("/expression"))).toBe(true)
-    const withScript = transformManifest({ script: { $script: { lang: "js", source: "return {}" } }, expression: "{}" })
+    const withScript = transformManifest({ script: { lang: "js", source: "return {}" }, expression: "{}" })
     const bad = await validateExecution(withScript, { capabilities: [expressionCapability] })
     expect(bad.issues.some((issue) => issue.path.endsWith("/script"))).toBe(true)
   })
@@ -105,7 +105,7 @@ describe("transform validation", () => {
 
   it("rejects non-js transform scripts", async () => {
     const manifest = transformManifest({
-      script: { $script: { lang: "lua", source: "return {}" } },
+      script: { lang: "lua", source: "return {}" },
     })
     const result = await validateExecution(manifest, { capabilities: [transformCapability] })
     expect(result.issues.some((issue) => issue.code === "ECP_SCRIPT_INVALID")).toBe(true)
@@ -126,7 +126,7 @@ describe("transform validation", () => {
         {
           id: "bad",
           uses: echoCapability.id,
-          script: { $script: { lang: "js", source: "return {}" } },
+          script: { lang: "js", source: "return {}" },
           input: { value: 1 },
         },
       ],
@@ -204,7 +204,7 @@ describe("transform execution", () => {
 
   it("fails when the script throws", async () => {
     const manifest = transformManifest({
-      script: { $script: { lang: "js", source: "throw new Error('boom')" } },
+      script: { lang: "js", source: "throw new Error('boom')" },
     })
     const outcome = await runExecution(manifest, {}, {
       capabilities: [transformCapability],
@@ -219,7 +219,7 @@ describe("transform execution", () => {
   it("allows any JSON object when returns is {}", async () => {
     const manifest = transformManifest({
       returns: {},
-      script: { $script: { lang: "js", source: "return { ok: true, extra: 1 }" } },
+      script: { lang: "js", source: "return { ok: true, extra: 1 }" },
     })
     const outcome = await runExecution(manifest, {}, {
       capabilities: [transformCapability],
@@ -232,7 +232,7 @@ describe("transform execution", () => {
 
   it("fails when the script returns undefined", async () => {
     const manifest = transformManifest({
-      script: { $script: { lang: "js", source: "return undefined" } },
+      script: { lang: "js", source: "return undefined" },
     })
     const outcome = await runExecution(manifest, {}, {
       capabilities: [transformCapability],
@@ -312,7 +312,7 @@ describe("transform execution", () => {
   it("records the script source on the step", async () => {
     const source = "return { greeting: 'stored' }"
     const manifest = transformManifest({
-      script: { $script: { lang: "js", source } },
+      script: { lang: "js", source },
       input: {},
     })
     const records: Array<{ script?: string }> = []

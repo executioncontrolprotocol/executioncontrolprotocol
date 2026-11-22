@@ -1,7 +1,7 @@
 import type {
   ConfigObject,
   ExecutionManifest,
-  ForEachPartialFile,
+  LoopPartialFile,
   RunDetail,
   RunEvent,
   RunFilter,
@@ -54,7 +54,7 @@ interface SavedRun {
   steps: StepRecord[]
   events: RunEvent[]
   state?: Record<string, unknown>
-  forEachPartials: Map<string, ForEachPartialFile>
+  loopPartials: Map<string, LoopPartialFile>
 }
 
 /**
@@ -232,7 +232,7 @@ export class MemoryStorage implements StorageProvider {
     const emit = (change: StorageChange): void => this.emit(change)
     return {
       async create(record: RunRecord, manifest: ExecutionManifest): Promise<void> {
-        runs.set(record.id, { record, manifest, steps: [], events: [], forEachPartials: new Map() })
+        runs.set(record.id, { record, manifest, steps: [], events: [], loopPartials: new Map() })
         emit({ type: "run", id: record.id, action: "put" })
       },
       async update(id: string, patch: Partial<RunRecord>): Promise<void> {
@@ -251,11 +251,11 @@ export class MemoryStorage implements StorageProvider {
         if (index >= 0) saved.steps[index] = step
         else saved.steps.push(step)
       },
-      async readForEachPartial(runId: string, nodeId: string): Promise<ForEachPartialFile | undefined> {
-        return requireRun(runs, runId).forEachPartials.get(nodeId)
+      async readLoopPartial(runId: string, nodeId: string): Promise<LoopPartialFile | undefined> {
+        return requireRun(runs, runId).loopPartials.get(nodeId)
       },
-      async writeForEachPartial(runId: string, nodeId: string, file: ForEachPartialFile): Promise<void> {
-        requireRun(runs, runId).forEachPartials.set(nodeId, file)
+      async writeLoopPartial(runId: string, nodeId: string, file: LoopPartialFile): Promise<void> {
+        requireRun(runs, runId).loopPartials.set(nodeId, file)
       },
       async writeState(runId: string, state: unknown): Promise<void> {
         const saved = requireRun(runs, runId)

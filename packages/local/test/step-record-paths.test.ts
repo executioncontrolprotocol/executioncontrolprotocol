@@ -3,10 +3,10 @@ import path from "node:path"
 import { HomePaths, stepRecordFileName } from "../src/storage/paths.js"
 
 describe("stepRecordFileName", () => {
-  it("names the partial file under for-each", () => {
+  it("names the partial file under loop-items", () => {
     const paths = new HomePaths("/ecp-home")
-    expect(paths.runForEachPartial("run-1", "items")).toBe(
-      path.join("/ecp-home", "runs", "run-1", "for-each", "items.json"),
+    expect(paths.runLoopItemsPartial("run-1", "items")).toBe(
+      path.join("/ecp-home", "runs", "run-1", "loop-items", "items.json"),
     )
   })
 

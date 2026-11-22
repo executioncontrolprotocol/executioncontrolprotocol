@@ -35,10 +35,16 @@ export async function resolveStepScript(
   readText?: ScriptReader,
   executionDir?: string,
 ): Promise<string> {
-  if (!isRecord(value) || !isRecord(value.$script)) {
+  if (!isRecord(value)) {
     throw new ResolveError("ECP_SCRIPT_INVALID", "Transform step requires script.")
   }
-  const script = value.$script
+  if (isRecord(value.$script)) {
+    throw new ResolveError(
+      "ECP_SCRIPT_INVALID",
+      'Transform step script must be a plain object `{ "lang": "js", "source"?: "...", "path"?: "...", "ecmaVersion"?: n }`, not `{ "$script": ... }`.',
+    )
+  }
+  const script = value
   let source = typeof script.source === "string" ? script.source : undefined
   if (source === undefined && typeof script.path === "string") {
     const absolute = resolvePath(executionDir, script.path)
@@ -93,6 +99,21 @@ export async function resolveValue(
  */
 export async function resolveRefMarker(marker: Record<string, unknown>, state: Record<string, unknown>): Promise<unknown> {
   return resolveRef(marker, state)
+}
+
+/**
+ * Read a plain state path (same syntax as `$ref`, without the marker object).
+ * @category Environment
+ */
+export function resolveStatePath(path: string, state: Record<string, unknown>): unknown {
+  if (!path.startsWith("state.")) {
+    throw new ResolveError("ECP_REF_UNRESOLVED", `${path} is not a state path.`)
+  }
+  const found = readRef(state, path)
+  if (found.missing) {
+    throw new ResolveError("ECP_REF_UNRESOLVED", `${path} is not in state.`)
+  }
+  return found.value
 }
 
 async function resolveRef(marker: Record<string, unknown>, state: Record<string, unknown>): Promise<unknown> {
