@@ -100,9 +100,12 @@ envelope. The host and App bind `$ref` to those shapes (typed ports).
 
 - Handlers receive typed input, the resolved config, and a context from the host. Don't reach
   into host internals.
-- For binary data, use {@link fileRefSchema} from the plugin SDK for every `FileRef` field. Declare
-  `access` (`url` for handlers that call `ctx.files.url()`, and so on) and `mediaTypes` when the
-  handler cares about the declared type. Don't hand-roll the `kind` union or skip `x-ecp-file`.
+- For binary data, use {@link fileRefSchema} from the plugin SDK for **every** file-like field,
+  including nested ones (style references, layer images, reference-blob sources, SAS outputs, and so
+  on). Declare `access` (`url` for handlers that call `ctx.files.url()`, and so on) and `mediaTypes`
+  when the handler cares about the declared type. Don't hand-roll the `kind` union, raw URL/path
+  strings, or vendor `source: { url }` envelopes at the capability boundary; skip `x-ecp-file` on
+  those fields. Transform scripts never read file bytes; they pass `FileRef` objects through.
 - **Publishing is a node.** Capabilities that copy a file to remote storage set `role: "publish"`
   and `publish: { fileField?: string; locatorFields: string[] }`; cleanup capabilities set
   `role: "unpublish"` with the same locator fields. Return a url `FileRef` (for example Azure

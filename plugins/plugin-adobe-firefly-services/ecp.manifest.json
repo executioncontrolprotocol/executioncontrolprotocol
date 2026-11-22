@@ -822,7 +822,7 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "03cdb30e01b4de1b1270e91a5cc19b6b8f762a8fde904b32ec4638429534ce90",
+  "hash": "1043138ff1b7e233bc26cff924cbd4ef7437f81e04b11e0418747f9bb22cce2f",
   "plugin": {
     "description": "One capability per Firefly Services API operation, generated from Adobe's OpenAPI specs: Firefly image generation, expand, fill, composites, upscaling and video, and Photoshop document edits, actions, UXP scripts, artboards and layer manifests. The config object holds OAuth server-to-server credentials (client id and secret as secret references). Async jobs are polled inside the step, which returns the job result. Request fields are top-level parameters; an optional body carries the rest of the JSON document. Files move by URL: pass presigned storage URLs as sources and output destinations.",
     "id": "@executioncontrolprotocol/adobe-firefly-services",
@@ -831,7 +831,7 @@
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "780dae9fcfd43b8161e20c6da7a3bd43b84c6d33ee23de245dfd0a113cf1f63b",
+    "hash": "b009271070ffb400bf8cf9c1eea9e0a238896e4980fb0491258b5f9065aabaa8",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

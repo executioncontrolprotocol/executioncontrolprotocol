@@ -1,6 +1,6 @@
 import type { z } from "zod"
 import { AdobeServiceError, INPUT_INVALID } from "../errors.js"
-import { expandFileRefInputs } from "./product-shape.js"
+import { expandFileRefInputs, expandNestedFileRefPayload } from "./product-shape.js"
 
 /**
  * Which top-level input keys are path, query, header and hoisted JSON-body fields.
@@ -137,7 +137,8 @@ export function assembleAdobeOperationInput(input: Record<string, unknown>, rule
         issues: parsed.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
       })
     }
-    body = rules.defaultCaiClaimVersion ? ensureDefaultCaiClaimVersion(parsed.data) : parsed.data
+    const normalized = rules.defaultCaiClaimVersion ? ensureDefaultCaiClaimVersion(parsed.data) : parsed.data
+    body = expandNestedFileRefPayload(normalized)
   } else if (hasBody) {
     body = flat.body
   }

@@ -99,8 +99,12 @@ interface HandlerContext<Config> {
 - **Product-shaped media I/O:** capabilities that produce files return `FileRef`s in the
   capability `returns` schema (for example Firefly `generate-images` → `{ images: FileRef[] }`;
   Photoshop composite → one `FileRef` per requested output, keyed by a media-type token such as
-  `png` or `psd`). Media inputs use the same `FileRef` at the capability boundary; the plugin
-  expands `kind: "url"` into the vendor request envelope. Adobe media capabilities reject
+  `png` or `psd`). **Every file-like field** in `accepts` and `returns` is a `FileRef`, including
+  nested ones (Firefly `style.imageReference`, Photoshop `edits.layers[].image`,
+  `referenceBlobs[].source`, Azure `sas.file`, and similar). No raw URL strings, path strings, or
+  Adobe `source: { url }` envelopes at the capability boundary; the plugin expands `kind: "url"`
+  into the vendor request shape before HTTP. Publishing is always an explicit workflow step;
+  transform scripts route `FileRef` JSON only and never see bytes. Adobe media capabilities reject
   `kind: "file"` and `kind: "artifact"` at the handler with `ECP_INPUT_INVALID` and a hint to
   upload to allowlisted URL storage first.
 - **File service:** built on the {@link ArtifactStore} and {@link ScratchSpace} services; run

@@ -112,7 +112,7 @@ export const sasAcceptsSchema = z.object({
  * @category Plugins
  */
 export const sasReturnsSchema = z.object({
-  sasUrl: z.string(),
+  file: urlFileRefSchema,
   expiresOn: z.string(),
 })
 

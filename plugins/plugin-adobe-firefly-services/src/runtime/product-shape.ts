@@ -260,3 +260,51 @@ export function expandFileRefInputs(input: Record<string, unknown>, bodyFields: 
   }
   return out
 }
+
+/**
+ * Whether a value is a url {@link FileRef} (not an Adobe API envelope).
+ * @category Runtime
+ */
+function isUrlFileRef(value: unknown): value is Extract<FileRef, { kind: "url" }> {
+  return isPlainObject(value) && value.kind === "url"
+}
+
+/**
+ * Walk nested capability input and expand url FileRefs into Adobe request shapes.
+ * @category Runtime
+ */
+export function expandNestedFileRefPayload(value: unknown, path = ""): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry, index) => expandNestedFileRefPayload(entry, `${path}[${index}]`))
+  }
+  if (!isPlainObject(value)) return value
+
+  const out: Record<string, unknown> = {}
+  const fileLikeKeys = new Set(["imageReference", "image", "source", "smartObjectFile"])
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key
+    if (fileLikeKeys.has(key) && isPlainObject(child) && child.kind !== undefined && !isUrlFileRef(child)) {
+      throw new AdobeServiceError(INPUT_INVALID, `Adobe accepts url FileRefs only; ${FILE_REF_UPLOAD_HINT}`, {
+        issues: [{ path: childPath, message: `kind must be "url".` }],
+        suggestions: [FILE_REF_UPLOAD_HINT],
+      })
+    }
+    if (isUrlFileRef(child)) {
+      const ref = assertUrlFileRef(child, childPath)
+      if (key === "imageReference") {
+        out[key] = expandFileRefToAdobeEnvelope(ref, "source")
+      } else if (key === "image" || key === "smartObjectFile") {
+        out[key] = { source: { url: ref.url } }
+      } else if (key === "source") {
+        out[key] = { url: ref.url }
+      } else {
+        throw new AdobeServiceError(INPUT_INVALID, `Unexpected url FileRef at ${childPath}.`, {
+          issues: [{ path: childPath, message: "FileRef is not valid at this path." }],
+        })
+      }
+      continue
+    }
+    out[key] = expandNestedFileRefPayload(child, childPath)
+  }
+  return out
+}

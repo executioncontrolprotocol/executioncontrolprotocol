@@ -15,10 +15,14 @@ import {
 export default async function handler(input: SasInput, ctx: HandlerContext): Promise<SasOutput> {
   const config = resolveConfig(ctx.config)
   const container = resolveContainer(config, input.container)
-  return createSas(config, {
+  const { sasUrl, expiresOn } = await createSas(config, {
     container,
     blobName: input.blobName,
     permissions: input.permissions ?? DEFAULT_SAS_PERMISSIONS,
     expiresInSeconds: input.expiresInSeconds ?? DEFAULT_SAS_EXPIRES_IN_SECONDS,
   })
+  return {
+    file: { kind: "url" as const, url: sasUrl },
+    expiresOn,
+  }
 }

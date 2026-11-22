@@ -53,7 +53,7 @@ const exec = {
       uses: "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
       config: "adobe-firefly-services/default",
       input: {
-        image: { source: { url: { $ref: "state.source.sasUrl" } } },
+        image: { $ref: "state.source.file" },
         options: {
           uxp: {
             source: {
@@ -74,7 +74,7 @@ const exec = {
         },
         outputs: [
           {
-            destination: { url: { $ref: "state.output.sasUrl" }, storageType: "azure" },
+            destination: { url: { $ref: "state.output.file.url" }, storageType: "azure" },
             mediaType: "image/png",
           },
         ],

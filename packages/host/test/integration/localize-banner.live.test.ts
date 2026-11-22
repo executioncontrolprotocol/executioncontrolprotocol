@@ -273,11 +273,11 @@ async function resolveUrls(
   }
   expect(provisioned.data.status).toBe("completed")
   const result = provisioned.data.result as {
-    source?: { sasUrl?: string }
-    output?: { sasUrl?: string }
+    source?: { file?: { url?: string } }
+    output?: { file?: { url?: string } }
   }
-  const sourceImageUrl = result.source?.sasUrl
-  const outputUrl = result.output?.sasUrl
+  const sourceImageUrl = result.source?.file?.url
+  const outputUrl = result.output?.file?.url
   expect(sourceImageUrl, JSON.stringify(result)).toEqual(expect.any(String))
   expect(outputUrl, JSON.stringify(result)).toEqual(expect.any(String))
   return { sourceImageUrl: sourceImageUrl!, outputUrl: outputUrl!, provisioned: true }

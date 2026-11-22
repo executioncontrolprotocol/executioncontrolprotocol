@@ -38,7 +38,7 @@
       "id": "@executioncontrolprotocol/azure-blob-storage.sas",
       "name": "sas",
       "projections": [
-        "Take `sasUrl` as the link; `expiresOn` says when it stops working"
+        "Bind `file` (a url FileRef) into url-only inputs; `expiresOn` says when the SAS stops working"
       ],
       "summary": "Mint a signed URL for one blob.",
       "useCases": [
@@ -69,7 +69,7 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "36eef46abda0f31b044fab17331a6c875e1a861a082bf32fc206446aef8ce381",
+  "hash": "58a64441995ae131c1683ac39bd12330629607e7ed364ab2a02bedd1aa04fe74",
   "plugin": {
     "description": "Blob storage for executions that persist media, share time-limited links, bring stored objects into a run as artifacts, or remove blobs after use. The config object holds either a connection string or an account name and key (as secret references), plus an optional default container. Node hosts only.",
     "id": "@executioncontrolprotocol/azure-blob-storage",
@@ -78,7 +78,7 @@
     "version": "0.60.0"
   },
   "pluginSchema": {
-    "hash": "a8ee1ff8987fa1dc5f58a0f1c78b4953ede7e0854afd6f1f83d991ebe0087743",
+    "hash": "e60d16854ac4c7484cc1984cb51df948b2fe876f7d15b08d02147351db874ef3",
     "path": "./ecp.schema.json"
   },
   "schema": "@executioncontrolprotocol.plugin-manifest",

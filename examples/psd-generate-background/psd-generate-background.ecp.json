@@ -130,7 +130,27 @@
       "returns": {
         "type": "object",
         "properties": {
-          "layers": { "type": "array" }
+          "layers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string" },
+                "operation": { "type": "object" },
+                "image": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "const": "url" },
+                    "url": { "type": "string" }
+                  },
+                  "required": ["kind", "url"]
+                },
+                "text": { "type": "object" },
+                "transformMode": { "type": "string" }
+              }
+            }
+          }
         },
         "required": ["layers"],
         "additionalProperties": false
