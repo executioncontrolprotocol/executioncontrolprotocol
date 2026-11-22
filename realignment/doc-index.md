@@ -120,6 +120,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/weekly-brief/README.md` | Examples | current |
 | `.changeset/0.52.0-applied.md` | Other | current |
 | `.changeset/README.md` | Other | current |
+| `.changeset/adobe-request-limit.md` | Other | current |
 | `.changeset/anthropic-images-psd-artboards.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/capture-pr4.md` | Other | current |
