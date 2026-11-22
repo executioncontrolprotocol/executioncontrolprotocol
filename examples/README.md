@@ -11,6 +11,7 @@ JSONata) reshape data between steps; **`expr`** on steps, branch arms, and loops
 | `transform/` | bundled `plugin-core` |
 | `transform-jsonata/` | `plugin-jsonata` |
 | `psd-artboards/` | `plugin-azure-blob-storage`, `plugin-adobe-firefly-services`, `plugin-anthropic` (agent loop: reflow a PSD into new artboards, checked structurally and by vision review) |
+| `psd-artboards-renditions/` | `plugin-azure-blob-storage`, `plugin-adobe-firefly-services`, `plugin-jsonata` (deterministic: reflow a PSD into new artboards, one JPEG per artboard found by layer type) |
 | `weekly-brief/` | `plugin-anthropic` |
 | `branch-loop/` | `plugin-test` |
 | `dogfood-reshape/` | Core transform walkthrough |
