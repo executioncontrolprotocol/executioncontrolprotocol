@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import type { Config } from "@oclif/core"
 import { Errors } from "@oclif/core"
 import { loadPluginPackage, loadPluginSchemaDocument } from "@executioncontrolprotocol/local"
-import type { ValidationIssue } from "@executioncontrolprotocol/protocol"
+import { FIRST_PARTY_PLUGINS, type ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { ecpDataDir } from "./home.js"
 
 /** Regenerate hint shared with {@link loadPluginPackage}. */
@@ -100,23 +100,25 @@ export async function createOclifPlugins(config: Config, logLevel: string): Prom
 }
 
 /**
- * Expand a friendly plugin short name to a scoped npm package name.
+ * Expand a short plugin name to its npm package name. A plugin's package name is its plugin id, so a first-party
+ * short name (`jsonata`) becomes `@executioncontrolprotocol/jsonata`; a scoped name or path is returned as given.
+ * ECP resolves names itself rather than through oclif's `plugin-` prefix rule.
  * @category CLI
  */
 export function expandFriendlyName(name: string, config: Config): string {
-  if (name.includes("@")) return name
+  if (name.includes("@") || name.includes("/")) return name
+  const firstParty = Object.values(FIRST_PARTY_PLUGINS).find((entry) => entry.short === name)
+  if (firstParty) return firstParty.packageName
   const scope = config.pjson.oclif?.scope
-  const prefix = config.pjson.oclif?.pluginPrefix ?? "plugin"
-  if (!scope) return name
-  return `@${scope}/${prefix}-${name}`
+  return scope ? `@${scope}/${name}` : name
 }
 
 /**
- * Shorthand for a scoped `@scope/plugin-*` package.
+ * Short name for a package in the ECP scope (`@executioncontrolprotocol/jsonata` → `jsonata`); other names unchanged.
  * @category CLI
  */
 export function friendlyNameFromPackage(name: string): string {
-  const match = name.match(/^@[^/]+\/plugin-(.+)$/)
+  const match = name.match(/^@executioncontrolprotocol\/(.+)$/)
   return match?.[1] ?? name
 }
 
@@ -306,7 +308,7 @@ export async function isPluginSpecInstalled(
     const byUrl = await findPluginByUrl(plugins, spec)
     return byUrl ?? false
   }
-  const unfriendly = plugins.unfriendlyName(spec) ?? expandFriendlyName(spec, config)
+  const unfriendly = expandFriendlyName(spec, config)
   const hit = await plugins.hasPlugin(unfriendly)
   if (!hit) return false
   if (typeof hit === "object") return hit
@@ -318,11 +320,10 @@ export async function findPluginEntry(
   packageName: string,
 ): Promise<OclifPluginEntry | undefined> {
   const list = await plugins.list()
-  const unfriendly = plugins.unfriendlyName(packageName) ?? packageName
-  const friendly = plugins.friendlyName(unfriendly)
+  const friendly = friendlyNameFromPackage(packageName)
   return (
-    list.find((entry) => entry.name === unfriendly) ??
-    list.find((entry) => plugins.friendlyName(entry.name) === friendly)
+    list.find((entry) => entry.name === packageName) ??
+    list.find((entry) => friendlyNameFromPackage(entry.name) === friendly)
   )
 }
 

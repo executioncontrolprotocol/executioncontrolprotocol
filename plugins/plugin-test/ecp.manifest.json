@@ -99,11 +99,11 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "43b1b907d9e7ec12bf8d58c71f78ab50b59ef57e96b5c969ae068a5a76f57ddf",
+  "hash": "a1c63dae9a9711a9b6fdd23a6820286722bc4c6f477d94649d54e3140ba08a72",
   "plugin": {
     "description": "Echo, fail, delay, stage, config-echo, file-roundtrip, call and bounded for every executor and handler-context feature.",
     "id": "@executioncontrolprotocol/test",
-    "package": "@executioncontrolprotocol/plugin-test",
+    "package": "@executioncontrolprotocol/test",
     "summary": "Fixture capabilities for engine and host tests.",
     "version": "0.60.0"
   },

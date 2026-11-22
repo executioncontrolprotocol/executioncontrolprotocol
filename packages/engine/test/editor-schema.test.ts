@@ -19,7 +19,7 @@ const markersSource = readFileSync(path.join(here, "../src/validate/markers.ts")
 const echo: CapabilityEntry = {
   id: "@executioncontrolprotocol/test.echo",
   plugin: "@executioncontrolprotocol/test",
-  package: "@executioncontrolprotocol/plugin-test",
+  package: "@executioncontrolprotocol/test",
   pluginVersion: "1.0.0",
   summary: "Echo",
   description: "Echo",
@@ -77,7 +77,7 @@ describe("generateEditorRootSchema", () => {
       ...echo,
       id: "@executioncontrolprotocol/core.transform",
       plugin: "@executioncontrolprotocol/core",
-      package: "@executioncontrolprotocol/plugin-core",
+      package: "@executioncontrolprotocol/core",
       contract: "step",
       code: "script",
     }

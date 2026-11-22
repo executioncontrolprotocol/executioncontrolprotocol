@@ -239,6 +239,9 @@ importers:
       '@executioncontrolprotocol/app':
         specifier: workspace:*
         version: link:../app
+      '@executioncontrolprotocol/core':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-core
       '@executioncontrolprotocol/engine':
         specifier: workspace:*
         version: link:../engine
@@ -248,9 +251,6 @@ importers:
       '@executioncontrolprotocol/local':
         specifier: workspace:*
         version: link:../local
-      '@executioncontrolprotocol/plugin-core':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-core
       '@executioncontrolprotocol/protocol':
         specifier: workspace:*
         version: link:../protocol

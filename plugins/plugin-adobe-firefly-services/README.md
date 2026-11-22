@@ -1,4 +1,4 @@
-# `@executioncontrolprotocol/plugin-adobe-firefly-services`
+# `@executioncontrolprotocol/adobe-firefly-services`
 
 Adobe Firefly Services APIs as ECP capabilities, generated from vendored OpenAPI specs under
 `openapi/`. **63** capabilities ship across eight families (`content-tagging` is skipped — no

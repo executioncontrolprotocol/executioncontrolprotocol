@@ -1,4 +1,4 @@
-# `@executioncontrolprotocol/plugin-azure-blob-storage`
+# `@executioncontrolprotocol/azure-blob-storage`
 
 Azure Blob storage capabilities (upload / download / delete / SAS) for ECP executions.
 

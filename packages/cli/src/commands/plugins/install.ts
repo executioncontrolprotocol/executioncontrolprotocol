@@ -22,7 +22,7 @@ import { writeEnvelope } from "../../lib/output.js"
  */
 export default class PluginsInstall extends Command {
   static override description =
-    "Install an ECP plugin from npm or a local tarball; use a short name like test for @executioncontrolprotocol/plugin-test."
+    "Install an ECP plugin from npm or a local tarball; use a short name like test for @executioncontrolprotocol/test."
 
   static override aliases = ["plugins:add"]
 
@@ -36,10 +36,10 @@ export default class PluginsInstall extends Command {
   static override examples = [
     {
       description: "Installs the Anthropic provider from npm.",
-      command: "<%= config.bin %> plugins install @executioncontrolprotocol/plugin-anthropic",
+      command: "<%= config.bin %> plugins install @executioncontrolprotocol/anthropic",
     },
     {
-      description: "Installs @executioncontrolprotocol/plugin-test by its short name.",
+      description: "Installs @executioncontrolprotocol/test by its short name.",
       command: "<%= config.bin %> plugins install test",
     },
     {
@@ -70,7 +70,7 @@ export default class PluginsInstall extends Command {
     const logLevel = npmLogLevel(flags)
     const plugins = await createOclifPlugins(this.config, logLevel)
     const { spec, displayName, tag } = resolvePackageSpecifier(args.package, this.config)
-    const unfriendly = plugins.unfriendlyName(spec) ?? expandFriendlyName(spec, this.config)
+    const unfriendly = expandFriendlyName(spec, this.config)
 
     const installed = await isPluginSpecInstalled(plugins, spec, this.config)
     if (installed && !flags.force) {

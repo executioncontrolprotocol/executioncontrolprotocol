@@ -1,5 +1,5 @@
 {
-  "name": "@executioncontrolprotocol/plugin-anthropic",
+  "name": "@executioncontrolprotocol/anthropic",
   "version": "0.60.0",
   "private": true,
   "description": "Claude text generation through the Anthropic Messages API.",

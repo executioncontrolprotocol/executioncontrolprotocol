@@ -6,7 +6,7 @@
 "@executioncontrolprotocol/host": minor
 "@executioncontrolprotocol/app": minor
 "@executioncontrolprotocol/cli": patch
-"@executioncontrolprotocol/plugin-core": minor
+"@executioncontrolprotocol/core": minor
 ---
 
 Step-level `accepts` / `returns` / `script` / `expression` for capabilities with `contract: "step"`.

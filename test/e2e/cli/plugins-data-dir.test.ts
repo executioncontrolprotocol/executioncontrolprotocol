@@ -58,7 +58,7 @@ describe("cli plugins data dir (F1/F16)", () => {
     const human = await runEcp(["plugins"], { env })
     expect(human.code, human.stderr + human.stdout).toBe(0)
     expect(human.stdout.toLowerCase()).toMatch(/manifest/)
-    expect(human.stdout).toMatch(/plugin-test|@executioncontrolprotocol\/plugin-test/)
+    expect(human.stdout).toMatch(/@executioncontrolprotocol\/test\b/)
 
     const json = await runEcp(["plugins", "--json"], { env })
     expect(json.code, json.stderr + json.stdout).toBe(0)
@@ -67,7 +67,7 @@ describe("cli plugins data dir (F1/F16)", () => {
     expect(envelope.data.type).toBe("plugin")
     expect(Array.isArray(envelope.data.items)).toBe(true)
     expect(typeof envelope.data.total).toBe("number")
-    expect(envelope.data.items.some((item) => item.package.includes("plugin-test"))).toBe(true)
+    expect(envelope.data.items.some((item) => item.package === "@executioncontrolprotocol/test")).toBe(true)
   }, 120_000)
 
   it("plugins --json matches retrieve --type plugin; stale OS entries absent", async () => {
@@ -108,7 +108,7 @@ describe("cli plugins data dir (F1/F16)", () => {
     })
     expect(link.code, link.stderr + link.stdout).toBe(0)
 
-    const uninstall = await runEcp(["plugins", "uninstall", "@executioncontrolprotocol/plugin-test"], {
+    const uninstall = await runEcp(["plugins", "uninstall", "@executioncontrolprotocol/test"], {
       env,
       timeoutMs: 90_000,
     })
@@ -123,7 +123,7 @@ describe("cli plugins data dir (F1/F16)", () => {
     expect(listEnv.data.items.map((item) => item.package).sort()).toEqual(
       retrieveEnv.data.items.map((item) => item.package).sort(),
     )
-    expect(listEnv.data.items.some((item) => item.package.includes("plugin-test"))).toBe(false)
+    expect(listEnv.data.items.some((item) => item.package === "@executioncontrolprotocol/test")).toBe(false)
   }, 180_000)
 
   it("tarball install keeps plugins and retrieve views equal", async () => {
@@ -153,7 +153,7 @@ describe("cli plugins data dir (F1/F16)", () => {
     expect(listEnv.data.items.some((item) => item.package.includes("minimal"))).toBe(true)
 
     const uninstall = await runEcp(
-      ["plugins", "uninstall", "@executioncontrolprotocol/plugin-minimal-fixture"],
+      ["plugins", "uninstall", "@executioncontrolprotocol/minimal-fixture"],
       {
         env,
         timeoutMs: 90_000,

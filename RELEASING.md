@@ -45,10 +45,10 @@ unrelated cut).
 | `@executioncontrolprotocol/mcp-relay` | MCP three-tool relay |
 | `@executioncontrolprotocol/app` | Visual App bundle |
 | `@executioncontrolprotocol/plugin-sdk` | Plugin authoring |
-| `@executioncontrolprotocol/plugin-test` | Harness plugin |
-| `@executioncontrolprotocol/plugin-anthropic` | Anthropic |
-| `@executioncontrolprotocol/plugin-azure-blob-storage` | Azure Blob |
-| `@executioncontrolprotocol/plugin-adobe-firefly-services` | Firefly Services |
+| `@executioncontrolprotocol/test` | Harness plugin |
+| `@executioncontrolprotocol/anthropic` | Anthropic |
+| `@executioncontrolprotocol/azure-blob-storage` | Azure Blob |
+| `@executioncontrolprotocol/adobe-firefly-services` | Firefly Services |
 
 Before the first publish: clear `private: true` on the packages that should go to npm, run
 `pnpm exec changeset version` from the Phase 9 majors changeset, then
@@ -67,7 +67,7 @@ Point consumers at the replacements. Exact deprecation messages can be refined a
 | `@executioncontrolprotocol/plugin-sdk` (0.x) | `@executioncontrolprotocol/plugin-sdk` (MVP major) |
 | `@executioncontrolprotocol/plugin-app` | Built into `@executioncontrolprotocol/app` + `ecp app` |
 | `@executioncontrolprotocol/plugin-format-toon` | `@executioncontrolprotocol/formatters` (host service, not a plugin) |
-| `@executioncontrolprotocol/plugin-jsonata` / other unported plugins | Stay deprecated until ported, or removed from docs |
+| `@executioncontrolprotocol/jsonata` / other unported plugins | Stay deprecated until ported, or removed from docs |
 
 Example:
 

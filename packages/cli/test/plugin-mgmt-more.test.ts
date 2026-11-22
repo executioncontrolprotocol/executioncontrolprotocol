@@ -44,16 +44,23 @@ function fakePlugins(
     list: async () => entries,
     hasPlugin,
     friendlyName: (name: string) => friendlyNameFromPackage(name),
-    unfriendlyName: (name: string) => (name.startsWith("@") ? name : `@executioncontrolprotocol/plugin-${name}`),
+    unfriendlyName: (name: string) => (name.startsWith("@") ? name : `@executioncontrolprotocol/${name}`),
   } as unknown as OclifPluginsInstance
 }
 
 describe("plugin-mgmt names and specs", () => {
   it("maps between short and full names, and leaves non-plugin names alone", async () => {
     const config = await Config.load(cliRoot)
-    expect(friendlyNameFromPackage("@executioncontrolprotocol/plugin-test")).toBe("test")
+    expect(friendlyNameFromPackage("@executioncontrolprotocol/test")).toBe("test")
     expect(friendlyNameFromPackage("left-pad")).toBe("left-pad")
-    expect(expandFriendlyName("anthropic", { pjson: { oclif: {} } } as unknown as Config)).toBe("anthropic")
+    expect(friendlyNameFromPackage("@other/plugin-x")).toBe("@other/plugin-x")
+    // A plugin's package name is its id: first-party short names map to it, no `plugin-` prefix.
+    const bare = { pjson: { oclif: {} } } as unknown as Config
+    expect(expandFriendlyName("anthropic", bare)).toBe("@executioncontrolprotocol/anthropic")
+    expect(expandFriendlyName("jsonata", config)).toBe("@executioncontrolprotocol/jsonata")
+    expect(expandFriendlyName("someone-elses", config)).toBe("@executioncontrolprotocol/someone-elses")
+    expect(expandFriendlyName("someone-elses", bare)).toBe("someone-elses")
+    expect(expandFriendlyName("@acme/thing", config)).toBe("@acme/thing")
     expect(isCliPackageName("@executioncontrolprotocol/cli", config)).toBe(true)
     expect(isCliPackageName("test", config)).toBe(false)
   })
@@ -68,8 +75,8 @@ describe("plugin-mgmt names and specs", () => {
   it("resolves npm names, short names with tags, and local paths", async () => {
     const config = await Config.load(cliRoot)
     expect(resolvePackageSpecifier("test@beta", config)).toEqual({
-      spec: "@executioncontrolprotocol/plugin-test",
-      displayName: "@executioncontrolprotocol/plugin-test",
+      spec: "@executioncontrolprotocol/test",
+      displayName: "@executioncontrolprotocol/test",
       tag: "beta",
     })
     const local = resolvePackageSpecifier(pluginTestRoot, config)
@@ -136,7 +143,7 @@ describe("plugin-mgmt manifest checks", () => {
 
 describe("plugin-mgmt installed-state lookups", () => {
   const userEntry: OclifPluginEntry = {
-    name: "@executioncontrolprotocol/plugin-test",
+    name: "@executioncontrolprotocol/test",
     type: "user",
     url: "file:/C:/tmp/plugin.tgz",
   } as OclifPluginEntry
@@ -144,7 +151,7 @@ describe("plugin-mgmt installed-state lookups", () => {
   it("finds an installed plugin by name, short name and file URL", async () => {
     const config = await Config.load(cliRoot)
     const plugins = fakePlugins([userEntry])
-    expect(await isPluginSpecInstalled(plugins, "@executioncontrolprotocol/plugin-test", config)).toEqual(userEntry)
+    expect(await isPluginSpecInstalled(plugins, "@executioncontrolprotocol/test", config)).toEqual(userEntry)
     expect(await findPluginEntry(plugins, "test")).toEqual(userEntry)
     expect(await findPluginByUrl(plugins, "file:///C:/tmp/plugin.tgz")).toEqual(userEntry)
     expect(await isPluginSpecInstalled(plugins, "file:///C:/tmp/plugin.tgz", config)).toEqual(userEntry)

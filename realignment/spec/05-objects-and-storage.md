@@ -85,7 +85,7 @@ redacted before commit (04), so `state.json` is safe to keep on disk.
   "status": "completed",
   "input": { … }, "result": { … }, "error": null,
   "startedAt": "…", "endedAt": "…", "durationMs": 8123,
-  "plugins": { "@executioncontrolprotocol/plugin-anthropic": "1.0.0" },
+  "plugins": { "@executioncontrolprotocol/anthropic": "1.0.0" },
   "host": { "version": "1.0.0", "pid": 1234, "mode": "server" },
   "clientRequestId": "…",
   "cursor": { "completed": ["doc", "check-headline", "translate"], "inProgress": "banner", "loops": { "refine": 1 }, "branches": { "check-headline": 1 } },
@@ -131,7 +131,7 @@ Status: `completed`, `failed`, `skipped`, `cancelled`.
 
 ```json
 { "id": "@executioncontrolprotocol/anthropic.generate", "plugin": "@executioncontrolprotocol/anthropic",
-  "package": "@executioncontrolprotocol/plugin-anthropic", "pluginVersion": "1.0.0",
+  "package": "@executioncontrolprotocol/anthropic", "pluginVersion": "1.0.0",
   "summary": "…", "description": "…", "useCases": ["…"], "projections": ["…"],
   "accepts": { … }, "returns": { … },   "configSchema": { … }, "timeoutMs": 120000,
   "contract": "step", "code": "script",

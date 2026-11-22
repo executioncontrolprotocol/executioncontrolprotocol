@@ -694,7 +694,7 @@
       "examples": [
         {
           "command": "<%= config.bin %> plugins inspect test",
-          "description": "Prints where @executioncontrolprotocol/plugin-test is installed (friendly name: test)."
+          "description": "Prints where @executioncontrolprotocol/test is installed (friendly name: test)."
         }
       ],
       "flags": {
@@ -738,16 +738,16 @@
           "required": true
         }
       },
-      "description": "Install an ECP plugin from npm or a local tarball; use a short name like test for @executioncontrolprotocol/plugin-test.",
+      "description": "Install an ECP plugin from npm or a local tarball; use a short name like test for @executioncontrolprotocol/test.",
       "enableJsonFlag": false,
       "examples": [
         {
-          "command": "<%= config.bin %> plugins install @executioncontrolprotocol/plugin-anthropic",
+          "command": "<%= config.bin %> plugins install @executioncontrolprotocol/anthropic",
           "description": "Installs the Anthropic provider from npm."
         },
         {
           "command": "<%= config.bin %> plugins install test",
-          "description": "Installs @executioncontrolprotocol/plugin-test by its short name."
+          "description": "Installs @executioncontrolprotocol/test by its short name."
         },
         {
           "command": "<%= config.bin %> plugins install ./dist/plugin.tgz",
@@ -1006,7 +1006,7 @@
           "description": "Inlines the root schema JSON when under the size cap."
         },
         {
-          "command": "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/plugin-adobe-firefly-services --include document --out firefly.schema.json",
+          "command": "<%= config.bin %> retrieve --type schema --id @executioncontrolprotocol/adobe-firefly-services --include document --out firefly.schema.json",
           "description": "Writes a large plugin schema to a file."
         }
       ],

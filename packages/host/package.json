@@ -35,7 +35,7 @@
     "@executioncontrolprotocol/engine": "workspace:*",
     "@executioncontrolprotocol/formatters": "workspace:*",
     "@executioncontrolprotocol/local": "workspace:*",
-    "@executioncontrolprotocol/plugin-core": "workspace:*",
+    "@executioncontrolprotocol/core": "workspace:*",
     "@executioncontrolprotocol/protocol": "workspace:*",
     "@executioncontrolprotocol/quickjs": "workspace:*"
   },

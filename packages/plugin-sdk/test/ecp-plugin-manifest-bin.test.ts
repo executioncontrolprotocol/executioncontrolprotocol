@@ -42,7 +42,7 @@ async function writePluginPackage(root: string): Promise<void> {
   await writeFile(
     path.join(root, "package.json"),
     JSON.stringify({
-      name: "@executioncontrolprotocol/plugin-bin-fixture",
+      name: "@executioncontrolprotocol/bin-fixture",
       version: "1.2.3",
       type: "module",
     }),

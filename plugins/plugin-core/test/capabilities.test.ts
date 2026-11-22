@@ -32,7 +32,7 @@ function ctx(partial: Partial<HandlerContext> = {}): HandlerContext {
   }
 }
 
-describe("@executioncontrolprotocol/plugin-core", () => {
+describe("@executioncontrolprotocol/core", () => {
   it("declares transform as a step-contract script capability", () => {
     expect(plugin.id).toBe("@executioncontrolprotocol/core")
     const def = plugin.capabilities.transform

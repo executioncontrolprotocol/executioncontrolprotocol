@@ -27,7 +27,7 @@ async function writeLinkedPlugin(root: string, throwsOnHandlerImport: boolean): 
     path.join(root, "package.json"),
     JSON.stringify(
       {
-        name: "@executioncontrolprotocol/plugin-linked",
+        name: "@executioncontrolprotocol/linked",
         version: "1.0.0",
         type: "module",
         ecp: { manifest: "./ecp.manifest.json" },
@@ -156,7 +156,7 @@ describe("LocalPluginRegistration", () => {
     await writeFile(
       path.join(badRoot, "package.json"),
       JSON.stringify({
-        name: "@executioncontrolprotocol/plugin-bad",
+        name: "@executioncontrolprotocol/bad",
         version: "9.0.0",
         ecp: { manifest: "./ecp.manifest.json" },
       }),
@@ -168,7 +168,7 @@ describe("LocalPluginRegistration", () => {
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/bad",
-          package: "@executioncontrolprotocol/plugin-bad",
+          package: "@executioncontrolprotocol/bad",
           version: "1.0.0",
           summary: "Bad.",
           description: "Version mismatch.",
@@ -234,7 +234,7 @@ describe("LocalPluginRegistration", () => {
     await writeFile(
       path.join(dupRoot, "package.json"),
       JSON.stringify({
-        name: "@executioncontrolprotocol/plugin-dup",
+        name: "@executioncontrolprotocol/dup",
         version: "1.0.0",
         ecp: { manifest: "./ecp.manifest.json" },
       }),
@@ -246,7 +246,7 @@ describe("LocalPluginRegistration", () => {
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/dup",
-          package: "@executioncontrolprotocol/plugin-dup",
+          package: "@executioncontrolprotocol/dup",
           version: "1.0.0",
           summary: "Dup.",
           description: "Duplicates echo.",
@@ -304,7 +304,7 @@ describe("LocalPluginRegistration", () => {
     await writeFile(
       path.join(badSchemaRoot, "package.json"),
       JSON.stringify({
-        name: "@executioncontrolprotocol/plugin-bad-schema",
+        name: "@executioncontrolprotocol/bad-schema",
         version: "1.0.0",
         ecp: { manifest: "./ecp.manifest.json" },
       }),
@@ -316,7 +316,7 @@ describe("LocalPluginRegistration", () => {
         version: "2.0",
         plugin: {
           id: "@executioncontrolprotocol/bad-schema",
-          package: "@executioncontrolprotocol/plugin-bad-schema",
+          package: "@executioncontrolprotocol/bad-schema",
           version: "1.0.0",
           summary: "Bad schema.",
           description: "Bad schema.",
@@ -362,7 +362,7 @@ describe("LocalPluginRegistration", () => {
     await writeFile(
       path.join(missingRoot, "package.json"),
       JSON.stringify({
-        name: "@executioncontrolprotocol/plugin-missing",
+        name: "@executioncontrolprotocol/missing",
         version: "1.0.0",
         ecp: { manifest: "./ecp.manifest.json" },
       }),
@@ -535,7 +535,7 @@ describe("LocalPluginRegistration", () => {
 
     expect(adapter.configSchema("@executioncontrolprotocol/test")).toMatchObject({ type: "object" })
     expect(adapter.configSchema("@executioncontrolprotocol/missing")).toBeUndefined()
-    expect(adapter.configSchema("@executioncontrolprotocol/plugin-test")).toMatchObject({
+    expect(adapter.configSchema("@executioncontrolprotocol/test")).toMatchObject({
       type: "object",
     })
 
@@ -548,7 +548,7 @@ describe("LocalPluginRegistration", () => {
     await writeFile(
       path.join(linkedRoot, "package.json"),
       JSON.stringify({
-        name: "@executioncontrolprotocol/plugin-logger",
+        name: "@executioncontrolprotocol/logger",
         version: "1.0.0",
         type: "module",
         ecp: { manifest: "./ecp.manifest.json" },

@@ -40,7 +40,11 @@ export default handler
 
 Rules:
 
-- Package name `@<scope>/plugin-<name>`; plugin id `@<scope>/<name>`; plugin short = `<name>`.
+- **One name per plugin:** the plugin id is the npm package name, `@<scope>/<name>` (no `plugin-` prefix); plugin
+  short = `<name>`. `ecp-plugin-manifest` fails the build when `definePlugin({ id })` differs from `package.json`
+  `name`, and the host refuses to load such a plugin (`ECP_PLUGIN_LOAD_FAILED`, path `/plugin/id`). The manifest's
+  `plugin.package` always equals `plugin.id`. `ecp plugins install <short>` resolves first-party short names through
+  `FIRST_PARTY_PLUGINS`, and other short names to `@executioncontrolprotocol/<short>`.
 - `capabilities` keys: `^[a-z][a-z0-9-]{0,63}$`.
 - `metadata` text is product prose for agents (`.cursor/rules/extensions.mdc`); `useCases` and
   `projections` each need at least one entry (manifest build fails otherwise).
@@ -153,7 +157,7 @@ file with `pluginSchema: { path, hash }`.
 
 ```json
 { "schema": "@executioncontrolprotocol.plugin-manifest", "version": "2.0",
-  "plugin": { "id": "@executioncontrolprotocol/anthropic", "package": "@executioncontrolprotocol/plugin-anthropic",
+  "plugin": { "id": "@executioncontrolprotocol/anthropic", "package": "@executioncontrolprotocol/anthropic",
               "version": "1.0.0", "summary": "…", "description": "…" },
   "sdkVersion": "1.0.0",
   "pluginSchema": { "path": "./ecp.schema.json", "hash": "<sha256 of canonical ecp.schema.json>" },

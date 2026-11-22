@@ -16,11 +16,11 @@
     }
   ],
   "entry": "./dist/index.js",
-  "hash": "249678a8d9be3f2177800563750ca45ad556b7415e6b2102f68a008b75ceecc3",
+  "hash": "f1dcdee55b683acb15e9b8912d24b695a176036753ccab30fd692335035c1f19",
   "plugin": {
     "description": "Supplies step-contract capabilities so executions can declare accepts, returns and scripts on the step node.",
     "id": "@executioncontrolprotocol/core",
-    "package": "@executioncontrolprotocol/plugin-core",
+    "package": "@executioncontrolprotocol/core",
     "summary": "Core transform and step-contract capabilities bundled with the host.",
     "version": "0.60.0"
   },

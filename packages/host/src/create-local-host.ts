@@ -58,11 +58,11 @@ import { generateHostToken } from "./token.js"
 const require = createRequire(import.meta.url)
 
 /**
- * Absolute package root of the bundled core plugin (`@executioncontrolprotocol/plugin-core`).
+ * Absolute package root of the bundled core plugin (`@executioncontrolprotocol/core`).
  * @category Host
  */
 export function resolveBundledCorePluginRoot(): string {
-  return path.dirname(require.resolve("@executioncontrolprotocol/plugin-core/ecp.manifest.json"))
+  return path.dirname(require.resolve("@executioncontrolprotocol/core/ecp.manifest.json"))
 }
 
 /**

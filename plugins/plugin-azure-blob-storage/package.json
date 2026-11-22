@@ -1,5 +1,5 @@
 {
-  "name": "@executioncontrolprotocol/plugin-azure-blob-storage",
+  "name": "@executioncontrolprotocol/azure-blob-storage",
   "version": "0.60.0",
   "private": true,
   "description": "Upload, download, delete and mint SAS URLs for Azure Blob Storage.",

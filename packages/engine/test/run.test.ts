@@ -41,7 +41,7 @@ const schemaDocument = JSON.parse(
 const coreTransform: CapabilityEntry = {
   id: "@executioncontrolprotocol/core.transform",
   plugin: "@executioncontrolprotocol/core",
-  package: "@executioncontrolprotocol/plugin-core",
+  package: "@executioncontrolprotocol/core",
   pluginVersion: "0.0.0",
   summary: "Transform",
   description: "",

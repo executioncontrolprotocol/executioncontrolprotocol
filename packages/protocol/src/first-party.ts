@@ -18,28 +18,28 @@ export interface FirstPartyPlugin {
  */
 export const FIRST_PARTY_PLUGINS: Readonly<Record<string, FirstPartyPlugin>> = {
   "@executioncontrolprotocol/test": {
-    packageName: "@executioncontrolprotocol/plugin-test",
+    packageName: "@executioncontrolprotocol/test",
     short: "test",
   },
   "@executioncontrolprotocol/anthropic": {
-    packageName: "@executioncontrolprotocol/plugin-anthropic",
+    packageName: "@executioncontrolprotocol/anthropic",
     short: "anthropic",
   },
   "@executioncontrolprotocol/azure-blob-storage": {
-    packageName: "@executioncontrolprotocol/plugin-azure-blob-storage",
+    packageName: "@executioncontrolprotocol/azure-blob-storage",
     short: "azure-blob-storage",
   },
   "@executioncontrolprotocol/adobe-firefly-services": {
-    packageName: "@executioncontrolprotocol/plugin-adobe-firefly-services",
+    packageName: "@executioncontrolprotocol/adobe-firefly-services",
     short: "adobe-firefly-services",
   },
   "@executioncontrolprotocol/core": {
-    packageName: "@executioncontrolprotocol/plugin-core",
+    packageName: "@executioncontrolprotocol/core",
     short: "core",
     bundled: true,
   },
   "@executioncontrolprotocol/jsonata": {
-    packageName: "@executioncontrolprotocol/plugin-jsonata",
+    packageName: "@executioncontrolprotocol/jsonata",
     short: "jsonata",
   },
 }

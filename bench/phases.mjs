@@ -94,7 +94,7 @@ async function main() {
     path.join(dataDir, "package.json"),
     `${JSON.stringify({
       private: true,
-      oclif: { plugins: [{ type: "link", name: "@executioncontrolprotocol/plugin-test", root: pluginTest }] },
+      oclif: { plugins: [{ type: "link", name: "@executioncontrolprotocol/test", root: pluginTest }] },
     })}\n`,
   )
   const env = { ...process.env, ECP_HOME: home, ECP_DATA_DIR: dataDir, NO_COLOR: "1", FORCE_COLOR: "0" }

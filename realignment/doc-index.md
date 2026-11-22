@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 12 |
-| Other | 21 |
+| Other | 22 |
 
 ## All files
 
@@ -127,6 +127,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |
 | `.changeset/plugin-manifest-2.md` | Other | current |
+| `.changeset/plugin-package-names.md` | Other | current |
 | `.changeset/product-shaped-firefly-io.md` | Other | current |
 | `.changeset/publisher-azure-upload.md` | Other | current |
 | `.changeset/remove-input-expr.md` | Other | current |

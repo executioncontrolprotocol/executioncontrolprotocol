@@ -103,7 +103,7 @@
   "plugin": {
     "description": "Echo, fail, delay, stage, config echo, file round-trip, call and a length-limited string.",
     "id": "@executioncontrolprotocol/test",
-    "package": "@executioncontrolprotocol/plugin-test",
+    "package": "@executioncontrolprotocol/test",
     "summary": "Fixture capabilities for engine tests.",
     "version": "0.60.0"
   },
