@@ -98,12 +98,57 @@ export interface ReactFlowIoData {
  * @category App
  */
 export interface ReactFlowFrameData {
-  /** Parallel node id in the execution manifest. */
+  /** Parallel or forEach node id in the execution manifest. */
   structureId: string
-  /** Parallel line index. */
+  /** Parallel line index (always `0` for forEach frames). */
   armIndex: number
-  /** Structure label when the parallel node declares one. */
+  /** Structure label when the parallel node declares one, or a forEach summary label. */
   label?: string
+}
+
+/**
+ * Target handle id for a `forEach` node's `items` ref port.
+ * @category App
+ */
+export const FOREACH_ITEMS_HANDLE = "items"
+
+/**
+ * Target handle id for a `forEach` node's `collect` ref port.
+ * @category App
+ */
+export const FOREACH_COLLECT_HANDLE = "collect"
+
+/**
+ * Source handle id for a `forEach` node's `into` array output.
+ * @category App
+ */
+export const FOREACH_INTO_HANDLE = "into"
+
+/**
+ * Payload for a `forEach` structure node on the graph.
+ * @category App
+ */
+export interface ReactFlowForEachData {
+  /** Display label (`label`, else the node id). */
+  label: string
+  /** `items` ref path (without `state.`). */
+  itemsRef: string
+  /** Item state key (`as`). */
+  as: string
+  /** `collect` ref path (without `state.`). */
+  collectRef: string
+  /** `into` state key. */
+  into: string
+  /** Configured concurrency (default 1). */
+  concurrency: number
+  /** Optional start throttle. */
+  throttle?: { starts: number; perSeconds: number }
+  /** Item error policy. */
+  onError: "fail" | "continue"
+  /** Input handles (`items`, `collect`). */
+  inputs: ReactFlowPort[]
+  /** Output handle (`into`). */
+  outputs: ReactFlowPort[]
 }
 
 /**
@@ -114,11 +159,11 @@ export interface ReactFlowNode {
   /** Node id: the execution step id, or a synthetic `ecp:` id for I/O nodes. */
   id: string
   /** Node type for the viewer. */
-  type: "ecp-step" | "ecp-io" | "ecp-frame"
+  type: "ecp-step" | "ecp-io" | "ecp-frame" | "ecp-foreach"
   /** Layout position (absolute; the canvas is the execution surface). */
   position: { x: number; y: number }
   /** Node payload. */
-  data: ReactFlowStepData | ReactFlowIoData | ReactFlowFrameData
+  data: ReactFlowStepData | ReactFlowIoData | ReactFlowFrameData | ReactFlowForEachData
   /** Soft size hint from layout. */
   style?: { width?: number; height?: number }
   /** Draw order; frames sit behind steps. */
@@ -135,7 +180,7 @@ export type ReactFlowEdgeKind = "data" | "control" | "route"
  * Structural route subtype for published non-data edges.
  * @category App
  */
-export type ReactFlowRouteKind = "branch" | "parallel" | "loop"
+export type ReactFlowRouteKind = "branch" | "parallel" | "loop" | "forEach"
 
 /**
  * Metadata on a published route edge (branch, parallel or loop structure).
@@ -280,6 +325,8 @@ export interface ReactFlowStepStatusDetail {
   status: ReactFlowStepStatus
   /** Loop round (0-based) when the step runs inside a loop. */
   round?: number
+  /** forEach item index when the step runs inside a forEach body. */
+  item?: number
   /** Failure message for hover tooltips. */
   message?: string
 }
@@ -306,6 +353,21 @@ export interface ReactFlowLoopRoundDetail {
   round: number
   /** True when the loop stopped because it reached `maxRounds`. */
   exhausted?: boolean
+}
+
+/**
+ * Detail for `forEach:progress` progress events.
+ * @category App
+ */
+export interface ReactFlowForEachProgressDetail {
+  /** forEach node id. */
+  structureId: string
+  /** Items completed so far. */
+  done: number
+  /** Total items (`forEach.start` count). */
+  count: number
+  /** Failed items when `onError: continue`. */
+  failed?: number
 }
 
 /**

@@ -1,8 +1,13 @@
-import type { Node, StepNode } from "@executioncontrolprotocol/protocol"
+import type { ForEachNode, Node, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, isStepNode } from "./io-from-schema.js"
 import { isJsonObject } from "./json-schema.js"
 import { isExprMarker, isScriptMarker, refPathFromValue } from "./markers.js"
-import type { ReactFlowEdge } from "./types.js"
+import {
+  FOREACH_COLLECT_HANDLE,
+  FOREACH_INTO_HANDLE,
+  FOREACH_ITEMS_HANDLE,
+  type ReactFlowEdge,
+} from "./types.js"
 
 /**
  * Whole-document output handle, used when a read has no field path.
@@ -30,10 +35,90 @@ export function collectSteps(nodes: Node[], out: StepNode[]): void {
       for (const line of node.branches) collectSteps(line, out)
     } else if (node.type === "branch") {
       for (const arm of node.branches) collectSteps(arm.steps, out)
+    } else if (node.type === "forEach") {
+      collectSteps(node.steps, out)
     } else {
       collectSteps(node.steps, out)
     }
   }
+}
+
+interface ForEachScope {
+  /** forEach node id. */
+  id: string
+  /** Item state key. */
+  as: string
+  /** Output array key. */
+  into: string
+  /** `items` ref path. */
+  itemsPath: string
+  /** `collect` ref path. */
+  collectPath: string
+  /** Body step ids. */
+  bodyStepIds: Set<string>
+  /** Document order at the forEach node (before the body). */
+  startOrder: number
+  /** Document order after the body. */
+  endOrder: number
+}
+
+interface StepPlacement {
+  step: StepNode
+  order: number
+  forEachId?: string
+}
+
+interface WalkState {
+  order: number
+  forEachStack: ForEachNode[]
+  placements: StepPlacement[]
+  foreachById: Map<string, ForEachScope>
+}
+
+function walkPlacements(nodes: Node[], state: WalkState): void {
+  for (const node of nodes) {
+    if (isStepNode(node)) {
+      state.placements.push({
+        step: node,
+        order: state.order++,
+        forEachId: state.forEachStack.at(-1)?.id,
+      })
+    } else if (node.type === "forEach") {
+      const startOrder = state.order++
+      const bodySteps: StepNode[] = []
+      collectSteps(node.steps, bodySteps)
+      const scope: ForEachScope = {
+        id: node.id,
+        as: node.as,
+        into: node.into,
+        itemsPath: refPathFromValue(node.items) ?? "",
+        collectPath: refPathFromValue(node.collect) ?? "",
+        bodyStepIds: new Set(bodySteps.map((step) => step.id)),
+        startOrder,
+        endOrder: startOrder,
+      }
+      state.foreachById.set(node.id, scope)
+      state.forEachStack.push(node)
+      walkPlacements(node.steps, state)
+      state.forEachStack.pop()
+      scope.endOrder = state.order++
+    } else if (node.type === "parallel") {
+      for (const line of node.branches) walkPlacements(line, state)
+    } else if (node.type === "branch") {
+      for (const arm of node.branches) walkPlacements(arm.steps, state)
+    } else {
+      walkPlacements(node.steps, state)
+    }
+  }
+}
+
+function walkManifestPlacements(nodes: Node[]): {
+  placements: StepPlacement[]
+  foreachById: Map<string, ForEachScope>
+} {
+  const state: WalkState = { order: 0, forEachStack: [], placements: [], foreachById: new Map() }
+  walkPlacements(nodes, state)
+  return { placements: state.placements, foreachById: state.foreachById }
 }
 
 /**
@@ -217,28 +302,99 @@ export function stateKeyFromExpr(source: string): string | undefined {
   return stateReadsFromExpr(source)[0]
 }
 
-interface SourceIndex {
-  resolve(asKey: string, readerId: string): string | undefined
+interface WriterHit {
+  id: string
+  order: number
+  forEachId?: string
 }
 
-function buildSourceIndex(steps: StepNode[], acceptsKeys?: ReadonlySet<string>): SourceIndex {
-  const order = new Map(steps.map((step, index) => [step.id, index]))
-  const writers = new Map<string, string[]>()
-  for (const step of steps) {
+interface SourceIndex {
+  resolve(asKey: string, readerId: string, readerOrder?: number): string | undefined
+  resolveAtOrder(asKey: string, order: number, forEachId?: string): string | undefined
+  foreachIds: ReadonlySet<string>
+}
+
+function buildSourceIndex(
+  placements: StepPlacement[],
+  foreachById: Map<string, ForEachScope>,
+  acceptsKeys?: ReadonlySet<string>,
+): SourceIndex {
+  const orderById = new Map(placements.map((placement) => [placement.step.id, placement.order]))
+  const readerForEach = new Map(placements.map((placement) => [placement.step.id, placement.forEachId]))
+  const globalWriters = new Map<string, WriterHit[]>()
+  const bodyWriters = new Map<string, WriterHit[]>()
+
+  for (const placement of placements) {
+    const { step, order, forEachId } = placement
     if (!step.as) continue
-    const list = writers.get(step.as) ?? []
-    list.push(step.id)
-    writers.set(step.as, list)
+    const hit: WriterHit = { id: step.id, order, ...(forEachId ? { forEachId } : {}) }
+    if (forEachId) {
+      const list = bodyWriters.get(step.as) ?? []
+      list.push(hit)
+      bodyWriters.set(step.as, list)
+    } else {
+      const list = globalWriters.get(step.as) ?? []
+      list.push(hit)
+      globalWriters.set(step.as, list)
+    }
   }
+
+  for (const scope of foreachById.values()) {
+    const list = globalWriters.get(scope.into) ?? []
+    list.push({ id: scope.id, order: scope.endOrder })
+    globalWriters.set(scope.into, list)
+  }
+
+  function isBodyOnlyKey(asKey: string): boolean {
+    if (globalWriters.has(asKey)) return false
+    for (const scope of foreachById.values()) {
+      if (asKey === scope.as || asKey === `${scope.as}Index`) return true
+    }
+    return (bodyWriters.get(asKey) ?? []).length > 0
+  }
+
+  function lastBefore(hits: WriterHit[], maxOrder: number, forEachId?: string): string | undefined {
+    const filtered = hits.filter((hit) => {
+      if (hit.order >= maxOrder) return false
+      if (forEachId && hit.forEachId && hit.forEachId !== forEachId) return false
+      return true
+    })
+    return filtered.at(-1)?.id
+  }
+
+  function resolveAtOrder(asKey: string, maxOrder: number, forEachId?: string): string | undefined {
+    if (forEachId) {
+      const body = lastBefore(bodyWriters.get(asKey) ?? [], maxOrder, forEachId)
+      if (body) return body
+    }
+    const global = lastBefore(globalWriters.get(asKey) ?? [], maxOrder)
+    if (global) return global
+    if (acceptsKeys?.has(asKey)) return EXECUTION_ACCEPTS_NODE_ID
+    return undefined
+  }
+
   return {
-    resolve(asKey, readerId) {
-      const list = writers.get(asKey) ?? []
-      const readerOrder = order.get(readerId) ?? Number.POSITIVE_INFINITY
-      const before = list.filter((id) => (order.get(id) ?? 0) < readerOrder)
-      if (before.length > 0) return before[before.length - 1]
-      if (acceptsKeys?.has(asKey)) return EXECUTION_ACCEPTS_NODE_ID
-      return list.find((id) => id !== readerId)
+    resolve(asKey, readerId, readerOrder) {
+      const placementOrder = readerOrder ?? orderById.get(readerId) ?? Number.POSITIVE_INFINITY
+      const enclosing = readerForEach.get(readerId) ?? (foreachById.has(readerId) ? readerId : undefined)
+      if (!enclosing && isBodyOnlyKey(asKey)) return undefined
+      if (enclosing) {
+        for (const scope of foreachById.values()) {
+          if (scope.id !== enclosing && (asKey === scope.as || asKey === `${scope.as}Index`)) return undefined
+        }
+      }
+      const resolved = resolveAtOrder(asKey, placementOrder, enclosing)
+      if (resolved) return resolved
+      const candidates = [
+        ...(globalWriters.get(asKey) ?? []),
+        ...(enclosing ? (bodyWriters.get(asKey) ?? []).filter((hit) => hit.forEachId === enclosing) : []),
+      ]
+      return candidates.map((hit) => hit.id).find((id) => id !== readerId)
     },
+    resolveAtOrder(asKey, order, forEachId) {
+      return resolveAtOrder(asKey, order, forEachId)
+    },
+    foreachIds: new Set(foreachById.keys()),
   }
 }
 
@@ -252,36 +408,93 @@ interface ReadEdgeInput {
 
 function pushReadEdge(
   ctx: ReadEdgeInput,
-  reader: StepNode,
+  readerId: string,
   statePath: string,
   targetHandle: string,
   wholeFallback: boolean,
+  readerOrder?: number,
 ): void {
   const parsed = parseStateRef(statePath)
   if (!parsed) return
-  const sourceId = ctx.index.resolve(parsed.asKey, reader.id)
-  if (!sourceId || sourceId === reader.id) return
+  const sourceId = ctx.index.resolve(parsed.asKey, readerId, readerOrder)
+  if (!sourceId || sourceId === readerId) return
   let sourceHandle: string
   if (sourceId === EXECUTION_ACCEPTS_NODE_ID) {
     sourceHandle = parsed.asKey
+  } else if (ctx.index.foreachIds.has(sourceId)) {
+    sourceHandle = FOREACH_INTO_HANDLE
   } else if (wholeFallback) {
     sourceHandle =
       longestPrefixId(parsed.fieldPath, ctx.outputPortIdsByStepId?.get(sourceId)) ?? OUTPUT_HANDLE_ID
   } else {
     sourceHandle = longestMatchingPortId(parsed.fieldPath, ctx.outputPortIdsByStepId?.get(sourceId))
   }
-  const key = `${sourceId}|${sourceHandle}|${reader.id}|${targetHandle}`
+  const key = `${sourceId}|${sourceHandle}|${readerId}|${targetHandle}`
   if (ctx.seen.has(key)) return
   ctx.seen.add(key)
   const safeState = statePath.replace(/[^a-zA-Z0-9._-]/g, "_")
   ctx.edges.push({
-    id: `${ctx.prefix}-${sourceId}-${reader.id}-${targetHandle}-${safeState}`,
+    id: `${ctx.prefix}-${sourceId}-${readerId}-${targetHandle}-${safeState}`,
     source: sourceId,
-    target: reader.id,
+    target: readerId,
     sourceHandle,
     targetHandle,
     data: { kind: "data", inputPath: targetHandle, statePath },
   })
+}
+
+function pushForEachStructureEdges(
+  ctx: ReadEdgeInput,
+  foreachById: Map<string, ForEachScope>,
+  outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
+): void {
+  for (const scope of foreachById.values()) {
+    if (scope.itemsPath) {
+      const parsed = parseStateRef(scope.itemsPath)
+      if (parsed) {
+        const sourceId = ctx.index.resolveAtOrder(parsed.asKey, scope.startOrder + 1)
+        if (sourceId) {
+          const sourceHandle =
+            sourceId === EXECUTION_ACCEPTS_NODE_ID
+              ? parsed.asKey
+              : longestMatchingPortId(parsed.fieldPath, outputPortIdsByStepId?.get(sourceId))
+          const key = `${sourceId}|${sourceHandle}|${scope.id}|${FOREACH_ITEMS_HANDLE}`
+          if (!ctx.seen.has(key)) {
+            ctx.seen.add(key)
+            ctx.edges.push({
+              id: `data-foreach-items-${scope.id}-${sourceId}`,
+              source: sourceId,
+              target: scope.id,
+              sourceHandle,
+              targetHandle: FOREACH_ITEMS_HANDLE,
+              data: { kind: "data", inputPath: FOREACH_ITEMS_HANDLE, statePath: scope.itemsPath },
+            })
+          }
+        }
+      }
+    }
+    if (scope.collectPath) {
+      const parsed = parseStateRef(scope.collectPath)
+      if (parsed) {
+        const sourceId = ctx.index.resolveAtOrder(parsed.asKey, scope.endOrder, scope.id)
+        if (sourceId && sourceId !== scope.id) {
+          const sourceHandle = longestMatchingPortId(parsed.fieldPath, outputPortIdsByStepId?.get(sourceId))
+          const key = `${sourceId}|${sourceHandle}|${scope.id}|${FOREACH_COLLECT_HANDLE}`
+          if (!ctx.seen.has(key)) {
+            ctx.seen.add(key)
+            ctx.edges.push({
+              id: `data-foreach-collect-${scope.id}-${sourceId}`,
+              source: sourceId,
+              target: scope.id,
+              sourceHandle,
+              targetHandle: FOREACH_COLLECT_HANDLE,
+              data: { kind: "data", inputPath: FOREACH_COLLECT_HANDLE, statePath: scope.collectPath },
+            })
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -297,24 +510,24 @@ export function extractDataEdges(
   outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
   inputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
 ): ReactFlowEdge[] {
-  const steps: StepNode[] = []
-  collectSteps(nodes, steps)
+  const { placements, foreachById } = walkManifestPlacements(nodes)
   const ctx: ReadEdgeInput = {
     edges: [],
     seen: new Set(),
-    index: buildSourceIndex(steps, acceptsKeys),
+    index: buildSourceIndex(placements, foreachById, acceptsKeys),
     ...(outputPortIdsByStepId ? { outputPortIdsByStepId } : {}),
     prefix: "data",
   }
-  for (const step of steps) {
+  for (const { step } of placements) {
     if (!step.input) continue
     const inputPortIds = inputPortIdsByStepId?.get(step.id)
     for (const [name, value] of Object.entries(step.input)) {
       walkInputRefs(value, name, (inputPath, refPath) => {
-        pushReadEdge(ctx, step, refPath, resolveInputHandle(inputPath, inputPortIds), false)
+        pushReadEdge(ctx, step.id, refPath, resolveInputHandle(inputPath, inputPortIds), false)
       })
     }
   }
+  pushForEachStructureEdges(ctx, foreachById, outputPortIdsByStepId)
   return ctx.edges
 }
 
@@ -327,19 +540,18 @@ export function extractExprEdges(
   acceptsKeys?: ReadonlySet<string>,
   outputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
 ): ReactFlowEdge[] {
-  const steps: StepNode[] = []
-  collectSteps(nodes, steps)
+  const { placements, foreachById } = walkManifestPlacements(nodes)
   const ctx: ReadEdgeInput = {
     edges: [],
     seen: new Set(),
-    index: buildSourceIndex(steps, acceptsKeys),
+    index: buildSourceIndex(placements, foreachById, acceptsKeys),
     ...(outputPortIdsByStepId ? { outputPortIdsByStepId } : {}),
     prefix: "data-expr",
   }
-  for (const step of steps) {
+  for (const { step } of placements) {
     if (!step.expr) continue
     for (const read of stateReadsFromExpr(step.expr)) {
-      pushReadEdge(ctx, step, read, EXPR_HANDLE_ID, true)
+      pushReadEdge(ctx, step.id, read, EXPR_HANDLE_ID, true)
     }
   }
   return ctx.edges

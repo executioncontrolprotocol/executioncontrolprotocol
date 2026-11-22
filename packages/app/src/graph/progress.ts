@@ -1,5 +1,6 @@
 import type {
   ReactFlowArmStatusDetail,
+  ReactFlowForEachProgressDetail,
   ReactFlowLoopRoundDetail,
   ReactFlowRunLifecycleDetail,
   ReactFlowStepStatus,
@@ -15,6 +16,7 @@ export type ReactFlowProgressEventName =
   | "step:status"
   | "arm:status"
   | "loop:round"
+  | "forEach:progress"
   | "run:done"
 
 /**
@@ -23,8 +25,16 @@ export type ReactFlowProgressEventName =
  * @category App
  */
 export class ReactFlowRunProgress extends EventTarget {
+  private readonly forEachById = new Map<string, { count: number; done: number; failed?: number }>()
+
+  /** Latest folded forEach progress for live bus updates. */
+  currentForEach(structureId: string): { count: number; done: number; failed?: number } | undefined {
+    return this.forEachById.get(structureId)
+  }
+
   /** Emit a run reset (every step back to pending). */
   emitReset(detail: ReactFlowRunLifecycleDetail = {}): void {
+    this.forEachById.clear()
     this.dispatchEvent(new CustomEvent("run:reset", { detail }))
   }
 
@@ -32,15 +42,28 @@ export class ReactFlowRunProgress extends EventTarget {
   emitStepStatus(
     stepId: string,
     status: ReactFlowStepStatus,
-    extra: { message?: string; round?: number } = {},
+    extra: { message?: string; round?: number; item?: number } = {},
   ): void {
     const detail: ReactFlowStepStatusDetail = {
       stepId,
       status,
       ...(extra.round !== undefined ? { round: extra.round } : {}),
+      ...(extra.item !== undefined ? { item: extra.item } : {}),
       ...(extra.message ? { message: extra.message } : {}),
     }
     this.dispatchEvent(new CustomEvent("step:status", { detail }))
+  }
+
+  /** Emit forEach completion counts for the structure node overlay. */
+  emitForEachProgress(structureId: string, done: number, count: number, failed?: number): void {
+    this.forEachById.set(structureId, { count, done, ...(failed !== undefined ? { failed } : {}) })
+    const detail: ReactFlowForEachProgressDetail = {
+      structureId,
+      done,
+      count,
+      ...(failed !== undefined ? { failed } : {}),
+    }
+    this.dispatchEvent(new CustomEvent("forEach:progress", { detail }))
   }
 
   /** Emit the arm a branch selected (`null` when no arm ran). */

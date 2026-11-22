@@ -7,8 +7,12 @@ import {
   EXECUTION_ACCEPTS_NODE_ID,
   EXECUTION_RETURNS_NODE_ID,
   executionToReactFlow,
+  FOREACH_COLLECT_HANDLE,
+  FOREACH_INTO_HANDLE,
+  FOREACH_ITEMS_HANDLE,
   type ReactFlowDocument,
   type ReactFlowEdge,
+  type ReactFlowForEachData,
   type ReactFlowIoData,
   type ReactFlowFrameData,
   type ReactFlowNode,
@@ -44,6 +48,9 @@ function stepIds(manifestNodes: unknown[], out: string[] = []): string[] {
     else if (node.type === "parallel") for (const line of node.branches as unknown[][]) stepIds(line, out)
     else if (node.type === "branch") {
       for (const arm of node.branches as Array<{ steps: unknown[] }>) stepIds(arm.steps, out)
+    } else if (node.type === "forEach") {
+      out.push(node.id as string)
+      stepIds(node.steps as unknown[], out)
     } else stepIds(node.steps as unknown[], out)
   }
   return out
@@ -78,10 +85,18 @@ describe("executionToReactFlow over fixtures/manifests/valid", () => {
     const doc = executionToReactFlow(load(name))
     const byId = new Map(doc.nodes.map((n) => [n.id, n]))
     for (const edge of dataEdges(doc)) {
-      const source = byId.get(edge.source)?.data as ReactFlowStepData | ReactFlowIoData
-      const target = byId.get(edge.target)?.data as ReactFlowStepData | ReactFlowIoData
-      expect(source.outputs.map((p) => p.id)).toContain(edge.sourceHandle)
-      expect(target.inputs.map((p) => p.id)).toContain(edge.targetHandle)
+      const sourceNode = byId.get(edge.source)
+      const targetNode = byId.get(edge.target)
+      const sourceOutputs =
+        sourceNode?.type === "ecp-foreach"
+          ? (sourceNode.data as ReactFlowForEachData).outputs
+          : (sourceNode?.data as ReactFlowStepData | ReactFlowIoData).outputs
+      const targetInputs =
+        targetNode?.type === "ecp-foreach"
+          ? (targetNode.data as ReactFlowForEachData).inputs
+          : (targetNode?.data as ReactFlowStepData | ReactFlowIoData).inputs
+      expect(sourceOutputs.map((p) => p.id)).toContain(edge.sourceHandle)
+      expect(targetInputs.map((p) => p.id)).toContain(edge.targetHandle)
     }
   })
 })
@@ -296,6 +311,108 @@ describe("capability schemas", () => {
     expect(lrB.position.x).toBeGreaterThan(lrA.position.x)
     expect(tbB.position.y).toBeGreaterThan(tbA.position.y)
     expect(tbA.style?.width).toBe(100)
+  })
+})
+
+describe("forEach graph", () => {
+  function foreachNode(doc: ReactFlowDocument, id: string): ReactFlowForEachData {
+    const node = doc.nodes.find((n) => n.id === id)
+    if (!node || node.type !== "ecp-foreach") throw new Error(`no forEach ${id}`)
+    return node.data as ReactFlowForEachData
+  }
+
+  it("renders a structure node, frame, route entry and data ports", () => {
+    const doc = executionToReactFlow(load("for-each.ecp.json"))
+    expect(doc.nodes.some((n) => n.type === "ecp-foreach" && n.id === "rows")).toBe(true)
+    const frame = doc.nodes.find((n) => n.type === "ecp-frame" && (n.data as ReactFlowFrameData).structureId === "rows")
+    expect(frame).toBeDefined()
+    expect((frame?.data as ReactFlowFrameData).label).toBe("forEach ×2")
+    const routes = routeEdges(doc).filter((e) => e.data.route === "forEach")
+    expect(routes.some((e) => e.source === "rows" && e.target === "echo")).toBe(true)
+    expect(routes.every((e) => !e.data.loopBack)).toBe(true)
+    const ports = foreachNode(doc, "rows")
+    expect(ports.inputs.map((p) => p.id).sort()).toEqual([FOREACH_COLLECT_HANDLE, FOREACH_ITEMS_HANDLE].sort())
+    expect(ports.outputs.map((p) => p.id)).toEqual([FOREACH_INTO_HANDLE])
+  })
+
+  it("wires items and collect refs and exposes into from the forEach node", () => {
+    const doc = executionToReactFlow(load("for-each.ecp.json"))
+    const edges = dataEdges(doc)
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "pack",
+        target: "rows",
+        targetHandle: FOREACH_ITEMS_HANDLE,
+        sourceHandle: "rows",
+      }),
+    )
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "echo",
+        target: "rows",
+        targetHandle: FOREACH_COLLECT_HANDLE,
+        sourceHandle: "output",
+      }),
+    )
+  })
+
+  it("does not source body commit keys outside the frame", () => {
+    const manifest = load("for-each.ecp.json")
+    manifest.steps = [
+      ...manifest.steps,
+      {
+        id: "peek",
+        uses: "@executioncontrolprotocol/test.echo",
+        input: { value: { $ref: "state.echoed" } },
+      } as (typeof manifest.steps)[number],
+    ]
+    const doc = executionToReactFlow(manifest)
+    expect(dataEdges(doc).some((e) => e.target === "peek")).toBe(false)
+  })
+
+  it("sources state.into from the forEach node", () => {
+    const manifest = load("for-each.ecp.json")
+    manifest.steps = [
+      ...manifest.steps,
+      {
+        id: "after",
+        uses: "@executioncontrolprotocol/test.echo",
+        input: { value: { $ref: "state.results" } },
+      } as (typeof manifest.steps)[number],
+    ]
+    const doc = executionToReactFlow(manifest)
+    expect(dataEdges(doc)).toContainEqual(
+      expect.objectContaining({ source: "rows", sourceHandle: FOREACH_INTO_HANDLE, target: "after" }),
+    )
+  })
+
+  it("supports a loop nested in a forEach body", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "forEach",
+          id: "items",
+          items: { $ref: "state.list" },
+          as: "item",
+          steps: [
+            {
+              type: "loop",
+              id: "rounds",
+              expr: "(state) => (state.tick ?? 0) < 2",
+              maxRounds: 3,
+              steps: [{ id: "tick", uses: "@executioncontrolprotocol/test.echo", as: "tick" }],
+            },
+          ],
+          collect: { $ref: "state.tick" },
+          into: "ticks",
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    expect(routeEdges(doc).some((e) => e.data.route === "loop" && e.data.loopBack)).toBe(true)
+    expect(routeEdges(doc).some((e) => e.data.route === "forEach")).toBe(true)
   })
 })
 

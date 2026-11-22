@@ -3,6 +3,7 @@ import { AlertTriangle, Box, FileCode2, Save } from "lucide-react"
 import type {
   CapabilityEntry,
   ExecutionManifest,
+  ForEachNode,
   Node,
   ScriptMarker,
   StepNode,
@@ -13,8 +14,10 @@ import {
   collectSteps,
   type ReactFlowIoData,
   type ReactFlowNode,
+  type ReactFlowForEachData,
   type ReactFlowPort,
   type ReactFlowStepData,
+  type RunGraphForEach,
   type RunGraphStep,
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
@@ -46,6 +49,8 @@ export interface NodePanelProps {
   issues: ValidationIssue[]
   /** Run status of the selected node. */
   runStep?: RunGraphStep
+  /** Run progress when the selected node is a `forEach`. */
+  runForEach?: RunGraphForEach
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
   /** Switch the App to its unauthorised screen. */
@@ -57,6 +62,31 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   const steps: StepNode[] = []
   collectSteps(manifest.steps, steps)
   return steps.find((step) => step.id === id)
+}
+
+function findForEach(manifest: ExecutionManifest | undefined, id: string): ForEachNode | undefined {
+  if (!manifest || !Array.isArray(manifest.steps)) return undefined
+  const walk = (nodes: Node[]): ForEachNode | undefined => {
+    for (const node of nodes) {
+      if (node.type === "forEach" && node.id === id) return node
+      if (node.type === "parallel") {
+        for (const line of node.branches) {
+          const hit = walk(line)
+          if (hit) return hit
+        }
+      } else if (node.type === "branch") {
+        for (const arm of node.branches) {
+          const hit = walk(arm.steps)
+          if (hit) return hit
+        }
+      } else if (node.type === "loop" || node.type === "forEach") {
+        const hit = walk(node.steps)
+        if (hit) return hit
+      }
+    }
+    return undefined
+  }
+  return walk(manifest.steps)
 }
 
 function patchStep(
@@ -73,11 +103,71 @@ function patchStep(
         }
       }
       if (node.type === "loop") return { ...node, steps: walk(node.steps) }
+      if (node.type === "forEach") return { ...node, steps: walk(node.steps) }
       if (node.type === "parallel") return { ...node, branches: node.branches.map((branch) => walk(branch)) }
       if ((node as StepNode).id === stepId) return patch(node as StepNode)
       return node
     })
   return { ...manifest, steps: walk(manifest.steps) }
+}
+
+function ForEachPanel({
+  node,
+  data,
+  manifest,
+  issues,
+  foreachRun,
+}: {
+  node: ReactFlowNode
+  data: ReactFlowForEachData
+  manifest?: ExecutionManifest
+  issues: ValidationIssue[]
+  foreachRun?: RunGraphForEach
+}) {
+  const source = findForEach(manifest, node.id)
+  return (
+    <section data-testid="node-panel" data-node-id={node.id} className="space-y-4">
+      <header className="space-y-1">
+        <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-on-surface">
+          <Box className="h-4 w-4 text-primary" aria-hidden="true" />
+          {data.label}
+        </h3>
+        <p className="text-[12px] text-on-surface-variant">forEach structure (read-only in the App).</p>
+      </header>
+      <div className="space-y-1.5">
+        <Row label="Id">{node.id}</Row>
+        <Row label="Items">{data.itemsRef ? `state.${data.itemsRef}` : source?.items ? JSON.stringify(source.items) : ""}</Row>
+        <Row label="As">{data.as}</Row>
+        <Row label="Collect">{data.collectRef ? `state.${data.collectRef}` : ""}</Row>
+        <Row label="Into">{data.into}</Row>
+        <Row label="Concurrency">{data.concurrency}</Row>
+        {data.throttle ? (
+          <Row label="Throttle">
+            {data.throttle.starts} / {data.throttle.perSeconds}s
+          </Row>
+        ) : null}
+        <Row label="On error">{data.onError}</Row>
+        {foreachRun ? (
+          <Row label="Progress">
+            {foreachRun.done} / {foreachRun.count}
+            {foreachRun.failed > 0 ? ` (${foreachRun.failed} failed)` : ""}
+          </Row>
+        ) : null}
+      </div>
+      {issues.length > 0 ? (
+        <ul className="space-y-2">
+          {issues.map((issue, index) => (
+            <li key={`${issue.code}-${index}`} className="flex gap-2 rounded border border-error/40 p-2 text-[12px]">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" aria-hidden="true" />
+              <span>
+                <span className="font-mono text-error">{issue.code}</span> {issue.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  )
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -498,6 +588,7 @@ export function NodePanel({
   capability,
   issues,
   runStep,
+  runForEach,
   reloadKey,
   onUnauthorized,
 }: NodePanelProps) {
@@ -516,6 +607,17 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
+  if (node.type === "ecp-foreach") {
+    return (
+      <ForEachPanel
+        node={node}
+        data={node.data as ReactFlowForEachData}
+        manifest={manifest}
+        issues={issues}
+        foreachRun={runForEach}
+      />
+    )
+  }
   const data = node.data as ReactFlowStepData
   const step = findStep(manifest, node.id)
   return (

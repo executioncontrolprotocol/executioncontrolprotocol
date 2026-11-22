@@ -20,13 +20,20 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   `execution.accepts` declares the key, else another step writing it (a loop-carried value).
   A step never gets an edge from itself.
 - **Route edges** publish structure (`data.kind: "route"`, `route`: `branch` / `parallel` /
-  `loop`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or `defaultArm` for
-  the arm without `expr`. Loops carry their `expr` and `maxRounds`, plus a `loopBack` edge from
-  the body's exits to its entries (excluded from dagre ranks). Parallel lines use dashed route
-  edges without repeating the structure label (the label is drawn on the frame).
-- **Parallel frames.** After dagre, emit one `ecp-frame` node per parallel line: a
-  non-interactive overlay sized to the union of that line's step nodes (with padding). Frames
+  `loop` / `forEach`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or
+  `defaultArm` for the arm without `expr`. Loops carry their `expr` and `maxRounds`, plus a
+  `loopBack` edge from the body's exits to its entries (excluded from dagre ranks). Parallel lines
+  use dashed route edges without repeating the structure label (the label is drawn on the frame).
+  `forEach` bodies use a route edge from the `ecp-foreach` node into the body entry (no loop-back).
+- **Parallel and forEach frames.** After dagre, emit one `ecp-frame` overlay per parallel node or
+  `forEach` body: a non-interactive box sized to the union of that structure's step nodes (with
+  padding). The parallel or `forEach` label is drawn on the frame, not on the route edges. Frames
   are not dagre parents and never set `parentId`.
+- **`forEach` structure node.** Emit one selectable `ecp-foreach` node at the head of the body
+  frame with target handles `items` and `collect` and a source handle `into`. The `items` ref
+  reads end at `items`; the body step that produces the `collect` ref feeds `collect`; reads of
+  `state.<into>` after the node start at `into`. Body-only keys (`<as>`, `<as>Index`, body step
+  `as` keys) do not source edges outside the frame.
 - **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch and loop
   structure stay on route edges; parallel structure uses frames plus route connectors.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
