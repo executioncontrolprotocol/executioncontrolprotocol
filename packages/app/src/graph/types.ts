@@ -125,29 +125,39 @@ export const LOOP_COLLECT_HANDLE = "collect"
 export const LOOP_INTO_HANDLE = "into"
 
 /**
- * Payload for a `forEach` mode loop structure node on the graph.
+ * Source handle id for a loop node's current item / iteration variable (`as`).
+ * @category App
+ */
+export const LOOP_ITEM_HANDLE = "item"
+
+/**
+ * Payload for a loop head structure node on the graph (all loop modes).
  * @category App
  */
 export interface ReactFlowLoopItemsData {
   /** Display label (`label`, else the node id). */
   label: string
-  /** Loop mode (always `forEach` on this node type). */
-  mode: "forEach"
-  /** `ref` path (without `state.`). */
-  refPath: string
-  /** Item state key (`as`). */
-  as: string
-  /** `collect` path (without `state.`). */
-  collectPath: string
-  /** `into` state key. */
-  into: string
-  /** Configured concurrency (default 1). */
-  concurrency: number
-  /** Item error policy. */
-  onError: "fail" | "continue"
-  /** Input handles (`ref`, `collect`). */
+  /** Loop mode. */
+  mode: "while" | "for" | "forEach"
+  /** `ref` path (without `state.`), when the loop declares `ref`. */
+  refPath?: string
+  /** Item state key (`as`), for `for` / `forEach`. */
+  as?: string
+  /** `collect` path (without `state.`), for `forEach`. */
+  collectPath?: string
+  /** `into` state key, for `forEach`. */
+  into?: string
+  /** Loop `expr` badge when the loop is expr-driven. */
+  exprBadge?: string
+  /** `maxRounds` for `while` loops. */
+  maxRounds?: number
+  /** Configured concurrency (default 1), for `forEach`. */
+  concurrency?: number
+  /** Item error policy, for `forEach`. */
+  onError?: "fail" | "continue"
+  /** Input handles (`ref`, `expr`, `collect`). */
   inputs: ReactFlowPort[]
-  /** Output handle (`into`). */
+  /** Output handles (`item`, `into`). */
   outputs: ReactFlowPort[]
 }
 
@@ -180,7 +190,7 @@ export type ReactFlowEdgeKind = "data" | "control" | "route"
  * Structural route subtype for published non-data edges.
  * @category App
  */
-export type ReactFlowRouteKind = "branch" | "parallel" | "loop"
+export type ReactFlowRouteKind = "branch" | "parallel" | "loop" | "sequence"
 
 /**
  * Metadata on a published route edge (branch, parallel or loop structure).
@@ -191,8 +201,8 @@ export interface ReactFlowRouteEdgeData {
   kind: "route"
   /** Structural subtype. */
   route: ReactFlowRouteKind
-  /** Branch, parallel or loop node id in the execution manifest. */
-  structureId: string
+  /** Branch, parallel or loop node id in the execution manifest (or an arbitrary id for `sequence`). */
+  structureId?: string
   /** Branch arm index or parallel line index. */
   armIndex?: number
   /** Arm or structure label when present. */

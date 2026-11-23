@@ -277,6 +277,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   issues={selectedId ? (nodeErrors[selectedId] ?? []) : []}
                   runStep={selectedId ? overlay.steps[selectedId] : undefined}
                   runLoopItems={selectedId ? overlay.loopItems[selectedId] : undefined}
+                  runLoop={selectedId ? overlay.loops[selectedId] : undefined}
                   reloadKey={doc.loads}
                   onUnauthorized={onUnauthorized}
                 />

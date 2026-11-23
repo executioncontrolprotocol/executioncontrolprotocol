@@ -37,6 +37,7 @@ export {
   stateReadsFromExpr,
   walkInputExprs,
   walkInputRefs,
+  walkManifestPlacements,
 } from "./extract-data-edges.js"
 export {
   acceptsPropertyKeys,
@@ -97,6 +98,7 @@ export {
 export {
   LOOP_COLLECT_HANDLE,
   LOOP_INTO_HANDLE,
+  LOOP_ITEM_HANDLE,
   LOOP_REF_HANDLE,
 } from "./types.js"
 export type {

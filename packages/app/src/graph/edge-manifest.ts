@@ -153,9 +153,11 @@ export function dataEdgeInspectorMeta(
  * @category App
  */
 export function routeEdgeInspectorMeta(manifest: ExecutionManifest, data: ReactFlowRouteEdgeData): RouteEdgeInspectorMeta | undefined {
+  if (data.route === "sequence") return undefined
   if (data.defaultArm) {
     return { manifestPointer: "", validatePointer: "", defaultArm: true }
   }
+  if (!data.structureId) return undefined
   const base = stepManifestPointer(manifest, data.structureId)
   if (!base) return undefined
   if (data.route === "loop") {

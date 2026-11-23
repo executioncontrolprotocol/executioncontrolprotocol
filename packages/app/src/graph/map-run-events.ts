@@ -240,11 +240,14 @@ export function armRunState(
   route: Pick<ReactFlowRouteEdgeData, "route" | "structureId" | "armIndex" | "loopMode">,
   state: RunGraphState,
 ): ReactFlowArmRunState {
+  if (route.route === "sequence") return "idle"
   if (route.route === "branch") {
+    if (!route.structureId) return "idle"
     if (!(route.structureId in state.arms)) return "idle"
     return state.arms[route.structureId] === route.armIndex ? "taken" : "skipped"
   }
   if (route.route === "loop") {
+    if (!route.structureId) return "idle"
     if (route.loopMode === "forEach") return route.structureId in state.loopItems ? "taken" : "idle"
     return route.structureId in state.loops ? "taken" : "idle"
   }

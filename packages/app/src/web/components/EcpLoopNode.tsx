@@ -8,10 +8,12 @@ import { InputPortRow, OutputPortRow } from "./ports.js"
  * @category App
  */
 export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
-  /** Items finished so far. */
+  /** Items finished so far (`forEach`). */
   done?: number
-  /** Total item count. */
+  /** Total item count (`forEach`). */
   count?: number
+  /** Current round (`while` / `for`). */
+  round?: number
   /** Input port ids with an incoming data edge. */
   connectedTargetHandles?: string[]
   /** Output port ids with an outgoing data edge. */
@@ -19,7 +21,7 @@ export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
 }
 
 /**
- * View-only React Flow node for a `forEach` mode loop: refs, concurrency and run counts.
+ * View-only React Flow node for loop structure heads (all loop modes).
  * @category App
  */
 export function EcpLoopNode({ id, data, selected }: NodeProps) {
@@ -30,6 +32,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
     "ecp-rf-node min-w-[200px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm",
     selected ? "ecp-rf-node--selected" : "",
   ]
+  const mode = node.mode ?? "while"
 
   return (
     <div
@@ -43,16 +46,31 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             <Repeat className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             {node.label}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-on-surface-variant">
-            as {node.as} → {node.into}
-          </div>
+          {node.exprBadge ? (
+            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">{node.exprBadge}</div>
+          ) : null}
+          {mode === "forEach" && node.as && node.into ? (
+            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">
+              as {node.as} → {node.into}
+            </div>
+          ) : null}
+          {mode === "for" && node.as ? (
+            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">as {node.as}</div>
+          ) : null}
           <div className="mt-1 font-mono text-[9px] text-on-surface-variant">
-            forEach · ×{node.concurrency}
-            {node.onError === "continue" ? " · onError: continue" : ""}
+            {mode}
+            {mode === "forEach" ? ` · ×${node.concurrency ?? 1}` : ""}
+            {mode === "while" && node.maxRounds !== undefined ? ` · max ${node.maxRounds}` : ""}
+            {mode === "forEach" && node.onError === "continue" ? " · onError: continue" : ""}
           </div>
           {node.count !== undefined ? (
             <div className="mt-1 font-mono text-[9px] text-on-surface-variant" data-testid="ecp-loop-progress">
               {node.done ?? 0} / {node.count}
+            </div>
+          ) : null}
+          {node.round !== undefined ? (
+            <div className="mt-1 font-mono text-[9px] text-on-surface-variant" data-testid="ecp-loop-round">
+              round {node.round + 1}
             </div>
           ) : null}
         </div>

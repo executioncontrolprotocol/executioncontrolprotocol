@@ -7,6 +7,17 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
 
 ## Rules
 
+### Connectivity
+
+- **C1. Every state-bound input has a visible edge from where its value comes from.** That covers step
+  `input` `$ref` / `$state` reads (including nested paths and `$script.params`), step `expr` gate reads, a
+  loop's `ref`, the state a loop's `expr` reads (best effort), a `forEach` loop's `collect`, reads of a
+  `forEach` loop's `into`, reads of execution inputs (from the Inputs node), and reads of a loop's item
+  (`state.<as>` and `state.<as>Index` in `forEach`).
+- **C2. No orphaned nodes.** Every rendered node (steps, loop head nodes, the Inputs and Outputs nodes) has
+  at least one visible edge. Frames are not nodes for this purpose. Otherwise-orphaned nodes keep their
+  layout control edges as visible `sequence` route edges (no label).
+
 - **Published edges are `data` or `route`.** Layout may insert temporary unlabelled `control`
   edges between sequential steps; strip those before publishing. Never invent fake `$ref`s for
   structure.
@@ -19,23 +30,25 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   A read resolves to the last earlier step whose `as` is the key, else the Inputs node when
   `execution.accepts` declares the key, else another step writing it (a loop-carried value).
   A step never gets an edge from itself.
-  - For `loop` nodes: a `ref` driver gets a data edge from its producer into the loop node.
-    In `forEach` mode, the body step that writes `collect` feeds `collect`; reads of `state.<into>`
-    after the loop start at the loop node's `into` handle. Body-only keys (`<as>`, `<as>Index`,
-    body `as` keys) do not source edges outside the frame.
+  - Every loop mode gets a head `ecp-loop` node with `ref` / `expr` / `collect` (`forEach`) inputs and
+    `item` (`for` / `forEach`) and `into` (`forEach`) outputs. A `ref` driver and loop `expr` reads connect
+    like step gates. Reads of `state.<as>` inside the loop resolve to the head's `item` handle (innermost
+    binder wins). Reads of `state.<into>` after a `forEach` resolve to `into`.
 - **Route edges** publish structure (`data.kind: "route"`, `route`: `branch` / `parallel` /
-  `loop`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or
-  `defaultArm` for the arm without `expr`. `while` / `for` loops carry their driver (`ref` or
-  `expr` label), `maxRounds` when present, and a `loopBack` edge from the body's exits to its
-  entries (excluded from dagre ranks). `forEach` mode uses a route edge from the loop node into
-  the body entry (no loop-back). Parallel lines use dashed route edges without repeating the
-  structure label (the label is drawn on the frame).
+  `loop` / `sequence`). Branch arms carry the arm `label` and `expr` text (`exprBadge`), or
+  `defaultArm` for the arm without `expr`. Every loop head connects into its body; `while` / `for`
+  loops carry their driver (`ref` or `expr` label), `maxRounds` when present, and a `loopBack` edge from
+  the body's exits to the head (excluded from dagre ranks). `forEach` mode uses a route edge from the
+  loop head into the body entry (no loop-back). `sequence` routes preserve connectivity for literal-only
+  steps. Parallel lines use dashed route edges without repeating the structure label (the label is drawn
+  on the frame).
 - **Parallel and forEach frames.** After dagre, emit one `ecp-frame` overlay per parallel node or
   `forEach` loop body: a non-interactive box sized to the union of that structure's step nodes (with
   padding). The structure label is drawn on the frame, not on the route edges. Frames are not dagre
   parents and never set `parentId`.
-- **`forEach` loop node.** The same `loop` node type at the head of the body frame with target
-  handles for the driver (`ref` or labelled `expr`), `collect`, and source handle `into`.
+- **Loop head node.** Every `loop` (all modes) is an `ecp-loop` node at the head of the body (or frame for
+  `forEach`), with target handles for `ref` / `expr` / `collect` and source handles `item` and `into` as
+  applicable.
 - **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch and loop
   structure stay on route edges; parallel structure uses frames plus route connectors.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
