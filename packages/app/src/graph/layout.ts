@@ -156,17 +156,33 @@ export function frameBounds(
  * Loop-back route edges are drawn but excluded from rank constraints.
  * @category App
  */
+/**
+ * A structure container for layout: dagre keeps each cluster's nodes together and sibling clusters apart, so the
+ * frames drawn around them afterwards don't overlap.
+ * @category App
+ */
+export interface LayoutCluster {
+  /** Cluster id (the frame id). */
+  id: string
+  /** Every drawn node inside the structure, at any depth. */
+  memberNodeIds: readonly string[]
+  /** Clusters directly inside this one. */
+  childClusterIds: readonly string[]
+}
+
 export function layoutReactFlowDocument(
   doc: ReactFlowDocument,
   options?: ReactFlowEncodeOptions,
+  clusters: readonly LayoutCluster[] = [],
 ): ReactFlowDocument {
   const direction = options?.direction ?? "LR"
   const nodeWidth = options?.nodeWidth ?? DEFAULT_NODE_WIDTH
   const nodeHeight = options?.nodeHeight ?? DEFAULT_NODE_HEIGHT
 
-  const graph = new dagre.graphlib.Graph()
+  const graph = new dagre.graphlib.Graph({ compound: clusters.length > 0 })
   graph.setDefaultEdgeLabel(() => ({}))
-  graph.setGraph({ rankdir: direction, nodesep: 56, ranksep: 96, marginx: 24, marginy: 24 })
+  // Clustered layouts spend ranks on container borders; a smaller rank gap keeps them about as wide as before.
+  graph.setGraph({ rankdir: direction, nodesep: 56, ranksep: clusters.length > 0 ? 32 : 96, marginx: 24, marginy: 24 })
 
   const ids = new Set(doc.nodes.map((node) => node.id))
   const heights = new Map(doc.nodes.map((node) => [node.id, estimateNodeHeight(node, nodeHeight)]))
@@ -174,6 +190,7 @@ export function layoutReactFlowDocument(
   for (const node of doc.nodes) {
     graph.setNode(node.id, { width: nodeWidth, height: heights.get(node.id) ?? nodeHeight })
   }
+  applyLayoutClusters(graph, clusters, ids)
   for (const edge of doc.edges) {
     if (!ids.has(edge.source) || !ids.has(edge.target)) continue
     if (edge.data.kind === "route" && edge.data.loopBack) continue
@@ -193,4 +210,36 @@ export function layoutReactFlowDocument(
     }
   })
   return { nodes, edges: doc.edges.map((edge) => ({ ...edge })) }
+}
+
+/**
+ * Register clusters on a compound dagre graph: each node is parented to its innermost cluster and each cluster to the
+ * cluster that lists it as a child. Clusters with no nodes in this graph are skipped.
+ */
+function applyLayoutClusters(
+  graph: dagre.graphlib.Graph,
+  clusters: readonly LayoutCluster[],
+  nodeIds: ReadonlySet<string>,
+): void {
+  if (clusters.length === 0) return
+  const byId = new Map(clusters.map((cluster) => [cluster.id, cluster]))
+  const present = clusters.filter((cluster) => cluster.memberNodeIds.some((id) => nodeIds.has(id)))
+  const presentIds = new Set(present.map((cluster) => cluster.id))
+  const parentOf = new Map<string, string>()
+  for (const cluster of present) {
+    for (const child of cluster.childClusterIds) if (presentIds.has(child)) parentOf.set(child, cluster.id)
+  }
+  for (const cluster of present) {
+    graph.setNode(cluster.id, {})
+    const parent = parentOf.get(cluster.id)
+    if (parent) graph.setParent(cluster.id, parent)
+  }
+  for (const cluster of present) {
+    const inChildren = new Set(
+      cluster.childClusterIds.flatMap((child) => byId.get(child)?.memberNodeIds ?? []),
+    )
+    for (const id of cluster.memberNodeIds) {
+      if (nodeIds.has(id) && !inChildren.has(id)) graph.setParent(id, cluster.id)
+    }
+  }
 }

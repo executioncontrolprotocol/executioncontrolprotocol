@@ -1,0 +1,169 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-nested-parallel",
+    "label": "Nested: parallel > branch > for, and parallel > forEach > parallel",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "full",
+            "quick"
+          ],
+          "default": "full"
+        },
+        "passes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 2
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "a.txt",
+            "b.txt"
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "work",
+      "label": "Two workstreams",
+      "branches": [
+        [
+          {
+            "type": "branch",
+            "id": "depth",
+            "label": "How thorough",
+            "branches": [
+              {
+                "label": "full",
+                "expr": "(state) => state.mode === 'full'",
+                "steps": [
+                  {
+                    "type": "loop",
+                    "mode": "for",
+                    "id": "passes-loop",
+                    "label": "Run each pass",
+                    "ref": "state.passes",
+                    "as": "pass",
+                    "steps": [
+                      {
+                        "id": "review-pass",
+                        "label": "Review pass",
+                        "uses": "@executioncontrolprotocol/test.echo",
+                        "input": {
+                          "value": {
+                            "$ref": "state.pass"
+                          }
+                        },
+                        "as": "review_pass",
+                        "mode": "replace"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "quick",
+                "steps": [
+                  {
+                    "id": "quick-check",
+                    "label": "Quick check",
+                    "uses": "@executioncontrolprotocol/test.echo",
+                    "input": {
+                      "value": {
+                        "$ref": "state.mode"
+                      }
+                    },
+                    "as": "quick_check"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "type": "loop",
+            "mode": "forEach",
+            "id": "each-file",
+            "label": "For each file",
+            "ref": "state.files",
+            "as": "file",
+            "steps": [
+              {
+                "type": "parallel",
+                "id": "file-checks",
+                "label": "Check the file in parallel",
+                "branches": [
+                  [
+                    {
+                      "id": "lint",
+                      "label": "Lint",
+                      "uses": "@executioncontrolprotocol/test.echo",
+                      "input": {
+                        "value": {
+                          "$ref": "state.file"
+                        }
+                      },
+                      "as": "lint"
+                    }
+                  ],
+                  [
+                    {
+                      "id": "scan",
+                      "label": "Scan",
+                      "uses": "@executioncontrolprotocol/test.echo",
+                      "input": {
+                        "value": {
+                          "$ref": "state.file"
+                        }
+                      },
+                      "as": "scan"
+                    }
+                  ]
+                ]
+              },
+              {
+                "id": "file-ok",
+                "label": "File OK",
+                "uses": "@executioncontrolprotocol/test.echo",
+                "input": {
+                  "value": {
+                    "$ref": "state.file"
+                  }
+                },
+                "as": "file_ok"
+              }
+            ],
+            "collect": "state.file_ok",
+            "into": "checked"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "wrap-up",
+      "label": "Wrap up",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.checked"
+        }
+      },
+      "as": "wrap_up"
+    }
+  ]
+}

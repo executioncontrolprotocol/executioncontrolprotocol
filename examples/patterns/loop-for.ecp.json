@@ -1,0 +1,57 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-loop-for",
+    "label": "Pattern: for loop",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "loop",
+      "mode": "for",
+      "id": "rounds",
+      "label": "Repeat count times",
+      "ref": "state.count",
+      "as": "i",
+      "steps": [
+        {
+          "id": "tick",
+          "label": "Tick i",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": {
+              "$ref": "state.i"
+            }
+          },
+          "as": "tick",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
+      "id": "after-rounds",
+      "label": "After the loop",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.tick.echo",
+          "optional": true,
+          "fallback": "the loop ran zero times"
+        }
+      },
+      "as": "after_rounds"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-branch",
+    "label": "Pattern: branch",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": [
+            "gold",
+            "silver",
+            "bronze"
+          ],
+          "default": "gold"
+        }
+      },
+      "required": [
+        "tier"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "label": "Read tier",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.tier"
+        }
+      },
+      "as": "start"
+    },
+    {
+      "type": "branch",
+      "id": "by-tier",
+      "label": "Route by tier",
+      "branches": [
+        {
+          "label": "gold",
+          "expr": "(state) => state.tier === 'gold'",
+          "steps": [
+            {
+              "id": "gold-offer",
+              "label": "Gold offer",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "Free express shipping"
+              },
+              "as": "gold_offer"
+            }
+          ]
+        },
+        {
+          "label": "silver",
+          "expr": "(state) => state.tier === 'silver'",
+          "steps": [
+            {
+              "id": "silver-offer",
+              "label": "Silver offer",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "10% off"
+              },
+              "as": "silver_offer"
+            }
+          ]
+        },
+        {
+          "label": "everyone else",
+          "steps": [
+            {
+              "id": "default-offer",
+              "label": "Default offer",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "Welcome back"
+              },
+              "as": "default_offer"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "label": "Done",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "offer chosen"
+      },
+      "as": "done"
+    }
+  ]
+}

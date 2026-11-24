@@ -16,7 +16,7 @@ import {
   returnsReactFlowNode,
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
-import { frameBounds, layoutReactFlowDocument } from "./layout.js"
+import { frameBounds, layoutReactFlowDocument, type LayoutCluster } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import type {
   CapabilitySchemaIndex,
@@ -87,6 +87,14 @@ function beginStructureFrame(
   if (parent) parent.spec.childFrameIds.push(spec.frameId)
   ctx.frameStack.push({ spec })
   ctx.structureFrames.push(spec)
+}
+
+function layoutClusters(frames: readonly StructureFrame[]): LayoutCluster[] {
+  return frames.map((frame) => ({
+    id: frame.frameId,
+    memberNodeIds: frame.memberNodeIds,
+    childClusterIds: frame.childFrameIds,
+  }))
 }
 
 function endStructureFrame(ctx: EncodeContext, memberNodeIds: readonly string[]): void {
@@ -288,7 +296,7 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   connectRoutes(
     edges,
     [node.id],
-    seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    composedRouteEntries(seg, loopLevel),
     `loop-${node.id}`,
   )
   let i = 0
@@ -403,12 +411,11 @@ function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
     structureId: node.id,
     stepIds: leafStepIds(node.steps),
   }
-  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = routePayload(loopLevel)
   const edges = [...seg.edges]
   connectRoutes(
     edges,
     [node.id],
-    seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    composedRouteEntries(seg, loopLevel),
     `loop-items-${node.id}`,
   )
   endStructureFrame(ctx, [node.id, ...nodeIdsInSegment(seg)])
@@ -684,7 +691,7 @@ export function executionToReactFlow(
     connectControl(layoutEdges, body.exitIds, [returnsNode.id], "io-returns")
   }
 
-  const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options)
+  const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options, layoutClusters(structureFrames))
   let flowNodes = laid.nodes
   const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
   const detachedStructureIds = new Set<string>()
@@ -699,7 +706,11 @@ export function executionToReactFlow(
     }
     const detachedSeg = renderNodes(detachedRoots, detachedCtx)
     const controlEdges = detachedSeg.edges.filter((edge) => edge.data.kind === "control")
-    const detachedLaid = layoutReactFlowDocument({ nodes: detachedSeg.nodes, edges: controlEdges }, options)
+    const detachedLaid = layoutReactFlowDocument(
+      { nodes: detachedSeg.nodes, edges: controlEdges },
+      options,
+      layoutClusters(detachedFrames),
+    )
     const mainMaxY = flowNodes.reduce((max, node) => {
       const height = node.style?.height ?? options?.nodeHeight ?? 160
       return Math.max(max, node.position.y + height)

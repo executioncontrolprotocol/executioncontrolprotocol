@@ -1,0 +1,135 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-nested-foreach-branch",
+    "label": "Nested: forEach > branch > parallel / while",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "express-1",
+            "standard-2",
+            "express-3"
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "loop",
+      "mode": "forEach",
+      "id": "each-order",
+      "label": "For each order",
+      "ref": "state.orders",
+      "as": "order",
+      "concurrency": 2,
+      "steps": [
+        {
+          "type": "branch",
+          "id": "shipping",
+          "label": "Shipping speed",
+          "branches": [
+            {
+              "label": "express",
+              "expr": "(state) => String(state.order).startsWith('express')",
+              "steps": [
+                {
+                  "type": "parallel",
+                  "id": "express-prep",
+                  "label": "Prepare express in parallel",
+                  "branches": [
+                    [
+                      {
+                        "id": "pick",
+                        "label": "Pick items",
+                        "uses": "@executioncontrolprotocol/test.echo",
+                        "input": {
+                          "value": {
+                            "$ref": "state.order"
+                          }
+                        },
+                        "as": "pick"
+                      }
+                    ],
+                    [
+                      {
+                        "id": "label-print",
+                        "label": "Print label",
+                        "uses": "@executioncontrolprotocol/test.echo",
+                        "input": {
+                          "value": {
+                            "$ref": "state.order"
+                          }
+                        },
+                        "as": "label_print"
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "standard",
+              "steps": [
+                {
+                  "type": "loop",
+                  "mode": "while",
+                  "id": "batch-wait",
+                  "label": "Wait for a batch slot",
+                  "expr": "(state) => state.slot === undefined",
+                  "maxRounds": 2,
+                  "steps": [
+                    {
+                      "id": "slot",
+                      "label": "Check slot",
+                      "uses": "@executioncontrolprotocol/test.echo",
+                      "input": {
+                        "value": {
+                          "$ref": "state.order"
+                        }
+                      },
+                      "as": "slot",
+                      "mode": "replace"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ship",
+          "label": "Ship order",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": {
+              "$ref": "state.order"
+            }
+          },
+          "as": "ship"
+        }
+      ],
+      "collect": "state.ship",
+      "into": "shipped"
+    },
+    {
+      "id": "notify",
+      "label": "Notify all shipped",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.shipped"
+        }
+      },
+      "as": "notify"
+    }
+  ]
+}
