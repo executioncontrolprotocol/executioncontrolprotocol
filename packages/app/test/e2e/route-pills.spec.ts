@@ -86,9 +86,11 @@ test.describe("Route pills", () => {
 
     const before = readFileSync(nestedBranchPath, "utf8")
     await page.getByTestId("edge-expr-editor").fill("(state) => false")
-    await expect(page.getByTestId("edge-save")).toBeEnabled({ timeout: 15_000 })
-    await page.getByTestId("edge-save").click()
-    await expect.poll(() => readFileSync(nestedBranchPath, "utf8")).not.toBe(before)
+    await page.getByTestId("edge-expr-editor").blur()
+    await expect.poll(() => readFileSync(nestedBranchPath, "utf8").includes("(state) => false"), { timeout: 15_000 }).toBe(
+      true,
+    )
+    expect(readFileSync(nestedBranchPath, "utf8")).not.toBe(before)
 
     const saved = JSON.parse(readFileSync(nestedBranchPath, "utf8")) as {
       steps: Array<{

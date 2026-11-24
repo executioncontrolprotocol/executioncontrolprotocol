@@ -253,23 +253,15 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
   (hot reload, script edit, save) passes on the new calls; a test asserts the App makes no
   request outside `/v1/retrieve`, `/v1/execute`, `/v1/commit`, `/v1/watch` and run artifacts.
 
-### Phase 8: autosave, undo / redo
+### Phase 8: autosave, undo / redo (shipped)
 
-- The Save button goes. Each edit is a `commit { …, ifVersion, draft: true }` (phase 7), for
-  path and id alike: structural edits immediately, text fields (expressions, labels) 500 ms after
-  the last keystroke. The App's own commit must not count as an external change on hot reload
-  (match the returned version), so selection and caret stay put. A version conflict reloads and
-  replays the edit, or shows what was discarded.
-- Invalid manifests are saved too (`draft: true`); the Validation tab and node badges show what's
-  wrong.
-- Edits apply to the App's latest **local** manifest (what it last committed), not only to what the
-  last hot reload delivered. Today (phases 2–4) a second menu edit made before the reload arrives runs
-  on the stale manifest and can be refused or lost; the phase 3 e2e waits for the reload to avoid it.
-- Undo / redo: buttons in the canvas control bar with zoom in, zoom out and fit (React Flow
-  `Controls` + `ControlButton`), plus Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z. A stack of manifests for the
-  session; each undo or redo is saved like any other edit. Node drags aren't on the stack.
-  Disabled while read-only (D10).
-- A status chip shows "Saving…", "Saved" or the save error.
+- Single `useExecutionEditor` pipeline: edits apply to the latest **local** manifest; commits are
+  serialized; own-version reloads do not reset selection, caret, or undo.
+- No Save button. Structural edits commit immediately; text fields flush at 500 ms, on blur, and on
+  unmount. `ECP_VERSION_CONFLICT` reloads and replays queued edits, naming any discarded. External
+  reload clears undo and discards pending debounced text with a one-line note.
+- Undo/redo in the canvas control bar; Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, and Ctrl/Cmd+Y. Status chip and
+  `beforeunload` when saves are pending.
 
 ## Open questions
 

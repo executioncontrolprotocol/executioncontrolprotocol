@@ -21,6 +21,29 @@ const manifest: ExecutionManifest = {
 }
 
 describe("document-state", () => {
+  it("retrieve with non-object manifest keeps previous snapshot", () => {
+    const mapped = applyRetrieveItem(
+      { manifest, version: "old" },
+      {
+        path: "/d.ecp.json",
+        version: "new",
+        manifest: [] as unknown as ExecutionManifest,
+        issues: [],
+        warnings: [],
+        updatedAt: "",
+      },
+    )
+    expect(mapped.manifest).toBe(manifest)
+    expect(mapped.loadError?.code).toBe("ECP_EXECUTION_LOAD")
+  })
+
+  it("isPlainManifest accepts objects only", () => {
+    expect(isPlainManifest(manifest)).toBe(true)
+    expect(isPlainManifest(null)).toBe(false)
+    expect(isPlainManifest([])).toBe(false)
+    expect(isPlainManifest("text")).toBe(false)
+  })
+
   it("path retrieve sets string version, manifest, and validation from issues", () => {
     const item: ExecutionItem = {
       path: "/d/a.ecp.json",
@@ -65,6 +88,18 @@ describe("document-state", () => {
       draft: true,
     })
     expect(input).not.toHaveProperty("id")
+  })
+
+  it("executionUpdateInput without version refuses", () => {
+    expect(isExecutionUpdateRefusal(executionUpdateInput({ kind: "path", path: "/d/a.ecp.json" }, manifest, undefined))).toBe(
+      true,
+    )
+    expect(isExecutionUpdateRefusal(executionUpdateInput({ kind: "id", id: "x" }, manifest, undefined))).toBe(true)
+  })
+
+  it("executionUpdateInput for id refuses scripts", () => {
+    const input = executionUpdateInput({ kind: "id", id: "x" }, manifest, 2, { "a.js": "x" })
+    expect(isExecutionUpdateRefusal(input)).toBe(true)
   })
 
   it("executionUpdateInput for id sends id and numeric ifVersion", () => {

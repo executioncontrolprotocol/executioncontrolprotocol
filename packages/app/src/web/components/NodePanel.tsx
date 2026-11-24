@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { AlertTriangle, Box, FileCode2, Save } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { AlertTriangle, Box, FileCode2 } from "lucide-react"
 import type {
   CapabilityEntry,
   ExecutionManifest,
@@ -14,12 +14,7 @@ import {
   UnauthorizedError,
   type AppHostClient,
 } from "../../client/index.js"
-import {
-  executionUpdateInput,
-  interpretCommitResponse,
-  isExecutionUpdateRefusal,
-  scriptTextFromRetrieve,
-} from "../../client/document-state.js"
+import { scriptTextFromRetrieve } from "../../client/document-state.js"
 import {
   collectSteps,
   setLoopField,
@@ -34,6 +29,7 @@ import {
   type StructureEditResult,
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
+import type { EditorApplyRequest } from "../hooks/useExecutionEditor.js"
 
 /**
  * Props for {@link NodePanel}.
@@ -44,14 +40,9 @@ export interface NodePanelProps {
   client: AppHostClient
   /** How the execution was opened (path vs id). */
   source: ExecutionSource
-  /** Opaque or numeric version for draft commits. */
-  version?: number | string
-  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void
-  onVersionConflict: () => void
-  /** Draft manifest while editing; `undefined` when the panel is read-only. */
-  draft?: ExecutionManifest
-  /** Update or clear the workspace draft. */
-  onDraftChange: (manifest: ExecutionManifest | undefined) => void
+  scheduleTextEdit?: (request: EditorApplyRequest) => void
+  flushTextEdit?: () => void
+  fieldEpoch?: number
   /** Open execution manifest (includes unsaved draft). */
   manifest?: ExecutionManifest
   /** Execution file path, when opened by path (resolves relative script paths). */
@@ -155,6 +146,9 @@ function LoopItemsPanel({
   loopRound,
   readOnly = false,
   applyManifestEdit,
+  scheduleTextEdit,
+  flushTextEdit,
+  fieldEpoch = 0,
 }: {
   node: ReactFlowNode
   data: ReactFlowLoopItemsData
@@ -164,24 +158,50 @@ function LoopItemsPanel({
   loopRound?: RunGraphLoop
   readOnly: boolean
   applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  scheduleTextEdit?: (request: EditorApplyRequest) => void
+  flushTextEdit?: () => void
+  fieldEpoch?: number
 }) {
+  const loopFieldKey = `${node.id}-${fieldEpoch}`
   const source = findLoop(manifest, node.id)
   const mode = data.mode ?? "while"
   const driver: "ref" | "expr" = source?.expr !== undefined ? "expr" : "ref"
   const [fieldError, setFieldError] = useState<string | undefined>(undefined)
 
-  const saveField = useCallback(
-    async (field: LoopFieldKey, value: string | number) => {
-      if (readOnly || !manifest || !applyManifestEdit) return
+  const queueField = useCallback(
+    (field: LoopFieldKey, value: string | number) => {
+      if (readOnly || !manifest || !scheduleTextEdit) return
       const preview = setLoopField(manifest, node.id, field, value)
       if (!preview.ok) {
         setFieldError(preview.reason)
         return
       }
       setFieldError(undefined)
-      await applyManifestEdit((current) => setLoopField(current, node.id, field, value))
+      scheduleTextEdit({
+        label: `Loop ${field}`,
+        apply: (current) => setLoopField(current, node.id, field, value),
+      })
     },
-    [applyManifestEdit, manifest, node.id, readOnly],
+    [manifest, node.id, readOnly, scheduleTextEdit],
+  )
+
+  const saveField = useCallback(
+    (field: LoopFieldKey, value: string | number) => {
+      if (readOnly || !manifest) return
+      const preview = setLoopField(manifest, node.id, field, value)
+      if (!preview.ok) {
+        setFieldError(preview.reason)
+        return
+      }
+      setFieldError(undefined)
+      if (scheduleTextEdit) {
+        queueField(field, value)
+        flushTextEdit?.()
+        return
+      }
+      void applyManifestEdit?.((current) => setLoopField(current, node.id, field, value))
+    },
+    [applyManifestEdit, flushTextEdit, manifest, node.id, queueField, readOnly, scheduleTextEdit],
   )
 
   const switchDriver = useCallback(
@@ -212,7 +232,7 @@ function LoopItemsPanel({
         <Row label="Id">{node.id}</Row>
         <Row label="Mode">{mode}</Row>
       </div>
-      <div className="space-y-3 border-t border-outline-variant pt-3">
+      <div key={loopFieldKey} className="space-y-3 border-t border-outline-variant pt-3">
         <p className="font-mono text-label uppercase text-on-surface-variant">Driver</p>
         <div className="flex gap-2" data-testid="loop-field-driver">
           <button
@@ -244,6 +264,7 @@ function LoopItemsPanel({
               className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
               defaultValue={source?.ref ?? (data.refPath ? `state.${data.refPath}` : "")}
               disabled={disabled}
+              onChange={(event) => queueField("ref", event.target.value)}
               onBlur={(event) => void saveField("ref", event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void saveField("ref", (event.target as HTMLInputElement).value)
@@ -258,6 +279,7 @@ function LoopItemsPanel({
               className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
               defaultValue={source?.expr ?? data.exprBadge ?? ""}
               disabled={disabled}
+              onChange={(event) => queueField("expr", event.target.value)}
               onBlur={(event) => void saveField("expr", event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void saveField("expr", (event.target as HTMLInputElement).value)
@@ -276,6 +298,7 @@ function LoopItemsPanel({
               className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
               defaultValue={source?.maxRounds ?? data.maxRounds ?? 1}
               disabled={disabled}
+              onChange={(event) => queueField("maxRounds", Number.parseInt(event.target.value, 10))}
               onBlur={(event) => void saveField("maxRounds", Number.parseInt(event.target.value, 10))}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -293,6 +316,7 @@ function LoopItemsPanel({
               className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
               defaultValue={source?.as ?? data.as ?? ""}
               disabled={disabled}
+              onChange={(event) => queueField("as", event.target.value)}
               onBlur={(event) => void saveField("as", event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void saveField("as", (event.target as HTMLInputElement).value)
@@ -309,6 +333,7 @@ function LoopItemsPanel({
                 className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
                 defaultValue={source?.into ?? data.into ?? ""}
                 disabled={disabled}
+                onChange={(event) => queueField("into", event.target.value)}
                 onBlur={(event) => void saveField("into", event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void saveField("into", (event.target as HTMLInputElement).value)
@@ -322,6 +347,7 @@ function LoopItemsPanel({
                 className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
                 defaultValue={source?.collect ?? (data.collectPath ? `state.${data.collectPath}` : "")}
                 disabled={disabled}
+                onChange={(event) => queueField("collect", event.target.value)}
                 onBlur={(event) => void saveField("collect", event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void saveField("collect", (event.target as HTMLInputElement).value)
@@ -338,6 +364,7 @@ function LoopItemsPanel({
                 className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
                 defaultValue={source?.concurrency ?? data.concurrency ?? 1}
                 disabled={disabled}
+                onChange={(event) => queueField("concurrency", Number.parseInt(event.target.value, 10))}
                 onBlur={(event) => void saveField("concurrency", Number.parseInt(event.target.value, 10))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -464,9 +491,8 @@ function ScriptText({
   editable,
   text,
   onTextChange,
-  onSave,
-  saving,
-  saveError,
+  onBlur,
+  onUnauthorized,
 }: {
   client: AppHostClient
   source: ExecutionSource
@@ -475,12 +501,13 @@ function ScriptText({
   editable: boolean
   text: string
   onTextChange: (next: string) => void
-  onSave: () => void
-  saving: boolean
-  saveError?: string
+  onBlur?: () => void
+  onUnauthorized: () => void
 }) {
   const [loadError, setLoadError] = useState<string | undefined>(undefined)
   const [loaded, setLoaded] = useState(false)
+  const onTextChangeRef = useRef(onTextChange)
+  onTextChangeRef.current = onTextChange
   useEffect(() => {
     let alive = true
     setLoadError(undefined)
@@ -497,17 +524,18 @@ function ScriptText({
         if (!parsed.ok) setLoadError(parsed.message)
         else {
           setLoaded(true)
-          onTextChange(parsed.text)
+          onTextChangeRef.current(parsed.text)
         }
       })
       .catch((caught: unknown) => {
-        if (!alive || caught instanceof UnauthorizedError) return
-        setLoadError(caught instanceof Error ? caught.message : String(caught))
+        if (!alive) return
+        if (caught instanceof UnauthorizedError) onUnauthorized()
+        else setLoadError(caught instanceof Error ? caught.message : String(caught))
       })
     return () => {
       alive = false
     }
-  }, [client, manifestKey, onTextChange, reloadKey, source])
+  }, [client, manifestKey, onUnauthorized, reloadKey, source])
   if (loadError) return <p className="text-[11px] text-error">{loadError}</p>
   if (!editable) {
     return (
@@ -523,19 +551,9 @@ function ScriptText({
         className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
         value={text}
         onChange={(event) => onTextChange(event.target.value)}
-        disabled={!loaded || saving}
+        onBlur={() => onBlur?.()}
+        disabled={!loaded}
       />
-      {saveError ? <p className="text-[11px] text-error">{saveError}</p> : null}
-      <button
-        type="button"
-        data-testid="node-script-save"
-        className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
-        disabled={!loaded || saving}
-        onClick={onSave}
-      >
-        <Save className="h-3 w-3" aria-hidden="true" />
-        Save script file
-      </button>
     </div>
   )
 }
@@ -625,42 +643,32 @@ function IoPanel({ node, manifest }: { node: ReactFlowNode; manifest?: Execution
 function TransformCodePanel({
   client,
   source,
-  version,
-  applyCommit,
-  onVersionConflict,
-  manifest,
-  draft,
-  onDraftChange,
+  manifest: _manifest,
   step,
   capability,
   reloadKey,
-  executionPath,
+  executionPath: _executionPath,
   onUnauthorized,
+  readOnly = false,
+  scheduleTextEdit,
+  flushTextEdit,
 }: {
   client: AppHostClient
   source: ExecutionSource
-  version?: number | string
-  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void
-  onVersionConflict: () => void
   manifest: ExecutionManifest
-  draft?: ExecutionManifest
-  onDraftChange: (manifest: ExecutionManifest | undefined) => void
   step: StepNode
   capability?: CapabilityEntry
   reloadKey: number
   executionPath?: string
   onUnauthorized: () => void
+  readOnly?: boolean
+  scheduleTextEdit?: (request: EditorApplyRequest) => void
+  flushTextEdit?: () => void
 }) {
-  const editable = source.kind === "path" || version !== undefined
-  const effective = draft ?? manifest
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | undefined>(undefined)
+  const editable = !readOnly && scheduleTextEdit !== undefined
   const code = capability?.code
-
   const inlineScript = step.script?.source ?? ""
   const pathScript = step.script?.path
-  const resolvedPath =
-    pathScript && executionPath ? resolveScriptPath(executionPath, pathScript) : pathScript
   const [pathText, setPathText] = useState("")
   const [sourceText, setSourceText] = useState(inlineScript)
   const [expressionText, setExpressionText] = useState(step.expression ?? "")
@@ -668,131 +676,71 @@ function TransformCodePanel({
   useEffect(() => {
     setSourceText(step.script?.source ?? "")
     setExpressionText(step.expression ?? "")
-  }, [step.script?.source, step.expression, step.id])
+  }, [step.id, reloadKey])
 
-  const persistManifest = useCallback(
-    async (next: ExecutionManifest): Promise<boolean> => {
-      onDraftChange(next)
-      const input = executionUpdateInput(source, next, version)
-      if (isExecutionUpdateRefusal(input)) {
-        setSaveError(input.error)
-        return false
-      }
-      try {
-        const response = await client.commit(input)
-        const outcome = interpretCommitResponse(response)
-        if (!outcome.ok) {
-          if ("versionConflict" in outcome && outcome.versionConflict) {
-            onVersionConflict()
-            return false
-          }
-          setSaveError("message" in outcome ? outcome.message : "Commit refused.")
-          return false
-        }
-        applyCommit(next, outcome.version, outcome.issues)
-        onDraftChange(undefined)
-        return true
-      } catch (error) {
-        if (error instanceof UnauthorizedError) onUnauthorized()
-        else setSaveError(error instanceof Error ? error.message : String(error))
-        return false
-      }
+  const queueInlineScript = useCallback(
+    (text: string) => {
+      if (!scheduleTextEdit) return
+      const script: ScriptDescriptor = { lang: "js", source: text }
+      scheduleTextEdit({
+        label: "Script",
+        apply: (current) => {
+          const next = patchStep(current, step.id, (node) => ({ ...node, script }))
+          return { ok: true as const, manifest: next }
+        },
+      })
     },
-    [applyCommit, client, onDraftChange, onUnauthorized, onVersionConflict, source, version],
+    [scheduleTextEdit, step.id],
   )
 
-  const onSaveInlineScript = useCallback(() => {
-    if (code !== "script" || step.script?.source === undefined) return
-    setSaving(true)
-    setSaveError(undefined)
-    void (async () => {
-      const script: ScriptDescriptor = { lang: "js", source: sourceText }
-      const next = patchStep(effective, step.id, (current) => ({ ...current, script }))
-      await persistManifest(next)
-      setSaving(false)
-    })()
-  }, [code, effective, pathScript, persistManifest, sourceText, step.id])
+  const queuePathScript = useCallback(
+    (text: string) => {
+      if (!scheduleTextEdit || !pathScript) return
+      const body = text.endsWith("\n") ? text : `${text}\n`
+      scheduleTextEdit({
+        label: "Script file",
+        apply: (current) => ({ ok: true as const, manifest: current }),
+        scripts: { [pathScript]: body },
+      })
+    },
+    [pathScript, scheduleTextEdit],
+  )
 
-  const onSavePathScript = useCallback(() => {
-    if (!pathScript || source.kind !== "path") return
-    setSaving(true)
-    setSaveError(undefined)
-    const scripts = { [pathScript]: pathText.endsWith("\n") ? pathText : `${pathText}\n` }
-    const input = executionUpdateInput(source, effective, version, scripts)
-    void (async () => {
-      if (isExecutionUpdateRefusal(input)) {
-        setSaveError(input.error)
-        setSaving(false)
-        return
-      }
-      try {
-        const response = await client.commit(input)
-        const outcome = interpretCommitResponse(response)
-        if (!outcome.ok) {
-          if ("versionConflict" in outcome && outcome.versionConflict) onVersionConflict()
-          else setSaveError("message" in outcome ? outcome.message : "Commit refused.")
-          setSaving(false)
-          return
-        }
-        applyCommit(effective, outcome.version, outcome.issues)
-        setSaving(false)
-      } catch (error) {
-        if (error instanceof UnauthorizedError) onUnauthorized()
-        else setSaveError(error instanceof Error ? error.message : String(error))
-        setSaving(false)
-      }
-    })()
-  }, [
-    applyCommit,
-    client,
-    effective,
-    onUnauthorized,
-    onVersionConflict,
-    pathScript,
-    pathText,
-    source,
-    version,
-  ])
-
-  const onSaveExpression = useCallback(() => {
-    if (code !== "expression") return
-    setSaving(true)
-    setSaveError(undefined)
-    void (async () => {
-      const next = patchStep(effective, step.id, (current) => ({ ...current, expression: expressionText }))
-      await persistManifest(next)
-      setSaving(false)
-    })()
-  }, [code, effective, expressionText, persistManifest, step.id])
+  const queueExpression = useCallback(
+    (text: string) => {
+      if (!scheduleTextEdit) return
+      scheduleTextEdit({
+        label: "Transform expression",
+        apply: (current) => ({
+          ok: true as const,
+          manifest: patchStep(current, step.id, (node) => ({ ...node, expression: text })),
+        }),
+      })
+    },
+    [scheduleTextEdit, step.id],
+  )
 
   if (code === "script") {
     const hasInline = step.script?.source !== undefined
-    const hasPath = Boolean(resolvedPath)
+    const hasPath = Boolean(pathScript)
     return (
       <div className="space-y-3">
         <p className="font-mono text-label uppercase text-on-surface-variant">Transform script</p>
         {hasInline ? (
           editable ? (
-            <div className="space-y-2">
-              <textarea
-                data-testid="node-transform-script"
-                className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
-                value={sourceText}
-                onChange={(event) => setSourceText(event.target.value)}
-                disabled={saving}
-              />
-              {saveError ? <p className="text-[11px] text-error">{saveError}</p> : null}
-              <button
-                type="button"
-                data-testid="node-transform-script-save"
-                className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
-                disabled={saving || sourceText === inlineScript}
-                onClick={onSaveInlineScript}
-              >
-                <Save className="h-3 w-3" aria-hidden="true" />
-                Save script
-              </button>
-            </div>
+            <textarea
+              data-testid="node-transform-script"
+              className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+              value={sourceText}
+              onChange={(event) => {
+                setSourceText(event.target.value)
+                queueInlineScript(event.target.value)
+              }}
+              onBlur={() => {
+                queueInlineScript(sourceText)
+                flushTextEdit?.()
+              }}
+            />
           ) : (
             <pre className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
               {inlineScript}
@@ -805,12 +753,17 @@ function TransformCodePanel({
             source={source}
             manifestKey={pathScript}
             reloadKey={reloadKey}
-            editable={source.kind === "path"}
+            editable={source.kind === "path" && editable}
             text={pathText}
-            onTextChange={setPathText}
-            onSave={onSavePathScript}
-            saving={saving}
-            saveError={saveError}
+            onTextChange={(next) => {
+              setPathText(next)
+              queuePathScript(next)
+            }}
+            onBlur={() => {
+              queuePathScript(pathText)
+              flushTextEdit?.()
+            }}
+            onUnauthorized={onUnauthorized}
           />
         ) : null}
         {!hasInline && !hasPath ? (
@@ -825,25 +778,19 @@ function TransformCodePanel({
       <div className="space-y-2">
         <p className="font-mono text-label uppercase text-on-surface-variant">Expression</p>
         {editable ? (
-          <>
-            <textarea
-              data-testid="node-transform-expression"
-              className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
-              value={expressionText}
-              onChange={(event) => setExpressionText(event.target.value)}
-              disabled={saving}
-            />
-            <button
-              type="button"
-              data-testid="node-transform-expression-save"
-              className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 font-mono text-[11px] text-on-primary disabled:opacity-50"
-              disabled={saving || expressionText === (step.expression ?? "")}
-              onClick={onSaveExpression}
-            >
-              <Save className="h-3 w-3" aria-hidden="true" />
-              Save expression
-            </button>
-          </>
+          <textarea
+            data-testid="node-transform-expression"
+            className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+            value={expressionText}
+            onChange={(event) => {
+              setExpressionText(event.target.value)
+              queueExpression(event.target.value)
+            }}
+            onBlur={() => {
+              queueExpression(expressionText)
+              flushTextEdit?.()
+            }}
+          />
         ) : (
           <pre className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
             {step.expression ?? ""}
@@ -864,11 +811,6 @@ function TransformCodePanel({
 export function NodePanel({
   client,
   source,
-  version,
-  applyCommit,
-  onVersionConflict,
-  draft,
-  onDraftChange,
   manifest,
   executionPath,
   node,
@@ -881,6 +823,9 @@ export function NodePanel({
   onUnauthorized,
   readOnly = false,
   applyManifestEdit,
+  scheduleTextEdit,
+  flushTextEdit,
+  fieldEpoch = 0,
 }: NodePanelProps) {
   const stepContractSchemas = useMemo(() => {
     if (!node || node.type === "ecp-io" || !manifest) return undefined
@@ -908,6 +853,9 @@ export function NodePanel({
         loopRound={runLoop}
         readOnly={readOnly}
         applyManifestEdit={applyManifestEdit}
+        scheduleTextEdit={scheduleTextEdit}
+        flushTextEdit={flushTextEdit}
+        fieldEpoch={fieldEpoch}
       />
     )
   }
@@ -947,17 +895,15 @@ export function NodePanel({
         <TransformCodePanel
           client={client}
           source={source}
-          version={version}
-          applyCommit={applyCommit}
-          onVersionConflict={onVersionConflict}
           manifest={manifest}
-          draft={draft}
-          onDraftChange={onDraftChange}
           step={step}
           capability={capability}
           reloadKey={reloadKey}
           executionPath={executionPath}
           onUnauthorized={onUnauthorized}
+          readOnly={readOnly}
+          scheduleTextEdit={scheduleTextEdit}
+          flushTextEdit={flushTextEdit}
         />
       ) : null}
       {issues.length > 0 ? (

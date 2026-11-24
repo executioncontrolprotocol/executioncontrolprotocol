@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { ExecutionManifest, OperationError, ExecutionItem } from "@executioncontrolprotocol/protocol"
-import {
-  applyCommitSuccess,
-  applyRetrieveItem,
-  applyRetrieveRefusal,
-  VERSION_CONFLICT_NOTE,
-} from "../../client/document-state.js"
+import { applyCommitSuccess, applyRetrieveItem, applyRetrieveRefusal } from "../../client/document-state.js"
 import {
   HostRequestError,
   retrieveItem,
@@ -70,10 +65,34 @@ function retrieveInput(source: ExecutionSource): { type: "execution"; path: stri
  * while one is in flight are coalesced into one more. `source` must be referentially stable.
  * @category App
  */
+/**
+ * Optional retrieve hook for the edit session (load count and document fields).
+ * @category App
+ */
+export interface ExecutionRetrieveHook {
+  startRetrieve: () => number
+  handleRetrieve: (
+    item: ExecutionItem,
+    isFirstLoad: boolean,
+    retrieveGeneration: number,
+  ) => {
+    bumpLoad: boolean
+    manifest?: ExecutionManifest
+    version?: number | string
+    validation?: import("../../client/results.js").AppValidation
+    versionConflictNote?: string
+    draftDiscardNote?: string
+  }
+}
+
+/**
+ * @category App
+ */
 export function useExecutionDocument(
   client: AppHostClient,
   source: ExecutionSource,
   onUnauthorized: () => void,
+  retrieveHook?: ExecutionRetrieveHook,
 ): ExecutionDocumentState & {
   reload: () => void
   noteVersionConflict: () => void
@@ -84,7 +103,12 @@ export function useExecutionDocument(
   const pending = useRef(false)
   const alive = useRef(true)
 
+  const retrieveHookRef = useRef(retrieveHook)
+  retrieveHookRef.current = retrieveHook
+
   const loadOnce = useCallback(async (): Promise<void> => {
+    const hook = retrieveHookRef.current
+    const retrieveGeneration = hook?.startRetrieve() ?? 0
     let response
     try {
       response = await client.retrieve(retrieveInput(source))
@@ -123,16 +147,19 @@ export function useExecutionDocument(
       return
     }
     setState((prev) => {
+      const isFirstLoad = prev.loads === 0
       const mapped = applyRetrieveItem(prev, item, { keepConflictNote: Boolean(prev.versionConflictNote) })
+      const outcome = hook?.handleRetrieve(item, isFirstLoad, retrieveGeneration)
+      const bumpLoad = outcome?.bumpLoad ?? true
       return {
         ...prev,
-        manifest: mapped.manifest ?? prev.manifest,
-        version: mapped.version ?? prev.version,
-        validation: mapped.validation,
+        manifest: outcome?.manifest ?? mapped.manifest ?? prev.manifest,
+        version: outcome?.version ?? mapped.version ?? prev.version,
+        validation: outcome?.validation ?? mapped.validation,
         loadError: mapped.loadError,
-        versionConflictNote: mapped.versionConflictNote ?? prev.versionConflictNote,
+        versionConflictNote: outcome?.versionConflictNote ?? (bumpLoad ? mapped.versionConflictNote : prev.versionConflictNote),
         loading: false,
-        loads: prev.loads + 1,
+        loads: bumpLoad ? prev.loads + 1 : prev.loads,
       }
     })
   }, [client, source])
@@ -161,7 +188,6 @@ export function useExecutionDocument(
   }, [loadOnce])
 
   const noteVersionConflict = useCallback(() => {
-    setState((prev) => ({ ...prev, versionConflictNote: VERSION_CONFLICT_NOTE }))
     reload()
   }, [reload])
 

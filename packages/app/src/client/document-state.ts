@@ -23,8 +23,9 @@ const VERSION_CONFLICT_CODE = "ECP_VERSION_CONFLICT"
  * Banner text after a version conflict on commit.
  * @category App
  */
+/** @deprecated Use {@link formatVersionConflictNote} from `edit-session.js` with dropped labels. */
 export const VERSION_CONFLICT_NOTE =
-  "This execution changed elsewhere. Reloaded the latest version; the edit was not applied."
+  "This execution changed elsewhere. Reloaded the latest version; discarded: edit."
 
 /**
  * Document fields updated by retrieve and commit mappers.

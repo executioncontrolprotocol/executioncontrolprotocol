@@ -137,17 +137,12 @@ test.describe("Connections and edge menus", () => {
     expect(edgeToX?.id).toBeDefined()
     await page.locator(`[data-testid="ecp-route-label-${edgeToN!.id}"][data-level="0"]`).click()
     await expect(page.getByTestId("edge-arm-add-condition")).toBeVisible()
-    const loadsBefore = Number(await page.getByTestId("workspace").getAttribute("data-loads"))
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => {
       const parsed = JSON.parse(readFileSync(nestedBranchPath, "utf8")) as ExecutionManifest
       const outer = parsed.steps.find((node) => node.id === "outer")
       return outer?.type === "branch" && outer.branches[1]?.expr === "(state) => true"
     }).toBe(true)
-    // Edits apply to the manifest the App last loaded, so wait for the hot reload before the next edit.
-    await expect
-      .poll(async () => Number(await page.getByTestId("workspace").getAttribute("data-loads")))
-      .toBeGreaterThan(loadsBefore)
     const edgeToXAfter = executionToReactFlow(JSON.parse(readFileSync(nestedBranchPath, "utf8")) as ExecutionManifest).edges.find(
       (edge) => edge.data.kind === "route" && edge.target === "x",
     )

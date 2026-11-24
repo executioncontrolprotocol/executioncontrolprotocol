@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Braces, CheckCircle2, History, Network, Play, ShieldAlert, TriangleAlert } from "lucide-react"
-import type { ExecutionManifest, RunDetail } from "@executioncontrolprotocol/protocol"
+import type { RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
   addCapabilityStep,
@@ -16,7 +16,8 @@ import {
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
 import { retrieveItem } from "../../client/results.js"
 import { useCapabilities } from "../hooks/useCapabilities.js"
-import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutionDocument.js"
+import { useExecutionDocument, type ExecutionRetrieveHook, type ExecutionSource } from "../hooks/useExecutionDocument.js"
+import { useExecutionEditor } from "../hooks/useExecutionEditor.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
 import type { Node } from "@executioncontrolprotocol/protocol"
 import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
@@ -24,7 +25,6 @@ import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
 import { StructurePanel } from "./StructurePanel.js"
-import { useManifestEdit } from "../hooks/useManifestEdit.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
@@ -91,10 +91,12 @@ function isBranchOrParallel(nodes: Node[], id: string): boolean {
  * @category App
  */
 export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
-  const doc = useExecutionDocument(client, source, onUnauthorized)
-  const [draftManifest, setDraftManifest] = useState<ExecutionManifest | undefined>(undefined)
-  const [draftDiscardNote, setDraftDiscardNote] = useState<string | undefined>(undefined)
-  const effectiveManifest = draftManifest ?? doc.manifest
+  const retrieveHookRef = useRef<ExecutionRetrieveHook | undefined>(undefined)
+  const doc = useExecutionDocument(client, source, onUnauthorized, {
+    startRetrieve: () => retrieveHookRef.current?.startRetrieve() ?? 0,
+    handleRetrieve: (item, isFirstLoad, generation) =>
+      retrieveHookRef.current?.handleRetrieve(item, isFirstLoad, generation) ?? { bumpLoad: true },
+  })
   const capabilities = useCapabilities(client, doc.manifest)
   const live = useLiveRun(client, source, onUnauthorized)
   const [tab, setTab] = useState<WorkspaceTab>("graph")
@@ -106,27 +108,28 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
   const lastLayoutKey = useRef<string | undefined>(undefined)
-  const prevLoads = useRef(doc.loads)
   const suppressNextFit = useRef(false)
-
-  useEffect(() => {
-    if (doc.loads > prevLoads.current && draftManifest !== undefined) {
-      setDraftManifest(undefined)
-      if (!doc.versionConflictNote) {
-        setDraftDiscardNote("External change reloaded the execution; unsaved edits were discarded.")
-      }
-    }
-    prevLoads.current = doc.loads
-  }, [doc.loads, draftManifest, doc.versionConflictNote])
+  const readOnly = live.busy || replay !== undefined
+  const editor = useExecutionEditor(
+    client,
+    source,
+    doc.manifest,
+    doc.version,
+    doc.validation?.issues ?? [],
+    readOnly,
+    onUnauthorized,
+  )
+  retrieveHookRef.current = { startRetrieve: editor.startRetrieve, handleRetrieve: editor.handleRetrieve }
+  const workingManifest = editor.local ?? doc.manifest
 
   const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
-    if (!doc.manifest) return {}
+    if (!workingManifest) return {}
     try {
-      return { document: executionToReactFlow(doc.manifest, { capabilitySchemas: capabilities.schemas }) }
+      return { document: executionToReactFlow(workingManifest, { capabilitySchemas: capabilities.schemas }) }
     } catch (error) {
       return { error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}` }
     }
-  }, [doc.manifest, capabilities.schemas])
+  }, [workingManifest, capabilities.schemas])
   const dagreDocument = dagre.document
 
   const graphIdSets = useMemo(() => {
@@ -157,9 +160,10 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
   const encodeError = dagre.error
 
+  const validation = editor.validation ?? doc.validation
   const nodeErrors = useMemo(
-    () => nodeErrorIssues(doc.validation?.issues ?? [], doc.manifest),
-    [doc.validation, doc.manifest],
+    () => nodeErrorIssues(validation?.issues ?? [], workingManifest),
+    [validation, workingManifest],
   )
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
   const selectedEdgeRecord = encoded.document?.edges.find((edge) => edge.id === selectedEdge?.edgeId)
@@ -167,17 +171,36 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const runId = replay?.detail.id ?? live.runId
   const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
-  const readOnly = live.busy || replay !== undefined
-  const { apply: applyManifestEdit, error: structureEditError } = useManifestEdit(
-    client,
-    source,
-    doc.version,
-    doc.manifest,
-    onUnauthorized,
-    readOnly,
-    doc.applyCommit,
-    doc.noteVersionConflict,
-  )
+  const applyManifestEdit = editor.applyEdit
+  const structureEditError = editor.structureError
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (readOnly || editor.conflictReplaying) return
+      const target = event.target
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return
+        if (target.closest(".monaco-editor")) return
+      }
+      const mod = event.metaKey || event.ctrlKey
+      if (!mod) return
+      if (event.key === "z" || event.key === "Z") {
+        if (event.shiftKey) {
+          event.preventDefault()
+          void editor.redo()
+        } else {
+          event.preventDefault()
+          void editor.undo()
+        }
+      } else if (event.key === "y" || event.key === "Y") {
+        event.preventDefault()
+        void editor.redo()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [editor, readOnly])
 
   const selectFromIssue = useCallback((nodeId: string) => {
     setSelectedEdge(undefined)
@@ -236,12 +259,10 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
         setTab("graph")
       }
 
-      const applyFlowPosition = (saved: boolean): void => {
-        if (saved && stepId && request.flowPosition) {
-          suppressNextFit.current = true
-          commitOverrides((current) => ({ ...current, [stepId!]: request.flowPosition! }))
-        }
-        finish(saved)
+      const pinFlowPosition = (id: string): void => {
+        if (!request.flowPosition) return
+        suppressNextFit.current = true
+        commitOverrides((current) => ({ ...current, [id]: request.flowPosition! }))
       }
 
       if (request.origin && request.originPort) {
@@ -261,18 +282,24 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 request.origin!,
                 request.originPort!,
               )
-              if (result.ok) stepId = result.stepId
+              if (result.ok) {
+                stepId = result.stepId
+                pinFlowPosition(result.stepId)
+              }
               return result
-            }).then(applyFlowPosition)
+            }).then(finish)
           })
         return
       }
 
       void applyManifestEdit((current) => {
         const result = addCapabilityStep(current, { id: entry.id }, request.placement)
-        if (result.ok) stepId = result.stepId
+        if (result.ok) {
+          stepId = result.stepId
+          pinFlowPosition(result.stepId)
+        }
         return result
-      }).then(applyFlowPosition)
+      }).then(finish)
     },
     [applyManifestEdit, capabilityMenu, client, commitOverrides, readOnly],
   )
@@ -292,11 +319,15 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
   const structurePanelId =
-    selectedId && doc.manifest && !selectedNode && isBranchOrParallel(doc.manifest.steps, selectedId)
+    selectedId && workingManifest && !selectedNode && isBranchOrParallel(workingManifest.steps, selectedId)
       ? selectedId
       : undefined
-  const title = doc.manifest?.execution?.label ?? doc.manifest?.execution?.id ?? sourceLabel(source)
-  const valid = doc.validation?.valid
+  const title = workingManifest?.execution?.label ?? workingManifest?.execution?.id ?? sourceLabel(source)
+  const valid = validation?.valid
+  const saveStatusLabel =
+    editor.status === "saving" ? "Saving…" : editor.status === "error" ? (editor.statusError ?? "Save failed") : "Saved"
+  const versionConflictNote = editor.versionConflictNote ?? doc.versionConflictNote
+  const draftDiscardNote = editor.draftDiscardNote
 
   return (
     <div
@@ -324,9 +355,16 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             className={`status-pill ${valid ? "status-pill--valid" : "status-pill--invalid"}`}
           >
             {valid ? <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> : <TriangleAlert className="h-3 w-3" aria-hidden="true" />}
-            {valid ? "Valid" : `${doc.validation?.issues.filter((issue) => issue.severity === "error").length ?? 0} errors`}
+            {valid ? "Valid" : `${validation?.issues.filter((issue) => issue.severity === "error").length ?? 0} errors`}
           </span>
         )}
+        <span
+          data-testid="save-status"
+          data-state={editor.status}
+          className="status-pill font-mono text-[11px] text-on-surface-variant"
+        >
+          {saveStatusLabel}
+        </span>
       </div>
 
       {doc.loadError ? (
@@ -348,12 +386,12 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           {encodeError}
         </div>
       ) : null}
-      {doc.versionConflictNote ? (
+      {versionConflictNote ? (
         <p
           data-testid="version-conflict-note"
           className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant"
         >
-          {doc.versionConflictNote}
+          {versionConflictNote}
         </p>
       ) : null}
       {draftDiscardNote ? (
@@ -364,12 +402,12 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
       <div className="flex min-h-0 flex-1">
         <section data-testid="graph-canvas" className="relative min-w-0 flex-1">
-          {encoded.document && doc.manifest ? (
+          {encoded.document && workingManifest ? (
             <>
             <GraphCanvas
               document={encoded.document}
               layoutKey={encoded.layoutKey ?? ""}
-              manifest={doc.manifest}
+              manifest={workingManifest}
               run={overlay}
               nodeErrors={nodeErrors}
               selectedId={selectedId}
@@ -386,6 +424,10 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               onPositionDragStop={onPositionDragStop}
               onAutoLayout={onAutoLayout}
               suppressNextFitRef={suppressNextFit}
+              onUndo={() => void editor.undo()}
+              onRedo={() => void editor.redo()}
+              undoDisabled={readOnly || editor.conflictReplaying || !editor.canUndo}
+              redoDisabled={readOnly || editor.conflictReplaying || !editor.canRedo}
             />
             {capabilityMenu && !readOnly ? (
               <CapabilityMenu
@@ -441,16 +483,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               {selectedEdgeRecord ? (
                 <EdgePanel
                   client={client}
-                  source={source}
-                  version={doc.version}
-                  applyCommit={doc.applyCommit}
-                  onVersionConflict={doc.noteVersionConflict}
-                  manifest={doc.manifest}
-                  draft={draftManifest}
-                  onDraftChange={(next) => {
-                    setDraftDiscardNote(undefined)
-                    setDraftManifest(next)
-                  }}
+                  manifest={workingManifest}
                   edge={selectedEdgeRecord}
                   level={selectedEdge?.level ?? 0}
                   runId={runId}
@@ -458,23 +491,19 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   onUnauthorized={onUnauthorized}
                   readOnly={readOnly}
                   applyManifestEdit={applyManifestEdit}
+                  scheduleTextEdit={editor.scheduleText}
+                  flushTextEdit={editor.flushText}
+                  discardTextEdit={editor.discardText}
+                  fieldEpoch={editor.fieldEpoch}
                   onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
                 />
               ) : structurePanelId ? (
-                <StructurePanel manifest={doc.manifest} structureId={structurePanelId} />
+                <StructurePanel manifest={workingManifest} structureId={structurePanelId} />
               ) : (
                 <NodePanel
                   client={client}
                   source={source}
-                  version={doc.version}
-                  applyCommit={doc.applyCommit}
-                  onVersionConflict={doc.noteVersionConflict}
-                  draft={draftManifest}
-                  onDraftChange={(next) => {
-                    setDraftDiscardNote(undefined)
-                    setDraftManifest(next)
-                  }}
-                  manifest={effectiveManifest}
+                  manifest={workingManifest}
                   executionPath={source.kind === "path" ? source.path : undefined}
                   node={selectedNode}
                   capability={selectedUses ? capabilities.byId[selectedUses] : undefined}
@@ -482,23 +511,26 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   runStep={selectedId ? overlay.steps[selectedId] : undefined}
                   runLoopItems={selectedId ? overlay.loopItems[selectedId] : undefined}
                   runLoop={selectedId ? overlay.loops[selectedId] : undefined}
-                  reloadKey={doc.loads}
+                  reloadKey={editor.externalEpoch}
                   onUnauthorized={onUnauthorized}
                   readOnly={readOnly}
                   applyManifestEdit={applyManifestEdit}
+                  scheduleTextEdit={editor.scheduleText}
+                  flushTextEdit={editor.flushText}
+                  fieldEpoch={editor.fieldEpoch}
                 />
               )}
               </>
             ) : null}
             {tab === "validation" ? (
               <ValidationView
-                validation={doc.validation}
-                manifest={doc.manifest}
+                validation={validation}
+                manifest={workingManifest}
                 loadError={doc.loadError}
                 onSelectNode={selectFromIssue}
               />
             ) : null}
-            {tab === "run" ? <RunView manifest={doc.manifest} run={live} onRun={onRun} client={client} /> : null}
+            {tab === "run" ? <RunView manifest={workingManifest} run={live} onRun={onRun} client={client} /> : null}
             {tab === "runs" ? (
               <RunsView
                 client={client}
@@ -509,7 +541,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 onReplay={onReplay}
               />
             ) : null}
-            {tab === "json" ? <JsonView manifest={effectiveManifest} /> : null}
+            {tab === "json" ? <JsonView manifest={workingManifest} /> : null}
           </div>
         </aside>
       </div>

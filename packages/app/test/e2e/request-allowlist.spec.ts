@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, writeFileSync } from "node:fs"
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -89,8 +89,8 @@ test.describe("App host API allowlist", () => {
     await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })
     const unique = `(state) => state.expand === 'allowlist-${Date.now()}'`
     await page.getByTestId("edge-expr-editor").fill(unique)
-    await expect(page.getByTestId("edge-save")).toBeEnabled({ timeout: 10_000 })
-    await page.getByTestId("edge-save").click()
+    await page.getByTestId("edge-expr-editor").blur()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
 
     const transformDir = mkdtempSync(path.join(os.tmpdir(), "ecp-allowlist-transform-"))
     const transformScript = path.join(transformDir, "step.js")
@@ -121,7 +121,10 @@ test.describe("App host API allowlist", () => {
     await page.getByTestId("ecp-step-map").click()
     await expect(page.getByTestId("node-script-editor")).toBeVisible({ timeout: 15_000 })
     await page.getByTestId("node-script-editor").fill("export default (v) => ({ ...v, ok: true })\n")
-    await page.getByTestId("node-script-save").click()
+    await page.getByTestId("node-script-editor").blur()
+    await expect
+      .poll(() => readFileSync(path.join(transformDir, "step.js"), "utf8").includes("ok: true"), { timeout: 15_000 })
+      .toBe(true)
 
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: harness.demoPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })

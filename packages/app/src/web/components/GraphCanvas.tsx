@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
-import { LayoutGrid } from "lucide-react"
+import { LayoutGrid, Redo2, Undo2 } from "lucide-react"
 import {
   applyNodeChanges,
   Background,
@@ -150,6 +150,14 @@ export interface GraphCanvasProps {
   onAutoLayout: () => void
   /** Skip the next layout-driven fit (cursor-placed step). */
   suppressNextFitRef?: MutableRefObject<boolean>
+  /** Undo the last committed edit. */
+  onUndo: () => void
+  /** Redo the last undone edit. */
+  onRedo: () => void
+  /** Undo control disabled (read-only or empty stack). */
+  undoDisabled: boolean
+  /** Redo control disabled. */
+  redoDisabled: boolean
 }
 
 function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | undefined): AddStepPlacement {
@@ -487,6 +495,10 @@ function GraphCanvasBody({
   onPositionDragStop,
   onAutoLayout,
   suppressNextFitRef,
+  onUndo,
+  onRedo,
+  undoDisabled,
+  redoDisabled,
 }: GraphCanvasProps) {
   const built = useMemo(
     () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly),
@@ -758,6 +770,24 @@ function GraphCanvasBody({
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--color-surface-container-highest)" />
       <Controls showInteractive={false}>
+        <ControlButton
+          onClick={onUndo}
+          disabled={undoDisabled}
+          title="Undo"
+          data-testid="canvas-undo"
+          aria-label="Undo"
+        >
+          <Undo2 className="h-4 w-4" aria-hidden="true" />
+        </ControlButton>
+        <ControlButton
+          onClick={onRedo}
+          disabled={redoDisabled}
+          title="Redo"
+          data-testid="canvas-redo"
+          aria-label="Redo"
+        >
+          <Redo2 className="h-4 w-4" aria-hidden="true" />
+        </ControlButton>
         <AutoLayoutControl onAutoLayout={onAutoLayout} />
       </Controls>
       <FocusNode focus={focus} />

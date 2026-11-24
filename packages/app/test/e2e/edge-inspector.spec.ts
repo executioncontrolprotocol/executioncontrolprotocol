@@ -63,18 +63,20 @@ test.describe("Edge inspector", () => {
     const editor = page.getByTestId("edge-expr-editor")
     const unique = `(state) => state.locale === '${Date.now()}'`
     await editor.fill(unique)
-    await expect(page.getByTestId("edge-save")).toBeEnabled({ timeout: 10_000 })
-    await page.getByTestId("edge-save").click()
-    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 10_000 }).toBe(true)
+    await editor.blur()
+    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
     expect(before).not.toContain(unique)
   })
 
-  test("shows syntax error and blocks save", async ({ page }) => {
+  test("shows syntax error and still autosaves draft", async ({ page }) => {
     await open(page)
     await selectTranslateGateExpr(page)
-    await page.getByTestId("edge-expr-editor").fill("(state) => { return ")
+    const broken = "(state) => { return "
+    await page.getByTestId("edge-expr-editor").fill(broken)
     await expect(page.getByTestId("edge-expr-issues")).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId("edge-save")).toBeDisabled()
+    await expect(page.getByTestId("edge-save")).toHaveCount(0)
+    await page.getByTestId("edge-expr-editor").blur()
+    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(broken), { timeout: 15_000 }).toBe(true)
   })
 
   test("ref-only data edge has no editor", async ({ page }) => {

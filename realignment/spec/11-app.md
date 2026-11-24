@@ -101,13 +101,16 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   wires the first compatible port. If none is compatible, the step is still inserted, unwired.
 - Nodes can be dragged. Layout runs on open; dragged positions override it and are kept in the
   browser only, not in the manifest. An **Auto layout** control clears them.
-- Autosave: no Save button. Each edit is `commit { …, ifVersion, draft: true }` immediately, except
-  text fields, which commit 500 ms after the last keystroke. A stale `ifVersion`
-  (`ECP_VERSION_CONFLICT`) reloads the execution and replays the edit when it still applies;
-  otherwise the App shows what was discarded.
-- Undo and redo sit in the canvas control bar next to zoom in, zoom out and fit, and on Ctrl/Cmd+Z
-  and Shift+Ctrl/Cmd+Z. Node drags are not undo steps. Both are disabled while the canvas is
-  read-only.
+- Autosave: no Save button. Edits apply to the latest **local** manifest; each change is
+  `commit { …, ifVersion, draft: true }` immediately, except text fields, which flush at 500 ms
+  after the last keystroke, on blur, and on unmount. A stale `ifVersion` (`ECP_VERSION_CONFLICT`)
+  reloads the execution, replays queued edits that still apply, and names any that were discarded.
+  Pending text inside the autosave pause is discarded on external reload with a one-line note. A
+  workspace header chip shows Saving…, Saved, or the save error; closing the tab prompts when a
+  commit or debounced edit is still pending.
+- Undo and redo sit in the canvas control bar next to zoom in, zoom out and fit, and on Ctrl/Cmd+Z,
+  Shift+Ctrl/Cmd+Z, and Ctrl/Cmd+Y when focus is not in a text field. Node drags are not undo steps.
+  Both are disabled while the canvas is read-only.
 - While a run is live or a replay is selected, the manifest cannot change: no editing menus, no
   connecting, editors read-only. Dragging nodes is still allowed.
 - The App was ported from the pre-realignment tree into `packages/app` (`execution-to-reactflow.ts`,
