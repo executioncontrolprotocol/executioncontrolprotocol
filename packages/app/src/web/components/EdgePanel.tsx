@@ -16,6 +16,7 @@ import {
   type ReactFlowDataEdgeData,
   type ReactFlowEdge,
   type ReactFlowRouteEdgeData,
+  type AddStepPlacement,
   type StructureEditResult,
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
@@ -45,6 +46,8 @@ export interface EdgePanelProps {
   onUnauthorized: () => void
   readOnly?: boolean
   applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  /** Open the capability menu to add a new arm on this branch. */
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
 }
 
 function RouteArmFields({
@@ -54,6 +57,7 @@ function RouteArmFields({
   defaultArm,
   readOnly,
   applyManifestEdit,
+  onAddArm,
 }: {
   manifest: ExecutionManifest
   branchId: string
@@ -61,6 +65,7 @@ function RouteArmFields({
   defaultArm?: boolean
   readOnly: boolean
   applyManifestEdit: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  onAddArm?: (clientX: number, clientY: number) => void
 }) {
   const armLabel = useMemo(() => {
     const walk = (nodes: ExecutionManifest["steps"]): string => {
@@ -131,6 +136,16 @@ function RouteArmFields({
           onClick={() => void applyManifestEdit((current) => makeDefaultArm(current, branchId, armIndex))}
         >
           Make default
+        </button>
+      )}
+      {readOnly || !onAddArm ? null : (
+        <button
+          type="button"
+          data-testid="edge-add-arm"
+          className="rounded border border-outline-variant px-2 py-1 text-[11px]"
+          onClick={(event) => onAddArm(event.clientX, event.clientY)}
+        >
+          Add arm
         </button>
       )}
     </div>
@@ -217,6 +232,7 @@ export function EdgePanel({
   onUnauthorized,
   readOnly = false,
   applyManifestEdit,
+  onOpenCapabilityMenu,
 }: EdgePanelProps) {
   const effective = draft ?? manifest
   const [exprText, setExprText] = useState("")
@@ -434,6 +450,15 @@ export function EdgePanel({
               defaultArm={routeLevel.defaultArm ?? routeMeta?.defaultArm}
               readOnly={readOnly}
               applyManifestEdit={applyManifestEdit}
+              onAddArm={
+                onOpenCapabilityMenu
+                  ? (clientX, clientY) =>
+                      onOpenCapabilityMenu(clientX, clientY, {
+                        kind: "new-arm",
+                        branchId: routeLevel.structureId!,
+                      })
+                  : undefined
+              }
             />
           ) : null}
         </div>

@@ -1,4 +1,4 @@
-import type { ExecutionManifest, Node } from "@executioncontrolprotocol/protocol"
+import type { BranchNode, ExecutionManifest, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
 import { isStepNode } from "./io-from-schema.js"
 import { STRUCTURE_EDIT_EMPTY_STEPS, type StructureEditResult } from "./structure-edit.js"
 
@@ -118,4 +118,63 @@ export function finalizeManifest(manifest: ExecutionManifest): StructureEditResu
     return { ok: true, manifest: rest }
   }
   return { ok: true, manifest: { ...manifest, steps } }
+}
+
+/** @internal */
+export function isStructureNode(node: Node): node is BranchNode | ParallelNode | LoopNode {
+  return node.type === "branch" || node.type === "parallel" || node.type === "loop"
+}
+
+/** @internal */
+export function manifestDetached(manifest: ExecutionManifest): Node[] | undefined {
+  const detached = manifest.detached
+  return Array.isArray(detached) ? detached : undefined
+}
+
+/** @internal */
+export function collectAllNodeIds(nodes: readonly Node[], out: Set<string>): void {
+  for (const node of nodes) {
+    out.add(node.id)
+    if (isStepNode(node)) continue
+    if (node.type === "branch") {
+      for (const arm of node.branches) collectAllNodeIds(arm.steps, out)
+    } else if (node.type === "parallel") {
+      for (const line of node.branches) collectAllNodeIds(line, out)
+    } else if (node.type === "loop") {
+      collectAllNodeIds(node.steps, out)
+    }
+  }
+}
+
+/** @internal */
+export function allNodeIds(manifest: ExecutionManifest): Set<string> {
+  const ids = new Set<string>()
+  collectAllNodeIds(manifest.steps, ids)
+  const detached = manifestDetached(manifest)
+  if (detached) collectAllNodeIds(detached, ids)
+  return ids
+}
+
+/** @internal */
+export function nodeContainsId(root: Node, id: string): boolean {
+  if (root.id === id) return true
+  if (isStepNode(root)) return false
+  if (root.type === "branch") {
+    for (const arm of root.branches) {
+      for (const child of arm.steps) {
+        if (nodeContainsId(child, id)) return true
+      }
+    }
+  } else if (root.type === "parallel") {
+    for (const line of root.branches) {
+      for (const child of line) {
+        if (nodeContainsId(child, id)) return true
+      }
+    }
+  } else if (root.type === "loop") {
+    for (const child of root.steps) {
+      if (nodeContainsId(child, id)) return true
+    }
+  }
+  return false
 }

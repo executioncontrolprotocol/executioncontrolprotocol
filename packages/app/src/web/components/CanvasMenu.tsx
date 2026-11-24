@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import type { ReactFlowEdge } from "../../graph/index.js"
+import type { AddStepPlacement } from "../../graph/index.js"
 import {
   STRUCTURE_EDIT_PARALLEL_MIN,
   connectorDeletePreview,
+  findStructure,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
@@ -43,6 +45,8 @@ interface CanvasMenuProps {
   onUnwrap: () => void
   onRemoveStructure: () => void
   onDeleteConnector: () => void
+  /** Open the capability menu for a new step at this placement. */
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
 }
 
 type Submenu = "wrap" | "delete" | undefined
@@ -64,6 +68,7 @@ export function CanvasMenu({
   onRemoveStructure,
   onDeleteConnector,
   edges,
+  onOpenCapabilityMenu,
 }: CanvasMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [submenu, setSubmenu] = useState<Submenu>(undefined)
@@ -125,6 +130,39 @@ export function CanvasMenu({
       ? connectorDeletePreview(manifest, edgeRecord, state.level)
       : { ok: false as const, reason: "" }
 
+  const structure =
+    state.kind === "container" ? findStructure(manifest, state.structureId) : undefined
+
+  const addItems =
+    !readOnly && state.kind === "container" && onOpenCapabilityMenu && structure
+      ? structure.type === "loop"
+        ? [
+            {
+              id: "add-step",
+              label: "Add step…",
+              action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "loop-body", loopId: structure.id }),
+            },
+          ]
+        : structure.type === "branch"
+          ? [
+              {
+                id: "add-arm",
+                label: "Add arm…",
+                action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-arm", branchId: structure.id }),
+              },
+            ]
+          : structure.type === "parallel"
+            ? [
+                {
+                  id: "add-line",
+                  label: "Add line…",
+                  action: () =>
+                    onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-line", parallelId: structure.id }),
+                },
+              ]
+            : []
+      : []
+
   const items =
     state.kind === "edge"
       ? readOnly
@@ -149,6 +187,7 @@ export function CanvasMenu({
         ]
       : [
           { id: "configure", label: "Configure", action: onConfigure },
+          ...addItems,
           { id: "delete", label: "Delete", submenu: "delete" as const },
         ]
 

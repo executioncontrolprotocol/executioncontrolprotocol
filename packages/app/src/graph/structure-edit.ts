@@ -6,13 +6,14 @@ import type {
   ParallelNode,
   StepNode,
 } from "@executioncontrolprotocol/protocol"
-import { isStepNode } from "./io-from-schema.js"
 import {
   cloneManifest,
   finalizeManifest,
   findNodePlacement,
   findStepPlacement,
   type StepPlacement,
+  allNodeIds,
+  isStructureNode,
 } from "./manifest-walk.js"
 
 /**
@@ -41,35 +42,8 @@ export const STRUCTURE_EDIT_STRUCTURE_NOT_FOUND = "Structure not found"
 
 
 
-function manifestDetachedSteps(manifest: ExecutionManifest): Node[] | undefined {
-  const detached = manifest.detached
-  return Array.isArray(detached) ? detached : undefined
-}
 
-function collectAllNodeIds(nodes: readonly Node[], out: Set<string>): void {
-  for (const node of nodes) {
-    if (isStepNode(node)) {
-      out.add(node.id)
-      continue
-    }
-    out.add(node.id)
-    if (node.type === "branch") {
-      for (const arm of node.branches) collectAllNodeIds(arm.steps, out)
-    } else if (node.type === "parallel") {
-      for (const line of node.branches) collectAllNodeIds(line, out)
-    } else if (node.type === "loop") {
-      collectAllNodeIds(node.steps, out)
-    }
-  }
-}
 
-function allIdsInManifest(manifest: ExecutionManifest): Set<string> {
-  const ids = new Set<string>()
-  collectAllNodeIds(manifest.steps, ids)
-  const detached = manifestDetachedSteps(manifest)
-  if (detached) collectAllNodeIds(detached, ids)
-  return ids
-}
 
 function nextStructureId(prefix: "branch" | "parallel" | "loop", taken: Set<string>): string {
   let n = 1
@@ -89,9 +63,6 @@ function structureBody(node: Node): Node[] {
   return []
 }
 
-function isStructureNode(node: Node): node is BranchNode | ParallelNode | LoopNode {
-  return node.type === "branch" || node.type === "parallel" || node.type === "loop"
-}
 
 /**
  * Step ids to wrap: the multi-selection when the right-clicked step is in it, else that step alone.
@@ -146,7 +117,7 @@ export function wrapSteps(
   const parentList = nextPlacements[0]!.parent
   const nextIndexes = nextPlacements.map((p) => p.index).sort((a, b) => a - b)
 
-  const taken = allIdsInManifest(next)
+  const taken = allNodeIds(next)
   const slice = parentList.splice(nextIndexes[0]!, nextIndexes.length)
   let inserted: Node
 

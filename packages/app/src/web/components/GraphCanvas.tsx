@@ -26,6 +26,7 @@ import {
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
+  type AddStepPlacement,
   type ReactFlowDocument,
   type ReactFlowFrameData,
   type ReactFlowNode,
@@ -34,6 +35,8 @@ import {
   type StructureEditResult,
   type RunGraphState,
 } from "../../graph/index.js"
+import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "../../graph/io-from-schema.js"
+import { findNodePlacement } from "../../graph/manifest-walk.js"
 import { openCanvasContextMenu } from "../lib/canvas-context-menu.js"
 import { CanvasMenu, type CanvasMenuState } from "./CanvasMenu.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
@@ -111,6 +114,15 @@ export interface GraphCanvasProps {
   focus?: FocusRequest
   /** Close the context menu when the canvas pans or zooms. */
   onMenuDismiss?: () => void
+  /** Open the capability picker (phase 4+). */
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
+}
+
+function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | undefined): AddStepPlacement {
+  if (!selectedId) return { kind: "top" }
+  if (selectedId === EXECUTION_ACCEPTS_NODE_ID || selectedId === EXECUTION_RETURNS_NODE_ID) return { kind: "top" }
+  if (!findNodePlacement(manifest.steps, selectedId)) return { kind: "top" }
+  return { kind: "top", after: selectedId }
 }
 
 function stepStatus(run: RunGraphState, id: string): ReactFlowStepStatus | undefined {
@@ -375,6 +387,8 @@ function GraphCanvasBody({
   onSelectEdge,
   applyEdit,
   focus,
+  onOpenCapabilityMenu,
+  onMenuDismiss,
 }: GraphCanvasProps) {
   const layoutKey = useMemo(() => layoutFitKey(document), [document])
   const built = useMemo(
@@ -488,7 +502,10 @@ function GraphCanvasBody({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
-      onMove={() => closeMenu()}
+      onMove={() => {
+        closeMenu()
+        onMenuDismiss?.()
+      }}
       onNodeClick={(event, node) => {
         onSelectEdge(undefined)
         if (node.type === "ecp-step") {
@@ -539,7 +556,10 @@ function GraphCanvasBody({
         if (frame) {
           const structureId = (frame.data as ReactFlowFrameData).structureId
           openContainerMenu(structureId, event.clientX, event.clientY)
+          return
         }
+        if (readOnly || !onOpenCapabilityMenu) return
+        onOpenCapabilityMenu(event.clientX, event.clientY, topLevelPlacement(manifest, selectedId))
       }}
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
@@ -551,6 +571,7 @@ function GraphCanvasBody({
         onSelectSteps([])
         onSelectEdge(undefined)
         closeMenu()
+        onMenuDismiss?.()
       }}
       nodesDraggable={false}
       nodesConnectable={!readOnly}
@@ -621,6 +642,14 @@ function GraphCanvasBody({
             if (ok) closeMenu()
           })
         }}
+        onOpenCapabilityMenu={
+          onOpenCapabilityMenu
+            ? (clientX, clientY, placement) => {
+                closeMenu()
+                onOpenCapabilityMenu(clientX, clientY, placement)
+              }
+            : undefined
+        }
       />
     ) : null}
     </RouteEdgeSelectionContext.Provider>

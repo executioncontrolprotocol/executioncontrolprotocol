@@ -3,6 +3,7 @@ import { Braces, CheckCircle2, History, Network, Play, ShieldAlert, TriangleAler
 import type { ExecutionManifest, RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
+  addCapabilityStep,
   executionToReactFlow,
   replayRunEvents,
   type ReactFlowDocument,
@@ -21,6 +22,8 @@ import { useManifestEdit } from "../hooks/useManifestEdit.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
+import { CapabilityMenu, type CapabilityMenuRequest } from "./CapabilityMenu.js"
+import type { CapabilityMenuEntry } from "../lib/group-capabilities.js"
 
 /**
  * Sidebar tab of the execution workspace.
@@ -91,6 +94,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const [selectedStepIds, setSelectedStepIds] = useState<string[]>([])
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | undefined>(undefined)
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined)
+  const [capabilityMenu, setCapabilityMenu] = useState<CapabilityMenuRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
   const prevLoads = useRef(doc.loads)
@@ -153,6 +157,35 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     setSelectedEdge(selection)
     if (selection) setTab("graph")
   }, [])
+
+  const openCapabilityMenu = useCallback(
+    (clientX: number, clientY: number, placement: CapabilityMenuRequest["placement"]) => {
+      if (readOnly) return
+      setCapabilityMenu({ clientX, clientY, placement })
+    },
+    [readOnly],
+  )
+
+  const onCapabilityPick = useCallback(
+    (entry: CapabilityMenuEntry) => {
+      const request = capabilityMenu
+      if (!request || readOnly) return
+      setCapabilityMenu(undefined)
+      let stepId: string | undefined
+      void applyManifestEdit((current) => {
+        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
+        if (result.ok) stepId = result.stepId
+        return result
+      }).then((saved) => {
+        if (!saved || !stepId) return
+        setSelectedEdge(undefined)
+        setSelectedStepIds([stepId])
+        setSelectedId(stepId)
+        setTab("graph")
+      })
+    },
+    [applyManifestEdit, capabilityMenu, readOnly],
+  )
 
   const onRun = useCallback(
     (input: Record<string, unknown>) => {
@@ -233,6 +266,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       <div className="flex min-h-0 flex-1">
         <section data-testid="graph-canvas" className="relative min-w-0 flex-1">
           {encoded.document && doc.manifest ? (
+            <>
             <GraphCanvas
               document={encoded.document}
               manifest={doc.manifest}
@@ -247,7 +281,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               onSelectEdge={selectFromEdge}
               applyEdit={applyManifestEdit}
               focus={focus}
+              onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
+              onMenuDismiss={() => setCapabilityMenu(undefined)}
             />
+            {capabilityMenu && !readOnly ? (
+              <CapabilityMenu
+                client={client}
+                request={capabilityMenu}
+                onClose={() => setCapabilityMenu(undefined)}
+                onPick={(entry) => onCapabilityPick(entry)}
+              />
+            ) : null}
+            </>
           ) : (
             <div className="node-canvas flex h-full items-center justify-center text-[13px] text-on-surface-variant">
               {doc.loading ? "Loading the execution…" : "The execution could not be loaded."}
@@ -308,6 +353,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   onUnauthorized={onUnauthorized}
                   readOnly={readOnly}
                   applyManifestEdit={applyManifestEdit}
+                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
                 />
               ) : structurePanelId ? (
                 <StructurePanel manifest={doc.manifest} structureId={structurePanelId} />

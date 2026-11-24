@@ -28,6 +28,12 @@ export {
   setLoopField,
 } from "./route-edit.js"
 export {
+  addCapabilityStep,
+  findStructure,
+  type AddStepPlacement,
+  type AddStepResult,
+} from "./add-step.js"
+export {
   STRUCTURE_EDIT_CONTIGUOUS,
   STRUCTURE_EDIT_EMPTY_STEPS,
   STRUCTURE_EDIT_PARALLEL_MIN,

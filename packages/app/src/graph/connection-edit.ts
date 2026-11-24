@@ -10,13 +10,13 @@ import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "./io-from-
 import { EXPR_HANDLE_ID } from "./extract-data-edges.js"
 import type { ReactFlowDataEdgeData, ReactFlowEdge, ReactFlowRouteEdgeData } from "./types.js"
 import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue } from "./markers.js"
-import { isStepNode } from "./io-from-schema.js"
 import {
   cleanNodes,
   cloneManifest,
   finalizeManifest,
   findNodePlacement,
   findStepPlacement,
+  nodeContainsId,
 } from "./manifest-walk.js"
 import {
   STRUCTURE_EDIT_EMPTY_STEPS,
@@ -79,28 +79,6 @@ function dropDetachedRoot(manifest: ExecutionManifest, detachedId: string): Exec
   return { ...manifest, detached: nextList }
 }
 
-function nodeContainsId(root: Node, id: string): boolean {
-  if (root.id === id) return true
-  if (isStepNode(root)) return false
-  if (root.type === "branch") {
-    for (const arm of root.branches) {
-      for (const child of arm.steps) {
-        if (nodeContainsId(child, id)) return true
-      }
-    }
-  } else if (root.type === "parallel") {
-    for (const line of root.branches) {
-      for (const child of line) {
-        if (nodeContainsId(child, id)) return true
-      }
-    }
-  } else if (root.type === "loop") {
-    for (const child of root.steps) {
-      if (nodeContainsId(child, id)) return true
-    }
-  }
-  return false
-}
 
 function readInputAtPath(input: Record<string, unknown>, inputPath: string): unknown {
   const parts = inputPath.split(".")
