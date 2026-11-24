@@ -49,7 +49,7 @@ function cloneManifest(manifest: ExecutionManifest): ExecutionManifest {
 }
 
 function manifestDetachedSteps(manifest: ExecutionManifest): Node[] | undefined {
-  const detached = (manifest as ExecutionManifest & { detached?: Node[] }).detached
+  const detached = manifest.detached
   return Array.isArray(detached) ? detached : undefined
 }
 

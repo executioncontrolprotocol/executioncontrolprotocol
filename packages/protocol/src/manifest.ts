@@ -253,4 +253,6 @@ export interface ExecutionManifest {
   execution?: ExecutionBlock
   /** Top-level nodes. At least one. */
   steps: Node[]
+  /** Nodes removed from the flow. Omit when empty. Never run. Ids are unique with `steps`. */
+  detached?: Node[]
 }

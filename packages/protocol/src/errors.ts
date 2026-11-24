@@ -34,6 +34,7 @@ export const ERROR_CATALOGUE = {
   ECP_ALREADY_EXISTS: { httpStatus: 409, exitCode: 2, kind: "request" },
   ECP_VERSION_CONFLICT: { httpStatus: 409, exitCode: 2, kind: "request" },
   ECP_MANIFEST_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
+  ECP_NODE_DETACHED: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_CAPABILITY_UNKNOWN: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_PLUGINS_MISSING: { httpStatus: 422, exitCode: 3, kind: "validation" },
   ECP_INPUT_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },

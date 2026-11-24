@@ -72,6 +72,16 @@ describe("safePluginId", () => {
 })
 
 describe("generateEditorRootSchema", () => {
+  it("copies detached from the base schema with the same node item ref as steps", () => {
+    const root = generateEditorRootSchema([echo])
+    const detached = root.properties?.detached as { minItems: number; items: { $ref: string } }
+    expect(detached.minItems).toBe(1)
+    expect(detached.items.$ref).toBe("#/$defs/node")
+    const steps = root.properties?.steps as { minItems: number; items: { $ref: string } }
+    expect(steps.minItems).toBe(1)
+    expect(steps.items.$ref).toBe("#/$defs/node")
+  })
+
   it("omits step-contract capabilities from input allOf branches", () => {
     const transform: CapabilityEntry = {
       ...echo,

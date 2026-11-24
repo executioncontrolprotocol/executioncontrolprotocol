@@ -1,0 +1,14 @@
+[
+  {
+    "code": "ECP_NODE_DETACHED",
+    "path": "/detached/0",
+    "severity": "error",
+    "messageIncludes": "Step aside isn't connected to the flow",
+    "suggestionsIncludes": ["Reconnect it or delete it"]
+  },
+  {
+    "code": "ECP_CAPABILITY_UNKNOWN",
+    "path": "/detached/0/uses",
+    "severity": "error"
+  }
+]

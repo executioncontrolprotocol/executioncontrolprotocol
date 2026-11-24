@@ -579,6 +579,7 @@ function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEn
     }
   }
   visit(manifest.steps, "/steps")
+  if (Array.isArray(manifest.detached)) visit(manifest.detached, "/detached")
   return issues
 }
 
@@ -677,6 +678,7 @@ async function checkCapabilityInputs(
     }
   }
   await visit(manifest.steps, "/steps")
+  if (Array.isArray(manifest.detached)) await visit(manifest.detached, "/detached")
   return issues
 }
 
@@ -750,6 +752,12 @@ async function checkSemantics(manifest: unknown, options: ValidateOptions): Prom
   const inputNames = new Set(Object.keys(schemaProperties(recordProperty(manifest.execution, "accepts")) ?? {}))
   const configs = new Map((options.configs ?? []).map((config) => [config.id, config]))
   await walkSemantics(manifest.steps, "/steps", { inLoop: false }, issues, seen, inputNames, configs, options)
+  if (Array.isArray(manifest.detached)) {
+    for (let index = 0; index < manifest.detached.length; index += 1) {
+      issues.push(detachedIssue(index, manifest.detached[index]))
+    }
+    await walkSemantics(manifest.detached, "/detached", { inLoop: false }, issues, seen, inputNames, configs, options)
+  }
   return issues
 }
 
@@ -1224,6 +1232,23 @@ function trim(value: unknown, max: number): unknown {
   const text = JSON.stringify(value)
   if (text === undefined || text.length <= max) return value
   return text.slice(0, max)
+}
+
+/**
+ * L2 issue for one entry in `detached`.
+ * @category Environment
+ */
+export function detachedIssue(index: number, entry: unknown): ValidationIssue {
+  const id = isRecord(entry) && typeof entry.id === "string" ? entry.id : undefined
+  return {
+    ...semantic(
+      "ECP_NODE_DETACHED",
+      id === undefined ? "Step isn't connected to the flow" : `Step ${id} isn't connected to the flow`,
+      `/detached/${index}`,
+      id,
+    ),
+    suggestions: ["Reconnect it or delete it"],
+  }
 }
 
 function semantic(code: ValidationIssue["code"], message: string, path: string, nodeId?: string): ValidationIssue {

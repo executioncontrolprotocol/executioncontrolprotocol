@@ -88,6 +88,14 @@ describe("error catalogue", () => {
     })
   })
 
+  it("catalogues ECP_NODE_DETACHED as validation", () => {
+    expect(catalogueEntry("ECP_NODE_DETACHED")).toEqual({
+      httpStatus: 422,
+      exitCode: 2,
+      kind: "validation",
+    })
+  })
+
   it("catalogues ECP_LIMIT_EXCEEDED as a runtime failure", () => {
     expect(catalogueEntry("ECP_LIMIT_EXCEEDED")).toEqual({
       httpStatus: null,
@@ -489,6 +497,13 @@ describe("execution fixtures", () => {
     for (const name of readdirSync(validDir).filter((file) => file.endsWith(".ecp.json"))) {
       expect(validate(readJson(path.join(validDir, name))), name).toBe(true)
     }
+  })
+
+  it("accepts detached when non-empty and rejects an empty detached array", () => {
+    const withDetached = readJson(path.join(invalidDir, "detached.ecp.json"))
+    expect(validate(withDetached)).toBe(true)
+    expect(validate({ ...withDetached, detached: [] })).toBe(false)
+    expect(errorPaths(validate)).toContain("/detached")
   })
 
   it("rejects every schema-level invalid fixture at the expected path", () => {
