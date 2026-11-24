@@ -146,9 +146,16 @@ test.describe("Node drag", () => {
     await expect(row).toHaveAttribute("data-active", "true", { timeout: 15_000 })
     await page.getByTestId("capability-menu-search").press("Enter")
     await expect(page.getByTestId("ecp-step-echo")).toBeVisible({ timeout: 15_000 })
-    const echoBox = await page.getByTestId("ecp-step-echo").boundingBox()
-    expect(echoBox).not.toBeNull()
-    expect(Math.hypot(echoBox!.x - clickX, echoBox!.y - clickY)).toBeLessThanOrEqual(40)
+    // The node can render for a frame at its layout position before the cursor override applies; check where it settles.
+    await expect
+      .poll(
+        async () => {
+          const box = await page.getByTestId("ecp-step-echo").boundingBox()
+          return box ? Math.hypot(box.x - clickX, box.y - clickY) : Number.POSITIVE_INFINITY
+        },
+        { timeout: 10_000 },
+      )
+      .toBeLessThanOrEqual(40)
 
     await page.getByTestId("ecp-step-echo").click()
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-selected-node", "echo")
