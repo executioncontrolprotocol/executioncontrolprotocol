@@ -9,12 +9,19 @@ App) gets the same `ValidationResult`, so an agent can fix and resubmit in a loo
 | --- | --- | --- |
 | L0 Load | JSON parse, file exists, `schema`/`version` constants | `ECP_EXECUTION_LOAD`, `ECP_NOT_FOUND` |
 | L1 Schema | Base structure + per-step raw `accepts` + marker filter: node shapes, marker syntax, step `input` against step `accepts` when `contract` is `"step"` else the capability's raw `accepts`, `$script` only at string positions (input markers), unknown capability ids | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
-| L2 Semantics | Unique ids, default arm last, step `mode` needs `as`, `as` not an input name, `create` inside `while`/`for` loop bodies, loop exactly one of `ref`/`expr`, per-mode field validity (names the mode), `expr` syntax (gates and loop `expr`), no `$expr` in `input` or `$script.params`, `$script` syntax and file (input markers only), transform plain `script` has `lang: "js"`, one of `source`/`path`, no `params` and no `$script` wrapper; step `accepts`/`returns` required iff `contract` is `"step"`, forbidden otherwise; `script`/`expression` presence matches capability `code`; config ids exist and validate, no `$secret`/`$env` in the execution | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT` |
+| L2 Semantics | Unique ids, default arm last, step `mode` needs `as`, `as` not an input name, `create` inside `while`/`for` loop bodies, loop exactly one of `ref`/`expr`, per-mode field validity (names the mode), `expr` syntax (gates and loop `expr`), no `$expr` in `input` or `$script.params`, `$script` syntax and file (input markers only), transform plain `script` has `lang: "js"`, one of `source`/`path`, no `params` and no `$script` wrapper; step `accepts`/`returns` required iff `contract` is `"step"`, forbidden otherwise; `script`/`expression` presence matches capability `code`; config ids exist and validate, no `$secret`/`$env` in the execution | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT`, `ECP_NODE_DETACHED` |
 | L3 Data flow | Every `$ref` resolves in order, paths exist in `returns`/`accepts`, types fit, maybe-missing handling, parallel isolation, write conflicts, `execution.returns` keys produced | `ECP_REF_UNRESOLVED`, `ECP_REF_MAYBE_MISSING`, `ECP_REF_PATH_INVALID`, `ECP_TYPE_MISMATCH`, `ECP_COMMIT_CONFLICT`, `ECP_RETURNS_UNRESOLVED` |
 | L4 Run input | Run `input` against `execution.accepts` (on `execute` only, after L0–L3) | `ECP_INPUT_INVALID` (path under `/input`) |
 
 L1 and L2 issues are all reported together (no early stop within a layer). L3 runs only when
 L1–L2 produced no errors, because data-flow analysis needs a structurally valid graph.
+
+A `detached` entry is an L2 error: `ECP_NODE_DETACHED` at `/detached/<i>`, message
+"Step `<id>` isn't connected to the flow", suggestion "Reconnect it or delete it", one issue
+per entry. That step still gets every other per-step check (ids unique across `steps` and
+`detached`, `uses` installed, input schema, config). L3 does not run while this error stands.
+`detached` steps are outside the flow: they produce nothing, and their own reads are not
+checked.
 
 ## Issue and result shapes
 
@@ -115,7 +122,10 @@ lines' outputs with their own certainty.
 
 - `execute { mode: "validate" }` → L0–L3 (and L4 when `input` is given). Nothing runs.
 - `execute` (run) → L0–L4 first; any error → no run is created; the response carries the result.
-- `commit` of an execution → L0–L3; errors reject the commit (`ECP_MANIFEST_INVALID` envelope with the issues); warnings are stored with the object.
+- `commit` of an execution → L0–L3. Without `draft`, errors reject the commit
+  (`ECP_MANIFEST_INVALID` envelope with the issues); warnings are stored with the object.
+  With `draft: true`, L1 must pass and L2/L3 errors are stored; the response includes
+  `issues` (06). `execute` is unchanged: any error refuses the run.
 - `commit` of a config → validated against the plugin's config schema (`$secret`/`$env` objects allowed at any string position).
 - Host start → regenerates schemas; saved executions are re-validated lazily on next use, not at start.
 

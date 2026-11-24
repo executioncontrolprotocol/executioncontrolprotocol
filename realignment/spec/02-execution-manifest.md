@@ -16,11 +16,15 @@ JSON is the only execution format in the MVP. Files use the extension `.ecp.json
     "accepts": { "type": "object", … },               // optional JSON Schema (object) for run input
     "returns": { "type": "object", … }                // optional JSON Schema (object) for the result
   },
-  "steps": [ /* Node, minItems 1 */ ]                 // required
+  "steps": [ /* Node, minItems 1 */ ],                // required
+  "detached": [ /* Node, optional, minItems 1 */ ]    // omit when empty; never run
 }
 ```
 
 - Unknown top-level or `execution` properties are errors (`ECP_MANIFEST_INVALID`).
+- `detached`: optional top-level `Node[]`, `minItems: 1`. Omit the key when it would be empty.
+  Same node shape as `steps`, so an entry keeps its `id`, `as`, inputs and config. Entries are
+  not in the flow and never run (03, 04). Ids are unique across `steps` and `detached`.
 - `execution.id`: `^[a-z0-9][a-z0-9-]{0,63}$`.
 - `accepts` and `returns` must be JSON Schemas of `"type": "object"` with `properties`. Their
   property names become top-level state keys: run input seeds state; `returns` selects which

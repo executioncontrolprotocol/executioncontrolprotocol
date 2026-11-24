@@ -40,8 +40,8 @@ validation until it's reconnected.
 | Connector | After Delete | Valid? |
 | --- | --- | --- |
 | Data edge (`$ref` binding) | The connector is gone and the target input is unbound. | Invalid if the input is required, until it's bound again |
-| Branch arm (route edge into an arm) | The connector and the arm are gone. The arm's steps are disconnected. The last arm removed leaves an empty branch container. | Invalid (`ECP_NODE_DETACHED`, and an empty branch) until reconnected or deleted |
-| Parallel line | The connector and the line are gone. The line's steps are disconnected. | Invalid until reconnected |
+| Branch arm (route edge into an arm) | The connector and the arm are gone. The arm's steps are disconnected. Deleting the **last** arm removes the branch container too; its steps become `detached`. | Invalid (`ECP_NODE_DETACHED`) until reconnected or deleted |
+| Parallel line | The connector and the line are gone. The line's steps are disconnected. Deleting a line from a parallel that has **two** lines removes the parallel container and splices the remaining line in place, still connected (the deleted line's steps become `detached`). | Invalid until reconnected |
 | Sequence route (A → B) | The connector is gone; B (and everything after it in that sequence) is disconnected, and A connects to nothing. | Invalid until reconnected |
 | Loop entry / loop-back | Not deletable: they're drawn from the loop container. Delete the container instead. | — |
 
@@ -58,7 +58,7 @@ So the protocol gets one optional field, which only makes the file *savable*. It
 | --- | --- |
 | Schema (L1) | Optional top-level `detached: Node[]`, `minItems: 1` (the App drops the key when the last one is reconnected). Same node shape as `steps`, so a detached step keeps its `id`, `as`, inputs and config and can be reconnected as-is. `steps` keeps `minItems: 1`. |
 | Validation (L2) | One **error** per entry: `ECP_NODE_DETACHED` at `/detached/<i>`, "Step `<id>` isn't connected to the flow", suggestion "Reconnect it or delete it". Detached steps still get every other per-step check (unique ids across `steps` and `detached`, `uses` installed, input schema, config), so when one is reconnected nothing new surfaces. |
-| Data flow (L3) | Detached steps are outside the flow: they produce nothing, and a flow `$ref` to their `as` is `ECP_REF_UNRESOLVED` as usual. Their own reads aren't checked until they're placed. |
+| Data flow (L3) | L3 does not run while `ECP_NODE_DETACHED` stands (L2 error). Detached steps produce nothing and their own reads aren't checked until they're placed. |
 | `execute` | Unchanged rule: any error refuses the run. `mode: "validate"` lists the `ECP_NODE_DETACHED` issues. |
 | Engine | Belt and braces: the run planner refuses a manifest with `detached` even if it's called without validation (`ECP_NODE_DETACHED`), so no code path can run it. |
 | `retrieve` / CLI / MCP | The field shows up as-is, so an agent sees exactly what the App shows and can be asked to reconnect or delete. |
@@ -134,11 +134,15 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 
 ### Phase 0: spec and plan
 
-- Spec 11: replace "view and run; expression editing … in scope" with the canvas edits in this plan;
-  add rows for containers, the canvas menus, the capability menu, connecting, dragging and autosave.
-- `REALIGNMENT-PLAN.md` § Later: narrow "App editing" to what stays later (see open questions).
-- `REACTFLOW_RENDER.md`: containers for every structure, pill-per-level route labels, ⋯ controls,
-  dragged positions.
+- Update every spec this plan changes, as target behaviour: spec 02 (`detached`), spec 03
+  (`ECP_NODE_DETACHED`, draft commit), spec 04 (the executor refuses `detached`), spec 06 (`path`,
+  `draft`, `scripts`, `filter.dir`, `include: ["scripts"]`, string `ifVersion` for paths), spec 09
+  (drop `/v1/file` and `/v1/files`; watch `{ id }` / `{ path }`), spec 10 (`--path`, `--draft`), spec
+  11 (canvas editing and the host API), spec 12 (acceptance for the new behaviour).
+- `REALIGNMENT-PLAN.md` § Later: saved node layout in the manifest, and collaborative editing.
+- `packages/app/REACTFLOW_RENDER.md`: frames for every structure, one pill per branch level, ⋯
+  controls, flow handles, detached nodes with no flow connector and a "disconnected" badge, dragged
+  positions overriding layout.
 
 ### Phase 1: route edges you can select (fixes found in the #105 check)
 
@@ -148,7 +152,7 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 - **Nested branches keep every level.** When an arm starts with another branch,
   `renderBranch` overwrites the inner arms' route data with the outer arm's, so both inner edges
   read `outer · true` and the inner conditions can't be seen or edited. Route edge data becomes a
-  list of levels (`routes: RouteLevel[]`, outer first); `EcpRouteEdge` draws one pill per level,
+  list of levels (`levels: RouteLevel[]`, outer first); `EcpRouteEdge` draws one pill per level,
   each selecting that level. Same for an arm that starts with a parallel or a loop.
 - Tests: unit (`execution-to-reactflow`) for nested branch, branch → loop and branch → parallel;
   the connectivity test also checks that every branch arm's `expr` is on some route pill;
@@ -191,10 +195,11 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
   `deleteParallelLine`, `deleteSequenceLink`, `makeDefaultArm`, `disconnectPorts`, and the
   reconnect helpers `attachAfter`, `attachAsArm`, `attachAsLine`.
 - Protocol (first, in this phase): `detached` in `execution.base.schema.json`, `ExecutionManifest`
-  and spec 01; `ECP_NODE_DETACHED` in `errors.ts`, spec 03 (L2 row) and validation; the run planner
+  and spec 02; `ECP_NODE_DETACHED` in `errors.ts`, spec 03 (L2 row) and validation; the run planner
   refuses `detached`; the App draws detached nodes with no flow connector and a "disconnected"
   badge. Fixture: `fixtures/manifests/invalid/detached.ecp.json` (expected `ECP_NODE_DETACHED`), and
-  a conformance case showing `execute` refuses it and `commit` refuses it for stored executions.
+  a conformance case showing `execute` refuses it, strict `commit` refuses it and `commit` with
+  `draft: true` stores it.
 
 ### Phase 4: capability menu (right-click on canvas)
 
@@ -237,7 +242,7 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 
 - Protocol: `path` address on `retrieve` / `commit` (execution), opaque string versions for paths,
   `draft: true` on `commit`, `filter.dir` and `include: ["scripts"]` on `retrieve`, `scripts` on
-  `commit`. Specs 07 (operations) and 09 (HTTP), types in `packages/protocol`, engine operations,
+  `commit`. Specs 06 (operations) and 09 (HTTP), types in `packages/protocol`, engine operations,
   local storage, MCP relay tool schemas, CLI (`ecp retrieve --path`, `ecp commit --path --draft`).
 - App: `useExecutionDocument`, `HomeView`, `NodePanel` and `EdgePanel` move to `retrieve` / `commit`;
   `AppHostClient` loses `getFile`, `putFile` and `listFiles`.

@@ -19,7 +19,10 @@ ECP becomes an **ECP host**: one restartable process that holds the engine (exec
 
 **Later (designed for, not built):** remote plugin hosts (HTTP, Lambda) and the host-to-plugin-host signing protocol, caller auth beyond the local token (API keys, OAuth), MCP over HTTP, SQLite and hosted stores, running the host in short-lived functions. See "Later".
 
-**Out for now:** policies (budget, approval, state-control, registry-control), editing in the App canvas, the browser environment, harnesses/evals, Reflex. The executor keeps a before/after-call hook where policies can attach later, nothing more.
+**Out for now:** policies (budget, approval, state-control, registry-control), the browser
+environment, harnesses/evals, Reflex. Canvas editing is in scope (see
+`realignment/app-canvas-editing.md`); saved node layout in the manifest and collaborative editing
+stay later. The executor keeps a before/after-call hook where policies can attach later, nothing more.
 
 ## MVP decisions (final, 2026-11-14)
 
@@ -445,7 +448,9 @@ Visualizing executions stays in the MVP (decided 2026-11-14). The App is the hos
 - `ecp app flows/localize-banner.ecp.json` (or an id): opens the graph; it updates live through `/watch` as the agent edits the file.
 - `ecp mcp start --app` (or `ecp app` alongside it): the same host, so you watch the graph and run status while an agent works over MCP.
 - Run records are written as each step completes, so the App shows runs started from any process (MCP, CLI, scripts).
-- **MVP scope:** view the graph, live updates from the file, run status on the graph, run with an input form. **Later:** editing in the canvas, writing through `commit` and patches.
+- **MVP scope:** view and edit the graph on the canvas (see `realignment/app-canvas-editing.md`),
+  live updates, run status on the graph, run with an input form. **Later:** saved node positions in
+  the manifest, collaborative editing.
 - **Shipped in `packages/app`** (React 19, React Flow, Vite; ported from the pre-realignment App at Phase 7): `graph/execution-to-reactflow.ts` builds the graph from the JSON manifest, `graph/map-run-events.ts` maps run events onto it, and `graph/ports-from-schema.ts` derives ports from capability JSON Schemas. The `HostAdapter` maps onto `retrieve`/`execute`/`commit`/`watch`; `expr` replaces `when` edges; the editor is JSON (Fluent view remains post-MVP).
 
 ## Execution manifest v2
@@ -910,7 +915,8 @@ Designed for, not built in the MVP. Each one is a new service implementation, no
 - **Stores and runtimes:** SQLite, hosted DB (Postgres, libSQL, D1); MCP over HTTP and a REST `Endpoint`; the host as a short-lived function, resuming runs from persisted state.
 - **Policies** back on the before/after-call hook.
 - **Plugin isolation** for untrusted plugins on hosted runtimes (separate process or sandbox per plugin). Locally, plugins share the host process; a crash restarts the host and runs resume.
-- **App editing**: canvas edits written through `commit` and patches.
+- **App layout and collaboration:** saving node positions in the manifest, and collaborative
+  editing.
 - **Healing automation:** an `--on-failure "<command>"` hook that wakes an agent with the run
   record path when an unattended execution fails, and scheduled executions. Decide where
   schedules live (OS scheduler vs the host) first.

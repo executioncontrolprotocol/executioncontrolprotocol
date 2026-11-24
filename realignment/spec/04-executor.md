@@ -14,6 +14,11 @@ execute ─► validate (L0–L4) ─► create run (status: running) ─► run
 Statuses: `running`, `completed`, `failed`, `cancelled`, `interrupted`. (`queued` is not used in
 the MVP; runs start immediately.)
 
+Before any node runs, the executor refuses a manifest that has `detached`
+(`ECP_NODE_DETACHED`) and does not walk that array, even when the caller skipped validation.
+`execute` still validates first and creates no run when that error is present (03, 06). This
+check is the backstop for a caller that skips validation.
+
 ## State
 
 - A JSON object. Initial state = run input after `execution.accepts` validation with defaults

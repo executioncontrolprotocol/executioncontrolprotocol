@@ -26,10 +26,11 @@ conflict, host problem).
 ```ts
 interface RetrieveInput {
   type: "capability" | "execution" | "config" | "run" | "plugin" | "formatter" | "schema"
-  id?: string                       // exactly one item, full detail
+  id?: string                       // one item, full detail; or `path` for an execution
+  path?: string                     // execution address, alternative to `id`
   query?: string                    // search (capability, execution, config); case-insensitive
-  filter?: { plugin?: string; executionId?: string; status?: RunStatus; clientRequestId?: string }
-  include?: Array<"steps" | "events" | "manifest" | "state" | "document">   // run extras; document = schema type only
+  filter?: { plugin?: string; executionId?: string; status?: RunStatus; clientRequestId?: string; dir?: string }
+  include?: Array<"steps" | "events" | "manifest" | "state" | "document" | "scripts">
   limit?: number                    // default 10, max 100
   format?: string                   // formatter id; default "@executioncontrolprotocol/formatters.json"
   output?: { path: string }         // write the full result to this file; respond with a summary
@@ -44,8 +45,22 @@ type RetrieveOutput =
 - `id` and `query` are mutually exclusive; neither = list (most recent first for runs and
   executions, alphabetical otherwise), up to `limit`.
 - Capability item = full capability entry (05). Search items = summaries.
-- Execution item = `{ id, version, manifest, warnings, updatedAt }` (`manifest` always included
-  for `id`). Path-referenced files are not "executions" for `retrieve`; read them from disk.
+- Execution item (by `id` or `path`) = `{ id?, path?, version, manifest, issues, warnings,
+  updatedAt }` (`manifest` always included). `version` is a number for a stored id and an opaque
+  string for a path, derived from the file content (it changes when that file or a script
+  committed with it changes). `issues` is the current L0–L3 result, including errors on a draft.
+  Exactly one of `id` or `path`. A host whose storage has no paths returns `ECP_REQUEST_INVALID`
+  for `path`.
+- `include: ["scripts"]` (execution only; otherwise `ECP_REQUEST_INVALID`) adds
+  `scripts: { "<relative path>": "<text>" }` for the execution's script files. Each value is at
+  most 2 MB.
+- `filter.dir` (execution list only) lists `*.ecp.json` under that directory: depth 3, max 200,
+  skipping `node_modules` and dot-folders. Same list envelope as a stored list
+  (`{ type, items, total }`). A directory entry is `{ path, version }` with the opaque string
+  version and no inlined manifest. `dir` with `id` or `query`, or on a non-execution, or on a
+  host with no paths, is `ECP_REQUEST_INVALID`. `path` and `dir` follow the `execute` path rule:
+  absolute, or relative to the caller cwd (CLI and relay resolve first); a `path` must end with
+  `.ecp.json`.
 - Config item = the stored config object (references only).
 - Run item = run record; `include: ["steps"]` adds step records, `["events"]` the events,
   `["state"]` the latest state.
@@ -105,11 +120,14 @@ interface CommitInput {
   type: "execution" | "config"
   action: "create" | "update" | "delete"
   id?: string                        // required for update/delete; for create taken from object if absent
+  path?: string                      // execution address, alternative to `id`
   object?: unknown                   // create: full object; update: full replacement (or use patch)
   patch?: PatchOp[]                  // update only; mutually exclusive with object
-  ifVersion?: number                 // update/delete: required for executions and configs
+  ifVersion?: number | string        // number for stored id, opaque string for path
+  draft?: boolean                    // execution create/update only; default false
+  scripts?: Record<string, string>   // execution only; relative path → UTF-8 text
 }
-type CommitOutput = { type: string; id: string; version: number | null; warnings?: ValidationIssue[] }   // version null after delete
+type CommitOutput = { type: string; id?: string; version: number | string | null; warnings?: ValidationIssue[]; issues?: ValidationIssue[] }
 ```
 
 - Executions validated L0–L3 before saving; errors → `ok: false`, `ECP_MANIFEST_INVALID`
@@ -120,6 +138,20 @@ type CommitOutput = { type: string; id: string; version: number | null; warnings
   `ECP_VERSION_CONFLICT` (message includes the current version). Missing `ifVersion` on
   update/delete → `ECP_REQUEST_INVALID`.
 - Other types (capability, run, plugin, formatter, schema) are read-only → `ECP_REQUEST_INVALID`.
+- Execution `path` is an address alternative to `id` (same shape as `execute`). Exactly one.
+  `update` and `delete` accept it. `create` with `path` is `ECP_REQUEST_INVALID`. A host with
+  no paths returns `ECP_REQUEST_INVALID`.
+- Stored ids keep numeric versions (05, 07). A path version is the opaque string from
+  `retrieve`. Stale `ifVersion` is `ECP_VERSION_CONFLICT` (message includes the current
+  version). A number for a path, or a string for a stored id, is `ECP_REQUEST_INVALID`.
+  Missing `ifVersion` on update/delete stays `ECP_REQUEST_INVALID`.
+- `draft: true` (execution create/update only; otherwise `ECP_REQUEST_INVALID`) stores a
+  manifest that passes L1 even when L2/L3 report errors, and returns `{ version, issues }`.
+  The default remains strict: errors reject with `ECP_MANIFEST_INVALID`. `draft` applies to
+  `object` and to the manifest produced by `patch`. An L1 failure still rejects.
+- `scripts` (execution only) writes those relative files with the manifest. The host resolves
+  them against the execution's directory. A key that is absolute or escapes that directory is
+  `ECP_REQUEST_INVALID`. Each value is at most 2 MB.
 
 ## Patch format
 
@@ -143,6 +175,7 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_EXECUTION_LOAD` | File unreadable, not JSON, wrong `schema`/`version` | 400 | 2 |
 | `ECP_NOT_FOUND` | Unknown id (execution, config, run, capability, plugin) | 404 | 2 |
 | `ECP_MANIFEST_INVALID` | Validation failed (see `issues`) | 422 | 2 |
+| `ECP_NODE_DETACHED` | A `detached` step is not connected to the flow | 422 | 2 |
 | `ECP_CAPABILITY_UNKNOWN` | `uses` names no installed capability | 422 | 2 |
 | `ECP_PLUGINS_MISSING` | Capability belongs to a known first-party plugin that isn't installed; message has the install command | 422 | 3 |
 | `ECP_INPUT_INVALID` | Step input vs `accepts`, or run input vs `execution.accepts` | 422 | 2 |
