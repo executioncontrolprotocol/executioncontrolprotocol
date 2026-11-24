@@ -295,6 +295,33 @@ describe("JSON Schemas", () => {
   })
 })
 
+describe("path draft operation input schemas", () => {
+  it("allows path, draft, scripts, and string ifVersion on commit", () => {
+    const commitValidate = ajv().compile(readJson(path.join(schemaDir, "commit.input.schema.json")) as object)
+    expect(
+      commitValidate({
+        type: "execution",
+        action: "update",
+        path: "/tmp/flow.ecp.json",
+        ifVersion: "abc123",
+        draft: true,
+        object: {},
+        scripts: { "a.js": "x" },
+      }),
+    ).toBe(true)
+    expect(commitValidate({ type: "execution", action: "create", path: "/tmp/x.ecp.json", object: {} })).toBe(false)
+  })
+
+  it("allows path, filter.dir, and include scripts on retrieve", () => {
+    const retrieveValidate = ajv().compile(readJson(path.join(schemaDir, "retrieve.input.schema.json")) as object)
+    expect(
+      retrieveValidate({ type: "execution", path: "/tmp/x.ecp.json", include: ["scripts"] }),
+    ).toBe(true)
+    expect(retrieveValidate({ type: "execution", filter: { dir: "/tmp" } })).toBe(true)
+    expect(retrieveValidate({ type: "config", scripts: true, include: ["scripts"] } as never)).toBe(false)
+  })
+})
+
 /** Fixtures excluded from bulk schema acceptance (tracked separately if any). */
 describe("loop node schema", () => {
   const validate = ajv().compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)

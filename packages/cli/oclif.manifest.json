@@ -76,6 +76,12 @@
           "required": true,
           "type": "option"
         },
+        "draft": {
+          "allowNo": false,
+          "description": "Store despite L2/L3 validation errors when L1 passes.",
+          "name": "draft",
+          "type": "boolean"
+        },
         "id": {
           "description": "Object id (required for update/delete and optional on create).",
           "hasDynamicHelp": false,
@@ -84,7 +90,7 @@
           "type": "option"
         },
         "if-version": {
-          "description": "Expected objectVersion for optimistic concurrency.",
+          "description": "Expected version for optimistic concurrency (integer for ids, string for paths).",
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "if-version",
@@ -114,6 +120,13 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "patch",
+          "type": "option"
+        },
+        "path": {
+          "description": "Update or delete an execution file by absolute or cwd-relative path.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "path",
           "type": "option"
         },
         "type": {
@@ -1012,7 +1025,7 @@
       ],
       "flags": {
         "filter": {
-          "description": "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed.",
+          "description": "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId, dir; e.g. status=failed.",
           "hasDynamicHelp": false,
           "multiple": true,
           "name": "filter",
@@ -1033,7 +1046,7 @@
           "type": "option"
         },
         "include": {
-          "description": "Comma-separated extras: run detail (steps, events, manifest, state) or schema document with --type schema.",
+          "description": "Comma-separated extras: run detail (steps, events, manifest, state, scripts) or schema document with --type schema.",
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "include",
@@ -1063,6 +1076,13 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "name": "out",
+          "type": "option"
+        },
+        "path": {
+          "description": "Fetch one execution file by absolute or cwd-relative path.",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "path",
           "type": "option"
         },
         "query": {

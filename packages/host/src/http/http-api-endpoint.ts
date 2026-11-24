@@ -413,12 +413,22 @@ export class HttpApiEndpoint implements Endpoint {
     )
     const runId = url.searchParams.get("runId") ?? undefined
     const watchPath = url.searchParams.get("path") ?? undefined
+    const watchId = url.searchParams.get("id") ?? undefined
+    const storage = this.ctx.services.get(StorageProvider) as StorageProviderService
+    if (watchPath && watchId) {
+      this.writeJson(res, 400, refuse("ECP_REQUEST_INVALID", "Pass id or path to watch, not both."))
+      return
+    }
     if (watchPath && !watchPath.endsWith(".ecp.json")) {
       this.writeJson(
         res,
         400,
         refuse("ECP_REQUEST_INVALID", "Query path must be an absolute .ecp.json execution file."),
       )
+      return
+    }
+    if (watchPath && !storage.executionFiles) {
+      this.writeJson(res, 400, refuse("ECP_REQUEST_INVALID", "This host has no path-addressed executions."))
       return
     }
     res.writeHead(200, {
@@ -428,13 +438,13 @@ export class HttpApiEndpoint implements Endpoint {
     })
     res.write(`: connected\n\n`)
     this.activity.streamOpened()
-    const storage = this.ctx.services.get(StorageProvider) as StorageProviderService
     const send = (event: string, data: unknown): void => {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     }
     const onChange = (change: StorageChange): void => {
       if (!types.has(change.type)) return
       if (runId && change.type === "run" && change.id !== runId) return
+      if (watchId && change.type === "execution" && change.id !== watchId) return
       send("storage", change)
     }
     const unwatch = storage.watch(onChange)

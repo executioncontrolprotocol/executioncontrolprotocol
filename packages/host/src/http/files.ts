@@ -1,12 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import path from "node:path"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { atomicWriteText } from "@executioncontrolprotocol/local"
+import { atomicWriteText, FILE_MAX_BYTES, listExecutionFilePaths, scriptPathsOf } from "@executioncontrolprotocol/local"
 
-/** Max bytes for `GET` / `PUT` `/v1/file` bodies. */
-export const FILE_MAX_BYTES = 2 * 1024 * 1024
-const FILES_MAX = 200
-const FILES_DEPTH = 3
+export { FILE_MAX_BYTES, listExecutionFilePaths as listExecutionFiles, scriptPathsOf }
 
 /**
  * Read an allowed execution or `$script.path` file as UTF-8 text.
@@ -81,33 +78,6 @@ export async function writeAllowedExecutionFile(
   return { ok: true }
 }
 
-/**
- * List `*.ecp.json` under `dir` up to depth 3 / 200 files.
- * @category Host
- */
-export function listExecutionFiles(dir: string): string[] {
-  const root = path.resolve(dir)
-  if (!existsSync(root) || !statSync(root).isDirectory()) return []
-  const out: string[] = []
-  walk(root, 0, out)
-  return out
-}
-
-function walk(current: string, depth: number, out: string[]): void {
-  if (out.length >= FILES_MAX || depth > FILES_DEPTH) return
-  const entries = readdirSync(current, { withFileTypes: true })
-  for (const entry of entries) {
-    if (out.length >= FILES_MAX) return
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue
-    const full = path.join(current, entry.name)
-    if (entry.isDirectory()) {
-      if (depth < FILES_DEPTH) walk(full, depth + 1, out)
-      continue
-    }
-    if (entry.isFile() && entry.name.endsWith(".ecp.json")) out.push(full)
-  }
-}
-
 function isReferencedScript(absolutePath: string): boolean {
   const dir = path.dirname(absolutePath)
   let parent = dir
@@ -132,28 +102,4 @@ function isReferencedScript(absolutePath: string): boolean {
     parent = next
   }
   return false
-}
-
-/**
- * Collect absolute `$script.path` values from a manifest.
- * @category Host
- */
-export function scriptPathsOf(manifest: ExecutionManifest, baseDir: string): string[] {
-  const paths: string[] = []
-  visit(manifest, baseDir, paths)
-  return paths
-}
-
-function visit(value: unknown, baseDir: string, paths: string[]): void {
-  if (Array.isArray(value)) {
-    for (const item of value) visit(item, baseDir, paths)
-    return
-  }
-  if (value === null || typeof value !== "object") return
-  const record = value as Record<string, unknown>
-  if (typeof record.$script === "object" && record.$script !== null) {
-    const script = record.$script as { path?: unknown }
-    if (typeof script.path === "string") paths.push(path.resolve(baseDir, script.path))
-  }
-  for (const child of Object.values(record)) visit(child, baseDir, paths)
 }

@@ -5,6 +5,7 @@ import type {
   ConfigObject,
   ExecuteData,
   ExecuteInput,
+  ExecutionItem,
   ExecutionManifest,
   ExpressionEngine as ExpressionEngineService,
   EditorSchemaFiles as EditorSchemaFilesService,
@@ -16,6 +17,7 @@ import type {
   RetrieveInput,
   RunRecord,
   StorageProvider as StorageProviderService,
+  ValidationIssue,
   ValidationResult,
 } from "@executioncontrolprotocol/protocol"
 import {
@@ -35,7 +37,7 @@ import type { Operations, ResolvedHostSettings, ServiceLookup } from "../contain
 import { VERSION } from "../version.js"
 import { closeMatches } from "../schema/suggest.js"
 import { canonicalJson, sha256Hex } from "../schema/canonical.js"
-import { HostSchemaSet, loadExecutionText, validateExecution } from "../validate/validate.js"
+import { HostSchemaSet, loadExecutionText, validateExecutionLayers } from "../validate/validate.js"
 import { matchCandidates } from "./match.js"
 import { applyPatch } from "./patch.js"
 
@@ -119,9 +121,23 @@ async function validateWithHostCache(
     readText?: (absolutePath: string) => Promise<string>
   } = {},
 ): Promise<ValidationResult> {
+  return (await validateWithHostCacheLayers(services, cache, manifest, extra)).result
+}
+
+async function validateWithHostCacheLayers(
+  services: ServiceLookup,
+  cache: { current?: SchemaCache },
+  manifest: unknown,
+  extra: {
+    configs?: ConfigObject[]
+    input?: Record<string, unknown>
+    executionDir?: string
+    readText?: (absolutePath: string) => Promise<string>
+  } = {},
+): Promise<{ result: ValidationResult; blocksDraft: boolean }> {
   const plugins = services.get(PluginAdapter)
   const schemas = await getHostSchemaSet(services, cache)
-  return validateExecution(manifest, {
+  return validateExecutionLayers(manifest, {
     capabilities: plugins.capabilities(),
     loadPluginSchema: (pluginId) => plugins.loadPluginSchema(pluginId),
     schemaFingerprints: typeof plugins.schemaFingerprints === "function" ? plugins.schemaFingerprints() : [],
@@ -132,6 +148,20 @@ async function validateWithHostCache(
     ...(extra.readText ? { readText: extra.readText } : {}),
   })
 }
+
+/** Text written for path-addressed execution files (key order preserved). */
+function executionManifestText(manifest: ExecutionManifest): string {
+  return `${JSON.stringify(manifest, null, 2)}\n`
+}
+
+function executionWarnings(issues: ValidationIssue[]): ValidationIssue[] {
+  return issues.filter((issue) => issue.severity === "warning")
+}
+
+function missingPathStorage(): OperationResponse<never> {
+  return fail("ECP_REQUEST_INVALID", "This host has no path-addressed executions.")
+}
+
 
 /**
  * Assemble a full {@link CapabilityEntry} from a light row and a schema document.
@@ -162,6 +192,12 @@ async function retrieve(
   try {
     if (input.id !== undefined && input.query !== undefined) {
       return fail("ECP_REQUEST_INVALID", "Pass id or query, not both.")
+    }
+    if (input.id !== undefined && input.path !== undefined) {
+      return fail("ECP_REQUEST_INVALID", "Pass id or path, not both.")
+    }
+    if (input.path !== undefined && input.query !== undefined) {
+      return fail("ECP_REQUEST_INVALID", "Pass path or query, not both.")
     }
     const limit = clampLimit(input.limit)
     const payload = await loadRetrievePayload(services, input, limit)
@@ -199,6 +235,13 @@ async function loadRetrievePayload(
 ): Promise<OperationResponse<RetrieveData>> {
   const plugins = services.get(PluginAdapter)
   const storage = services.get(StorageProvider)
+
+  if (input.include?.includes("scripts") && input.type !== "execution") {
+    return fail("ECP_REQUEST_INVALID", "include scripts applies only to execution retrieve.")
+  }
+  if (input.filter?.dir !== undefined && input.type !== "execution") {
+    return fail("ECP_REQUEST_INVALID", "filter.dir applies only to execution retrieve.")
+  }
 
   if (input.type === "capability") {
     const all = plugins.capabilities()
@@ -250,14 +293,89 @@ async function loadRetrievePayload(
   }
 
   if (input.type === "execution") {
-    if (input.id) {
-      const item = await storage.getExecution(input.id)
-      if (!item) {
-        const ids = (await storage.listExecutions()).map((row) => row.id)
-        return fail("ECP_NOT_FOUND", `Execution ${input.id} was not found.`, { suggestions: closeMatches(input.id, ids) })
+    const dir = input.filter?.dir
+    if (dir !== undefined) {
+      if (input.id || input.path || input.query) {
+        return fail("ECP_REQUEST_INVALID", "filter.dir cannot be combined with id, path, or query.")
+      }
+      if (input.include?.includes("scripts")) {
+        return fail("ECP_REQUEST_INVALID", "include scripts applies only when retrieving one execution.")
+      }
+      if (!storage.executionFiles) return missingPathStorage()
+      const rows = await storage.executionFiles.list(dir)
+      const sorted = [...rows].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+      return ok({ type: "execution", items: sorted.slice(0, limit), total: sorted.length })
+    }
+
+    if (input.path) {
+      if (!storage.executionFiles) return missingPathStorage()
+      if (!input.path.endsWith(".ecp.json")) {
+        return fail("ECP_REQUEST_INVALID", "Execution paths must end with .ecp.json.")
+      }
+      let stat: { text: string; version: string; updatedAt: string }
+      try {
+        stat = await storage.executionFiles.stat(input.path)
+      } catch (error) {
+        return fromThrown(error)
+      }
+      const loaded = loadExecutionText(stat.text)
+      if (loaded.issues.length > 0) {
+        return fail("ECP_EXECUTION_LOAD", loaded.issues[0]?.message ?? "Execution text is not JSON.", {
+          issues: loaded.issues,
+        })
+      }
+      const manifest = loaded.manifest as ExecutionManifest
+      const executionDir = dirnameOf(input.path) ?? "."
+      const validation = await validateWithHostCache(services, {}, manifest, {
+        configs: await storage.listConfigs(),
+        executionDir,
+        readText: (filePath) => storage.readTextFile(filePath),
+      })
+      const item: ExecutionItem = {
+        path: input.path,
+        version: stat.version,
+        manifest,
+        issues: validation.issues,
+        warnings: executionWarnings(validation.issues),
+        updatedAt: stat.updatedAt,
+      }
+      if (input.include?.includes("scripts")) {
+        try {
+          item.scripts = await storage.executionFiles.readScripts(executionDir, manifest)
+        } catch (error) {
+          return fromThrown(error)
+        }
       }
       return ok({ type: "execution", item })
     }
+
+    if (input.id) {
+      const stored = await storage.getExecution(input.id)
+      if (!stored) {
+        const ids = (await storage.listExecutions()).map((row) => row.id)
+        return fail("ECP_NOT_FOUND", `Execution ${input.id} was not found.`, { suggestions: closeMatches(input.id, ids) })
+      }
+      const validation = await validateWithHostCache(services, {}, stored.manifest, {
+        configs: await storage.listConfigs(),
+      })
+      const item: ExecutionItem = {
+        id: stored.id,
+        version: stored.version,
+        manifest: stored.manifest,
+        issues: validation.issues,
+        warnings: stored.warnings.length > 0 ? stored.warnings : executionWarnings(validation.issues),
+        updatedAt: stored.updatedAt,
+      }
+      if (input.include?.includes("scripts")) {
+        item.scripts = {}
+      }
+      return ok({ type: "execution", item })
+    }
+
+    if (input.include?.includes("scripts")) {
+      return fail("ECP_REQUEST_INVALID", "include scripts applies only when retrieving one execution.")
+    }
+
     const listed = await storage.listExecutions()
     if (input.query) {
       const full = await Promise.all(listed.map(async (row) => storage.getExecution(row.id)))
@@ -770,6 +888,34 @@ async function commit(
     if ((input.action === "update" || input.action === "delete") && input.ifVersion === undefined) {
       return fail("ECP_REQUEST_INVALID", "ifVersion is required for update and delete.")
     }
+    if (input.draft === true && (input.type !== "execution" || input.action === "delete")) {
+      return fail("ECP_REQUEST_INVALID", "draft applies only to execution create or update.")
+    }
+    if (input.scripts !== undefined && (input.type !== "execution" || input.action === "delete")) {
+      return fail("ECP_REQUEST_INVALID", "scripts applies only to execution create or update.")
+    }
+    if (input.id !== undefined && input.path !== undefined) {
+      return fail("ECP_REQUEST_INVALID", "Pass id or path, not both.")
+    }
+    if (input.path !== undefined && input.action === "create") {
+      return fail("ECP_REQUEST_INVALID", "create does not accept path.")
+    }
+    if (input.path !== undefined && input.action !== "create" && typeof input.ifVersion !== "string") {
+      return fail("ECP_REQUEST_INVALID", "ifVersion for a path must be a string.")
+    }
+    if (
+      input.path === undefined &&
+      input.action !== "create" &&
+      (typeof input.ifVersion !== "number" || !Number.isInteger(input.ifVersion) || (input.ifVersion as number) < 1)
+    ) {
+      return fail("ECP_REQUEST_INVALID", "ifVersion for a stored id must be an integer.")
+    }
+    if (input.path !== undefined && !services.get(StorageProvider).executionFiles) {
+      return missingPathStorage()
+    }
+    if (input.scripts !== undefined && input.path === undefined) {
+      return fail("ECP_REQUEST_INVALID", "scripts requires a path-addressed execution.")
+    }
 
     const storage = services.get(StorageProvider)
     if (input.type === "execution") {
@@ -787,9 +933,23 @@ async function commitExecution(
   input: CommitInput,
   schemaCache: { current?: SchemaCache },
 ): Promise<OperationResponse<CommitData>> {
+  const files = storage.executionFiles
+
   if (input.action === "delete") {
+    if (input.path) {
+      if (!files) return missingPathStorage()
+      if (!input.path.endsWith(".ecp.json")) {
+        return fail("ECP_REQUEST_INVALID", "Execution paths must end with .ecp.json.")
+      }
+      try {
+        await files.remove(input.path, input.ifVersion as string)
+      } catch (error) {
+        return fromThrown(error)
+      }
+      return ok({ type: "execution", version: null })
+    }
     if (!input.id) return fail("ECP_REQUEST_INVALID", "id is required for delete.")
-    await storage.deleteExecution(input.id, input.ifVersion!)
+    await storage.deleteExecution(input.id, input.ifVersion as number)
     return ok({ type: "execution", id: input.id, version: null })
   }
 
@@ -800,6 +960,35 @@ async function commitExecution(
     manifest = input.object
     id = id ?? manifest.execution?.id
     if (!id) return fail("ECP_REQUEST_INVALID", "create requires id or execution.id.")
+  } else if (input.path) {
+    if (!files) return missingPathStorage()
+    if (!input.path.endsWith(".ecp.json")) {
+      return fail("ECP_REQUEST_INVALID", "Execution paths must end with .ecp.json.")
+    }
+    let currentText: string
+    try {
+      currentText = (await files.stat(input.path)).text
+    } catch (error) {
+      return fromThrown(error)
+    }
+    const loaded = loadExecutionText(currentText)
+    if (loaded.issues.length > 0) {
+      return fail("ECP_EXECUTION_LOAD", loaded.issues[0]?.message ?? "Execution text is not JSON.", {
+        issues: loaded.issues,
+      })
+    }
+    const currentManifest = loaded.manifest as ExecutionManifest
+    if (input.patch) {
+      try {
+        manifest = applyPatch(currentManifest, input.patch)
+      } catch (error) {
+        return fromThrown(error)
+      }
+    } else if (isManifest(input.object)) {
+      manifest = input.object
+    } else {
+      return fail("ECP_REQUEST_INVALID", "update requires object or patch.")
+    }
   } else {
     if (!id) return fail("ECP_REQUEST_INVALID", "id is required for update.")
     const current = await storage.getExecution(id)
@@ -817,10 +1006,16 @@ async function commitExecution(
     }
   }
 
-  const validation = await validateWithHostCache(services, schemaCache, manifest, {
+  const executionDir = input.path ? (dirnameOf(input.path) ?? ".") : undefined
+  const validationRun = await validateWithHostCacheLayers(services, schemaCache, manifest, {
     configs: await storage.listConfigs(),
+    ...(executionDir
+      ? { executionDir, readText: (filePath: string) => storage.readTextFile(filePath) }
+      : {}),
   })
-  if (validation.issues.some((issue) => issue.severity === "error")) {
+  const validation = validationRun.result
+  const strictErrors = validation.issues.some((issue) => issue.severity === "error")
+  if (!input.draft && strictErrors) {
     return {
       ok: false,
       error: {
@@ -830,13 +1025,42 @@ async function commitExecution(
       },
     }
   }
+  if (input.draft && validationRun.blocksDraft) {
+    return {
+      ok: false,
+      error: {
+        code: "ECP_MANIFEST_INVALID",
+        message: "The execution is invalid.",
+        issues: validation.issues,
+      },
+    }
+  }
+
   const warnings = validation.issues.filter((issue) => issue.severity === "warning")
+
+  if (input.path && files) {
+    const text = executionManifestText(manifest)
+    try {
+      const { version } = await files.write(input.path, text, {
+        ifVersion: input.ifVersion as string | undefined,
+        scripts: input.scripts,
+      })
+      const data: CommitData = { type: "execution", version, warnings }
+      if (input.draft) data.issues = validation.issues
+      return ok(data)
+    } catch (error) {
+      return fromThrown(error)
+    }
+  }
+
   const { version } = await storage.putExecution(id!, manifest, {
     create: input.action === "create",
-    ifVersion: input.ifVersion,
+    ifVersion: typeof input.ifVersion === "number" ? input.ifVersion : undefined,
     warnings,
   })
-  return ok({ type: "execution", id: id!, version, warnings })
+  const data: CommitData = { type: "execution", id: id!, version, warnings }
+  if (input.draft) data.issues = validation.issues
+  return ok(data)
 }
 
 async function commitConfig(
@@ -846,7 +1070,7 @@ async function commitConfig(
 ): Promise<OperationResponse<CommitData>> {
   if (input.action === "delete") {
     if (!input.id) return fail("ECP_REQUEST_INVALID", "id is required for delete.")
-    await storage.deleteConfig(input.id, input.ifVersion!)
+    await storage.deleteConfig(input.id, input.ifVersion as number)
     return ok({ type: "config", id: input.id, version: null })
   }
 
@@ -888,7 +1112,7 @@ async function commitConfig(
 
   const { version } = await storage.putConfig(config, {
     create: input.action === "create",
-    ifVersion: input.ifVersion,
+    ifVersion: typeof input.ifVersion === "number" ? input.ifVersion : undefined,
   })
   return ok({ type: "config", id: config.id, version })
 }

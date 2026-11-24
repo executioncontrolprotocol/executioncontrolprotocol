@@ -1,7 +1,7 @@
 import { Command, Flags } from "@oclif/core"
 import { discoverOps } from "../lib/host-discovery.js"
 import { hostUnavailableEnvelope, isHostUnavailableError } from "../lib/host-unavailable.js"
-import { parseFilters, parseInclude } from "../lib/input.js"
+import { parseFilters, parseInclude, resolvePath } from "../lib/input.js"
 import { finishOperation, printRetrieveHuman, writeEnvelope } from "../lib/output.js"
 import type { RetrieveInput, RetrieveType } from "@executioncontrolprotocol/protocol"
 
@@ -39,12 +39,18 @@ export default class Retrieve extends Command {
       description: "What to list or fetch (capability, execution, config, run, plugin, formatter, schema).",
     }),
     id: Flags.string({ description: "Fetch one item by id instead of listing." }),
+    path: Flags.string({ description: "Fetch one execution file by absolute or cwd-relative path." }),
     query: Flags.string({ description: "Fuzzy search string when listing capabilities or executions." }),
     limit: Flags.integer({ description: "Maximum rows to return (default 10, max 100)." }),
     include: Flags.string({
-      description: "Comma-separated extras: run detail (steps, events, manifest, state) or schema document with --type schema.",
+      description:
+        "Comma-separated extras: run detail (steps, events, manifest, state, scripts) or schema document with --type schema.",
     }),
-    filter: Flags.string({ multiple: true, description: "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId; e.g. status=failed." }),
+    filter: Flags.string({
+      multiple: true,
+      description:
+        "Narrow a list with key=value (repeatable): plugin, executionId, status, clientRequestId, dir; e.g. status=failed.",
+    }),
     format: Flags.string({ description: "Formatter id when --type formatter." }),
     out: Flags.string({ description: "Write full JSON result to this file and print a one-line summary." }),
     json: Flags.boolean({
@@ -79,13 +85,16 @@ export default class Retrieve extends Command {
       throw error
     }
     try {
+      const filter = parseFilters(flags.filter) as RetrieveInput["filter"]
+      if (filter?.dir) filter.dir = resolvePath(filter.dir)
       const input: RetrieveInput = {
         type: flags.type as RetrieveType,
         id: flags.id,
+        path: flags.path ? resolvePath(flags.path) : undefined,
         query: flags.query,
         limit: flags.limit,
         include: parseInclude(flags.include) as RetrieveInput["include"],
-        filter: parseFilters(flags.filter) as RetrieveInput["filter"],
+        filter,
         format: flags.format,
         output: flags.out ? { path: flags.out } : undefined,
       }

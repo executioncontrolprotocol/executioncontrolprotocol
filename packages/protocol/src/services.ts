@@ -158,6 +158,34 @@ export interface CapabilityCall {
 export type JsonSchema = Record<string, unknown>
 
 /**
+ * Path-addressed execution files on disk. Optional on {@link StorageProvider}; absent hosts
+ * refuse `path`, `filter.dir`, and commit `path`.
+ * @category Services
+ */
+export interface ExecutionFiles {
+  /** Read an execution file with its opaque version and mtime. */
+  stat(absolutePath: string): Promise<{ text: string; version: string; updatedAt: string }>
+  /** Recompute the version for text and manifest without reading from disk. */
+  versionOf(absolutePath: string, text: string, manifest: ExecutionManifest): Promise<string>
+  /**
+   * Write the execution file and optional scripts atomically per file. Scripts are written first,
+   * then the execution file. There is no rollback on partial failure; a failed write can leave
+   * script files updated while the execution file is still at the previous version.
+   */
+  write(
+    absolutePath: string,
+    text: string,
+    opts?: { ifVersion?: string; scripts?: Record<string, string> },
+  ): Promise<{ version: string }>
+  /** Delete an execution file when `ifVersion` matches. Does not remove script files. */
+  remove(absolutePath: string, ifVersion: string): Promise<void>
+  /** List `*.ecp.json` under `dir` with versions (depth 3, max 200). */
+  list(dir: string): Promise<Array<{ path: string; version: string }>>
+  /** Read every referenced `$script.path` as relative path → text. */
+  readScripts(executionDir: string, manifest: ExecutionManifest): Promise<Record<string, string>>
+}
+
+/**
  * Persisted executions, configs, runs and the files they reference.
  * @category Services
  */
@@ -190,6 +218,8 @@ export interface StorageProvider extends Lifecycle {
   readonly runs: RunStore
   /** Subscribe to store changes. The return value unsubscribes. */
   watch(listener: (change: StorageChange) => void): () => void
+  /** Path-addressed execution IO, when this host supports paths. */
+  executionFiles?: ExecutionFiles
 }
 
 /**

@@ -96,6 +96,7 @@ export type {
   CommitData,
   CommitInput,
   CommitType,
+  ExecutionItem,
   ExecuteData,
   ExecuteExecution,
   ExecuteInput,
@@ -172,6 +173,7 @@ export type {
   ScratchSpace as ScratchSpaceService,
   SecretsProvider as SecretsProviderService,
   ServiceToken,
+  ExecutionFiles,
   StorageProvider as StorageProviderService,
 } from "./services.js"
 export type {

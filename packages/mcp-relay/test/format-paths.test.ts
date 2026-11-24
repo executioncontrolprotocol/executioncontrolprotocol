@@ -3,7 +3,7 @@ import os from "node:os"
 import path from "node:path"
 import { formatData, formatEnvelope, formatError } from "../src/format.js"
 import { isConnectionError } from "../src/forward.js"
-import { resolveAgainst, resolveExecutePaths, resolveRetrievePaths } from "../src/paths.js"
+import { resolveAgainst, resolveCommitPaths, resolveExecutePaths, resolveRetrievePaths } from "../src/paths.js"
 import { asToolInputSchema, executeInputSchema, retrieveInputSchema } from "../src/schemas.js"
 
 describe("format and paths", () => {
@@ -62,6 +62,21 @@ describe("format and paths", () => {
     expect(resolveRetrievePaths({ type: "capability", output: { path: "cap.json" } }, cwd).output?.path).toBe(
       path.join(cwd, "cap.json"),
     )
+    expect(resolveRetrievePaths({ type: "execution", path: "flows/x.ecp.json" }, cwd).path).toBe(
+      path.join(cwd, "flows", "x.ecp.json"),
+    )
+    expect(
+      resolveRetrievePaths({ type: "execution", filter: { dir: "home" } }, cwd).filter?.dir,
+    ).toBe(path.join(cwd, "home"))
+    expect(resolveCommitPaths({ type: "execution", action: "update", path: "a.ecp.json" }, cwd).path).toBe(
+      path.join(cwd, "a.ecp.json"),
+    )
+    expect(
+      resolveCommitPaths(
+        { type: "execution", action: "update", path: "a.ecp.json", scripts: { "rel.js": "x" } },
+        cwd,
+      ).scripts,
+    ).toEqual({ "rel.js": "x" })
   })
 
   it("detects connection errors", () => {

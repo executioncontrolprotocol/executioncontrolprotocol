@@ -1,3 +1,4 @@
+import { request as httpRequest } from "node:http"
 import { mkdtemp } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -97,4 +98,101 @@ describe("GET /v1/watch", () => {
     await host.stop()
     void rawRequest
   }, 15_000)
+
+  it("filters execution storage events to watch id", async () => {
+    const home = await mkdtemp(path.join(os.tmpdir(), "ecp-watch-id-"))
+    const token = generateHostToken()
+    const host = await createLocalHost({
+      home,
+      mode: "server",
+      port: 0,
+      token,
+      extraPlugins: [pluginTestRoot],
+    })
+    const port = Number(new URL(host.url!).port)
+    const chunks: string[] = []
+    // Create the executions once, after the stream connects; later chunks are the events themselves.
+    let created = false
+    await new Promise<void>((resolve, reject) => {
+      const req = httpRequest(
+        {
+          hostname: "127.0.0.1",
+          port,
+          path: "/v1/watch?id=watched&types=execution",
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Host: `127.0.0.1:${port}`,
+            Accept: "text/event-stream",
+          },
+        },
+        (res) => {
+          expect(res.statusCode).toBe(200)
+          res.setEncoding("utf8")
+          res.on("data", (chunk: string) => {
+            chunks.push(chunk)
+            const body = chunks.join("")
+            if (!body.includes(": connected") || created) return
+            created = true
+            void host.services.get(StorageProvider).putExecution(
+              "watched",
+              {
+                schema: "@executioncontrolprotocol.execution",
+                version: "2.0",
+                steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "s" }],
+              },
+              { create: true },
+            )
+            void host.services.get(StorageProvider).putExecution(
+              "other",
+              {
+                schema: "@executioncontrolprotocol.execution",
+                version: "2.0",
+                steps: [{ id: "t", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" }, as: "t" }],
+              },
+              { create: true },
+            )
+            if (body.includes("watched") && !body.includes('"other"')) {
+              req.destroy()
+              resolve()
+            }
+          })
+          res.on("error", reject)
+        },
+      )
+      req.on("error", (error) => {
+        if ((error as NodeJS.ErrnoException).code === "ECONNRESET") resolve()
+        else reject(error)
+      })
+      req.end()
+      setTimeout(() => {
+        req.destroy()
+        resolve()
+      }, 5_000)
+    })
+    const body = chunks.join("")
+    expect(body).toContain("watched")
+    expect(body).not.toContain('"other"')
+    await host.stop()
+  }, 15_000)
+
+  it("rejects id and path together", async () => {
+    const home = await mkdtemp(path.join(os.tmpdir(), "ecp-watch-both-"))
+    const token = generateHostToken()
+    const host = await createLocalHost({
+      home,
+      mode: "server",
+      port: 0,
+      token,
+      extraPlugins: [pluginTestRoot],
+    })
+    const res = await rawRequest({
+      baseUrl: host.url!,
+      path: `/v1/watch?id=alpha&path=${encodeURIComponent(path.join(home, "x.ecp.json"))}`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(400)
+    await host.stop()
+  })
 })

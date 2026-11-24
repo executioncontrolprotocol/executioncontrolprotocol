@@ -29,6 +29,7 @@ import {
   SCRIPT_FILE_MAX_BYTES,
   stableStringify,
 } from "./paths.js"
+import { LocalExecutionFiles } from "./execution-files.js"
 import { LocalRunStore } from "./run-store.js"
 
 /**
@@ -46,6 +47,9 @@ export class LocalStorage implements StorageProvider {
   private debounceTimer?: ReturnType<typeof setTimeout>
   private lastSnapshot = ""
   readonly runs: LocalRunStore
+
+  /** Path-addressed execution file IO. */
+  readonly executionFiles = new LocalExecutionFiles()
 
   /**
    * @param ctx Service context from the environment.

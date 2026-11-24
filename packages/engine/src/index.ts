@@ -42,6 +42,7 @@ export {
   loadExecutionText,
   mapCapabilityInputIssues,
   validateExecution,
+  validateExecutionLayers,
 } from "./validate/validate.js"
 export type { SchemaFingerprint, ValidateOptions } from "./validate/validate.js"
 export {

@@ -323,6 +323,7 @@ export function printExecuteHuman(data: unknown): void {
  * @category CLI
  */
 export function printCommitHuman(data: unknown): void {
-  const row = data as { type: string; id: string; version: number | null }
-  process.stdout.write(`${row.type}  ${row.id}  ${row.version ?? "deleted"}\n`)
+  const row = data as { type: string; id?: string; version: number | string | null }
+  const label = row.id ?? "path"
+  process.stdout.write(`${row.type}  ${label}  ${row.version ?? "deleted"}\n`)
 }

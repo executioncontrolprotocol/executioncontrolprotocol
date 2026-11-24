@@ -9,6 +9,7 @@ import {
   HostSchemaSet,
   loadExecutionText,
   validateExecution,
+  validateExecutionLayers,
 } from "../src/index.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -453,6 +454,23 @@ describe("validation output contract (F2–F4)", () => {
     expect(result.issues).toHaveLength(4)
     expect(result.issues.every((issue) => issue.code === "ECP_MANIFEST_INVALID")).toBe(true)
     expect(JSON.stringify(result.issues)).not.toMatch(/boolean schema is false/i)
+  })
+
+  it("validateExecutionLayers marks L0 and L1 as blocking draft", async () => {
+    const detached = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "s" }],
+      detached: [{ id: "d", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" }, as: "d" }],
+    } satisfies ExecutionManifest
+    const l2 = await validateExecutionLayers(detached, validateOpts)
+    expect(l2.blocksDraft).toBe(false)
+    expect(l2.result.issues.some((issue) => issue.code === "ECP_NODE_DETACHED")).toBe(true)
+    const l1 = await validateExecutionLayers(
+      { schema: "wrong", version: "2.0", steps: detached.steps },
+      validateOpts,
+    )
+    expect(l1.blocksDraft).toBe(true)
   })
 
 })

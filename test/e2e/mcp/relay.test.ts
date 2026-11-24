@@ -149,6 +149,37 @@ describe("mcp relay e2e", () => {
     expect(existsSync(path.join(cwd, outRel))).toBe(true)
   }, 120_000)
 
+  it("commits a draft by relative execution path", async () => {
+    const { home, env } = await createCliHome()
+    const cwd = path.join(home, "work")
+    mkdirSync(cwd, { recursive: true })
+    const execPath = path.join(cwd, "draft.ecp.json")
+    writeFileSync(execPath, readFileSync(path.join(fixturesRoot, "manifests/runs/echo.ecp.json"), "utf8"))
+    const session = await openMcpSession({ env, cwd })
+    cleanups.push(session.close)
+
+    const opened = await callTool(session.client, "retrieve", {
+      type: "execution",
+      path: "draft.ecp.json",
+    })
+    expect(opened.isError).toBeUndefined()
+    const version = (opened.structuredContent as { item: { version: string } }).item.version
+
+    const manifest = JSON.parse(readFileSync(execPath, "utf8")) as Record<string, unknown>
+    manifest.execution = { id: "draft", label: "MCP draft" }
+    const committed = await callTool(session.client, "commit", {
+      type: "execution",
+      action: "update",
+      path: "draft.ecp.json",
+      draft: true,
+      ifVersion: version,
+      object: manifest,
+    })
+    expect(committed.isError).toBeUndefined()
+    expect(typeof (committed.structuredContent as { version?: string }).version).toBe("string")
+    expect(readFileSync(execPath, "utf8")).toContain("MCP draft")
+  }, 120_000)
+
   it("cold start: no host → relay starts it; stdout is MCP frames only", async () => {
     const { home, env } = await createCliHome()
     expect(existsSync(path.join(home, "host.json"))).toBe(false)
