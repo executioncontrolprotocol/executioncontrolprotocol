@@ -42,6 +42,8 @@ export interface CapabilityMenuRequest {
   origin?: CapabilityOriginPort
   /** Port schema at the drop origin (for compatibility wiring). */
   originPort?: ReactFlowPort
+  /** Flow point for cursor placement (pane right-click or empty-canvas drop). */
+  flowPosition?: { x: number; y: number }
 }
 
 interface CapabilityMenuProps {

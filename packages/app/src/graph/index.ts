@@ -139,7 +139,26 @@ export {
   valueSchemasFromCapabilitySchema,
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
-export { layoutReactFlowDocument } from "./layout.js"
+export {
+  boundsAroundNodeIds,
+  frameBounds,
+  FRAME_PADDING,
+  layoutReactFlowDocument,
+  unionRect,
+  type BoundsNode,
+  type FrameMembership,
+  type FrameRect,
+} from "./layout.js"
+export {
+  POSITION_STORAGE_PREFIX,
+  parsePositionOverrides,
+  placeWithOverrides,
+  positionStorageKey,
+  prunePositionOverrides,
+  reactFlowLayoutFitKey,
+  type NodePosition,
+  type PositionOverrides,
+} from "./positions.js"
 export {
   ReactFlowRunProgress,
   reactFlowRunProgress,

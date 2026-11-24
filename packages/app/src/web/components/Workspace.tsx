@@ -6,7 +6,10 @@ import {
   addCapabilityStep,
   executionToReactFlow,
   insertConnectedStep,
+  placeWithOverrides,
+  reactFlowLayoutFitKey,
   replayRunEvents,
+  type PositionOverrides,
   type ReactFlowDocument,
   type RunGraphState,
 } from "../../graph/index.js"
@@ -26,6 +29,7 @@ import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
 import { CapabilityMenu, type CapabilityMenuRequest } from "./CapabilityMenu.js"
+import { usePositionOverrides } from "../hooks/usePositionOverrides.js"
 import type { CapabilityMenuEntry } from "../lib/group-capabilities.js"
 
 /**
@@ -57,6 +61,7 @@ export interface WorkspaceProps {
 
 interface EncodedGraph {
   document?: ReactFlowDocument
+  layoutKey?: string
   error?: string
 }
 
@@ -100,7 +105,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const [capabilityMenu, setCapabilityMenu] = useState<CapabilityMenuRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
+  const lastLayoutKey = useRef<string | undefined>(undefined)
   const prevLoads = useRef(doc.loads)
+  const suppressNextFit = useRef(false)
 
   useEffect(() => {
     if (doc.loads > prevLoads.current && draftManifest !== undefined) {
@@ -110,19 +117,43 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     prevLoads.current = doc.loads
   }, [doc.loads, draftManifest])
 
-  const encoded = useMemo<EncodedGraph>(() => {
-    if (!doc.manifest) return { document: lastGood.current }
+  const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
+    if (!doc.manifest) return {}
     try {
-      const document = executionToReactFlow(doc.manifest, { capabilitySchemas: capabilities.schemas })
-      lastGood.current = document
-      return { document }
+      return { document: executionToReactFlow(doc.manifest, { capabilitySchemas: capabilities.schemas }) }
     } catch (error) {
-      return {
-        document: lastGood.current,
-        error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}`,
-      }
+      return { error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}` }
     }
   }, [doc.manifest, capabilities.schemas])
+  const dagreDocument = dagre.document
+
+  const graphIdSets = useMemo(() => {
+    if (!dagreDocument) return { nonFrame: [] as string[], frames: [] as string[] }
+    const nonFrame: string[] = []
+    const frames: string[] = []
+    for (const node of dagreDocument.nodes) {
+      if (node.type === "ecp-frame") frames.push(node.id)
+      else nonFrame.push(node.id)
+    }
+    return { nonFrame, frames }
+  }, [dagreDocument])
+
+  const { overrides, commit: commitOverrides, clear: clearOverrides } = usePositionOverrides(
+    source,
+    graphIdSets.nonFrame,
+    graphIdSets.frames,
+  )
+
+  const encoded = useMemo<EncodedGraph>(() => {
+    if (!dagreDocument) return { document: lastGood.current, layoutKey: lastLayoutKey.current }
+    const layoutKey = reactFlowLayoutFitKey(dagreDocument)
+    const document = placeWithOverrides(dagreDocument, overrides)
+    lastGood.current = document
+    lastLayoutKey.current = layoutKey
+    return { document, layoutKey }
+  }, [dagreDocument, overrides])
+
+  const encodeError = dagre.error
 
   const nodeErrors = useMemo(
     () => nodeErrorIssues(doc.validation?.issues ?? [], doc.manifest),
@@ -168,12 +199,24 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       placement: CapabilityMenuRequest["placement"],
       origin?: CapabilityMenuRequest["origin"],
       originPort?: CapabilityMenuRequest["originPort"],
+      flowPosition?: CapabilityMenuRequest["flowPosition"],
     ) => {
       if (readOnly) return
-      setCapabilityMenu({ clientX, clientY, placement, origin, originPort })
+      setCapabilityMenu({ clientX, clientY, placement, origin, originPort, flowPosition })
     },
     [readOnly],
   )
+
+  const onPositionDragStop = useCallback(
+    (updates: PositionOverrides) => {
+      commitOverrides((current) => ({ ...current, ...updates }))
+    },
+    [commitOverrides],
+  )
+
+  const onAutoLayout = useCallback(() => {
+    clearOverrides()
+  }, [clearOverrides])
 
   const onCapabilityPick = useCallback(
     (entry: CapabilityMenuEntry) => {
@@ -187,6 +230,14 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
         setSelectedStepIds([stepId])
         setSelectedId(stepId)
         setTab("graph")
+      }
+
+      const applyFlowPosition = (saved: boolean): void => {
+        if (saved && stepId && request.flowPosition) {
+          suppressNextFit.current = true
+          commitOverrides((current) => ({ ...current, [stepId!]: request.flowPosition! }))
+        }
+        finish(saved)
       }
 
       if (request.origin && request.originPort) {
@@ -208,7 +259,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               )
               if (result.ok) stepId = result.stepId
               return result
-            }).then(finish)
+            }).then(applyFlowPosition)
           })
         return
       }
@@ -217,9 +268,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
         const result = addCapabilityStep(current, { id: entry.id }, request.placement)
         if (result.ok) stepId = result.stepId
         return result
-      }).then(finish)
+      }).then(applyFlowPosition)
     },
-    [applyManifestEdit, capabilityMenu, client, readOnly],
+    [applyManifestEdit, capabilityMenu, client, commitOverrides, readOnly],
   )
 
   const onRun = useCallback(
@@ -287,9 +338,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </span>
         </div>
       ) : null}
-      {encoded.error ? (
+      {encodeError ? (
         <div role="alert" className="shrink-0 border-b border-error/40 px-gutter py-2 text-[13px] text-error">
-          {encoded.error}
+          {encodeError}
         </div>
       ) : null}
       {draftDiscardNote ? (
@@ -304,6 +355,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             <>
             <GraphCanvas
               document={encoded.document}
+              layoutKey={encoded.layoutKey ?? ""}
               manifest={doc.manifest}
               run={overlay}
               nodeErrors={nodeErrors}
@@ -318,6 +370,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               focus={focus}
               onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
               onMenuDismiss={() => setCapabilityMenu(undefined)}
+              onPositionDragStop={onPositionDragStop}
+              onAutoLayout={onAutoLayout}
+              suppressNextFitRef={suppressNextFit}
             />
             {capabilityMenu && !readOnly ? (
               <CapabilityMenu

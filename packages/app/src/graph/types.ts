@@ -110,6 +110,12 @@ export interface ReactFlowFrameData {
   loopMode?: "while" | "for" | "forEach"
   /** Node `label`, or the fallback summary. */
   label?: string
+  /** Body node ids used to size this frame after layout overrides. */
+  memberNodeIds: string[]
+  /** Nested frame ids contained in this frame. */
+  childFrameIds: string[]
+  /** Nesting depth (`0` at the top level). */
+  depth: number
 }
 
 /**

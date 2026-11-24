@@ -1,8 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
+import { LayoutGrid } from "lucide-react"
 import {
   applyNodeChanges,
   Background,
   BackgroundVariant,
+  ControlButton,
   Controls,
   ReactFlow,
   ReactFlowProvider,
@@ -37,7 +39,10 @@ import {
   CONNECTION_EDIT_INCOMPATIBLE,
   FLOW_IN_HANDLE,
   FLOW_OUT_HANDLE,
+  frameBounds,
   type AddStepPlacement,
+  type FrameMembership,
+  type PositionOverrides,
   type ReactFlowDocument,
   type ReactFlowFrameData,
   type ReactFlowNode,
@@ -100,8 +105,10 @@ export interface FocusRequest {
  * @category App
  */
 export interface GraphCanvasProps {
-  /** Encoded, laid-out execution. */
+  /** Encoded, laid-out execution (with position overrides applied). */
   document: ReactFlowDocument
+  /** Fit key from the pre-override dagre document. */
+  layoutKey: string
   /** Open execution manifest (for menus). */
   manifest: ExecutionManifest
   /** Run statuses to overlay (live or replayed). */
@@ -135,7 +142,14 @@ export interface GraphCanvasProps {
     placement: AddStepPlacement,
     origin?: CapabilityOriginPort,
     originPort?: ReactFlowPort,
+    flowPosition?: { x: number; y: number },
   ) => void
+  /** Persist drag stop positions to browser storage. */
+  onPositionDragStop: (updates: PositionOverrides) => void
+  /** Clear overrides and storage for this execution. */
+  onAutoLayout: () => void
+  /** Skip the next layout-driven fit (cursor-placed step). */
+  suppressNextFitRef?: MutableRefObject<boolean>
 }
 
 function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | undefined): AddStepPlacement {
@@ -278,7 +292,6 @@ function buildNodes(
       data,
       selected: stepSelected || loopSelected || (node.type === "ecp-io" && selectedId === node.id),
       zIndex: 1000,
-      draggable: false,
       connectable: flowConnectable,
       deletable: false,
       ...(node.style?.width !== undefined ? { style: { width: node.style.width } } : {}),
@@ -339,10 +352,38 @@ function FocusNode({ focus }: { focus?: FocusRequest }) {
   return null
 }
 
-function layoutFitKey(document: ReactFlowDocument): string {
-  return document.nodes
-    .map((node) => `${node.id}:${node.position.x}:${node.position.y}:${node.style?.width ?? ""}:${node.style?.height ?? ""}`)
-    .join("|")
+function frameMembershipFromNodes(nodes: readonly Node[]): FrameMembership[] {
+  const out: FrameMembership[] = []
+  for (const node of nodes) {
+    if (node.type !== "ecp-frame") continue
+    const data = node.data as unknown as ReactFlowFrameData
+    out.push({
+      frameId: node.id,
+      memberNodeIds: data.memberNodeIds,
+      childFrameIds: data.childFrameIds,
+      depth: data.depth,
+    })
+  }
+  return out
+}
+
+function applyFrameBoundsToNodes(nodes: Node[]): Node[] {
+  const rects = frameBounds(nodes, frameMembershipFromNodes(nodes))
+  return nodes.map((node) => {
+    if (node.type !== "ecp-frame") return node
+    const rect = rects.get(node.id)
+    if (!rect) return node
+    return {
+      ...node,
+      position: { x: rect.x, y: rect.y },
+      style: {
+        ...(node.style ?? {}),
+        width: rect.width,
+        height: rect.height,
+        pointerEvents: "none",
+      },
+    }
+  })
 }
 
 function CaptureFlowProjection() {
@@ -358,17 +399,30 @@ const FlowProjectionRefContext = createContext<
   React.MutableRefObject<((position: { x: number; y: number }) => { x: number; y: number }) | undefined> | undefined
 >(undefined)
 
-function FitGraphOnLayout({ layoutKey }: { layoutKey: string }) {
+function FitGraphOnLayout({
+  layoutKey,
+  suppressNextFitRef,
+}: {
+  layoutKey: string
+  suppressNextFitRef?: MutableRefObject<boolean>
+}) {
   const { fitView } = useReactFlow()
   const lastKey = useRef<string | undefined>(undefined)
+  const initialMount = useRef(true)
   useEffect(() => {
     if (layoutKey === lastKey.current) return
+    const first = initialMount.current
+    initialMount.current = false
     lastKey.current = layoutKey
+    if (!first && suppressNextFitRef?.current) {
+      suppressNextFitRef.current = false
+      return
+    }
     const frame = requestAnimationFrame(() => {
       void fitView(FIT_VIEW_OPTIONS)
     })
     return () => cancelAnimationFrame(frame)
-  }, [fitView, layoutKey])
+  }, [fitView, layoutKey, suppressNextFitRef])
 
   useEffect(() => {
     const onResize = (): void => {
@@ -396,8 +450,26 @@ export function GraphCanvas(props: GraphCanvasProps) {
   )
 }
 
+function AutoLayoutControl({ onAutoLayout }: { onAutoLayout: () => void }) {
+  const { fitView } = useReactFlow()
+  return (
+    <ControlButton
+      onClick={() => {
+        onAutoLayout()
+        void fitView(FIT_VIEW_OPTIONS)
+      }}
+      title="Auto layout"
+      data-testid="canvas-auto-layout"
+      aria-label="Auto layout"
+    >
+      <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+    </ControlButton>
+  )
+}
+
 function GraphCanvasBody({
   document,
+  layoutKey,
   manifest,
   run,
   nodeErrors,
@@ -412,8 +484,10 @@ function GraphCanvasBody({
   focus,
   onOpenCapabilityMenu,
   onMenuDismiss,
+  onPositionDragStop,
+  onAutoLayout,
+  suppressNextFitRef,
 }: GraphCanvasProps) {
-  const layoutKey = useMemo(() => layoutFitKey(document), [document])
   const built = useMemo(
     () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly),
     [document, run, nodeErrors, selectedId, selectedStepIds, readOnly],
@@ -441,17 +515,41 @@ function GraphCanvasBody({
   useEffect(() => {
     setNodes((previous) => {
       const measured = new Map(previous.map((node) => [node.id, node.measured]))
-      return built.map((node) => {
+      const dragging = new Map(
+        previous.filter((node) => node.dragging === true).map((node) => [node.id, node.position] as const),
+      )
+      const merged = built.map((node) => {
         const size = measured.get(node.id)
-        return size ? { ...node, measured: size } : node
+        const dragPos = dragging.get(node.id)
+        let next = size ? { ...node, measured: size } : node
+        if (dragPos) next = { ...next, position: dragPos, dragging: true }
+        return next
       })
+      return dragging.size > 0 ? applyFrameBoundsToNodes(merged) : merged
     })
   }, [built])
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const kept = changes.filter((change) => change.type === "dimensions")
-    if (kept.length > 0) setNodes((current) => applyNodeChanges(kept, current))
+    const kept = changes.filter((change) => change.type === "dimensions" || change.type === "position")
+    if (kept.length === 0) return
+    setNodes((current) => {
+      const next = applyNodeChanges(kept, current)
+      if (kept.some((change) => change.type === "position")) return applyFrameBoundsToNodes(next)
+      return next
+    })
   }, [])
+
+  const onNodeDragStop = useCallback(
+    (_event: MouseEvent | TouchEvent, _node: Node, dragged: Node[]) => {
+      const updates: PositionOverrides = {}
+      for (const node of dragged) {
+        if (node.type === "ecp-frame") continue
+        updates[node.id] = { x: node.position.x, y: node.position.y }
+      }
+      if (Object.keys(updates).length > 0) onPositionDragStop(updates)
+    },
+    [onPositionDragStop],
+  )
 
   const closeMenu = useCallback(() => setMenu(undefined), [])
 
@@ -556,7 +654,9 @@ function GraphCanvasBody({
             fromHandle.id ?? "",
             side === "output" ? "output" : "input",
           ) ?? ({ id: fromHandle.id ?? "", name: fromHandle.id ?? "", typeLabel: "unknown" } satisfies ReactFlowPort)
-        onOpenCapabilityMenu(clientX, clientY, placement, origin, originPort)
+        const project = screenToFlowRef.current
+        const flowPosition = project ? project({ x: clientX, y: clientY }) : undefined
+        onOpenCapabilityMenu(clientX, clientY, placement, origin, originPort, flowPosition)
       }
     },
     [applyEdit, document, manifest, onOpenCapabilityMenu, readOnly],
@@ -576,6 +676,7 @@ function GraphCanvasBody({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
+      onNodeDragStop={onNodeDragStop}
       onMove={() => {
         closeMenu()
         onMenuDismiss?.()
@@ -634,7 +735,7 @@ function GraphCanvasBody({
           return
         }
         if (readOnly || !onOpenCapabilityMenu) return
-        onOpenCapabilityMenu(event.clientX, event.clientY, topLevelPlacement(manifest, selectedId))
+        onOpenCapabilityMenu(event.clientX, event.clientY, topLevelPlacement(manifest, selectedId), undefined, undefined, flow)
       }}
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
@@ -648,7 +749,7 @@ function GraphCanvasBody({
         closeMenu()
         onMenuDismiss?.()
       }}
-      nodesDraggable={false}
+      nodesDraggable
       nodesConnectable={!readOnly}
       elementsSelectable
       minZoom={0.1}
@@ -656,9 +757,11 @@ function GraphCanvasBody({
       colorMode="dark"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--color-surface-container-highest)" />
-      <Controls showInteractive={false} />
+      <Controls showInteractive={false}>
+        <AutoLayoutControl onAutoLayout={onAutoLayout} />
+      </Controls>
       <FocusNode focus={focus} />
-      <FitGraphOnLayout layoutKey={layoutKey} />
+      <FitGraphOnLayout layoutKey={layoutKey} suppressNextFitRef={suppressNextFitRef} />
       <CaptureFlowProjection />
     </ReactFlow>
     </CanvasEditContext.Provider>

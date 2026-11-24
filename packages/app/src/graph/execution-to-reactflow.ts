@@ -16,7 +16,7 @@ import {
   returnsReactFlowNode,
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
-import { boundsAroundNodeIds, FRAME_PADDING, layoutReactFlowDocument } from "./layout.js"
+import { frameBounds, layoutReactFlowDocument } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import type {
   CapabilitySchemaIndex,
@@ -582,21 +582,6 @@ function publishOrphanSequenceEdges(
   return out
 }
 
-interface FrameRect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-function unionRect(a: FrameRect, b: FrameRect): FrameRect {
-  const x = Math.min(a.x, b.x)
-  const y = Math.min(a.y, b.y)
-  const x2 = Math.max(a.x + a.width, b.x + b.width)
-  const y2 = Math.max(a.y + a.height, b.y + b.height)
-  return { x, y, width: x2 - x, height: y2 - y }
-}
-
 function frameNodesForStructures(
   laid: ReactFlowDocument,
   frames: readonly StructureFrame[],
@@ -605,26 +590,7 @@ function frameNodesForStructures(
 ): ReactFlowNode[] {
   const nodeWidth = options?.nodeWidth ?? 260
   const nodeHeight = options?.nodeHeight ?? 160
-  const rects = new Map<string, FrameRect>()
-  const byDepth = [...frames].sort((a, b) => b.depth - a.depth)
-
-  for (const spec of byDepth) {
-    let inner = boundsAroundNodeIds(laid.nodes, spec.memberNodeIds, nodeWidth, nodeHeight)
-    for (const childId of spec.childFrameIds) {
-      const child = rects.get(childId)
-      if (!child) continue
-      inner = inner ? unionRect(inner, child) : child
-    }
-    if (!inner) continue
-    const pad = FRAME_PADDING
-    const labelGap = pad.label
-    rects.set(spec.frameId, {
-      x: inner.x - pad.x,
-      y: inner.y - pad.y - labelGap,
-      width: inner.width + pad.x * 2,
-      height: inner.height + pad.y * 2 + labelGap,
-    })
-  }
+  const rects = frameBounds(laid.nodes, frames, { nodeWidth, nodeHeight })
 
   const out: ReactFlowNode[] = []
   for (const spec of frames) {
@@ -635,6 +601,9 @@ function frameNodesForStructures(
       structureKind: spec.structureKind,
       ...(spec.loopMode !== undefined ? { loopMode: spec.loopMode } : {}),
       label: spec.label,
+      memberNodeIds: [...spec.memberNodeIds],
+      childFrameIds: [...spec.childFrameIds],
+      depth: spec.depth,
       ...(detachedStructureIds?.has(spec.structureId) ? { detached: true } : {}),
     }
     out.push({
