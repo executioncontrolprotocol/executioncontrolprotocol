@@ -34,6 +34,8 @@ export interface EdgePanelProps {
   draft?: ExecutionManifest
   onDraftChange: (manifest: ExecutionManifest | undefined) => void
   edge?: ReactFlowEdge
+  /** Route stack level to inspect (`0` for data edges and path clicks). */
+  level?: number
   runId?: string
   runSource: "live" | "replay" | "none"
   onUnauthorized: () => void
@@ -113,6 +115,7 @@ export function EdgePanel({
   draft,
   onDraftChange,
   edge,
+  level = 0,
   runId,
   runSource,
   onUnauthorized,
@@ -131,8 +134,8 @@ export function EdgePanel({
 
   const routeMeta = useMemo(() => {
     if (!effective || !edge || edge.data.kind !== "route") return undefined
-    return routeEdgeInspectorMeta(effective, edge.data as ReactFlowRouteEdgeData)
-  }, [effective, edge])
+    return routeEdgeInspectorMeta(effective, edge.data as ReactFlowRouteEdgeData, level)
+  }, [effective, edge, level])
 
   const editable =
     edge?.data.kind === "data" ? dataEdgeEditable(dataMeta) : edge?.data.kind === "route" ? routeEdgeEditable(routeMeta) : false
@@ -144,10 +147,10 @@ export function EdgePanel({
       return dataEdgeInspectorMeta(manifest, edge.target, data.inputPath)?.exprSource ?? ""
     }
     if (edge.data.kind === "route") {
-      return routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData)?.exprSource ?? ""
+      return routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData, level)?.exprSource ?? ""
     }
     return ""
-  }, [manifest, edge])
+  }, [manifest, edge, level])
 
   useEffect(() => {
     setExprText(savedExpr)
@@ -157,12 +160,12 @@ export function EdgePanel({
             ? dataEdgeInspectorMeta(manifest, edge.target, (edge.data as ReactFlowDataEdgeData).inputPath)?.validatePointer
             : "") ?? ""
         : edge?.data.kind === "route"
-          ? (manifest && edge ? routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData)?.validatePointer : "") ?? ""
+          ? (manifest && edge ? routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData, level)?.validatePointer : "") ?? ""
           : ""
     setValidatePointer(pointer)
     setExprIssues([])
     setSaveError(undefined)
-  }, [edge?.id, savedExpr, manifest, edge])
+  }, [edge?.id, level, savedExpr, manifest, edge])
 
   const dataEdge = edge?.data.kind === "data" ? (edge.data as ReactFlowDataEdgeData) : undefined
   const payload = useEdgeRunPayload(
@@ -199,7 +202,7 @@ export function EdgePanel({
           const applied = applyDataEdgeDraft(effective, edge.target, dataEdge, exprText)
           if (applied) next = applied
         } else if (edge?.data.kind === "route") {
-          const applied = applyRouteEdgeDraft(effective, edge.data as ReactFlowRouteEdgeData, exprText)
+          const applied = applyRouteEdgeDraft(effective, edge.data as ReactFlowRouteEdgeData, exprText, level)
           if (applied) next = applied
         }
         if (!alive) return
@@ -224,6 +227,7 @@ export function EdgePanel({
     dataEdge,
     onDraftChange,
     validateDraft,
+    level,
     onUnauthorized,
   ])
 

@@ -22,6 +22,7 @@ import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpRouteEdge } from "./EcpRouteEdge.js"
+import { RouteEdgeSelectionContext, type RouteEdgeSelectionContextValue } from "./route-edge-selection-context.js"
 import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 
@@ -34,6 +35,17 @@ const nodeTypes = {
 const edgeTypes = { "ecp-data": EcpDataEdge, "ecp-route": EcpRouteEdge }
 const EDGE_INTERACTION_WIDTH = 20
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 }
+
+/**
+ * Selected edge on the canvas, including the route level for stacked pills.
+ * @category App
+ */
+export interface SelectedEdge {
+  /** Published edge id. */
+  edgeId: string
+  /** Index into `levels` on a route edge (`0` for data edges and path clicks). */
+  level: number
+}
 
 /**
  * Request to bring a node into view. `nonce` changes on every request.
@@ -59,12 +71,12 @@ export interface GraphCanvasProps {
   nodeErrors: Record<string, ValidationIssue[]>
   /** Selected node id. */
   selectedId?: string
-  /** Selected edge id. */
-  selectedEdgeId?: string
+  /** Selected edge and route level, when any. */
+  selectedEdge?: SelectedEdge
   /** Called with the clicked node id, or undefined when the pane is clicked. */
   onSelect: (id: string | undefined) => void
-  /** Called with the clicked edge id. */
-  onSelectEdge: (id: string | undefined) => void
+  /** Called with the clicked edge, or undefined when the pane is clicked. */
+  onSelectEdge: (selection: SelectedEdge | undefined) => void
   /** Bring this node into view. */
   focus?: FocusRequest
 }
@@ -161,17 +173,19 @@ function buildNodes(
   })
 }
 
-function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdgeId: string | undefined): Edge[] {
+function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdge?: SelectedEdge): Edge[] {
   const edges: Edge[] = []
   for (const edge of document.edges) {
     if (edge.data.kind === "route") {
       const armState = armRunState(edge.data, run)
       const stateClass = armState === "idle" ? "" : ` ecp-rf-edge--${armState}`
-      const selected = edge.id === selectedEdgeId
+      const selected = edge.id === selectedEdge?.edgeId
       edges.push({
         id: edge.id,
         source: edge.source,
         target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
         type: "ecp-route",
         data: { ...edge.data, armState },
         className: `ecp-rf-edge--route${stateClass}${selected ? " ecp-rf-edge--selected" : ""}`,
@@ -182,7 +196,7 @@ function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdg
       continue
     }
     if (edge.data.kind !== "data" || !edge.sourceHandle || !edge.targetHandle) continue
-    const selected = edge.id === selectedEdgeId
+    const selected = edge.id === selectedEdge?.edgeId
     edges.push({
       id: edge.id,
       source: edge.source,
@@ -253,14 +267,25 @@ export function GraphCanvas({
   run,
   nodeErrors,
   selectedId,
-  selectedEdgeId,
+  selectedEdge,
   onSelect,
   onSelectEdge,
   focus,
 }: GraphCanvasProps) {
   const layoutKey = useMemo(() => layoutFitKey(document), [document])
   const built = useMemo(() => buildNodes(document, run, nodeErrors, selectedId), [document, run, nodeErrors, selectedId])
-  const edges = useMemo(() => buildEdges(document, run, selectedEdgeId), [document, run, selectedEdgeId])
+  const edges = useMemo(() => buildEdges(document, run, selectedEdge), [document, run, selectedEdge])
+  const routeSelection = useMemo<RouteEdgeSelectionContextValue>(
+    () => ({
+      selectedEdgeId: selectedEdge?.edgeId,
+      selectedLevel: selectedEdge?.level,
+      select: (edgeId, level) => {
+        onSelect(undefined)
+        onSelectEdge({ edgeId, level })
+      },
+    }),
+    [onSelect, onSelectEdge, selectedEdge?.edgeId, selectedEdge?.level],
+  )
   const [nodes, setNodes] = useState<Node[]>(built)
 
   useEffect(() => {
@@ -279,6 +304,7 @@ export function GraphCanvas({
   }, [])
 
   return (
+    <RouteEdgeSelectionContext.Provider value={routeSelection}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -291,7 +317,7 @@ export function GraphCanvas({
       }}
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
-        onSelectEdge(edge.id)
+        onSelectEdge({ edgeId: edge.id, level: 0 })
       }}
       onPaneClick={() => {
         onSelect(undefined)
@@ -309,5 +335,6 @@ export function GraphCanvas({
       <FocusNode focus={focus} />
       <FitGraphOnLayout layoutKey={layoutKey} />
     </ReactFlow>
+    </RouteEdgeSelectionContext.Provider>
   )
 }

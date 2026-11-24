@@ -28,9 +28,17 @@ import type {
   ReactFlowNode,
   ReactFlowPort,
   ReactFlowRouteEdgeData,
+  ReactFlowRouteLevel,
   ReactFlowStepData,
 } from "./types.js"
-import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "./types.js"
+import {
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
+  LOOP_COLLECT_HANDLE,
+  LOOP_INTO_HANDLE,
+  LOOP_ITEM_HANDLE,
+  LOOP_REF_HANDLE,
+} from "./types.js"
 
 interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
@@ -75,6 +83,26 @@ function connectControl(edges: ReactFlowEdge[], fromIds: string[], toIds: string
   }
 }
 
+function routePayload(level: ReactFlowRouteLevel, extra?: { loopBack?: boolean }): Omit<ReactFlowRouteEdgeData, "kind"> {
+  return { ...level, levels: [level], ...extra }
+}
+
+function composedRouteEntries(seg: RenderSegment, outer: ReactFlowRouteLevel): RouteEntry[] {
+  if (seg.routeEntries && seg.routeEntries.length > 0) {
+    return seg.routeEntries.map((entry) => ({
+      entryId: entry.entryId,
+      data: {
+        ...outer,
+        levels: [outer, ...entry.data.levels],
+      },
+    }))
+  }
+  return seg.entryIds.map((entryId) => ({
+    entryId,
+    data: { ...outer, levels: [outer] },
+  }))
+}
+
 function connectRoutes(edges: ReactFlowEdge[], fromIds: string[], entries: RouteEntry[], prefix: string): void {
   let i = 0
   for (const from of fromIds) {
@@ -83,6 +111,8 @@ function connectRoutes(edges: ReactFlowEdge[], fromIds: string[], entries: Route
         id: `route-${prefix}-${i++}-${from}-${entry.entryId}`,
         source: from,
         target: entry.entryId,
+        sourceHandle: FLOW_OUT_HANDLE,
+        targetHandle: FLOW_IN_HANDLE,
         data: { kind: "route", ...entry.data },
       })
     }
@@ -132,17 +162,13 @@ function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
     out.entryIds.push(...seg.entryIds)
     out.exitIds.push(...seg.exitIds)
     const stepIds = leafStepIds(line)
-    for (const entryId of seg.entryIds) {
-      out.routeEntries?.push({
-        entryId,
-        data: {
-          route: "parallel",
-          structureId: node.id,
-          armIndex: lineIndex,
-          stepIds,
-        },
-      })
+    const outer: ReactFlowRouteLevel = {
+      route: "parallel",
+      structureId: node.id,
+      armIndex: lineIndex,
+      stepIds,
     }
+    out.routeEntries?.push(...composedRouteEntries(seg, outer))
   })
   return out
 }
@@ -156,21 +182,17 @@ function renderBranch(node: BranchNode, ctx: EncodeContext): RenderSegment {
     out.entryIds.push(...seg.entryIds)
     out.exitIds.push(...seg.exitIds)
     const stepIds = leafStepIds(arm.steps)
-    for (const entryId of seg.entryIds) {
-      out.routeEntries?.push({
-        entryId,
-        data: {
-          route: "branch",
-          structureId: node.id,
-          armIndex,
-          ...(arm.label ? { label: arm.label } : {}),
-          ...(arm.expr !== undefined
-            ? { exprBadge: formatExprBadge(arm.expr), exprSource: arm.expr }
-            : { defaultArm: true }),
-          stepIds,
-        },
-      })
+    const outer: ReactFlowRouteLevel = {
+      route: "branch",
+      structureId: node.id,
+      armIndex,
+      ...(arm.label ? { label: arm.label } : {}),
+      ...(arm.expr !== undefined
+        ? { exprBadge: formatExprBadge(arm.expr), exprSource: arm.expr }
+        : { defaultArm: true }),
+      stepIds,
     }
+    out.routeEntries?.push(...composedRouteEntries(seg, outer))
   })
   return out
 }
@@ -185,7 +207,7 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   const head = loopReactFlowNode(node)
   const seg = renderNodes(node.steps, ctx)
   const gateLabel = node.expr ? formatExprBadge(node.expr) : node.ref ? `ref: ${node.ref}` : "loop"
-  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
+  const loopLevel: ReactFlowRouteLevel = {
     route: "loop",
     structureId: node.id,
     loopMode: mode,
@@ -195,6 +217,7 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
     stepIds: leafStepIds(node.steps),
   }
+  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = routePayload(loopLevel)
   const edges = [...seg.edges]
   connectRoutes(
     edges,
@@ -208,7 +231,9 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
       id: `route-loop-back-${node.id}-${i++}-${from}-${node.id}`,
       source: from,
       target: node.id,
-      data: { kind: "route", ...routeBase, loopBack: true },
+      sourceHandle: FLOW_OUT_HANDLE,
+      targetHandle: FLOW_IN_HANDLE,
+      data: { kind: "route", ...routePayload(loopLevel, { loopBack: true }) },
     })
   }
   return {
@@ -305,12 +330,13 @@ function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
     label: loopItemsFrameLabel(node),
     stepIds: leafStepIds(node.steps),
   })
-  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
+  const loopLevel: ReactFlowRouteLevel = {
     route: "loop",
     loopMode: "forEach",
     structureId: node.id,
     stepIds: leafStepIds(node.steps),
   }
+  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = routePayload(loopLevel)
   const edges = [...seg.edges]
   connectRoutes(
     edges,
@@ -460,7 +486,12 @@ function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFl
       id: `route-seq-${edge.id}`,
       source: edge.source,
       target: edge.target,
-      data: { kind: "route", route: "sequence", structureId: edge.source },
+      sourceHandle: FLOW_OUT_HANDLE,
+      targetHandle: FLOW_IN_HANDLE,
+      data: {
+        kind: "route",
+        ...routePayload({ route: "sequence", structureId: edge.source }),
+      },
     }
     if (seen.has(routeEdge.id)) continue
     seen.add(routeEdge.id)

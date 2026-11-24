@@ -11,7 +11,7 @@ import {
 import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
-import { GraphCanvas, type FocusRequest } from "./GraphCanvas.js"
+import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
@@ -70,7 +70,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const live = useLiveRun(client, source, onUnauthorized)
   const [tab, setTab] = useState<WorkspaceTab>("graph")
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined)
+  const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | undefined>(undefined)
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
@@ -103,14 +103,14 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     [doc.validation, doc.manifest],
   )
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
-  const selectedEdge = encoded.document?.edges.find((edge) => edge.id === selectedEdgeId)
+  const selectedEdgeRecord = encoded.document?.edges.find((edge) => edge.id === selectedEdge?.edgeId)
   const overlay = replay?.graph ?? live.graph
   const runId = replay?.detail.id ?? live.runId
   const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
 
   const selectFromIssue = useCallback((nodeId: string) => {
-    setSelectedEdgeId(undefined)
+    setSelectedEdge(undefined)
     setSelectedId(nodeId)
     setFocus((previous) => ({ id: nodeId, nonce: (previous?.nonce ?? 0) + 1 }))
   }, [])
@@ -120,9 +120,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     if (nodeId) setTab("graph")
   }, [])
 
-  const selectFromEdge = useCallback((edgeId: string | undefined) => {
-    setSelectedEdgeId(edgeId)
-    if (edgeId) setTab("graph")
+  const selectFromEdge = useCallback((selection: SelectedEdge | undefined) => {
+    setSelectedEdge(selection)
+    if (selection) setTab("graph")
   }, [])
 
   const onRun = useCallback(
@@ -147,7 +147,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-testid="workspace"
       data-source={source.kind}
       data-selected-node={selectedId ?? ""}
-      data-selected-edge={selectedEdgeId ?? ""}
+      data-selected-edge={selectedEdge?.edgeId ?? ""}
+      data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
       className="flex min-h-0 flex-1 flex-col"
     >
@@ -203,7 +204,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               run={overlay}
               nodeErrors={nodeErrors}
               selectedId={selectedId}
-              selectedEdgeId={selectedEdgeId}
+              selectedEdge={selectedEdge}
               onSelect={selectFromCanvas}
               onSelectEdge={selectFromEdge}
               focus={focus}
@@ -244,7 +245,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </nav>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {tab === "graph" ? (
-              selectedEdge ? (
+              selectedEdgeRecord ? (
                 <EdgePanel
                   client={client}
                   source={source}
@@ -255,7 +256,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                     setDraftDiscardNote(undefined)
                     setDraftManifest(next)
                   }}
-                  edge={selectedEdge}
+                  edge={selectedEdgeRecord}
+                  level={selectedEdge?.level ?? 0}
                   runId={runId}
                   runSource={runSource}
                   onUnauthorized={onUnauthorized}

@@ -31,8 +31,9 @@ export function applyRouteEdgeDraft(
   manifest: ExecutionManifest,
   data: ReactFlowRouteEdgeData,
   exprText: string,
+  levelIndex = 0,
 ): ExecutionManifest | undefined {
-  const meta = routeEdgeInspectorMeta(manifest, data)
+  const meta = routeEdgeInspectorMeta(manifest, data, levelIndex)
   if (!meta || meta.defaultArm || !meta.manifestPointer) return undefined
   return replaceManifestPointer(manifest, meta.manifestPointer, exprText)
 }

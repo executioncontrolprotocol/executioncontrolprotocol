@@ -96,6 +96,8 @@ export {
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
   LOOP_COLLECT_HANDLE,
   LOOP_INTO_HANDLE,
   LOOP_ITEM_HANDLE,
@@ -124,6 +126,7 @@ export type {
   ReactFlowPortBinding,
   ReactFlowRouteEdgeData,
   ReactFlowRouteKind,
+  ReactFlowRouteLevel,
   ReactFlowRunLifecycleDetail,
   ReactFlowRunOutcome,
   ReactFlowStepData,

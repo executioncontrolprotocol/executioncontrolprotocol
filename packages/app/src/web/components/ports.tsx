@@ -1,5 +1,6 @@
 import { Handle, Position } from "@xyflow/react"
 import type { ReactFlowPort } from "../../graph/index.js"
+import { FLOW_IN_HANDLE, FLOW_OUT_HANDLE } from "../../graph/index.js"
 
 function handleClass(kind: "input" | "output", connected: boolean): string {
   const state = connected ? "ecp-rf-handle--connected" : "ecp-rf-handle--idle"
@@ -40,6 +41,47 @@ function BindingText({ port }: { port: ReactFlowPort }) {
     )
   }
   return null
+}
+
+/** Flow handles sit on the node border, level with the node title. */
+const FLOW_HANDLE_TOP = 16
+
+function flowHandleClass(): string {
+  return "ecp-rf-handle ecp-rf-handle--flow !h-2 !w-2 !border"
+}
+
+/**
+ * Target handle for structural route edges (left border, level with the node title).
+ * @category App
+ */
+export function FlowInHandle() {
+  return (
+    <Handle
+      type="target"
+      position={Position.Left}
+      id={FLOW_IN_HANDLE}
+      className={flowHandleClass()}
+      style={{ top: FLOW_HANDLE_TOP }}
+      isConnectable={false}
+    />
+  )
+}
+
+/**
+ * Source handle for structural route edges (right border, level with the node title).
+ * @category App
+ */
+export function FlowOutHandle() {
+  return (
+    <Handle
+      type="source"
+      position={Position.Right}
+      id={FLOW_OUT_HANDLE}
+      className={flowHandleClass()}
+      style={{ top: FLOW_HANDLE_TOP }}
+      isConnectable={false}
+    />
+  )
 }
 
 /**

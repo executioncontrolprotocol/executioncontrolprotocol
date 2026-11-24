@@ -1,0 +1,70 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "a",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "a"
+      },
+      "as": "a"
+    },
+    {
+      "type": "branch",
+      "id": "outer",
+      "branches": [
+        {
+          "label": "outer",
+          "expr": "(state) => true",
+          "steps": [
+            {
+              "type": "branch",
+              "id": "inner",
+              "branches": [
+                {
+                  "label": "inner",
+                  "expr": "(state) => 1 === 1",
+                  "steps": [
+                    {
+                      "id": "x",
+                      "uses": "@executioncontrolprotocol/test.echo",
+                      "input": {
+                        "value": "x"
+                      },
+                      "as": "x"
+                    }
+                  ]
+                },
+                {
+                  "steps": [
+                    {
+                      "id": "w",
+                      "uses": "@executioncontrolprotocol/test.echo",
+                      "input": {
+                        "value": "w"
+                      },
+                      "as": "w"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "steps": [
+            {
+              "id": "n",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "n"
+              },
+              "as": "n"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

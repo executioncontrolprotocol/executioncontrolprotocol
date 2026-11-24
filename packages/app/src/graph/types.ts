@@ -107,6 +107,18 @@ export interface ReactFlowFrameData {
 }
 
 /**
+ * Target handle id for structural route edges (flow into a node).
+ * @category App
+ */
+export const FLOW_IN_HANDLE = "flow-in"
+
+/**
+ * Source handle id for structural route edges (flow out of a node).
+ * @category App
+ */
+export const FLOW_OUT_HANDLE = "flow-out"
+
+/**
  * Target handle id for a `forEach` loop node's `ref` port.
  * @category App
  */
@@ -193,6 +205,33 @@ export type ReactFlowEdgeKind = "data" | "control" | "route"
 export type ReactFlowRouteKind = "branch" | "parallel" | "loop" | "sequence"
 
 /**
+ * One level of route metadata on a structural edge (branch arm, parallel line or loop).
+ * @category App
+ */
+export interface ReactFlowRouteLevel {
+  /** Structural subtype at this level. */
+  route: ReactFlowRouteKind
+  /** Branch, parallel or loop node id in the execution manifest (or an arbitrary id for `sequence`). */
+  structureId?: string
+  /** Branch arm index or parallel line index. */
+  armIndex?: number
+  /** Arm or structure label when present. */
+  label?: string
+  /** Branch arm `expr` or loop `expr` badge text. */
+  exprBadge?: string
+  /** Full `expr` source for the edge inspector (not the badge). */
+  exprSource?: string
+  /** True for the branch arm without `expr` (the default arm). */
+  defaultArm?: boolean
+  /** Loop `maxRounds` (`while` mode). */
+  maxRounds?: number
+  /** Loop repetition mode when `route` is `loop`. */
+  loopMode?: "while" | "for" | "forEach"
+  /** Leaf step ids under this arm, line or loop body (for skipped styling). */
+  stepIds?: string[]
+}
+
+/**
  * Metadata on a published route edge (branch, parallel or loop structure).
  * @category App
  */
@@ -221,6 +260,10 @@ export interface ReactFlowRouteEdgeData {
   loopBack?: boolean
   /** Leaf step ids under this arm, line or loop body (for skipped styling). */
   stepIds?: string[]
+  /**
+   * Structure stack this edge crosses, outermost first. Flat fields on the edge equal `levels[0]`.
+   */
+  levels: ReactFlowRouteLevel[]
 }
 
 /**

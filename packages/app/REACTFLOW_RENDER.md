@@ -52,11 +52,14 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   applicable.
 - **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch arms stay route
   edges with pills inside the branch frame; every structure uses a frame plus those route connectors.
-- **Route pills and menus.** Route edge data holds one level per enclosing branch, outer first
-  (`levels`, outer first). `EcpRouteEdge` draws one pill per level. Each pill is a clickable control
-  and selects that level. Each pill and each frame header has a ⋯ control.
-- **Flow handles.** Every node and frame has a flow-in handle on the left and a flow-out handle on the
-  right, separate from data ports.
+- **Route pills and menus.** Route edge flat fields equal `levels[0]`; `levels` is the full stack, outer
+  first, including nested branch, parallel and loop entries. `EcpRouteEdge` draws one pill per
+  non-empty level (loop-back edges draw none). Each pill is a clickable control and selects that edge
+  and level. Each pill and each frame header has a ⋯ control.
+- **Flow handles.** Every step, loop and I/O node has a dedicated flow-in handle on the left and flow-out
+  on the right (centred on the header), separate from data ports. Inputs exposes only flow-out; Outputs
+  only flow-in. Published **route** edges set `sourceHandle` / `targetHandle` to those ids; data edges use
+  port handles only.
 - **Dragged positions.** Dragged positions override dagre for the nodes that were moved, including when
   layout runs again after a structure change. Frames are recomputed from the nodes' current positions.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`

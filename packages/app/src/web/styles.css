@@ -206,6 +206,12 @@
     border-color: var(--color-primary) !important;
   }
 
+  .react-flow__handle.ecp-rf-handle--flow {
+    background: var(--color-surface-container-high) !important;
+    border-color: var(--color-outline) !important;
+    border-radius: 2px !important;
+  }
+
   .react-flow__edge.ecp-rf-edge--data path.react-flow__edge-path {
     stroke: var(--color-tertiary-fixed-dim) !important;
     stroke-width: 1.5;
@@ -251,9 +257,18 @@
     white-space: normal;
   }
 
-  .ecp-rf-edge-label {
+  .ecp-rf-edge-label-stack {
     position: absolute;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+  }
+
+  .ecp-rf-edge-label {
+    pointer-events: all;
+    margin: 0;
     max-width: 220px;
     overflow: hidden;
     padding: 0.125rem 0.375rem;
@@ -265,6 +280,11 @@
     font-size: 9px;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .ecp-rf-edge-label--selected {
+    border-color: var(--color-primary);
   }
 
   .react-flow {

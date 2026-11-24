@@ -1,7 +1,7 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
 import type { ReactFlowLoopItemsData } from "../../graph/index.js"
-import { InputPortRow, OutputPortRow } from "./ports.js"
+import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./ports.js"
 
 /**
  * Data for {@link EcpLoopNode}: structure metadata plus run overlay counts.
@@ -40,6 +40,8 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
+      <FlowInHandle />
+      <FlowOutHandle />
       <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 font-display text-[11px] font-semibold leading-tight text-on-surface">

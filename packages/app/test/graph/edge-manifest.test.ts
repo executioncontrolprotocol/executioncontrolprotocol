@@ -100,6 +100,52 @@ describe("dataEdgeInspectorMeta", () => {
 })
 
 describe("routeEdgeInspectorMeta", () => {
+  const nestedManifest: ExecutionManifest = {
+    schema: "@executioncontrolprotocol.execution",
+    version: "2.0",
+    steps: [
+      {
+        type: "branch",
+        id: "outer",
+        branches: [
+          {
+            expr: "(state) => true",
+            steps: [
+              {
+                type: "branch",
+                id: "inner",
+                branches: [
+                  {
+                    expr: "(state) => 1 === 1",
+                    steps: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+                  },
+                  { steps: [{ id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" } }] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  const nestedEdgeData = {
+    kind: "route" as const,
+    route: "branch" as const,
+    structureId: "outer",
+    armIndex: 0,
+    exprSource: "(state) => true",
+    levels: [
+      { route: "branch" as const, structureId: "outer", armIndex: 0, exprSource: "(state) => true", stepIds: ["x", "w"] },
+      { route: "branch" as const, structureId: "inner", armIndex: 0, exprSource: "(state) => 1 === 1", stepIds: ["x"] },
+    ],
+  }
+
+  it("reads inner branch arm expr at level 1", () => {
+    const meta = routeEdgeInspectorMeta(nestedManifest, nestedEdgeData, 1)
+    expect(meta?.manifestPointer).toBe("/steps/0/branches/0/steps/0/branches/0/expr")
+    expect(meta?.exprSource).toBe("(state) => 1 === 1")
+  })
   it("reads branch arm expr", () => {
     const meta = routeEdgeInspectorMeta(manifest, {
       kind: "route",
@@ -107,6 +153,7 @@ describe("routeEdgeInspectorMeta", () => {
       structureId: "pick",
       armIndex: 0,
       exprSource: "state.flag === true",
+      levels: [{ route: "branch", structureId: "pick", armIndex: 0, exprSource: "state.flag === true" }],
     })
     expect(meta?.exprSource).toBe("state.flag === true")
     expect(meta?.manifestPointer).toContain("/branches/0/expr")
@@ -119,6 +166,7 @@ describe("routeEdgeInspectorMeta", () => {
       structureId: "pick",
       armIndex: 1,
       defaultArm: true,
+      levels: [{ route: "branch", structureId: "pick", armIndex: 1, defaultArm: true }],
     })
     expect(meta?.defaultArm).toBe(true)
   })
@@ -129,13 +177,19 @@ describe("routeEdgeInspectorMeta", () => {
       route: "loop",
       structureId: "loop",
       exprSource: "state.on === true",
+      levels: [{ route: "loop", structureId: "loop", exprSource: "state.on === true" }],
     })
     expect(meta?.exprSource).toBe("state.on === true")
   })
 
   it("returns undefined for unsupported route kinds", () => {
     expect(
-      routeEdgeInspectorMeta(manifest, { kind: "route", route: "parallel", structureId: "prepare" }),
+      routeEdgeInspectorMeta(manifest, {
+        kind: "route",
+        route: "parallel",
+        structureId: "prepare",
+        levels: [{ route: "parallel", structureId: "prepare" }],
+      }),
     ).toBeUndefined()
   })
 })
