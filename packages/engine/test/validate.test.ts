@@ -473,4 +473,20 @@ describe("validation output contract (F2–F4)", () => {
     expect(l1.blocksDraft).toBe(true)
   })
 
+  it("validateExecutionLayers lets capability errors through to a draft but not a broken document", async () => {
+    const unknownUses = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "s", uses: "@executioncontrolprotocol/not-installed.echo", input: { value: "x" }, as: "s" }],
+    } satisfies ExecutionManifest
+    const capability = await validateExecutionLayers(unknownUses, validateOpts)
+    expect(capability.result.issues.some((issue) => issue.code === "ECP_CAPABILITY_UNKNOWN")).toBe(true)
+    expect(capability.blocksDraft).toBe(false)
+    const broken = await validateExecutionLayers(
+      { schema: "@executioncontrolprotocol.execution", version: "2.0", steps: [{ id: "s" }] },
+      validateOpts,
+    )
+    expect(broken.blocksDraft).toBe(true)
+  })
+
 })

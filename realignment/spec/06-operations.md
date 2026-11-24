@@ -145,10 +145,12 @@ type CommitOutput = { type: string; id?: string; version: number | string | null
   `retrieve`. Stale `ifVersion` is `ECP_VERSION_CONFLICT` (message includes the current
   version). A number for a path, or a string for a stored id, is `ECP_REQUEST_INVALID`.
   Missing `ifVersion` on update/delete stays `ECP_REQUEST_INVALID`.
-- `draft: true` (execution create/update only; otherwise `ECP_REQUEST_INVALID`) stores a
-  manifest that passes L1 even when L2/L3 report errors, and returns `{ version, issues }`.
+- `draft: true` (execution create/update only; otherwise `ECP_REQUEST_INVALID`) stores any
+  manifest that loads (L0) and passes the base structure schema, whatever its other errors
+  (unknown capability, step input vs `accepts`, L2, L3), and returns `{ version, issues }`.
   The default remains strict: errors reject with `ECP_MANIFEST_INVALID`. `draft` applies to
-  `object` and to the manifest produced by `patch`. An L1 failure still rejects.
+  `object` and to the manifest produced by `patch`. A load or base-structure failure still
+  rejects.
 - `scripts` (execution only) writes those relative files with the manifest. The host resolves
   them against the execution's directory. A key that is absolute or escapes that directory is
   `ECP_REQUEST_INVALID`. Each value is at most 2 MB.

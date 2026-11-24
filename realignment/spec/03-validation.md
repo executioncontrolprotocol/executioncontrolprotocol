@@ -124,7 +124,8 @@ lines' outputs with their own certainty.
 - `execute` (run) → L0–L4 first; any error → no run is created; the response carries the result.
 - `commit` of an execution → L0–L3. Without `draft`, errors reject the commit
   (`ECP_MANIFEST_INVALID` envelope with the issues); warnings are stored with the object.
-  With `draft: true`, L1 must pass and L2/L3 errors are stored; the response includes
+  With `draft: true`, the document must load (L0) and pass the base structure schema; every
+  other error (unknown capability, step input vs `accepts`, L2, L3) is stored and returned in
   `issues` (06). `execute` is unchanged: any error refuses the run.
 - `commit` of a config → validated against the plugin's config schema (`$secret`/`$env` objects allowed at any string position).
 - Host start → regenerates schemas; saved executions are re-validated lazily on next use, not at start.

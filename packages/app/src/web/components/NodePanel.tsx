@@ -9,7 +9,17 @@ import type {
   StepNode,
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
-import { resolveScriptPath, UnauthorizedError, type AppHostClient } from "../../client/index.js"
+import {
+  resolveScriptPath,
+  UnauthorizedError,
+  type AppHostClient,
+} from "../../client/index.js"
+import {
+  executionUpdateInput,
+  interpretCommitResponse,
+  isExecutionUpdateRefusal,
+  scriptTextFromRetrieve,
+} from "../../client/document-state.js"
 import {
   collectSteps,
   setLoopField,
@@ -34,8 +44,10 @@ export interface NodePanelProps {
   client: AppHostClient
   /** How the execution was opened (path vs id). */
   source: ExecutionSource
-  /** Stored version for id-backed commits. */
-  storedVersion?: number
+  /** Opaque or numeric version for draft commits. */
+  version?: number | string
+  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void
+  onVersionConflict: () => void
   /** Draft manifest while editing; `undefined` when the panel is read-only. */
   draft?: ExecutionManifest
   /** Update or clear the workspace draft. */
@@ -400,15 +412,34 @@ function JsonBlock({ title, value, testId }: { title: string; value: unknown; te
   )
 }
 
-function ReadOnlyFileBody({ client, path, reloadKey }: { client: AppHostClient; path: string; reloadKey: number }) {
+function ReadOnlyFileBody({
+  client,
+  source,
+  manifestKey,
+  reloadKey,
+}: {
+  client: AppHostClient
+  source: ExecutionSource
+  manifestKey: string
+  reloadKey: number
+}) {
   const [text, setText] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   useEffect(() => {
     let alive = true
     setError(undefined)
+    const input =
+      source.kind === "path"
+        ? { type: "execution" as const, path: source.path, include: ["scripts"] as Array<"scripts"> }
+        : { type: "execution" as const, id: source.id, include: ["scripts"] as Array<"scripts"> }
     client
-      .getFile(path)
-      .then((body) => alive && setText(body))
+      .retrieve(input)
+      .then((response) => {
+        if (!alive) return
+        const parsed = scriptTextFromRetrieve(response, manifestKey)
+        if (!parsed.ok) setError(parsed.message)
+        else setText(parsed.text)
+      })
       .catch((caught: unknown) => {
         if (!alive || caught instanceof UnauthorizedError) return
         setError(caught instanceof Error ? caught.message : String(caught))
@@ -416,7 +447,7 @@ function ReadOnlyFileBody({ client, path, reloadKey }: { client: AppHostClient; 
     return () => {
       alive = false
     }
-  }, [client, path, reloadKey])
+  }, [client, manifestKey, reloadKey, source])
   if (error) return <p className="text-[11px] text-error">{error}</p>
   return (
     <pre data-testid="node-input-script-file" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
@@ -427,7 +458,8 @@ function ReadOnlyFileBody({ client, path, reloadKey }: { client: AppHostClient; 
 
 function ScriptText({
   client,
-  path,
+  source,
+  manifestKey,
   reloadKey,
   editable,
   text,
@@ -437,7 +469,8 @@ function ScriptText({
   saveError,
 }: {
   client: AppHostClient
-  path: string
+  source: ExecutionSource
+  manifestKey: string
   reloadKey: number
   editable: boolean
   text: string
@@ -452,12 +485,20 @@ function ScriptText({
     let alive = true
     setLoadError(undefined)
     setLoaded(false)
+    const input =
+      source.kind === "path"
+        ? { type: "execution" as const, path: source.path, include: ["scripts"] as Array<"scripts"> }
+        : { type: "execution" as const, id: source.id, include: ["scripts"] as Array<"scripts"> }
     client
-      .getFile(path)
-      .then((body) => {
+      .retrieve(input)
+      .then((response) => {
         if (!alive) return
-        setLoaded(true)
-        onTextChange(body)
+        const parsed = scriptTextFromRetrieve(response, manifestKey)
+        if (!parsed.ok) setLoadError(parsed.message)
+        else {
+          setLoaded(true)
+          onTextChange(parsed.text)
+        }
       })
       .catch((caught: unknown) => {
         if (!alive || caught instanceof UnauthorizedError) return
@@ -466,7 +507,7 @@ function ScriptText({
     return () => {
       alive = false
     }
-  }, [client, path, reloadKey, onTextChange])
+  }, [client, manifestKey, onTextChange, reloadKey, source])
   if (loadError) return <p className="text-[11px] text-error">{loadError}</p>
   if (!editable) {
     return (
@@ -510,11 +551,13 @@ function bindingSummary(port: ReactFlowPort): string {
 function InputBinding({
   port,
   client,
+  source,
   executionPath,
   reloadKey,
 }: {
   port: ReactFlowPort
   client: AppHostClient
+  source: ExecutionSource
   executionPath?: string
   reloadKey: number
 }) {
@@ -551,7 +594,12 @@ function InputBinding({
             <FileCode2 className="h-3 w-3" aria-hidden="true" />
             {scriptPath}
           </p>
-          <ReadOnlyFileBody client={client} path={scriptPath} reloadKey={reloadKey} />
+          <ReadOnlyFileBody
+            client={client}
+            source={source}
+            manifestKey={port.scriptPath ?? ""}
+            reloadKey={reloadKey}
+          />
         </div>
       ) : null}
     </li>
@@ -577,7 +625,9 @@ function IoPanel({ node, manifest }: { node: ReactFlowNode; manifest?: Execution
 function TransformCodePanel({
   client,
   source,
-  storedVersion,
+  version,
+  applyCommit,
+  onVersionConflict,
   manifest,
   draft,
   onDraftChange,
@@ -589,7 +639,9 @@ function TransformCodePanel({
 }: {
   client: AppHostClient
   source: ExecutionSource
-  storedVersion?: number
+  version?: number | string
+  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void
+  onVersionConflict: () => void
   manifest: ExecutionManifest
   draft?: ExecutionManifest
   onDraftChange: (manifest: ExecutionManifest | undefined) => void
@@ -599,7 +651,7 @@ function TransformCodePanel({
   executionPath?: string
   onUnauthorized: () => void
 }) {
-  const editable = source.kind === "path" || storedVersion !== undefined
+  const editable = source.kind === "path" || version !== undefined
   const effective = draft ?? manifest
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
@@ -621,24 +673,23 @@ function TransformCodePanel({
   const persistManifest = useCallback(
     async (next: ExecutionManifest): Promise<boolean> => {
       onDraftChange(next)
+      const input = executionUpdateInput(source, next, version)
+      if (isExecutionUpdateRefusal(input)) {
+        setSaveError(input.error)
+        return false
+      }
       try {
-        if (source.kind === "path") {
-          await client.putFile(source.path, `${JSON.stringify(next, null, 2)}\n`)
-        } else if (storedVersion !== undefined) {
-          const response = await client.commit({
-            type: "execution",
-            action: "update",
-            object: next,
-            ifVersion: storedVersion,
-          })
-          if (!response.ok) {
-            setSaveError(response.error.message)
+        const response = await client.commit(input)
+        const outcome = interpretCommitResponse(response)
+        if (!outcome.ok) {
+          if ("versionConflict" in outcome && outcome.versionConflict) {
+            onVersionConflict()
             return false
           }
-        } else {
-          setSaveError("Stored version is not loaded.")
+          setSaveError("message" in outcome ? outcome.message : "Commit refused.")
           return false
         }
+        applyCommit(next, outcome.version, outcome.issues)
         onDraftChange(undefined)
         return true
       } catch (error) {
@@ -647,7 +698,7 @@ function TransformCodePanel({
         return false
       }
     },
-    [client, onDraftChange, onUnauthorized, source, storedVersion],
+    [applyCommit, client, onDraftChange, onUnauthorized, onVersionConflict, source, version],
   )
 
   const onSaveInlineScript = useCallback(() => {
@@ -663,12 +714,27 @@ function TransformCodePanel({
   }, [code, effective, pathScript, persistManifest, sourceText, step.id])
 
   const onSavePathScript = useCallback(() => {
-    if (!resolvedPath) return
+    if (!pathScript || source.kind !== "path") return
     setSaving(true)
     setSaveError(undefined)
+    const scripts = { [pathScript]: pathText.endsWith("\n") ? pathText : `${pathText}\n` }
+    const input = executionUpdateInput(source, effective, version, scripts)
     void (async () => {
+      if (isExecutionUpdateRefusal(input)) {
+        setSaveError(input.error)
+        setSaving(false)
+        return
+      }
       try {
-        await client.putFile(resolvedPath, pathText.endsWith("\n") ? pathText : `${pathText}\n`)
+        const response = await client.commit(input)
+        const outcome = interpretCommitResponse(response)
+        if (!outcome.ok) {
+          if ("versionConflict" in outcome && outcome.versionConflict) onVersionConflict()
+          else setSaveError("message" in outcome ? outcome.message : "Commit refused.")
+          setSaving(false)
+          return
+        }
+        applyCommit(effective, outcome.version, outcome.issues)
         setSaving(false)
       } catch (error) {
         if (error instanceof UnauthorizedError) onUnauthorized()
@@ -676,7 +742,17 @@ function TransformCodePanel({
         setSaving(false)
       }
     })()
-  }, [client, onUnauthorized, pathText, resolvedPath])
+  }, [
+    applyCommit,
+    client,
+    effective,
+    onUnauthorized,
+    onVersionConflict,
+    pathScript,
+    pathText,
+    source,
+    version,
+  ])
 
   const onSaveExpression = useCallback(() => {
     if (code !== "expression") return
@@ -723,12 +799,13 @@ function TransformCodePanel({
             </pre>
           )
         ) : null}
-        {hasPath ? (
+        {hasPath && pathScript ? (
           <ScriptText
             client={client}
-            path={resolvedPath!}
+            source={source}
+            manifestKey={pathScript}
             reloadKey={reloadKey}
-            editable={editable}
+            editable={source.kind === "path"}
             text={pathText}
             onTextChange={setPathText}
             onSave={onSavePathScript}
@@ -787,7 +864,9 @@ function TransformCodePanel({
 export function NodePanel({
   client,
   source,
-  storedVersion,
+  version,
+  applyCommit,
+  onVersionConflict,
   draft,
   onDraftChange,
   manifest,
@@ -868,7 +947,9 @@ export function NodePanel({
         <TransformCodePanel
           client={client}
           source={source}
-          storedVersion={storedVersion}
+          version={version}
+          applyCommit={applyCommit}
+          onVersionConflict={onVersionConflict}
           manifest={manifest}
           draft={draft}
           onDraftChange={onDraftChange}
@@ -900,6 +981,7 @@ export function NodePanel({
                 key={port.id}
                 port={port}
                 client={client}
+                source={source}
                 executionPath={executionPath}
                 reloadKey={reloadKey}
               />

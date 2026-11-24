@@ -39,6 +39,32 @@ describe("execution-files", () => {
     expect(one.version).toBe(two.version)
   })
 
+  it("readScripts returns transform script.path", async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "ecp-transform-script-"))
+    const scriptPath = path.join(dir, "map.js")
+    writeFileSync(scriptPath, "export default (v) => v\n")
+    const manifest: ExecutionManifest = {
+      ...echo,
+      steps: [
+        {
+          id: "map",
+          uses: "@executioncontrolprotocol/core.transform",
+          script: { path: "map.js", lang: "js" },
+          input: { value: { $ref: "state.x" } },
+          as: "map",
+        },
+      ],
+    }
+    const execPath = path.join(dir, "flow.ecp.json")
+    writeFileSync(execPath, manifestExecutionText(manifest))
+    const scripts = await files.readScripts(dir, manifest)
+    expect(scripts["map.js"]).toContain("export default")
+    const before = await files.stat(execPath)
+    writeFileSync(scriptPath, "export default (v) => ({ ...v })\n")
+    const after = await files.stat(execPath)
+    expect(after.version).not.toBe(before.version)
+  })
+
   it("version changes when a referenced script changes", async () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "ecp-script-"))
     const scriptPath = path.join(dir, "helper.js")

@@ -66,8 +66,9 @@ So the protocol gets one optional field, which only makes the file *savable*. It
 The App never offers Delete on the link from Inputs to the first step, so `steps` can't become empty.
 
 **Saving invalid drafts:** `commit` refuses any manifest with an error today. It gains
-`draft: true` (see [Host API only](#host-api-only)), which stores a manifest that parses (L1) even with
-L2 / L3 errors and returns the issues. The App always commits with `draft: true`, so what you see is
+`draft: true` (see [Host API only](#host-api-only)), which stores any manifest that loads and passes the base structure
+schema, whatever its other errors (an unbound required input, a plugin that isn't installed here, L2 / L3),
+and returns the issues. The App always commits with `draft: true`, so what you see is
 always what's stored. Agents keep the strict default, and `execute` validates every run, so a
 draft is never runnable.
 
@@ -103,7 +104,7 @@ error. The App then reloads and replays the edit on top if it still applies, oth
 was discarded. Stored executions keep their numeric versions; for paths the version is an opaque
 string, so `ifVersion` widens to `number | string`.
 
-**`draft: true` on `commit`.** Stores any manifest that parses (L1), whatever its L2 / L3 errors,
+**`draft: true` on `commit`.** Stores any manifest that loads and passes the base structure schema, whatever its other errors,
 and returns `{ version, issues }`. Without it, `commit` stays strict as today. `retrieve` of an
 execution returns its current `issues`, so an agent opening a draft sees what's wrong.
 `execute` is unchanged: it validates every run and refuses on any error, so drafts (including

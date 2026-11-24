@@ -4,6 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { HOST_SCHEMA, HOST_VERSION, type HostFile } from "@executioncontrolprotocol/protocol"
+import { listExecutionFilePaths, scriptPathsOf } from "@executioncontrolprotocol/local"
 import {
   allocateLoopbackPort,
   checkHealth,
@@ -13,7 +14,7 @@ import {
   VERSION,
 } from "../src/index.js"
 import { refuse, statusForEnvelope } from "../src/http/envelope.js"
-import { listExecutionFiles, readAllowedFile, scriptPathsOf } from "../src/http/files.js"
+
 describe("host helpers", () => {
   it("allocates a loopback port and formats health helpers", async () => {
     const port = await allocateLoopbackPort()
@@ -48,7 +49,7 @@ describe("host helpers", () => {
     expect(statusForEnvelope(refuse("NOT_A_CODE", "x"))).toBe(500)
   })
 
-  it("lists and reads allowed execution files", async () => {
+  it("lists execution file paths and collects script paths", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-files-unit-"))
     const script = path.join(dir, "body.js")
     writeFileSync(script, "export default 1")
@@ -59,25 +60,14 @@ describe("host helpers", () => {
       steps: [{ id: "s", uses: "x", input: { code: { $script: { path: "body.js" } } }, as: "o" }],
     }
     writeFileSync(manifestPath, JSON.stringify(manifest))
-    expect(listExecutionFiles(dir)).toEqual([manifestPath])
-    expect(listExecutionFiles(path.join(dir, "missing"))).toEqual([])
-    expect(readAllowedFile(manifestPath).ok).toBe(true)
-    expect(readAllowedFile(script).ok).toBe(true)
-    expect(readAllowedFile(path.join(dir, "nope.txt")).ok).toBe(false)
+    expect(listExecutionFilePaths(dir)).toEqual([manifestPath])
+    expect(listExecutionFilePaths(path.join(dir, "missing"))).toEqual([])
     expect(scriptPathsOf(JSON.parse(readFileSync(manifestPath, "utf8")), dir)).toContain(script)
-  })
-
-  it("rejects oversize and missing files", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-oversize-"))
-    const big = path.join(dir, "big.ecp.json")
-    writeFileSync(big, "x".repeat(2 * 1024 * 1024 + 10))
-    expect(readAllowedFile(big).ok).toBe(false)
-    expect(readAllowedFile(path.join(dir, "missing.ecp.json")).ok).toBe(false)
     const nested = path.join(dir, "a", "b")
     mkdirSync(nested, { recursive: true })
     writeFileSync(path.join(nested, "deep.ecp.json"), "{}")
     mkdirSync(path.join(dir, ".hidden"), { recursive: true })
     writeFileSync(path.join(dir, ".hidden", "x.ecp.json"), "{}")
-    expect(listExecutionFiles(dir).some((f) => f.includes("deep.ecp.json"))).toBe(true)
+    expect(listExecutionFilePaths(dir).some((f) => f.includes("deep.ecp.json"))).toBe(true)
   })
 })

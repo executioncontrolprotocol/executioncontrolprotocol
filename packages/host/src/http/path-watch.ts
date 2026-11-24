@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync, watch, type FSWatcher } from "node:fs"
 import path from "node:path"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { scriptPathsOf } from "./files.js"
+import { scriptPathsOf } from "@executioncontrolprotocol/local"
 
 const DEBOUNCE_MS = 100
 const POLL_MS = 2_000

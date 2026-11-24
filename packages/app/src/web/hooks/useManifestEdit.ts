@@ -1,20 +1,23 @@
 import { useCallback, useState } from "react"
-import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { UnauthorizedError, type AppHostClient } from "../../client/index.js"
+import { executionUpdateInput, interpretCommitResponse, isExecutionUpdateRefusal } from "../../client/document-state.js"
 import type { StructureEditResult } from "../../graph/index.js"
 import type { ExecutionSource } from "./useExecutionDocument.js"
 
 /**
- * Persist structural manifest edits through the App's current save path.
+ * Persist structural manifest edits through draft `commit`.
  * @category App
  */
 export function useManifestEdit(
   client: AppHostClient,
   source: ExecutionSource,
-  storedVersion: number | undefined,
+  version: number | string | undefined,
   manifest: ExecutionManifest | undefined,
   onUnauthorized: () => void,
   readOnly: boolean,
+  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void,
+  onVersionConflict: () => void,
 ) {
   const [error, setError] = useState<string | undefined>(undefined)
 
@@ -27,24 +30,23 @@ export function useManifestEdit(
         setError(result.reason)
         return false
       }
+      const input = executionUpdateInput(source, result.manifest, version)
+      if (isExecutionUpdateRefusal(input)) {
+        setError(input.error)
+        return false
+      }
       try {
-        if (source.kind === "path") {
-          await client.putFile(source.path, `${JSON.stringify(result.manifest, null, 2)}\n`)
-        } else if (storedVersion !== undefined) {
-          const response = await client.commit({
-            type: "execution",
-            action: "update",
-            object: result.manifest,
-            ifVersion: storedVersion,
-          })
-          if (!response.ok) {
-            setError(response.error.message)
+        const response = await client.commit(input)
+        const outcome = interpretCommitResponse(response)
+        if (!outcome.ok) {
+          if ("versionConflict" in outcome && outcome.versionConflict) {
+            onVersionConflict()
             return false
           }
-        } else {
-          setError("Stored version is not loaded.")
+          setError("message" in outcome ? outcome.message : "Commit refused.")
           return false
         }
+        applyCommit(result.manifest, outcome.version, outcome.issues)
         return true
       } catch (cause) {
         if (cause instanceof UnauthorizedError) onUnauthorized()
@@ -52,7 +54,7 @@ export function useManifestEdit(
         return false
       }
     },
-    [client, manifest, onUnauthorized, readOnly, source, storedVersion],
+    [applyCommit, client, manifest, onUnauthorized, onVersionConflict, readOnly, source, version],
   )
 
   return { apply, error, clearError: () => setError(undefined) }

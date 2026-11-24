@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertTriangle, GitBranch, Save } from "lucide-react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { UnauthorizedError, validationFromExecute, type AppHostClient } from "../../client/index.js"
+import { executionUpdateInput, interpretCommitResponse, isExecutionUpdateRefusal } from "../../client/document-state.js"
 import {
   addArmCondition,
   applyDataEdgeDraft,
@@ -34,7 +35,9 @@ import {
 export interface EdgePanelProps {
   client: AppHostClient
   source: ExecutionSource
-  storedVersion?: number
+  version?: number | string
+  applyCommit: (manifest: ExecutionManifest, nextVersion: number | string, issues: readonly ValidationIssue[]) => void
+  onVersionConflict: () => void
   manifest?: ExecutionManifest
   draft?: ExecutionManifest
   onDraftChange: (manifest: ExecutionManifest | undefined) => void
@@ -221,7 +224,9 @@ function IssueList({ issues }: { issues: ValidationIssue[] }) {
 export function EdgePanel({
   client,
   source,
-  storedVersion,
+  version,
+  applyCommit,
+  onVersionConflict,
   manifest,
   draft,
   onDraftChange,
@@ -348,7 +353,8 @@ export function EdgePanel({
     onUnauthorized,
   ])
 
-  const saveDisabled = exprIssues.length > 0 || !draft || saving || exprText === savedExpr
+  const saveDisabled =
+    exprIssues.length > 0 || !draft || saving || exprText === savedExpr || version === undefined
 
   const onSave = useCallback(() => {
     if (!draft || saveDisabled) return
@@ -356,28 +362,35 @@ export function EdgePanel({
     setSaveError(undefined)
     void (async () => {
       try {
-        const validation = await validateDraft(draft)
+        let toSave = draft
+        if (edge?.data.kind === "data" && dataEdge) {
+          const applied = applyDataEdgeDraft(draft, edge.target, dataEdge, exprText)
+          if (applied) toSave = applied
+        } else if (edge?.data.kind === "route") {
+          const applied = applyRouteEdgeDraft(draft, edge.data as ReactFlowRouteEdgeData, exprText, level)
+          if (applied) toSave = applied
+        }
+        const validation = await validateDraft(toSave)
         if (!validation.valid && exprIssuesAtPointer(validation.issues, validatePointer).length > 0) {
           setSaveError("Fix expression errors before saving.")
           return
         }
-        if (source.kind === "path") {
-          await client.putFile(source.path, `${JSON.stringify(draft, null, 2)}\n`)
-        } else if (storedVersion !== undefined) {
-          const response = await client.commit({
-            type: "execution",
-            action: "update",
-            object: draft,
-            ifVersion: storedVersion,
-          })
-          if (!response.ok) {
-            setSaveError(response.error.message)
-            return
-          }
-        } else {
-          setSaveError("Stored version is not loaded.")
+        const input = executionUpdateInput(source, toSave, version)
+        if (isExecutionUpdateRefusal(input)) {
+          setSaveError(input.error)
           return
         }
+        const response = await client.commit(input)
+        const outcome = interpretCommitResponse(response)
+        if (!outcome.ok) {
+          if ("versionConflict" in outcome && outcome.versionConflict) {
+            onVersionConflict()
+            return
+          }
+          setSaveError("message" in outcome ? outcome.message : "Commit refused.")
+          return
+        }
+        applyCommit(toSave, outcome.version, outcome.issues)
         onDraftChange(undefined)
       } catch (error) {
         if (error instanceof UnauthorizedError) onUnauthorized()
@@ -386,7 +399,23 @@ export function EdgePanel({
         setSaving(false)
       }
     })()
-  }, [client, draft, onDraftChange, onUnauthorized, saveDisabled, source, storedVersion, validateDraft, validatePointer])
+  }, [
+    applyCommit,
+    client,
+    dataEdge,
+    draft,
+    edge?.data.kind,
+    exprText,
+    level,
+    onDraftChange,
+    onUnauthorized,
+    onVersionConflict,
+    saveDisabled,
+    source,
+    version,
+    validateDraft,
+    validatePointer,
+  ])
 
   if (!edge) {
     return (

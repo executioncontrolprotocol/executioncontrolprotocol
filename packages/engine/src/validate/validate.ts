@@ -359,7 +359,10 @@ export async function validateExecutionLayers(
   const unknownUses = checkUnknownUses(manifest, options.capabilities)
   const capabilityInputRaw = isManifest(checked) ? await checkCapabilityInputs(checked, schemas, options.capabilities) : []
   const capabilityInput = capabilityInputRaw.filter((issue) => !atOrUnderSecretEnv(issue.path))
-  const blocksDraft = [...structural, ...unknownUses, ...capabilityInput].some((issue) => issue.severity === "error")
+  // A draft can be stored whenever the document is an execution at all (L0 + the base structure schema). Capability
+  // checks (unknown `uses`, step input vs `accepts`) are reported but don't block it: an unbound required input after
+  // deleting a connection, or a plugin that isn't installed here, must still save (spec 06 draft).
+  const blocksDraft = structural.some((issue) => issue.severity === "error")
   const enriched = isManifest(manifest)
     ? await enrichCapabilities(options.capabilities, schemas)
     : options.capabilities

@@ -48,6 +48,7 @@ test.describe("Connections and edge menus", () => {
   async function open(page: Page, manifestPath: string): Promise<void> {
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: manifestPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
   test("markers data edge delete removes binding", async ({ page }) => {
@@ -64,7 +65,7 @@ test.describe("Connections and edge menus", () => {
       const parsed = JSON.parse(readFileSync(markersPath, "utf8")) as ExecutionManifest
       const fromExpr = parsed.steps.find((step) => step.id === "fromExpr")
       return fromExpr !== undefined && !("seed" in (fromExpr.input ?? {}))
-    }).toBe(true)
+    }, { timeout: 15_000 }).toBe(true)
   })
 
   test("branch-loop arm delete detaches step and reconnects", async ({ page }) => {

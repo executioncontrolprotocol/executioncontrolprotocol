@@ -112,10 +112,12 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   useEffect(() => {
     if (doc.loads > prevLoads.current && draftManifest !== undefined) {
       setDraftManifest(undefined)
-      setDraftDiscardNote("External change reloaded the execution; unsaved edits were discarded.")
+      if (!doc.versionConflictNote) {
+        setDraftDiscardNote("External change reloaded the execution; unsaved edits were discarded.")
+      }
     }
     prevLoads.current = doc.loads
-  }, [doc.loads, draftManifest])
+  }, [doc.loads, draftManifest, doc.versionConflictNote])
 
   const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
     if (!doc.manifest) return {}
@@ -169,10 +171,12 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const { apply: applyManifestEdit, error: structureEditError } = useManifestEdit(
     client,
     source,
-    doc.storedVersion,
+    doc.version,
     doc.manifest,
     onUnauthorized,
     readOnly,
+    doc.applyCommit,
+    doc.noteVersionConflict,
   )
 
   const selectFromIssue = useCallback((nodeId: string) => {
@@ -303,6 +307,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-selected-edge={selectedEdge?.edgeId ?? ""}
       data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
+      data-version={doc.version !== undefined ? String(doc.version) : ""}
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="flex shrink-0 items-center gap-3 border-b border-outline-variant bg-surface-container-low px-gutter py-2">
@@ -342,6 +347,14 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
         <div role="alert" className="shrink-0 border-b border-error/40 px-gutter py-2 text-[13px] text-error">
           {encodeError}
         </div>
+      ) : null}
+      {doc.versionConflictNote ? (
+        <p
+          data-testid="version-conflict-note"
+          className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant"
+        >
+          {doc.versionConflictNote}
+        </p>
       ) : null}
       {draftDiscardNote ? (
         <p data-testid="draft-discard-note" className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant">
@@ -429,7 +442,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 <EdgePanel
                   client={client}
                   source={source}
-                  storedVersion={doc.storedVersion}
+                  version={doc.version}
+                  applyCommit={doc.applyCommit}
+                  onVersionConflict={doc.noteVersionConflict}
                   manifest={doc.manifest}
                   draft={draftManifest}
                   onDraftChange={(next) => {
@@ -451,7 +466,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 <NodePanel
                   client={client}
                   source={source}
-                  storedVersion={doc.storedVersion}
+                  version={doc.version}
+                  applyCommit={doc.applyCommit}
+                  onVersionConflict={doc.noteVersionConflict}
                   draft={draftManifest}
                   onDraftChange={(next) => {
                     setDraftDiscardNote(undefined)

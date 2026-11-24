@@ -119,6 +119,12 @@ function visitScriptEntries(
       entries.push({ key: script.path, absolute: path.resolve(baseDir, script.path) })
     }
   }
+  if (typeof record.script === "object" && record.script !== null) {
+    const script = record.script as { path?: unknown }
+    if (typeof script.path === "string") {
+      entries.push({ key: script.path, absolute: path.resolve(baseDir, script.path) })
+    }
+  }
   for (const child of Object.values(record)) visitScriptEntries(child, baseDir, entries)
 }
 

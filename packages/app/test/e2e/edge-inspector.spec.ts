@@ -34,6 +34,7 @@ test.describe("Edge inspector", () => {
   async function open(page: Page): Promise<void> {
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: manifestPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
     await expect(page.getByTestId("ecp-step-translate")).toBeVisible({ timeout: 20_000 })
   }
 

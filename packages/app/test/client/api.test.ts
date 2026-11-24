@@ -123,8 +123,7 @@ describe("AppHostClient operations", () => {
     const { fetch } = mockFetch(() => jsonResponse(401, { ok: false, error: { code: "ECP_UNAUTHORIZED", message: "rejected" } }))
     const client = new AppHostClient(BASE, TOKEN, { fetch, onUnauthorized })
     await expect(client.retrieve({ type: "run" })).rejects.toBeInstanceOf(UnauthorizedError)
-    await expect(client.getFile("/a.ecp.json")).rejects.toThrow("rejected")
-    expect(onUnauthorized).toHaveBeenCalledTimes(2)
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
   })
 
   it("throws ECP_HOST_UNAVAILABLE when the host cannot be reached", async () => {
@@ -143,7 +142,7 @@ describe("AppHostClient operations", () => {
     const fetch: FetchLike = async () => {
       throw "down"
     }
-    const error = await new AppHostClient(BASE, TOKEN, { fetch }).listFiles("/d").catch((caught: unknown) => caught)
+    const error = await new AppHostClient(BASE, TOKEN, { fetch }).retrieve({ type: "run" }).catch((caught: unknown) => caught)
     expect((error as HostRequestError).message).toContain("down")
   })
 
@@ -155,66 +154,6 @@ describe("AppHostClient operations", () => {
     } finally {
       spy.mockRestore()
     }
-  })
-})
-
-describe("AppHostClient file routes", () => {
-  it("getFile returns the file text and encodes the path", async () => {
-    const { fetch, calls } = mockFetch(() => new Response('{"schema":"x"}', { status: 200 }))
-    const text = await new AppHostClient(BASE, TOKEN, { fetch }).getFile("C:\\work\\a b.ecp.json")
-    expect(text).toBe('{"schema":"x"}')
-    expect(calls[0]?.url).toBe(`${BASE}/v1/file?path=C%3A%5Cwork%5Ca+b.ecp.json`)
-    expect(calls[0]?.init?.method).toBe("GET")
-    expect(headerOf(calls[0]?.init, "Authorization")).toBe(`Bearer ${TOKEN}`)
-  })
-
-  it("putFile sends PUT with plain text and accepts 204", async () => {
-    const { fetch, calls } = mockFetch(() => new Response(null, { status: 204 }))
-    await new AppHostClient(BASE, TOKEN, { fetch }).putFile("/d/demo.ecp.json", '{"schema":"x"}\n')
-    expect(calls[0]?.init?.method).toBe("PUT")
-    expect(headerOf(calls[0]?.init, "Content-Type")).toContain("text/plain")
-    expect(calls[0]?.init?.body).toBe('{"schema":"x"}\n')
-  })
-
-  it("getFile throws the host refusal", async () => {
-    const { fetch } = mockFetch(() => jsonResponse(404, { ok: false, error: { code: "ECP_NOT_FOUND", message: "missing" } }))
-    const error = await new AppHostClient(BASE, TOKEN, { fetch }).getFile("/x.ecp.json").catch((caught: unknown) => caught)
-    expect(error).toBeInstanceOf(HostRequestError)
-    expect((error as HostRequestError).code).toBe("ECP_NOT_FOUND")
-    expect((error as HostRequestError).status).toBe(404)
-  })
-
-  it("getFile reports ECP_INTERNAL for an odd error body", async () => {
-    const { fetch } = mockFetch(() => new Response("broken", { status: 500 }))
-    const error = await new AppHostClient(BASE, TOKEN, { fetch }).getFile("/x.ecp.json").catch((caught: unknown) => caught)
-    expect((error as HostRequestError).code).toBe("ECP_INTERNAL")
-  })
-
-  it("getFile reports an ok envelope on an error status as unexpected", async () => {
-    const { fetch } = mockFetch(() => jsonResponse(500, { ok: true, data: {} }))
-    const error = await new AppHostClient(BASE, TOKEN, { fetch }).getFile("/x.ecp.json").catch((caught: unknown) => caught)
-    expect((error as HostRequestError).code).toBe("ECP_INTERNAL")
-    expect((error as HostRequestError).message).toBe("Unexpected HTTP 500.")
-  })
-
-  it("listFiles returns string paths only", async () => {
-    const { fetch, calls } = mockFetch(() => jsonResponse(200, { ok: true, data: { files: ["/d/a.ecp.json", 3, "/d/b.ecp.json"] } }))
-    const files = await new AppHostClient(BASE, TOKEN, { fetch }).listFiles("/d")
-    expect(files).toEqual(["/d/a.ecp.json", "/d/b.ecp.json"])
-    expect(calls[0]?.url).toBe(`${BASE}/v1/files?dir=%2Fd`)
-  })
-
-  it("listFiles returns an empty list when files is missing", async () => {
-    const { fetch } = mockFetch(() => jsonResponse(200, { ok: true, data: {} }))
-    await expect(new AppHostClient(BASE, TOKEN, { fetch }).listFiles("/d")).resolves.toEqual([])
-  })
-
-  it("listFiles throws refusals", async () => {
-    const { fetch } = mockFetch(() => jsonResponse(400, { ok: false, error: { code: "ECP_REQUEST_INVALID", message: "dir" } }))
-    await expect(new AppHostClient(BASE, TOKEN, { fetch }).listFiles("")).rejects.toMatchObject({
-      code: "ECP_REQUEST_INVALID",
-      status: 400,
-    })
   })
 })
 
@@ -234,6 +173,14 @@ describe("AppHostClient artifacts", () => {
     expect(headerOf(calls[0]?.init, "Authorization")).toBe(`Bearer ${TOKEN}`)
   })
 
+  it("fetchArtifact reports an ok envelope on an error status as unexpected", async () => {
+    const { fetch } = mockFetch(() => jsonResponse(500, { ok: true, data: {} }))
+    const error = await new AppHostClient(BASE, TOKEN, { fetch })
+      .fetchArtifact("run-1", "out.png")
+      .catch((caught: unknown) => caught)
+    expect((error as HostRequestError).code).toBe("ECP_INTERNAL")
+  })
+
   it("fetchArtifact throws HostRequestError on 404", async () => {
     const { fetch } = mockFetch(() =>
       jsonResponse(404, { ok: false, error: { code: "ECP_NOT_FOUND", message: "missing" } }),
@@ -249,10 +196,13 @@ describe("AppHostClient artifacts", () => {
 describe("AppHostClient.watchUrl", () => {
   const client = new AppHostClient(BASE, TOKEN)
 
-  it("builds the watch URL with types, runId and path", () => {
+  it("builds the watch URL with types, runId, path and id", () => {
     expect(client.watchUrl({ types: ["run", "execution"], runId: "run-1", path: "/a b.ecp.json" })).toBe(
       `${BASE}/v1/watch?types=run%2Cexecution&runId=run-1&path=%2Fa+b.ecp.json`,
     )
+    const byId = client.watchUrl({ id: "saved-demo" })
+    expect(byId).toContain("id=saved-demo")
+    expect(byId).not.toContain("path=")
   })
 
   it("omits the query when nothing is set", () => {
