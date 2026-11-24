@@ -331,7 +331,9 @@ export function EdgePanel({
   )
 
   useEffect(() => {
-    if (!editable || !manifest || exprText === savedExpr) {
+    // Validate the text whether or not it's saved yet: with autosave the text becomes the saved text ~500 ms after
+    // typing stops, and its syntax issues must stay listed (and show for an already-broken saved expression).
+    if (!editable || !manifest || exprText.trim() === "") {
       setExprIssues([])
       return
     }

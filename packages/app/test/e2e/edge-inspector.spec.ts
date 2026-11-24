@@ -71,12 +71,16 @@ test.describe("Edge inspector", () => {
   test("shows syntax error and still autosaves draft", async ({ page }) => {
     await open(page)
     await selectTranslateGateExpr(page)
-    const broken = "(state) => { return "
+    // Still reads state.locale, so the expr-read data edge (and its panel) survives the autosave.
+    const broken = "(state) => state.locale ==="
     await page.getByTestId("edge-expr-editor").fill(broken)
     await expect(page.getByTestId("edge-expr-issues")).toBeVisible({ timeout: 10_000 })
     await expect(page.getByTestId("edge-save")).toHaveCount(0)
     await page.getByTestId("edge-expr-editor").blur()
     await expect.poll(() => readFileSync(manifestPath, "utf8").includes(broken), { timeout: 15_000 }).toBe(true)
+    // Once autosaved, the issues stay listed (they used to vanish when the text matched the saved text).
+    await page.waitForTimeout(1_500)
+    await expect(page.getByTestId("edge-expr-issues")).toBeVisible()
   })
 
   test("ref-only data edge has no editor", async ({ page }) => {
