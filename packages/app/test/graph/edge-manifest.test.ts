@@ -44,6 +44,23 @@ const manifest: ExecutionManifest = {
 }
 
 describe("dataEdgeInspectorMeta", () => {
+  it("reads optional ref without fallback field", () => {
+    const optionalOnly: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "reader",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { flat: { $ref: "state.seed", optional: true } },
+        },
+      ],
+    }
+    const meta = dataEdgeInspectorMeta(optionalOnly, "reader", "flat")
+    expect(meta?.optional).toBe(true)
+    expect(meta?.fallback).toBeUndefined()
+  })
+
   it("reads optional ref with fallback", () => {
     const meta = dataEdgeInspectorMeta(manifest, "reader", "flat")
     expect(meta?.markerKind).toBe("ref")
@@ -171,6 +188,27 @@ describe("routeEdgeInspectorMeta", () => {
     expect(meta?.defaultArm).toBe(true)
   })
 
+  it("falls back to flat route fields when levels is empty", () => {
+    const meta = routeEdgeInspectorMeta(manifest, {
+      kind: "route",
+      route: "loop",
+      structureId: "loop",
+      exprSource: "state.on === true",
+      levels: [],
+    })
+    expect(meta?.exprSource).toBe("state.on === true")
+  })
+
+  it("returns undefined for sequence route levels", () => {
+    expect(
+      routeEdgeInspectorMeta(manifest, {
+        kind: "route",
+        route: "sequence",
+        levels: [{ route: "sequence", stepIds: ["a"] }],
+      }),
+    ).toBeUndefined()
+  })
+
   it("reads loop expr", () => {
     const meta = routeEdgeInspectorMeta(manifest, {
       kind: "route",
@@ -180,6 +218,18 @@ describe("routeEdgeInspectorMeta", () => {
       levels: [{ route: "loop", structureId: "loop", exprSource: "state.on === true" }],
     })
     expect(meta?.exprSource).toBe("state.on === true")
+  })
+
+  it("returns undefined when the structure id is missing from the manifest", () => {
+    expect(
+      routeEdgeInspectorMeta(manifest, {
+        kind: "route",
+        route: "branch",
+        structureId: "missing",
+        armIndex: 0,
+        levels: [{ route: "branch", structureId: "missing", armIndex: 0, exprSource: "true" }],
+      }),
+    ).toBeUndefined()
   })
 
   it("returns undefined for unsupported route kinds", () => {
@@ -262,6 +312,17 @@ describe("edge-manifest structure walks", () => {
     // The step's own expr gate is found through the loop too.
     expect(dataEdgeInspectorMeta(nested, "bodyStep", "expr")?.exprSource).toBe("(state) => true")
     expect(inputManifestPointer(nested, "armStep", "v")).toBe("/steps/0/branches/0/steps/0/input/v")
+  })
+
+  it("expr-gate meta omits source when step has no expr", () => {
+    const noExpr: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "plain", uses: "@executioncontrolprotocol/test.echo", input: {} }],
+    }
+    const meta = dataEdgeInspectorMeta(noExpr, "plain", "expr")
+    expect(meta?.markerKind).toBe("expr-gate")
+    expect(meta?.exprSource).toBeUndefined()
   })
 
   it("returns undefined for a step that doesn't exist", () => {

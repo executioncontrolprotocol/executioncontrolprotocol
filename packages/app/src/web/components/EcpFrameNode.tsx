@@ -2,6 +2,7 @@ import type { MouseEvent } from "react"
 import type { NodeProps } from "@xyflow/react"
 import { Columns2, Ellipsis, GitBranch, Repeat } from "lucide-react"
 import type { ReactFlowFrameData } from "../../graph/index.js"
+import { FlowInHandle } from "./ports.js"
 import { useFrameActions } from "./frame-actions-context.js"
 
 function FrameIcon({ data }: { data: ReactFlowFrameData }) {
@@ -16,7 +17,7 @@ function FrameIcon({ data }: { data: ReactFlowFrameData }) {
  * @category App
  */
 export function EcpFrameNode({ data }: NodeProps) {
-  const frame = data as unknown as ReactFlowFrameData
+  const frame = data as unknown as ReactFlowFrameData & { flowConnectable?: boolean }
   const actions = useFrameActions()
   const selected = actions.selectedStructureId === frame.structureId
 
@@ -44,8 +45,14 @@ export function EcpFrameNode({ data }: NodeProps) {
         }}
         onContextMenu={(event) => openMenu(event, frame.structureId)}
       >
+        <FlowInHandle connectable={frame.flowConnectable ?? false} />
         <FrameIcon data={frame} />
         <span className="ecp-rf-frame-label-text">{frame.label ?? frame.structureKind}</span>
+        {frame.detached ? (
+          <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${frame.structureId}`}>
+            disconnected
+          </span>
+        ) : null}
         <button
           type="button"
           className="ecp-rf-frame-menu nodrag nopan"

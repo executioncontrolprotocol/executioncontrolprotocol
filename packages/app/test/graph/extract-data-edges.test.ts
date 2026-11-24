@@ -89,12 +89,12 @@ describe("walkers", () => {
   }
 
   it("walkInputRefs visits $ref, $state and script params", () => {
-    const seen: Array<[string, string]> = []
-    walkInputRefs(value, "root", (p, r) => seen.push([p, r]))
+    const seen: Array<[string, string, string | undefined]> = []
+    walkInputRefs(value, "root", (p, r, k) => seen.push([p, r, k]))
     expect(seen).toEqual([
-      ["root.a", "state.x"],
-      ["root.b.0", "y"],
-      ["root.d", "state.w"],
+      ["root.a", "state.x", undefined],
+      ["root.b.0", "y", undefined],
+      ["root.d", "state.w", "p"],
     ])
   })
 
@@ -146,6 +146,31 @@ describe("extractDataEdges / extractExprEdges", () => {
       ["w2", "done", "expr"],
       [EXECUTION_ACCEPTS_NODE_ID, "inp", "expr"],
     ])
+  })
+
+  it("forEach collect and into reads use loop handles", () => {
+    const nodes: Node[] = [
+      {
+        type: "loop",
+        mode: "forEach",
+        id: "items",
+        ref: "state.list",
+        as: "row",
+        into: "out",
+        collect: "state.results",
+        steps: [
+          {
+            id: "body",
+            uses: "@x/p.c",
+            input: { a: { $ref: "state.out.summary" } },
+          },
+        ],
+      },
+    ]
+    const edges = extractDataEdges(nodes)
+    expect(edges).toContainEqual(
+      expect.objectContaining({ source: "items", sourceHandle: "into", target: "body", targetHandle: "a" }),
+    )
   })
 
   it("loop item reads inside forEach resolve to the loop head item handle", () => {

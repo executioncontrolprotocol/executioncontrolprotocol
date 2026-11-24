@@ -14,7 +14,7 @@ export type CanvasContextTarget =
  * Menu kind returned by the dispatcher (or none).
  * @category App
  */
-export type CanvasContextMenuKind = "node" | "container" | "none"
+export type CanvasContextMenuKind = "node" | "container" | "edge" | "none"
 
 /**
  * Prevent the browser menu and return which App menu should open.
@@ -27,5 +27,6 @@ export function openCanvasContextMenu(
   event.preventDefault()
   if (target.kind === "step") return "node"
   if (target.kind === "loop" || target.kind === "frame") return "container"
+  if (target.kind === "edge") return "edge"
   return "none"
 }

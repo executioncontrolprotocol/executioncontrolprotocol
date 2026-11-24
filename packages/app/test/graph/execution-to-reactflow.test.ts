@@ -825,3 +825,68 @@ describe("edge cases", () => {
     expect(step(doc, "doc").label).toBe("doc")
   })
 })
+
+describe("detached layout", () => {
+  const invalidDir = path.resolve(here, "../../../../fixtures/manifests/invalid")
+
+  it("stamps detached steps and places them below the main flow", () => {
+    const manifest = JSON.parse(readFileSync(path.join(invalidDir, "detached.ecp.json"), "utf8")) as ExecutionManifest
+    const doc = executionToReactFlow(manifest)
+    const aside = doc.nodes.find((node) => node.id === "aside")
+    expect(aside?.type).toBe("ecp-step")
+    expect((aside?.data as ReactFlowStepData).detached).toBe(true)
+    for (const edge of doc.edges) {
+      expect(edge.source).not.toBe("aside")
+      expect(edge.target).not.toBe("aside")
+    }
+    const mainNodes = doc.nodes.filter((node) => node.id !== "aside" && !(node.data as { detached?: boolean }).detached)
+    const mainMaxY = mainNodes.reduce((max, node) => Math.max(max, node.position.y), -Infinity)
+    const detachedMinY = aside ? aside.position.y : Infinity
+    expect(detachedMinY).toBeGreaterThan(mainMaxY)
+  })
+
+  it("detached branch frame is stamped and has no incident route edges", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" }],
+      detached: [
+        {
+          type: "branch",
+          id: "asideBranch",
+          branches: [{ expr: "(state) => true", steps: [{ id: "aside", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "aside" }] }],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const frame = doc.nodes.find((node) => node.type === "ecp-frame" && (node.data as ReactFlowFrameData).structureId === "asideBranch")
+    expect((frame?.data as ReactFlowFrameData).detached).toBe(true)
+    const memberIds = new Set(["asideBranch", "aside"])
+    for (const edge of doc.edges) {
+      if (edge.data.kind === "route") {
+        expect(memberIds.has(edge.source) && memberIds.has(edge.target)).toBe(false)
+      }
+    }
+  })
+
+  it("data edges carry bindingPath and paramKey for script params", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" }, as: "w" },
+        {
+          id: "r",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: {
+            code: { $script: { lang: "js", source: "1", params: { p: { $ref: "state.w" } } } },
+          },
+          as: "r",
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "r")
+    expect(edge?.data).toMatchObject({ bindingPath: "code", paramKey: "p" })
+  })
+})

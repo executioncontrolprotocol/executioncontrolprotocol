@@ -48,6 +48,8 @@ export interface ReactFlowPort {
  * @category App
  */
 export interface ReactFlowStepData {
+  /** True when the step is listed under manifest `detached`. */
+  detached?: boolean
   /** Display label (`label`, else the node id). */
   label: string
   /** Capability id (`uses`). */
@@ -98,6 +100,8 @@ export interface ReactFlowIoData {
  * @category App
  */
 export interface ReactFlowFrameData {
+  /** True when the framed structure is under manifest `detached`. */
+  detached?: boolean
   /** Branch, parallel, or loop id in the manifest. */
   structureId: string
   /** Which structure this frame outlines. */
@@ -149,6 +153,8 @@ export const LOOP_ITEM_HANDLE = "item"
  * @category App
  */
 export interface ReactFlowLoopItemsData {
+  /** True when the loop is listed under manifest `detached`. */
+  detached?: boolean
   /** Display label (`label`, else the node id). */
   label: string
   /** Loop mode. */
@@ -277,6 +283,10 @@ export interface ReactFlowDataEdgeData {
   kind: "data"
   /** Dotted input path on the target step (`targetHandle`). */
   inputPath: string
+  /** Manifest binding path (`walkInputRefs` path) for edits. */
+  bindingPath?: string
+  /** `$script.params` key when the binding is a script param ref. */
+  paramKey?: string
   /** State path the edge reads (after `parseStateRef`). */
   statePath: string
 }

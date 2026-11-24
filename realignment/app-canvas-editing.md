@@ -261,6 +261,9 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
   replays the edit, or shows what was discarded.
 - Invalid manifests are saved too (`draft: true`); the Validation tab and node badges show what's
   wrong.
+- Edits apply to the App's latest **local** manifest (what it last committed), not only to what the
+  last hot reload delivered. Today (phases 2–4) a second menu edit made before the reload arrives runs
+  on the stale manifest and can be refused or lost; the phase 3 e2e waits for the reload to avoid it.
 - Undo / redo: buttons in the canvas control bar with zoom in, zoom out and fit (React Flow
   `Controls` + `ControlButton`), plus Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z. A stack of manifests for the
   session; each undo or redo is saved like any other edit. Node drags aren't on the stack.

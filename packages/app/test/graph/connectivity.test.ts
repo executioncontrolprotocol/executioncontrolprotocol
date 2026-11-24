@@ -5,6 +5,7 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   acceptsPropertyKeys,
+  detachedNodeIds,
   executionToReactFlow,
   EXECUTION_RETURNS_NODE_ID,
   returnsSourceKeys,
@@ -62,14 +63,16 @@ function dataEdges(doc: ReactFlowDocument): ReactFlowEdge[] {
   return doc.edges.filter((edge) => edge.data.kind === "data")
 }
 
-function assertC2(doc: ReactFlowDocument, file: string): void {
+function assertC2(doc: ReactFlowDocument, file: string, manifest?: ExecutionManifest): void {
   const connected = new Set<string>()
   for (const edge of doc.edges) {
     connected.add(edge.source)
     connected.add(edge.target)
   }
+  const exempt = manifest ? detachedNodeIds(manifest) : new Set<string>()
   for (const node of doc.nodes) {
     if (node.type === "ecp-frame") continue
+    if (exempt.has(node.id)) continue
     expect(connected.has(node.id), `${file} orphaned node ${node.id}`).toBe(true)
   }
 }
@@ -172,7 +175,7 @@ describe("graph connectivity invariant", () => {
     const relative = path.relative(repoRoot, file)
     try {
       assertC1(manifest, doc, relative)
-      assertC2(doc, relative)
+      assertC2(doc, relative, manifest)
       connectivityResults.push({ file: relative, ok: true })
     } catch (error) {
       connectivityResults.push({ file: relative, ok: false })

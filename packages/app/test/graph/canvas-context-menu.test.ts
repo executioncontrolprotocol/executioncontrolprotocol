@@ -4,7 +4,7 @@ import { openCanvasContextMenu } from "../../src/web/lib/canvas-context-menu.js"
 describe("openCanvasContextMenu", () => {
   const targets = [
     { kind: "pane" as const, expect: "none" as const },
-    { kind: "edge" as const, expect: "none" as const },
+    { kind: "edge" as const, expect: "edge" as const },
     { kind: "io" as const, expect: "none" as const },
     { kind: "step" as const, stepId: "a", expect: "node" as const },
     { kind: "loop" as const, structureId: "loop-1", expect: "container" as const },

@@ -201,6 +201,18 @@ describe("structure-edit", () => {
     expect(after).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
   })
 
+  it("wrapSteps loop requires one contiguous step", () => {
+    const base = flatTwoStep()
+    const wrapped = wrapSteps(base, ["A"], "loop")
+    expect(wrapped.ok).toBe(true)
+    if (wrapped.ok) {
+      const loop = wrapped.manifest.steps[0]!
+      expect(loop.type).toBe("loop")
+      if (loop.type === "loop") expect(loop.steps[0]!.id).toBe("A")
+    }
+    expect(wrapSteps(base, ["A", "B", "missing"], "loop")).toMatchObject({ ok: false })
+  })
+
   it("does not mutate the input manifest on failure", () => {
     const base = flatTwoStep()
     const snapshot = structuredClone(base)

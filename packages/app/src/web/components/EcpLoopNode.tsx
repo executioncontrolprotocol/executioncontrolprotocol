@@ -8,6 +8,7 @@ import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./port
  * @category App
  */
 export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
+  flowConnectable?: boolean
   /** Items finished so far (`forEach`). */
   done?: number
   /** Total item count (`forEach`). */
@@ -31,6 +32,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
   const classes = [
     "ecp-rf-node min-w-[200px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm",
     selected ? "ecp-rf-node--selected" : "",
+    node.detached ? "ecp-rf-node--detached" : "",
   ]
   const mode = node.mode ?? "while"
 
@@ -40,8 +42,13 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle />
-      <FlowOutHandle />
+      <FlowInHandle connectable={node.flowConnectable ?? false} />
+      <FlowOutHandle connectable={node.flowConnectable ?? false} />
+      {node.detached ? (
+        <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
+          disconnected
+        </span>
+      ) : null}
       <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 font-display text-[11px] font-semibold leading-tight text-on-surface">

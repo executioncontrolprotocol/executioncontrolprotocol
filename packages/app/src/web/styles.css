@@ -169,6 +169,38 @@
     box-shadow: 0 0 8px color-mix(in srgb, var(--color-error) 30%, transparent);
   }
 
+  .ecp-rf-node--detached {
+    opacity: 0.65;
+    border-color: var(--color-outline-variant) !important;
+    filter: grayscale(0.25);
+  }
+
+  .ecp-rf-detached-badge {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-on-surface-variant);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+
+  .ecp-rf-edge-menu {
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--color-outline-variant);
+    background: var(--color-surface-container-high);
+    color: var(--color-on-surface);
+  }
+
+  .ecp-rf-edge-menu--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .ecp-rf-node--skipped,
   .ecp-rf-node--cancelled {
     opacity: 0.45;

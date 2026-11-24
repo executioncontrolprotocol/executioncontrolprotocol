@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import type { ReactFlowEdge } from "../../graph/index.js"
 import {
   STRUCTURE_EDIT_PARALLEL_MIN,
+  connectorDeletePreview,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
@@ -20,18 +22,27 @@ export type CanvasMenuState =
       clientX: number
       clientY: number
     }
+  | {
+      kind: "edge"
+      edgeId: string
+      level: number
+      clientX: number
+      clientY: number
+    }
 
 interface CanvasMenuProps {
   state: CanvasMenuState
   readOnly: boolean
   manifest: ExecutionManifest
   selectedStepIds: readonly string[]
+  edges: readonly ReactFlowEdge[]
   onClose: () => void
   onConfigure: () => void
   onWrap: (kind: "branch" | "parallel" | "loop") => void
   onDeleteStep: () => void
   onUnwrap: () => void
   onRemoveStructure: () => void
+  onDeleteConnector: () => void
 }
 
 type Submenu = "wrap" | "delete" | undefined
@@ -51,6 +62,8 @@ export function CanvasMenu({
   onDeleteStep,
   onUnwrap,
   onRemoveStructure,
+  onDeleteConnector,
+  edges,
 }: CanvasMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [submenu, setSubmenu] = useState<Submenu>(undefined)
@@ -106,7 +119,27 @@ export function CanvasMenu({
     }
   }, [onClose, submenu])
 
-  const items = readOnly
+  const edgeRecord = state.kind === "edge" ? edges.find((edge) => edge.id === state.edgeId) : undefined
+  const deletePreview =
+    state.kind === "edge" && edgeRecord
+      ? connectorDeletePreview(manifest, edgeRecord, state.level)
+      : { ok: false as const, reason: "" }
+
+  const items =
+    state.kind === "edge"
+      ? readOnly
+        ? [{ id: "configure", label: "Configure", action: onConfigure }]
+        : [
+            { id: "configure", label: "Configure", action: onConfigure },
+            {
+              id: "delete-connector",
+              label: "Delete",
+              action: onDeleteConnector,
+              disabled: !deletePreview.ok,
+              title: deletePreview.ok ? undefined : deletePreview.reason,
+            },
+          ]
+      : readOnly
     ? [{ id: "configure", label: "Configure", action: onConfigure }]
     : state.kind === "node"
       ? [
@@ -158,9 +191,14 @@ export function CanvasMenu({
               type="button"
               role="menuitem"
               data-testid={`canvas-menu-item-${item.id}`}
+              disabled={"disabled" in item ? item.disabled : false}
+              title={"title" in item ? item.title : undefined}
               className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[12px] text-on-surface hover:bg-surface-container-highest${
                 index === focusIndex ? " bg-surface-container-highest" : ""
               }`}
+              onMouseEnter={() => {
+                if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
+              }}
               onClick={() => {
                 if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
                 else if ("action" in item && item.action) item.action()

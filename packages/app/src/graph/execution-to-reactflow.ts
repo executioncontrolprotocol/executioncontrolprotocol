@@ -532,7 +532,11 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
  * Keep layout-only control edges as visible `sequence` routes for nodes that would
  * otherwise have no published edge (C2 orphan guard).
  */
-function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFlowEdge[]): ReactFlowEdge[] {
+function publishOrphanSequenceEdges(
+  nodes: ReactFlowNode[],
+  layoutEdges: ReactFlowEdge[],
+  exemptNodeIds?: ReadonlySet<string>,
+): ReactFlowEdge[] {
   const frameIds = new Set(nodes.filter((node) => node.type === "ecp-frame").map((node) => node.id))
   const published = layoutEdges.filter((edge) => edge.data.kind !== "control")
   const connected = new Set<string>()
@@ -541,7 +545,15 @@ function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFl
     connected.add(edge.target)
   }
   const orphans = new Set(
-    nodes.filter((node) => node.type !== "ecp-frame" && !frameIds.has(node.id) && !connected.has(node.id)).map((n) => n.id),
+    nodes
+      .filter(
+        (node) =>
+          node.type !== "ecp-frame" &&
+          !frameIds.has(node.id) &&
+          !connected.has(node.id) &&
+          !(exemptNodeIds?.has(node.id) ?? false),
+      )
+      .map((n) => n.id),
   )
   if (orphans.size === 0) return published
 
@@ -589,6 +601,7 @@ function frameNodesForStructures(
   laid: ReactFlowDocument,
   frames: readonly StructureFrame[],
   options?: ReactFlowEncodeOptions,
+  detachedStructureIds?: ReadonlySet<string>,
 ): ReactFlowNode[] {
   const nodeWidth = options?.nodeWidth ?? 260
   const nodeHeight = options?.nodeHeight ?? 160
@@ -622,6 +635,7 @@ function frameNodesForStructures(
       structureKind: spec.structureKind,
       ...(spec.loopMode !== undefined ? { loopMode: spec.loopMode } : {}),
       label: spec.label,
+      ...(detachedStructureIds?.has(spec.structureId) ? { detached: true } : {}),
     }
     out.push({
       id: spec.frameId,
@@ -702,10 +716,62 @@ export function executionToReactFlow(
   }
 
   const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options)
-  const frames = frameNodesForStructures(laid, structureFrames, options)
-  const allNodes = [...frames, ...laid.nodes]
+  let flowNodes = laid.nodes
+  const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
+  const detachedStructureIds = new Set<string>()
+  const detachedEntityIds = new Set<string>()
+
+  if (detachedRoots.length > 0) {
+    const detachedFrames: StructureFrame[] = []
+    const detachedCtx: EncodeContext = {
+      capabilitySchemas: options?.capabilitySchemas,
+      structureFrames: detachedFrames,
+      frameStack: [],
+    }
+    const detachedSeg = renderNodes(detachedRoots, detachedCtx)
+    const controlEdges = detachedSeg.edges.filter((edge) => edge.data.kind === "control")
+    const detachedLaid = layoutReactFlowDocument({ nodes: detachedSeg.nodes, edges: controlEdges }, options)
+    const mainMaxY = flowNodes.reduce((max, node) => {
+      const height = node.style?.height ?? options?.nodeHeight ?? 160
+      return Math.max(max, node.position.y + height)
+    }, 0)
+    const mainMinX = flowNodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
+    const detachedMinY = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity)
+    const detachedMinX = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
+    const dy = mainMaxY + 48 - detachedMinY
+    const dx = mainMinX - detachedMinX
+    const stampDetached = (node: ReactFlowNode): ReactFlowNode => {
+      detachedEntityIds.add(node.id)
+      if (node.type === "ecp-step" || node.type === "ecp-loop") {
+        return { ...node, data: { ...node.data, detached: true } }
+      }
+      return node
+    }
+    const translated = detachedLaid.nodes.map((node) =>
+      stampDetached({
+        ...node,
+        position: { x: node.position.x + dx, y: node.position.y + dy },
+      }),
+    )
+    flowNodes = [...flowNodes, ...translated]
+    structureFrames.push(...detachedFrames)
+    for (const root of detachedRoots) {
+      detachedStructureIds.add(root.id)
+      const walk = (n: Node): void => {
+        detachedStructureIds.add(n.id)
+        if (n.type === "branch") for (const arm of n.branches) for (const child of arm.steps) walk(child)
+        else if (n.type === "parallel") for (const line of n.branches) for (const child of line) walk(child)
+        else if (n.type === "loop") for (const child of n.steps) walk(child)
+      }
+      walk(root)
+    }
+  }
+
+  const laidForFrames = { nodes: flowNodes, edges: laid.edges }
+  const frames = frameNodesForStructures(laidForFrames, structureFrames, options, detachedStructureIds)
+  const allNodes = [...frames, ...flowNodes]
   return {
     nodes: allNodes,
-    edges: publishOrphanSequenceEdges(allNodes, laid.edges),
+    edges: publishOrphanSequenceEdges(allNodes, laid.edges, detachedEntityIds),
   }
 }

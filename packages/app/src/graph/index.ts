@@ -4,6 +4,30 @@
  */
 export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
+  attachAfter,
+  attachAsArm,
+  attachAsLine,
+  CONNECTION_EDIT_INSIDE,
+  CONNECTION_EDIT_LOOP,
+  CONNECTION_EDIT_NOT_BINDING,
+  deleteArm,
+  deleteParallelLine,
+  deleteConnector,
+  deleteSequenceLink,
+  connectorDeletePreview,
+  detachedNodeIds,
+  disconnectInput,
+} from "./connection-edit.js"
+export { isValidManifestFlowConnection, resolveFlowConnect, type FlowConnectAction } from "./flow-connect.js"
+export {
+  addArmCondition,
+  makeDefaultArm,
+  ROUTE_EDIT_ARM_HAS_CONDITION,
+  ROUTE_EDIT_DEFAULT_EXISTS,
+  setArmLabel,
+  setLoopField,
+} from "./route-edit.js"
+export {
   STRUCTURE_EDIT_CONTIGUOUS,
   STRUCTURE_EDIT_EMPTY_STEPS,
   STRUCTURE_EDIT_PARALLEL_MIN,

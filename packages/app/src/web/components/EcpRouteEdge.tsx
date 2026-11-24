@@ -1,6 +1,7 @@
 import type { SyntheticEvent } from "react"
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react"
 import type { ReactFlowArmRunState, ReactFlowRouteEdgeData, ReactFlowRouteLevel } from "../../graph/index.js"
+import { useEdgeMenuActions } from "./edge-menu-context.js"
 import { useRouteEdgeSelection } from "./route-edge-selection-context.js"
 
 /**
@@ -27,7 +28,7 @@ export function routeEdgeLabel(data: ReactFlowRouteLevel): string {
 
 /**
  * Structural route edge (branch arm, parallel line, loop entry or loop-back), dashed, with
- * one pill button per non-empty route level at the bezier midpoint. Loop-back edges carry no label.
+ * one pill button per route level at the bezier midpoint and a ⋯ menu control per level.
  * @category App
  */
 export function EcpRouteEdge({
@@ -45,6 +46,7 @@ export function EcpRouteEdge({
 }: EdgeProps) {
   const route = data as unknown as EcpRouteEdgeData | undefined
   const selection = useRouteEdgeSelection()
+  const menu = useEdgeMenuActions()
   const [path, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -59,47 +61,68 @@ export function EcpRouteEdge({
   }
 
   const levels = route.levels
-  const pills = levels
-    .map((level, index) => ({ level, index, label: routeEdgeLabel(level) }))
-    .filter((pill) => pill.label.length > 0)
+  const hovered = menu.hoveredEdgeId === id
 
   const stopPointer = (event: SyntheticEvent): void => {
     event.stopPropagation()
   }
 
-  const swallowMenu = (event: SyntheticEvent): void => {
+  const openMenu = (event: SyntheticEvent, level: number): void => {
     event.preventDefault()
     event.stopPropagation()
+    const mouse = event as unknown as { clientX: number; clientY: number }
+    menu.openMenu(id, level, mouse.clientX, mouse.clientY)
+  }
+
+  const showControl = (levelIndex: number): boolean => {
+    return hovered || (selection.selectedEdgeId === id && selection.selectedLevel === levelIndex)
   }
 
   return (
     <>
       <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} interactionWidth={interactionWidth} />
-      {pills.length > 0 ? (
+      {levels.length > 0 ? (
         <EdgeLabelRenderer>
           <div
             className="ecp-rf-edge-label-stack"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            {pills.map(({ index, label }) => {
+            {levels.map((level, index) => {
+              const label = routeEdgeLabel(level)
               const selected = selection.selectedEdgeId === id && selection.selectedLevel === index
+              const visible = showControl(index)
               return (
-                <button
-                  key={index}
-                  type="button"
-                  className={`ecp-rf-edge-label nodrag nopan${selected ? " ecp-rf-edge-label--selected" : ""}`}
-                  data-testid={`ecp-route-label-${id}`}
-                  data-level={String(index)}
-                  title={label}
-                  onClick={(event) => {
-                    stopPointer(event)
-                    selection.select(id, index)
-                  }}
-                  onPointerDown={stopPointer}
-                  onContextMenu={swallowMenu}
-                >
-                  {label}
-                </button>
+                <div key={index} className="ecp-rf-edge-level-row flex items-center gap-1">
+                  {label.length > 0 ? (
+                    <button
+                      type="button"
+                      className={`ecp-rf-edge-label nodrag nopan${selected ? " ecp-rf-edge-label--selected" : ""}`}
+                      data-testid={`ecp-route-label-${id}`}
+                      data-level={String(index)}
+                      title={label}
+                      onClick={(event) => {
+                        stopPointer(event)
+                        selection.select(id, index)
+                      }}
+                      onPointerDown={stopPointer}
+                      onContextMenu={(event) => openMenu(event, index)}
+                    >
+                      {label}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`ecp-rf-edge-menu nodrag nopan${visible ? "" : " ecp-rf-edge-menu--hidden"}`}
+                    data-testid={`ecp-edge-menu-${id}`}
+                    data-level={String(index)}
+                    aria-label="Edge menu"
+                    onClick={(event) => openMenu(event, index)}
+                    onContextMenu={(event) => openMenu(event, index)}
+                    onPointerDown={stopPointer}
+                  >
+                    ⋯
+                  </button>
+                </div>
               )
             })}
           </div>

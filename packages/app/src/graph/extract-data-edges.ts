@@ -196,7 +196,7 @@ function joinPath(path: string, key: string): string {
 export function walkInputRefs(
   value: unknown,
   path: string,
-  visit: (inputPath: string, refPath: string) => void,
+  visit: (inputPath: string, refPath: string, paramKey?: string) => void,
 ): void {
   const refPath = refPathFromValue(value)
   if (refPath !== undefined) {
@@ -205,9 +205,9 @@ export function walkInputRefs(
   }
   if (isExprMarker(value)) return
   if (isScriptMarker(value)) {
-    for (const param of Object.values(value.$script.params ?? {})) {
+    for (const [key, param] of Object.entries(value.$script.params ?? {})) {
       const paramRef = refPathFromValue(param)
-      if (paramRef !== undefined) visit(path, paramRef)
+      if (paramRef !== undefined) visit(path, paramRef, key)
     }
     return
   }
@@ -450,6 +450,8 @@ function pushReadEdge(
   wholeFallback: boolean,
   readerOrder?: number,
   enclosingStack?: string[],
+  bindingPath?: string,
+  paramKey?: string,
 ): void {
   const parsed = parseStateRef(statePath)
   if (!parsed) return
@@ -479,7 +481,13 @@ function pushReadEdge(
     target: readerId,
     sourceHandle,
     targetHandle,
-    data: { kind: "data", inputPath: targetHandle, statePath },
+    data: {
+      kind: "data",
+      inputPath: targetHandle,
+      statePath,
+      ...(bindingPath !== undefined ? { bindingPath } : {}),
+      ...(paramKey !== undefined ? { paramKey } : {}),
+    },
   })
 }
 
@@ -567,7 +575,7 @@ export function extractDataEdges(
     if (!step.input) continue
     const inputPortIds = inputPortIdsByStepId?.get(step.id)
     for (const [name, value] of Object.entries(step.input)) {
-      walkInputRefs(value, name, (inputPath, refPath) => {
+      walkInputRefs(value, name, (inputPath, refPath, paramKey) => {
         pushReadEdge(
           ctx,
           step.id,
@@ -576,6 +584,8 @@ export function extractDataEdges(
           false,
           undefined,
           enclosingLoopStack,
+          inputPath,
+          paramKey,
         )
       })
     }

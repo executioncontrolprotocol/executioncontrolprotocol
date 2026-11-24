@@ -9,16 +9,23 @@ import {
   useReactFlow,
   type Edge,
   type Node,
+  type Connection,
   type NodeChange,
 } from "@xyflow/react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
   armRunState,
+  attachAfter,
+  attachAsArm,
+  attachAsLine,
+  deleteConnector,
   deleteStep,
+  removeStructure,
+  isValidManifestFlowConnection,
+  resolveFlowConnect,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
-  removeStructure,
   type ReactFlowDocument,
   type ReactFlowFrameData,
   type ReactFlowNode,
@@ -33,6 +40,7 @@ import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EcpRouteEdge } from "./EcpRouteEdge.js"
+import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
 import { FrameActionsContext, type FrameActionsContextValue } from "./frame-actions-context.js"
 import { RouteEdgeSelectionContext, type RouteEdgeSelectionContextValue } from "./route-edge-selection-context.js"
 import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
@@ -162,8 +170,10 @@ function buildNodes(
   nodeErrors: Record<string, ValidationIssue[]>,
   selectedId: string | undefined,
   selectedStepIds: readonly string[],
+  readOnly: boolean,
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
+  const flowConnectable = !readOnly
   return document.nodes.map((node) => {
     const connected = {
       connectedTargetHandles: targets.get(node.id) ?? [],
@@ -174,8 +184,9 @@ function buildNodes(
       const runStep = run.steps[node.id]
       const issues = nodeErrors[node.id] ?? []
       const status = stepStatus(run, node.id)
+      const stepData = node.data as ReactFlowStepData
       const step: EcpStepNodeData = {
-        ...(node.data as ReactFlowStepData),
+        ...stepData,
         ...connected,
         ...(status ? { status } : {}),
         ...(runStep?.round !== undefined ? { round: runStep.round } : {}),
@@ -184,30 +195,32 @@ function buildNodes(
       }
       const message = runStep?.status === "failed" ? runStep.message : issues[0]?.message
       if (message) step.errorMessage = message
+      step.flowConnectable = flowConnectable
       data = step as unknown as Record<string, unknown>
     } else if (node.type === "ecp-loop") {
       const loopRun = run.loopItems[node.id]
       const loopRound = run.loops[node.id]
       const loopNode: EcpLoopNodeData = {
         ...(node.data as EcpLoopNodeData),
+        flowConnectable,
         ...connected,
         ...(loopRun ? { done: loopRun.done, count: loopRun.count } : {}),
         ...(loopRound ? { round: loopRound.round } : {}),
       }
       data = loopNode as unknown as Record<string, unknown>
     } else {
-      data = { ...node.data, ...connected }
+      data = { ...node.data, ...connected, flowConnectable }
     }
     if (node.type === "ecp-frame") {
       return {
         id: node.id,
         type: node.type,
         position: node.position,
-        data: node.data as unknown as Record<string, unknown>,
+        data: { ...(node.data as ReactFlowFrameData), flowConnectable } as unknown as Record<string, unknown>,
         zIndex: node.zIndex ?? 0,
         selectable: false,
         draggable: false,
-        connectable: false,
+        connectable: flowConnectable,
         deletable: false,
         focusable: false,
         ...(node.style?.width !== undefined
@@ -231,7 +244,7 @@ function buildNodes(
       selected: stepSelected || loopSelected || (node.type === "ecp-io" && selectedId === node.id),
       zIndex: 1000,
       draggable: false,
-      connectable: false,
+      connectable: flowConnectable,
       deletable: false,
       ...(node.style?.width !== undefined ? { style: { width: node.style.width } } : {}),
     }
@@ -365,11 +378,12 @@ function GraphCanvasBody({
 }: GraphCanvasProps) {
   const layoutKey = useMemo(() => layoutFitKey(document), [document])
   const built = useMemo(
-    () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds),
-    [document, run, nodeErrors, selectedId, selectedStepIds],
+    () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly),
+    [document, run, nodeErrors, selectedId, selectedStepIds, readOnly],
   )
   const edges = useMemo(() => buildEdges(document, run, selectedEdge), [document, run, selectedEdge])
   const [menu, setMenu] = useState<CanvasMenuState | undefined>(undefined)
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | undefined>(undefined)
   const screenToFlowRef = useRef<
     ((position: { x: number; y: number }) => { x: number; y: number }) | undefined
   >(undefined)
@@ -427,8 +441,45 @@ function GraphCanvasBody({
     [],
   )
 
+  const edgeMenu = useMemo<EdgeMenuContextValue>(
+    () => ({
+      hoveredEdgeId,
+      selectedEdgeId: selectedEdge?.edgeId,
+      selectedLevel: selectedEdge?.level,
+      openMenu: (edgeId, level, clientX, clientY) => {
+        setMenu({ kind: "edge", edgeId, level, clientX, clientY })
+      },
+    }),
+    [hoveredEdgeId, selectedEdge?.edgeId, selectedEdge?.level],
+  )
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      if (!connection.source || !connection.target) return
+      const action = resolveFlowConnect(manifest, document, connection)
+      if (!action) return
+      void applyEdit((current) => {
+        if (action.kind === "attachAfter") return attachAfter(current, action.sourceId, action.detachedId)
+        if (action.kind === "attachAsArm") return attachAsArm(current, action.branchId, action.detachedId)
+        return attachAsLine(current, action.parallelId, action.detachedId)
+      })
+    },
+    [applyEdit, document, manifest],
+  )
+
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) => {
+      if (readOnly) return false
+      const c = connection as Connection
+      if (!c.source || !c.target) return false
+      return isValidManifestFlowConnection(manifest, document, c)
+    },
+    [document, manifest, readOnly],
+  )
+
   return (
     <FrameActionsContext.Provider value={frameActions}>
+    <EdgeMenuContext.Provider value={edgeMenu}>
     <RouteEdgeSelectionContext.Provider value={routeSelection}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
     <ReactFlow
@@ -470,9 +521,15 @@ function GraphCanvasBody({
         }
         if (node.type === "ecp-io") openCanvasContextMenu({ kind: "io" }, event)
       }}
-      onEdgeContextMenu={(event) => {
-        openCanvasContextMenu({ kind: "edge" }, event)
+      onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+      onEdgeMouseLeave={() => setHoveredEdgeId(undefined)}
+      onEdgeContextMenu={(event, edge) => {
+        if (openCanvasContextMenu({ kind: "edge" }, event) === "edge") {
+          setMenu({ kind: "edge", edgeId: edge.id, level: selectedEdge?.edgeId === edge.id ? (selectedEdge?.level ?? 0) : 0, clientX: event.clientX, clientY: event.clientY })
+        }
       }}
+      onConnect={onConnect}
+      isValidConnection={isValidConnection}
       onPaneContextMenu={(event) => {
         openCanvasContextMenu({ kind: "pane" }, event)
         const project = screenToFlowRef.current
@@ -496,7 +553,7 @@ function GraphCanvasBody({
         closeMenu()
       }}
       nodesDraggable={false}
-      nodesConnectable={false}
+      nodesConnectable={!readOnly}
       elementsSelectable
       minZoom={0.1}
       proOptions={{ hideAttribution: true }}
@@ -514,17 +571,30 @@ function GraphCanvasBody({
         state={menu}
         readOnly={readOnly}
         manifest={manifest}
+        edges={document.edges}
         selectedStepIds={selectedStepIds}
         onClose={closeMenu}
         onConfigure={() => {
           if (menu.kind === "node") {
             onSelectSteps([])
             onSelect(menu.stepId)
+          } else if (menu.kind === "edge") {
+            onSelect(undefined)
+            onSelectSteps([])
+            onSelectEdge({ edgeId: menu.edgeId, level: menu.level })
           } else {
             onSelectSteps([])
             onSelect(menu.structureId)
           }
           closeMenu()
+        }}
+        onDeleteConnector={() => {
+          if (menu.kind !== "edge") return
+          const edge = document.edges.find((entry) => entry.id === menu.edgeId)
+          if (!edge) return
+          void applyEdit((current) => deleteConnector(current, edge, menu.level)).then((ok) => {
+            if (ok) closeMenu()
+          })
         }}
         onWrap={(kind) => {
           if (menu.kind !== "node") return
@@ -554,6 +624,7 @@ function GraphCanvasBody({
       />
     ) : null}
     </RouteEdgeSelectionContext.Provider>
+    </EdgeMenuContext.Provider>
     </FrameActionsContext.Provider>
   )
 }

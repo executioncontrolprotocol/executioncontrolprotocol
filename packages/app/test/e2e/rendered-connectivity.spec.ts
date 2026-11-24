@@ -5,12 +5,13 @@ import type { CapabilityEntry, ExecutionManifest } from "@executioncontrolprotoc
 import { expect, test, type Page } from "@playwright/test"
 import { AppHostClient } from "../../src/client/api.js"
 import { retrieveItem, retrieveItems } from "../../src/client/results.js"
-import { executionToReactFlow, type ReactFlowDocument } from "../../src/graph/index.js"
+import { detachedNodeIds, executionToReactFlow, type ReactFlowDocument } from "../../src/graph/index.js"
 import { manifestCapabilityUses, mergeCapabilityCatalog } from "../../src/web/hooks/useCapabilities.js"
 import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const validDir = path.join(repoRoot, "fixtures/manifests/valid")
+const invalidDir = path.join(repoRoot, "fixtures/manifests/invalid")
 const examplesDir = path.join(repoRoot, "examples")
 
 function listEcpJson(dir: string): string[] {
@@ -43,7 +44,11 @@ function walkExamples(dir: string, out: string[] = []): string[] {
   return out.sort()
 }
 
-const manifestSources = [...listEcpJson(validDir), ...walkExamples(examplesDir)]
+const manifestSources = [
+  ...listEcpJson(validDir),
+  ...listEcpJson(invalidDir).filter((file) => path.basename(file).startsWith("detached")),
+  ...walkExamples(examplesDir),
+]
 
 /** Source path -> copied path in the harness work dir (unique basename). */
 const manifestInHarness = new Map<string, string>()
@@ -151,7 +156,9 @@ test.describe("Rendered connectivity", () => {
         touched.add(edge.source)
         touched.add(edge.target)
       }
+      const exempt = detachedNodeIds(manifest)
       for (const nodeId of nonFrameNodeIds(doc)) {
+        if (exempt.has(nodeId)) continue
         expect(touched.has(nodeId), `${label} orphaned node ${nodeId}`).toBe(true)
       }
     })

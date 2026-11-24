@@ -8,6 +8,8 @@ import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./port
  * @category App
  */
 export interface EcpStepNodeData extends ReactFlowStepData {
+  /** When true, flow handles accept reconnect gestures. */
+  flowConnectable?: boolean
   /** Run status, when a run is shown. */
   status?: ReactFlowStepStatus
   /** Loop round of the status, when inside a loop. */
@@ -38,6 +40,7 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
     step.status && step.status !== "idle" ? `ecp-rf-node--${step.status}` : "",
     step.invalid ? "ecp-rf-node--invalid" : "",
     selected ? "ecp-rf-node--selected" : "",
+    step.detached ? "ecp-rf-node--detached" : "",
   ]
   const showError = Boolean(step.errorMessage) && (step.invalid || step.status === "failed")
 
@@ -49,8 +52,13 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       data-invalid={step.invalid ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle />
-      <FlowOutHandle />
+      <FlowInHandle connectable={step.flowConnectable ?? false} />
+      <FlowOutHandle connectable={step.flowConnectable ?? false} />
+      {step.detached ? (
+        <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
+          disconnected
+        </span>
+      ) : null}
       <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="font-display text-[11px] font-semibold leading-tight text-on-surface">{step.label}</div>

@@ -3,16 +3,20 @@ import { AlertTriangle, GitBranch, Save } from "lucide-react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { UnauthorizedError, validationFromExecute, type AppHostClient } from "../../client/index.js"
 import {
+  addArmCondition,
   applyDataEdgeDraft,
   applyRouteEdgeDraft,
   dataEdgeEditable,
   dataEdgeInspectorMeta,
   exprIssuesAtPointer,
+  makeDefaultArm,
   routeEdgeEditable,
   routeEdgeInspectorMeta,
+  setArmLabel,
   type ReactFlowDataEdgeData,
   type ReactFlowEdge,
   type ReactFlowRouteEdgeData,
+  type StructureEditResult,
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 import {
@@ -39,6 +43,98 @@ export interface EdgePanelProps {
   runId?: string
   runSource: "live" | "replay" | "none"
   onUnauthorized: () => void
+  readOnly?: boolean
+  applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+}
+
+function RouteArmFields({
+  manifest,
+  branchId,
+  armIndex,
+  defaultArm,
+  readOnly,
+  applyManifestEdit,
+}: {
+  manifest: ExecutionManifest
+  branchId: string
+  armIndex: number
+  defaultArm?: boolean
+  readOnly: boolean
+  applyManifestEdit: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+}) {
+  const armLabel = useMemo(() => {
+    const walk = (nodes: ExecutionManifest["steps"]): string => {
+      for (const node of nodes) {
+        if (node.type === "branch" && node.id === branchId) {
+          return node.branches[armIndex]?.label ?? ""
+        }
+        if (node.type === "branch") {
+          for (const arm of node.branches) {
+            const hit = walk(arm.steps)
+            if (hit) return hit
+          }
+        } else if (node.type === "parallel") {
+          for (const line of node.branches) {
+            const hit = walk(line)
+            if (hit) return hit
+          }
+        } else if (node.type === "loop") {
+          const hit = walk(node.steps)
+          if (hit) return hit
+        }
+      }
+      return ""
+    }
+    return walk(manifest.steps)
+  }, [manifest, branchId, armIndex])
+
+  const saveLabel = useCallback(
+    (nextLabel: string) => {
+      if (readOnly) return
+      void applyManifestEdit((current) => setArmLabel(current, branchId, armIndex, nextLabel))
+    },
+    [applyManifestEdit, armIndex, branchId, readOnly],
+  )
+
+  return (
+    <div className="space-y-2 border-t border-outline-variant pt-2">
+      <label className="font-mono text-label uppercase text-on-surface-variant" htmlFor="edge-arm-label">
+        Arm label
+      </label>
+      <input
+        id="edge-arm-label"
+        data-testid="edge-arm-label"
+        className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
+        defaultValue={armLabel}
+        disabled={readOnly}
+        onBlur={(event) => saveLabel(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") saveLabel((event.target as HTMLInputElement).value)
+        }}
+      />
+      {defaultArm ? (
+        <button
+          type="button"
+          data-testid="edge-arm-add-condition"
+          disabled={readOnly}
+          className="rounded border border-outline-variant px-2 py-1 text-[11px] disabled:opacity-40"
+          onClick={() => void applyManifestEdit((current) => addArmCondition(current, branchId, armIndex))}
+        >
+          Add condition
+        </button>
+      ) : (
+        <button
+          type="button"
+          data-testid="edge-arm-make-default"
+          disabled={readOnly}
+          className="rounded border border-outline-variant px-2 py-1 text-[11px] disabled:opacity-40"
+          onClick={() => void applyManifestEdit((current) => makeDefaultArm(current, branchId, armIndex))}
+        >
+          Make default
+        </button>
+      )}
+    </div>
+  )
 }
 
 function PayloadBlock({
@@ -119,6 +215,8 @@ export function EdgePanel({
   runId,
   runSource,
   onUnauthorized,
+  readOnly = false,
+  applyManifestEdit,
 }: EdgePanelProps) {
   const effective = draft ?? manifest
   const [exprText, setExprText] = useState("")
@@ -136,6 +234,9 @@ export function EdgePanel({
     if (!effective || !edge || edge.data.kind !== "route") return undefined
     return routeEdgeInspectorMeta(effective, edge.data as ReactFlowRouteEdgeData, level)
   }, [effective, edge, level])
+
+  const routeLevel =
+    edge?.data.kind === "route" ? (edge.data as ReactFlowRouteEdgeData).levels[level] : undefined
 
   const editable =
     edge?.data.kind === "data" ? dataEdgeEditable(dataMeta) : edge?.data.kind === "route" ? routeEdgeEditable(routeMeta) : false
@@ -312,7 +413,7 @@ export function EdgePanel({
       ) : null}
 
       {isRoute && routeMeta ? (
-        <div className="space-y-1 text-[12px]">
+        <div className="space-y-2 text-[12px]">
           <p className="font-mono text-label uppercase text-on-surface-variant">Route</p>
           {routeMeta.defaultArm ? (
             <p data-testid="edge-route-default" className="text-on-surface-variant">
@@ -321,6 +422,20 @@ export function EdgePanel({
           ) : (
             <p className="font-mono text-[11px] text-on-surface">expr</p>
           )}
+          {routeLevel?.route === "branch" &&
+          routeLevel.structureId !== undefined &&
+          routeLevel.armIndex !== undefined &&
+          effective &&
+          applyManifestEdit ? (
+            <RouteArmFields
+              manifest={effective}
+              branchId={routeLevel.structureId}
+              armIndex={routeLevel.armIndex}
+              defaultArm={routeLevel.defaultArm ?? routeMeta?.defaultArm}
+              readOnly={readOnly}
+              applyManifestEdit={applyManifestEdit}
+            />
+          ) : null}
         </div>
       ) : null}
 

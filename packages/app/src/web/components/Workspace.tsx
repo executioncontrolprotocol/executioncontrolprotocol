@@ -306,6 +306,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   runId={runId}
                   runSource={runSource}
                   onUnauthorized={onUnauthorized}
+                  readOnly={readOnly}
+                  applyManifestEdit={applyManifestEdit}
                 />
               ) : structurePanelId ? (
                 <StructurePanel manifest={doc.manifest} structureId={structurePanelId} />
@@ -329,6 +331,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   runLoop={selectedId ? overlay.loops[selectedId] : undefined}
                   reloadKey={doc.loads}
                   onUnauthorized={onUnauthorized}
+                  readOnly={readOnly}
+                  applyManifestEdit={applyManifestEdit}
                 />
               )}
               </>
