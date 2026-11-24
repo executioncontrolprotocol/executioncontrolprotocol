@@ -284,7 +284,9 @@
     box-sizing: border-box;
     border: 1px dashed var(--color-outline);
     border-radius: 0.5rem;
-    background: color-mix(in oklab, var(--color-surface-container-low) 55%, transparent);
+    /* No fill: frames are nodes, and React Flow draws edges and their pills under nodes, so a fill would tint
+       every edge and pill that crosses a frame. The dashed border and header carry the container. */
+    background: transparent;
   }
 
   .ecp-rf-frame-header {
