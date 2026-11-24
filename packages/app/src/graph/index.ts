@@ -7,9 +7,16 @@ export {
   attachAfter,
   attachAsArm,
   attachAsLine,
+  CONNECTION_EDIT_HANDLE,
+  CONNECTION_EDIT_INCOMPATIBLE,
   CONNECTION_EDIT_INSIDE,
   CONNECTION_EDIT_LOOP,
   CONNECTION_EDIT_NOT_BINDING,
+  CONNECTION_EDIT_ORDER,
+  CONNECTION_EDIT_SELF,
+  connectInput,
+  insertConnectedStep,
+  type ConnectInputTarget,
   deleteArm,
   deleteParallelLine,
   deleteConnector,
@@ -29,10 +36,21 @@ export {
 } from "./route-edit.js"
 export {
   addCapabilityStep,
+  allocateAsName,
   findStructure,
+  placementForConnectionOrigin,
   type AddStepPlacement,
   type AddStepResult,
 } from "./add-step.js"
+export { firstMatchingPort, portTypeKind, portsAreCompatible, type PortTypeKind } from "./port-compat.js"
+export { sourceVisibleTo } from "./read-order.js"
+export {
+  connectInputTarget,
+  dataConnectionRefusal,
+  isDataHandle,
+  isValidDataConnection,
+  portOnDocument,
+} from "./data-connect.js"
 export {
   STRUCTURE_EDIT_CONTIGUOUS,
   STRUCTURE_EDIT_EMPTY_STEPS,

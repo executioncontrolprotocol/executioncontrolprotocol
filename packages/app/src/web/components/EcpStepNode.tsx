@@ -1,7 +1,8 @@
 import type { NodeProps } from "@xyflow/react"
 import { AlertTriangle, Filter } from "lucide-react"
-import type { ReactFlowStepData, ReactFlowStepStatus } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./ports.js"
+import { EXPR_HANDLE_ID, type ReactFlowStepData, type ReactFlowStepStatus } from "../../graph/index.js"
+import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
  * Data for {@link EcpStepNode}: the encoded step plus run and validation overlays.
@@ -10,6 +11,8 @@ import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./port
 export interface EcpStepNodeData extends ReactFlowStepData {
   /** When true, flow handles accept reconnect gestures. */
   flowConnectable?: boolean
+  /** When true, data ports accept connection gestures. */
+  dataConnectable?: boolean
   /** Run status, when a run is shown. */
   status?: ReactFlowStepStatus
   /** Loop round of the status, when inside a loop. */
@@ -33,6 +36,7 @@ export interface EcpStepNodeData extends ReactFlowStepData {
  */
 export function EcpStepNode({ id, data, selected }: NodeProps) {
   const step = data as unknown as EcpStepNodeData
+  const dataConnectable = step.dataConnectable ?? false
   const targets = new Set(step.connectedTargetHandles ?? [])
   const sources = new Set(step.connectedSourceHandles ?? [])
   const classes = [
@@ -95,14 +99,22 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       </div>
       <div className="flex flex-col gap-1">
         {step.inputs.map((port) => (
-          <InputPortRow
+          <DragInputPort
             key={`in-${port.id}`}
+            nodeId={id}
             port={port}
             connected={port.binding === "ref" || targets.has(port.id)}
+            connectable={dataConnectable && port.id !== EXPR_HANDLE_ID}
           />
         ))}
         {step.outputs.map((port) => (
-          <OutputPortRow key={`out-${port.id}`} port={port} connected={sources.has(port.id)} />
+          <DragOutputPort
+            key={`out-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={sources.has(port.id)}
+            connectable={dataConnectable}
+          />
         ))}
       </div>
     </div>

@@ -17,6 +17,8 @@ import {
   manifestDetached,
   nodeContainsId,
 } from "./manifest-walk.js"
+import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
+import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE } from "./types.js"
 import { STRUCTURE_EDIT_STEP_NOT_FOUND, STRUCTURE_EDIT_STRUCTURE_NOT_FOUND } from "./structure-edit.js"
 
 /** Node id pattern from execution.base.schema.json: `^[A-Za-z][A-Za-z0-9_-]{0,63}$`. */
@@ -34,6 +36,7 @@ export type AddStepPlacement =
   | { kind: "loop-body"; loopId: string }
   | { kind: "new-arm"; branchId: string }
   | { kind: "new-line"; parallelId: string }
+  | { kind: "before" | "after"; nodeId: string }
 
 /**
  * Outcome of {@link addCapabilityStep}.
@@ -111,6 +114,15 @@ function uniqueNodeId(stem: string, taken: Set<string>): string {
   }
 }
 
+/**
+ * Allocate a unique `as` name for a capability on this manifest.
+ * @category App
+ */
+export function allocateAsName(manifest: ExecutionManifest, capabilityId: string): string {
+  const idStem = idStemFromShort(shortNameFromCapability(capabilityId))
+  return uniqueAsName(asStemFromIdStem(idStem), allTakenAs(manifest))
+}
+
 function uniqueAsName(stem: string, taken: Set<string>): string {
   let n = 1
   for (;;) {
@@ -169,7 +181,41 @@ function placementNeedsReplaceMode(manifest: ExecutionManifest, placement: AddSt
     if (detached && isEnclosedInWhileOrForBody(detached, placement.parallelId, false)) return true
     return false
   }
+  if (placement.kind === "before" || placement.kind === "after") {
+    if (isEnclosedInWhileOrForBody(manifest.steps, placement.nodeId, false)) return true
+    const detached = manifestDetached(manifest)
+    if (detached && isEnclosedInWhileOrForBody(detached, placement.nodeId, false)) return true
+    return false
+  }
   return false
+}
+
+/**
+ * Insertion placement when dropping a data connection on empty canvas.
+ * @category App
+ */
+export function placementForConnectionOrigin(
+  manifest: ExecutionManifest,
+  origin: { nodeId: string; handleId: string; side: "output" | "input" },
+): AddStepPlacement {
+  if (origin.nodeId === EXECUTION_ACCEPTS_NODE_ID && origin.side === "output") {
+    const first = manifest.steps[0]
+    if (!first) return { kind: "top" }
+    return { kind: "before", nodeId: first.id }
+  }
+  const loop = findStructure(manifest, origin.nodeId)
+  if (loop?.type === "loop") {
+    if (origin.handleId === LOOP_ITEM_HANDLE) {
+      const first = loop.steps[0]
+      if (first) return { kind: "before", nodeId: first.id }
+      return { kind: "loop-body", loopId: loop.id }
+    }
+    if (origin.handleId === LOOP_INTO_HANDLE) {
+      return { kind: "after", nodeId: loop.id }
+    }
+  }
+  if (origin.side === "output") return { kind: "after", nodeId: origin.nodeId }
+  return { kind: "before", nodeId: origin.nodeId }
 }
 
 function buildStep(
@@ -178,9 +224,8 @@ function buildStep(
   placement: AddStepPlacement,
 ): StepNode {
   const idStem = idStemFromShort(shortNameFromCapability(capabilityId))
-  const asStem = asStemFromIdStem(idStem)
   const nodeId = uniqueNodeId(idStem, allNodeIds(manifest))
-  const asName = uniqueAsName(asStem, allTakenAs(manifest))
+  const asName = allocateAsName(manifest, capabilityId)
   const step: StepNode = { id: nodeId, uses: capabilityId, as: asName }
   if (placementNeedsReplaceMode(manifest, placement)) step.mode = "replace"
   return step
@@ -256,6 +301,18 @@ export function addCapabilityStep(
     const parallel = findStructure(next, placement.parallelId)
     if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
     parallel.branches.push([step])
+    const finalized = finalizeManifest(next)
+    if (!finalized.ok) return finalized
+    return { ok: true, manifest: finalized.manifest, stepId: step.id }
+  }
+
+  if (placement.kind === "before" || placement.kind === "after") {
+    const hit =
+      findNodePlacement(next.steps, placement.nodeId) ??
+      (manifestDetached(next) ? findNodePlacement(manifestDetached(next)!, placement.nodeId) : undefined)
+    if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+    const spliceIndex = placement.kind === "before" ? hit.index : hit.index + 1
+    hit.parent.splice(spliceIndex, 0, step)
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }

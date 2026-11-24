@@ -11,6 +11,7 @@ import {
   type Node,
   type Connection,
   type NodeChange,
+  type FinalConnectionState,
 } from "@xyflow/react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
@@ -18,18 +19,29 @@ import {
   attachAfter,
   attachAsArm,
   attachAsLine,
+  connectInput,
+  connectInputTarget,
+  dataConnectionRefusal,
   deleteConnector,
   deleteStep,
-  removeStructure,
+  isDataHandle,
+  isValidDataConnection,
   isValidManifestFlowConnection,
+  placementForConnectionOrigin,
+  portOnDocument,
+  removeStructure,
   resolveFlowConnect,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
+  CONNECTION_EDIT_INCOMPATIBLE,
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
   type AddStepPlacement,
   type ReactFlowDocument,
   type ReactFlowFrameData,
   type ReactFlowNode,
+  type ReactFlowPort,
   type ReactFlowStepData,
   type ReactFlowStepStatus,
   type StructureEditResult,
@@ -48,6 +60,8 @@ import { FrameActionsContext, type FrameActionsContextValue } from "./frame-acti
 import { RouteEdgeSelectionContext, type RouteEdgeSelectionContextValue } from "./route-edge-selection-context.js"
 import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
+import { CanvasEditContext } from "./canvas-edit-context.js"
+import type { CapabilityOriginPort } from "./CapabilityMenu.js"
 
 const nodeTypes = {
   "ecp-step": EcpStepNode,
@@ -115,7 +129,13 @@ export interface GraphCanvasProps {
   /** Close the context menu when the canvas pans or zooms. */
   onMenuDismiss?: () => void
   /** Open the capability picker (phase 4+). */
-  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
+  onOpenCapabilityMenu?: (
+    clientX: number,
+    clientY: number,
+    placement: AddStepPlacement,
+    origin?: CapabilityOriginPort,
+    originPort?: ReactFlowPort,
+  ) => void
 }
 
 function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | undefined): AddStepPlacement {
@@ -186,6 +206,7 @@ function buildNodes(
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
   const flowConnectable = !readOnly
+  const dataConnectable = !readOnly
   return document.nodes.map((node) => {
     const connected = {
       connectedTargetHandles: targets.get(node.id) ?? [],
@@ -208,6 +229,7 @@ function buildNodes(
       const message = runStep?.status === "failed" ? runStep.message : issues[0]?.message
       if (message) step.errorMessage = message
       step.flowConnectable = flowConnectable
+      step.dataConnectable = dataConnectable
       data = step as unknown as Record<string, unknown>
     } else if (node.type === "ecp-loop") {
       const loopRun = run.loopItems[node.id]
@@ -215,13 +237,14 @@ function buildNodes(
       const loopNode: EcpLoopNodeData = {
         ...(node.data as EcpLoopNodeData),
         flowConnectable,
+        dataConnectable,
         ...connected,
         ...(loopRun ? { done: loopRun.done, count: loopRun.count } : {}),
         ...(loopRound ? { round: loopRound.round } : {}),
       }
       data = loopNode as unknown as Record<string, unknown>
     } else {
-      data = { ...node.data, ...connected, flowConnectable }
+      data = { ...node.data, ...connected, flowConnectable, dataConnectable }
     }
     if (node.type === "ecp-frame") {
       return {
@@ -471,12 +494,17 @@ function GraphCanvasBody({
     (connection: Connection) => {
       if (!connection.source || !connection.target) return
       const action = resolveFlowConnect(manifest, document, connection)
-      if (!action) return
-      void applyEdit((current) => {
-        if (action.kind === "attachAfter") return attachAfter(current, action.sourceId, action.detachedId)
-        if (action.kind === "attachAsArm") return attachAsArm(current, action.branchId, action.detachedId)
-        return attachAsLine(current, action.parallelId, action.detachedId)
-      })
+      if (action) {
+        void applyEdit((current) => {
+          if (action.kind === "attachAfter") return attachAfter(current, action.sourceId, action.detachedId)
+          if (action.kind === "attachAsArm") return attachAsArm(current, action.branchId, action.detachedId)
+          return attachAsLine(current, action.parallelId, action.detachedId)
+        })
+        return
+      }
+      const target = connectInputTarget(connection)
+      if (!target) return
+      void applyEdit((current) => connectInput(current, target))
     },
     [applyEdit, document, manifest],
   )
@@ -486,16 +514,62 @@ function GraphCanvasBody({
       if (readOnly) return false
       const c = connection as Connection
       if (!c.source || !c.target) return false
-      return isValidManifestFlowConnection(manifest, document, c)
+      if (c.sourceHandle === FLOW_OUT_HANDLE && c.targetHandle === FLOW_IN_HANDLE) {
+        return isValidManifestFlowConnection(manifest, document, c)
+      }
+      return isValidDataConnection(manifest, document, c)
     },
     [document, manifest, readOnly],
   )
+
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
+      if (readOnly) return
+      if (state.isValid === true) return
+      const fromHandle = state.fromHandle
+      const fromNode = state.fromNode
+      if (!fromHandle || !fromNode) return
+      if (!isDataHandle(fromHandle.id)) return
+
+      if (state.toNode != null && state.isValid === false) {
+        const reason =
+          dataConnectionRefusal(manifest, document, {
+            source: fromHandle.type === "source" ? fromNode.id : state.toNode.id,
+            target: fromHandle.type === "source" ? state.toNode.id : fromNode.id,
+            sourceHandle: fromHandle.type === "source" ? (fromHandle.id ?? "") : (state.toHandle?.id ?? ""),
+            targetHandle: fromHandle.type === "source" ? (state.toHandle?.id ?? "") : (fromHandle.id ?? ""),
+          }) ?? CONNECTION_EDIT_INCOMPATIBLE
+        void applyEdit(() => ({ ok: false, reason }))
+        return
+      }
+
+      if (state.toNode == null && onOpenCapabilityMenu) {
+        const clientX = "clientX" in event ? event.clientX : event.changedTouches[0]?.clientX ?? 0
+        const clientY = "clientY" in event ? event.clientY : event.changedTouches[0]?.clientY ?? 0
+        const side = fromHandle.type === "source" ? "output" : "input"
+        const origin: CapabilityOriginPort = { nodeId: fromNode.id, handleId: fromHandle.id ?? "", side }
+        const placement = placementForConnectionOrigin(manifest, origin)
+        const originPort =
+          portOnDocument(
+            document,
+            fromNode.id,
+            fromHandle.id ?? "",
+            side === "output" ? "output" : "input",
+          ) ?? ({ id: fromHandle.id ?? "", name: fromHandle.id ?? "", typeLabel: "unknown" } satisfies ReactFlowPort)
+        onOpenCapabilityMenu(clientX, clientY, placement, origin, originPort)
+      }
+    },
+    [applyEdit, document, manifest, onOpenCapabilityMenu, readOnly],
+  )
+
+  const canvasEdit = useMemo(() => ({ manifest, document }), [document, manifest])
 
   return (
     <FrameActionsContext.Provider value={frameActions}>
     <EdgeMenuContext.Provider value={edgeMenu}>
     <RouteEdgeSelectionContext.Provider value={routeSelection}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
+    <CanvasEditContext.Provider value={canvasEdit}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -546,6 +620,7 @@ function GraphCanvasBody({
         }
       }}
       onConnect={onConnect}
+      onConnectEnd={onConnectEnd}
       isValidConnection={isValidConnection}
       onPaneContextMenu={(event) => {
         openCanvasContextMenu({ kind: "pane" }, event)
@@ -586,6 +661,7 @@ function GraphCanvasBody({
       <FitGraphOnLayout layoutKey={layoutKey} />
       <CaptureFlowProjection />
     </ReactFlow>
+    </CanvasEditContext.Provider>
     </FlowProjectionRefContext.Provider>
     {menu ? (
       <CanvasMenu

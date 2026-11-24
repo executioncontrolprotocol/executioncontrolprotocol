@@ -1,7 +1,8 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
-import type { ReactFlowLoopItemsData } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./ports.js"
+import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, type ReactFlowLoopItemsData } from "../../graph/index.js"
+import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
  * Data for {@link EcpLoopNode}: structure metadata plus run overlay counts.
@@ -9,6 +10,7 @@ import { FlowInHandle, FlowOutHandle, InputPortRow, OutputPortRow } from "./port
  */
 export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
   flowConnectable?: boolean
+  dataConnectable?: boolean
   /** Items finished so far (`forEach`). */
   done?: number
   /** Total item count (`forEach`). */
@@ -27,6 +29,7 @@ export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
  */
 export function EcpLoopNode({ id, data, selected }: NodeProps) {
   const node = data as unknown as EcpLoopNodeData
+  const dataConnectable = node.dataConnectable ?? false
   const targets = new Set(node.connectedTargetHandles ?? [])
   const sources = new Set(node.connectedSourceHandles ?? [])
   const classes = [
@@ -86,10 +89,22 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       </div>
       <div className="flex flex-col gap-1">
         {node.inputs.map((port) => (
-          <InputPortRow key={`in-${port.id}`} port={port} connected={port.binding === "ref" || targets.has(port.id)} />
+          <DragInputPort
+            key={`in-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={port.binding === "ref" || targets.has(port.id)}
+            connectable={false}
+          />
         ))}
         {node.outputs.map((port) => (
-          <OutputPortRow key={`out-${port.id}`} port={port} connected={sources.has(port.id)} />
+          <DragOutputPort
+            key={`out-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={sources.has(port.id)}
+            connectable={dataConnectable && (port.id === LOOP_ITEM_HANDLE || port.id === LOOP_INTO_HANDLE)}
+          />
         ))}
       </div>
     </div>

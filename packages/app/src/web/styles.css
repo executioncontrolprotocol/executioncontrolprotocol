@@ -238,6 +238,15 @@
     border-color: var(--color-primary) !important;
   }
 
+  .react-flow__handle.ecp-rf-port--incompatible {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .react-flow__handle.ecp-rf-port--compatible {
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
   .react-flow__handle.ecp-rf-handle--flow {
     background: var(--color-surface-container-high) !important;
     border-color: var(--color-outline) !important;

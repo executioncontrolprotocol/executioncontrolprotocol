@@ -7,7 +7,34 @@ import type {
   StepNode,
 } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
-import { EXPR_HANDLE_ID } from "./extract-data-edges.js"
+import { EXPR_HANDLE_ID, OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
+import {
+  addCapabilityStep,
+  placementForConnectionOrigin,
+  allocateAsName,
+  type AddStepResult,
+} from "./add-step.js"
+import {
+  CONNECTION_EDIT_HANDLE,
+  CONNECTION_EDIT_ORDER,
+  CONNECTION_EDIT_SELF,
+  sourceVisibleTo,
+} from "./read-order.js"
+import { firstMatchingPort } from "./port-compat.js"
+import {
+  flattenJsonSchemaProperties,
+  jsonSchemaObjectProperties,
+} from "./json-schema.js"
+import { typeLabelFromSchema, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
+import type { ReactFlowPort } from "./types.js"
+import {
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
+  LOOP_COLLECT_HANDLE,
+  LOOP_ITEM_HANDLE,
+  LOOP_INTO_HANDLE,
+  LOOP_REF_HANDLE,
+} from "./types.js"
 import type { ReactFlowDataEdgeData, ReactFlowEdge, ReactFlowRouteEdgeData } from "./types.js"
 import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue } from "./markers.js"
 import {
@@ -410,6 +437,186 @@ export function deleteConnector(
  * Collect every node id under `manifest.detached` (for connectivity exemptions).
  * @category App
  */
+export {
+  CONNECTION_EDIT_HANDLE,
+  CONNECTION_EDIT_ORDER,
+  CONNECTION_EDIT_SELF,
+} from "./read-order.js"
+
+export const CONNECTION_EDIT_INCOMPATIBLE = "Those ports are not compatible"
+
+/**
+ * Target of a data-port connection in the manifest.
+ * @category App
+ */
+export interface ConnectInputTarget {
+  sourceNodeId: string
+  sourceHandle: string
+  targetStepId: string
+  targetHandle: string
+}
+
+function assignInputPath(input: Record<string, unknown>, inputPath: string, value: unknown): void {
+  const parts = inputPath.split(".")
+  if (parts.length === 1) {
+    input[parts[0]!] = value
+    return
+  }
+  let current: Record<string, unknown> = input
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const part = parts[index]!
+    const next = current[part]
+    if (!next || typeof next !== "object" || Array.isArray(next)) {
+      current[part] = {}
+    }
+    current = current[part] as Record<string, unknown>
+  }
+  current[parts[parts.length - 1]!] = value
+}
+
+function buildStateRef(
+  manifest: ExecutionManifest,
+  sourceNodeId: string,
+  sourceHandle: string,
+  step?: StepNode,
+): string | { ok: false; reason: string } {
+  if (sourceNodeId === EXECUTION_ACCEPTS_NODE_ID) {
+    return `state.${sourceHandle}`
+  }
+  const loopPlacement = findNodePlacement(manifest.steps, sourceNodeId)
+  if (loopPlacement?.node.type === "loop") {
+    const loop = loopPlacement.node as LoopNode
+    if (sourceHandle === LOOP_ITEM_HANDLE) {
+      const asKey = loop.as
+      if (!asKey) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+      return `state.${asKey}`
+    }
+    if (sourceHandle === LOOP_INTO_HANDLE) {
+      const into = loop.into
+      if (!into) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+      return `state.${into}`
+    }
+  }
+  const writer = step ?? resolveSourceStep(manifest, sourceNodeId)
+  if (!writer) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  const asKey = writer.as ?? allocateAsName(manifest, writer.uses)
+  if (sourceHandle === OUTPUT_HANDLE_ID || longestMatchingPortId(sourceHandle, [OUTPUT_HANDLE_ID]) === OUTPUT_HANDLE_ID) {
+    return `state.${asKey}`
+  }
+  const field = longestMatchingPortId(sourceHandle, [OUTPUT_HANDLE_ID, sourceHandle])
+  return `state.${asKey}.${field}`
+}
+
+function resolveSourceStep(manifest: ExecutionManifest, sourceNodeId: string): StepNode | undefined {
+  const hit = findStepPlacement(manifest.steps, sourceNodeId)
+  return hit ? (hit.parent[hit.index] as StepNode) : undefined
+}
+
+function isDisallowedTargetHandle(handle: string): boolean {
+  return (
+    handle === EXPR_HANDLE_ID ||
+    handle === LOOP_REF_HANDLE ||
+    handle === LOOP_COLLECT_HANDLE ||
+    handle === FLOW_IN_HANDLE ||
+    handle === FLOW_OUT_HANDLE
+  )
+}
+
+/**
+ * Wire a step input to a `$ref` from a source port.
+ * @category App
+ */
+export function connectInput(manifest: ExecutionManifest, target: ConnectInputTarget): StructureEditResult {
+  if (target.targetStepId === target.sourceNodeId) {
+    return { ok: false, reason: CONNECTION_EDIT_SELF }
+  }
+  if (target.targetStepId === EXECUTION_RETURNS_NODE_ID || isDisallowedTargetHandle(target.targetHandle)) {
+    return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+  }
+  if (!sourceVisibleTo(manifest, { nodeId: target.sourceNodeId, handleId: target.sourceHandle }, target.targetStepId)) {
+    return { ok: false, reason: CONNECTION_EDIT_ORDER }
+  }
+
+  const next = cloneManifest(manifest)
+  const targetHit = findStepPlacement(next.steps, target.targetStepId)
+  if (!targetHit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+
+  const sourceHit = findStepPlacement(next.steps, target.sourceNodeId)
+  let sourceStep = sourceHit ? (sourceHit.parent[sourceHit.index] as StepNode) : undefined
+  if (sourceStep && !sourceStep.as) {
+    const withAs = { ...sourceStep, as: allocateAsName(next, sourceStep.uses) }
+    sourceHit!.parent[sourceHit!.index] = withAs
+    sourceStep = withAs
+  }
+
+  const refResult = buildStateRef(next, target.sourceNodeId, target.sourceHandle, sourceStep)
+  if (typeof refResult !== "string") return refResult
+
+  const step = targetHit.parent[targetHit.index] as StepNode
+  const input = structuredClone(step.input ?? {}) as Record<string, unknown>
+  assignInputPath(input, target.targetHandle, { $ref: refResult })
+  targetHit.parent[targetHit.index] = { ...step, input: input as StepNode["input"] }
+
+  return { ok: true, manifest: next }
+}
+
+function portsFromCapabilitySchema(
+  schema: Record<string, unknown> | undefined,
+  io: "accepts" | "returns",
+): ReactFlowPort[] {
+  if (!schema) return []
+  const rows = io === "accepts" ? jsonSchemaObjectProperties(schema) : flattenJsonSchemaProperties(schema)
+  return rows.map((prop) => ({
+    id: prop.name,
+    name: prop.name.split(".").pop() ?? prop.name,
+    typeLabel: typeLabelFromSchema(prop.schema, prop.required),
+    valueSchema: valueSchemaFromJsonSchemaProp(prop.schema),
+    required: prop.required,
+  }))
+}
+
+/**
+ * Insert a step from a capability menu pick after a connection drop and wire the first compatible port.
+ * @category App
+ */
+export function insertConnectedStep(
+  manifest: ExecutionManifest,
+  capability: { id: string; accepts?: Record<string, unknown>; returns?: Record<string, unknown> },
+  origin: { nodeId: string; handleId: string; side: "output" | "input" },
+  originPort: ReactFlowPort,
+): AddStepResult {
+  const placement = placementForConnectionOrigin(manifest, origin)
+  const added = addCapabilityStep(manifest, { id: capability.id }, placement)
+  if (!added.ok) return added
+
+  const candidates =
+    origin.side === "output"
+      ? portsFromCapabilitySchema(capability.accepts, "accepts")
+      : portsFromCapabilitySchema(capability.returns, "returns")
+  const match = firstMatchingPort(originPort, candidates, origin.side)
+  if (!match) return added
+
+  if (origin.side === "output") {
+    const wired = connectInput(added.manifest, {
+      sourceNodeId: origin.nodeId,
+      sourceHandle: origin.handleId,
+      targetStepId: added.stepId,
+      targetHandle: match.id,
+    })
+    if (!wired.ok) return added
+    return { ok: true, manifest: wired.manifest, stepId: added.stepId }
+  }
+
+  const wired = connectInput(added.manifest, {
+    sourceNodeId: added.stepId,
+    sourceHandle: match.id,
+    targetStepId: origin.nodeId,
+    targetHandle: origin.handleId,
+  })
+  if (!wired.ok) return added
+  return { ok: true, manifest: wired.manifest, stepId: added.stepId }
+}
+
 export function detachedNodeIds(manifest: ExecutionManifest): Set<string> {
   const ids = new Set<string>()
   const list = manifest.detached

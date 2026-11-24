@@ -5,7 +5,9 @@ import Ajv from "ajv/dist/2020.js"
 import addFormats from "ajv-formats"
 import type { ExecutionManifest, StepNode } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
-import { addCapabilityStep } from "../../src/graph/add-step.js"
+import { addCapabilityStep, placementForConnectionOrigin } from "../../src/graph/add-step.js"
+import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
+import { LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
 import {
   STRUCTURE_EDIT_STEP_NOT_FOUND,
   STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
@@ -338,6 +340,93 @@ describe("addCapabilityStep", () => {
     expect(addCapabilityStep(base, { id: echo }, { kind: "new-line", parallelId: "only" })).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
+    })
+  })
+
+  it("placementForConnectionOrigin maps drag origins", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "only", uses: echo, input: { value: "x" }, as: "only" }],
+    }
+    expect(
+      placementForConnectionOrigin(base, {
+        nodeId: EXECUTION_ACCEPTS_NODE_ID,
+        handleId: "prompt",
+        side: "output",
+      }),
+    ).toEqual({ kind: "before", nodeId: "only" })
+    const looped: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "rows",
+          mode: "forEach",
+          as: "row",
+          into: "out",
+          ref: "state.items",
+          steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
+        },
+      ],
+    }
+    expect(
+      placementForConnectionOrigin(looped, { nodeId: "rows", handleId: LOOP_ITEM_HANDLE, side: "output" }),
+    ).toEqual({ kind: "before", nodeId: "body" })
+    expect(
+      placementForConnectionOrigin(base, { nodeId: "only", handleId: "text", side: "output" }),
+    ).toEqual({ kind: "after", nodeId: "only" })
+  })
+
+  it("inserts before and after in place", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "A", uses: echo, input: { value: "a" }, as: "A" },
+        { id: "B", uses: echo, input: { value: "b" }, as: "B" },
+      ],
+    }
+    const after = addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "A" })
+    expect(after.ok).toBe(true)
+    if (!after.ok) return
+    expect(after.manifest.steps.map((step) => step.id)).toEqual(["A", "echo", "B"])
+    const before = addCapabilityStep(base, { id: echo }, { kind: "before", nodeId: "B" })
+    expect(before.ok).toBe(true)
+    if (!before.ok) return
+    expect(before.manifest.steps.map((step) => step.id)).toEqual(["A", "echo", "B"])
+  })
+
+  it("inserts before and after inside a parallel line", () => {
+    const base = load("parallel.ecp.json")
+    const after = addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "left" })
+    expect(after.ok).toBe(true)
+    const before = addCapabilityStep(base, { id: echo }, { kind: "before", nodeId: "right" })
+    expect(before.ok).toBe(true)
+  })
+
+  it("inserts before and after inside branch arms", () => {
+    const base = load("branch.ecp.json")
+    const afterArm = addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "yes" })
+    expect(afterArm.ok).toBe(true)
+    if (!afterArm.ok) return
+    const branch = afterArm.manifest.steps[0]
+    if (branch.type !== "branch") return
+    expect(branch.branches[0]?.steps.map((step) => step.id)).toContain("echo")
+    const beforeArm = addCapabilityStep(base, { id: echo }, { kind: "before", nodeId: "no" })
+    expect(beforeArm.ok).toBe(true)
+  })
+
+  it("rejects unknown before/after anchors", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "only", uses: echo, input: { value: "x" }, as: "only" }],
+    }
+    expect(addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "missing" })).toMatchObject({
+      ok: false,
+      reason: STRUCTURE_EDIT_STEP_NOT_FOUND,
     })
   })
 

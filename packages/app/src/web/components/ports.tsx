@@ -88,19 +88,35 @@ export function FlowOutHandle({ connectable = false }: { connectable?: boolean }
   )
 }
 
+export type PortDragState = "compatible" | "incompatible" | "idle"
+
 /**
- * Input port row with a target handle on the left. View-only (not connectable).
+ * Input port row with a target handle on the left.
  * @category App
  */
-export function InputPortRow({ port, connected }: { port: ReactFlowPort; connected: boolean }) {
+export function InputPortRow({
+  port,
+  connected,
+  connectable = false,
+  drag = "idle",
+}: {
+  port: ReactFlowPort
+  connected: boolean
+  connectable?: boolean
+  drag?: PortDragState
+}) {
+  const allow = connectable && drag !== "incompatible"
   return (
     <div className="relative flex min-w-0 items-center gap-1 pl-2">
       <Handle
         type="target"
         position={Position.Left}
         id={port.id}
-        className={handleClass("input", connected)}
-        isConnectable={false}
+        className={`${handleClass("input", connected)}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
+        isConnectable={allow}
+        isConnectableStart={allow}
+        isConnectableEnd={allow}
+        data-incompatible={drag === "incompatible" ? "true" : "false"}
       />
       <span className="min-w-0 truncate font-mono text-[10px] text-on-surface-variant">
         {port.name}
@@ -112,10 +128,21 @@ export function InputPortRow({ port, connected }: { port: ReactFlowPort; connect
 }
 
 /**
- * Output port row with a source handle on the right. View-only (not connectable).
+ * Output port row with a source handle on the right.
  * @category App
  */
-export function OutputPortRow({ port, connected }: { port: ReactFlowPort; connected: boolean }) {
+export function OutputPortRow({
+  port,
+  connected,
+  connectable = false,
+  drag = "idle",
+}: {
+  port: ReactFlowPort
+  connected: boolean
+  connectable?: boolean
+  drag?: PortDragState
+}) {
+  const allow = connectable && drag !== "incompatible"
   return (
     <div className="relative flex items-center justify-end pr-2">
       <span className="font-mono text-[10px] text-on-surface-variant">
@@ -126,8 +153,11 @@ export function OutputPortRow({ port, connected }: { port: ReactFlowPort; connec
         type="source"
         position={Position.Right}
         id={port.id}
-        className={handleClass("output", connected)}
-        isConnectable={false}
+        className={`${handleClass("output", connected)}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
+        isConnectable={allow}
+        isConnectableStart={allow}
+        isConnectableEnd={allow}
+        data-incompatible={drag === "incompatible" ? "true" : "false"}
       />
     </div>
   )

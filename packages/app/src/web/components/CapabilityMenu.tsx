@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { AppHostClient } from "../../client/index.js"
 import { retrieveItems } from "../../client/results.js"
 import type { AddStepPlacement } from "../../graph/add-step.js"
+import type { ReactFlowPort } from "../../graph/index.js"
 import {
   CAPABILITY_SEARCH_DEBOUNCE_MS,
   capabilityRetrieveInput,
@@ -39,6 +40,8 @@ export interface CapabilityMenuRequest {
   placement: AddStepPlacement
   /** Set when opened from a dropped connection (not used in phase 4). */
   origin?: CapabilityOriginPort
+  /** Port schema at the drop origin (for compatibility wiring). */
+  originPort?: ReactFlowPort
 }
 
 interface CapabilityMenuProps {

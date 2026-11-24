@@ -5,10 +5,13 @@ import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
   addCapabilityStep,
   executionToReactFlow,
+  insertConnectedStep,
   replayRunEvents,
   type ReactFlowDocument,
   type RunGraphState,
 } from "../../graph/index.js"
+import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
+import { retrieveItem } from "../../client/results.js"
 import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
@@ -159,9 +162,15 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   }, [])
 
   const openCapabilityMenu = useCallback(
-    (clientX: number, clientY: number, placement: CapabilityMenuRequest["placement"]) => {
+    (
+      clientX: number,
+      clientY: number,
+      placement: CapabilityMenuRequest["placement"],
+      origin?: CapabilityMenuRequest["origin"],
+      originPort?: CapabilityMenuRequest["originPort"],
+    ) => {
       if (readOnly) return
-      setCapabilityMenu({ clientX, clientY, placement })
+      setCapabilityMenu({ clientX, clientY, placement, origin, originPort })
     },
     [readOnly],
   )
@@ -172,19 +181,45 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       if (!request || readOnly) return
       setCapabilityMenu(undefined)
       let stepId: string | undefined
-      void applyManifestEdit((current) => {
-        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
-        if (result.ok) stepId = result.stepId
-        return result
-      }).then((saved) => {
+      const finish = (saved: boolean): void => {
         if (!saved || !stepId) return
         setSelectedEdge(undefined)
         setSelectedStepIds([stepId])
         setSelectedId(stepId)
         setTab("graph")
-      })
+      }
+
+      if (request.origin && request.originPort) {
+        void client
+          .retrieve({ type: "capability", id: entry.id })
+          .then((response) => {
+            const capability = retrieveItem<CapabilityEntry>(response)
+            if (!capability) {
+              const message = response.ok ? "Capability could not be loaded." : response.error.message
+              void applyManifestEdit(() => ({ ok: false, reason: message }))
+              return
+            }
+            void applyManifestEdit((current) => {
+              const result = insertConnectedStep(
+                current,
+                { id: capability.id, accepts: capability.accepts, returns: capability.returns },
+                request.origin!,
+                request.originPort!,
+              )
+              if (result.ok) stepId = result.stepId
+              return result
+            }).then(finish)
+          })
+        return
+      }
+
+      void applyManifestEdit((current) => {
+        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
+        if (result.ok) stepId = result.stepId
+        return result
+      }).then(finish)
     },
-    [applyManifestEdit, capabilityMenu, readOnly],
+    [applyManifestEdit, capabilityMenu, client, readOnly],
   )
 
   const onRun = useCallback(
