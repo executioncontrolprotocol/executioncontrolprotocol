@@ -16,8 +16,8 @@ Non-negotiables:
   parallel / branch / loop (`while`, `for`, `forEach`) structure. Strip unlabeled layout-control
   edges; never
   invent fake `$ref`s for structure.
-- Do not emit `ecp-group` / `parentId` containers. Parallel lines may use post-layout
-  `ecp-frame` overlays (no `parentId`); branch and loop structure stay on route connectors.
+- Do not emit `ecp-group` / `parentId` containers. Emit one post-layout `ecp-frame` per branch,
+  parallel, and loop (no `parentId`); route connectors still carry structure detail.
 - Port bindings are literals, `$ref` / `$state`, `$script` (in `input`), and plain transform
   `script` objects; data edges are `$ref` only (plus loop `ref` / `collect` / `into` for `forEach`).
   Make sure output and nested input handles exist for every edged ref.

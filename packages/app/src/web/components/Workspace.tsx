@@ -11,10 +11,13 @@ import {
 import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
+import type { Node } from "@executioncontrolprotocol/protocol"
 import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
+import { StructurePanel } from "./StructurePanel.js"
+import { useManifestEdit } from "../hooks/useManifestEdit.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
@@ -55,6 +58,21 @@ function sourceLabel(source: ExecutionSource): string {
   return source.kind === "path" ? source.path : source.id
 }
 
+function isBranchOrParallel(nodes: Node[], id: string): boolean {
+  for (const node of nodes) {
+    if (node.type === "branch" && node.id === id) return true
+    if (node.type === "parallel" && node.id === id) return true
+    if (node.type === "branch") {
+      for (const arm of node.branches) if (isBranchOrParallel(arm.steps, id)) return true
+    } else if (node.type === "parallel") {
+      for (const line of node.branches) if (isBranchOrParallel(line, id)) return true
+    } else if (node.type === "loop") {
+      if (isBranchOrParallel(node.steps, id)) return true
+    }
+  }
+  return false
+}
+
 /**
  * Execution workspace: graph canvas with run / validation overlays and a tabbed sidebar
  * (Graph, Validation, Run, Runs, JSON). Hot reload keeps selection and the viewport, and
@@ -70,6 +88,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const live = useLiveRun(client, source, onUnauthorized)
   const [tab, setTab] = useState<WorkspaceTab>("graph")
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [selectedStepIds, setSelectedStepIds] = useState<string[]>([])
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | undefined>(undefined)
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
@@ -108,10 +127,20 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const runId = replay?.detail.id ?? live.runId
   const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
+  const readOnly = live.busy || replay !== undefined
+  const { apply: applyManifestEdit, error: structureEditError } = useManifestEdit(
+    client,
+    source,
+    doc.storedVersion,
+    doc.manifest,
+    onUnauthorized,
+    readOnly,
+  )
 
   const selectFromIssue = useCallback((nodeId: string) => {
     setSelectedEdge(undefined)
     setSelectedId(nodeId)
+    setSelectedStepIds([nodeId])
     setFocus((previous) => ({ id: nodeId, nonce: (previous?.nonce ?? 0) + 1 }))
   }, [])
 
@@ -139,6 +168,10 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
+  const structurePanelId =
+    selectedId && doc.manifest && !selectedNode && isBranchOrParallel(doc.manifest.steps, selectedId)
+      ? selectedId
+      : undefined
   const title = doc.manifest?.execution?.label ?? doc.manifest?.execution?.id ?? sourceLabel(source)
   const valid = doc.validation?.valid
 
@@ -147,6 +180,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-testid="workspace"
       data-source={source.kind}
       data-selected-node={selectedId ?? ""}
+      data-selected-steps={selectedStepIds.join(",")}
       data-selected-edge={selectedEdge?.edgeId ?? ""}
       data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
@@ -198,15 +232,20 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
       <div className="flex min-h-0 flex-1">
         <section data-testid="graph-canvas" className="relative min-w-0 flex-1">
-          {encoded.document ? (
+          {encoded.document && doc.manifest ? (
             <GraphCanvas
               document={encoded.document}
+              manifest={doc.manifest}
               run={overlay}
               nodeErrors={nodeErrors}
               selectedId={selectedId}
+              selectedStepIds={selectedStepIds}
+              readOnly={readOnly}
               selectedEdge={selectedEdge}
               onSelect={selectFromCanvas}
+              onSelectSteps={setSelectedStepIds}
               onSelectEdge={selectFromEdge}
+              applyEdit={applyManifestEdit}
               focus={focus}
             />
           ) : (
@@ -245,7 +284,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </nav>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {tab === "graph" ? (
-              selectedEdgeRecord ? (
+              <>
+              {structureEditError ? (
+                <p className="mb-3 text-[11px] text-error" data-testid="structure-edit-error">
+                  {structureEditError}
+                </p>
+              ) : null}
+              {selectedEdgeRecord ? (
                 <EdgePanel
                   client={client}
                   source={source}
@@ -262,6 +307,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   runSource={runSource}
                   onUnauthorized={onUnauthorized}
                 />
+              ) : structurePanelId ? (
+                <StructurePanel manifest={doc.manifest} structureId={structurePanelId} />
               ) : (
                 <NodePanel
                   client={client}
@@ -283,7 +330,8 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   reloadKey={doc.loads}
                   onUnauthorized={onUnauthorized}
                 />
-              )
+              )}
+              </>
             ) : null}
             {tab === "validation" ? (
               <ValidationView

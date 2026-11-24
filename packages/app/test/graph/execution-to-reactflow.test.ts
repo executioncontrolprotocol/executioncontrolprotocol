@@ -726,6 +726,7 @@ describe("parallel frames", () => {
     const frames = frameNodes(doc)
     // One frame (and one label) for the whole parallel, not one per line.
     expect(frames).toHaveLength(1)
+    expect((frames[0]!.data as ReactFlowFrameData).structureKind).toBe("parallel")
     for (const stepId of ["left", "right"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
   })
 
@@ -738,18 +739,43 @@ describe("parallel frames", () => {
     expect(routeEdges(doc).every((e) => e.data.label === undefined)).toBe(true)
   })
 
-  it("branch and loop fixtures gain no frame", () => {
-    expect(frameNodes(executionToReactFlow(load("branch.ecp.json")))).toHaveLength(0)
-    expect(frameNodes(executionToReactFlow(load("loop.ecp.json")))).toHaveLength(0)
-    expect(frameNodes(executionToReactFlow(load("loop-for.ecp.json")))).toHaveLength(0)
+  it("emits frames for branch, while, for, and forEach loops", () => {
+    const branchDoc = executionToReactFlow(load("branch.ecp.json"))
+    const branchFrame = frameNodes(branchDoc)[0]!
+    expect((branchFrame.data as ReactFlowFrameData).structureKind).toBe("branch")
+    expect((branchFrame.data as ReactFlowFrameData).label).toBe("branch")
+
+    const whileDoc = executionToReactFlow(load("loop.ecp.json"))
+    const whileFrame = frameNodes(whileDoc)[0]!
+    expect((whileFrame.data as ReactFlowFrameData).structureKind).toBe("loop")
+    expect((whileFrame.data as ReactFlowFrameData).loopMode).toBe("while")
+    expect(encloses(whileFrame, stepNode(whileDoc, "tick"))).toBe(true)
+    expect(encloses(whileFrame, whileDoc.nodes.find((n) => n.id === "refine")!)).toBe(true)
+
+    const forDoc = executionToReactFlow(load("loop-for.ecp.json"))
+    const forFrame = frameNodes(forDoc)[0]!
+    expect((forFrame.data as ReactFlowFrameData).label).toBe("for N")
+
+    const feDoc = executionToReactFlow(load("loop-foreach.ecp.json"))
+    const feFrame = frameNodes(feDoc)[0]!
+    expect((feFrame.data as ReactFlowFrameData).label).toMatch(/^forEach/)
+    expect(encloses(feFrame, stepNode(feDoc, "rows"))).toBe(true)
   })
 
-  it("a parallel whose line holds a loop and a branch still gets one enclosing frame", () => {
-    // nested.ecp.json: parallel `outer` with lines [loop > branch > step `nested`] and [step `side`].
+  it("nested parallel, loop and branch produce nested frames", () => {
     const doc = executionToReactFlow(load("nested.ecp.json"))
     const frames = frameNodes(doc)
-    expect(frames).toHaveLength(1)
-    for (const stepId of ["nested", "side"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
+    expect(frames).toHaveLength(3)
+    const outer = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "outer")!
+    const inner = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "inner")!
+    const arm = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "arm")!
+    expect(encloses(outer, stepNode(doc, "side"))).toBe(true)
+    expect(encloses(inner, stepNode(doc, "inner"))).toBe(true)
+    expect(encloses(arm, stepNode(doc, "nested"))).toBe(true)
+    expect(outer.position.y).toBeLessThan(inner.position.y)
+    expect(inner.position.y).toBeLessThan(arm.position.y)
+    expect((outer.zIndex ?? 0)).toBeLessThan(inner.zIndex ?? 0)
+    expect((inner.zIndex ?? 0)).toBeLessThan(arm.zIndex ?? 0)
   })
 })
 

@@ -161,8 +161,8 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 ### Phase 2: containers for every structure
 
 - Branch, parallel and loop (`while`, `for`, `forEach`) all render the `ecp-frame` that `forEach`
-  uses today, sized from the body's nodes after layout. Parallel keeps one frame per line inside
-  the parallel's frame; branch arms stay route edges with pills inside the branch's frame; loops
+  uses today, sized from the body's nodes after layout. Parallel has one frame around the whole
+  parallel; branch arms stay route edges with pills inside the branch's frame; loops
   keep their head node (it carries the `ref` / `expr` / `item` / `into` ports from #105).
 - Frame header: structure icon, label (or type), and a ⋯ menu (also on right-click anywhere on the
   frame that isn't a node or edge):
@@ -175,7 +175,7 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 - Canvas right-click handling (D3a): one `onContextMenu` dispatcher with `preventDefault()` on the
   React Flow wrapper; pane, frame, edge and node targets each open their own menu. A new
   branch gets one arm with a placeholder condition `(state) => true`; a new loop is `while` with
-  `maxRounds: 3` and no `expr` until configured. The container's panel opens.
+  `expr: "(state) => true"` and `maxRounds: 1` so the body runs exactly once until configured.
 - Tests: unit for `wrapSteps` / `unwrapStructure` round trips on every fixture structure;
   Playwright wraps a step, configures it, removes it.
 

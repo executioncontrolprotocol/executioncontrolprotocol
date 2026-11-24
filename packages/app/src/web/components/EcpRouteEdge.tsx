@@ -67,6 +67,11 @@ export function EcpRouteEdge({
     event.stopPropagation()
   }
 
+  const swallowMenu = (event: SyntheticEvent): void => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   return (
     <>
       <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} interactionWidth={interactionWidth} />
@@ -91,6 +96,7 @@ export function EcpRouteEdge({
                     selection.select(id, index)
                   }}
                   onPointerDown={stopPointer}
+                  onContextMenu={swallowMenu}
                 >
                   {label}
                 </button>

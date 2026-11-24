@@ -61,7 +61,7 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   Reloading never interrupts a run in progress; the run panel keeps showing it. A text edit still
   inside the 500 ms autosave pause is discarded on external reload with a one-line note.
 - Layout: dagre, left-to-right; an `ecp-frame` for every branch, parallel and loop (all modes),
-  label and ⋯ on the header; parallel keeps one frame per line inside the parallel frame; never
+  label and ⋯ on the header; parallel has one frame around the whole parallel; never
   `parentId` (`.cursor/rules/reactflow-render.mdc`); every loop keeps its head `ecp-loop` node
   (`ref` / `expr` / `collect` inputs, `item` / `into` outputs as applicable); `while` / `for`
   loop-backs go from body exits to the head and are not deletable; branch arms fan out. See

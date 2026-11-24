@@ -45,7 +45,7 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   on the frame).
 - **Frames for every structure.** After dagre, emit an `ecp-frame` for every branch, parallel and loop
   (all modes), sized to its body after layout, with the structure label on the frame. Parallel still
-  has one frame per line inside the parallel frame. Frames are not dagre parents and never set
+  has one frame around the whole parallel. Frames are not dagre parents and never set
   `parentId`.
 - **Loop head node.** Every `loop` (all modes) is an `ecp-loop` node at the head of the body (or frame for
   `forEach`), with target handles for `ref` / `expr` / `collect` and source handles `item` and `into` as

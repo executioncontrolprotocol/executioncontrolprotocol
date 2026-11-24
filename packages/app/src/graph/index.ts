@@ -4,6 +4,19 @@
  */
 export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
+  STRUCTURE_EDIT_CONTIGUOUS,
+  STRUCTURE_EDIT_EMPTY_STEPS,
+  STRUCTURE_EDIT_PARALLEL_MIN,
+  STRUCTURE_EDIT_STEP_NOT_FOUND,
+  STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
+  deleteStep,
+  removeStructure,
+  unwrapStructure,
+  wrapSelectionIds,
+  wrapSteps,
+  type StructureEditResult,
+} from "./structure-edit.js"
+export {
   applyDataEdgeDraft,
   applyRouteEdgeDraft,
   dataEdgeEditable,

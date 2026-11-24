@@ -94,15 +94,17 @@ export interface ReactFlowIoData {
 }
 
 /**
- * Decorative frame around a parallel line (not a dagre parent; drawn after layout).
+ * Decorative frame around a branch, parallel, or loop (not a dagre parent; drawn after layout).
  * @category App
  */
 export interface ReactFlowFrameData {
-  /** Parallel or loop node id in the execution manifest. */
+  /** Branch, parallel, or loop id in the manifest. */
   structureId: string
-  /** Parallel line index (always `0` for loop frames). */
-  armIndex: number
-  /** Structure label when the parallel node declares one, or a loop summary label. */
+  /** Which structure this frame outlines. */
+  structureKind: "branch" | "parallel" | "loop"
+  /** Set when `structureKind` is `loop`. */
+  loopMode?: "while" | "for" | "forEach"
+  /** Node `label`, or the fallback summary. */
   label?: string
 }
 
@@ -187,7 +189,7 @@ export interface ReactFlowNode {
   /** Node payload. */
   data: ReactFlowStepData | ReactFlowIoData | ReactFlowFrameData | ReactFlowLoopItemsData
   /** Soft size hint from layout. */
-  style?: { width?: number; height?: number }
+  style?: { width?: number; height?: number; pointerEvents?: string }
   /** Draw order; frames sit behind steps. */
   zIndex?: number
 }

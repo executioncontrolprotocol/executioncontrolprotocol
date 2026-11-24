@@ -140,6 +140,7 @@ function LoopItemsPanel({
         <p className="text-[12px] text-on-surface-variant">Loop ({mode} mode, read-only in the App).</p>
       </header>
       <div className="space-y-1.5">
+        <Row label="Kind">loop</Row>
         <Row label="Id">{node.id}</Row>
         <Row label="Mode">{mode}</Row>
         {data.refPath !== undefined || source?.ref ? (
