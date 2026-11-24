@@ -36,6 +36,8 @@ test.describe("Containers and menus", () => {
   async function open(page: Page, manifestPath: string): Promise<void> {
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: manifestPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
+    // Wait for the document version (the edit session is ready) before interacting, as the other specs do.
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
   test("branch-loop shows frames for branch and while loop", async ({ page }) => {

@@ -689,7 +689,10 @@ function GraphCanvasBody({
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onNodeDragStop={onNodeDragStop}
-      onMove={() => {
+      onMove={(event) => {
+        // Only a pan / zoom the user makes closes menus; programmatic moves (fit view after a load or an edit) have no
+        // event and must not close a menu the user just opened.
+        if (!event) return
         closeMenu()
         onMenuDismiss?.()
       }}

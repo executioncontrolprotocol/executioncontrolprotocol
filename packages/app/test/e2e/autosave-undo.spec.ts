@@ -280,8 +280,9 @@ test.describe("Autosave and undo", () => {
       await route.continue()
     })
     await page.route("**/v1/retrieve*", async (route) => {
-      const url = route.request().url()
-      if (gateRetrieve && url.includes("execution") && !url.includes("capability")) {
+      // retrieve is a POST: the type is in the body, not the URL.
+      const body = route.request().postData() ?? ""
+      if (gateRetrieve && /"type"\s*:\s*"execution"/.test(body)) {
         await retrieveGate
       }
       await route.continue()

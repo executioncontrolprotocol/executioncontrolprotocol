@@ -51,8 +51,12 @@ interface CanvasMenuProps {
 
 type Submenu = "wrap" | "delete" | undefined
 
+/** Room the submenu flyout needs beside the menu (its min width plus the gap). */
+const SUBMENU_FLYOUT_WIDTH = 168
+
 /**
- * Cursor-positioned canvas context menu for steps and structures.
+ * Cursor-positioned canvas context menu for steps and structures. Submenus open as a flyout beside the menu, so the
+ * item under the pointer never changes.
  * @category App
  */
 export function CanvasMenu({
@@ -72,6 +76,8 @@ export function CanvasMenu({
 }: CanvasMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [submenu, setSubmenu] = useState<Submenu>(undefined)
+  /** Open the submenu flyout on the left when there's no room for it on the right inside the canvas. */
+  const [flyoutLeft, setFlyoutLeft] = useState(false)
   const [focusIndex, setFocusIndex] = useState(0)
   const [pos, setPos] = useState({ left: state.clientX, top: state.clientY })
 
@@ -98,6 +104,7 @@ export function CanvasMenu({
     if (left < bounds.left) left = bounds.left + 4
     if (top < bounds.top) top = bounds.top + 4
     setPos({ left, top })
+    setFlyoutLeft(left + rect.width + SUBMENU_FLYOUT_WIDTH > bounds.right)
   }, [state.clientX, state.clientY])
 
   useLayoutEffect(() => {
@@ -223,8 +230,7 @@ export function CanvasMenu({
       style={{ left: pos.left, top: pos.top }}
       onKeyDown={onKeyDown}
     >
-      {!submenu
-        ? items.map((item, index) => (
+      {items.map((item, index) => (
             <button
               key={item.id}
               type="button"
@@ -235,8 +241,10 @@ export function CanvasMenu({
               className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[12px] text-on-surface hover:bg-surface-container-highest${
                 index === focusIndex ? " bg-surface-container-highest" : ""
               }`}
+              aria-haspopup={"submenu" in item && item.submenu ? "menu" : undefined}
+              aria-expanded={"submenu" in item && item.submenu ? submenu === item.submenu : undefined}
               onMouseEnter={() => {
-                if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
+                setSubmenu("submenu" in item && item.submenu ? item.submenu : undefined)
               }}
               onClick={() => {
                 if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
@@ -246,10 +254,15 @@ export function CanvasMenu({
               {item.label}
               {"submenu" in item && item.submenu ? <span aria-hidden="true">▸</span> : null}
             </button>
-          ))
-        : null}
+          ))}
       {submenu === "wrap" && !readOnly ? (
-        <div role="group">
+        <div
+          role="menu"
+          data-testid="canvas-submenu"
+          className={`absolute top-0 min-w-[10rem] rounded-md border border-outline-variant bg-surface-container-high py-1 shadow-lg ${
+            flyoutLeft ? "right-full mr-1" : "left-full ml-1"
+          }`}
+        >
           <button
             type="button"
             role="menuitem"
@@ -287,7 +300,13 @@ export function CanvasMenu({
         </div>
       ) : null}
       {submenu === "delete" && !readOnly ? (
-        <div role="group">
+        <div
+          role="menu"
+          data-testid="canvas-submenu"
+          className={`absolute top-0 min-w-[10rem] rounded-md border border-outline-variant bg-surface-container-high py-1 shadow-lg ${
+            flyoutLeft ? "right-full mr-1" : "left-full ml-1"
+          }`}
+        >
           <button
             type="button"
             role="menuitem"
