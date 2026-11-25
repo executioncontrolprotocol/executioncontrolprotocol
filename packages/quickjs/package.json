@@ -1,7 +1,7 @@
 {
   "name": "@executioncontrolprotocol/quickjs",
   "version": "0.60.0",
-  "description": "QuickJS expression engine for ECP. Evaluates expr and $expr inside a WASM sandbox.",
+  "description": "QuickJS expression engine for ECP. Evaluates node expression/script and $expr inside a WASM sandbox.",
   "type": "module",
   "engines": {
     "node": ">=22.12"

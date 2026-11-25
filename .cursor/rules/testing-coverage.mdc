@@ -10,7 +10,7 @@ alwaysApply: false
 
 | Shape | Intent | Examples |
 | --- | --- | --- |
-| **Positive** | The happy path succeeds | Valid `execute`, a branch takes the right arm, a loop exits when `expr` turns false |
+| **Positive** | The happy path succeeds | Valid `execute`, an `if` runs `then` or `else`, a `while` stops when `end.input.repeat` is false |
 | **Negative** | Invalid or missing input fails clearly | Unknown capability, input failing `accepts`, `ECP_PLUGINS_MISSING`, missing `SecretsProvider`, stale `ifVersion` |
 | **Edge** | Boundaries and partial state | Empty input, last step, `maxRounds` reached, resume after a host restart, `$expr` timeout in QuickJS |
 

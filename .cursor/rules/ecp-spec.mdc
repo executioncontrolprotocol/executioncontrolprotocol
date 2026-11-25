@@ -14,13 +14,17 @@ alwaysApply: true
   `packages/protocol/schemas/execution.base.schema.json` (written in Phase 0).
 - **Portability:** an execution never contains secrets, `$secret`/`$env` references, bindings
   or host config. It references capabilities by id; steps may name a `config` object.
-- **Loops:** one `type: "loop"` node with `mode` `while` (default), `for`, or `forEach`; exactly
-  one of plain `ref` or `expr` drives the loop. No separate `forEach` node or loop `throttle`.
-  See `realignment/loops.md` and spec 02.
+- **Graph nodes:** `if` (condition on the node with `then` / `else`), `parallel` (`paths`), `loop`
+  (`input`, body `steps`, `end`, `into`) and step nodes. Conditions use `expression` or `script`
+  over `input`, not a separate gate on steps. See `realignment/graph-model.md` and spec 02.
+- **Loops:** one `type: "loop"` node with `mode` `while` (default), `for`, or `forEach`; drivers
+  bind through `input`; each loop has an `end` node for gathering and (for `while`) `repeat`. No
+  separate `forEach` node or loop `throttle`. See `realignment/loops.md` and spec 02.
 - **Marker rule:** `$` markers only in value positions (`input`, `$script.params`, config).
   Transform step `script` is a plain object (`lang`, `source`/`path`), not `{ "$script": … }`.
-- **Expressions:** one `expr` field on steps, branch arms and `while` loops; `true` means go.
-  `$script` in `input` is a marker the host syntax-checks and never runs.
+- **Expressions:** `expression` or `script` on `if`, transform steps, loop `end`, and similar
+  nodes — evaluated with `input`, not `(state) => …`. `$script` in `input` is a marker the host
+  syntax-checks and never runs.
 - **Validation:** the host validates against JSON Schema (capability `accepts`/`returns` from
   plugin manifests, and the execution schema). Plugins author schemas with zod and export JSON
   Schema.

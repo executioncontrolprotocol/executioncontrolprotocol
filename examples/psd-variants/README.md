@@ -32,7 +32,7 @@ Into the Woods,New trail gear has landed,forest.jpg
    - `artboards` selects the new artboards (the plan's sizes, not the Original) and `render` exports one JPEG each;
    - `summary` is the row's result: `{ title, background, ok, problems, renditions: [{ name, file }] }`.
 
-   The loop collects one `summary` per row into `state.variants`, in row order. Each row works on its own copy
+   The loop `end` gathers one `summary` per row into `state.variants`, in row order. Each row works on its own copy
    of the state, so rows can't see or overwrite each other's steps.
 7. **`cleanup-upload`** and **`cleanup-backgrounds`** remove the published copies; **`flatten`** returns every
    rendition as `renditions.files: [{ row, title, background, name, file }]`.

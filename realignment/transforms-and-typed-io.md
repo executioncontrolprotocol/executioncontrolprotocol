@@ -12,8 +12,8 @@ into (`outputs[0].image.url`).
    expression on an edge. No placeholder nodes whose only job is to move a value into state.
 2. **Data edges are `$ref` only.** A step receives data from earlier outputs through `$ref` bindings, which are visible
    edges, typed, and checked by validation (L3).
-3. **Expressions drive control only.** `expr` on branch arms, loop conditions and step gates returns a boolean. It
-   never reshapes data.
+3. **Expressions drive control and gathers on nodes.** An `if` evaluates `expression` or `script` over its `input`
+   (boolean); a loop `end` may gather with `expression` or `script`. Expressions never reshape data on a branch.
 4. **Every node has a typed boundary** (`accepts` / `returns`). For a capability, the boundary is declared in the
    capability's own schema (`ecp.schema.json`) and never repeated in the workflow. A transform's contract depends on
    its use, so a transform step declares its own `accepts` / `returns`, the same way `execution.accepts` /
@@ -85,8 +85,8 @@ into (`outputs[0].image.url`).
 1. Core plugin + `core.transform` with step-declared contracts (D3–D5): protocol and schemas, validation (L1–L3),
    executor run-time output check, App typed ports and a node-panel script editor, specs 02, 04, 08, 11.
 2. Optional JSONata plugin (D4).
-3. Remove inline `$expr` from inputs (D1); migrate examples and fixtures; the App's edge inspector keeps route `expr`
-   editing and drops data `$expr` editing.
+3. Remove inline `$expr` from inputs (D1); migrate examples and fixtures; the App edits `expression` / `script` on
+   structure nodes and does not edit data `$expr` markers.
 4. Product-shaped Firefly/Photoshop inputs and outputs (D6), guided by the OpenAPI response schemas; update both PSD
    examples to connect `generate.images[0]` to the composite's background directly.
 5. Independent: an Azure `delete` capability so example uploads don't pile up.

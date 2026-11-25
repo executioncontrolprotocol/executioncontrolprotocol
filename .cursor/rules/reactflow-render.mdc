@@ -7,7 +7,7 @@ alwaysApply: false
 # React Flow render
 
 Follow `packages/app/REACTFLOW_RENDER.md`. The App renders **execution manifests (v2)** with the
-graph model: nodes, branches, ports, containers — not arms, routes, or pills.
+graph model: nodes, branches, ports, containers — see `realignment/graph-model.md`.
 
 Non-negotiables:
 
@@ -15,6 +15,6 @@ Non-negotiables:
 - **`if`**, **`parallel`**, **`loop`**, and loop **`end`** (`end:<loopId>`) are React Flow nodes with typed ports.
 - Branches are drawn only for **`$ref`** bindings; resolve producers per C1 (inputs, `as`, loop item/index,
   if/parallel scoped `as`, loop `into` from `end` `results`).
-- No `ecp-route` edges, route pills, `levels`, C2 sequence orphans, or step `expr` handles.
+- Data branches only (`$ref` / `$state`); structure nodes (`if` / `parallel` / `loop` / `end`) with ports; no legacy sequence-connector UI.
 - Frames (`ecp-frame`) outline containers with bands; start / `end` nodes pin to the left / right
   stroke. Band clusters are dagre parents; frames are not `parentId` in React Flow.

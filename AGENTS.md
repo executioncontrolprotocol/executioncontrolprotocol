@@ -37,8 +37,8 @@ Ground rules:
 
 ## What ECP is
 
-An **ECP host** runs **executions**: JSON manifests of capability steps with routing (parallel, forEach,
-branch, loop, `expr` gates). The host validates every capability call against the
+An **ECP host** runs **executions**: JSON manifests of capability steps and graph nodes (`if`,
+`parallel`, `loop` with `end`). The host validates every capability call against the
 capability's `accepts`/`returns` schemas. Plugins only provide capabilities; they're loaded into
 the host process on first call, from per-plugin manifests. Agents use exactly three
 operations, `retrieve`, `execute`, `commit`, through an MCP relay, the CLI, or the host's
@@ -98,11 +98,13 @@ The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
 - **Vendor-neutral host:** the host, CLI, relay and App must not branch on specific capability
   ids or output shapes. Domain knowledge lives in the plugin, surfaced through metadata and
   schemas.
-- **JS in executions:** host-evaluated JavaScript (`expr` on gates and loop drivers) runs only
-  in the QuickJS sandbox, never with `new Function` or `eval` in the host process. `$script` in
-  `input` is a marker: the host parses it and never runs it. Transform step `script` is a plain
-  object (not a `$script` wrapper).
-- **Loops:** `type: "loop"` with `mode` `while` | `for` | `forEach` (design in `realignment/loops.md`).
+- **JS in executions:** host-evaluated JavaScript (`expression` / `script` on `if`, transform steps,
+  loop `end`, and similar nodes) runs only in the QuickJS sandbox, never with `new Function` or
+  `eval` in the host process. `$script` in `input` is a marker: the host parses it and never runs
+  it. Transform step `script` is a plain object (not a `$script` wrapper).
+- **Graph model:** nodes, branches (`$ref` in `input`), ports and containers — see
+  `realignment/graph-model.md`. **Loops:** `type: "loop"` with `mode` `while` | `for` | `forEach`,
+  driver `input`, body `steps`, required `end`, and `into` where spec 02 requires it (`realignment/loops.md`).
   No separate `forEach` node.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
