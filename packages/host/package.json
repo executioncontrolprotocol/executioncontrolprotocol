@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/host",
   "version": "0.60.0",
-  "private": true,
   "description": "In-process and server ECP host composition.",
   "type": "module",
   "engines": {
