@@ -149,7 +149,7 @@ export interface GraphCanvasProps {
   /** Clear overrides and storage for this execution. */
   onAutoLayout: () => void
   /** Skip the next layout-driven fit (cursor-placed step). */
-  suppressFitUntilRef?: MutableRefObject<number>
+  suppressNextFitRef?: MutableRefObject<boolean>
   /** Undo the last committed edit. */
   onUndo: () => void
   /** Redo the last undone edit. */
@@ -409,10 +409,10 @@ const FlowProjectionRefContext = createContext<
 
 function FitGraphOnLayout({
   layoutKey,
-  suppressFitUntilRef,
+  suppressNextFitRef,
 }: {
   layoutKey: string
-  suppressFitUntilRef?: MutableRefObject<number>
+  suppressNextFitRef?: MutableRefObject<boolean>
 }) {
   const { fitView } = useReactFlow()
   const lastKey = useRef<string | undefined>(undefined)
@@ -422,14 +422,15 @@ function FitGraphOnLayout({
     const first = initialMount.current
     initialMount.current = false
     lastKey.current = layoutKey
-    // After a step is placed under the cursor, hold the viewport while the graph settles (the insert, its save and
-    // any relayout that follows can each change the layout key); a refit would pan the new node away from the cursor.
-    if (!first && suppressFitUntilRef && Date.now() < suppressFitUntilRef.current) return
+    if (!first && suppressNextFitRef?.current) {
+      suppressNextFitRef.current = false
+      return
+    }
     const frame = requestAnimationFrame(() => {
       void fitView(FIT_VIEW_OPTIONS)
     })
     return () => cancelAnimationFrame(frame)
-  }, [fitView, layoutKey, suppressFitUntilRef])
+  }, [fitView, layoutKey, suppressNextFitRef])
 
   useEffect(() => {
     const onResize = (): void => {
@@ -493,7 +494,7 @@ function GraphCanvasBody({
   onMenuDismiss,
   onPositionDragStop,
   onAutoLayout,
-  suppressFitUntilRef,
+  suppressNextFitRef,
   onUndo,
   onRedo,
   undoDisabled,
@@ -793,7 +794,7 @@ function GraphCanvasBody({
         <AutoLayoutControl onAutoLayout={onAutoLayout} />
       </Controls>
       <FocusNode focus={focus} />
-      <FitGraphOnLayout layoutKey={layoutKey} suppressFitUntilRef={suppressFitUntilRef} />
+      <FitGraphOnLayout layoutKey={layoutKey} suppressNextFitRef={suppressNextFitRef} />
       <CaptureFlowProjection />
     </ReactFlow>
     </CanvasEditContext.Provider>

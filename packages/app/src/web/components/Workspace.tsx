@@ -84,9 +84,6 @@ function isBranchOrParallel(nodes: Node[], id: string): boolean {
   return false
 }
 
-/** How long the viewport is held after placing a new step under the cursor. */
-const CURSOR_INSERT_SETTLE_MS = 3000
-
 /**
  * Execution workspace: graph canvas with run / validation overlays and a tabbed sidebar
  * (Graph, Validation, Run, Runs, JSON). Hot reload keeps selection and the viewport, and
@@ -111,8 +108,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
   const lastLayoutKey = useRef<string | undefined>(undefined)
-  /** Hold the viewport until this time after a cursor insert (see FitGraphOnLayout). */
-  const suppressFitUntil = useRef(0)
+  const suppressNextFit = useRef(false)
   const readOnly = live.busy || replay !== undefined
   const editor = useExecutionEditor(
     client,
@@ -265,7 +261,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
       const pinFlowPosition = (id: string): void => {
         if (!request.flowPosition) return
-        suppressFitUntil.current = Date.now() + CURSOR_INSERT_SETTLE_MS
+        suppressNextFit.current = true
         commitOverrides((current) => ({ ...current, [id]: request.flowPosition! }))
       }
 
@@ -427,7 +423,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               onMenuDismiss={() => setCapabilityMenu(undefined)}
               onPositionDragStop={onPositionDragStop}
               onAutoLayout={onAutoLayout}
-              suppressFitUntilRef={suppressFitUntil}
+              suppressNextFitRef={suppressNextFit}
               onUndo={() => void editor.undo()}
               onRedo={() => void editor.redo()}
               undoDisabled={readOnly || editor.conflictReplaying || !editor.canUndo}

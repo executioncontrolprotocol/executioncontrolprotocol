@@ -137,6 +137,19 @@ test.describe("Node drag", () => {
     const pane = page.locator(".react-flow__pane")
     const paneBox = await pane.boundingBox()
     expect(paneBox).not.toBeNull()
+    // The App fits the view a frame or two after the graph appears; a right-click before that converts the cursor with
+    // the identity transform and the fit then moves the node. Wait until the viewport is fitted and stable.
+    const viewportTransform = (): Promise<string> =>
+      page.evaluate(() => (document.querySelector(".react-flow__viewport") as HTMLElement | null)?.style.transform ?? "")
+    let previous = ""
+    await expect
+      .poll(async () => {
+        const current = await viewportTransform()
+        const settled = current !== "" && current === previous && !/^translate\(0px, 0px\) scale\(1\)$/.test(current)
+        previous = current
+        return settled
+      }, { timeout: 10_000, intervals: [100] })
+      .toBe(true)
     const clickX = paneBox!.x + paneBox!.width * 0.55
     const clickY = paneBox!.y + paneBox!.height * 0.45
     await page.mouse.click(clickX, clickY, { button: "right" })
