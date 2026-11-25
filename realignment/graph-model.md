@@ -1,7 +1,7 @@
 # Graph model: nodes and branches
 
-**Status:** draft for review, 2026-11-25. Branch `feature/graph-model`; changes stack here until the model is agreed
-and built. Nothing in this doc is implemented yet.
+**Status:** agreed 2026-11-25 (decisions below); being built on branch `feature/graph-model` (PR #110), one PR for
+the whole change.
 **Replaces:** the dotted route lines, pills and route menus of [`app-canvas-editing.md`](app-canvas-editing.md)
 (decision D2 and the "Deleting connections" table) and the expressions that live on structures and step gates in
 [spec 02](spec/02-execution-manifest.md). Everything else from that plan stays (detached steps, draft commits, the
@@ -13,7 +13,7 @@ Only these words describe the graph:
 
 | Word | Meaning |
 | --- | --- |
-| **Node** | Anything that runs or decides: a step (capability call or transform), an `if`, a `parallel`, a `loop`, and a loop's `collect` end. |
+| **Node** | Anything that runs or decides: a step (capability call or transform), an `if`, a `parallel`, a `loop`, and a loop's `end`. |
 | **Port** | A named, typed input or output of a node. Types come from JSON Schema; a type that can't be known is `unknown`. |
 | **Branch** | A connection from exactly one output port to exactly one input port. It carries a value and nothing else: no condition, no expression, no settings. In the manifest a branch is the `$ref` in the target node's `input`. |
 | **Container** | The dotted boundary drawn around the nodes a pattern governs, from its start node to its end. Visual only: nothing is configured on it and nothing connects to it. Its scope comes from the manifest's nesting. |
@@ -55,8 +55,10 @@ inside an `if`.
 ```
 
 - **Input ports:** the `accepts` properties, bound with branches like a step's inputs.
-- **Condition:** an `expression` or `script` evaluated with `input`, exactly as a transform is; it must return
-  `true` / `false` (anything else fails the run with a new `ECP_CONDITION_INVALID`).
+- **Condition:** an `expression` or `script` evaluated with `input`, exactly as a transform is. `true` runs `then`.
+  `false` runs `else`, **and so does any failure**: the condition throws, an input it needs is missing (e.g. an
+  optional `$ref` that resolved to nothing), or it returns something other than a boolean. The run record notes
+  which happened. Reshaping data before a condition is a transform node's job, not the condition's.
 - **Output ports:** `then` and `else`. **Both carry the same value with the same contract**: the node's input,
   typed by `accepts`. When `as` is set it's committed to state, so a node inside either side binds it with
   `{ "$ref": "state.customer.tier" }`, and the canvas draws that as a branch from the `then` or `else` port
@@ -77,10 +79,10 @@ inside an `if`.
 }
 ```
 
-- **Output ports:** one per path (`path 1`, `path 2`, …), each carrying the node's input with the same contract
-  (as `if`). A `parallel` with no `accepts` just starts its paths.
+- **Output ports:** one per path (`path 1`, `path 2`, …), each passing the node's inputs through with the same
+  contract (as `if`). A `parallel` with no `accepts` has no ports and just starts its paths.
 
-### `loop` and its `collect` end
+### `loop` and its `end`
 
 ```jsonc
 {
@@ -92,28 +94,32 @@ inside an `if`.
   "concurrency": 2,                                    // forEach
   "maxRounds": 5,                                      // while
   "steps": [ /* the loop body */ ],
-  "collect": {
+  "end": {
+    "accepts": { /* optional: typed inputs from the body */ },
     "input": {
-      "value": { "$ref": "state.ship" },               // collected each round / item
-      "repeat": { "$ref": "state.check.again" }        // while only: a boolean computed in the body
+      "value": { "$ref": "state.ship" },               // what this round / item contributes
+      "repeat": { "$ref": "state.check.again" }        // while only: true = go again
     },
-    "returns": { /* optional schema for the loop's result */ }
+    "expression": "input.value",                       // optional: expression or script gathering the round's result
+    "returns": { /* optional schema for each gathered result */ }
   },
-  "into": "shipped"                                    // state key for the result, outside the loop
+  "into": "shipped"                                    // state key for the loop's result, outside the loop
 }
 ```
 
 - **Start node** (`loop`), on the container's left edge:
   - input ports: `items` (forEach) or `count` (for); none for `while`;
   - output ports into the container: `item` and `index` (forEach), `index` (for), typed from the `items` schema.
-- **End node** (`collect`), on the container's right edge:
-  - input ports from inside: `value` (what each round / item contributes) and, for `while`, `repeat` (`true` = go
-    again);
-  - output port outside: `results` — forEach: an array of `value`; for / while: the last `value`. Typed by
-    `collect.returns` when declared, else from the `value` port's type, else `unknown`.
+- **End node** (`end`), on the container's right edge. **One kind of end node closes every loop mode.**
+  - input ports from inside: its `accepts` properties (or just `value` when there's no `accepts`), and, for `while`,
+    `repeat` (`true` = go again);
+  - optional `expression` / `script`, evaluated with `input` like a transform, gathers the round's / item's result;
+    without one, the result is `input.value`;
+  - output port outside: `results` — forEach: an array of the gathered results; for / while: the last one. Typed by
+    `end.returns` when declared, else from the gathered value's type, else `unknown`.
 - **`while` checks after each round**, by reading `repeat` from a node inside the body, so the body runs at least
   once and the check is a forward branch into the end node. A loop that may run zero times is wrapped in an `if`.
-  `maxRounds` still caps it.
+  `maxRounds` still caps it. A failing or non-boolean `repeat` ends the loop.
 - Replaces today's loop `ref`, `expr`, string `collect`, and pre-round `while` check.
 
 ### Inputs and Outputs
@@ -125,7 +131,7 @@ Outputs node.
 
 - Drawn from the manifest tree; never configured, selected or connected to.
 - The start node (`if`, `parallel`, `loop`) sits **on the container's left edge, centred on the dotted line**: its
-  input ports are outside, its output ports inside. A loop's `collect` end node sits on the right edge the same way:
+  input ports are outside, its output ports inside. A loop's `end` node sits on the right edge the same way:
   inputs inside, `results` outside. An `if` / `parallel` container closes after the last node inside it.
 - An `if` container is split into two bands, `then` (top) and `else` (bottom), level with those ports; a `parallel`
   into one band per path. A node's band is the list it's in, so a node with only literal inputs still visibly belongs
@@ -144,10 +150,10 @@ Outputs node.
 ## Configuration and actions
 
 - The right-hand panel shows the selected **node**: a step's inputs and capability; an `if`'s `accepts`, inputs and
-  condition; a `loop`'s mode, `items` / `count`, `as`, limits; a `collect`'s `value`, `repeat`, `returns`.
+  condition; a `loop`'s mode, `items` / `count`, `as`, limits; an `end`'s inputs, gathering expression / script, `returns`.
 - A selected **branch** shows its two ports and offers Delete. Nothing else.
 - Delete (key or menu): a branch removes the `$ref`; a step removes the step; a start node removes the pattern and
-  keeps its nodes (the menu also offers "with its nodes"); a `collect` end can't be deleted on its own.
+  keeps its nodes (the menu also offers "with its nodes"); a loop's `end` can't be deleted on its own.
 - Right-click on a node offers Wrap in `if` / `parallel` / `loop`, as today.
 
 ## Schema changes (summary)
@@ -156,23 +162,20 @@ Outputs node.
 | --- | --- |
 | `branch` with `branches: [{ label, expr, steps }]` | `if` with `accepts`, `input`, `expression` / `script`, `then`, `else` |
 | `parallel.branches` | `parallel.paths` (+ optional `accepts` / `input` / `as`) |
-| loop `ref`, `expr`, string `collect`, pre-round `while` | loop `input.items` / `input.count`; `collect` end with `value`, `repeat`, `returns`; `while` checks after each round |
+| loop `ref`, `expr`, string `collect`, pre-round `while` | loop `input.items` / `input.count`; `end` node with inputs, optional `expression` / `script`, `repeat`, `returns`; `while` checks after each round |
 | step `expr` gate | removed (use `if`) |
 | expressions that read `state` | conditions read their typed `input` only |
 
 The executor keeps its shape: an `if` runs one of two lists, a `parallel` its paths, a loop its body; conditions and
 loop checks are evaluated by the same QuickJS / expression runtime transforms use. Validation gains: condition and
-`collect` shapes, port types on `if` / `parallel` / `loop` / `collect`, and the existing scope rules for branches.
+`end` shapes, port types on `if` / `parallel` / `loop` / `end`, and the existing scope rules for branches.
 
-## Open questions
+## Decisions (2026-11-25)
 
-1. **Version and migration.** This is a breaking manifest change. Bump to `"version": "3.0"` and ship an
-   `ecp migrate` that converts v2 files (most conversions are mechanical: an `expr` like
-   `(state) => state.tier === 'gold'` becomes `accepts` + `input` from the keys it reads and
-   `input.tier === 'gold'`)? Or keep reading v2 alongside v3 for a while?
-2. **Condition runtime.** Built-in `expression` / `script` fields on `if` / `collect` (as above), or `if` delegates
-   to a transform capability (`uses: core.transform`)? Built-in keeps the manifest shorter.
-3. **After an `if`.** A node after the `if` that reads something produced on only one side gets today's
-   "maybe missing" rule (optional with a fallback). Is that enough, or do we want an optional `end if` node that
-   merges both sides into one typed output?
-4. **`parallel` inputs.** Is pass-through on `parallel` useful, or should it have no ports at all?
+1. **Stay on manifest version 2** and revise it in place (it isn't widely used yet): no version bump, no migration
+   command. Every example, fixture, skill reference and doc in the repo is converted in the same PR.
+2. **Conditions support `expression` and `script`**, built into `if` (and `end`), evaluated like a transform. Data that
+   needs reshaping first goes through a transform node.
+3. **An `if` whose condition fails runs `else`**, including a missing optional input.
+4. **`parallel` passes its inputs through** to every path's output port.
+5. **One `end` node closes every loop**, gathering results with an optional expression or script.
