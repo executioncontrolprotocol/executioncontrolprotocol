@@ -45,6 +45,7 @@ import {
   findStepPlacement,
   nodeContainsId,
 } from "./manifest-walk.js"
+import { isStepNode } from "./io-from-schema.js"
 import {
   STRUCTURE_EDIT_EMPTY_STEPS,
   STRUCTURE_EDIT_STEP_NOT_FOUND,
@@ -54,6 +55,12 @@ import {
 
 /** @category App */
 export const CONNECTION_EDIT_NOT_BINDING = "Edit the expression or the structure in its panel"
+
+/** @category App */
+export const CONNECTION_EDIT_NOT_STEP = "Only a disconnected step can be reconnected"
+
+/** @category App */
+export const CONNECTION_EDIT_SOURCE_DETACHED = "Connect from a step that is in the flow"
 
 /** @category App */
 export const CONNECTION_EDIT_LOOP = "Delete the loop from its container menu"
@@ -526,6 +533,94 @@ function isDisallowedTargetHandle(handle: string): boolean {
  * Wire a step input to a `$ref` from a source port.
  * @category App
  */
+function attachAfterLoopInto(
+  manifest: ExecutionManifest,
+  loopId: string,
+  detachedId: string,
+): StructureEditResult {
+  const list = manifest.detached
+  if (!Array.isArray(list)) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  const root = list.find((node) => node.id === detachedId)
+  if (!root) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  if (list.some((node) => node.id !== detachedId && nodeContainsId(node, detachedId))) {
+    return { ok: false, reason: CONNECTION_EDIT_INSIDE }
+  }
+  if (loopId === detachedId || nodeContainsId(root, loopId)) {
+    return { ok: false, reason: CONNECTION_EDIT_INSIDE }
+  }
+
+  const next = cloneManifest(manifest)
+  const without = dropDetachedRoot(next, detachedId)
+  if (!without) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  const node = structuredClone(root)
+
+  const hit = findNodePlacement(without.steps, loopId)
+  if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  hit.parent.splice(hit.index + 1, 0, node)
+  return finalizeManifest(without)
+}
+
+function placeDetachedBeforeConnect(
+  manifest: ExecutionManifest,
+  sourceNodeId: string,
+  sourceHandle: string,
+  detachedId: string,
+): StructureEditResult {
+  if (sourceHandle === LOOP_INTO_HANDLE) {
+    return attachAfterLoopInto(manifest, sourceNodeId, detachedId)
+  }
+  return attachAfter(manifest, sourceNodeId, detachedId)
+}
+
+function isDetachedRootStep(manifest: ExecutionManifest, stepId: string): boolean {
+  const list = manifest.detached
+  if (!Array.isArray(list)) return false
+  const root = list.find((node) => node.id === stepId)
+  return root !== undefined && isStepNode(root)
+}
+
+/**
+ * Manifest after placing a detached root step for a data-port drop (scope simulation only).
+ * @category App
+ */
+export function placementManifestForDetachedConnect(
+  manifest: ExecutionManifest,
+  sourceNodeId: string,
+  sourceHandle: string,
+  targetStepId: string,
+): ExecutionManifest | undefined {
+  const placed = placeDetachedBeforeConnect(manifest, sourceNodeId, sourceHandle, targetStepId)
+  if (!placed.ok) return undefined
+  return placed.manifest
+}
+
+/**
+ * Bind a data input and place the target when it is a detached root step.
+ * @category App
+ */
+export function connectInputAndAttach(
+  manifest: ExecutionManifest,
+  target: ConnectInputTarget,
+): StructureEditResult {
+  if (findStepPlacement(manifest.steps, target.targetStepId)) {
+    return connectInput(manifest, target)
+  }
+  if (!isDetachedRootStep(manifest, target.targetStepId)) {
+    return { ok: false, reason: CONNECTION_EDIT_NOT_STEP }
+  }
+  if (detachedNodeIds(manifest).has(target.sourceNodeId)) {
+    return { ok: false, reason: CONNECTION_EDIT_SOURCE_DETACHED }
+  }
+  const placed = placeDetachedBeforeConnect(
+    manifest,
+    target.sourceNodeId,
+    target.sourceHandle,
+    target.targetStepId,
+  )
+  if (!placed.ok) return placed
+  return connectInput(placed.manifest, target)
+}
+
 export function connectInput(manifest: ExecutionManifest, target: ConnectInputTarget): StructureEditResult {
   if (target.targetStepId === target.sourceNodeId) {
     return { ok: false, reason: CONNECTION_EDIT_SELF }

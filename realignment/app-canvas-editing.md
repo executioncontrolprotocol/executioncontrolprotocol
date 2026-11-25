@@ -18,7 +18,7 @@ phase 0, before any code.
 | # | Decision |
 | --- | --- |
 | D1 | **Deleting a connection removes the connector, never a node.** The connector disappears entirely; it doesn't just lose its condition or expression. Nodes it connected stay on the canvas and in the file, now disconnected, and the execution is invalid until they're reconnected. See [Deleting connections](#deleting-connections). |
-| D2 | **A branch arm is the edge.** A branch has no node of its own. Each arm is a route edge with a pill showing its label and condition. The pill is the control: select it, open its ⋯ menu, configure it in the right-hand panel. |
+| D2 | **A branch arm is the edge.** A branch has no node of its own. Each connector shows at most one pill (branch-arm labels only; nested labels join with ` › `). Conditions are edited in the right-hand panel (one Branch section per arm on that connector). The pill or edge path selects the connector; one ⋯ menu per connector opens Configure / Delete. |
 | D3 | **Every structure is a container.** Branches, parallels and loops of every mode get the same frame `forEach` has today, with the structure's label and a ⋯ menu (Configure, Delete) on the frame header. Wrapping steps in a branch / parallel / loop creates that container. |
 | D3a | **The App owns right-click.** Right-click never shows the browser menu anywhere on the canvas: on empty canvas it opens the capability menu, on a container its ⋯ menu, on an edge its ⋯ menu, on a node the node menu. Wrap is only in the node menu. |
 | D4 | **The right-hand panel is where things are configured.** Menus only pick an action; Configure opens the panel. No modal configure dialogs (legacy had `RouteConfigureDialog` / `StepConfigureDialog`). |
@@ -45,10 +45,10 @@ validation until it's reconnected.
 | Sequence route (A → B) | The connector is gone; B (and everything after it in that sequence) is disconnected, and A connects to nothing. | Invalid until reconnected |
 | Loop entry / loop-back | Not deletable: they're drawn from the loop container. Delete the container instead. | — |
 
-**Reconnecting:** every node and container gets a flow handle (in on the left, out on the right,
-separate from data ports). Drag from a node's or container's flow-out handle onto a disconnected
-node to place it after that node; drop on a branch container to add it as a new arm; drop on a
-parallel container to add it as a new line.
+**Reconnecting:** route anchors stay on nodes for layout but are not connectable. Reconnect a
+disconnected **root step** by dragging a compatible data output onto its input: the App binds the
+input and places the step after the source (same placement rules as sequence order). A disconnected
+branch, loop, or parallel root is not reattached this way.
 
 **Where disconnected steps are saved:** the manifest has no free-floating steps today
 (`additionalProperties: false`), and autosave means the browser and the file must never disagree.

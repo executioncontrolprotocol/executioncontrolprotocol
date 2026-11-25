@@ -15,6 +15,10 @@ export {
   CONNECTION_EDIT_ORDER,
   CONNECTION_EDIT_SELF,
   connectInput,
+  connectInputAndAttach,
+  CONNECTION_EDIT_NOT_STEP,
+  CONNECTION_EDIT_SOURCE_DETACHED,
+  placementManifestForDetachedConnect,
   insertConnectedStep,
   type ConnectInputTarget,
   deleteArm,
@@ -25,7 +29,8 @@ export {
   detachedNodeIds,
   disconnectInput,
 } from "./connection-edit.js"
-export { isValidManifestFlowConnection, resolveFlowConnect, type FlowConnectAction } from "./flow-connect.js"
+export { deleteSelection, isStructureHeaderSelection, type DeleteSelection } from "./delete-selection.js"
+export { routeDeleteMenuLabel, routeDeleteTarget, routeEdgeLabel } from "./route-edge-label.js"
 export {
   addArmCondition,
   makeDefaultArm,

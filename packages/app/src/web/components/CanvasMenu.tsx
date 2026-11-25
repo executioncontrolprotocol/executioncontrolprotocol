@@ -6,9 +6,11 @@ import {
   STRUCTURE_EDIT_PARALLEL_MIN,
   connectorDeletePreview,
   findStructure,
+  routeDeleteMenuLabel,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
+  type ReactFlowRouteEdgeData,
 } from "../../graph/index.js"
 
 export type CanvasMenuState =
@@ -137,6 +139,11 @@ export function CanvasMenu({
       ? connectorDeletePreview(manifest, edgeRecord, state.level)
       : { ok: false as const, reason: "" }
 
+  const deleteConnectorLabel =
+    state.kind === "edge" && edgeRecord?.data.kind === "route"
+      ? routeDeleteMenuLabel((edgeRecord.data as ReactFlowRouteEdgeData).levels, state.level)
+      : "Delete"
+
   const structure =
     state.kind === "container" ? findStructure(manifest, state.structureId) : undefined
 
@@ -178,7 +185,7 @@ export function CanvasMenu({
             { id: "configure", label: "Configure", action: onConfigure },
             {
               id: "delete-connector",
-              label: "Delete",
+              label: deleteConnectorLabel,
               action: onDeleteConnector,
               disabled: !deletePreview.ok,
               title: deletePreview.ok ? undefined : deletePreview.reason,

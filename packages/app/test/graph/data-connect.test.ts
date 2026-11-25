@@ -2,6 +2,10 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import { executionToReactFlow } from "../../src/graph/execution-to-reactflow.js"
 import {
+  CONNECTION_EDIT_NOT_STEP,
+  CONNECTION_EDIT_SOURCE_DETACHED,
+} from "../../src/graph/connection-edit.js"
+import {
   dataConnectionRefusal,
   isDataHandle,
   isValidDataConnection,
@@ -92,5 +96,78 @@ describe("data-connect", () => {
       targetHandle: "value",
     }
     expect(isValidDataConnection(manifest(), document, missingHandle)).toBe(false)
+  })
+
+  it("accepts compatible drops onto detached root steps and refuses nested or detached sources", () => {
+    const detachedManifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "writer", uses: echo, input: { value: "w" }, as: "writer" }],
+      detached: [{ id: "later", uses: echo, as: "later" }],
+    }
+    const detachedDoc = executionToReactFlow(detachedManifest, { capabilitySchemas: schemas })
+    const ontoRoot = {
+      source: "writer",
+      target: "later",
+      sourceHandle: "output",
+      targetHandle: "value",
+    }
+    expect(isValidDataConnection(detachedManifest, detachedDoc, ontoRoot)).toBe(true)
+    expect(dataConnectionRefusal(detachedManifest, detachedDoc, ontoRoot)).toBeUndefined()
+
+    const nestedDetached: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "writer", uses: echo, input: { value: "w" }, as: "writer" }],
+      detached: [
+        {
+          type: "branch",
+          id: "wrap",
+          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: echo, as: "inner" }] }],
+        },
+      ],
+    }
+    const nestedDoc = executionToReactFlow(nestedDetached, { capabilitySchemas: schemas })
+    const ontoNested = {
+      source: "writer",
+      target: "inner",
+      sourceHandle: "output",
+      targetHandle: "value",
+    }
+    expect(dataConnectionRefusal(nestedDetached, nestedDoc, ontoNested)).toBe(CONNECTION_EDIT_NOT_STEP)
+
+    const sourceDetached: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "writer", uses: echo, input: { value: "w" }, as: "writer" }],
+      detached: [
+        { id: "lonely", uses: echo, as: "lonely" },
+        { id: "also", uses: echo, as: "also" },
+      ],
+    }
+    const sourceDoc = executionToReactFlow(sourceDetached, { capabilitySchemas: schemas })
+    const fromDetached = {
+      source: "lonely",
+      target: "also",
+      sourceHandle: "output",
+      targetHandle: "value",
+    }
+    expect(dataConnectionRefusal(sourceDetached, sourceDoc, fromDetached)).toBe(CONNECTION_EDIT_SOURCE_DETACHED)
+
+    const backwards = {
+      source: "later",
+      target: "writer",
+      sourceHandle: "output",
+      targetHandle: "value",
+    }
+    expect(dataConnectionRefusal(manifest(), document, backwards)).toContain("produced before")
+
+    const incompatible = {
+      source: "writer",
+      target: "count",
+      sourceHandle: "output",
+      targetHandle: "ms",
+    }
+    expect(isValidDataConnection(manifest(), document, incompatible)).toBe(false)
   })
 })

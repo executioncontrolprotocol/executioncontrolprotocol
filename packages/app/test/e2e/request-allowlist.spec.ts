@@ -83,7 +83,7 @@ test.describe("App host API allowlist", () => {
     await openPath(page, harness, branchLoopPath)
     const pill = page
       .locator('[data-testid^="ecp-route-label-"]')
-      .filter({ hasText: "expand · state.expand === true" })
+      .filter({ hasText: /^expand$/ })
       .first()
     await pill.click()
     await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })

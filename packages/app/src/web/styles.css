@@ -248,9 +248,8 @@
   }
 
   .react-flow__handle.ecp-rf-handle--flow {
-    background: var(--color-surface-container-high) !important;
-    border-color: var(--color-outline) !important;
-    border-radius: 2px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   .react-flow__edge.ecp-rf-edge--data path.react-flow__edge-path {
@@ -335,7 +334,7 @@
     position: absolute;
     pointer-events: none;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 0.125rem;
   }
