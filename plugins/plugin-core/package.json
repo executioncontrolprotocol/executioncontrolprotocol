@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/core",
   "version": "0.60.0",
-  "private": true,
   "description": "Bundled core capabilities: transform steps executed in the host sandbox.",
   "type": "module",
   "engines": {

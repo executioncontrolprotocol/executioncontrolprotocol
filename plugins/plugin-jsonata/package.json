@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/jsonata",
   "version": "0.60.0",
-  "private": true,
   "description": "Optional JSONata transform capability for step-level data reshaping.",
   "type": "module",
   "engines": {
