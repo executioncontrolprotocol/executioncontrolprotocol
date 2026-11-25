@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/adobe-firefly-services",
   "version": "0.60.0",
-  "private": true,
   "description": "Adobe Firefly Services APIs (Firefly, Photoshop, Express, InDesign, Illustrator, Substance 3D) as ECP capabilities generated from OpenAPI.",
   "type": "module",
   "engines": {

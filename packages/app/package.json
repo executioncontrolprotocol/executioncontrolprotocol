@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/app",
   "version": "0.60.0",
-  "private": true,
   "description": "ECP App: execution graph, run view and history, served by the host at /app/.",
   "type": "module",
   "engines": {

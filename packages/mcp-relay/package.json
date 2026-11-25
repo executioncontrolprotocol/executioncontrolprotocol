@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/mcp-relay",
   "version": "0.60.0",
-  "private": true,
   "description": "MCP stdio relay for the three ECP host operations.",
   "type": "module",
   "engines": {

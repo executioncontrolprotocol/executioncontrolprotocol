@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/engine",
   "version": "0.60.0",
-  "private": true,
   "description": "ECP engine: service container, validation, and the executor.",
   "type": "module",
   "engines": {

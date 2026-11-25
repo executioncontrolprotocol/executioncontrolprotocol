@@ -1,7 +1,6 @@
 {
   "name": "@executioncontrolprotocol/formatters",
   "version": "0.60.0",
-  "private": true,
   "description": "JSON and TOON formatters for ECP retrieve/execute output.",
   "type": "module",
   "engines": {
