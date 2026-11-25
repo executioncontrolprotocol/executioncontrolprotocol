@@ -179,3 +179,41 @@ loop checks are evaluated by the same QuickJS / expression runtime transforms us
 3. **An `if` whose condition fails runs `else`**, including a missing optional input.
 4. **`parallel` passes its inputs through** to every path's output port.
 5. **One `end` node closes every loop**, gathering results with an optional expression or script.
+
+## Resolutions (2026-11-25, from the implementation inventory)
+
+1. **Run events.** `branch.select` is replaced by `if.select` (`nodeId`, `side`: `"then"` / `"else"` / `null`,
+   `reason`: `"true"` / `"false"` / `"throw"` / `"missing"` / `"non-boolean"`). `side: null` means `then` wasn't
+   taken and there's no `else`. Loops keep `loop.start` / `loop.round` / `loop.item.*` / `loop.end` /
+   `loop.exhausted` and add `loop.repeat` (`nodeId`, `round`, `again`, `reason`) after `end` is evaluated in a
+   `while`. `parallel` adds no event. The run cursor's `branches` becomes `choices: Record<id, "then" | "else">`.
+2. **`as` on `if` / `parallel`** is a scoped value, not a step commit: no `mode`, no file capture. The resolved
+   `input` object is written to `state.<as>` before the nodes inside run and removed when the container finishes
+   (also after resume). `as` needs `input`. The key must not collide with an execution input, a key already in
+   scope, or an enclosing loop's `as` / `<as>Index` (`ECP_COMMIT_CONFLICT`). After the container it doesn't exist
+   (`ECP_REF_UNRESOLVED`). Paths of a `parallel` still don't see each other's commits.
+3. **`end` and `into`.** forEach: `into` is required and holds the array of gathered results in item order
+   (`intoErrors` with `onError: "continue"` as today). for / while: `into` is optional and holds the last gathered
+   value; a `for` with count 0 doesn't write it. `end.input.value` is required when the loop has `into`, unless
+   `end` has an `expression` / `script`. `repeat` is `while`-only, required there, and is not an `accepts`
+   property. A thrown gather fails the node (forEach `onError` applies per item); only `repeat` is soft. `as` is
+   the forEach item / `for` index; `while` has no `as`. `concurrency` / `onError` stay forEach-only, `maxRounds`
+   stays while-only and required. Unconditional writes in a `while` body are definite after the loop (it runs at
+   least once).
+4. **Resume.** `choices[ifId]` restores the side without evaluating the condition again; an `if` whose choice
+   wasn't recorded restarts. Inside a loop, completed body nodes of the round in progress are skipped, then `end`
+   runs and `repeat` is read. forEach partial files store each finished item's gathered value; an interrupted item
+   restarts from its first node. Runs started before this change aren't resumable.
+5. **`detached`** may hold a step, `if`, `parallel` or `loop` (with its `end`). Deleting a start node splices its
+   nodes into the parent list (then `then` before `else`, paths in order); "with its nodes" removes them. Only a
+   detached root step can be reattached by drawing a branch to it.
+6. **Connectivity (C1).** Every `$ref` (including nested paths and `$script.params`) is drawn as a branch from its
+   producer: an execution input, a step `as`, a loop's `item` / `index` port, the `then` / `else` / `path N` port of
+   an enclosing `if` / `parallel` for `state.<as>`, or a loop's `end` `results` port for `state.<into>`. A node with
+   only literal inputs has no branch. The "every node has a visible line" rule (C2) is gone.
+7. **Expressions.** `if` / `end` `expression` is a JavaScript expression over a frozen `input`
+   (`input.tier === 'gold'`), run in the QuickJS sandbox with today's limits; `script` is a transform-style body
+   that `return`s. The function-of-`state` form (`(state) => …`) is removed. Step `expression` for a
+   `code: "expression"` capability (JSONata) is unrelated and unchanged.
+8. **Smaller rules.** Each `parallel` path has at least one node. `ECP_LOOP_UNTYPED` is removed from the catalogue.
+   Wrapping a node in a loop from the canvas writes a valid `while` (`maxRounds: 1`, `end.input.repeat: false`).
