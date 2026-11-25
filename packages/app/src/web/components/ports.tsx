@@ -54,17 +54,18 @@ function flowHandleClass(): string {
  * Target handle for structural route edges (left border, level with the node title).
  * @category App
  */
-export function FlowInHandle({ connectable = false }: { connectable?: boolean }) {
+export function FlowInHandle() {
   return (
     <Handle
       type="target"
       position={Position.Left}
       id={FLOW_IN_HANDLE}
       className={flowHandleClass()}
-      style={{ top: FLOW_HANDLE_TOP, pointerEvents: connectable ? "auto" : undefined }}
-      isConnectable={connectable}
-      isConnectableStart={connectable}
-      isConnectableEnd={connectable}
+      style={{ top: FLOW_HANDLE_TOP, pointerEvents: "none" }}
+      isConnectable={false}
+      isConnectableStart={false}
+      isConnectableEnd={false}
+      aria-hidden
     />
   )
 }
@@ -73,17 +74,18 @@ export function FlowInHandle({ connectable = false }: { connectable?: boolean })
  * Source handle for structural route edges (right border, level with the node title).
  * @category App
  */
-export function FlowOutHandle({ connectable = false }: { connectable?: boolean }) {
+export function FlowOutHandle() {
   return (
     <Handle
       type="source"
       position={Position.Right}
       id={FLOW_OUT_HANDLE}
       className={flowHandleClass()}
-      style={{ top: FLOW_HANDLE_TOP, pointerEvents: connectable ? "auto" : undefined }}
-      isConnectable={connectable}
-      isConnectableStart={connectable}
-      isConnectableEnd={connectable}
+      style={{ top: FLOW_HANDLE_TOP, pointerEvents: "none" }}
+      isConnectable={false}
+      isConnectableStart={false}
+      isConnectableEnd={false}
+      aria-hidden
     />
   )
 }

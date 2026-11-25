@@ -4,6 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { executionToReactFlow } from "../../src/graph/index.js"
 import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
@@ -35,10 +36,32 @@ test.describe("Autosave and undo", () => {
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
   }
 
+  async function selectRouteTo(page: Page, target: string, execPath: string = manifestPath): Promise<void> {
+    const manifest = JSON.parse(readFileSync(execPath, "utf8")) as ExecutionManifest
+    const doc = executionToReactFlow(manifest)
+    const edge = doc.edges.find((entry) => entry.data.kind === "route" && entry.target === target)
+    if (!edge) throw new Error(`missing route edge to ${target}`)
+    const pill = page.getByTestId(`ecp-route-label-${edge.id}`)
+    if ((await pill.count()) > 0) {
+      await pill.click()
+      return
+    }
+    await page.locator(`.react-flow__edge[data-id="${edge.id}"]`).click({ force: true })
+  }
+
+  function outerExprEditor(page: Page) {
+    return page
+      .getByTestId("edge-branch-section")
+      .filter({ has: page.getByTestId("edge-expr-editor") })
+      .filter({ hasNotText: "1 === 1" })
+      .first()
+      .getByTestId("edge-expr-editor")
+  }
+
   test("menu edit autosaves without Save control", async ({ page }) => {
     await open(page)
     await expect(page.getByTestId("edge-save")).toHaveCount(0)
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8").includes('"expr": "(state) => true"'), { timeout: 15_000 }).toBe(
       true,
@@ -50,7 +73,7 @@ test.describe("Autosave and undo", () => {
     await open(page)
     const beforeText = readFileSync(manifestPath, "utf8")
     const before = JSON.parse(beforeText) as ExecutionManifest
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8") !== beforeText, { timeout: 15_000 }).toBe(true)
     await expect(page.getByTestId("save-status")).toHaveAttribute("data-state", "saved", { timeout: 15_000 })
@@ -66,22 +89,21 @@ test.describe("Autosave and undo", () => {
 
   test("expression commits after debounce", async ({ page }) => {
     await open(page)
-    const pill = page.locator('[data-testid^="ecp-route-label-"]').filter({ hasText: /outer/ }).first()
-    await pill.click()
-    await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })
+    await selectRouteTo(page, "x")
+    const editor = outerExprEditor(page)
+    await expect(editor).toBeVisible({ timeout: 10_000 })
     const unique = `(state) => state.flag === '${Date.now()}'`
-    await page.getByTestId("edge-expr-editor").fill(unique)
+    await editor.fill(unique)
     const immediate = readFileSync(manifestPath, "utf8")
     expect(immediate).not.toContain(unique)
-    await page.getByTestId("edge-expr-editor").blur()
+    await editor.blur()
     await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
   })
 
   test("expression typing survives own autosave flush", async ({ page }) => {
     await open(page)
-    const pill = page.locator('[data-testid^="ecp-route-label-"]').filter({ hasText: /outer/ }).first()
-    await pill.click()
-    const editor = page.getByTestId("edge-expr-editor")
+    await selectRouteTo(page, "x")
+    const editor = outerExprEditor(page)
     await expect(editor).toBeVisible({ timeout: 10_000 })
     const stamp = Date.now()
     const head = `(state) => state.partA === '${stamp}'`
@@ -159,7 +181,7 @@ test.describe("Autosave and undo", () => {
 
   test("external file change clears undo", async ({ page }) => {
     await open(page)
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect(page.getByTestId("canvas-undo")).toBeEnabled({ timeout: 15_000 })
     const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest
@@ -172,7 +194,7 @@ test.describe("Autosave and undo", () => {
   test("external revert to bytes the App wrote earlier still syncs the App", async ({ page }) => {
     await open(page)
     const originalText = readFileSync(manifestPath, "utf8")
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     // The App writes the edit, undoes it (writing bytes equal to an earlier save) and redoes it.
     await page.getByTestId("edge-arm-add-condition").click()
     await expect(page.getByTestId("canvas-undo")).toBeEnabled({ timeout: 15_000 })
@@ -193,7 +215,7 @@ test.describe("Autosave and undo", () => {
   test("keyboard undo and redo on canvas", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(manifestPath, "utf8")
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8") !== beforeText, { timeout: 15_000 }).toBe(true)
     await page.locator(".react-flow__pane").click()
@@ -209,12 +231,11 @@ test.describe("Autosave and undo", () => {
   test("keyboard undo ignored in expression textarea", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(manifestPath, "utf8")
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8") !== beforeText, { timeout: 15_000 }).toBe(true)
-    const pill = page.locator('[data-testid^="ecp-route-label-"]').filter({ hasText: /outer/ }).first()
-    await pill.click()
-    const editor = page.getByTestId("edge-expr-editor")
+    await selectRouteTo(page, "x")
+    const editor = outerExprEditor(page)
     await expect(editor).toBeVisible({ timeout: 10_000 })
     await editor.click()
     await page.keyboard.press(`${mod}+KeyZ`)
@@ -224,7 +245,7 @@ test.describe("Autosave and undo", () => {
   test("version conflict discards queued undo", async ({ page }) => {
     await open(page)
     const before = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8").includes('"expr": "(state) => true"'), { timeout: 15_000 }).toBe(
       true,
@@ -256,7 +277,7 @@ test.describe("Autosave and undo", () => {
 
   test("undo and redo disabled during conflict replay", async ({ page }) => {
     await open(page)
-    await page.getByRole("button", { name: "default" }).first().click()
+    await selectRouteTo(page, "w")
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8").includes('"expr": "(state) => true"'), { timeout: 15_000 }).toBe(
       true,

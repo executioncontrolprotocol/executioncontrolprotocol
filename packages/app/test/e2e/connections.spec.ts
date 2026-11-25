@@ -86,8 +86,12 @@ test.describe("Connections and edge menus", () => {
     await expect(page.getByTestId("ecp-detached-expanded")).toBeVisible({ timeout: 15_000 })
     await page.getByTestId("tab-validation").click()
     await expect(page.getByText("ECP_NODE_DETACHED")).toBeVisible()
-    const source = page.getByTestId("ecp-step-Seed").locator(".react-flow__handle[data-handleid='flow-out']")
-    const target = page.getByTestId("ecp-step-expanded").locator(".react-flow__handle[data-handleid='flow-in']")
+    const source = page
+      .getByTestId("ecp-step-Seed")
+      .locator('.react-flow__handle[data-handleid="output"][data-handlepos="right"]')
+    const target = page
+      .getByTestId("ecp-step-expanded")
+      .locator('.react-flow__handle[data-handleid="value"][data-handlepos="left"]')
     const sourceBox = await source.boundingBox()
     const targetBox = await target.boundingBox()
     if (!sourceBox || !targetBox) throw new Error("missing handle boxes")
@@ -96,8 +100,23 @@ test.describe("Connections and edge menus", () => {
     await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 })
     await page.mouse.up()
     await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"detached"')).toBe(true)
+    await expect.poll(() => {
+      const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as ExecutionManifest
+      const expanded = parsed.steps
+        .flatMap((node) => (node.type === "branch" ? node.branches.flatMap((arm) => arm.steps) : [node]))
+        .find((step) => step.id === "expanded") as { input?: { value?: { $ref?: string } } } | undefined
+      return expanded?.input?.value?.$ref === "state.Seed"
+    }).toBe(true)
     await page.getByTestId("tab-validation").click()
     await expect(page.getByTestId("validation-status")).toHaveAttribute("data-valid", "true")
+
+    const flowHandles = page.locator(".ecp-rf-handle--flow")
+    const flowCount = await flowHandles.count()
+    expect(flowCount).toBeGreaterThan(0)
+    for (let index = 0; index < flowCount; index += 1) {
+      await expect(flowHandles.nth(index)).toHaveCSS("opacity", "0")
+    }
+    await expect(page.getByTestId("ecp-frame-route").locator(".react-flow__handle")).toHaveCount(0)
   })
 
   test("nested inner arm delete only removes inner arm", async ({ page }) => {
@@ -113,16 +132,26 @@ test.describe("Connections and edge menus", () => {
     )
     expect(innerEdge?.id).toBeDefined()
     await page.locator(`.react-flow__edge[data-id="${innerEdge!.id}"]`).click({ button: "right", force: true })
+    await expect(page.getByTestId("canvas-menu-item-delete-connector")).toHaveText("Delete branch inner")
     await page.getByTestId("canvas-menu-item-delete-connector").click()
     const text = readFileSync(nestedBranchPath, "utf8")
     expect(text).toContain('"id": "w"')
     expect(text).toContain('"id": "outer"')
     expect(text).toMatch(/"detached"/)
+    const saved = JSON.parse(text) as ExecutionManifest
+    expect(saved.detached?.some((node) => node.id === "x")).toBe(true)
+    expect(saved.steps.some((node) => node.id === "x")).toBe(false)
+    const outer = saved.steps.find((node) => node.id === "outer")
+    expect(outer?.type).toBe("branch")
+    if (outer?.type === "branch") expect(outer.branches[0]?.expr).toBe("(state) => true")
   })
 
   test("configure default arm adds condition", async ({ page }) => {
     await open(page, nestedBranchPath)
-    await page.getByRole("button", { name: "default" }).first().click()
+    const layout = executionToReactFlow(JSON.parse(readFileSync(nestedBranchSource, "utf8")) as ExecutionManifest)
+    const edgeToN = layout.edges.find((edge) => edge.data.kind === "route" && edge.target === "n")
+    expect(edgeToN?.id).toBeDefined()
+    await page.locator(`.react-flow__edge[data-id="${edgeToN!.id}"]`).click({ force: true })
     await expect(page.getByTestId("edge-arm-add-condition")).toBeVisible()
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => readFileSync(nestedBranchPath, "utf8").includes('"expr": "(state) => true"')).toBe(true)
@@ -135,7 +164,7 @@ test.describe("Connections and edge menus", () => {
     const edgeToX = layout.edges.find((edge) => edge.data.kind === "route" && edge.target === "x")
     expect(edgeToN?.id).toBeDefined()
     expect(edgeToX?.id).toBeDefined()
-    await page.locator(`[data-testid="ecp-route-label-${edgeToN!.id}"][data-level="0"]`).click()
+    await page.locator(`.react-flow__edge[data-id="${edgeToN!.id}"]`).click({ force: true })
     await expect(page.getByTestId("edge-arm-add-condition")).toBeVisible()
     await page.getByTestId("edge-arm-add-condition").click()
     await expect.poll(() => {
@@ -147,11 +176,13 @@ test.describe("Connections and edge menus", () => {
       (edge) => edge.data.kind === "route" && edge.target === "x",
     )
     expect(edgeToXAfter?.id).toBeDefined()
-    const makeDefaultPill = page.locator(`[data-testid="ecp-route-label-${edgeToXAfter!.id}"][data-level="0"]`)
-    await expect(makeDefaultPill).toBeVisible()
+    const makeDefaultPill = page.getByTestId(`ecp-route-label-${edgeToXAfter!.id}`)
+    await makeDefaultPill.scrollIntoViewIfNeeded()
+    await expect(makeDefaultPill).toHaveText("outer \u203a inner")
     await makeDefaultPill.click()
-    await expect(page.getByTestId("edge-arm-make-default")).toBeVisible()
-    await page.getByTestId("edge-arm-make-default").click()
+    const outerSection = page.locator('[data-testid="edge-branch-section"][data-structure-id="outer"]')
+    await expect(outerSection).toBeVisible({ timeout: 15_000 })
+    await outerSection.getByTestId("edge-arm-make-default").click()
     await expect.poll(() => {
       const parsed = JSON.parse(readFileSync(nestedBranchPath, "utf8")) as ExecutionManifest
       const outer = parsed.steps.find((node) => node.id === "outer")

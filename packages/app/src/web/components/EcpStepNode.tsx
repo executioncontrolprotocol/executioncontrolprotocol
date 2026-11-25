@@ -10,7 +10,6 @@ import { DragInputPort, DragOutputPort } from "./drag-port.js"
  */
 export interface EcpStepNodeData extends ReactFlowStepData {
   /** When true, flow handles accept reconnect gestures. */
-  flowConnectable?: boolean
   /** When true, data ports accept connection gestures. */
   dataConnectable?: boolean
   /** Run status, when a run is shown. */
@@ -56,8 +55,8 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       data-invalid={step.invalid ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle connectable={step.flowConnectable ?? false} />
-      <FlowOutHandle connectable={step.flowConnectable ?? false} />
+      <FlowInHandle />
+      <FlowOutHandle />
       {step.detached ? (
         <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
           disconnected

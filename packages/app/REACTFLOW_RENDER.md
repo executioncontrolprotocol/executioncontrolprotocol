@@ -53,13 +53,17 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
 - **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch arms stay route
   edges with pills inside the branch frame; every structure uses a frame plus those route connectors.
 - **Route pills and menus.** Route edge flat fields equal `levels[0]`; `levels` is the full stack, outer
-  first, including nested branch, parallel and loop entries. `EcpRouteEdge` draws one pill per
-  non-empty level (loop-back edges draw none). Each pill is a clickable control and selects that edge
-  and level. Each pill and each frame header has a ⋯ control.
-- **Flow handles.** Every step, loop and I/O node has a dedicated flow-in handle on the left and flow-out
-  on the right (centred on the header), separate from data ports. Inputs exposes only flow-out; Outputs
-  only flow-in. Published **route** edges set `sourceHandle` / `targetHandle` to those ids; data edges use
-  port handles only.
+  first, including nested branch, parallel and loop entries (levels still carry arm labels and `expr`
+  text for the panel; the canvas does not draw conditions). `EcpRouteEdge` draws at most one label pill
+  per connector (branch-arm labels joined with ` › `); loop-back edges draw neither pill nor ⋯. The pill
+  and edge path select the connector; one ⋯ control appears on hover or when selected (right-click opens
+  the same menu). Loop-only, parallel-only, and sequence connectors may show ⋯ with no pill. Each frame
+  header has its own ⋯ control.
+- **Route anchors.** Every step, loop, and I/O node mounts hidden flow-in and flow-out handles at the
+  title row (same ids as published route edges) so connectors meet the node border; they are not visible
+  or interactive. Inputs exposes only flow-out; Outputs only flow-in. Frames mount no flow handles.
+  Published **route** edges set `sourceHandle` / `targetHandle` to those ids; data edges use port handles
+  only.
 - **Dragged positions.** Dragged positions override dagre for the nodes that were moved, including when
   layout runs again after a structure change. Frames are recomputed from the nodes' current positions.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
