@@ -137,6 +137,19 @@ test.describe("Node drag", () => {
     const pane = page.locator(".react-flow__pane")
     const paneBox = await pane.boundingBox()
     expect(paneBox).not.toBeNull()
+    // The App fits the view a frame or two after the graph appears; a right-click before that converts the cursor with
+    // the identity transform and the fit then moves the node. Wait until the viewport is fitted and stable.
+    const viewportTransform = (): Promise<string> =>
+      page.evaluate(() => (document.querySelector(".react-flow__viewport") as HTMLElement | null)?.style.transform ?? "")
+    let previous = ""
+    await expect
+      .poll(async () => {
+        const current = await viewportTransform()
+        const settled = current !== "" && current === previous && !/^translate\(0px, 0px\) scale\(1\)$/.test(current)
+        previous = current
+        return settled
+      }, { timeout: 10_000, intervals: [100] })
+      .toBe(true)
     const clickX = paneBox!.x + paneBox!.width * 0.55
     const clickY = paneBox!.y + paneBox!.height * 0.45
     await page.mouse.click(clickX, clickY, { button: "right" })
@@ -146,16 +159,28 @@ test.describe("Node drag", () => {
     await expect(row).toHaveAttribute("data-active", "true", { timeout: 15_000 })
     await page.getByTestId("capability-menu-search").press("Enter")
     await expect(page.getByTestId("ecp-step-echo")).toBeVisible({ timeout: 15_000 })
-    // The node can render for a frame at its layout position before the cursor override applies; check where it settles.
-    await expect
-      .poll(
-        async () => {
-          const box = await page.getByTestId("ecp-step-echo").boundingBox()
-          return box ? Math.hypot(box.x - clickX, box.y - clickY) : Number.POSITIVE_INFINITY
-        },
-        { timeout: 10_000 },
+    // Check where the node settles. If it's off, report whether the node or the viewport moved, so a CI failure says why.
+    const diagnose = async (): Promise<string> => {
+      const box = await page.getByTestId("ecp-step-echo").boundingBox()
+      const node = await flowTranslate(page, "echo")
+      const viewport = await page.evaluate(
+        () => (document.querySelector(".react-flow__viewport") as HTMLElement | null)?.style.transform ?? "",
       )
-      .toBeLessThanOrEqual(40)
+      return `screen ${JSON.stringify(box)} flow ${JSON.stringify(node)} viewport ${viewport} click ${clickX},${clickY}`
+    }
+    try {
+      await expect
+        .poll(
+          async () => {
+            const box = await page.getByTestId("ecp-step-echo").boundingBox()
+            return box ? Math.hypot(box.x - clickX, box.y - clickY) : Number.POSITIVE_INFINITY
+          },
+          { timeout: 10_000 },
+        )
+        .toBeLessThanOrEqual(40)
+    } catch (error) {
+      throw new Error(`new node not under the cursor: ${await diagnose()}`, { cause: error })
+    }
 
     await page.getByTestId("ecp-step-echo").click()
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-selected-node", "echo")
