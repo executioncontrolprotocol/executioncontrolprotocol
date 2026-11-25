@@ -7,6 +7,62 @@
         "description": "Additional context about the error (typed overlay).",
         "additionalProperties": { "type": "string" }
       }
+    },
+    {
+      "path": ["components", "schemas", "ExpandImageRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."
+      }
+    },
+    {
+      "path": ["components", "schemas", "FillImageRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."
+      }
+    },
+    {
+      "path": ["components", "schemas", "GenerateSimilarImagesRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."
+      }
+    },
+    {
+      "path": ["components", "schemas", "GenerateObjectCompositeRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."
+      }
+    },
+    {
+      "path": ["components", "schemas", "PreciseUpsamplerRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the source image carries a Claim 2.x assertion (for example Firefly-generated outputs)."
+      }
+    },
+    {
+      "path": ["components", "schemas", "GenerateImagesRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when the request includes style or structure reference images that carry a Claim 2.x assertion."
+      }
+    },
+    {
+      "path": ["components", "schemas", "ImageGenerateRequestV3", "properties", "caiClaimVersion"],
+      "value": {
+        "type": "integer",
+        "enum": [1, 2],
+        "description": "Content Authenticity Initiative claim version for image inputs. Use 2 when referenceBlobs carry a Claim 2.x assertion."
+      }
     }
   ],
   "audio-video/audio-video-api.json": [

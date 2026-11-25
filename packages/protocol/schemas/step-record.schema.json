@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/step-record.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodeId", "round", "capabilityId", "status", "input", "output", "error", "startedAt"],
+  "properties": {
+    "nodeId": { "type": "string" },
+    "round": { "type": ["integer", "null"], "minimum": 0 },
+    "items": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "capabilityId": { "type": "string" },
+    "status": { "enum": ["completed", "failed", "skipped", "cancelled"] },
+    "input": {},
+    "output": {},
+    "error": { "type": ["object", "null"] },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "startedAt": { "type": "string" },
+    "endedAt": { "type": "string" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "script": { "type": "string", "minLength": 1 },
+    "expression": { "type": "string", "minLength": 1 },
+    "staged": { "type": "array" },
+    "mediaTypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sniffed"],
+        "properties": {
+          "path": { "type": "string" },
+          "declared": { "type": "string" },
+          "sniffed": { "type": "string" }
+        }
+      }
+    },
+    "captured": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "source"],
+        "properties": {
+          "path": { "type": "string" },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["file", "url", "artifact"] },
+              "url": { "type": "string" },
+              "path": { "type": "string" },
+              "uri": { "type": "string" }
+            }
+          },
+          "artifact": { "type": "object" },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

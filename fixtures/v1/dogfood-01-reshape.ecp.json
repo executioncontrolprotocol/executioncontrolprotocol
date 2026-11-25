@@ -1,0 +1,66 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["items"]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "object" }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "Reshape",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" }
+              }
+            }
+          }
+        },
+        "required": ["items"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "count": { "type": "integer" }
+        },
+        "required": ["title", "count"],
+        "additionalProperties": false
+      },
+      "input": {
+        "items": { "$ref": "state.items" }
+      },
+      "script": {
+          "lang": "js",
+          "source": "return { title: input.items[0].title, count: input.items.length }"
+        },
+      "as": "summary"
+    }
+  ]
+}

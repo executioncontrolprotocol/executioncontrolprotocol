@@ -1,0 +1,117 @@
+{
+  "capabilities": [
+    {
+      "description": "Deterministic echo capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.echo",
+      "name": "echo",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "echo fixture capability.",
+      "useCases": [
+        "Exercise echo."
+      ]
+    },
+    {
+      "description": "Deterministic fail capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.fail",
+      "name": "fail",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "fail fixture capability.",
+      "useCases": [
+        "Exercise fail."
+      ]
+    },
+    {
+      "description": "Deterministic delay capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.delay",
+      "name": "delay",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "delay fixture capability.",
+      "timeoutMs": 1000,
+      "useCases": [
+        "Exercise delay."
+      ]
+    },
+    {
+      "description": "Deterministic stage capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.stage",
+      "name": "stage",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "stage fixture capability.",
+      "useCases": [
+        "Exercise stage."
+      ]
+    },
+    {
+      "description": "Deterministic config-echo capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.config-echo",
+      "name": "config-echo",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "config-echo fixture capability.",
+      "useCases": [
+        "Exercise config-echo."
+      ]
+    },
+    {
+      "description": "Deterministic file-roundtrip capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.file-roundtrip",
+      "name": "file-roundtrip",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "file-roundtrip fixture capability.",
+      "useCases": [
+        "Exercise file-roundtrip."
+      ]
+    },
+    {
+      "description": "Deterministic call capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.call",
+      "name": "call",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "call fixture capability.",
+      "useCases": [
+        "Exercise call."
+      ]
+    },
+    {
+      "description": "Deterministic bounded capability for engine tests.",
+      "id": "@executioncontrolprotocol/test.bounded",
+      "name": "bounded",
+      "projections": [
+        "Use the returned object."
+      ],
+      "summary": "bounded fixture capability.",
+      "useCases": [
+        "Exercise bounded."
+      ]
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "497daf0ae21bb4736ab0d5928bf80943a7033000ae9e91650d27e4fcc313ec17",
+  "plugin": {
+    "description": "Echo, fail, delay, stage, config echo, file round-trip, call and a length-limited string.",
+    "id": "@executioncontrolprotocol/test",
+    "package": "@executioncontrolprotocol/test",
+    "summary": "Fixture capabilities for engine tests.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "7efa33f2422c18488d376e817c048fbdf430d194aad0133d0334c4db1a0d02f9",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "2.0.0",
+  "version": "2.0"
+}

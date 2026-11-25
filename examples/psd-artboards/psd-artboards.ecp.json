@@ -1,0 +1,529 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "psd-artboards",
+    "label": "Reflow a PSD into new artboard sizes",
+    "description": "Read a PSD's layout, plan each new artboard size, have Photoshop build the artboards with a UXP script, then check the result structurally (output manifest) and visually (Claude reviews a rendition). Returns the new PSD, the rendition and the verdict; the agent driving the run adjusts the plan or the script and reruns until the verdict passes.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "psdPath": {
+          "type": "string",
+          "description": "The source PSD on this machine."
+        },
+        "sizes": {
+          "type": "array",
+          "description": "Artboards to create, each { name, width, height, rules? } in pixels; rules override the shared layout rules for that artboard.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "rules": {
+                "type": "object",
+                "description": "Layout overrides for this artboard only."
+              }
+            },
+            "required": [
+              "name",
+              "width",
+              "height"
+            ]
+          }
+        },
+        "rules": {
+          "type": "object",
+          "description": "Layout overrides for plan-layout.js: margin, gap, textScale, maxTextWidth, anchorX, anchorY, debug."
+        }
+      },
+      "required": [
+        "psdPath"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "reflow": {
+          "type": "object",
+          "description": "psd: the new PSD; jpeg: a 2400 px preview of the whole canvas (url FileRefs, both captured into the run)."
+        },
+        "plan": {
+          "type": "object",
+          "description": "The layout plan the UXP script carried out."
+        },
+        "structure": {
+          "type": "object",
+          "description": "Structural check of the new PSD against the plan."
+        },
+        "verdict": {
+          "type": "object",
+          "description": "Vision review: pass, score, per-artboard issues and suggested fixes."
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "upload",
+      "label": "Publish the PSD so Photoshop can read it",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": {
+          "kind": "file",
+          "path": {
+            "$ref": "state.psdPath"
+          }
+        },
+        "contentType": "image/vnd.adobe.photoshop"
+      },
+      "as": "upload"
+    },
+    {
+      "id": "source-manifest",
+      "label": "Read the source layout",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "$ref": "state.upload.file"
+        }
+      },
+      "as": "source"
+    },
+    {
+      "id": "plan",
+      "label": "Plan each artboard's layout",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "manifest": {
+            "type": "object"
+          },
+          "sizes": {
+            "type": "array"
+          },
+          "rules": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "manifest",
+          "sizes",
+          "rules"
+        ],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object"
+          },
+          "artboards": {
+            "type": "array"
+          },
+          "outputs": {
+            "type": "array"
+          },
+          "debug": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "artboards",
+          "outputs"
+        ],
+        "additionalProperties": false
+      },
+      "input": {
+        "manifest": {
+          "$ref": "state.source"
+        },
+        "sizes": {
+          "$ref": "state.sizes",
+          "optional": true,
+          "fallback": [
+            {
+              "name": "Square 1080",
+              "width": 1080,
+              "height": 1080,
+              "rules": {
+                "textScale": 1.15
+              }
+            },
+            {
+              "name": "Story 1080x1920",
+              "width": 1080,
+              "height": 1920,
+              "rules": {
+                "anchorY": 0.12,
+                "textScale": 1.35
+              }
+            },
+            {
+              "name": "Landscape 1920x1080",
+              "width": 1920,
+              "height": 1080
+            },
+            {
+              "name": "Rectangle 300x250",
+              "width": 300,
+              "height": 250,
+              "rules": {
+                "textScale": 1.8,
+                "margin": 0.12
+              }
+            }
+          ]
+        },
+        "rules": {
+          "$ref": "state.rules",
+          "optional": true,
+          "fallback": {}
+        }
+      },
+      "script": {
+          "lang": "js",
+          "path": "scripts/plan-layout.js"
+        },
+      "as": "plan"
+    },
+    {
+      "id": "reflow",
+      "label": "Build the artboards in Photoshop",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "$ref": "state.upload.file"
+        },
+        "options": {
+          "uxp": {
+            "source": {
+              "content": {
+                "$script": {
+                  "lang": "js",
+                  "path": "scripts/reflow-artboards.uxp.js",
+                  "params": {
+                    "plan": {
+                      "$ref": "state.plan"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "outputs": {
+          "$ref": "state.plan.outputs"
+        }
+      },
+      "as": "reflow"
+    },
+    {
+      "id": "cleanup-upload",
+      "label": "Remove the uploaded copy",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "blobName": {
+          "$ref": "state.upload.blobName"
+        },
+        "ifMissing": "ignore"
+      }
+    },
+    {
+      "id": "inspect",
+      "label": "Read the new PSD's layout",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "$ref": "state.reflow.psd"
+        }
+      },
+      "as": "result"
+    },
+    {
+      "id": "structure",
+      "label": "Check the new PSD against the plan",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "manifest": {
+            "type": "object"
+          },
+          "plan": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "manifest",
+          "plan"
+        ],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "artboards": {
+            "type": "array"
+          },
+          "layerTypes": {
+            "type": "array"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Diagnostics from the UXP script (ECP_DEBUG layers)."
+          }
+        },
+        "required": [
+          "ok",
+          "errors",
+          "problems",
+          "artboards"
+        ],
+        "additionalProperties": false
+      },
+      "input": {
+        "manifest": {
+          "$ref": "state.result"
+        },
+        "plan": {
+          "$ref": "state.plan"
+        }
+      },
+      "script": {
+          "lang": "js",
+          "path": "scripts/check-structure.js"
+        },
+      "as": "structure"
+    },
+    {
+      "id": "review-images",
+      "label": "Collect the renditions to review",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "reflow": {
+            "type": "object"
+          },
+          "plan": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "reflow",
+          "plan"
+        ],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "images",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "input": {
+        "reflow": {
+          "$ref": "state.reflow"
+        },
+        "plan": {
+          "$ref": "state.plan"
+        }
+      },
+      "script": {
+          "lang": "js",
+          "path": "scripts/review-images.js"
+        },
+      "as": "reviewImages"
+    },
+    {
+      "id": "review-prompt",
+      "label": "Write the review prompt",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "object"
+          },
+          "structure": {
+            "type": "object"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "plan",
+          "structure",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "system": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "system",
+          "prompt"
+        ],
+        "additionalProperties": false
+      },
+      "input": {
+        "plan": {
+          "$ref": "state.plan"
+        },
+        "structure": {
+          "$ref": "state.structure"
+        },
+        "labels": {
+          "$ref": "state.reviewImages.labels"
+        }
+      },
+      "script": {
+          "lang": "js",
+          "path": "scripts/eval-prompt.js"
+        },
+      "as": "reviewPrompt"
+    },
+    {
+      "id": "review",
+      "label": "Review the rendition with Claude",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
+      "input": {
+        "system": {
+          "$ref": "state.reviewPrompt.system"
+        },
+        "prompt": {
+          "$ref": "state.reviewPrompt.prompt"
+        },
+        "images": {
+          "$ref": "state.reviewImages.images"
+        },
+        "maxTokens": 2000
+      },
+      "as": "review"
+    },
+    {
+      "id": "verdict",
+      "label": "Parse the verdict",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string"
+          },
+          "structureOk": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reply",
+          "structureOk"
+        ],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "pass": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": "number"
+          },
+          "artboards": {
+            "type": "array"
+          },
+          "fixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pass",
+          "score",
+          "artboards",
+          "fixes"
+        ],
+        "additionalProperties": false
+      },
+      "input": {
+        "reply": {
+          "$ref": "state.review.text"
+        },
+        "structureOk": {
+          "$ref": "state.structure.ok"
+        }
+      },
+      "script": {
+          "lang": "js",
+          "path": "scripts/parse-verdict.js"
+        },
+      "as": "verdict"
+    }
+  ]
+}

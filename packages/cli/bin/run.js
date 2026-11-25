@@ -1,4 +1,3 @@
 #!/usr/bin/env node
-
-/** @deprecated Use `ecp.js`; kept for tests and `run.cmd`. */
+/** @deprecated Prefer `ecp.js`; kept for Windows `run.cmd` and tests. */
 import "./ecp.js"

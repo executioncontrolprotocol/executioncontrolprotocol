@@ -1,0 +1,8 @@
+[
+  {
+    "code": "ECP_CONFIG_UNKNOWN",
+    "path": "/steps/0/config",
+    "severity": "error",
+    "messageIncludes": "does not exist"
+  }
+]

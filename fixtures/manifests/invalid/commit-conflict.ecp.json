@@ -1,0 +1,24 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "same",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "a"
+      },
+      "as": "same",
+      "mode": "create"
+    },
+    {
+      "id": "again",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "b"
+      },
+      "as": "same",
+      "mode": "create"
+    }
+  ]
+}

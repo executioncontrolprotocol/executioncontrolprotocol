@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/extra",
+    "severity": "error"
+  }
+]

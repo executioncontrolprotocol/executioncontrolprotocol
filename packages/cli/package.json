@@ -1,69 +1,77 @@
 {
   "name": "@executioncontrolprotocol/cli",
-  "version": "0.51.0",
-  "description": "ECP command-line interface",
-  "license": "Apache-2.0",
+  "version": "0.60.0",
+  "private": true,
+  "description": "ECP command-line interface.",
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
   "bin": {
     "ecp": "./bin/ecp.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./bin/ecp.js": "./bin/ecp.js"
+  },
+  "types": "./dist/index.d.ts",
   "files": [
-    "bin/ecp.js",
-    "bin/run.js",
-    "bin/run.cmd",
-    "bin/dev.js",
-    "dist"
+    "bin",
+    "dist",
+    "oclif.manifest.json"
   ],
   "scripts": {
-    "build": "tsc -b",
-    "start": "node ./bin/dev.js"
-  },
-  "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "zod": "catalog:"
+    "build": "tsc -b && node ../../scripts/check-oclif-manifest.mjs --write"
   },
   "dependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
-    "@executioncontrolprotocol/node": "workspace:^",
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^",
+    "@executioncontrolprotocol/engine": "workspace:*",
+    "@executioncontrolprotocol/host": "workspace:*",
+    "@executioncontrolprotocol/local": "workspace:*",
+    "@executioncontrolprotocol/mcp-relay": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
     "@oclif/core": "^5.1.8",
     "@oclif/plugin-help": "^6.2.33",
     "@oclif/plugin-not-found": "^3.2.68",
-    "@oclif/plugin-plugins": "^5.4.46",
-    "@oclif/plugin-warn-if-update-available": "^3.1.46",
-    "zod": "catalog:"
+    "@oclif/plugin-plugins": "5.5.2"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@types/node": "catalog:",
+    "oclif": "^6.0.15",
     "typescript": "catalog:"
   },
   "oclif": {
     "bin": "ecp",
     "dirname": "ecp",
     "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/commands.js",
-      "identifier": "COMMANDS"
-    },
+    "commands": "./dist/commands",
     "scope": "executioncontrolprotocol",
-    "pluginPrefix": "plugin",
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-plugins",
-      "@oclif/plugin-not-found",
-      "@oclif/plugin-warn-if-update-available"
+      "@oclif/plugin-not-found"
     ],
     "hooks": {
-      "init": "./dist/hooks/init-host.js",
-      "command_not_found": "./dist/hooks/command-not-found.js",
-      "jit_plugin_not_installed": "./dist/hooks/jit-install.js",
-      "plugins:preinstall": "./dist/hooks/trust.js",
-      "plugins:postinstall": "./dist/hooks/postinstall-add-to-env.js"
+      "init": "./dist/hooks/init.js",
+      "finally": "./dist/hooks/plugins-changed.js"
     },
-    "jitPlugins": {
-      "@executioncontrolprotocol/mcp": "^0.51",
-      "@executioncontrolprotocol/plugin-app": "^0.51"
+    "topics": {
+      "host": {
+        "description": "The background host that warm commands use; started automatically, or start, stop, reload, and inspect it here."
+      },
+      "mcp": {
+        "description": "Run the MCP stdio relay that forwards retrieve, execute, and commit."
+      },
+      "plugins": {
+        "description": "Install and list ECP provider packages under $ECP_HOME/plugins."
+      },
+      "config": {
+        "description": "Local settings for this machine (not config objects — those use retrieve --type config and commit --type config)."
+      },
+      "config:secrets": {
+        "description": "Store secret key values in the OS keychain for $secret references (list shows keys only)."
+      }
     }
   }
 }

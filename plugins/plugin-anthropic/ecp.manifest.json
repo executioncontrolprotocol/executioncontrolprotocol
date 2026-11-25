@@ -1,0 +1,35 @@
+{
+  "capabilities": [
+    {
+      "description": "Sends one user prompt, with an optional system prompt and optional images (FileRefs in JPEG, PNG, GIF or WebP, up to 5 MB each, read by the host), to the Anthropic Messages API using the model from the config object, and returns the reply text with token usage. Provider failures (bad key, rate limit, overload) fail the step with ECP_PROVIDER_ERROR and the HTTP status in details.",
+      "id": "@executioncontrolprotocol/anthropic.generate",
+      "name": "generate",
+      "projections": [
+        "Take `text` for the reply; `usage` reports input and output tokens for cost tracking"
+      ],
+      "summary": "Generate text with a Claude model.",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Draft, rewrite, summarise or translate text from a prompt",
+        "Turn upstream step output into a short caption, title or brief",
+        "Review or describe rendered images, such as checking a layout rendition against criteria"
+      ]
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "994871f33856b345fe8b5adadb13094287eef91dbcd93013ab5da5e16b44ae88",
+  "plugin": {
+    "description": "Text generation with Claude through the Anthropic Messages API. The config object holds the API key (as a secret reference), the model and an optional base URL for proxies.",
+    "id": "@executioncontrolprotocol/anthropic",
+    "package": "@executioncontrolprotocol/anthropic",
+    "summary": "Claude models from Anthropic.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "8d63ab0960b7a66a13b5d300183f635b44f95d069611f80395b0ed09200d4df6",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "0.60.0",
+  "version": "2.0"
+}

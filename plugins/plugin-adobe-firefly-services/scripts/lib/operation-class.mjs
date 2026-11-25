@@ -41,8 +41,8 @@ export const ASYNC_FINAL_OUTPUT_BY_OP = {
   "photoshop-create-artboard": "Result",
   "photoshop-create-composite": "Result",
   "photoshop-edit": "Result",
-  "photoshop-execute-actions": "Result",
-  "photoshop-generate-manifest": "__photoshopManifestDocumentSchema",
+  "photoshop-actions": "Result",
+  "photoshop-generate-manifest": "__adobeAsyncResultPassthrough",
 
   // firefly — unwrap JobResponse.result
   "firefly-generate-images-v3-async": "JobResult",
@@ -86,8 +86,8 @@ export const ASYNC_FINAL_OUTPUT_BY_OP = {
   "audio-video-generate-reframed-video-v2": "StatusAPIResponse",
   "audio-video-transcribe": "FireflyJobResponse",
   "audio-video-dub": "FireflyJobResponse",
-  "audio-video-transcribe-transcribe": "FireflyJobResponse",
-  "audio-video-dub-dub": "FireflyJobResponse",
+  "audio-video-transcribe-translate-lipsync": "FireflyJobResponse",
+  "audio-video-dub-translate-lipsync": "FireflyJobResponse",
 
   // creative-production
   "creative-production-batch-execute": "BatchStatusResponse",
@@ -211,38 +211,28 @@ export function acceptSchemaNameForOperation(operation, doc) {
 }
 
 /**
+ * Output schema for an operation. Async submits return the polled result (after the `result`
+ * unwrap), never the job-accepted envelope. `schema` is undefined when the output is an open
+ * object (generate-manifest, or an async submit with no known final shape).
  * @param {string} opName
  * @param {OperationClass} opClass
  * @param {object} operation
  * @param {object} doc
- * @param {(schema: object, context: string) => string} schemaToZod
- * @returns {{ outputZod: string, materialize?: string, finalComponent?: string }}
+ * @returns {{ schema?: object, defaultManifestOutputs?: boolean, unknownFinal?: boolean }}
  */
-export function resolveOutputForOperation(opName, opClass, operation, doc, schemaToZod) {
+export function resolveOutputForOperation(opName, opClass, operation, doc) {
   if (opClass !== "async-submit") {
-    return { outputZod: schemaToZod(successResponseSchema(operation, doc), `${opName}.output`) }
+    return { schema: successResponseSchema(operation, doc) }
   }
 
   const finalName = ASYNC_FINAL_OUTPUT_BY_OP[opName]
-  if (finalName === "__photoshopManifestDocumentSchema") {
-    return {
-      outputZod: "photoshopManifestDocumentSchema",
-      materialize: "photoshop-manifest",
-      finalComponent: finalName,
-    }
+  if (finalName === "__adobeAsyncResultPassthrough") {
+    return { defaultManifestOutputs: true }
   }
-
   if (finalName) {
-    // Prefer $ref so emitter emits Schema_* from components
-    const refSchema = { $ref: `#/components/schemas/${finalName}` }
-    return {
-      outputZod: schemaToZod(refSchema, `${opName}.finalOutput`),
-      finalComponent: finalName,
-    }
+    return { schema: { $ref: `#/components/schemas/${finalName}` } }
   }
-
-  // Fallback: keep OpenAPI success schema (e.g. substance already job-shaped)
-  return { outputZod: schemaToZod(successResponseSchema(operation, doc), `${opName}.output`) }
+  return { unknownFinal: true }
 }
 
 /**

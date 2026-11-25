@@ -1,6 +1,7 @@
 node_modules/
 **/dist/**
-!**/dist/oclif.js
+# Plugin packages commit generated oclif command entrypoints; keep those visible.
+!plugins/**/dist/oclif.js
 *.tsbuildinfo
 
 # Vitest / V8 coverage (never commit)
@@ -12,6 +13,9 @@ coverage-tmp/
 @coverage/
 v8-cov/
 *.lcov
+
+bench/results/
+test-results/
 
 .ecp/
 
@@ -33,3 +37,6 @@ id_ed25519
 *.pfx
 credentials.json
 service-account*.json
+
+# Schema-scale spike output
+realignment/spikes/schema-scale/out/

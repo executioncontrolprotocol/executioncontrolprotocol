@@ -1,0 +1,14 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "hello from fluent API"
+      },
+      "as": "echo"
+    }
+  ]
+}

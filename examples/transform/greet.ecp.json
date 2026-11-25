@@ -1,0 +1,44 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "Greet",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "greeting": { "type": "string" }
+        },
+        "required": ["greeting"],
+        "additionalProperties": false
+      },
+      "script": {
+          "lang": "js",
+          "source": "return { greeting: `Hello, ${input.name}!` }"
+        },
+      "input": {
+        "name": "world"
+      },
+      "as": "result"
+    }
+  ],
+  "execution": {
+    "returns": {
+      "type": "object",
+      "properties": {
+        "result": { "type": "object" }
+      },
+      "required": ["result"]
+    }
+  }
+}

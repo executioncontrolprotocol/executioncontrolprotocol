@@ -1,20 +1,23 @@
 ---
-description: Authored config is TypeScript; machine-managed state is JSON
+description: Executions, configs and state are JSON; Fluent TypeScript is an optional authoring SDK
 alwaysApply: true
 ---
 
 # File formats
 
-**Authored config is TypeScript/JavaScript; machine-managed state is JSON.**
+**The canonical artifacts are JSON.** This reverses the reset-era rule ("authored config is
+TypeScript").
 
-Workflows (`*.ecp.ts`) and the config file (`config.ecp.ts`) are `.ts`/`.js` —
-code written with the fluent API and type-checked. The trust store (`trust.json`) and run
-journals (`run.json`, `steps/<id>.json`) are JSON — written and read by the CLI, never
-hand-edited.
-
-Don't turn state into a `.ts` file (it would imply it's authored, require evaluating code
-to read it, and let the install path write executable code into the user's home dir) and
-don't hand-author JSON config.
-
-`trust.json` is the plugin trust allowlist. Manage it with a future `ecp plugins trust`
-command, not by editing the file or changing its format.
+- **Executions:** `*.ecp.json` (`@executioncontrolprotocol.execution`, version `2.0`). Agents
+  create and edit these files directly in local mode and reference them by `path` or `id`.
+- **Config objects, run records, run events, plugin manifests (`ecp.manifest.json`),
+  `~/.ecp/host.json`:** JSON, written and read by the host and CLI.
+- **Fluent TypeScript** is an optional SDK: it compiles to the JSON manifest at build time.
+  TS logic runs at build time only; run-time decisions must use the manifest's own `branch`,
+  `loop` (`while` / `for` / `forEach` modes) and `expr`.
+- **The host never evaluates TypeScript or JavaScript files to read an execution.** If a Fluent
+  text format is adopted for agents, it is parsed into a syntax tree and never run.
+- Secret values never appear in any file. Config objects hold `{ "$secret": "key" }`
+  references only.
+- Writes are atomic (temp file, then rename). Updates to executions and configs check
+  `ifVersion`.

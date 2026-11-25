@@ -1,0 +1,101 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "branch-and-loop",
+    "label": "Branch and loop demo",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "expand": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expand"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "Seed": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "Seed",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "seed"
+      },
+      "as": "Seed"
+    },
+    {
+      "type": "branch",
+      "id": "route",
+      "branches": [
+        {
+          "label": "expand",
+          "expr": "(state) => state.expand === true",
+          "steps": [
+            {
+              "id": "expanded",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "expanded"
+              },
+              "as": "expanded"
+            }
+          ]
+        },
+        {
+          "label": "compact",
+          "expr": "(state) => state.expand === false",
+          "steps": [
+            {
+              "id": "compact",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "skipped-arm"
+              },
+              "as": "compact"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gated",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "only-when-expand"
+      },
+      "as": "gated",
+      "expr": "(state) => state.expand === true"
+    },
+    {
+      "type": "loop",
+      "id": "retry",
+      "label": "retry",
+      "expr": "(state) => state.tick === undefined || state.tick.echo !== 'tick'",
+      "maxRounds": 2,
+      "steps": [
+        {
+          "id": "tick",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "tick"
+          },
+          "as": "tick",
+          "mode": "replace"
+        }
+      ]
+    }
+  ]
+}

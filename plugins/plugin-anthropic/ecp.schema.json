@@ -1,0 +1,255 @@
+{
+  "$defs": {
+    "config": {
+      "properties": {
+        "apiKey": {
+          "type": "string"
+        },
+        "baseUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "model": {
+          "default": "claude-sonnet-4-5",
+          "type": "string"
+        }
+      },
+      "required": [
+        "apiKey"
+      ],
+      "type": "object"
+    },
+    "generate.accepts": {
+      "properties": {
+        "images": {
+          "items": {
+            "oneOf": [
+              {
+                "properties": {
+                  "archive": {
+                    "properties": {
+                      "kind": {
+                        "const": "artifact",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sizeBytes": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "uri": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "uri"
+                    ],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "const": "file",
+                    "type": "string"
+                  },
+                  "mediaType": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "archive": {
+                    "properties": {
+                      "kind": {
+                        "const": "artifact",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sizeBytes": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "uri": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "uri"
+                    ],
+                    "type": "object"
+                  },
+                  "headers": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "const": "url",
+                    "type": "string"
+                  },
+                  "mediaType": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "url"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "archive": {
+                    "properties": {
+                      "kind": {
+                        "const": "artifact",
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sizeBytes": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "uri": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "uri"
+                    ],
+                    "type": "object"
+                  },
+                  "kind": {
+                    "const": "artifact",
+                    "type": "string"
+                  },
+                  "mediaType": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "sizeBytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "uri": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "uri"
+                ],
+                "type": "object"
+              }
+            ],
+            "x-ecp-file": {
+              "access": "bytes",
+              "mediaTypes": [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/webp"
+              ]
+            }
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "maxTokens": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "system": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "generate.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "usage": {
+          "additionalProperties": false,
+          "properties": {
+            "inputTokens": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            "outputTokens": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "inputTokens",
+            "outputTokens"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "text",
+        "usage"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/anthropic/0.60.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

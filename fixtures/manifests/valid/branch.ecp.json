@@ -1,0 +1,52 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "on"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "type": "branch",
+      "id": "route",
+      "branches": [
+        {
+          "label": "yes",
+          "expr": "(state) => state.on === true",
+          "steps": [
+            {
+              "id": "yes",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "yes"
+              },
+              "as": "yes"
+            }
+          ]
+        },
+        {
+          "label": "default",
+          "steps": [
+            {
+              "id": "no",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "no"
+              },
+              "as": "no"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

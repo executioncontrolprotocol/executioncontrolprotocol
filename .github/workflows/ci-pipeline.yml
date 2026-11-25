@@ -1,7 +1,6 @@
-# Reusable CI pipeline: build, lint, coverage-gated unit tests, integration/browser.
-# npm publish runs only on push to `main` when repo variable `ENABLE_NPM_PUBLISH` is `true`.
-# Called from `ci.yml`.
-# Coverage is enforced on the `unit` job (`pnpm run test:coverage`), not on `pnpm run build`.
+# Reusable CI pipeline for the realignment MVP.
+# npm publish runs only on push to `main` when `ENABLE_NPM_PUBLISH` is `true`.
+# Called from `ci.yml`. Coverage is enforced on the `unit` job.
 
 name: ci
 
@@ -32,7 +31,7 @@ jobs:
         run: pnpm run secrets:scan
       - name: Install gitleaks
         env:
-          GITLEAKS_VERSION: "8.24.3"
+          GITLEAKS_VERSION: 8.24.3
         run: |
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz -C /usr/local/bin gitleaks
@@ -56,14 +55,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-      - run: pnpm run plugins:check
-      - run: pnpm run lint
 
-  consumer-cli:
-    name: consumer-cli
+  lint:
+    name: lint
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: build
+    timeout-minutes: 15
+    needs: secrets
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -74,8 +71,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: pnpm run test:plugin-pack
+      - run: pnpm run lint
 
   unit:
     name: unit
@@ -93,6 +89,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+      - name: oclif manifest is committed and current
+        run: git diff --exit-code -- packages/cli/oclif.manifest.json
+      - run: pnpm run plugins:check-manifests
       - run: pnpm run test:coverage
       - name: Upload coverage summary
         if: always()
@@ -122,8 +121,44 @@ jobs:
       - run: pnpm run build
       - run: pnpm run test:integration
 
-  browser:
-    name: browser
+  e2e-ubuntu:
+    name: e2e-ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:e2e
+
+  e2e-windows:
+    name: e2e-windows
+    runs-on: windows-latest
+    timeout-minutes: 25
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:e2e
+
+  app:
+    name: app
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: build
@@ -143,20 +178,67 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm run test:browser:install
-      - run: pnpm run test:browser
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm run test:app
+
+  # A8 App Playwright on Windows so acceptance is not Ubuntu-only.
+  app-windows:
+    name: app-windows
+    runs-on: windows-latest
+    timeout-minutes: 25
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install chromium
+      - run: pnpm run test:app
+
+  bench:
+    name: bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run bench
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-linux
+          path: bench/results/*-linux.json
+          if-no-files-found: warn
 
   publish:
     name: publish
-    # Opt-in: Settings → Secrets and variables → Actions → Variables → ENABLE_NPM_PUBLISH=true
-    # Leave unset/false so merges to main (including monorepo cutover) do not publish.
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       vars.ENABLE_NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [secrets, build, unit, integration, browser, consumer-cli]
+    needs: [secrets, build, lint, unit, integration, e2e-ubuntu, e2e-windows, app, app-windows, bench]
     permissions:
       contents: read
     steps:
@@ -171,8 +253,6 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-      - run: pnpm run generate:schema
-      # setup-node registry-url authenticates with NODE_AUTH_TOKEN, not NPM_TOKEN.
       - name: Require NPM_TOKEN
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -183,9 +263,6 @@ jobs:
             exit 1
           fi
           echo "NPM_TOKEN is present."
-      # Direct publish, same as the old publish:workspaces job and release-next.yml.
-      # changesets/action also tries to git push package tags; this job is
-      # contents: read so github-actions[bot] cannot push.
       - name: Publish unpublished versions
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

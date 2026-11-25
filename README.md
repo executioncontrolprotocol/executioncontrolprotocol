@@ -2,34 +2,50 @@
 
 [![CI](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/executioncontrolprotocol/executioncontrolprotocol/actions/workflows/ci.yml)
 
-ECP (Execution Control Protocol) is the **deterministic delegation** layer an
-orchestrating agent operates: author a workflow file, run it, read structured
-errors and a journal, then repair and rerun. It is part of a harness, never the
-whole harness.
+ECP (Execution Control Protocol) is the **deterministic delegation** layer an orchestrating
+agent operates: write a JSON execution, run it through a local host, read structured errors and
+a run record, then repair and rerun.
 
-MCP standardizes how models call tools. ECP standardizes how an agent
-**delegates** a graph of those tools — under plugins and policies, with a
-journal you can inspect.
+MCP standardizes how models call tools. ECP standardizes how an agent **delegates** a graph of
+those tools — under plugins, with a journal you can inspect.
 
-**Docs:** [https://executioncontrolprotocol.io/](https://executioncontrolprotocol.io/)
+**Docs:** [https://executioncontrolprotocol.io/](https://executioncontrolprotocol.io/)  
+**MVP contracts:** [`realignment/spec/`](realignment/spec/README.md)  
+**Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
-## Use the CLI
+## Quick start (MVP)
 
 ```bash
-npm install -g @executioncontrolprotocol/cli
-npx skills add executioncontrolprotocol/docs
-ecp workflows init brief
-ecp plugins install jsonata
-ecp run brief.ecp.ts
+# From a built checkout (see SETUP.md), or once packages are published:
+ecp host start
+ecp plugins link plugins/plugin-test   # or: ecp plugins install @executioncontrolprotocol/test
+
+# Write an execution (JSON), then run it:
+ecp execute path/to/echo.ecp.json --json
+
+# Agents: MCP relay (exactly three tools: retrieve, execute, commit)
+ecp mcp start
+
+# Visual App (graph, validation, runs)
+ecp app path/to/echo.ecp.json
 ```
 
-The field-test is **0.51.0** on `latest` (not 1.0). `ecp workflows init` scaffolds
-a `jsonata.transform` step, so install that plugin before you run.
+Executions are `*.ecp.json` with `schema: "@executioncontrolprotocol.execution"` and
+`version: "2.0"`. They never contain secrets. Config objects hold `{ "$secret": "key" }`
+references; set values with `ecp config secrets set`.
+
+```bash
+ecp retrieve --type capability --query echo --json
+ecp execute fixtures/manifests/runs/echo.ecp.json --json
+ecp commit --type execution --action create --object @my.ecp.json --json
+```
+
+`--json` prints `{ ok: true, data }` or
+`{ ok: false, error: { code, message, path, suggestions } }`.
 
 ## Work in this repo
 
-**Prerequisites:** Node.js 22+, pnpm 10 (`corepack enable`). Install from the
-**repo root** only.
+**Prerequisites:** Node.js 22+, pnpm 10 (`corepack enable`). Install from the **repo root** only.
 
 ```bash
 git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
@@ -37,70 +53,36 @@ cd executioncontrolprotocol
 corepack enable
 pnpm install
 pnpm run build
-```
-
-Link the CLI, then run the echo example. `test.echo` is not a Node default:
-
-```bash
-cd packages/cli
-pnpm link --global
-cd ../..
-ecp plugins link plugins/plugin-test
-ecp run examples/01-echo/workflow.ecp.ts
-```
-
-**Contributor skill:**
-`npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y`
-
-## What you operate
-
-| Piece | Role |
-| ----- | ---- |
-| **Workflow** | One `*.ecp.ts` file. Bindings go in `.with([...])`. Compiles to a portable JSON graph. |
-| **Environment** | Host (Node by default) plus installed plugins and policies. |
-| **Plugin** | npm package that registers capabilities and generates CLI commands. |
-| **Journal** | One directory per run under `.ecp/runs/<runId>/`. |
-
-```bash
-ecp workflows validate examples/01-echo/workflow.ecp.ts --json
-ecp run examples/01-echo/workflow.ecp.ts --json
-ecp runs show <id>
-ecp plugins link plugins/plugin-jsonata
-```
-
-`--json` prints `{ ok: true, data }` or
-`{ ok: false, error: { code, message, path, suggestions } }`.
-
-## Repository map
-
-| Path | What it is |
-| ---- | ---------- |
-| [`packages/core/`](packages/core/) | Fluent API, engine, protocol types (`@executioncontrolprotocol/core`, `./types`) |
-| [`packages/environments/node/`](packages/environments/node/) | Node host: compile, secrets, journals |
-| [`packages/environments/browser/`](packages/environments/browser/) | Browser host |
-| [`packages/cli/`](packages/cli/) | `ecp` CLI |
-| [`packages/plugin-sdk/`](packages/plugin-sdk/) | `toCommands`, `defineOperation` |
-| [`packages/mcp/`](packages/mcp/) | `ecp mcp serve` |
-| [`packages/app/`](packages/app/) | Visual App library (`ecp app` is `plugins/plugin-app`) |
-| [`plugins/`](plugins/) | First-party plugins |
-| [`examples/`](examples/) | Single-file `*.ecp.ts` workflows |
-
-Dependencies are TypeScript, Zod, oclif, and workspace packages (`workspace:^`).
-
-**Monorepo guide:** [`AGENTS.md`](AGENTS.md)
-**Reset plan (contributor):** [`RESET-PLAN.md`](RESET-PLAN.md)
-
-## Checks
-
-```bash
 pnpm run check
 ```
 
-That runs build, schema generation, lint, secrets scan, coverage, integration,
-and e2e. Browser tests: `pnpm run test:browser:install` then `pnpm run test:browser`.
+See [`SETUP.md`](SETUP.md) for linking the CLI and plugins. Contributor skill:
 
-## What ECP is not
+```bash
+npx skills add executioncontrolprotocol/executioncontrolprotocol --skill ecp-core -y
+```
 
-ECP is not an agent framework, a chat client, or a replacement for MCP. The
-agent owns judgement: what to build, what a failure means, how to fix it. ECP
-owns step order, data flow, policies, secrets custody, and the journal.
+## Repository map
+
+| Path | Role |
+| --- | --- |
+| `packages/protocol` | Shared types, schemas, service tokens |
+| `packages/engine` | Executor, validation, operations, service container |
+| `packages/quickjs` | QuickJS-WASM expression engine |
+| `packages/local` | Disk storage, OS secrets, in-process plugin registration |
+| `packages/host` | Local host process + HTTP API + supervisor |
+| `packages/cli` | `ecp` CLI (oclif) |
+| `packages/mcp-relay` | Stdio MCP relay (three tools) |
+| `packages/app` | Visual App served at `/app/` |
+| `packages/plugin-sdk` | `definePlugin` / `capability` authoring |
+| `packages/formatters` | JSON and TOON formatters |
+| `plugins/*` | First-party capability plugins |
+| `fixtures/` | Conformance and acceptance fixtures |
+| `test/e2e/` | CLI / MCP / acceptance e2e |
+| `realignment/spec/` | MVP build spec (source of truth) |
+
+## Related
+
+- [`AGENTS.md`](AGENTS.md) — agent instructions and commands
+- [`REALIGNMENT-PLAN.md`](REALIGNMENT-PLAN.md) — decisions and rationale
+- [`RELEASING.md`](RELEASING.md) — publish checklist

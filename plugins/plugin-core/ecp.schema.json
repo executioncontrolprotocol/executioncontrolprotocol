@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "parse-csv.accepts": {
+      "properties": {
+        "delimiter": {
+          "type": "string"
+        },
+        "file": {
+          "oneOf": [
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "file",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "url",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "artifact",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "uri": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "uri"
+              ],
+              "type": "object"
+            }
+          ],
+          "x-ecp-file": {
+            "access": "bytes",
+            "mediaTypes": [
+              "text/csv",
+              "application/csv",
+              "text/plain"
+            ]
+          }
+        },
+        "header": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "parse-csv.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/core/0.60.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

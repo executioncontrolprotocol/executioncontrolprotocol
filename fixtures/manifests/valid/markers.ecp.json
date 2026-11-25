@@ -1,0 +1,66 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "seed",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "seed"
+      },
+      "as": "seed"
+    },
+    {
+      "id": "fromExpr",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "seed": { "type": "string" }
+        },
+        "required": ["seed"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" }
+        },
+        "required": ["value"],
+        "additionalProperties": false
+      },
+      "input": {
+        "seed": { "$ref": "state.seed.echo" }
+      },
+      "script": {
+          "lang": "js",
+          "source": "return { value: input.seed }"
+        },
+      "as": "fromExpr"
+    },
+    {
+      "id": "marked",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "fromRef": {
+          "$ref": "state.seed.echo",
+          "optional": true,
+          "fallback": "missing"
+        },
+        "fromTransform": {
+          "$ref": "state.fromExpr.value"
+        },
+        "handle": {
+          "$state": "bucket"
+        },
+        "script": {
+          "$script": {
+            "lang": "js",
+            "source": "1"
+          }
+        }
+      },
+      "as": "marked"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Line endings: LF everywhere, in the repository and in working trees (Windows included), so
+# tools that write files (Vitest snapshots, generators, formatters) never flip line endings and
+# Windows checkouts match CI. Overrides any local core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows batch and PowerShell scripts need CRLF to run correctly.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files: never convert or diff as text.
+*.psd binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.sqlite binary
+*.wasm binary
+*.zip binary
+*.tgz binary

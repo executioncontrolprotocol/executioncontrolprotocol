@@ -1,0 +1,52 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "outer",
+      "branches": [
+        [
+          {
+            "type": "loop",
+            "id": "inner",
+            "expr": "(state) => state.n === undefined",
+            "maxRounds": 1,
+            "steps": [
+              {
+                "type": "branch",
+                "id": "arm",
+                "branches": [
+                  {
+                    "label": "default",
+                    "steps": [
+                      {
+                        "id": "nested",
+                        "uses": "@executioncontrolprotocol/test.echo",
+                        "input": {
+                          "value": "nested"
+                        },
+                        "as": "nested",
+                        "mode": "replace"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "id": "side",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "side"
+            },
+            "as": "side"
+          }
+        ]
+      ]
+    }
+  ]
+}

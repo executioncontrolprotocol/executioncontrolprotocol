@@ -1,27 +1,90 @@
 # Releasing to npm
 
-Packages are versioned independently with [Changesets](https://github.com/changesets/changesets). `baseBranch` is `development`. In-repo plugin `peerDependencies` stay `workspace:^` until publish.
+Packages are versioned independently with [Changesets](https://github.com/changesets/changesets).
+`baseBranch` is `development`. In-repo dependencies stay `workspace:*` / `workspace:^` until
+publish.
+
+**Phase 9 did not publish.** This file is the checklist for the first MVP release from
+`development`/`main` after the merged milestone (PR #68, 2026-11-15).
 
 ## Branches
 
-- **`development`** — Default branch after the reset. PRs here get a Changesets status check.
-- **`milestone/cli-reset`** — Reset work. Keep it after the 0.50.0 field-test for a later 1.0.
-- **`main`** — Publishes `latest` when `ENABLE_NPM_PUBLISH` is `true`. Phase 9 field-test is
-  **0.50.0**, not 1.0.0. Do not reuse the existing `v1.0.0` tag (`a938230`).
-- **`feat/**`** — Feature branches. Open PRs into `milestone/cli-reset` until the field-test
-  merge path; then into `development`.
+| Branch | Role |
+| --- | --- |
+| `development` | Default integration branch. |
+| `main` | Publishes `latest` when `ENABLE_NPM_PUBLISH` is `true`. |
+| `fix/*` / `feat/*` | Feature and fix PRs into `development`. |
+| `milestone/realignment` | Historical: merged into `development` via PR #68. |
 
-## Latest (Phase 9 field-test)
+Never push feature work straight to `main`.
 
-Changesets pre mode (`next` / `1.0.0-next.0`) is **off**. Packages are **0.51.0**. CLI
-`oclif.jitPlugins` pins `mcp` and `plugin-app` at `^0.51`.
+## Release tag naming
 
-1. Merge to `main` with `ENABLE_NPM_PUBLISH=true`.
-2. The `publish` job in `ci-pipeline.yml` runs `changesets/action` → `changeset publish` to
-   **`latest`**.
-3. Do **not** dispatch [`release-next.yml`](.github/workflows/release-next.yml) for this
-   release. Do **not** bump to 1.0.0 here. 1.0 (deprecate 0.14 names, archives, live dogfood)
-   is Later.
+Do **not** use `v1.0.0` for the first MVP npm cut (that tag already exists in history for an
+unrelated cut).
+
+**Chosen scheme:** calendar MVP tags — `mvp-YYYY.MM.DD` (example: `mvp-2026.11.15`).
+
+- Git tag: `mvp-YYYY.MM.DD`
+- npm package versions: independent majors from Changesets (first publish of each new package
+  may start at `1.0.0` or the next major after any prior 0.x name reuse — decide per package at
+  publish time)
+- Changelog / GitHub Release title: `MVP YYYY.MM.DD`
+
+## MVP package set (publish candidates)
+
+| Package | Role |
+| --- | --- |
+| `@executioncontrolprotocol/protocol` | Types and schemas |
+| `@executioncontrolprotocol/engine` | Executor and operations |
+| `@executioncontrolprotocol/quickjs` | Expression engine |
+| `@executioncontrolprotocol/local` | Disk storage, secrets, plugin registration |
+| `@executioncontrolprotocol/formatters` | JSON / TOON |
+| `@executioncontrolprotocol/host` | Host process |
+| `@executioncontrolprotocol/cli` | `ecp` CLI |
+| `@executioncontrolprotocol/mcp-relay` | MCP three-tool relay |
+| `@executioncontrolprotocol/app` | Visual App bundle |
+| `@executioncontrolprotocol/plugin-sdk` | Plugin authoring |
+| `@executioncontrolprotocol/test` | Harness plugin |
+| `@executioncontrolprotocol/anthropic` | Anthropic |
+| `@executioncontrolprotocol/azure-blob-storage` | Azure Blob |
+| `@executioncontrolprotocol/adobe-firefly-services` | Firefly Services |
+
+Before the first publish: clear `private: true` on the packages that should go to npm, run
+`pnpm exec changeset version` from the Phase 9 majors changeset, then
+`changeset publish` from `main` with `ENABLE_NPM_PUBLISH=true`.
+
+## 0.x packages to `npm deprecate`
+
+Point consumers at the replacements. Exact deprecation messages can be refined at publish time.
+
+| 0.x package | Replacement |
+| --- | --- |
+| `@executioncontrolprotocol/core` | `@executioncontrolprotocol/protocol` + `@executioncontrolprotocol/engine` |
+| `@executioncontrolprotocol/environments` / `@executioncontrolprotocol/node` | `@executioncontrolprotocol/host` + `@executioncontrolprotocol/local` |
+| `@executioncontrolprotocol/cli` (0.5x) | `@executioncontrolprotocol/cli` (MVP major) — breaking; see README |
+| `@executioncontrolprotocol/mcp` | `@executioncontrolprotocol/mcp-relay` |
+| `@executioncontrolprotocol/plugin-sdk` (0.x) | `@executioncontrolprotocol/plugin-sdk` (MVP major) |
+| `@executioncontrolprotocol/plugin-app` | Built into `@executioncontrolprotocol/app` + `ecp app` |
+| `@executioncontrolprotocol/plugin-format-toon` | `@executioncontrolprotocol/formatters` (host service, not a plugin) |
+| `@executioncontrolprotocol/jsonata` / other unported plugins | Stay deprecated until ported, or removed from docs |
+
+Example:
+
+```bash
+npm deprecate @executioncontrolprotocol/core@"<1.0.0" "Replaced by @executioncontrolprotocol/protocol and @executioncontrolprotocol/engine (MVP)."
+```
+
+## Checklist (no publish in Phase 9)
+
+- [x] Changeset majors recorded (`.changeset/mvp-realignment-majors.md`)
+- [x] Tag scheme decided (`mvp-YYYY.MM.DD`)
+- [x] Deprecation list documented
+- [ ] Packages marked public where needed
+- [ ] `changeset version` + CI green on release branch
+- [ ] Publish from `main` with `ENABLE_NPM_PUBLISH=true`
+- [ ] `npm deprecate` for 0.x names
+- [ ] GitHub Release for `mvp-YYYY.MM.DD`
 
 ## Adding a changeset
 
@@ -29,8 +92,5 @@ Changesets pre mode (`next` / `1.0.0-next.0`) is **off**. Packages are **0.51.0*
 pnpm exec changeset
 ```
 
-Commit the file under `.changeset/`. Independent versioning means each package can move on its own. A `major` bump from 0.50.0 becomes 1.0.0 — do not add one until the 1.0 release.
-
-## Smoke
-
-`pnpm run test:plugin-pack` packs `core`, `node`, `plugin-sdk`, `cli`, and every plugin, installs the CLI into a hermetic prefix, then `ecp plugins install <tarball>` for each plugin. After 0.50.0 is on the registry, criterion 1 is `npm i -g @executioncontrolprotocol/cli` then `ecp plugins install jsonata`.
+Commit the file under `.changeset/`. Independent versioning means each package can move on its
+own.

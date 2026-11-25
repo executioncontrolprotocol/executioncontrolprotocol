@@ -1,0 +1,45 @@
+{
+  "name": "@executioncontrolprotocol/host",
+  "version": "0.60.0",
+  "private": true,
+  "description": "In-process and server ECP host composition.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    },
+    "./supervisor": "./dist/supervisor.js",
+    "./main": "./dist/main.js"
+  },
+  "bin": {
+    "ecp-host": "./dist/main.js",
+    "ecp-supervisor": "./dist/supervisor.js"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/app": "workspace:*",
+    "@executioncontrolprotocol/engine": "workspace:*",
+    "@executioncontrolprotocol/formatters": "workspace:*",
+    "@executioncontrolprotocol/local": "workspace:*",
+    "@executioncontrolprotocol/core": "workspace:*",
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@executioncontrolprotocol/quickjs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

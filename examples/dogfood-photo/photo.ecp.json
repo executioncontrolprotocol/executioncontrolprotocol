@@ -1,0 +1,32 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "returns": {
+      "type": "object",
+      "properties": {
+        "upload": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "Upload",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": {
+          "kind": "file",
+          "path": "__FIXTURE_PNG__",
+          "mediaType": "image/png"
+        },
+        "blobName": "product.png",
+        "createReadSas": true
+      },
+      "as": "upload"
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 {
-  "generatedAt": "2026-10-30T06:00:30.365Z",
-  "operationCount": 68,
+  "pluginId": "@executioncontrolprotocol/adobe-firefly-services",
   "families": [
     "audio-video",
     "creative-production",
@@ -11,161 +10,483 @@
     "photoshop",
     "substance3d"
   ],
-  "operationClasses": {
-    "async-submit": 48,
-    "sync": 20
-  },
-  "skippedStatusCancel": 16,
-  "operations": [
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-voices",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-speech",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-describe",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-get-presets",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-render",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-list-render-jobs",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-avatars",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video-v2",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-avatar",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe-transcribe",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub-dub",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-batch-execute",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batch-executions",
-    "@executioncontrolprotocol/adobe-firefly-services.express-tagged-documents",
-    "@executioncontrolprotocol/adobe-firefly-services.express-tagged-document-details",
-    "@executioncontrolprotocol/adobe-firefly-services.express-generate-variation",
-    "@executioncontrolprotocol/adobe-firefly-services.express-export-rendition",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-similar-images-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-expand-images-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-fill-images-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-object-composite-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-composite",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-adaptive-composite",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-upsampler-v3-async",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-video-v3",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-get-custom-models",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-storage-image-v2",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-register-custom-script-capability",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-execute-custom-script-capability",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-data-merge",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-create-rendition",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-trace-image",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge-tags",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-remap-links",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-rendition-job",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-list-custom-scripts",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-submit-custom-script",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-execute-custom-script",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-get-custom-script-details",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-delete-custom-script",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-update-script-app-version",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-get-document-info",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-convert-pdfto-in-design",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-auto-crop",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-artboard",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-edit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-execute-actions",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-composites-compose",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-assemble",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-convert",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-describe",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render-basic",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v1",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v2",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-frame-io-v2",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-next-frame-io-v2",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-url-v2"
-  ],
-  "operationClassById": {
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-voices": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-speech": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-describe": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-get-presets": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-render": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-list-render-jobs": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-avatars": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video-v2": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-avatar": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe-transcribe": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub-dub": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-batch-execute": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batch-executions": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.express-tagged-documents": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.express-tagged-document-details": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.express-generate-variation": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.express-export-rendition": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-similar-images-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-expand-images-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-fill-images-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-object-composite-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-composite": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-adaptive-composite": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-upsampler-v3-async": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-video-v3": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-get-custom-models": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.firefly-storage-image-v2": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-register-custom-script-capability": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-execute-custom-script-capability": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-data-merge": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-create-rendition": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.illustrator-trace-image": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge-tags": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-remap-links": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-rendition-job": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-list-custom-scripts": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-submit-custom-script": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-execute-custom-script": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-get-custom-script-details": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-delete-custom-script": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-update-script-app-version": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-get-document-info": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.indesign-convert-pdfto-in-design": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-auto-crop": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-artboard": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-edit": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-execute-actions": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-composites-compose": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-assemble": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-convert": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-describe": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render-basic": "async-submit",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v1": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-v2": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-frame-io-v2": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-next-frame-io-v2": "sync",
-    "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-url-v2": "sync"
-  },
+  "pendingFamilies": [],
   "specFiles": [
-    "firefly/firefly-api.json",
-    "photoshop/photoshopv2-api.json",
-    "express/ffs-express-api.json",
-    "indesign/indesignapi.json",
-    "substance3d/openapi.yaml",
-    "illustrator/illustrator-api.json",
-    "illustrator/illustrator-api-beta.json",
-    "creative-production/workflow-builder-api.yaml",
     "audio-video/audio-video-api.json",
-    "audio-video/translate-lipsync-openapi.json"
+    "audio-video/translate-lipsync-openapi.json",
+    "creative-production/workflow-builder-api.yaml",
+    "express/ffs-express-api.json",
+    "firefly/firefly-api.json",
+    "illustrator/illustrator-api-beta.json",
+    "illustrator/illustrator-api.json",
+    "indesign/indesignapi.json",
+    "photoshop/photoshopv2-api.json",
+    "substance3d/openapi.yaml"
+  ],
+  "capabilityCount": 63,
+  "capabilities": [
+    {
+      "name": "audio-video-avatars",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/avatars",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-dub",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/dub",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-dub-translate-lipsync",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/dub",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-avatar",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/generate-avatar",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-reframed-video",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/reframe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-reframed-video-v2",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v2/reframe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-generate-speech",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/generate-speech",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-get-presets",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/presets",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-list-render-jobs",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/templates/render-jobs",
+      "asyncMode": "none"
+    },
+    {
+      "name": "audio-video-template-describe",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/templates/describe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-template-render",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/templates/render",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-transcribe",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/transcribe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-transcribe-translate-lipsync",
+      "family": "audio-video",
+      "method": "POST",
+      "path": "/v1/transcribe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "audio-video-voices",
+      "family": "audio-video",
+      "method": "GET",
+      "path": "/v1/voices",
+      "asyncMode": "none"
+    },
+    {
+      "name": "creative-production-batch-execute",
+      "family": "creative-production",
+      "method": "POST",
+      "path": "/batch/execute",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "creative-production-list-batch-executions",
+      "family": "creative-production",
+      "method": "GET",
+      "path": "/batch/{batchId}/executions",
+      "asyncMode": "none"
+    },
+    {
+      "name": "creative-production-list-batches",
+      "family": "creative-production",
+      "method": "GET",
+      "path": "/batches",
+      "asyncMode": "none"
+    },
+    {
+      "name": "express-export-rendition",
+      "family": "express",
+      "method": "POST",
+      "path": "/beta/export-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "express-generate-variation",
+      "family": "express",
+      "method": "POST",
+      "path": "/beta/generate-variation",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "express-tagged-document-details",
+      "family": "express",
+      "method": "GET",
+      "path": "/beta/tagged-documents/{documentId}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "express-tagged-documents",
+      "family": "express",
+      "method": "GET",
+      "path": "/beta/tagged-documents",
+      "asyncMode": "none"
+    },
+    {
+      "name": "firefly-adaptive-composite",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/adaptive-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-expand-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/expand-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-fill-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/fill-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-images-v5-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v4/images/generate-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-object-composite-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-object-composite-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-similar-images-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/generate-similar-async",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-generate-video-v3",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/videos/generate",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-get-custom-models",
+      "family": "firefly",
+      "method": "GET",
+      "path": "/v3/custom-models",
+      "asyncMode": "none"
+    },
+    {
+      "name": "firefly-precise-composite",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/precise-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "firefly-precise-upsampler-v3-async",
+      "family": "firefly",
+      "method": "POST",
+      "path": "/v3/images/upscale",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-create-rendition",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/create-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-data-merge",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/merge-data",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-execute-custom-script-capability",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v3/{orgId}/{capabilityName}",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "illustrator-trace-image",
+      "family": "illustrator",
+      "method": "POST",
+      "path": "/v1/trace-image",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-convert-pdfto-in-design",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/convert-pdf-to-indesign",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-data-merge",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/merge-data",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-data-merge-tags",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/merge-data-tags",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-delete-custom-script",
+      "family": "indesign",
+      "method": "DELETE",
+      "path": "/v3/scripts/{script_name}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-execute-custom-script",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/{script_id}/{script_name}",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-get-custom-script-details",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/scripts/{script_name}",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-get-document-info",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/document-info",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-list-app-versions",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/app-versions",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-list-custom-scripts",
+      "family": "indesign",
+      "method": "GET",
+      "path": "/v3/scripts",
+      "asyncMode": "none"
+    },
+    {
+      "name": "indesign-remap-links",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/remap-links",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-rendition-job",
+      "family": "indesign",
+      "method": "POST",
+      "path": "/v3/create-rendition",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "indesign-update-script-app-version",
+      "family": "indesign",
+      "method": "PUT",
+      "path": "/v3/scripts/{script_name}/app-version",
+      "asyncMode": "none"
+    },
+    {
+      "name": "photoshop-actions",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/execute-actions",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-auto-crop",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v1/auto-crop",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-create-artboard",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/create-artboard",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-create-composite",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/create-composite",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-edit",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/edit",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "photoshop-generate-manifest",
+      "family": "photoshop",
+      "method": "POST",
+      "path": "/v2/generate-manifest",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-create-space-from-frame-io-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesFrameIO",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-create-space-from-next-frame-io-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesNextFrameIO",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-create-space-url-v2",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v2/spacesURL",
+      "asyncMode": "none"
+    },
+    {
+      "name": "substance3d-v1-composites-compose",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/composites/compose",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-assemble",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/assemble",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-convert",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/convert",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-describe",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/describe",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-render",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/render",
+      "asyncMode": "submit"
+    },
+    {
+      "name": "substance3d-v1-scenes-render-basic",
+      "family": "substance3d",
+      "method": "POST",
+      "path": "/v1/scenes/render-basic",
+      "asyncMode": "submit"
+    }
+  ],
+  "skipped": [
+    {
+      "name": "firefly-storage-image-v2",
+      "reason": "non-JSON request body (image/jpeg, image/png, image/webp, image/tiff, image/jxl); needs file-reference upload support"
+    },
+    {
+      "name": "illustrator-register-custom-script-capability",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "indesign-submit-custom-script",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "substance3d-create-space-v1",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    },
+    {
+      "name": "substance3d-create-space-v2",
+      "reason": "non-JSON request body (multipart/form-data); needs file-reference upload support"
+    }
   ]
 }

@@ -1,3 +1,0 @@
-REPLY
-  ANSWER "Supported step capabilities: @executioncontrolprotocol/test.echo, @executioncontrolprotocol/test.summarize."
-  CITATION extension @executioncontrolprotocol/test "@executioncontrolprotocol/test.summarize"

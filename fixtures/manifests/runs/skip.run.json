@@ -1,0 +1,16 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {},
+  "steps": [
+    {
+      "nodeId": "echo",
+      "status": "skipped"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.skip",
+    "run.end"
+  ]
+}

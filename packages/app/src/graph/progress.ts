@@ -1,38 +1,77 @@
 import type {
+  ReactFlowArmStatusDetail,
+  ReactFlowLoopProgressDetail,
+  ReactFlowLoopRoundDetail,
   ReactFlowRunLifecycleDetail,
   ReactFlowStepStatus,
   ReactFlowStepStatusDetail,
 } from "./types.js"
 
-/** Progress event names. @category App */
-export type ReactFlowProgressEventName = "run:reset" | "step:status" | "run:done"
+/**
+ * Event names emitted on the graph run progress bus.
+ * @category App
+ */
+export type ReactFlowProgressEventName =
+  | "run:reset"
+  | "run:done"
+  | "step:status"
+  | "arm:status"
+  | "loop:round"
+  | "loop:progress"
 
 /**
- * Browser-safe progress bus for React Flow run visualization.
- * Listeners receive CustomEvent with typed detail.
+ * Typed event target for graph run overlays during live or replayed runs.
  * @category App
  */
 export class ReactFlowRunProgress extends EventTarget {
-  /** Emit run reset (all steps pending). */
-  emitReset(detail: ReactFlowRunLifecycleDetail = {}): void {
-    this.dispatchEvent(new CustomEvent("run:reset", { detail }))
+  private readonly loopItemsById = new Map<string, { count: number; done: number; failed?: number }>()
+
+  /** Latest folded `forEach` loop progress for live bus updates. */
+  currentLoopItems(structureId: string): { count: number; done: number; failed?: number } | undefined {
+    return this.loopItemsById.get(structureId)
   }
 
-  /** Emit a step status change. */
-  emitStepStatus(stepId: string, status: ReactFlowStepStatus, message?: string): void {
-    const detail: ReactFlowStepStatusDetail = { stepId, status, ...(message ? { message } : {}) }
+  /** Clear all derived state (on `run.start`). */
+  emitReset(detail?: ReactFlowRunLifecycleDetail): void {
+    this.loopItemsById.clear()
+    this.dispatchEvent(new CustomEvent("run:reset", { detail: detail ?? {} }))
+  }
+
+  /** Emit terminal run outcome. */
+  emitDone(detail?: ReactFlowRunLifecycleDetail): void {
+    this.dispatchEvent(new CustomEvent("run:done", { detail: detail ?? {} }))
+  }
+
+  /** Emit one step status change. */
+  emitStepStatus(stepId: string, status: ReactFlowStepStatus, extra?: Omit<ReactFlowStepStatusDetail, "stepId" | "status">): void {
+    const detail: ReactFlowStepStatusDetail = { stepId, status, ...extra }
     this.dispatchEvent(new CustomEvent("step:status", { detail }))
   }
 
-  /** Emit run completion. */
-  emitDone(detail: ReactFlowRunLifecycleDetail = {}): void {
-    this.dispatchEvent(new CustomEvent("run:done", { detail }))
+  /** Emit branch arm selection. */
+  emitArmStatus(structureId: string, arm: number | null): void {
+    const detail: ReactFlowArmStatusDetail = { structureId, arm }
+    this.dispatchEvent(new CustomEvent("arm:status", { detail }))
+  }
+
+  /** Emit loop round progress for `while` / `for` modes. */
+  emitLoopRound(structureId: string, round: number, exhausted?: boolean): void {
+    const detail: ReactFlowLoopRoundDetail = { structureId, round, ...(exhausted ? { exhausted } : {}) }
+    this.dispatchEvent(new CustomEvent("loop:round", { detail }))
+  }
+
+  /** Emit item completion counts for a `forEach` loop structure node overlay. */
+  emitLoopProgress(structureId: string, done: number, count: number, failed?: number): void {
+    this.loopItemsById.set(structureId, { count, done, ...(failed !== undefined ? { failed } : {}) })
+    const detail: ReactFlowLoopProgressDetail = {
+      structureId,
+      done,
+      count,
+      ...(failed !== undefined ? { failed } : {}),
+    }
+    this.dispatchEvent(new CustomEvent("loop:progress", { detail }))
   }
 }
 
-/**
- * Shared progress bus. The format-reactflow extension used 9 lifecycle hooks
- * that forwarded onto this bus (plus these 3 emit helpers).
- * @category App
- */
+/** Shared singleton progress bus for the App shell. @category App */
 export const reactFlowRunProgress = new ReactFlowRunProgress()

@@ -1,0 +1,102 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "psd-layers",
+    "label": "List PSD layers",
+    "description": "Upload a local PSD to Azure Blob Storage, ask Photoshop for the document manifest, and return every layer (including those inside groups) with its name, type, id, group path and depth.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "psdPath": {
+          "type": "string",
+          "description": "Absolute path to the PSD on this machine."
+        }
+      },
+      "required": [
+        "psdPath"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "psd": {
+          "type": "object",
+          "description": "document (width, height, mode), layers (flat list with name, type, id, group path, depth, visible, and text for text layers), names (in document order), and count."
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "upload",
+      "label": "Upload the PSD and sign a read URL",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "file": {
+          "kind": "file",
+          "path": {
+            "$ref": "state.psdPath"
+          },
+          "mediaType": "image/vnd.adobe.photoshop"
+        },
+        "contentType": "image/vnd.adobe.photoshop"
+      },
+      "as": "upload"
+    },
+    {
+      "id": "manifest",
+      "label": "Read the document manifest",
+      "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "config": "adobe-firefly-services/default",
+      "input": {
+        "image": {
+          "$ref": "state.upload.file"
+        }
+      },
+      "as": "manifest"
+    },
+    {
+      "id": "cleanup-upload",
+      "label": "Remove the uploaded PSD copy from Azure",
+      "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
+      "config": "azure-blob-storage/default",
+      "input": {
+        "blobName": {
+          "$ref": "state.upload.blobName"
+        },
+        "ifMissing": "ignore"
+      }
+    },
+    {
+      "id": "collect",
+      "label": "Flatten the layer tree",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "manifest": { "type": "object" }
+        },
+        "required": ["manifest"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "document": { "type": "object" },
+          "layers": { "type": "array" },
+          "names": { "type": "array", "items": { "type": "string" } },
+          "count": { "type": "integer" }
+        },
+        "required": ["layers", "names", "count"],
+        "additionalProperties": false
+      },
+      "input": {
+        "manifest": { "$ref": "state.manifest" }
+      },
+      "script": { "lang": "js", "path": "scripts/layer-names.js" },
+      "as": "psd"
+    }
+  ]
+}

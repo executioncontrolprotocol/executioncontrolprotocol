@@ -1,66 +1,34 @@
-import {
-  defineExtension,
-  capabilityFor
-} from "@executioncontrolprotocol/core"
-import {
-  jsonataTransformInputSchema,
-  jsonataTransformOutputSchema,
-  type JsonataTransformInput
-} from "./schemas.js"
-import { runJsonataTransform } from "./transform.js"
+import { capability, definePlugin } from "@executioncontrolprotocol/plugin-sdk"
+import { z } from "zod"
 
-/** @executioncontrolprotocol/jsonata extension. @category Extensions */
-export const jsonataExtension = defineExtension("@executioncontrolprotocol", "jsonata")
-  .withMetadata({
-    summary: "Transform JSON payloads with JSONata expressions",
-    description:
-      "Evaluates JSONata expressions locally against workflow data for mapping, filtering, and reshaping JSON without a remote service.",
-    useCases: [
-      "Reduce bulky inspect or API JSON to a small object the next steps can consume",
-      "Select and rename nested fields after a discovery or upstream step",
-      "Filter or reshape arrays before a follow-up capability runs",
-    ],
-  })
-  .withCapabilities([
-    capabilityFor("@executioncontrolprotocol/jsonata", "transform")
-      .withInput(jsonataTransformInputSchema)
-      .withOutput(jsonataTransformOutputSchema)
-      .withExecution("local")
-      .withMetadata({
-        summary: "Evaluate a JSONata expression on a JSON payload",
-        description:
-          "Compiles and runs a JSONata expression against the provided payload with optional variable bindings, returning the evaluated result. Use after inspect or fetch when the raw object is too large for chat or later steps.",
-        useCases: [
-          "After an inspect or fetch, project only the fields needed (from that capability’s projections or the user’s ask) into workflow state",
-          "Flatten nested objects so later steps take simple refs instead of deep paths",
-          "Drop large nested bags while keeping the facts needed to continue authoring",
-        ],
-        projections: [
-          {
-            summary: "Take the evaluated result",
-            description:
-              "Use result as the transformed JSON value for refs, steps, or downstream mapping.",
-          },
-          {
-            summary: "Project a complex object to a small fact bag",
-            description:
-              "Keep only the fields the next step needs (dimensions, ids, labels, status, and similar facts) and drop the rest of the payload.",
-          },
-        ],
-      })
-      .withHandler(async (input) => {
-        const parsed = input as JsonataTransformInput
-        return runJsonataTransform(parsed)
-      })
-  ])
-  .build()
+/**
+ * JSONata transform capability. Step `accepts`, `returns`, and `expression` live on the execution step.
+ * @category Plugins
+ */
+export const transform = capability({
+  contract: "step",
+  code: "expression",
+  timeoutMs: 1000,
+  summary: "Evaluate a JSONata expression against resolved step input.",
+  description:
+    "Compiles the step expression with JSONata, evaluates it on the resolved input object, and returns JSON for the host returns check.",
+  useCases: ["Project or filter fields with JSONata instead of a sandbox script"],
+  projections: ["Take the JSON value JSONata returns; match it to the step returns schema"],
+  accepts: z.unknown(),
+  returns: z.unknown(),
+  handler: () => import("./capabilities/transform.js"),
+})
 
-export {
-  jsonataTransformInputSchema,
-  jsonataTransformOutputSchema,
-  type JsonataTransformInput,
-  type JsonataTransformOutput
-} from "./schemas.js"
-export { runJsonataTransform } from "./transform.js"
-
-export default jsonataExtension
+/**
+ * JSONata transform plugin.
+ * @category Plugins
+ */
+export default definePlugin({
+  id: "@executioncontrolprotocol/jsonata",
+  summary: "JSONata transforms for execution steps.",
+  description:
+    "Registers the optional transform capability for step-level JSONata expressions. Install separately from the host.",
+  capabilities: {
+    transform,
+  },
+})

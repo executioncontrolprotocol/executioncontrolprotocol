@@ -1,0 +1,250 @@
+import type { HandlerFiles } from "./handler-files.js"
+
+/**
+ * Opaque handle produced by resolving a `$state` marker.
+ * @category Plugins
+ */
+export interface StateHandle {
+  /** State path the handle writes. */
+  readonly path: string
+}
+
+/**
+ * Absolute file reference.
+ * @category Plugins
+ */
+export interface FileRefFile {
+  /** Discriminator. */
+  kind: "file"
+  /** Absolute path. */
+  path: string
+  /** Media type, when known. */
+  mediaType?: string
+  /** Run artifact copy after uniform capture (F6). */
+  archive?: ArtifactFileRef
+}
+
+/**
+ * URL reference.
+ * @category Plugins
+ */
+export interface FileRefUrl {
+  /** Discriminator. */
+  kind: "url"
+  /** Absolute URL. */
+  url: string
+  /** Extra request headers. */
+  headers?: Record<string, string>
+  /** Media type, when known. */
+  mediaType?: string
+  /** Run artifact copy after uniform capture (F6). */
+  archive?: ArtifactFileRef
+}
+
+/**
+ * Artifact written into a run's artifact directory.
+ * @category Plugins
+ */
+export interface ArtifactFileRef {
+  /** Discriminator. */
+  kind: "artifact"
+  /** `ecp://runs/<runId>/artifacts/<name>`. */
+  uri: string
+  /** Media type. */
+  mediaType?: string
+  /** File name. */
+  name?: string
+  /** Size in bytes. */
+  sizeBytes?: number
+  /** Self-reference after uniform capture when this ref is already stored (F6). */
+  archive?: ArtifactFileRef
+}
+
+/**
+ * File reference a handler can read. The legacy `buffer` kind is not part of v2.
+ * @category Plugins
+ */
+export type FileRef = FileRefFile | FileRefUrl | ArtifactFileRef
+
+/**
+ * Bytes a handler read from a {@link FileRef}.
+ * @category Plugins
+ */
+export interface FileBytes {
+  /** File contents. */
+  bytes: Uint8Array
+  /** Media type, when known. */
+  mediaType?: string
+  /** File name, when known. */
+  name?: string
+}
+
+/**
+ * Values the host fills in before it builds a {@link HandlerContext}.
+ * @category Plugins
+ */
+export interface HandlerContextInit {
+  /** Run id. */
+  runId: string
+  /** Step id. */
+  stepId: string
+  /** Loop round, when the step is inside a loop. */
+  round?: number
+  /** State snapshot at step start. */
+  state: Record<string, unknown>
+  /** Step-level expression for `code: "expression"` capabilities. */
+  expression?: string
+}
+
+/**
+ * Staged writes. Applied only when the step succeeds.
+ * @category Plugins
+ */
+export interface HandlerStore {
+  /** Replace the value at the handle. */
+  set(handle: StateHandle, value: unknown): void
+  /** Merge an object into the value at the handle. */
+  merge(handle: StateHandle, value: Record<string, unknown>): void
+  /** Append a value to the array at the handle. */
+  append(handle: StateHandle, value: unknown): void
+}
+
+/**
+ * Context passed to a capability handler.
+ * @category Plugins
+ */
+export interface HandlerContext<Config = Record<string, unknown> | undefined> {
+  /** Resolved config, secrets in place. Undefined when the plugin has no config. */
+  config: Config
+  /** Aborted on cancel, timeout or a parallel sibling failure. */
+  signal: AbortSignal
+  /** Run identity. */
+  run: { id: string }
+  /** Step identity. */
+  step: { id: string; round?: number }
+  /** State snapshot at step start. Handlers must not mutate it. */
+  state: Readonly<Record<string, unknown>>
+  /** Staged writes for `$state` handles. */
+  store: HandlerStore
+  /** Activate and passivate file refs for this step. */
+  files: HandlerFiles
+  /** Call another capability through the host. Counts as a nested step. */
+  call(capabilityId: string, input: unknown, options?: { config?: string }): Promise<unknown>
+  /** Structured log. */
+  logger: {
+    /** Debug. */
+    debug(message: string, detail?: unknown): void
+    /** Info. */
+    info(message: string, detail?: unknown): void
+    /** Warning. */
+    warn(message: string, detail?: unknown): void
+    /** Error. */
+    error(message: string, detail?: unknown): void
+  }
+  /** Record usage on the step. */
+  usage: {
+    /** Append one usage entry. */
+    record(entry: { kind: string; amount: number; unit: string; detail?: unknown }): void
+  }
+  /** Step `expression` for capabilities with `code: "expression"`. */
+  expression?: string
+}
+
+/**
+ * Capability handler. `C` is the plugin definition the SDK infers types from.
+ * @category Plugins
+ */
+export type Handler<Input = unknown, Output = unknown, Config = Record<string, unknown> | undefined> = (
+  input: Input,
+  ctx: HandlerContext<Config>,
+) => Promise<Output>
+
+/**
+ * Pointer from a light plugin manifest to its {@link PluginSchemaDocument} file.
+ * @category Plugins
+ */
+export interface PluginSchemaRef {
+  /** Relative path to `ecp.schema.json` (usually `./ecp.schema.json`). */
+  path: string
+  /** SHA-256 hex of the canonical JSON of `ecp.schema.json`. */
+  hash: string
+}
+
+/**
+ * One capability inside the light `ecp.manifest.json` (no embedded schemas).
+ * @category Plugins
+ */
+export interface PluginCapabilityManifest {
+  /** Capability id. */
+  id: string
+  /** Name segment after the dot. */
+  name: string
+  /** One-line summary. */
+  summary: string
+  /** Longer description. */
+  description: string
+  /** When to call it. */
+  useCases: string[]
+  /** What to take from the output. */
+  projections: string[]
+  /** Step timeout in milliseconds. */
+  timeoutMs?: number
+  /**
+   * `"step"` when the step declares `accepts` / `returns`; omitted means the capability schema is the contract.
+   */
+  contract?: "step"
+  /** How the host runs the step when {@link PluginCapabilityManifest.contract} is `"step"`. */
+  code?: "script" | "expression"
+  /** Publisher role, when the capability uploads or deletes remote file storage. */
+  role?: import("./objects.js").CapabilityRole
+  /** How the host records publish entries; required when `role` is set. */
+  publish?: import("./objects.js").CapabilityPublishMetadata
+}
+
+/**
+ * Per-plugin schema document (`ecp.schema.json`).
+ * `$defs` keys are `<capabilityName>.accepts`, `<capabilityName>.returns`, and optional `config`.
+ * @category Plugins
+ */
+export interface PluginSchemaDocument {
+  /** Draft id kept on the written file. */
+  $schema?: string
+  /** `ecp://plugins/<plugin-id>/<version>/schema.json`. */
+  $id: string
+  /** Raw accepts/returns/config JSON Schemas. */
+  $defs: Record<string, Record<string, unknown>>
+}
+
+/**
+ * Light `ecp.manifest.json` (plugin-manifest version 2.0).
+ * @category Plugins
+ */
+export interface PluginManifest {
+  /** Always `@executioncontrolprotocol.plugin-manifest`. */
+  schema: "@executioncontrolprotocol.plugin-manifest"
+  /** Always `2.0`. */
+  version: "2.0"
+  /** Plugin identity. */
+  plugin: {
+    /** Plugin id. */
+    id: string
+    /** npm package name. */
+    package: string
+    /** Must equal `package.json` version. */
+    version: string
+    /** One-line summary. */
+    summary: string
+    /** Longer description. */
+    description: string
+  }
+  /** plugin-sdk version that generated the manifest. */
+  sdkVersion: string
+  /** Path and content hash of `ecp.schema.json`. */
+  pluginSchema: PluginSchemaRef
+  /** Capabilities (metadata only; schemas live in {@link PluginSchemaDocument}). */
+  capabilities: PluginCapabilityManifest[]
+  /** Module the host imports on first call. */
+  entry: string
+  /** SHA-256 of the canonical JSON of every field above `hash`. */
+  hash: string
+}

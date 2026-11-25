@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/plugin-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "plugin", "sdkVersion", "pluginSchema", "capabilities", "entry", "hash"],
+  "properties": {
+    "schema": { "const": "@executioncontrolprotocol.plugin-manifest" },
+    "version": { "const": "2.0" },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "package", "version", "summary", "description"],
+      "properties": {
+        "id": { "type": "string" },
+        "package": { "type": "string" },
+        "version": { "type": "string" },
+        "summary": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "sdkVersion": { "type": "string" },
+    "pluginSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "hash"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "summary", "description", "useCases", "projections"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "description": { "type": "string" },
+          "useCases": { "type": "array", "items": { "type": "string" } },
+          "projections": { "type": "array", "items": { "type": "string" } },
+          "timeoutMs": { "type": "integer", "minimum": 1 },
+          "contract": { "const": "step" },
+          "code": { "enum": ["script", "expression"] },
+          "role": { "enum": ["publish", "unpublish"] },
+          "publish": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["locatorFields"],
+            "properties": {
+              "fileField": { "type": "string", "minLength": 1 },
+              "locatorFields": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "contract": { "const": "step" } }, "required": ["contract"] },
+            "then": { "required": ["code"] }
+          }
+        ]
+      }
+    },
+    "entry": { "type": "string" },
+    "hash": { "type": "string" }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "gated",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "x"
+      },
+      "as": "gated",
+      "expr": "(state) => false"
+    },
+    {
+      "id": "after",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.gated"
+        }
+      },
+      "as": "after"
+    }
+  ]
+}

@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-
 import { execute } from "@oclif/core"
-import { applyDefaultEcpHome } from "../dist/lib/ecp-home.js"
-import { prepareArgvForExecute } from "../dist/lib/add-to-env.js"
+import { setupEcpEnv } from "./setup-env.js"
 
 process.noDeprecation = true
-
-applyDefaultEcpHome()
-process.argv = prepareArgvForExecute(process.argv)
-
-await execute({ development: true, dir: import.meta.url })
+setupEcpEnv()
+await execute({
+  development: true,
+  dir: import.meta.url,
+  loadOptions: { userPlugins: false },
+})

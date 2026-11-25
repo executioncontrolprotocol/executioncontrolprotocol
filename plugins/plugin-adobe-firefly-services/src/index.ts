@@ -1,61 +1,29 @@
-import {
-  adobeGeneratedCapabilities,
-  ADOBE_GENERATED_OPERATION_COUNT,
-} from "./generated/index.js"
-import { withPhotoshopDiscoveryProjections } from "./discovery-projections.js"
-import { buildAdobeFireflyServicesExtension } from "./shared.js"
+import { definePlugin } from "@executioncontrolprotocol/plugin-sdk"
+import { adobeConfigSchema } from "./config.js"
+import { generatedCapabilities } from "./generated/index.js"
+
+export { adobeConfigSchema } from "./config.js"
+export type { AdobeConfig } from "./config.js"
+export { GENERATED_CAPABILITY_COUNT, generatedCapabilities } from "./generated/index.js"
 
 /**
- * `@executioncontrolprotocol/adobe-firefly-services` — Adobe Firefly Services extension.
- *
- * One capability per OpenAPI operation across Firefly Services families
- * (`firefly`, `photoshop` v2, `express`, `indesign`, `substance3d`, `illustrator`,
- * `creative-production`, `audio-video`). Capability ids are family-prefixed kebab, e.g.
- * `@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async`.
- *
- * Auth uses OAuth Server-to-Server (`client_credentials`). Bind secrets via
- * `secrets("adobe-firefly-services/client-id")` /
- * `secrets("adobe-firefly-services/client-secret")` or `env(...)`.
- *
- * @category Extensions
+ * Plugin id. Capability ids are `${PLUGIN_ID}.<family>-<operation>`.
+ * @category Plugins
  */
-export const adobeFireflyServicesExtension = buildAdobeFireflyServicesExtension(
-  withPhotoshopDiscoveryProjections([...adobeGeneratedCapabilities])
-)
+export const PLUGIN_ID = "@executioncontrolprotocol/adobe-firefly-services"
 
-export { ADOBE_GENERATED_OPERATION_COUNT, adobeGeneratedCapabilities }
-export {
-  PHOTOSHOP_GENERATE_MANIFEST_ID,
-  withPhotoshopDiscoveryProjections,
-} from "./discovery-projections.js"
-export { EXT_ID, HOST_HOP_MESSAGE, buildAdobeFireflyServicesExtension } from "./shared.js"
-export {
-  createImsTokenProvider,
-  DEFAULT_FIREFLY_SCOPES,
-  DEFAULT_IMS_TOKEN_URL,
-} from "./auth/ims.js"
-export type { AdobeImsConfig, AdobeAccessToken } from "./auth/ims.js"
-export { AdobeHttpError, buildUrl, createAdobeHttpClient } from "./http/client.js"
-export type { AdobeHttpClient, AdobeRequestOptions } from "./http/client.js"
-export { extractAdobeStatusUrl, pollAdobeJob } from "./http/async-job.js"
-export type { PollAdobeJobOptions } from "./http/async-job.js"
-export {
-  collectManifestDestinationUrls,
-  extractEmbeddedManifestJson,
-  materializePhotoshopManifest,
-  photoshopManifestDocumentSchema,
-  photoshopManifestLayerSchema,
-} from "./runtime/photoshop-manifest.js"
-export {
-  assembleAdobeOperationInput,
-  unwrapAdobeResult,
-} from "./runtime/invoke.js"
-export type {
-  AdobeAsyncMode,
-  AdobeMaterializeMode,
-  AdobeOperationInput,
-  AdobeParameterMap,
-  AssembledAdobeRequest,
-} from "./runtime/invoke.js"
-
-export default adobeFireflyServicesExtension
+/**
+ * Adobe Firefly Services plugin. Capabilities are generated from the vendored OpenAPI specs;
+ * handler code loads on first call.
+ * @category Plugins
+ */
+export default definePlugin({
+  id: PLUGIN_ID,
+  summary: "Adobe Firefly Services: Firefly image and video generation and Photoshop document edits.",
+  description:
+    "One capability per Firefly Services API operation, generated from Adobe's OpenAPI specs: Firefly image generation, expand, fill, composites, upscaling and video, and Photoshop document edits, actions, UXP scripts, artboards and layer manifests. The config object holds OAuth server-to-server credentials (client id and secret as secret references). Async jobs are polled inside the step, which returns the job result. Request fields are top-level parameters; an optional body carries the rest of the JSON document. Files move by URL: pass presigned storage URLs as sources and output destinations.",
+  config: adobeConfigSchema,
+  capabilities: {
+    ...generatedCapabilities,
+  },
+})

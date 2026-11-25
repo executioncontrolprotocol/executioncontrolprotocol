@@ -1,0 +1,10 @@
+{
+  "schema": "@executioncontrolprotocol.config",
+  "version": "1.0",
+  "id": "anthropic/default",
+  "plugin": "@executioncontrolprotocol/anthropic",
+  "values": {
+    "apiKey": { "$secret": "anthropic/api-key" },
+    "model": "claude-sonnet-4-5"
+  }
+}

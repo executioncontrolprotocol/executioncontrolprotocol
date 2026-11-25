@@ -1,0 +1,18 @@
+{
+  "input": {},
+  "status": "failed",
+  "result": {},
+  "steps": [
+    {
+      "nodeId": "Upload",
+      "status": "failed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.error",
+    "run.end"
+  ],
+  "note": "Phase 8 retarget: missing file path fails azure upload at runtime."
+}

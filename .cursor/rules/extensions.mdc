@@ -1,150 +1,153 @@
 ---
-description: How to build ECP extensions and plugins without host coupling
+description: How to build ECP plugins (capabilities only) without host coupling
 globs: plugins/**/*
 alwaysApply: false
 ---
 
-# ECP extensions and plugins
+# ECP plugins
 
-Treat every extension as if it were published for third-party authors:
+A **plugin provides capabilities and nothing else.** Formatters, validators, storage, secrets
+and auth are host **services** (`environment.use(...)`), not plugins, and never run inside an
+execution. Policies are out of scope for now.
 
-- Environment-agnostic.
-- Minimal dependencies.
-- No imports from host packages.
+The exact authoring API is `realignment/spec/08-plugins.md` and
+`@executioncontrolprotocol/plugin-sdk` (`definePlugin`, `capability`). Reference plugin:
+`plugins/plugin-test`.
 
-The contract is changing during the reset. "Today" is what the code does now; "Target" is what
-the phase docs build. Don't add new uses of anything marked as going away.
+## Target contract
+
+- A plugin declares capabilities: id (`@scope/plugin.capability`), `accepts` and `returns`
+  schemas (zod in source, exported as JSON Schema), metadata, handler.
+- A plugin declares a **plain config schema** (field names and types). It does not mark fields
+  as secret; it receives resolved values and doesn't care where they came from.
+- Each plugin ships **`ecp.manifest.json`** (capability ids, `accepts`/`returns` as JSON
+  Schema, config schema), generated at build and checked on install. The host builds its
+  registry from manifests and imports plugin code only on first call. Prefer one module per
+  capability so only what's used gets loaded.
+- **No CLI command generation.** Capabilities are reached through `execute`.
+- Credentials never appear in `accepts`. They come from the config object.
 
 ## Dependencies
 
-| Package | Use for |
+| May use | Must not use |
 | --- | --- |
-| `@executioncontrolprotocol/core` and `@executioncontrolprotocol/core/types` | `defineExtension`, `capabilityFor`, `definePolicy`, protocol types, validation, file I/O (`resolveFile`, `writeMediaArtifact`) |
-| `zod` | Config and capability I/O schemas. Import from `"zod"` directly |
-| Focused third-party libraries | Only what the extension's job needs |
-| `@executioncontrolprotocol/plugin-sdk` (from Phase 3) | Generated CLI commands. Never hand-written oclif code |
+| The plugin authoring package (as a **peer dependency**, so the registry never splits), `zod`, focused third-party libraries | The host, CLI, MCP relay or App packages |
 
-Never depend on `@executioncontrolprotocol/node`, `browser`, `cli` or `mcp`.
+## Metadata
 
-## Definition
-
-```ts
-import { defineExtension, capabilityFor } from "@executioncontrolprotocol/core"
-import { z } from "zod"
-
-export default defineExtension("@vendor", "my-ext")
-  .withConfig({ apiKey: z.string().optional() })
-  .withMetadata({ summary, description, useCases })
-  .withCapabilities([
-    capabilityFor("@vendor/my-ext", "do-thing")
-      .withInput(z.object({ value: z.string() }))
-      .withOutput(z.object({ result: z.string() }))
-      .withMetadata({ summary, description, useCases, projections })
-      .withHandler(async (input) => ({ result: input.value })),
-  ])
-  .build()
-```
-
-## What changes, and when
-
-| Concern | Today | Target |
-| --- | --- | --- |
-| Registration | Export the definition; bind `extension(def)` on the environment. Hosts call `registry.registerExtension(definition)` (no `register*` helpers) | Unchanged after Phase 5. `ecp plugins build` generates CLI files |
-| Where it can run | `.supports("@executioncontrolprotocol/node", "^1")`. No call means any environment | Unchanged after Phase 2 |
-| Package name | Same as the extension id (`@executioncontrolprotocol/format-toon`) | **Phase 5:** `@<scope>/plugin-<extension name>` (`plugin-format-toon`). Ids don't change |
-| Location | First-party plugins live in `plugins/plugin-*` | Unchanged after Phase 5 PR 4 |
-| CLI | None | **Phase 3/5:** `ecp plugins build` generates commands, manifest and `package.json` fields. Nothing hand-written |
-| Policies | `plugin-budget`, `plugin-approval`, `plugin-state-control`; `registry-control` is in core | Unchanged after Phase 5 PR 2 |
-| Secrets providers | Node environment default bindings (`secrets`, `process-env`) | Unchanged after Phase 2. `browser-secrets` was removed in Phase 1 |
-
-## Metadata (`.withMetadata`)
-
-Write agent-facing prose once; the CLI help, MCP tool descriptions and `ecp environments describe` all
-read it.
+Write agent-facing prose once; `retrieve`, the CLI and the App all read it.
 
 | Do | Don't |
 | --- | --- |
-| Write product prose: behaviour, when to use it, limits | Paraphrase schema fields or say "read inputSchema" |
-| Give at least one `useCases` entry (when to call) and one `projections` entry (what to take from the output) | Sample prompts, sample payloads, path syntax; omitting projections |
-| Name sibling capabilities inside the same extension when useful | Cross-advertise other packages ("prefer ollama over …") |
-| For transform and parse capabilities, explain how to reduce bulky output to workflow-sized facts | Only say "take the result" |
+| Write product prose: behaviour, when to use it, limits | Paraphrase schema fields or say "read the schema" |
+| Give at least one use case (when to call) and one projection (what to take from the output) | Sample prompts, sample payloads, path syntax |
+| Name sibling capabilities inside the same plugin when useful | Cross-advertise other packages |
+| For transform and parse capabilities, explain how to reduce bulky output to execution-sized facts | Only say "take the result" |
 
-Hosts stay vendor-neutral. They read projections as plain text and never branch on capability
+Hosts stay vendor-neutral. They read metadata as plain text and never branch on capability
 ids or output shapes.
 
 ## API capability inputs
 
 HTTP capabilities expose every known path, query, header, and JSON-body field as a
-**top-level parameter**. The App, CLI, and MCP only bind top-level keys, so a nested
+**top-level parameter**. Binding surfaces only bind top-level keys, so a nested
 `path` / `query` / `headers` / `body` envelope is not a parameter.
 
-- Optional `body` is the rest of the JSON document. Merge with
-  `{ ...body, ...setParameters }` via `mergeParameterBody` from
-  `@executioncontrolprotocol/core`. A set parameter replaces that key. Keys only in
-  `body` stay. Unset parameters are omitted so they do not wipe `body`. Nested
-  objects and arrays replace as a whole.
-- After the merge, parse the original request schema. Hoisted body fields are optional
-  on the capability schema because `body` may carry them. The merged object still
-  fails when a required field is missing entirely.
-- Path, query, and header parameters keep their API requiredness. They are not part of
-  the JSON merge.
-- Auth headers and a `content-type` fixed to `application/json` are not parameters.
-  The client sends them.
+- Optional `body` is the rest of the JSON document. Merge with `{ ...body, ...setParameters }`.
+  A set parameter replaces that key. Keys only in `body` stay. Unset parameters are omitted so
+  they do not wipe `body`. Nested objects and arrays replace as a whole.
+- After the merge, parse the original request schema. Hoisted body fields are optional on the
+  capability schema because `body` may carry them. The merged object still fails when a
+  required field is missing entirely.
+- Path, query, and header parameters keep their API requiredness. They are not part of the JSON
+  merge.
+- Auth headers and a `content-type` fixed to `application/json` are not parameters. The client
+  sends them.
 - If the JSON body is not an object, `body` is that value and nothing is hoisted.
-- If the request schema is not known ahead of time, do not invent fields. Known
-  controls stay parameters and the document is `body`.
+- If the request schema is not known ahead of time, do not invent fields. Known controls stay
+  parameters and the document is `body`.
 
-Every new HTTP capability and every OpenAPI import follows this shape. Non-HTTP
-capabilities (transforms, format plugins, Sharp, policies) do not grow a `body`
-field. Model generate stays on `modelGenerateInputSchema`; do not wrap it in `body`.
+Non-HTTP capabilities (transforms, image processing) do not grow a `body` field.
 
 ## API capability outputs
 
-HTTP capabilities return the nested result document. Binding surfaces keep the
-whole object accessible and also list known **object primitives** as dotted
-ports. **Arrays stay one port.**
+Capabilities return **product-shaped** values: what the agent needs next, not the provider's job
+envelope. The host and App bind `$ref` to those shapes (typed ports).
 
-- After a successful async poll, if the JSON has a `result` object, that object
-  **is** the capability output. Drop `status`, `statusUrl`, `cancelUrl`, `jobId`,
-  and poll timestamps from generate outputs.
-- The whole document stays accessible (`ref("generate")` / the `output` port,
-  plus parent objects such as `image`).
-- Known primitives under objects are bindable dotted ports (`image.locator`,
-  `version`). Recurse objects; stop at arrays and file refs.
-- Arrays stay one port (`outputs`). Do not invent a sibling `url` or
-  `outputs.0.*` handles on the producer. Pick items with
-  `ref("generate.outputs.0.image.url")` or a transform step (jsonata).
-- Do not expose `statusUrl`, poll knobs (`pollIntervalMs` / `pollTimeoutMs`), or
-  job identifiers for the caller to poll. Poll internally. Optional poll timing
-  belongs on extension config, not step ports.
-- Do not generate status/cancel operations when the plugin polls internally.
-- FAL already returns `{ data, requestId }`; leave it. Do not wrap it in a job
-  envelope. Flatten `data` when it is a known object; if `data` is an array it
-  stays one port.
+- Media outputs are `FileRef`s with `mediaType` (for example `images.0`, `png`, `psd`). Multi-file
+  Photoshop outputs use path-safe tokens derived from the requested `outputs[].mediaType` (`png`,
+  `jpeg`, `psd`, …); each ref still carries `mediaType`.
+- JSON document capabilities (for example Photoshop manifest) return the document object, not
+  `outputs[0].content`.
+- After a successful async poll, drop job identifiers and status URLs; the plugin maps the final
+  API document to the product shape inside the handler.
+- Known primitives under objects are bindable dotted ports. Arrays stay one port (`images`);
+  bind `images.0` or add a transform step when you need a narrower shape.
+- Do not expose `statusUrl`, poll knobs, or job identifiers for the caller to poll. Poll
+  internally. Optional poll timing belongs on plugin config, not capability inputs.
+- Capabilities that take a script for a remote runtime (for example Photoshop UXP) accept it as
+  a plain string. Executions supply it with `$script`; the host syntax-checks it and never runs
+  it.
 
 ## Handlers and I/O
 
-- Handlers receive typed input and a context from core. Don't reach into `Environment`
-  internals.
-- Use `capabilityFor("@vendor/name", "capability-id")` for stable ids.
-- For binary data, use `resolveFile` / `writeMediaArtifact`. Don't reimplement fs, fetch or
-  artifact maps.
-- **Node-only code** (native modules, `node:fs`, Node SDKs): declare it with
-  `.supports("@executioncontrolprotocol/node")`. Keep the package root importable in a
-  browser, using a `browser` export condition where needed.
-- **Format capabilities** (`encode`/`decode`):
-  - Accept `unknown` documents and infer `schema` when present.
-  - Validate known schemas with diagnostics.
-  - Only throw on unknown schemas in `strict` mode.
-- **Bound config** must satisfy the definition's `withConfig` schema. Phase 4 validates it at
-  load time.
+- Handlers are `(input, ctx) => output`. `ctx` carries the resolved config, a store for staged
+  writes (`$state` handles), read-only state, run and step info, a logger, usage reporting, and
+  mediated calls to other capabilities through the host.
+- Technical retries (network, rate limits) live in the plugin or host, never in the execution.
+- Heavy SDKs stay in their own plugin package. Be honest about stubs: a mocked capability is
+  labelled as such and never shipped as real.
+
+- Handlers receive typed input, the resolved config, and a context from the host. Don't reach
+  into host internals.
+- For binary data, use {@link fileRefSchema} from the plugin SDK for **every** file-like field,
+  including nested ones (style references, layer images, reference-blob sources, SAS outputs, and so
+  on). Declare `access` (`url` for handlers that call `ctx.files.url()`, and so on) and `mediaTypes`
+  when the handler cares about the declared type. Don't hand-roll the `kind` union, raw URL/path
+  strings, or vendor `source: { url }` envelopes at the capability boundary; skip `x-ecp-file` on
+  those fields. Transform scripts never read file bytes; they pass `FileRef` objects through.
+- **Publishing is a node.** Capabilities that copy a file to remote storage set `role: "publish"`
+  and `publish: { fileField?: string; locatorFields: string[] }`; cleanup capabilities set
+  `role: "unpublish"` with the same locator fields. Return a url `FileRef` (for example Azure
+  `upload` returns `{ file, blobName, container }`). The host appends `RunRecord.publishes`; never
+  branch on capability ids in the host.
+- Don't reimplement fs, fetch or artifact maps.
+
+## Provider and handler failures
+
+Every capability that talks to an upstream API, SDK, or network must leave the **provider's own
+error text** on the run so agents can debug without leaving ECP. The engine copies `message`,
+`code`, and `details` from a thrown error onto the step and run records (after secret redaction).
+
+**Required on every upstream failure:**
+
+1. Throw with `code: "ECP_PROVIDER_ERROR"` (or another catalogue code when it fits better).
+2. `message` must include the provider's sentence when the body has one (status alone is not
+   enough). Example: `Anthropic Messages API returned HTTP 400: Your credit balance is too low…`
+   not `…returned HTTP 400.`
+3. `details` must include at least `status` (when HTTP) and the parsed `body` (or truncated
+   text). Add method, redacted URL, endpoint, and similar facts when useful.
+4. Never put secret values in `message` or `details`; the host redacts known secrets, but do
+   not echo tokens, API keys, or Authorization headers.
+
+```ts
+// BAD — status only; body discarded
+throw Object.assign(new Error(`API returned HTTP ${status}.`), { code: "ECP_PROVIDER_ERROR" })
+
+// GOOD — provider text in message; body inspectable on the run
+throw Object.assign(
+  new Error(`Vendor API returned HTTP ${status}: ${providerMessage}`),
+  { code: "ECP_PROVIDER_ERROR", details: { status, body } },
+)
+```
+
+Extract `providerMessage` from common shapes (`error.message`, `error_description`, top-level
+`message`, string `error`, or a short slice of a non-JSON body). Unit-test at least one HTTP
+error path asserting both `message` and `details.body`.
 
 ## Tests
 
-- Test the extension on its own, with fixtures.
-- Use `environment()` from core for encode and decode tests; don't pull in a host to call
-  `describe()` or `run()`.
-- In-repo stub: `testExtension` from `@executioncontrolprotocol/core`, only when a real
-  handler must run.
-- From Phase 5, every plugin also has one CLI-level test of a generated command with `--json`,
-  and passes `ecp plugins check`.
+- Test the plugin on its own, with fixtures, without starting a host.
+- Tests that need a real API or model skip cleanly when the service or key is unavailable.
+- Every provider HTTP/SDK error path asserts the original provider text appears in
+  `error.message` and the response (or SDK payload) appears in `error.details`.

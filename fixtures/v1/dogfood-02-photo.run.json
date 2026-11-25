@@ -1,0 +1,23 @@
+{
+  "input": {},
+  "status": "completed",
+  "result": {
+    "upload": {
+      "blobName": "product.png",
+      "container": "ecp"
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Upload",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "Phase 8 retarget: image-sharp.resize dropped; azure upload uses file refs (mocked in tests)."
+}

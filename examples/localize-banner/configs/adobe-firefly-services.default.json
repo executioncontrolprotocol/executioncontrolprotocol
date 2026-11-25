@@ -1,0 +1,10 @@
+{
+  "schema": "@executioncontrolprotocol.config",
+  "version": "1.0",
+  "id": "adobe-firefly-services/default",
+  "plugin": "@executioncontrolprotocol/adobe-firefly-services",
+  "values": {
+    "clientId": { "$secret": "adobe-firefly-services/client-id" },
+    "clientSecret": { "$secret": "adobe-firefly-services/client-secret" }
+  }
+}

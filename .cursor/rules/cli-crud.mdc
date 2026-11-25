@@ -1,10 +1,13 @@
 ---
-description: ECP CLI conventions — naming, verbs, and how commands are defined
+description: ECP CLI conventions — naming, verbs, and the realignment command surface
 globs: packages/cli/**/*.ts,packages/plugin-sdk/**/*.ts
 alwaysApply: false
 ---
 
-# CLI conventions (`@executioncontrolprotocol/cli`)
+# CLI conventions
+
+The MVP CLI is `packages/cli`. The command surface is in `REALIGNMENT-PLAN.md` ("CLI") and
+`realignment/spec/10-cli.md`. There are no generated per-capability commands.
 
 ## User-facing tokens are kebab-case
 
@@ -12,78 +15,56 @@ Anything a user types as a name follows **kebab-case**, the same family as enum 
 literals in `typescript.mdc`. TypeScript field names stay camelCase; the CLI is a separate
 surface.
 
-- **Long flags:** kebab-case (`--default-model`, `--sort-field`). Never camelCase or
-  snake_case.
-- **Generated flags:** `plugin-sdk` derives flag names from input schema field names by
-  kebab-casing them (`maxCostUsd` → `--max-cost-usd`). Don't hand-name generated flags.
-- **Subcommand and topic segments:** kebab-case (`ecp format-toon encode`,
-  `ecp config secrets add`).
+- **Long flags:** kebab-case (`--no-start-host`, `--out`). Never camelCase or snake_case.
+- **Subcommand and topic segments:** kebab-case.
 - **Closed-set flag values:** use the same kebab-case literals as the type union.
 - **Short flags:** single letters, only where clearly useful, and never colliding with oclif's
   own (`-h`).
 
-Free-form values (paths, ids, URLs, secrets) are not renamed.
+Free-form values (paths, ids, URLs, secret keys) are not renamed.
+
+## Target command surface
+
+| Command | Purpose |
+| --- | --- |
+| `ecp retrieve`, `ecp execute`, `ecp commit` | The three operations, same inputs and outputs as the MCP tools and the host API |
+| `ecp mcp start` | The MCP relay (stdio) |
+| `ecp app [path \| id]` | The App on the host API |
+| `ecp host start \| stop \| status \| restart \| logs` | The background host (supervisor + HTTP API). `restart` drains and respawns the host to re-read plugins and config; **`reload` is an oclif alias of `restart`**, not a separate command |
+| `ecp plugins install \| uninstall \| link \| update \| reset` | ECP-owned plugin management (oclif plugin-plugins is library-only); writes or checks `ecp.manifest.json` |
+| `ecp config secrets set \| unset \| list` | Secret values in the local secrets provider; `list` shows keys only |
+
+- **No per-capability commands.** Capabilities are reached through `ecp execute` (a one-step
+  execution), not `ecp <plugin> <capability>`.
+- **One path per concern.** Don't add parallel command trees for the same thing. Rename in
+  place when terminology changes.
+- Don't add commands beyond this table without a plan or phase-doc change.
+
+## Input
+
+- **Flags only for top-level primitives.** Nested input goes in `--input <json | file>`, never
+  in dotted or repeated flags (model output in flags is too loose).
+- Plugin install names are short: `ecp plugins install jsonata` resolves to
+  `@executioncontrolprotocol/jsonata` (scope + `plugin-` prefix).
+
+## Output
+
+- **`--json`** on every command prints `{ ok: true, data }` or
+  `{ ok: false, error: { code, message, path, suggestions } }`. Error codes are `ECP_*`
+  (catalogue in `realignment/spec/06-operations.md`).
+- `--out <file>` writes large results to a file and prints a summary, so agents choose what
+  enters their context.
+- **Exit codes:** `0` success, `1` execution failed, `2` validation or usage error, `3` missing
+  plugins, `4` host unavailable or unauthorized (`realignment/spec/06-operations.md`). Full command
+  list and flags: `realignment/spec/10-cli.md`.
+- Missing capability or plugin: name the plugin and the exact install command
+  (`ECP_PLUGINS_MISSING`).
 
 ## Verbs
 
-Use the same vocabulary everywhere:
-
 | Verb | Use for |
 | --- | --- |
-| `list` | Many items (`ecp runs list`, `ecp config secrets list`) |
-| `show` | One item in detail (`ecp runs show <id>`) |
-| `add` / `remove` | Create / delete an entry (`ecp config secrets add`) |
-| `update` | Change an existing entry, or update installed plugins (`ecp plugins update`) |
-| Domain verbs | Actions that aren't CRUD: `run`, `resume`, `rerun`, `validate`, `compile`, `invoke`, `search`, `describe`, `discover`, `install`, `init`, `new`, `build`, `check`, `export`, `edit` |
-
-The `ecp plugins` topic comes from `@oclif/plugin-plugins` and keeps its own verbs (`install`,
-`uninstall`, `link`, `inspect`, `reset`, `update`). Our authoring commands in that topic are
-`new`, `build`, `check`, and `discover`.
-
-## How commands are defined
-
-- Every command is generated. The CLI's own commands are `defineOperation(...)`
-  definitions (zod input, metadata, handler, optional `cli: { args: [...] }` for positional
-  arguments) turned into commands by `toCommands()`.
-- Plugin commands come from extension definitions (`ecp plugins build`).
-- No hand-written oclif command classes. The only hand-written oclif code is the CLI's hooks.
-- **`--json`:** every command supports it, printing the envelope `{ ok, data }` or
-  `{ ok: false, error: { code, message, path, suggestions } }`. Execution failures
-  (`ecp run`, invoke) also include `data` (the `RunResult` or invoke record). Errors use
-  `ECP_*` codes and the exit codes in `RESET-PLAN.md` §4.6. `EcpCommand` owns this, so
-  oclif's own JSON error output never leaks.
-- **Reserved root names** that plugins can't use as topics: `run`, `workflows`, `runs`,
-  `environments`, `plugins`, `plugin`, `config`, `mcp`, `app`, `help`.
-
-## `--config`
-
-`--config <file>` is optional machine settings (`config().with([...])`). `ecp run` /
-`workflows validate` / `workflows install` use the process host (Node plus installed plugins)
-when the flag is omitted, merging `~/.ecp/config/config.ecp.ts` when that file exists.
-Config does not register plugins.
-
-## Run, events, and journals
-
-- `ecp run <file> --to <step>` stops after that leaf step with status `stopped`.
-- Default stdout for `run` / resume / rerun / invoke is a plain-text execution report
-  (run id, step id, output, and on failure the diagnostic message plus the `ECP_*`
-  constant). `--json` wraps the same record.
-- `ecp run --events` streams NDJSON (`run.start`, `step.start`, `step.policy`, `step.end`,
-  `step.error`, `run.end`). The last line is `run.end`. A failed run then prints the
-  execution report after the stream.
-- `ecp runs list|show|resume|rerun` inspect and continue journals under `.ecp/runs/`.
-  `resume --approve` records an approval for a paused step. `rerun --from` / `--to` reuse
-  earlier journal outputs. There is no `ecp test`.
-
-## One path per concern
-
-- Don't add parallel command trees for the same thing (for example `extensions` and `plugins`).
-- Rename in place when terminology changes.
-
-## `ecp config`
-
-Local CLI configuration for this machine. Variables and secrets belong here, not in
-workflow files. The current subcommand is `secrets`.
-
-`ecp config secrets add KEY` (interactive) or `add KEY --value …`; `get KEY`, `remove KEY`,
-`list`.
+| `list` | Many items |
+| `show` | One item in detail |
+| `set` / `unset` | Secret values |
+| Domain verbs | `retrieve`, `execute`, `commit`, `start`, `stop`, `status`, `restart`, `install`, `uninstall`, `link` |

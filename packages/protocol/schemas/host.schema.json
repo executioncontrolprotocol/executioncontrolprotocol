@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/host.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "supervisorPid", "hostPid", "port", "controlPort", "token", "hostVersion", "startedAt", "home"],
+  "properties": {
+    "schema": { "const": "@executioncontrolprotocol.host" },
+    "version": { "const": "1.0" },
+    "supervisorPid": { "type": "integer", "minimum": 0 },
+    "hostPid": { "type": "integer", "minimum": 0 },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "controlPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "token": { "type": "string", "minLength": 43, "maxLength": 43 },
+    "hostVersion": { "type": "string" },
+    "startedAt": { "type": "string" },
+    "home": { "type": "string" },
+    "idleMinutes": { "type": "integer", "minimum": 0 },
+    "startedBy": { "enum": ["auto", "explicit"] }
+  }
+}

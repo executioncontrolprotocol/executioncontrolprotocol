@@ -1,0 +1,222 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "localize-banner",
+    "label": "Localize campaign banner",
+    "description": "Reference execution covering every manifest feature.",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "locale": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "locale"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "localized": {
+          "type": "string"
+        },
+        "banner": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "localized",
+        "banner"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "doc",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "headline": {
+            "$ref": "state.headline",
+            "optional": true,
+            "fallback": "Hello"
+          },
+          "locale": {
+            "$ref": "state.locale"
+          }
+        }
+      },
+      "as": "doc",
+      "mode": "create"
+    },
+    {
+      "id": "prompt",
+      "uses": "@executioncontrolprotocol/core.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "headline": { "type": "string" }
+        },
+        "required": ["headline"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string" }
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      },
+      "input": {
+        "headline": { "$ref": "state.doc.echo.headline" }
+      },
+      "script": {
+          "lang": "js",
+          "source": "return { prompt: `Translate: ${input.headline}` }"
+        },
+      "as": "prompt"
+    },
+    {
+      "id": "translate",
+      "label": "Translate headline",
+      "uses": "@executioncontrolprotocol/anthropic.generate",
+      "config": "anthropic/default",
+      "expr": "(state) => state.locale !== 'en'",
+      "input": {
+        "prompt": {
+          "$ref": "state.prompt.prompt"
+        }
+      },
+      "as": "translation",
+      "mode": "replace"
+    },
+    {
+      "type": "branch",
+      "id": "check-headline",
+      "branches": [
+        {
+          "label": "missing",
+          "expr": "(state) => !state.doc.echo.headline",
+          "steps": [
+            {
+              "id": "filled",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "Untitled"
+              },
+              "as": "filled"
+            }
+          ]
+        },
+        {
+          "label": "default",
+          "steps": [
+            {
+              "id": "kept",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "kept"
+              },
+              "as": "kept"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "parallel",
+      "id": "prepare",
+      "maxConcurrency": 2,
+      "branches": [
+        [
+          {
+            "id": "copy",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "copy"
+            },
+            "as": "copy"
+          }
+        ],
+        [
+          {
+            "id": "script",
+            "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+            "input": {
+              "options": {
+                "uxp": {
+                  "source": {
+                    "content": {
+                      "$script": {
+                        "lang": "js",
+                        "path": "banner.js"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "as": "actions"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "loop",
+      "id": "refine",
+      "expr": "(state) => state.score === undefined",
+      "maxRounds": 3,
+      "steps": [
+        {
+          "id": "score",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": 1
+          },
+          "as": "score",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
+      "id": "stage",
+      "uses": "@executioncontrolprotocol/test.stage",
+      "input": {
+        "handle": {
+          "$state": "history"
+        },
+        "op": "append",
+        "value": "noted"
+      },
+      "as": "staged"
+    },
+    {
+      "id": "localized",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.doc.echo.headline"
+        }
+      },
+      "as": "localized",
+      "mode": "replace"
+    },
+    {
+      "id": "banner",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "ok": true
+        }
+      },
+      "as": "banner",
+      "mode": "create"
+    }
+  ]
+}

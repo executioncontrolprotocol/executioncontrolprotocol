@@ -1,123 +1,127 @@
-# @executioncontrolprotocol/plugin-adobe-firefly-services
+# `@executioncontrolprotocol/adobe-firefly-services`
 
-Adobe Firefly Services for ECP (Execution Control Protocol). One plugin, 68 generated capabilities (OpenAPI operations minus internal status/cancel). Install with:
+Adobe Firefly Services APIs as ECP capabilities, generated from vendored OpenAPI specs under
+`openapi/`. **63** capabilities ship across eight families (`content-tagging` is skipped — no
+published Firefly Services OpenAPI).
 
-```sh
-ecp plugins install adobe-firefly-services
-```
+**Entrypoints:** `src/index.ts`, `ecp.manifest.json`, `ecp.schema.json`
 
-`ecp firefly --help` is a generated topic alias for `ecp adobe-firefly-services`. Capability ids stay `@executioncontrolprotocol/adobe-firefly-services.<family>-<operation>`.
+Used by the A10 localize-banner dogfood (`examples/localize-banner/`).
 
-Auth uses current [OAuth Server-to-Server](https://developer.adobe.com/developer-console/docs/guides/authentication/ServerToServerAuthentication/) (`client_credentials`). Bind credentials with `secrets()` — not deprecated JWT technical accounts.
+## Request limit
 
-Guide index: [Firefly Services docs](https://developer.adobe.com/firefly-services/docs/guides/).
+If your credentials allow only so many requests per minute, set `maxRequestsPerMinute` on the config. The plugin
+then spaces job submissions and other non-GET requests (including a retry after HTTP 429) evenly, shared by every
+step and run in the host that uses the same client id, endpoint and limit, so concurrent `forEach` items draw on
+one budget. Job status polls (GET) are not counted; `pollIntervalMs` sets their pace.
 
-## Binding
-
-```ts
-import adobeFireflyServicesExtension from "@executioncontrolprotocol/plugin-adobe-firefly-services"
-import { environment, extension, NODE_ENVIRONMENT_ID, secrets } from "@executioncontrolprotocol/node"
-
-export default environment(NODE_ENVIRONMENT_ID, "adobe-demo").with([
-  extension(adobeFireflyServicesExtension).with({
-    clientId: secrets("adobe-firefly-services/client-id"),
-    clientSecret: secrets("adobe-firefly-services/client-secret"),
-  }),
-])
-```
-
-Or install the plugin and let the CLI host load it. Workflow files bind by id and never import this package.
-
-```ts
-extension("@executioncontrolprotocol/adobe-firefly-services").with({
-  clientId: secrets("adobe-firefly-services/client-id"),
-  clientSecret: secrets("adobe-firefly-services/client-secret"),
-})
-```
-
-## Secrets
-
-| Key | Config field |
-| --- | --- |
-| `adobe-firefly-services/client-id` | `clientId` (x-api-key) |
-| `adobe-firefly-services/client-secret` | `clientSecret` |
-
-Optional: `scopes`, `imsEndpoint`.
-
-## Families
-
-| Prefix | Spec (under `openapi/`) | Notes |
-| ------ | ----------------------- | ----- |
-| `firefly` | `firefly/firefly-api.json` | Generative image/video/etc. |
-| `photoshop` | `photoshop/photoshopv2-api.json` | v2 only; absorbs Lightroom-style workflows |
-| `express` | `express/ffs-express-api.json` | Express (beta) |
-| `indesign` | `indesign/indesignapi.json` | InDesign |
-| `substance3d` | `substance3d/openapi.yaml` | Substance 3D |
-| `illustrator` | `illustrator/*.json` | GA + beta merged |
-| `creative-production` | `creative-production/workflow-builder-api.yaml` | Workflow Builder |
-| `audio-video` | `audio-video/*.json` | Audio/Video + translate/lipsync |
-
-Examples:
-
-- `@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async`
-- `@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async` (Image5)
-- `@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest`
-
-Browser apps import the package root; bundlers resolve `exports["."].browser` to a host-hop catalog (no IMS). Execution needs a Node host.
-
-Photoshop v1 and standalone Lightroom OpenAPI are **out of scope** (v2 supersedes them).
-
-**Content Tagging:** no Firefly Services OpenAPI is published under AdobeDocs `ffs-*` yet — see `openapi/content-tagging/SOURCE.md`. Express tagged-document endpoints live under the `express` family.
-
-## Asset URLs via Azure Blob Storage
-
-Firefly and Photoshop accept allow-listed HTTPS SAS URLs (including Azure `*.windows.net`). Use `@executioncontrolprotocol/plugin-azure-blob-storage` to upload assets and mint read/write SAS URLs, then pass them into Firefly `referenceBlobs` / Photoshop `source.url` via `ref()`. See `examples/azure-adobe-assets.ecp.ts`.
-
-## Async capabilities return final results
-
-Adobe Firefly Services APIs are often **202 async**. This package hides that from
-workflows:
-
-- **Async submit** ops always poll internally via `pollAdobeJob` and return the
-  inner **result** document (for example Firefly `{ outputs }`), not the job
-  envelope (`status`, `jobId`, `statusUrl`).
-- Optional `pollIntervalMs` / `pollTimeoutMs` on extension config tune the wait.
-  They are not step ports. There is no `poll` flag and no status/cancel
-  capabilities.
-- **Sync** caps (list/get metadata) are unchanged.
-
-`photoshop-generate-manifest` materializes the **PSD manifest JSON** (layer tree)
-after the job succeeds so you can `ref("manifest.layers.0.id")`.
-
-## Capability input shape
-
-Generated handlers merge OpenAPI path/query/header/body into:
-
-```ts
+```json
 {
-  // path, query, header, and JSON-body fields as top-level keys
-  prompt?: string,
-  "x-model-version"?: string,
-  body?: { ... }, // optional full JSON merge
+  "schema": "@executioncontrolprotocol.config",
+  "version": "1.0",
+  "id": "adobe-firefly-services/default",
+  "plugin": "@executioncontrolprotocol/adobe-firefly-services",
+  "values": {
+    "clientId": { "$secret": "adobe-firefly-services/client-id" },
+    "clientSecret": { "$secret": "adobe-firefly-services/client-secret" },
+    "maxRequestsPerMinute": 4
+  }
 }
 ```
 
+## Capabilities by family
+
+### audio-video (14)
+
+- audio-video-avatars
+- audio-video-dub
+- audio-video-dub-translate-lipsync
+- audio-video-generate-avatar
+- audio-video-generate-reframed-video
+- audio-video-generate-reframed-video-v2
+- audio-video-generate-speech
+- audio-video-get-presets
+- audio-video-list-render-jobs
+- audio-video-template-describe
+- audio-video-template-render
+- audio-video-transcribe
+- audio-video-transcribe-translate-lipsync
+- audio-video-voices
+
+### creative-production (3)
+
+- creative-production-batch-execute
+- creative-production-list-batch-executions
+- creative-production-list-batches
+
+### express (4)
+
+- express-export-rendition
+- express-generate-variation
+- express-tagged-document-details
+- express-tagged-documents
+
+### firefly (11)
+
+- firefly-adaptive-composite
+- firefly-expand-images-v3-async
+- firefly-fill-images-v3-async
+- firefly-generate-images-v3-async
+- firefly-generate-images-v5-async
+- firefly-generate-object-composite-v3-async
+- firefly-generate-similar-images-v3-async
+- firefly-generate-video-v3
+- firefly-get-custom-models
+- firefly-precise-composite
+- firefly-precise-upsampler-v3-async
+
+### illustrator (4)
+
+- illustrator-create-rendition
+- illustrator-data-merge
+- illustrator-execute-custom-script-capability
+- illustrator-trace-image
+
+### indesign (12)
+
+- indesign-convert-pdfto-in-design
+- indesign-data-merge
+- indesign-data-merge-tags
+- indesign-delete-custom-script
+- indesign-execute-custom-script
+- indesign-get-custom-script-details
+- indesign-get-document-info
+- indesign-list-app-versions
+- indesign-list-custom-scripts
+- indesign-remap-links
+- indesign-rendition-job
+- indesign-update-script-app-version
+
+### photoshop (6)
+
+- photoshop-actions
+- photoshop-auto-crop
+- photoshop-create-artboard
+- photoshop-create-composite
+- photoshop-edit
+- photoshop-generate-manifest
+
+### substance3d (9)
+
+- substance3d-create-space-from-frame-io-v2
+- substance3d-create-space-from-next-frame-io-v2
+- substance3d-create-space-url-v2
+- substance3d-v1-composites-compose
+- substance3d-v1-scenes-assemble
+- substance3d-v1-scenes-convert
+- substance3d-v1-scenes-describe
+- substance3d-v1-scenes-render
+- substance3d-v1-scenes-render-basic
+
+## Regeneration
+
 ```sh
-ecp adobe-firefly-services --help --json
-ecp firefly --help
+pnpm run build   # generate + tsc + ecp-plugin-manifest
 ```
 
-## Codegen
-
-```sh
-pnpm --filter @executioncontrolprotocol/plugin-adobe-firefly-services run fetch:specs
-pnpm --filter @executioncontrolprotocol/plugin-adobe-firefly-services run generate
-```
-
-Generated sources under `src/generated/` are committed. Empty free-form OpenAPI objects fail the generator (use `openapi/overlays/`); `z.unknown` / `z.any` / untyped `z.record` are forbidden.
-
-## Examples
-
-- `examples/adobe-firefly-smoke.ecp.ts` — thin generate-images smoke
-- `examples/azure-adobe-assets.ecp.ts` — Azure upload + Image5 recolor
-- `examples/azure-photoshop-manifest.ecp.ts` — Azure upload + Photoshop generate-manifest
+Live integration tests need Adobe IMS credentials in the plugin config; they skip when unset.

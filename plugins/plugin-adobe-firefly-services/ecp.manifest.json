@@ -1,0 +1,840 @@
+{
+  "capabilities": [
+    {
+      "description": "Retrieves the list of all available avatars for the user's enterprise.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-avatars",
+      "name": "audio-video-avatars",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "Get available avatars (Adobe Audio and Video).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Choose an avatar id before generating a talking-head video"
+      ]
+    },
+    {
+      "description": "Generate dubbed video or audio. A composited lip sync can also be added for video dubbing. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub",
+      "name": "audio-video-dub",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Dub audio or video with optional lip-sync compositing (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Replace dialogue with a dubbed track in a new language, with optional lip sync on video"
+      ]
+    },
+    {
+      "description": "Generate dubbed video or audio. A composited lip sync can be added for video dubbing. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-dub-translate-lipsync",
+      "name": "audio-video-dub-translate-lipsync",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Dub audio or video (translate and lip-sync OpenAPI spec, same endpoint as consolidated API) (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Dub media when integrations still target the standalone translate-and-lip-sync OpenAPI document"
+      ]
+    },
+    {
+      "description": "Generates an avatar video from a provided transcript or audio file. You can provide the transcript either as plain text or a pre-signed URL. The API is asynchronous, so the response will include a job ID and a status URL for tracking the running job. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-avatar",
+      "name": "audio-video-generate-avatar",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate avatar video from text (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Create a presenter video from a transcript or audio file"
+      ]
+    },
+    {
+      "description": "This endpoint enables you to reframe video using AI. Provide video input with a pre-signed URL to generate reframed video output. This API has more limited capabilities than the v2 endpoint, and may be deprecated soon. **It's recommended to use the v2 endpoint instead.** The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video",
+      "name": "audio-video-generate-reframed-video",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Reframe video with the legacy v1 API (prefer v2 when possible) (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Reframe clips when only the older reframe endpoint is available"
+      ]
+    },
+    {
+      "description": "This endpoint enables you to reframe the input media. You can provide a video input via a pre-signed URL to generate reframed output video. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-reframed-video-v2",
+      "name": "audio-video-generate-reframed-video-v2",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Reframe video v2 (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Change video aspect ratio or framing with the current reframe API"
+      ]
+    },
+    {
+      "description": "This endpoint generates speech from a transcript. You can provide the transcript either as plain text or a pre-signed URL. The response will include a job ID and a status URL for tracking the job. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-generate-speech",
+      "name": "audio-video-generate-speech",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate speech from text (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Synthesize voice audio from text for narration or dubbing pipelines"
+      ]
+    },
+    {
+      "description": "Returns a list of predefined social-first encoding presets for rendering outputs.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-get-presets",
+      "name": "audio-video-get-presets",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "Fetch video rendering presets (Adobe Audio and Video).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Discover template rendering presets before starting a render job"
+      ]
+    },
+    {
+      "description": "Returns a paginated list of template render jobs owned by the authenticated caller, optionally filtered by status and creation date. **Applicable only to render jobs submitted via `POST /v1/templates/render`.** Jobs from other API types (Describe, Reframe, TLS, TTS, Avatar) are not returned. **Filter syntax (FIQL):** - `status==running` — single status equality - `status=in=(running,not_started)` — status set membership - `createdDate=ge=2026-05-01T00:00:00Z` — absolute ISO 8601 lower bound - `createdDate=ge=-P7D` — relative ISO 8601 duration (last 7 days) - Combine with `;` (AND): `status==running;createdDate=ge=-P7D` **Default filter:** all statuses, `createdDate` within the last 30 days. **Retention:** `createdDate` filter values must fall within the 30-day retention window. **Pagination:** follow `paging.nextUrl` until it is absent (last page).",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-list-render-jobs",
+      "name": "audio-video-list-render-jobs",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "List render jobs (Adobe Audio and Video).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Audit or track in-flight template video render jobs"
+      ]
+    },
+    {
+      "description": "Analyzes a MOGRT (video template) file and returns a manifest of editable controls; fonts, images, audio, video and other supported values. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-describe",
+      "name": "audio-video-template-describe",
+      "projections": [
+        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+      ],
+      "summary": "Describe template (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Inspect a motion graphic template structure before filling it with data"
+      ]
+    },
+    {
+      "description": "Renders one or more video variations by applying overrides and export presets. Submit up to 10 overrides per call for a subset of editable layers and get a pre-signed URL link to download the video file. For layers that are not editable, the system defaults are automatically applied at export. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-template-render",
+      "name": "audio-video-template-render",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Render template (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Render a finished video from a creative template with your parameters"
+      ]
+    },
+    {
+      "description": "Generates transcripts and captions for the input audio or video in the source language or in a target language. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe",
+      "name": "audio-video-transcribe",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Transcribe audio or video with captions in source or target languages (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Produce transcripts and timed captions from source or translated audio or video"
+      ]
+    },
+    {
+      "description": "Generates transcripts for the input audio or video. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-transcribe-translate-lipsync",
+      "name": "audio-video-transcribe-translate-lipsync",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Transcribe audio or video to text (translate and lip-sync OpenAPI spec, transcripts only in this bundle) (Adobe Audio and Video).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Transcribe media when tooling still references the standalone translate-and-lip-sync OpenAPI bundle"
+      ]
+    },
+    {
+      "description": "This endpoint provides the list of all available voices for the user's enterprise.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.audio-video-voices",
+      "name": "audio-video-voices",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "Get available voices (Adobe Audio and Video).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Pick a voice profile before calling text-to-speech"
+      ]
+    },
+    {
+      "description": "Start a new batch job to process multiple assets through a published workflow. The request body supplies the workflow identifier and `inputs`: a list of runs, where each run is an array of node input mappings (`node_id` plus `content` and/or `template`). Each run is processed separately through the workflow in parallel. Returns a `batchId` and `links` that can be used to track progress and retrieve results. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.creative-production-batch-execute",
+      "name": "creative-production-batch-execute",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Execute a batch of assets through a workflow (Adobe Creative Production).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Run many assets through the same creative workflow in one batch job"
+      ]
+    },
+    {
+      "description": "List all individual asset execution results within a batch, with optional filtering. Returns detailed results for each asset including: - Execution status (pending, running, success, failed) - Input asset data - Output results (if successful) - Error messages (if failed) - Timing information The response supports pagination and filtering by execution status.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batch-executions",
+      "name": "creative-production-list-batch-executions",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "List individual execution results (Adobe Creative Production).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Inspect per-asset outcomes after a batch workflow run"
+      ]
+    },
+    {
+      "description": "List all batches created by the authenticated user within their organization. Results are automatically filtered by the authenticated user's ID. Users can only view their own batches, not batches created by other users in the organization. Results are sorted by creation date (most recent first) and include pagination metadata.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.creative-production-list-batches",
+      "name": "creative-production-list-batches",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "List batches (Adobe Creative Production).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Find earlier workflow batch jobs to monitor or compare"
+      ]
+    },
+    {
+      "description": "Export one or more pages from an Adobe Express document in supported formats. This endpoint accepts an export request and returns pre-signed URLs for accessing the rendered files. **Supported formats:** - Image formats: `image/jpeg` (JPG), `image/png` (PNG) - Video format: `video/mp4` (MP4) - Document format: `application/pdf` (PDF) **Rendition availability:** - Image renditions: Valid for 4 hours, maximum size 8192px on the longest side - Video and PDF renditions: Valid for 24 hours, maximum size 4096px on the longest side **Asynchronous processing:** Export requests are processed asynchronously. The response includes a `jobId` and `statusUrl` that you can use to track the export progress and retrieve the final rendition URLs. **Restrictions:** | Condition | Behavior | Error | | --- | --- | --- | | Public templates (Adobe-owned documents not copied to the user account) | Export is not allowed | `400 bad_request` | | Document contains Adobe Stock–licensed assets | Export fails | `422 stock_content_detected` | The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.express-export-rendition",
+      "name": "express-export-rendition",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Export rendition (Adobe Express).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Export an Express design to PNG, PDF or other renditions for downstream channels"
+      ]
+    },
+    {
+      "description": "This API creates a document variation based on provided input parameters. After processing, it temporarily stores the generated document and makes it available to the user within a designated folder. The document remains accessible for 30 days, after which the system automatically removes it. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.express-generate-variation",
+      "name": "express-generate-variation",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate variation (Adobe Express).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Produce alternate layouts from an Express template for bulk creative"
+      ]
+    },
+    {
+      "description": "This API retrieves details of the pages and tagged elements within a specified document. It returns a paginated list of the document's pages and metadata about each page. If the document has tagged elements, the API includes their respective details, such as size and position. If the document does not have tagged elements, it returns an empty array. The response includes pagination information to help users navigate the document’s pages. A maximum of 10 pages can be returned in 1 API call.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.express-tagged-document-details",
+      "name": "express-tagged-document-details",
+      "projections": [
+        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+      ],
+      "summary": "Get tagged pages and elements inside one Express document (Adobe Express).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Read tagged element positions and page structure before bulk generation"
+      ]
+    },
+    {
+      "description": "This API retrieves a list of tagged documents that users can access, including those they own or those shared with them, along with relevant metadata. It supports pagination and sorting, allowing users to specify the starting point, define the number of documents to return, and choose the order in which to list them. The response includes the requested documents and their metadata.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.express-tagged-documents",
+      "name": "express-tagged-documents",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "List Express documents available for bulk automation (Adobe Express).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Find Express documents that expose tagged fields for automation"
+      ]
+    },
+    {
+      "description": "Submits an asynchronous adaptive composite generation job using the adaptive composite pipeline. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-adaptive-composite",
+      "name": "firefly-adaptive-composite",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate adaptive composite (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Place a product or object into a scene with lighting-aware compositing"
+      ]
+    },
+    {
+      "description": "Change the aspect ratio or size of an image to expand it. Optionally, provide a text prompt to generate additional imagery for the expansion. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-expand-images-v3-async",
+      "name": "firefly-expand-images-v3-async",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Expand image borders to a new size or aspect ratio (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Extend an image past its borders to a new aspect ratio or larger canvas"
+      ]
+    },
+    {
+      "description": "Generates a fill in an area of an image based on a text prompt. A mask defines the area of the image to be filled. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-fill-images-v3-async",
+      "name": "firefly-fill-images-v3-async",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Fill image (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Inpaint or extend masked regions of an image from a text prompt"
+      ]
+    },
+    {
+      "description": "Generate images based on a text prompt. You may also include a reference image and Firefly will try to mimic the characteristics, such as color scheme, lighting, layout of objects in the image, etc. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v3-async",
+      "name": "firefly-generate-images-v3-async",
+      "projections": [
+        "Bind `images.0` (url FileRef) or pass seeds into a later edit; each ref carries `mediaType`."
+      ],
+      "summary": "Generate images (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Create images from a prompt with optional style or structure references"
+      ]
+    },
+    {
+      "description": "Generate images asynchronously using Firefly's Image5 model. When referenceBlobs is included in the request, omit aspectRatio or set it to auto . The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-images-v5-async",
+      "name": "firefly-generate-images-v5-async",
+      "projections": [
+        "Bind `images.0` (url FileRef) into Photoshop composite or download steps."
+      ],
+      "summary": "Generate images with Image5 (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Generate images with the Image5 model and reference blobs"
+      ]
+    },
+    {
+      "description": "Combines your image and images generated by Firefly to create an image composite, or scene. The images that Firefly generates are based on a text prompt that you provide. You can upload an image with or without an image mask, such as a product photo, but for a successful result one of the following conditions must be true: The request size is larger than the input image, OR The image contains a transparent layer/channel, OR A mask is provided The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-object-composite-v3-async",
+      "name": "firefly-generate-object-composite-v3-async",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate object composite (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Composite a cut-out object onto a background image"
+      ]
+    },
+    {
+      "description": "Generate similar images based on a reference image that you provide as a parameter. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-similar-images-v3-async",
+      "name": "firefly-generate-similar-images-v3-async",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate similar images (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Derive new images that resemble a reference photo"
+      ]
+    },
+    {
+      "description": "Generate a five second video using a text prompt. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-generate-video-v3",
+      "name": "firefly-generate-video-v3",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate video (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Generate a short video clip from a text or image prompt"
+      ]
+    },
+    {
+      "description": "Retrieve the custom models for a user.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-get-custom-models",
+      "name": "firefly-get-custom-models",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "Retrieve custom models (Adobe Firefly).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "List custom Firefly models available to the organization"
+      ]
+    },
+    {
+      "description": "Submits an asynchronous precise composite generation job using the precise composite pipeline. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-composite",
+      "name": "firefly-precise-composite",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate precise composite (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Blend a foreground object into a background with precise placement control"
+      ]
+    },
+    {
+      "description": "Upscales an image asynchronously using the precise upsampler. Provide the input image via an upload ID from the storage API or a presigned URL. The response includes links to check status and retrieve the result. Poll the status URL until the job completes, then fetch the result for the upscaled image(s). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.firefly-precise-upsampler-v3-async",
+      "name": "firefly-precise-upsampler-v3-async",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Upscale an image with the precise upsampler (Adobe Firefly).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Increase resolution while preserving detail on an existing image"
+      ]
+    },
+    {
+      "description": "This endpoint allows you to convert Adobe Illustrator files into various output formats. It supports conversion of .ai documents into multiple web- and print-ready formats. The request is processed asynchronously and the status of the job can be checked using the status URL provided in the response. The output is provided as a single converted file. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.illustrator-create-rendition",
+      "name": "illustrator-create-rendition",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Create rendition (Adobe Illustrator).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Export Illustrator artwork to PNG, PDF or other formats from cloud storage URLs"
+      ]
+    },
+    {
+      "description": "This endpoint allows you to merge variable data from a CSV file with an Adobe Illustrator template. The request is processed asynchronously and the status of the job can be checked using the status URL provided in the response. The output is provided as an array of individual files, one for each row in the CSV data. If some rows succeed and others fail or require rerun, the job completes with status `partially_succeeded` when you poll the status endpoint; that status applies only to Data Merge jobs. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.illustrator-data-merge",
+      "name": "illustrator-data-merge",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Merge CSV data into an Illustrator template (Adobe Illustrator).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Personalize Illustrator templates with rows from a CSV dataset"
+      ]
+    },
+    {
+      "description": "Submits execution requests for custom scripts. Defines input assets and parameters that the custom script will use during execution. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.illustrator-execute-custom-script-capability",
+      "name": "illustrator-execute-custom-script-capability",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Run a registered Illustrator cloud custom script (Adobe Illustrator).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Automate Illustrator with a capability script stored in the cloud"
+      ]
+    },
+    {
+      "description": "This endpoint allows you to convert a raster image (JPEG/PNG) into vector format (SVG). The request is processed asynchronously and the status of the job can be checked using the status URL provided in the response. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.illustrator-trace-image",
+      "name": "illustrator-trace-image",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Convert a raster image to vector SVG (Adobe Illustrator).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Vectorize a PNG or JPEG logo or illustration for scalable output"
+      ]
+    },
+    {
+      "description": "Converts PDF documents to editable InDesign (INDD or IDML) format. The output is a ZIP file (default name 'output.zip') containing subfolders (named after each input PDF) with the converted document and associated assets. If `embedLinks` is false, assets are provided in a separate folder within the ZIP. If `embedLinks` is true, all links are embedded in the InDesign file. Returns warnings for missing fonts and links. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-convert-pdfto-in-design",
+      "name": "indesign-convert-pdfto-in-design",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Convert PDF to InDesign document (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Turn a PDF into an editable InDesign document"
+      ]
+    },
+    {
+      "description": "Creates InDesign documents or PDFs by merging CSV data with InDesign templates. Supports multiple output formats: JPEG (`image/jpeg`), PNG (`image/png`), PDF (`application/pdf`), and InDesign (`application/x-indesign`). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge",
+      "name": "indesign-data-merge",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Perform a data merge (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Produce personalized InDesign layouts from a data source"
+      ]
+    },
+    {
+      "description": "Retrieves the data merge tags from a document. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-data-merge-tags",
+      "name": "indesign-data-merge-tags",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Get data merge tags (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Discover merge fields in an InDesign template before running data merge"
+      ]
+    },
+    {
+      "description": "Deletes a single registered custom script. All versions of the script will be permanently removed.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-delete-custom-script",
+      "name": "indesign-delete-custom-script",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Delete an InDesign custom script registration (Adobe InDesign).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Remove a custom script registration that is no longer needed"
+      ]
+    },
+    {
+      "description": "Submits execution requests for custom scripts. Defines input assets and parameters that the custom script will use during execution. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-execute-custom-script",
+      "name": "indesign-execute-custom-script",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Run a registered InDesign cloud custom script (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Automate layout or export steps with a hosted InDesign script"
+      ]
+    },
+    {
+      "description": "Retrieves details of a single registered custom script. Includes version, download link, registration date, and script name.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-get-custom-script-details",
+      "name": "indesign-get-custom-script-details",
+      "projections": [
+        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+      ],
+      "summary": "Get metadata for one InDesign custom script (Adobe InDesign).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Verify script metadata before executing or updating it"
+      ]
+    },
+    {
+      "description": "Retrieve comprehensive information about INDD/IDML documents. Returns data based on the enabled information types specified in the request. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-get-document-info",
+      "name": "indesign-get-document-info",
+      "projections": [
+        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+      ],
+      "summary": "Get document information (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Read page and layer facts from an InDesign document without downloading the full file"
+      ]
+    },
+    {
+      "description": "Retrieves information about all available InDesign app versions. Returns major version, minor version, and status for each registered app version.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-list-app-versions",
+      "name": "indesign-list-app-versions",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "List supported InDesign app versions for custom scripts (Adobe InDesign).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Check which InDesign versions a script must support"
+      ]
+    },
+    {
+      "description": "Retrieves details of the latest version of all registered custom scripts. Includes version, download link, registration date, and script name. Response is paginated based on list length.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-list-custom-scripts",
+      "name": "indesign-list-custom-scripts",
+      "projections": [
+        "Keep each listed item's id and display name so a later step can select one; drop the rest."
+      ],
+      "summary": "List registered InDesign custom scripts (Adobe InDesign).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Enumerate scripts registered for server-side InDesign automation"
+      ]
+    },
+    {
+      "description": "Replaces file-based links in InDesign documents with AEM URLs. Particularly useful for customers working with Adobe Experience Manager (AEM) using Adobe Asset Link, enabling designers to work with output files that have direct links to AEM URLs. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-remap-links",
+      "name": "indesign-remap-links",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Remap links (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Relink placed assets in an InDesign package to new URLs"
+      ]
+    },
+    {
+      "description": "Creates JPEG, PNG, or PDF renditions of InDesign documents. Supports multiple output formats: JPEG (`image/jpeg`), PNG (`image/png`), and PDF (`application/pdf`). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-rendition-job",
+      "name": "indesign-rendition-job",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Create JPEG, PNG, or PDF renditions (Adobe InDesign).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Render InDesign pages to JPEG, PNG or PDF renditions"
+      ]
+    },
+    {
+      "description": "Updates the InDesign app version configuration for a registered custom script. Allows customers to specify version strategies: use latest version, fix to a major version, or fix to a specific major and minor version.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.indesign-update-script-app-version",
+      "name": "indesign-update-script-app-version",
+      "projections": [
+        "Take the ids or asset URLs the next step needs from the response."
+      ],
+      "summary": "Set the InDesign app version a custom script targets (Adobe InDesign).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Retarget a stored script to a newer InDesign server version"
+      ]
+    },
+    {
+      "description": "Runs Photoshop actions (.atn files or inline actionJSON) or a UXP script against an input image or PSD and writes the requested outputs. Pass a UXP script inline as the string field options.uxp.source.content (executions supply it with $script; Adobe caps inline content at 50 KB) or reference a hosted script by URL. Outputs go to the destinations you list, such as presigned storage URLs. The step submits the job, waits for it to finish and returns the job result.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
+      "name": "photoshop-actions",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Run Photoshop actions or a UXP script on a document.",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Edit text layers, swap images or apply adjustments in a PSD with a UXP script",
+        "Replay a recorded Photoshop action set over an image"
+      ]
+    },
+    {
+      "description": "Generates smart crops, subject bounding boxes, and detects objects for an input image. The request is processed asynchronously. Poll GET /v2/status/{jobId} with the returned jobId for completion. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-auto-crop",
+      "name": "photoshop-auto-crop",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Auto crop (Adobe Photoshop).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Trim transparent or solid borders from a product or packshot image"
+      ]
+    },
+    {
+      "description": "Create an artboard (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-artboard",
+      "name": "photoshop-create-artboard",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Create an artboard (Adobe Photoshop).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Build a new artboard layout from structured layer JSON"
+      ]
+    },
+    {
+      "description": "Create or edit a composite (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
+      "name": "photoshop-create-composite",
+      "projections": [
+        "Bind `png` and `psd` FileRefs (or other tokens matching your requested `outputs[].mediaType`)."
+      ],
+      "summary": "Create or edit a composite (Adobe Photoshop).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Assemble layered composites from Smart Object definitions"
+      ]
+    },
+    {
+      "description": "Edit an image with various adjustments (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-edit",
+      "name": "photoshop-edit",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Edit an image with various adjustments (Adobe Photoshop).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Apply adjustment or retouch operations defined in Photoshop JSON"
+      ]
+    },
+    {
+      "description": "Generate a manifest for given input image (Adobe Photoshop). The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
+      "name": "photoshop-generate-manifest",
+      "projections": [
+        "Read `layers` and `document` from the manifest object (width, height from document bounds; layer names, types, ids and nested children)."
+      ],
+      "summary": "Generate a manifest for given input image (Adobe Photoshop).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Extract layer and text metadata from a PSD for templating workflows"
+      ]
+    },
+    {
+      "description": "## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **frame.io** to create a space. To upload a folder from frame.io, you must pass the following parameters: - **access Token** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \" \" } } ```",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-frame-io-v2",
+      "name": "substance3d-create-space-from-frame-io-v2",
+      "projections": [
+        "Keep the new space id so later 3D steps can reference uploaded Frame.io assets."
+      ],
+      "summary": "Create a 3D asset space from a Frame.io folder (Adobe Substance 3D).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Stage Frame.io folders as a Substance space for later 3D jobs"
+      ]
+    },
+    {
+      "description": "## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload folders from **next.frame.io** to create a space. To upload a folder from next.frame.io, you must pass the following parameters: - **access Token** - **account ID** - **folder ID** The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \" \" } } ```",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-from-next-frame-io-v2",
+      "name": "substance3d-create-space-from-next-frame-io-v2",
+      "projections": [
+        "Keep the new space id so later 3D steps can reference uploaded Next Frame.io assets."
+      ],
+      "summary": "Create a 3D asset space from a Next Frame.io folder (Adobe Substance 3D).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Stage Next Frame.io folders as a Substance space for later 3D jobs"
+      ]
+    },
+    {
+      "description": "## Overview The **Substance 3D API** provides a way to upload and temporary store files. You can upload one or more files from one or more URLs. For each URL, there is an optional **filepath** parameter that allows you to specify the file name and its path. By combining multiple URLs with different **filepath** paths, you can compose a complete file tree structure. Example for this files tree: ``` ├── textures │ ├── diffuse.png │ └── normal.png └── lighthouse.fbx ``` Curl request: ``` curl --request POST \\ --url https://s3d.adobe.io/v2/spacesURL \\ --header 'Accept: application/json' \\ --header 'Authorization: Bearer 123' \\ --header 'Content-Type: application/json' \\ --data '[ { \"filepath\": \"lighthouse.fbx\", \"url\": \"https://url/to/lighthouse.fbx\" }, { \"filepath\": \"textures/diffuse.png\", \"url\": \"https://url/to/diffuse.png\" }, { \"filepath\": \"textures/normal.png\", \"url\": \"https://url/to/normal.png\" } ]' ``` The result of the post is a **JSON** which contained the **id** of the space created. Space **id** can be used into a space source to use space content as a source for API operations. Example of a space source: ```json { \"space\": { \"id\": \" \" } } ```",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-create-space-url-v2",
+      "name": "substance3d-create-space-url-v2",
+      "projections": [
+        "Keep the new space id so later 3D steps can reference files staged by URL."
+      ],
+      "summary": "Create a 3D asset space from file URLs (Adobe Substance 3D).",
+      "timeoutMs": 120000,
+      "useCases": [
+        "Stage remote files by URL into a Substance space before scene work"
+      ]
+    },
+    {
+      "description": "Generate a 3D Object Composite with the Substance 3D API. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-composites-compose",
+      "name": "substance3d-v1-composites-compose",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Generate 3D object composite (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Place a 3D product render into a 2D marketing composite"
+      ]
+    },
+    {
+      "description": "Assemble a 3D scene with the Substance 3D API. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-assemble",
+      "name": "substance3d-v1-scenes-assemble",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Create 3D scene (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Build a 3D scene from Substance materials and meshes"
+      ]
+    },
+    {
+      "description": "Convert a 3D file into another 3D format with the Substance 3D API. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-convert",
+      "name": "substance3d-v1-scenes-convert",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Convert 3D files (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Convert between 3D interchange formats in the cloud"
+      ]
+    },
+    {
+      "description": "Describe a 3D scene. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-describe",
+      "name": "substance3d-v1-scenes-describe",
+      "projections": [
+        "Read the document facts the next step needs (layer or page names, sizes, ids) instead of carrying the whole result forward."
+      ],
+      "summary": "Describe 3D scene (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Summarize scene contents before rendering or editing"
+      ]
+    },
+    {
+      "description": "Render a 3D object with the Substance 3D API. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render",
+      "name": "substance3d-v1-scenes-render",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Render 3D object (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Render a high-quality image from an assembled 3D scene"
+      ]
+    },
+    {
+      "description": "Render a 3D object (basic version) with the Substance 3D API. The step submits the Adobe job, waits for it to finish and returns the job result, not the job id.",
+      "id": "@executioncontrolprotocol/adobe-firefly-services.substance3d-v1-scenes-render-basic",
+      "name": "substance3d-v1-scenes-render-basic",
+      "projections": [
+        "Keep the output asset URLs or storage references for download or the next edit step; the job envelope is already removed."
+      ],
+      "summary": "Render 3D object (basic version) (Adobe Substance 3D).",
+      "timeoutMs": 600000,
+      "useCases": [
+        "Quick preview render when full-quality output is not needed"
+      ]
+    }
+  ],
+  "entry": "./dist/index.js",
+  "hash": "85bdf3c28c6e6944faf1969e983076ee62a9a08af477abc27296e9491064ec57",
+  "plugin": {
+    "description": "One capability per Firefly Services API operation, generated from Adobe's OpenAPI specs: Firefly image generation, expand, fill, composites, upscaling and video, and Photoshop document edits, actions, UXP scripts, artboards and layer manifests. The config object holds OAuth server-to-server credentials (client id and secret as secret references). Async jobs are polled inside the step, which returns the job result. Request fields are top-level parameters; an optional body carries the rest of the JSON document. Files move by URL: pass presigned storage URLs as sources and output destinations.",
+    "id": "@executioncontrolprotocol/adobe-firefly-services",
+    "package": "@executioncontrolprotocol/adobe-firefly-services",
+    "summary": "Adobe Firefly Services: Firefly image and video generation and Photoshop document edits.",
+    "version": "0.60.0"
+  },
+  "pluginSchema": {
+    "hash": "76602623a28f227184f62812b1e7129a338f9d9120fa499355ef65cbce8b1ac3",
+    "path": "./ecp.schema.json"
+  },
+  "schema": "@executioncontrolprotocol.plugin-manifest",
+  "sdkVersion": "0.60.0",
+  "version": "2.0"
+}

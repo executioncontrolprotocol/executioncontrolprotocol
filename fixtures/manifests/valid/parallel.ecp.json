@@ -1,0 +1,33 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "prepare",
+      "maxConcurrency": 2,
+      "branches": [
+        [
+          {
+            "id": "left",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "left"
+            },
+            "as": "left"
+          }
+        ],
+        [
+          {
+            "id": "right",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": "right"
+            },
+            "as": "right"
+          }
+        ]
+      ]
+    }
+  ]
+}

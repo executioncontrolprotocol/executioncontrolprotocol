@@ -1,0 +1,28 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "missing-return",
+    "returns": {
+      "type": "object",
+      "properties": {
+        "missing": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "missing"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "echo",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": "hi"
+      },
+      "as": "echo"
+    }
+  ]
+}

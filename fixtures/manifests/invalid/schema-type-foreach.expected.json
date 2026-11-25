@@ -1,0 +1,32 @@
+[
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/collect",
+    "severity": "error"
+  },
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/into",
+    "severity": "error"
+  },
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/items",
+    "severity": "error"
+  },
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/steps",
+    "severity": "error"
+  },
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/type",
+    "severity": "error"
+  },
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/uses",
+    "severity": "error"
+  }
+]

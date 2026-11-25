@@ -1,48 +1,24 @@
-import { z } from "zod"
-import {
-  writeMediaArtifact,
-  type FileCapabilityContext,
-} from "@executioncontrolprotocol/core"
-import {
-  createAzureBlobCredentials,
-  readAzureConfig,
-  resolveContainer,
-} from "../client.js"
-import { downloadInputSchema, downloadOutputSchema } from "./download-schema.js"
+import type { HandlerContext } from "@executioncontrolprotocol/plugin-sdk"
+import { downloadBytes } from "../azure-client.js"
+import { resolveConfig, resolveContainer } from "../config.js"
+import type { DownloadInput, DownloadOutput } from "../schemas.js"
 
-export { downloadInputSchema, downloadOutputSchema }
+const DEFAULT_CONTENT_TYPE = "application/octet-stream"
+const DEFAULT_ARTIFACT_NAME = "blob"
 
 /**
- * Download a blob and store bytes via core {@link writeMediaArtifact}.
- * @category Azure
+ * Download handler: fetch the blob and store it as a run artifact.
+ * @category Plugins
  */
-export async function handleDownload(
-  input: unknown,
-  ctx: unknown,
-): Promise<z.infer<typeof downloadOutputSchema>> {
-  const parsed = downloadInputSchema.parse(input)
-  const fileCtx = ctx as FileCapabilityContext
-  const credentials = createAzureBlobCredentials(readAzureConfig(fileCtx))
-  const container = resolveContainer(credentials, parsed.container)
-  const blob = credentials.client.getContainerClient(container).getBlobClient(parsed.blobName)
-  const download = await blob.download()
-  const chunks: Buffer[] = []
-  if (!download.readableStreamBody) {
-    throw new Error(`Azure blob download returned no body for ${parsed.blobName}`)
-  }
-  for await (const chunk of download.readableStreamBody) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-  }
-  const buffer = Buffer.concat(chunks)
-  const contentType = download.contentType ?? "application/octet-stream"
-  const file = await writeMediaArtifact(new Uint8Array(buffer), {
-    mediaType: contentType,
-    name: parsed.blobName,
-    prefix: "artifacts/azure-blob",
-  }, fileCtx)
-  return downloadOutputSchema.parse({
-    file,
-    contentType,
-    blobName: parsed.blobName,
+export default async function handler(input: DownloadInput, ctx: HandlerContext): Promise<DownloadOutput> {
+  const config = resolveConfig(ctx.config)
+  const container = resolveContainer(config, input.container)
+
+  const blob = await downloadBytes(config, { container, blobName: input.blobName, signal: ctx.signal })
+  const name = input.blobName.split("/").filter(Boolean).pop() ?? DEFAULT_ARTIFACT_NAME
+  const file = await ctx.files.fromBytes(blob.bytes, {
+    mediaType: blob.contentType ?? DEFAULT_CONTENT_TYPE,
+    name,
   })
+  return { file }
 }

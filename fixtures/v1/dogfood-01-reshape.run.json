@@ -1,0 +1,28 @@
+{
+  "input": {
+    "items": [
+      { "title": "Widget" },
+      { "title": "Gadget" }
+    ]
+  },
+  "status": "completed",
+  "result": {
+    "summary": {
+      "title": "Widget",
+      "count": 2
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "Reshape",
+      "status": "completed"
+    }
+  ],
+  "events": [
+    "run.start",
+    "step.start",
+    "step.end",
+    "run.end"
+  ],
+  "note": "core.transform reshape of execution accepts items."
+}

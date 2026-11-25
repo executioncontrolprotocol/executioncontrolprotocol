@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_TYPE_MISMATCH",
+    "path": "/steps/1/input/text/$ref",
+    "severity": "error"
+  }
+]

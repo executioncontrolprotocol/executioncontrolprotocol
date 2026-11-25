@@ -1,0 +1,7 @@
+[
+  {
+    "code": "ECP_INPUT_INVALID",
+    "path": "/steps/0/input/text",
+    "severity": "error"
+  }
+]

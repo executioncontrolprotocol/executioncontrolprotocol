@@ -1,6 +1,5 @@
-import tseslint from "typescript-eslint";
-import eslintPluginYml from "eslint-plugin-yml";
-import * as espree from "espree";
+import tseslint from "typescript-eslint"
+import eslintPluginYml from "eslint-plugin-yml"
 
 export default tseslint.config(
   {
@@ -8,55 +7,48 @@ export default tseslint.config(
       "**/dist/",
       "**/node_modules/",
       "**/coverage/",
+      "fixtures/**/*.js",
+      "examples/**/*.uxp.js",
       "pnpm-lock.yaml",
-      "plugins/plugin-adobe-firefly-services/src/generated/**",
-      "plugins/plugin-adobe-firefly-services/openapi/**",
+      "bench/results/**",
+      // Generated output of throwaway spikes (gitignored).
+      "realignment/spikes/**/out/**",
+      // Vendored third-party OpenAPI specs (refreshed by the plugin's fetch-specs script).
+      "plugins/*/openapi/**",
     ],
   },
   ...tseslint.configs.recommended,
   {
     rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
   },
-  // Package boundary: extensions are environment-agnostic and must
-  // depend only on @executioncontrolprotocol/core (including ./types). They may not import host packages.
-  // Scoped to `src` so integration tests may still use a host runtime.
   {
-    files: [
-      "plugins/**/src/**/*.ts",
-    ],
-    ignores: ["plugins/plugin-app/src/**/*.ts"],
+    files: ["packages/engine/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             {
-              group: [
-                "@executioncontrolprotocol/node",
-                "@executioncontrolprotocol/node/*",
-                "@executioncontrolprotocol/browser",
-                "@executioncontrolprotocol/browser/*",
-                "@executioncontrolprotocol/cli",
-                "@executioncontrolprotocol/cli/*",
-                "@executioncontrolprotocol/mcp",
-                "@executioncontrolprotocol/mcp/*",
-              ],
+              group: ["node:*", "fs", "path", "os", "child_process", "http", "https", "net"],
               message:
-                "Extensions must not import host packages (@executioncontrolprotocol/node, @executioncontrolprotocol/browser, @executioncontrolprotocol/cli, @executioncontrolprotocol/mcp). Depend on @executioncontrolprotocol/core (including ./types) only.",
+                "engine does no I/O. Pass effects in through services. node:crypto randomUUID belongs behind an injected id generator.",
             },
           ],
         },
       ],
+    },
+  },
+  {
+    // VERSION is read from package.json at load; the only allowed node: import in engine.
+    files: ["packages/engine/src/version.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   {
     files: ["plugins/**/src/**/*.ts"],
-    ignores: ["plugins/plugin-app/src/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -64,111 +56,30 @@ export default tseslint.config(
           patterns: [
             {
               group: [
-                "@executioncontrolprotocol/node",
-                "@executioncontrolprotocol/node/*",
-                "@executioncontrolprotocol/browser",
-                "@executioncontrolprotocol/browser/*",
+                "@executioncontrolprotocol/host",
+                "@executioncontrolprotocol/host/*",
                 "@executioncontrolprotocol/cli",
                 "@executioncontrolprotocol/cli/*",
-                "@executioncontrolprotocol/mcp",
-                "@executioncontrolprotocol/mcp/*",
-                "**/packages/core/src/**",
-                "**/../../core/**",
-                "**/../../../core/**",
+                "@executioncontrolprotocol/mcp-relay",
+                "@executioncontrolprotocol/mcp-relay/*",
+                "@executioncontrolprotocol/app",
+                "@executioncontrolprotocol/app/*",
+                "@executioncontrolprotocol/engine",
+                "@executioncontrolprotocol/engine/*",
               ],
               message:
-                "Vendor packages must import only the public @executioncontrolprotocol/core and @executioncontrolprotocol/core/types entry points, the same surface external authors get.",
+                "Plugins may depend on the plugin SDK, protocol types and their own libraries. They must not import the host, CLI, relay, App or engine.",
             },
           ],
         },
       ],
     },
   },
+  ...eslintPluginYml.configs["flat/standard"],
   {
-    files: ["plugins/plugin-app/src/**/*.ts"],
+    files: ["**/*.{yml,yaml}"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: [
-                "@executioncontrolprotocol/cli",
-                "@executioncontrolprotocol/cli/*",
-                "@executioncontrolprotocol/mcp",
-                "@executioncontrolprotocol/mcp/*",
-              ],
-              message:
-                "plugin-app must not depend on cli (JIT cycle) or mcp. Use plugin-sdk getHost(), node loaders, and app's prebuilt dist/web.",
-            },
-          ],
-        },
-      ],
+      "yml/no-empty-mapping-value": "off",
     },
   },
-  {
-    files: ["packages/core/**/src/**/*.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "fs",
-              message: "Core must not import Node host modules.",
-            },
-            {
-              name: "path",
-              message: "Core must not import Node host modules.",
-            },
-            {
-              name: "child_process",
-              message: "Core must not import Node host modules.",
-            },
-          ],
-          patterns: [
-            {
-              group: [
-                "node:*",
-                "@executioncontrolprotocol/plugin-fal",
-                "@executioncontrolprotocol/plugin-jsonata",
-                "@executioncontrolprotocol/plugin-image-sharp",
-                "@executioncontrolprotocol/plugin-adobe-firefly-services",
-                "@executioncontrolprotocol/plugin-azure-blob-storage",
-                "**/packages/vendor/**",
-              ],
-              message:
-                "Core must not import Node host modules or vendor extensions.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  ...eslintPluginYml.configs["flat/base"],
-  {
-    files: ["**/*.yaml", "**/*.yml"],
-    rules: {
-      "yml/block-mapping": ["error", "always"],
-    },
-  },
-  // Use ESLint's JS parser for plain JS files (shebangs, CJS bins, scripts).
-  // Placed at the end so it overrides the TypeScript parser configs above.
-  {
-    files: ["**/*.{js,mjs,cjs}"],
-    languageOptions: {
-      parser: espree,
-      parserOptions: {
-        ecmaVersion: 2024,
-        sourceType: "module",
-      },
-    },
-  },
-  // CJS entrypoints (npm Windows shims) need `require`.
-  {
-    files: ["**/*.cjs"],
-    rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
-);
+)

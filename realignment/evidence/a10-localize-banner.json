@@ -1,0 +1,43 @@
+{
+  "runId": "run-20261115T202107Z-07c82a",
+  "status": "completed",
+  "result": {
+    "translation": {
+      "text": "{\"texts\":{\"Headline\":\"Rebajas de verano\",\"Subhead\":\"Oferta por tiempo limitado\"},\"headline\":null}",
+      "usage": {
+        "inputTokens": 85,
+        "outputTokens": 35
+      }
+    },
+    "banner": {
+      "outputs": [
+        {
+          "destination": {
+            "storageType": "azure",
+            "url": "https://executioncontrolprotocol.blob.core.windows.net/ecp-test/localize-banner/banner-out.png?[redacted]",
+            "mediaType": "image/png",
+            "_id": "70bc69f4-029f-4637-bb85-3003c69d2151",
+            "_filePath": "70bc69f4-029f-4637-bb85-3003c69d2151.png"
+          },
+          "mediaType": "image/png"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "nodeId": "translate",
+      "status": "completed",
+      "durationMs": 1149
+    },
+    {
+      "nodeId": "actions",
+      "status": "completed",
+      "durationMs": 5610
+    }
+  ],
+  "provisioned": true,
+  "sourceBlob": "localize-banner/banner-with-text.psd",
+  "outputBlob": "localize-banner/banner-out.png",
+  "recordedAt": "2026-11-15T20:21:17.509Z"
+}

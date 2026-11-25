@@ -1,332 +1,100 @@
-import { existsSync, readFileSync } from "node:fs"
-import path from "node:path"
-import { fileURLToPath } from "node:url"
 import { defineConfig } from "vitest/config"
-import { playwright } from "@vitest/browser-playwright"
-
-const repoRoot = path.dirname(fileURLToPath(import.meta.url))
-
-/** Load repo `.env` / `.env.local` into process.env without clobbering existing values. */
-function loadRepoDotEnv(root: string): void {
-  for (const name of [".env", ".env.local"] as const) {
-    const filePath = path.join(root, name)
-    if (!existsSync(filePath)) continue
-    for (const rawLine of readFileSync(filePath, "utf8").split(/\r?\n/)) {
-      const line = rawLine.trim()
-      if (!line || line.startsWith("#")) continue
-      const eq = line.indexOf("=")
-      if (eq <= 0) continue
-      const key = line.slice(0, eq).trim()
-      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue
-      let value = line.slice(eq + 1).trim()
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1)
-      }
-      const current = process.env[key]
-      if (current === undefined || current.trim() === "") {
-        process.env[key] = value
-      }
-    }
-  }
-}
-
-loadRepoDotEnv(repoRoot)
 
 export default defineConfig({
-  root: repoRoot,
-  resolve: {
-    alias: {
-      "@executioncontrolprotocol/core/types": path.resolve(repoRoot, "packages/core/src/types/index.ts"),
-      "@executioncontrolprotocol/core/environment": path.resolve(
-        repoRoot,
-        "packages/core/src/environment/environment.ts"
-      ),
-      "@executioncontrolprotocol/core/environment/config-resolver": path.resolve(
-        repoRoot,
-        "packages/core/src/environment/config-resolver.ts"
-      ),
-      "@executioncontrolprotocol/core/registry": path.resolve(repoRoot, "packages/core/src/registry/registry.ts"),
-      "@executioncontrolprotocol/core/registry/errors": path.resolve(
-        repoRoot,
-        "packages/core/src/registry/errors.ts"
-      ),
-      "@executioncontrolprotocol/core/bindings/extension": path.resolve(
-        repoRoot,
-        "packages/core/src/bindings/extension.ts"
-      ),
-      "@executioncontrolprotocol/core/bindings/policy": path.resolve(
-        repoRoot,
-        "packages/core/src/bindings/policy.ts"
-      ),
-      "@executioncontrolprotocol/core/config-schema": path.resolve(
-        repoRoot,
-        "packages/core/src/config-schema/index.ts"
-      ),
-      "@executioncontrolprotocol/core/runtime/context": path.resolve(
-        repoRoot,
-        "packages/core/src/runtime/context.ts"
-      ),
-      "@executioncontrolprotocol/core/runtime/in-memory-executor": path.resolve(
-        repoRoot,
-        "packages/core/src/runtime/in-memory-executor.ts"
-      ),
-      "@executioncontrolprotocol/core/runtime/executor": path.resolve(
-        repoRoot,
-        "packages/core/src/runtime/executor.ts"
-      ),
-      "@executioncontrolprotocol/core/definitions/types": path.resolve(
-        repoRoot,
-        "packages/core/src/definitions/types.ts"
-      ),
-      "@executioncontrolprotocol/core": path.resolve(repoRoot, "packages/core/src/index.ts"),
-      "@executioncontrolprotocol/plugin-sdk": path.resolve(repoRoot, "packages/plugin-sdk/src/index.ts"),
-      "@executioncontrolprotocol/plugin-budget": path.resolve(
-        repoRoot,
-        "plugins/plugin-budget/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-approval": path.resolve(
-        repoRoot,
-        "plugins/plugin-approval/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-state-control": path.resolve(
-        repoRoot,
-        "plugins/plugin-state-control/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-sdk": path.resolve(
-        repoRoot,
-        "packages/plugin-sdk/src/index.ts"
-      ),
-      "@executioncontrolprotocol/node": path.resolve(repoRoot, "packages/environments/node/src/index.ts"),
-      "@executioncontrolprotocol/browser": path.resolve(repoRoot, "packages/environments/browser/src/index.ts"),
-      "@executioncontrolprotocol/plugin-openai": path.resolve(
-        repoRoot,
-        "plugins/plugin-openai/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-format-toon": path.resolve(
-        repoRoot,
-        "plugins/plugin-format-toon/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-format-mermaid": path.resolve(
-        repoRoot,
-        "plugins/plugin-format-mermaid/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-anthropic": path.resolve(
-        repoRoot,
-        "plugins/plugin-anthropic/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-ollama": path.resolve(
-        repoRoot,
-        "plugins/plugin-ollama/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-jsonata": path.resolve(
-        repoRoot,
-        "plugins/plugin-jsonata/src/index.ts"
-      ),
-      "@executioncontrolprotocol/plugin-test": path.resolve(
-        repoRoot,
-        "plugins/plugin-test/src/index.ts"
-      ),
-      "@executioncontrolprotocol/app": path.resolve(repoRoot, "packages/app/src/index.ts"),
-    },
-  },
   test: {
-    globals: true,
     coverage: {
       provider: "v8",
-      reporter: ["text", "text-summary", "json-summary", "html"],
-      // Vitest 4 + projects: avoid `!` negation in test.include — those globs are
-      // merged into coverage.exclude and zero the report (vitest#10164).
       include: [
-        "packages/core/src/**/*.{ts,js}",
-        "packages/cli/src/**/*.{ts,js}",
-        "packages/mcp/src/**/*.{ts,js}",
-        "plugins/plugin-format-toon/src/**/*.{ts,js}",
-        "plugins/plugin-format-mermaid/src/**/*.{ts,js}",
-        "plugins/plugin-budget/src/**/*.{ts,js}",
-        "plugins/plugin-approval/src/**/*.{ts,js}",
-        "plugins/plugin-state-control/src/**/*.{ts,js}",
-        "packages/environments/node/src/**/*.{ts,js}",
-        "packages/plugin-sdk/src/**/*.{ts,js}",
-        "plugins/plugin-jsonata/src/**/*.{ts,js}",
-        "plugins/plugin-test/src/**/*.{ts,js}",
-        "packages/app/src/graph/**/*.{ts,js}",
-        "packages/app/src/host/**/*.{ts,js}",
-        "plugins/plugin-app/src/**/*.{ts,js}",
+        "packages/engine/src/**/*.ts",
+        "packages/quickjs/src/**/*.ts",
+        "packages/plugin-sdk/src/**/*.ts",
+        "packages/local/src/**/*.ts",
+        "packages/formatters/src/**/*.ts",
+        "packages/host/src/**/*.ts",
+        "packages/cli/src/**/*.ts",
+        "packages/mcp-relay/src/**/*.ts",
+        "packages/app/src/graph/**/*.ts",
+        "packages/app/src/form/**/*.ts",
+        "packages/app/src/client/**/*.ts",
+        "plugins/plugin-test/src/**/*.ts",
+        "plugins/plugin-core/src/**/*.ts",
+        "plugins/plugin-jsonata/src/**/*.ts",
+        "plugins/plugin-anthropic/src/**/*.ts",
+        "plugins/plugin-azure-blob-storage/src/**/*.ts",
+        "plugins/plugin-adobe-firefly-services/src/**/*.ts",
       ],
       exclude: [
-        "**/*.test.ts",
-        "**/*.d.ts",
         "**/dist/**",
-        "**/fixtures/**",
-        "**/node_modules/**",
+        "**/*.d.ts",
+        "**/bin/**",
+        // Process entries + log rotation are covered by e2e (spawned supervisor/host).
+        "packages/host/src/main.ts",
+        "packages/host/src/supervisor.ts",
+        "packages/host/src/log-rotate.ts",
+        "packages/host/src/ports.ts",
+        // oclif command/hook entrypoints and supervisor spawn are exercised by spawned e2e.
+        "packages/cli/src/commands/**",
+        "packages/cli/src/hooks/**",
+        "packages/cli/src/lib/host-discovery.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/version.ts",
+        // Stdio MCP server, host spawn, and HTTP forward/retry are covered by spawned e2e.
+        "packages/mcp-relay/src/start-relay.ts",
+        "packages/mcp-relay/src/host.ts",
+        "packages/mcp-relay/src/forward.ts",
+        "packages/mcp-relay/src/index.ts",
+        "packages/mcp-relay/src/version.ts",
       ],
+
+
       thresholds: {
-        // Global floor across included packages (ratchet toward 90%; never lower to green CI).
-        lines: 82,
-        functions: 86,
-        branches: 68,
-        statements: 79,
-        // Package floors — raise toward 90 as suites fill positive/negative/edge cases.
-        "packages/core/src/**": {
-          lines: 70,
-          functions: 80,
-          branches: 55,
-          statements: 70,
-        },
-        "packages/core/src/types/**": {
-          lines: 90,
-          functions: 80,
-          branches: 70,
-          statements: 90,
-        },
-        "plugins/plugin-budget/src/**": {
-          lines: 75,
-          functions: 80,
-          branches: 65,
-          statements: 75,
-        },
-        "plugins/plugin-approval/src/**": {
-          lines: 75,
-          functions: 80,
-          branches: 65,
-          statements: 75,
-        },
-        "plugins/plugin-state-control/src/**": {
-          lines: 75,
-          functions: 80,
-          branches: 65,
-          statements: 75,
-        },
-        "packages/cli/src/**": {
-          // Operation handlers and hooks have in-process unit tests; spawn tests still
-          // cover the oclif wiring that v8 does not see.
-          lines: 70,
-          functions: 75,
-          branches: 55,
-          statements: 70,
-        },
-        "packages/plugin-sdk/src/**": {
-          lines: 80,
-          functions: 85,
-          branches: 70,
-          statements: 80,
-        },
-        "packages/mcp/src/**": {
-          lines: 82,
-          functions: 82,
-          branches: 65,
-          statements: 81,
-        },
-        "packages/app/src/graph/**": {
-          lines: 80,
-          functions: 85,
-          branches: 60,
-          statements: 75,
-        },
-        "packages/app/src/host/**": {
-          lines: 65,
-          functions: 50,
-          branches: 50,
-          statements: 60,
-        },
-        "plugins/plugin-app/src/**": {
-          lines: 80,
-          functions: 80,
-          branches: 65,
-          statements: 80,
-        },
+        lines: 90,
+        functions: 90,
+        statements: 90,
+        branches: 85,
       },
     },
     projects: [
       {
-        extends: true,
         test: {
           name: "unit",
+          environment: "node",
+          setupFiles: ["test/unit-delay-hooks.ts"],
           include: [
-            "packages/core/test/**/*.test.ts",
-            "packages/cli/test/**/*.test.ts",
-            "packages/mcp/**/*.test.ts",
-            "packages/app/test/**/*.test.ts",
-            "packages/plugin-sdk/test/**/*.test.ts",
-            "packages/environments/node/**/*.test.ts",
-            "plugins/**/*.test.ts",
-            "packages/environments/browser/test/*.test.ts",
-            "scripts/**/*.test.ts",
+            "packages/**/test/**/*.test.ts",
+            "plugins/**/test/**/*.test.ts",
+            "bench/**/*.test.ts",
           ],
           exclude: [
+            "**/dist/**",
             "**/node_modules/**",
-            "packages/mcp/test/integration/stdio-serve.test.ts",
-            "plugins/plugin-app/test/browser/**",
+            "packages/host/test/integration/**",
           ],
         },
       },
       {
-        extends: true,
-        resolve: {
-          alias: [
-            {
-              find: "@executioncontrolprotocol/core/types",
-              replacement: path.resolve(repoRoot, "packages/core/src/types/index.ts"),
-            },
-            {
-              find: "@executioncontrolprotocol/core",
-              replacement: path.resolve(repoRoot, "packages/core/src/index.ts"),
-            },
-          ],
-        },
-        test: {
-          name: "browser",
-          include: [
-            "packages/core/test/**/*.test.ts",
-            "packages/environments/browser/test/browser/**/*.test.ts",
-          ],
-          exclude: [
-            "**/node_modules/**",
-            "packages/core/test/compile/**",
-            "packages/core/test/compile.test.ts",
-            "packages/core/test/fluent-api.test.ts",
-            "packages/core/test/fluent/encode.test.ts",
-            "packages/core/test/encoding/**",
-            "packages/core/test/patch/**",
-            "packages/core/test/testing/**",
-            "packages/core/test/environment-events.test.ts",
-            "packages/core/test/weekly-brief.test.ts",
-            "packages/core/test/secret-serialization.test.ts",
-            "packages/core/test/workflow-io.test.ts",
-            "packages/core/test/metadata-prose-guard.test.ts",
-            "packages/core/test/package-boundary.test.ts",
-            "packages/core/test/types/schemas.test.ts",
-          ],
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            instances: [{ browser: "chromium" }],
-          },
-        },
-      },
-      {
-        extends: true,
         test: {
           name: "integration",
-          include: ["packages/mcp/test/integration/**/*.test.ts"],
+          environment: "node",
+          include: ["packages/host/test/integration/**/*.test.ts"],
+          exclude: ["**/dist/**", "**/node_modules/**"],
+          globalSetup: ["test/e2e/global-setup.ts"],
+          setupFiles: ["test/e2e/setup.ts"],
         },
       },
       {
-        extends: true,
-        test: {
-          name: "app-live",
-          include: ["plugins/plugin-app/test/browser/**/*.test.ts"],
-        },
-      },
-      {
-        extends: true,
         test: {
           name: "e2e",
-          include: ["plugins/plugin-ollama/test/e2e/**/*.test.ts"],
+          environment: "node",
+          include: ["test/e2e/**/*.test.ts"],
+          exclude: ["**/node_modules/**"],
+          globalSetup: ["test/e2e/global-setup.ts"],
+          setupFiles: ["test/e2e/setup.ts"],
+          // Spawned host/supervisor/MCP work; keep the default off the 5s Vitest floor.
+          testTimeout: 120_000,
+          hookTimeout: 60_000,
+          // One e2e file at a time avoids cross-test host/port contention on CI runners.
+          fileParallelism: false,
         },
       },
     ],

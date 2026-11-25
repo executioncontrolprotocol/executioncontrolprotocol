@@ -1,0 +1,10 @@
+{
+  "schema": "@executioncontrolprotocol.config",
+  "version": "1.0",
+  "id": "azure-blob-storage/default",
+  "plugin": "@executioncontrolprotocol/azure-blob-storage",
+  "values": {
+    "connectionString": { "$secret": "azure-blob-storage/connection-string" },
+    "defaultContainer": "ecp-test"
+  }
+}

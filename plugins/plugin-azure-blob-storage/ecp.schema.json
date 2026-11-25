@@ -1,0 +1,446 @@
+{
+  "$defs": {
+    "config": {
+      "anyOf": [
+        {
+          "properties": {
+            "connectionString": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "defaultContainer": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "connectionString"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "accountKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "accountName": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "defaultContainer": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "accountName",
+            "accountKey"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "delete.accepts": {
+      "properties": {
+        "blobName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "container": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ifMissing": {
+          "default": "error",
+          "enum": [
+            "error",
+            "ignore"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "blobName"
+      ],
+      "type": "object"
+    },
+    "delete.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "blobName": {
+          "type": "string"
+        },
+        "container": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "blobName",
+        "container",
+        "deleted"
+      ],
+      "type": "object"
+    },
+    "download.accepts": {
+      "properties": {
+        "blobName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "container": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "blobName"
+      ],
+      "type": "object"
+    },
+    "download.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "artifact",
+              "type": "string"
+            },
+            "mediaType": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "sizeBytes": {
+              "type": "number"
+            },
+            "uri": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "uri"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "sas.accepts": {
+      "properties": {
+        "blobName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "container": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expiresInSeconds": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "permissions": {
+          "pattern": "^[racwd]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blobName"
+      ],
+      "type": "object"
+    },
+    "sas.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresOn": {
+          "type": "string"
+        },
+        "file": {
+          "additionalProperties": false,
+          "properties": {
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "kind": {
+              "const": "url",
+              "type": "string"
+            },
+            "mediaType": {
+              "type": "string"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "file",
+        "expiresOn"
+      ],
+      "type": "object"
+    },
+    "upload.accepts": {
+      "properties": {
+        "blobName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "container": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "contentType": {
+          "type": "string"
+        },
+        "createReadSas": {
+          "default": true,
+          "type": "boolean"
+        },
+        "file": {
+          "oneOf": [
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "file",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "headers": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "url",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "archive": {
+                  "properties": {
+                    "kind": {
+                      "const": "artifact",
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "uri": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "uri"
+                  ],
+                  "type": "object"
+                },
+                "kind": {
+                  "const": "artifact",
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "uri": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "uri"
+              ],
+              "type": "object"
+            }
+          ],
+          "x-ecp-file": {}
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "upload.returns": {
+      "additionalProperties": false,
+      "properties": {
+        "blobName": {
+          "type": "string"
+        },
+        "container": {
+          "type": "string"
+        },
+        "file": {
+          "additionalProperties": false,
+          "properties": {
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "kind": {
+              "const": "url",
+              "type": "string"
+            },
+            "mediaType": {
+              "type": "string"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "blobName",
+        "container",
+        "file"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "ecp://plugins/@executioncontrolprotocol/azure-blob-storage/0.60.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

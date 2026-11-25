@@ -1,0 +1,30 @@
+{
+  "name": "@executioncontrolprotocol/formatters",
+  "version": "0.60.0",
+  "private": true,
+  "description": "JSON and TOON formatters for ECP retrieve/execute output.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "@toon-format/toon": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

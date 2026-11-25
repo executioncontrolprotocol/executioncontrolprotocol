@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecp://protocol/run.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "id", "execution", "status", "input", "result", "error", "startedAt", "plugins", "host", "warnings", "publishes"],
+  "properties": {
+    "schema": { "const": "@executioncontrolprotocol.run" },
+    "version": { "const": "1.0" },
+    "id": { "type": "string", "pattern": "^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$" },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "manifestHash"],
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": ["string", "null"] },
+        "manifestHash": { "type": "string" },
+        "executionVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "status": { "enum": ["running", "completed", "failed", "cancelled", "interrupted"] },
+    "input": { "type": "object" },
+    "result": { "type": ["object", "null"] },
+    "error": { "type": ["object", "null"] },
+    "startedAt": { "type": "string" },
+    "endedAt": { "type": "string" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "plugins": { "type": "object", "additionalProperties": { "type": "string" } },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "pid", "mode"],
+      "properties": {
+        "version": { "type": "string" },
+        "pid": { "type": "integer", "minimum": 1 },
+        "mode": { "enum": ["in-process", "server"] }
+      }
+    },
+    "clientRequestId": { "type": "string" },
+    "cursor": { "type": "object" },
+    "warnings": { "type": "array" },
+    "publishes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepId", "round", "capabilityId", "at", "source", "url", "locator"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "round": { "type": ["integer", "null"] },
+          "capabilityId": { "type": "string" },
+          "at": { "type": "string" },
+          "source": { "type": "object" },
+          "url": { "type": "string" },
+          "locator": { "type": "object", "additionalProperties": { "type": "string" } },
+          "deletedAt": { "type": "string" },
+          "deleteStepId": { "type": "string" }
+        }
+      }
+    },
+    "timing": { "type": "object" }
+  }
+}

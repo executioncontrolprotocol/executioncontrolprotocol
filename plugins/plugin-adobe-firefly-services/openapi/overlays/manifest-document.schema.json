@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "description": "Photoshop manifest document: layer tree and canvas facts.",
+  "properties": {
+    "document": {
+      "type": "object",
+      "description": "Canvas metadata.",
+      "properties": {
+        "bounds": {
+          "type": "object",
+          "properties": {
+            "left": { "type": "number" },
+            "top": { "type": "number" },
+            "right": { "type": "number" },
+            "bottom": { "type": "number" }
+          },
+          "additionalProperties": true
+        },
+        "imageMode": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "layers": {
+      "type": "array",
+      "description": "Top-level layers; groups and artboards list theirs under layers.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "visible": { "type": "boolean" },
+          "layers": {
+            "description": "Layers inside a group or artboard (same shape, nested).",
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "text": {
+            "type": "object",
+            "properties": {
+              "content": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

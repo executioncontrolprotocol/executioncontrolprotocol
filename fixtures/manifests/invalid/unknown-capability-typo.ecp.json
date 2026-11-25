@@ -1,0 +1,14 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "echo",
+      "uses": "@executioncontrolprotocol/test.ech",
+      "input": {
+        "value": "hi"
+      },
+      "as": "echo"
+    }
+  ]
+}

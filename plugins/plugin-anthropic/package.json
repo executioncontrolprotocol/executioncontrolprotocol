@@ -1,62 +1,45 @@
 {
-  "name": "@executioncontrolprotocol/plugin-anthropic",
-  "version": "0.51.0",
-  "description": "Anthropic Claude model provider plugin for ECP",
-  "license": "Apache-2.0",
+  "name": "@executioncontrolprotocol/anthropic",
+  "version": "0.60.0",
+  "private": true,
+  "description": "Claude text generation through the Anthropic Messages API.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "keywords": [
+    "ecosystem:ecp-plugin",
+    "oclif-plugin"
+  ],
+  "oclif": {},
+  "ecp": {
+    "manifest": "./ecp.manifest.json",
+    "schema": "./ecp.schema.json"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./oclif": {
-      "types": "./dist/oclif.d.ts",
-      "import": "./dist/oclif.js"
-    }
+    "./ecp.manifest.json": "./ecp.manifest.json",
+    "./ecp.schema.json": "./ecp.schema.json"
   },
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "oclif.manifest.json",
-    "README.md"
+    "ecp.manifest.json",
+    "ecp.schema.json"
   ],
   "scripts": {
-    "build": "tsc -b && ecp plugins build"
-  },
-  "dependencies": {
-    "@executioncontrolprotocol/plugin-sdk": "workspace:^"
+    "build": "tsc -b && node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js",
+    "check:manifest": "node ../../packages/plugin-sdk/dist/bin/ecp-plugin-manifest.js --check"
   },
   "peerDependencies": {
-    "@executioncontrolprotocol/core": "workspace:^",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@executioncontrolprotocol/cli": "workspace:^",
-    "@executioncontrolprotocol/core": "workspace:^",
-    "typescript": "catalog:",
+    "@executioncontrolprotocol/plugin-sdk": "workspace:*",
     "zod": "catalog:"
-  },
-  "ecp": {
-    "extension": "./dist/index.js"
-  },
-  "oclif": {
-    "bin": "ecp",
-    "dirname": "ecp",
-    "topicSeparator": " ",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./dist/oclif.js",
-      "identifier": "COMMANDS"
-    },
-    "topics": {
-      "anthropic": {
-        "description": "Anthropic Messages API for browser and Node hosts."
-      }
-    }
-  },
-  "keywords": [
-    "ecosystem:ecp-plugin",
-    "oclif-plugin"
-  ]
+  }
 }

@@ -1,18 +1,27 @@
-# Core examples index
+# Examples and fixtures
 
-Each kept example is a single `*.ecp.ts` workflow file (Phase 4 PR 1). Optional `config.ecp.ts` holds machine settings.
+Transforms move data between steps (`examples/transform/`, core plugin); transform `script` is a
+plain object (`lang`, `source`/`path`), not `{ "$script": … }`. `expr` on steps, branch arms and
+`while` loops is control only (boolean gates). Loop `expr` / plain `ref` also drive `for` and
+`forEach` modes. Do not put `$expr` in step `input`.
 
-| Folder | Teaches | Reset |
-| --- | --- | --- |
-| `01-echo` | Minimal Fluent + `plugin-test` (`test.echo`) | Single `workflow.ecp.ts`; `.with([extension("@executioncontrolprotocol/test")])` |
-| `02-weekly-brief` | Multi-step, `ref()`, a model step | Single `workflow.ecp.ts`; `memory` replaced by workflow input in Phase 1 |
-| `03-secrets-bind` | Keychain and `secrets()` in extension config | Single `workflow.ecp.ts`; does not bind `secrets` in the workflow |
-| `04-encode-decode` | TOON round-trip | **Removed in Phase 1** (format plugins cover it) |
-| `05-test-session` | `ecp test start` / `run --to` / `rerun` / `status` | **Removed in Phase 1**; use `ecp run --to` / `runs resume` / `runs rerun` |
-| `06-invoke` | `ecp environments invoke` outside a workflow | Single `workflow.ecp.ts` |
-| `07-accepts-returns` | `.accepts()` / `.returns()`, `ecp run --input` | Single `workflow.ecp.ts` |
-| `plugins/plugin-*/examples` | Plugin `*.ecp.ts` examples | Moved in Phase 5 (Slack example removed in Phase 1) |
-| `reset/dogfood/` | Phase 6 Dogfood A fixtures + local proofs | Not converted examples; see `reset/dogfood/README.md` |
-| `08-ollama-*` | Retired stubs | **Deleted in Phase 4 PR 1** (they were empty READMEs, not converted) |
+| Path | Role |
+| --- | --- |
+| `examples/echo/` | Smallest v2 execution |
+| `examples/transform/` | Bundled core QuickJS transform |
+| `examples/transform-jsonata/` | Optional JSONata transform |
+| `examples/weekly-brief/` | Multi-step example |
+| `examples/localize-banner/` | A10 Firefly + Anthropic + Azure dogfood |
+| `fixtures/manifests/valid/` | Must validate with zero errors |
+| `fixtures/manifests/invalid/` | Each with `*.expected.json` issues |
+| `fixtures/manifests/runs/` | Run fixtures (`*.run.json`) |
+| `fixtures/manifests/acceptance/` | A2 `all-features` |
+| `fixtures/v1/` | Hand-converted v1 → v2 fixtures |
+| `test/e2e/acceptance/` | Formal A1–A12 suite |
 
-See `examples/README.md` and `RESET-PLAN.md` §5.5.
+Run echo:
+
+```sh
+ecp plugins link plugins/plugin-test --no-install
+ecp execute examples/echo/echo.ecp.json --json
+```

@@ -1,0 +1,27 @@
+{
+  "name": "@executioncontrolprotocol/quickjs",
+  "version": "0.60.0",
+  "private": true,
+  "description": "QuickJS expression engine for ECP. Evaluates expr and $expr inside a WASM sandbox.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@executioncontrolprotocol/protocol": "workspace:*",
+    "quickjs-emscripten": "0.31.0"
+  }
+}

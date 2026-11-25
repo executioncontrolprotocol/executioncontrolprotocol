@@ -1,122 +1,73 @@
 # ECP Setup Guide
 
-This guide covers building the monorepo, installing the `ecp` CLI, and running
-workflows locally on Node.
-
-For architecture and the current spec, see:
-
-- [`AGENTS.md`](AGENTS.md) — monorepo commands + package boundaries
-- [`RESET-PLAN.md`](RESET-PLAN.md) — CLI reset plan (source of truth during the milestone)
-
-------------------------------------------------------------------------
+Build and run the MVP packages in this monorepo.
 
 ## Prerequisites
 
 - **Node.js** 22+
-- **pnpm** (monorepo package manager; see `packageManager` in root `package.json`)
-- For **OpenAI** (optional): an API key via `OPENAI_API_KEY`
-- For **Ollama** (optional): [Ollama](https://ollama.com/) running locally
+- **pnpm** 10 (`corepack enable`; see `packageManager` in root `package.json`)
 
-------------------------------------------------------------------------
-
-## Install + build
+## Install and build
 
 ```bash
 git clone https://github.com/executioncontrolprotocol/executioncontrolprotocol.git
 cd executioncontrolprotocol
+corepack enable
 pnpm install
 pnpm run build
 ```
 
-Always run `pnpm install` from the repo root, not inside individual packages.
+Always run `pnpm install` from the repo root.
 
-------------------------------------------------------------------------
+## CLI
 
-## Install the CLI
-
-### Published (recommended for consumers)
+After build, run the local binary:
 
 ```bash
-npm install -g @executioncontrolprotocol/cli
+node packages/cli/bin/ecp.js --help
 ```
 
-### Monorepo development
-
-From the repo root (after `pnpm run build`):
+Or link it globally for a short `ecp` command:
 
 ```bash
-cd packages/cli
-pnpm link --global
-cd ../..
+cd packages/cli && pnpm link --global && cd ../..
+ecp --help
 ```
 
-Now `ecp --help` should work.
-
-Alternatively, run the dev entry without linking:
+## Link a plugin and run
 
 ```bash
-pnpm --filter @executioncontrolprotocol/cli start
+ecp host start
+ecp plugins link plugins/plugin-test --no-install
+ecp retrieve --type capability --query echo --json
+ecp execute fixtures/manifests/runs/echo.ecp.json --json
 ```
 
-------------------------------------------------------------------------
+Examples under `examples/` are v2 JSON executions. See each example's README.
 
-## Run a workflow (Node)
-
-ECP runs **workflows** (`@executioncontrolprotocol.workflow`) inside **environments** (runtime +
-extensions + policies). Examples are authored in TypeScript but compile down to
-portable JSON workflow manifests.
+## Checks
 
 ```bash
-ecp run examples/01-echo/workflow.ecp.ts
-ecp workflows validate examples/01-echo/workflow.ecp.ts
+pnpm run check          # build, manifests, lint, secrets, coverage, integration, e2e, app
+pnpm run test:unit
+pnpm run test:coverage  # coverage gate
+pnpm run test:e2e       # includes test/e2e/acceptance/A1–A12
+pnpm run test:app       # Playwright A8
+pnpm run bench          # budgets in bench/budgets.json
 ```
 
-Compile to JSON (optional):
+## Secrets
 
 ```bash
-ecp workflows compile examples/01-echo/workflow.ecp.ts -o dist/workflow.json
+ecp config secrets set my.key   # value on stdin
+ecp config secrets list --json
 ```
 
-------------------------------------------------------------------------
+Config objects reference `{ "$secret": "my.key" }`. Executions never contain secret values.
 
-## Provider configuration
+## Related
 
-### OpenAI
-
-Set:
-
-- `OPENAI_API_KEY`
-
-On Windows (PowerShell):
-
-```powershell
-$env:OPENAI_API_KEY = "sk-..."
-```
-
-### Ollama
-
-- Default base URL: `http://localhost:11434`
-- Pull a model:
-
-```bash
-ollama pull gemma3:1b
-```
-
-------------------------------------------------------------------------
-
-The browser demo was removed in Phase 1. The visual App returns in Phase 8 from the
-`pre-reset` tag. Until then, run workflows with the CLI:
-
-```bash
-ecp run examples/01-echo/workflow.ecp.ts
-```
-
-------------------------------------------------------------------------
-
-## Quality gate (recommended before PRs)
-
-From the repo root:
-
-```bash
-pnpm run check
-```
+- [`README.md`](README.md) — MVP quick start
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — package layout
+- [`AGENTS.md`](AGENTS.md) — agent rules and commands
+- [`realignment/spec/`](realignment/spec/README.md) — contracts

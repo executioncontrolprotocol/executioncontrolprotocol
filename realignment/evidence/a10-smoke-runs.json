@@ -1,0 +1,37 @@
+﻿{
+  "recordedAt": "2026-11-15T19:03:57.000Z",
+  "kind": "option-3-smoke",
+  "items": [
+    {
+      "runId": "run-20261115T190335Z-38d8e4",
+      "status": "completed",
+      "result": {
+        "out": {
+          "text": "ready",
+          "usage": { "inputTokens": 19, "outputTokens": 4 }
+        }
+      },
+      "steps": [{ "nodeId": "gen", "status": "completed", "durationMs": 810 }],
+      "execution": {
+        "manifestHash": "1e25eff351823cad0d990db456453681597a56fb01ea7cdc76e8f945b826fce8",
+        "path": "<TEMP>\\ecp-a10-smoke\\anthropic.ecp.json"
+      }
+    },
+    {
+      "runId": "run-20261115T190345Z-1eaf25",
+      "status": "completed",
+      "result": {
+        "out": {
+          "size": { "width": 2048, "height": 2048 },
+          "outputs": [{ "seed": 199400766, "image": { "url": "[presigned-firefly-s3-redacted]" } }],
+          "contentClass": "art"
+        }
+      },
+      "steps": [{ "nodeId": "image", "status": "completed", "durationMs": 11310 }],
+      "execution": {
+        "manifestHash": "7b4428b06b180cdf7128e53d22c554e9b9bbe98ba56f8aec0323b5f3b64d5096",
+        "path": "<TEMP>\\ecp-a10-smoke\\firefly.ecp.json"
+      }
+    }
+  ]
+}

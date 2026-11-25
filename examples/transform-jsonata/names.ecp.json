@@ -1,0 +1,55 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "PickNames",
+      "uses": "@executioncontrolprotocol/jsonata.transform",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["people"],
+        "additionalProperties": false
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "names": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["names"],
+        "additionalProperties": false
+      },
+      "expression": "{ \"names\": people.name[] }",
+      "input": {
+        "people": [
+          { "name": "Ada" },
+          { "name": "Grace" },
+          { "name": "Katherine" }
+        ]
+      },
+      "as": "result"
+    }
+  ],
+  "execution": {
+    "returns": {
+      "type": "object",
+      "properties": {
+        "result": { "type": "object" }
+      },
+      "required": ["result"]
+    }
+  }
+}

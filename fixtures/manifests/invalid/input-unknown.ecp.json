@@ -1,0 +1,14 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "id": "cfg",
+      "uses": "@executioncontrolprotocol/test.config-echo",
+      "input": {
+        "extra": 1
+      },
+      "as": "cfg"
+    }
+  ]
+}
