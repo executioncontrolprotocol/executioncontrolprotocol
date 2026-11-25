@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url"
 import Ajv from "ajv/dist/2020.js"
 import addFormats from "ajv-formats"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { validateExecution } from "@executioncontrolprotocol/engine"
 import { describe, expect, it } from "vitest"
 import {
   STRUCTURE_EDIT_CONTIGUOUS,
@@ -243,5 +244,47 @@ describe("structure-edit", () => {
     deleteStep(base, "missing")
     expect(base).toEqual(snapshot)
     expect(deleteStep(base, "missing")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
+  })
+})
+describe("wrapping pattern examples validates", () => {
+  const echo = {
+    id: "@executioncontrolprotocol/test.echo",
+    plugin: "@executioncontrolprotocol/test",
+    package: "@executioncontrolprotocol/test",
+    pluginVersion: "0.0.0",
+    summary: "",
+    description: "",
+    useCases: [],
+    projections: [],
+    accepts: { type: "object", properties: { value: {} } },
+    returns: { type: "object", properties: { echo: {} } },
+  }
+  const branch = JSON.parse(
+    readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns/branch.ecp.json"), "utf8"),
+  ) as ExecutionManifest
+
+  async function errors(manifest: ExecutionManifest): Promise<string[]> {
+    const report = await validateExecution(manifest, { capabilities: [echo] })
+    return report.issues.filter((issue) => issue.severity === "error").map((issue) => `${issue.code} ${issue.path}`)
+  }
+
+  it.each(["if", "loop"] as const)("wrapping a step that commits `as` in %s stays valid", async (kind) => {
+    const result = wrapSteps(branch, ["start"], kind)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(await errors(result.manifest)).toEqual([])
+  })
+
+  it("a step wrapped in a loop commits with replace so the next round can write it again", () => {
+    const result = wrapSteps(branch, ["start"], "loop")
+    if (!result.ok) throw new Error(result.reason)
+    const loop = result.manifest.steps[0] as { steps: Array<{ mode?: string }> }
+    expect(loop.steps[0]?.mode).toBe("replace")
+  })
+
+  it("wrapping two sibling nodes in parallel stays valid", async () => {
+    const result = wrapSteps(branch, ["start", "by-tier"], "parallel")
+    if (!result.ok) throw new Error(result.reason)
+    expect(await errors(result.manifest)).toEqual([])
   })
 })

@@ -17,7 +17,13 @@ import {
 import { scriptTextFromRetrieve } from "../../client/document-state.js"
 import {
   collectSteps,
+  setLoopDriver,
   setLoopField,
+  setLoopInto,
+  setLoopLabel,
+  setLoopMode,
+  type AddStepPlacement,
+  type LoopMode,
   type ReactFlowIoData,
   type ReactFlowNode,
   type ReactFlowLoopItemsData,
@@ -30,6 +36,15 @@ import {
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 import type { EditorApplyRequest } from "../hooks/useExecutionEditor.js"
+import {
+  BindingList,
+  EditError,
+  IssueList,
+  SelectField,
+  TextField,
+  usePanelEditor,
+} from "./panel-fields.js"
+import { EndPanel, IfPanel, ParallelPanel } from "./StructureNodePanels.js"
 
 /**
  * Props for {@link NodePanel}.
@@ -67,6 +82,8 @@ export interface NodePanelProps {
   readOnly?: boolean
   /** Persist loop and other manifest edits. */
   applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  /** Open the capability picker for a new step (the parallel panel's "Add path"). */
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
 }
 
 function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode | undefined {
@@ -130,7 +147,9 @@ function patchStep(
   return { ...manifest, steps: walk(manifest.steps) }
 }
 
-type LoopFieldKey = "maxRounds" | "as" | "into" | "concurrency" | "onError"
+type LoopFieldKey = "maxRounds" | "as" | "concurrency" | "onError"
+
+const LOOP_MODES = ["forEach", "for", "while"] as const
 
 function LoopItemsPanel({
   node,
@@ -157,51 +176,15 @@ function LoopItemsPanel({
   flushTextEdit?: () => void
   fieldEpoch?: number
 }) {
-  const loopFieldKey = `${node.id}-${fieldEpoch}`
+  const editor = usePanelEditor({ manifest, readOnly, fieldEpoch, applyManifestEdit, scheduleTextEdit, flushTextEdit })
   const source = findLoop(manifest, node.id)
-  const mode = data.mode ?? "while"
-  const [fieldError, setFieldError] = useState<string | undefined>(undefined)
-
-  const queueField = useCallback(
-    (field: LoopFieldKey, value: string | number) => {
-      if (readOnly || !manifest || !scheduleTextEdit) return
-      const preview = setLoopField(manifest, node.id, field, value)
-      if (!preview.ok) {
-        setFieldError(preview.reason)
-        return
-      }
-      setFieldError(undefined)
-      scheduleTextEdit({
-        label: `Loop ${field}`,
-        apply: (current) => setLoopField(current, node.id, field, value),
-      })
-    },
-    [manifest, node.id, readOnly, scheduleTextEdit],
-  )
-
-  const saveField = useCallback(
-    (field: LoopFieldKey, value: string | number) => {
-      if (readOnly || !manifest) return
-      const preview = setLoopField(manifest, node.id, field, value)
-      if (!preview.ok) {
-        setFieldError(preview.reason)
-        return
-      }
-      setFieldError(undefined)
-      if (scheduleTextEdit) {
-        queueField(field, value)
-        flushTextEdit?.()
-        return
-      }
-      void applyManifestEdit?.((current) => setLoopField(current, node.id, field, value))
-    },
-    [applyManifestEdit, flushTextEdit, manifest, node.id, queueField, readOnly, scheduleTextEdit],
-  )
-
-  const disabled = readOnly || !applyManifestEdit || !manifest
+  const mode = source?.mode ?? data.mode ?? "while"
+  const driverKey = mode === "forEach" ? "items" : mode === "for" ? "count" : undefined
+  const field = (name: LoopFieldKey, value: string | number) => (current: ExecutionManifest) =>
+    setLoopField(current, node.id, name, value)
 
   return (
-    <section data-testid="node-panel" data-node-id={node.id} className="space-y-4">
+    <section data-testid="node-panel" data-node-id={node.id} data-node-kind="loop" className="space-y-4">
       <header className="space-y-1">
         <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-on-surface">
           <Box className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -214,99 +197,87 @@ function LoopItemsPanel({
         <Row label="Id">{node.id}</Row>
         <Row label="Mode">{mode}</Row>
       </div>
-      <div key={loopFieldKey} className="space-y-3 border-t border-outline-variant pt-3">
+      <div key={`${node.id}-${fieldEpoch}`} className="space-y-3 border-t border-outline-variant pt-3">
+        <TextField
+          label="Label"
+          testId="loop-field-label"
+          value={source?.label ?? ""}
+          editor={editor}
+          onType={(next) => editor.type("Loop label", (current) => setLoopLabel(current, node.id, next))}
+          onCommit={(next) => editor.commit("Loop label", (current) => setLoopLabel(current, node.id, next))}
+        />
+        <SelectField
+          label="Mode"
+          testId="loop-field-mode"
+          value={mode}
+          options={LOOP_MODES}
+          editor={editor}
+          onChoose={(next) => editor.choose("Loop mode", (current) => setLoopMode(current, node.id, next as LoopMode))}
+        />
+        {driverKey ? (
+          <BindingList
+            key={driverKey}
+            title={driverKey === "items" ? "Items" : "Count"}
+            testId="loop-driver"
+            ports={[{ name: driverKey, typeLabel: driverKey === "items" ? "array" : "integer" }]}
+            input={source?.input}
+            editor={editor}
+            onBind={(_key, binding) => (current) => setLoopDriver(current, node.id, binding)}
+            fixedKeys
+          />
+        ) : null}
         {mode === "while" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Max rounds</span>
-            <input
-              data-testid="loop-field-max-rounds"
-              type="number"
-              min={1}
-              max={1000}
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.maxRounds ?? data.maxRounds ?? 1}
-              disabled={disabled}
-              onChange={(event) => queueField("maxRounds", Number.parseInt(event.target.value, 10))}
-              onBlur={(event) => void saveField("maxRounds", Number.parseInt(event.target.value, 10))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  void saveField("maxRounds", Number.parseInt((event.target as HTMLInputElement).value, 10))
-                }
-              }}
-            />
-          </label>
+          <TextField
+            label="Max rounds"
+            testId="loop-field-max-rounds"
+            type="number"
+            value={String(source?.maxRounds ?? data.maxRounds ?? 1)}
+            editor={editor}
+            onType={(next) => editor.type("Loop maxRounds", field("maxRounds", Number.parseInt(next, 10)))}
+            onCommit={(next) => editor.commit("Loop maxRounds", field("maxRounds", Number.parseInt(next, 10)))}
+          />
         ) : null}
         {mode === "for" || mode === "forEach" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">As</span>
-            <input
-              data-testid="loop-field-as"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.as ?? data.as ?? ""}
-              disabled={disabled}
-              onChange={(event) => queueField("as", event.target.value)}
-              onBlur={(event) => void saveField("as", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("as", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
+          <TextField
+            label="As"
+            testId="loop-field-as"
+            value={source?.as ?? data.as ?? ""}
+            editor={editor}
+            onType={(next) => editor.type("Loop as", field("as", next))}
+            onCommit={(next) => editor.commit("Loop as", field("as", next))}
+          />
         ) : null}
+        <TextField
+          label="Into"
+          testId="loop-field-into"
+          value={source?.into ?? data.into ?? ""}
+          editor={editor}
+          placeholder={mode === "forEach" ? "required" : "optional"}
+          onType={(next) => editor.type("Loop into", (current) => setLoopInto(current, node.id, next))}
+          onCommit={(next) => editor.commit("Loop into", (current) => setLoopInto(current, node.id, next))}
+        />
         {mode === "forEach" ? (
           <>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Into</span>
-              <input
-                data-testid="loop-field-into"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.into ?? data.into ?? ""}
-                disabled={disabled}
-                onChange={(event) => queueField("into", event.target.value)}
-                onBlur={(event) => void saveField("into", event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveField("into", (event.target as HTMLInputElement).value)
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Concurrency</span>
-              <input
-                data-testid="loop-field-concurrency"
-                type="number"
-                min={1}
-                max={32}
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.concurrency ?? data.concurrency ?? 1}
-                disabled={disabled}
-                onChange={(event) => queueField("concurrency", Number.parseInt(event.target.value, 10))}
-                onBlur={(event) => void saveField("concurrency", Number.parseInt(event.target.value, 10))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void saveField("concurrency", Number.parseInt((event.target as HTMLInputElement).value, 10))
-                  }
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">On error</span>
-              <select
-                data-testid="loop-field-on-error"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.onError ?? data.onError ?? "fail"}
-                disabled={disabled}
-                onChange={(event) => void saveField("onError", event.target.value)}
-              >
-                <option value="fail">fail</option>
-                <option value="continue">continue</option>
-              </select>
-            </label>
+            <TextField
+              label="Concurrency"
+              testId="loop-field-concurrency"
+              type="number"
+              value={String(source?.concurrency ?? data.concurrency ?? 1)}
+              editor={editor}
+              onType={(next) => editor.type("Loop concurrency", field("concurrency", Number.parseInt(next, 10)))}
+              onCommit={(next) => editor.commit("Loop concurrency", field("concurrency", Number.parseInt(next, 10)))}
+            />
+            <SelectField
+              label="On error"
+              testId="loop-field-on-error"
+              value={source?.onError ?? data.onError ?? "fail"}
+              options={["fail", "continue"]}
+              editor={editor}
+              onChoose={(next) => editor.choose("Loop onError", field("onError", next))}
+            />
           </>
         ) : null}
-        {fieldError ? (
-          <p className="text-[11px] text-error" data-testid="loop-field-error">
-            {fieldError}
-          </p>
-        ) : null}
+        <EditError editor={editor} testId="loop-field-error" />
       </div>
       <div className="space-y-1.5">
         {loopRun ? (
@@ -317,18 +288,7 @@ function LoopItemsPanel({
         ) : null}
         {loopRound ? <Row label="Round">{loopRound.round + 1}</Row> : null}
       </div>
-      {issues.length > 0 ? (
-        <ul className="space-y-2">
-          {issues.map((issue, index) => (
-            <li key={`${issue.code}-${index}`} className="flex gap-2 rounded border border-error/40 p-2 text-[12px]">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" aria-hidden="true" />
-              <span>
-                <span className="font-mono text-error">{issue.code}</span> {issue.message}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <IssueList issues={issues} />
     </section>
   )
 }
@@ -734,6 +694,7 @@ export function NodePanel({
   scheduleTextEdit,
   flushTextEdit,
   fieldEpoch = 0,
+  onOpenCapabilityMenu,
 }: NodePanelProps) {
   const stepContractSchemas = useMemo(() => {
     if (!node || node.type === "ecp-io" || !manifest) return undefined
@@ -750,6 +711,22 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
+  if (node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end") {
+    const Panel = node.type === "ecp-if" ? IfPanel : node.type === "ecp-parallel" ? ParallelPanel : EndPanel
+    return (
+      <Panel
+        node={node}
+        issues={issues}
+        manifest={manifest}
+        readOnly={readOnly}
+        fieldEpoch={fieldEpoch}
+        applyManifestEdit={applyManifestEdit}
+        scheduleTextEdit={scheduleTextEdit}
+        flushTextEdit={flushTextEdit}
+        onOpenCapabilityMenu={onOpenCapabilityMenu}
+      />
+    )
+  }
   if (node.type === "ecp-loop") {
     return (
       <LoopItemsPanel

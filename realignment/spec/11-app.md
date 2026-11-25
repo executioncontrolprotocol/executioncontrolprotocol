@@ -24,8 +24,9 @@ views, runs and edits executions on the canvas. The JSON view stays read-only.
 | View | Content | Data |
 | --- | --- | --- |
 | Graph | React Flow canvas: steps, `if` / `parallel` / `loop` / `end` structure nodes with ports, data branches for `$ref` / `$state` bindings only; `ecp-frame` containers; no route pills; detached steps show a badge | `retrieve { type: "execution", id \| path }` |
-| Node panel | Selected node: capability summary and description, input bindings (literal / ref / expr / script), step `accepts`/`returns` when declared on the step else capability schemas (collapsible JSON), transform `script` or `expression` in a textarea when editable (inline `source` in the manifest; `path` scripts via `include: ["scripts"]` on `retrieve` and `scripts` on `commit`), config id. Configure opens this panel; no configure dialog | `retrieve { type: "capability", id }`, execution `retrieve` / `commit` |
-| Edge panel | Selected data branch: source and target ports, `$ref` (optional / fallback); Delete removes the binding. Syntax via `execute { mode: "validate", execution: <draft> }` (`ECP_EXPR_INVALID` at the edited pointer only). Autosave via `commit { type: "execution", action: "update", id \| path, ifVersion, draft: true }`. Run payloads: `retrieve { type: "run", include: ["steps", "state"] }` when a run is selected | `retrieve` / `execute` / `commit` |
+| Node panel | Selected node: capability summary and description, input bindings (literal / ref / expr / script), step `accepts`/`returns` when declared on the step else capability schemas (collapsible JSON), transform `script` or `expression` in a textarea when editable (inline `source` in the manifest; `path` scripts via `include: ["scripts"]` on `retrieve` and `scripts` on `commit`), config id. Configure opens this panel; no configure dialog. Start and end nodes have their own panels, below | `retrieve { type: "capability", id }`, execution `retrieve` / `commit` |
+| Structure panels | Selected `if`: label, `accepts` (JSON schema text), input bindings (unset, literal or bound `$ref`), condition as an **expression or a script** (toggle; the text carries over), `as`. Selected `parallel`: label, optional `accepts` / `input` / `as`, `maxConcurrency`, a read-only list of paths with **Add path**. Selected `loop`: label, `mode` (`forEach` / `for` / `while`), the driver (`items` for `forEach`, `count` for `for`, none for `while`), `as` (`for` / `forEach`), `concurrency` and `onError` (`forEach`), `maxRounds` (`while`), `into`. Changing the mode rewrites only what the new mode needs and removes what it forbids (`setLoopMode`); a placeholder `as` / `into` / `count` / `maxRounds` is filled so the manifest validates when it can, and an unbound `items` is left for validation to report. Selected `end` (the right-edge node `end:<loopId>`): `accepts`, input bindings (`value`, `repeat` for `while`, `accepts` keys), gather as none / expression / script, `returns`. Fields are disabled while a run is live or a replay is selected. Text fields autosave on the text debounce; selects, toggles and buttons are one saved edit and one undo step each | execution `commit` |
+| Edge panel | Selected branch: source node and port, target node and port, and a **Delete** button that removes the `$ref` (the input becomes unbound; validation reports it when required). Nothing else is editable here. Autosave via `commit { type: "execution", action: "update", id \| path, ifVersion, draft: true }` | execution `commit` |
 | Validation | Issues list (code, message, path, suggestions); clicking an issue selects the node; nodes with errors get an error badge | `issues` from execution `retrieve` and draft `commit`; `execute { mode: "validate" }` |
 | Run | Input form from `execution.accepts`; live step status; `if.select` highlights taken `then` / `else` side; loop overlays on loop and `end` (`loop.round`, `loop.repeat`, `loop.exhausted`, `forEach` progress); result JSON; errors with issues | `execute { wait: false }` then `/v1/watch?runId=` |
 | Runs | Run history for this execution; selecting a run replays its statuses on the graph and shows step inputs/outputs (redacted) | `retrieve { type: "run", filter: { executionId }, include: ["steps"] }` |
@@ -69,28 +70,54 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   `into` from `end` `results`). Literal-only inputs have no branch. No route edges or sequence
   orphans. A `detached` step has a badge and no required connector.
 - Every canvas edit is a pure function `(manifest, action) → manifest` in `packages/app/src/graph/`.
-- Containers: dotted `ecp-frame` outlines with **bands** (`if`: `then` / `else`; `parallel`: one band
-  per path; `loop`: body band). The **start** node (`if`, `parallel`, `loop`) is pinned on the left
-  stroke with input ports outside; loop **`end`** is pinned on the right. The frame has no label or
-  menu; the start node carries the label and container menu. Delete on a start node unwraps and
-  splices `then` then `else`, or paths in order (**keep steps**), or removes the pattern (**with its
-  steps**). The loop `end` node is not deletable alone.
-- Deleting a selected **data branch** removes the `$ref` on the target input. **Delete** and
-  **Backspace** apply to selected branches, steps, or structure headers (not the `end` node).
+- Containers are drawn only: dotted `ecp-frame` outlines with **bands** (`if`: `then` / `else`;
+  `parallel`: one band per path; `loop`: body band). A container is never selected, configured,
+  right-clicked as an object, or connected to; it has no label and no menu. The **start** node (`if`,
+  `parallel`, `loop`) is pinned on the left edge and carries the label; loop **`end`** is pinned on
+  the right. Both move vertically only.
+- **Delete** (key and menu) by selection:
+
+  | Selection | Result |
+  | --- | --- |
+  | Branch | Removes the `$ref` on the target input |
+  | Step(s) | Removes them (the execution keeps at least one top-level step) |
+  | Start node | Removes it and splices its nodes into the parent: `then` before `else`, paths in order, the loop body. The menu also offers **Delete with its nodes** |
+  | `end` | Nothing; the menu shows Delete disabled with the reason "Delete the loop instead" |
+  | Inputs, Outputs, nothing | Nothing |
+
+  **Delete** and **Backspace** apply the same rules to the canvas selection.
 - Reconnect a
   detached **root step** by dragging a compatible data output onto its input: the binding is
   written and the step is placed after the source (Inputs → first top-level step; loop `item` →
   first body step; loop `into` → immediately after the loop). Detached branch, loop, or parallel
   roots are not reattached this way (remove or recreate them).
-- Right-click is always the App's, never the browser menu. Empty canvas opens the capability menu.
-  A frame opens the container menu. An edge opens the edge menu. A node opens the node menu:
-  Configure, Wrap in branch / parallel / loop, Delete step. Wrap is only on the node menu. Menus
-  pick an action; Configure opens the right-hand panel. No modal configure dialog.
+- Right-click is always the App's, never the browser menu:
+  - **Node** (step, start node or `end`): Configure; **Wrap in** `if` / `parallel` / `loop`; Delete.
+    Wrap `parallel` needs two or more siblings (one per path); with one selected node the reason is
+    "Select two or more nodes, one per path".
+  - **Start node** also: **Add node in then** / **else** (`if`), **Add node in path N** and **Add
+    path** (`parallel`), **Add node in the loop** (`loop`); and **Delete with its nodes**. A new node
+    goes first in that list.
+  - **`end`**: Configure; Delete disabled with its reason.
+  - **Edge**: Configure, Delete branch.
+  - **Empty canvas**: the capability menu. Inside a container band it inserts into that band's list
+    at the position nearest the cursor (`then`, `else`, a path, the loop body); elsewhere at the top
+    level.
+
+  Menus pick an action; Configure opens the right-hand panel. No modal configure dialog.
 - The capability menu is the same for canvas right-click and for dropping a connection on empty
   canvas: search, grouped by plugin, keyboard navigation, fed by `retrieve { type: "capability",
   query }`.
 - While dragging from a port, incompatible ports are dimmed and refuse the drop. A successful drop
-  writes `{ "$ref": "state.<as>[.<port>]" }`. A drop on empty canvas opens the capability menu and
+  writes `{ "$ref": "state.<as>[.<port>]" }` into the target node's `input`. Targets are step, `if`,
+  `parallel`, loop driver (`items` / `count`) and `end` input ports. By source: a step output writes
+  `state.<as>[.field]`; Inputs `state.<key>`; a loop `item` / `index` `state.<as>` /
+  `state.<as>Index`; an `if` side port or `parallel` path port `state.<as>` (the node's `as` is set
+  to a free name derived from its id in the same edit when missing); an `end` `results` port
+  `state.<into>` (`into` is set the same way). A drop is refused when the types don't fit or the
+  reader would run before the writer: an `if` side or `parallel` path port and a loop `item` port are
+  readable only inside their band or loop, `end` `results` only after the loop, loop body outputs by
+  the `end`. A drop on empty canvas opens the capability menu and
   wires the first compatible port. If none is compatible, the step is still inserted, unwired.
 - Nodes can be dragged. Layout runs on open; dragged positions override it and are kept in the
   browser only, not in the manifest. An **Auto layout** control clears them.
@@ -125,5 +152,8 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   open by path and from the `dir` list; validation issues render and select nodes; an external file
   change updates the App within 1 s; editing a script commits `scripts` and re-validates; a file
   that fails to parse keeps the last good graph and `ECP_EXECUTION_LOAD`, then recovers; run
-  statuses and result; runs list replays; unauthorised access. Menus (pane, frame, edge, node),
-  connect including a refused incompatible drop, and autosave with no Save button (`draft: true`).
+  statuses and result; runs list replays; unauthorised access. Menus (pane, edge, node, start node,
+  `end`), connect including a refused incompatible drop and a branch into an `if` input, Delete of a
+  branch / start node / `end`, wrap a step in an `if` and edit its expression, change a loop mode,
+  add a node into `else` from the start-node menu, and autosave with no Save button
+  (`draft: true`), each with undo and redo.

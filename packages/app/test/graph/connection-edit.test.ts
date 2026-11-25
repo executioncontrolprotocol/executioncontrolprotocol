@@ -394,25 +394,6 @@ describe("connection-edit", () => {
     }
   })
 
-  it("connectorDeletePreview refuses loop target data edges", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "loop",
-          id: "l",
-          ref: "state.items",
-          maxRounds: 1,
-          steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "s" }],
-        },
-      ],
-    }
-    const doc = executionToReactFlow(base)
-    const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "l")
-    if (edge) expect(connectorDeletePreview(base, edge)).toMatchObject({ ok: false })
-  })
-
   it("deleteConnector refuses data edge without bindingPath", () => {
     const edge = {
       id: "e",
@@ -423,12 +404,18 @@ describe("connection-edit", () => {
     expect(deleteConnector(load("markers.ecp.json"), edge as never).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
   })
 
-  it("connectorDeletePreview refuses loop target data edges", () => {
+  it("deleteConnector removes the loop driver reference and keeps the manifest valid shape", () => {
     const manifest = load("loop-foreach.ecp.json")
     const doc = executionToReactFlow(manifest)
     const loopEdge = doc.edges.find((edge) => edge.data.kind === "data" && edge.target === "rows")
     expect(loopEdge).toBeDefined()
-    expect(connectorDeletePreview(manifest, loopEdge!)).toMatchObject({ ok: false, reason: CONNECTION_EDIT_NOT_BINDING })
+    expect(connectorDeletePreview(manifest, loopEdge!).ok).toBe(true)
+    const result = deleteConnector(manifest, loopEdge!)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const loop = result.manifest.steps.find((node) => node.id === "rows")
+      expect(loop?.type === "loop" && loop.input?.items).toBeUndefined()
+    }
   })
 
   it("attachAfter inserts as first loop body step", () => {

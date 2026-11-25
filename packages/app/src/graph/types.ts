@@ -165,15 +165,25 @@ export const LOOP_REF_HANDLE = "ref"
 /** @deprecated Old loop `collect` port id. @category App */
 export const LOOP_COLLECT_HANDLE = "collect"
 
-/** @deprecated Old loop `into` port id; use {@link END_RESULTS_HANDLE} on the end node. @category App */
-export const LOOP_INTO_HANDLE = "into"
+/** Prefix of a loop `end` node's React Flow id (`end:<loopId>`). @category App */
+export const END_NODE_PREFIX = "end:"
 
 /**
  * React Flow node id for a loop's synthetic `end` node.
  * @category App
  */
 export function loopEndNodeId(loopId: string): string {
-  return `end:${loopId}`
+  return `${END_NODE_PREFIX}${loopId}`
+}
+
+/**
+ * Loop id behind a loop `end` node's React Flow id, or `undefined` when `nodeId` is not an `end` node id.
+ * @category App
+ */
+export function loopIdFromEndNodeId(nodeId: string): string | undefined {
+  return nodeId.startsWith(END_NODE_PREFIX) && nodeId.length > END_NODE_PREFIX.length
+    ? nodeId.slice(END_NODE_PREFIX.length)
+    : undefined
 }
 
 /**

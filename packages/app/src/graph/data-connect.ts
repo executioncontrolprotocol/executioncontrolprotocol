@@ -12,15 +12,20 @@ import {
   placementManifestForDetachedConnect,
 } from "./connection-edit.js"
 import { findStepPlacement } from "./manifest-walk.js"
+import { isStepNode } from "./io-from-schema.js"
 import { portsAreCompatible } from "./port-compat.js"
 import { sourceVisibleTo } from "./read-order.js"
 import { EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
 import {
   LOOP_COLLECT_HANDLE,
   LOOP_REF_HANDLE,
+  loopIdFromEndNodeId,
   type ReactFlowDocument,
+  type ReactFlowEndData,
+  type ReactFlowIfData,
   type ReactFlowIoData,
   type ReactFlowLoopItemsData,
+  type ReactFlowParallelData,
   type ReactFlowPort,
   type ReactFlowStepData,
 } from "./types.js"
@@ -51,8 +56,8 @@ function ioPort(
   return list.find((port) => port.id === handleId)
 }
 
-function loopPort(
-  data: ReactFlowLoopItemsData,
+function structurePort(
+  data: ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData | ReactFlowEndData,
   handleId: string,
   side: "input" | "output",
 ): ReactFlowPort | undefined {
@@ -74,7 +79,13 @@ export function portOnDocument(
   if (!node) return undefined
   if (node.type === "ecp-step") return stepPort(node.data as ReactFlowStepData, handleId, side)
   if (node.type === "ecp-io") return ioPort(node.data as ReactFlowIoData, handleId, side)
-  if (node.type === "ecp-loop") return loopPort(node.data as ReactFlowLoopItemsData, handleId, side)
+  if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end") {
+    return structurePort(
+      node.data as ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData | ReactFlowEndData,
+      handleId,
+      side,
+    )
+  }
   return undefined
 }
 
@@ -127,10 +138,13 @@ export function dataConnectionRefusal(
 
   const detachedRoots = new Set((manifest.detached ?? []).map((node) => node.id))
   const exempt = detachedNodeIds(manifest)
-  if (exempt.has(target) && !detachedRoots.has(target)) {
+  const targetOwner = loopIdFromEndNodeId(target) ?? target
+  if (exempt.has(targetOwner) && !detachedRoots.has(targetOwner)) {
     return CONNECTION_EDIT_NOT_STEP
   }
-  if (detachedRoots.has(target)) {
+  if (detachedRoots.has(targetOwner)) {
+    const root = (manifest.detached ?? []).find((node) => node.id === targetOwner)
+    if (!root || !isStepNode(root)) return CONNECTION_EDIT_NOT_STEP
     if (exempt.has(source)) return CONNECTION_EDIT_SOURCE_DETACHED
     if (findStepPlacement(manifest.steps, target)) {
       return !sourceVisibleTo(manifest, { nodeId: source, handleId: sourceHandle }, target)

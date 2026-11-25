@@ -264,4 +264,58 @@ describe("connectInputAndAttach", () => {
       }),
     )
   })
+
+  it("connects in place when the target is an attached if, parallel or loop end node", () => {
+    const before: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "A", uses: echo, input: { value: "a" }, as: "A" },
+        { type: "if", id: "gate", expression: "true", then: [{ id: "T", uses: echo, input: { value: "t" } }] },
+        {
+          type: "loop",
+          id: "lp",
+          maxRounds: 2,
+          steps: [{ id: "B", uses: echo, input: { value: "b" }, as: "B", mode: "replace" }],
+          end: { input: { repeat: false } },
+        },
+      ],
+    }
+    const intoIf = connectInputAndAttach(before, {
+      sourceNodeId: "A",
+      sourceHandle: "output",
+      targetStepId: "gate",
+      targetHandle: "note",
+    })
+    expect(intoIf.ok).toBe(true)
+    if (!intoIf.ok) return
+    expect((intoIf.manifest.steps[1] as { input?: unknown }).input).toEqual({ note: { $ref: "state.A" } })
+
+    const intoEnd = connectInputAndAttach(before, {
+      sourceNodeId: "B",
+      sourceHandle: "output",
+      targetStepId: loopEndNodeId("lp"),
+      targetHandle: "value",
+    })
+    expect(intoEnd.ok).toBe(true)
+    if (!intoEnd.ok) return
+    expect((intoEnd.manifest.steps[2] as { end: { input: { value?: unknown } } }).end.input.value).toEqual({
+      $ref: "state.B",
+    })
+  })
+
+  it("refuses an unknown target that is neither attached nor a detached root", () => {
+    const before: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "A", uses: echo, input: { value: "a" }, as: "A" }],
+    }
+    const result = connectInputAndAttach(before, {
+      sourceNodeId: "A",
+      sourceHandle: "output",
+      targetStepId: "missing",
+      targetHandle: "value",
+    })
+    expect(result).toEqual({ ok: false, reason: CONNECTION_EDIT_NOT_STEP })
+  })
 })

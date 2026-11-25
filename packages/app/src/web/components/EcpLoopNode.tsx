@@ -1,6 +1,6 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, type ReactFlowLoopItemsData } from "../../graph/index.js"
+import type { ReactFlowLoopItemsData } from "../../graph/index.js"
 import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
@@ -87,7 +87,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             nodeId={id}
             port={port}
             connected={port.binding === "ref" || targets.has(port.id)}
-            connectable={false}
+            connectable={dataConnectable}
           />
         ))}
         {node.outputs.map((port) => (
@@ -96,7 +96,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             nodeId={id}
             port={port}
             connected={sources.has(port.id)}
-            connectable={dataConnectable && (port.id === LOOP_ITEM_HANDLE || port.id === LOOP_INTO_HANDLE)}
+            connectable={dataConnectable}
           />
         ))}
       </div>

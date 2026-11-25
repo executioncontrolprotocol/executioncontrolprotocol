@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "vitest"
-import { openCanvasContextMenu } from "../../src/web/lib/canvas-context-menu.js"
+import { openCanvasContextMenu, type CanvasContextTarget } from "../../src/web/lib/canvas-context-menu.js"
 
 describe("openCanvasContextMenu", () => {
-  const targets = [
-    { kind: "pane" as const, expect: "none" as const },
-    { kind: "edge" as const, expect: "edge" as const },
-    { kind: "io" as const, expect: "none" as const },
-    { kind: "step" as const, stepId: "a", expect: "node" as const },
-    { kind: "loop" as const, structureId: "loop-1", expect: "container" as const },
-    { kind: "frame" as const, structureId: "if-1", expect: "container" as const },
+  const targets: Array<{ target: CanvasContextTarget; expect: "none" | "edge" | "node"; label: string }> = [
+    { label: "pane", target: { kind: "pane" }, expect: "none" },
+    { label: "edge", target: { kind: "edge" }, expect: "edge" },
+    { label: "io", target: { kind: "io" }, expect: "none" },
+    { label: "step", target: { kind: "node", nodeId: "a" }, expect: "node" },
+    { label: "start node", target: { kind: "node", nodeId: "if-1" }, expect: "node" },
+    { label: "end node", target: { kind: "node", nodeId: "end:loop-1" }, expect: "node" },
   ]
 
-  it.each(targets)("calls preventDefault and returns $expect for $kind", (target) => {
+  it.each(targets)("calls preventDefault and returns $expect for $label", ({ target, expect: expected }) => {
     const preventDefault = vi.fn()
     const kind = openCanvasContextMenu(target, { preventDefault })
     expect(preventDefault).toHaveBeenCalledOnce()
-    expect(kind).toBe(target.expect)
+    expect(kind).toBe(expected)
   })
 })

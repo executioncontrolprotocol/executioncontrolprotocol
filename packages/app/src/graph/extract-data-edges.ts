@@ -594,44 +594,14 @@ function pushReadEdge(
   })
 }
 
-function pushLoopDriverInputs(
-  ctx: ReadEdgeInput,
-  nodes: Node[],
-  loopById: Map<string, LoopScope>,
-  inputPortIdsByStepId?: ReadonlyMap<string, readonly string[]>,
-): void {
-  const walk = (list: Node[]): void => {
-    for (const node of list) {
-      if (node.type === "loop") {
-        const scope = loopById.get(node.id)
-        if (scope && node.input) {
-          const mode = scope.mode
-          const portIds = inputPortIdsByStepId?.get(scope.id)
-          for (const [key, value] of Object.entries(node.input)) {
-            walkInputRefs(value, key, (inputPath, refPath) => {
-              const targetHandle =
-                mode === "forEach" && key === "items"
-                  ? LOOP_ITEMS_HANDLE
-                  : mode === "for" && key === "count"
-                    ? LOOP_COUNT_HANDLE
-                    : resolveInputHandle(inputPath, portIds)
-              pushReadEdge(ctx, scope.id, refPath, targetHandle, false, scope.startOrder + 1, [])
-            })
-          }
-        }
-        walk(node.steps)
-      } else if (node.type === "if") {
-        walk(node.then)
-        if (node.else) walk(node.else)
-      } else if (node.type === "parallel") {
-        for (const path of node.paths) walk(path)
-      }
-    }
-  }
-  walk(nodes)
-}
+/**
+ * Which reads {@link pushStructureInputEdges} emits: loop drivers first, then every other structure input (the
+ * layout engine is sensitive to edge order, so the two passes keep the historic ordering).
+ */
+type StructureReadPhase = "loop-drivers" | "others"
 
 function pushStructureInputEdges(
+  phase: StructureReadPhase,
   ctx: ReadEdgeInput,
   nodes: Node[],
   loopById: Map<string, LoopScope>,
@@ -644,7 +614,7 @@ function pushStructureInputEdges(
       if (node.type === "if") {
         const ifScope = ifById.get(node.id)
         const asSeg = node.as ? { as: node.as } : {}
-        if (node.input && ifScope) {
+        if (phase === "others" && node.input && ifScope) {
           const portIds = inputPortIdsByStepId?.get(node.id)
           for (const [key, value] of Object.entries(node.input)) {
             walkInputRefs(value, key, (inputPath, refPath, paramKey) => {
@@ -667,7 +637,7 @@ function pushStructureInputEdges(
         if (node.else) walk(node.else, loopStack, [...scope, { kind: "if", id: node.id, side: "else", ...asSeg }])
       } else if (node.type === "parallel") {
         const parScope = parallelById.get(node.id)
-        if (node.input && parScope) {
+        if (phase === "others" && node.input && parScope) {
           const portIds = inputPortIdsByStepId?.get(node.id)
           for (const [key, value] of Object.entries(node.input)) {
             walkInputRefs(value, key, (inputPath, refPath, paramKey) => {
@@ -694,7 +664,32 @@ function pushStructureInputEdges(
         const loopScope = loopById.get(node.id)
         const endId = loopScope?.endNodeId
         const bodyStack = [...loopStack, node.id]
-        if (loopScope && endId && node.end?.input) {
+        if (phase === "loop-drivers" && loopScope && node.input) {
+          const portIds = inputPortIdsByStepId?.get(node.id)
+          for (const [key, value] of Object.entries(node.input)) {
+            walkInputRefs(value, key, (inputPath, refPath, paramKey) => {
+              const targetHandle =
+                loopScope.mode === "forEach" && key === "items"
+                  ? LOOP_ITEMS_HANDLE
+                  : loopScope.mode === "for" && key === "count"
+                    ? LOOP_COUNT_HANDLE
+                    : resolveInputHandle(inputPath, portIds)
+              pushReadEdge(
+                ctx,
+                node.id,
+                refPath,
+                targetHandle,
+                false,
+                loopScope.startOrder + 1,
+                loopStack,
+                inputPath,
+                paramKey,
+                scope,
+              )
+            })
+          }
+        }
+        if (phase === "others" && loopScope && endId && node.end?.input) {
           const portIds = inputPortIdsByStepId?.get(endId)
           for (const [key, value] of Object.entries(node.end.input)) {
             walkInputRefs(value, key, (inputPath, refPath, paramKey) => {
@@ -761,7 +756,7 @@ export function extractDataEdges(
       })
     }
   }
-  pushLoopDriverInputs(ctx, nodes, loopById, inputPortIdsByStepId)
-  pushStructureInputEdges(ctx, nodes, loopById, ifById, parallelById, inputPortIdsByStepId)
+  pushStructureInputEdges("loop-drivers", ctx, nodes, loopById, ifById, parallelById, inputPortIdsByStepId)
+  pushStructureInputEdges("others", ctx, nodes, loopById, ifById, parallelById, inputPortIdsByStepId)
   return ctx.edges
 }

@@ -12,6 +12,7 @@ import {
   type PositionOverrides,
   type ReactFlowDocument,
   deleteSelection,
+  isEndNodeSelection,
   isStructureHeaderSelection,
   type DeleteSelection,
   type RunGraphState,
@@ -22,12 +23,10 @@ import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionRetrieveHook, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useExecutionEditor } from "../hooks/useExecutionEditor.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
-import type { Node } from "@executioncontrolprotocol/protocol"
 import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
-import { StructurePanel } from "./StructurePanel.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
@@ -70,21 +69,6 @@ interface EncodedGraph {
 
 function sourceLabel(source: ExecutionSource): string {
   return source.kind === "path" ? source.path : source.id
-}
-
-function isIfOrParallel(nodes: Node[], id: string): boolean {
-  for (const node of nodes) {
-    if ((node.type === "if" || node.type === "parallel") && node.id === id) return true
-    if (node.type === "if") {
-      if (isIfOrParallel(node.then, id)) return true
-      if (node.else && isIfOrParallel(node.else, id)) return true
-    } else if (node.type === "parallel") {
-      for (const path of node.paths) if (isIfOrParallel(path, id)) return true
-    } else if (node.type === "loop") {
-      if (isIfOrParallel(node.steps, id)) return true
-    }
-  }
-  return false
 }
 
 /**
@@ -198,6 +182,9 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             }
             if (selectedId && isStructureHeaderSelection(workingManifest, selectedId)) {
               return { kind: "structure", structureId: selectedId }
+            }
+            if (selectedId && isEndNodeSelection(workingManifest, selectedId)) {
+              return { kind: "end", endNodeId: selectedId }
             }
             return { kind: "none" }
           })()
@@ -356,10 +343,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
-  const structurePanelId =
-    selectedId && workingManifest && !selectedNode && isIfOrParallel(workingManifest.steps, selectedId)
-      ? selectedId
-      : undefined
   const title = workingManifest?.execution?.label ?? workingManifest?.execution?.id ?? sourceLabel(source)
   const valid = validation?.valid
   const saveStatusLabel =
@@ -518,9 +501,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 </p>
               ) : null}
               {selectedEdgeRecord ? (
-                <EdgePanel manifest={workingManifest} edge={selectedEdgeRecord} />
-              ) : structurePanelId ? (
-                <StructurePanel manifest={workingManifest} structureId={structurePanelId} />
+                <EdgePanel
+                  manifest={workingManifest}
+                  edge={selectedEdgeRecord}
+                  readOnly={readOnly}
+                  applyManifestEdit={applyManifestEdit}
+                  onDeleted={() => setSelectedEdge(undefined)}
+                />
               ) : (
                 <NodePanel
                   client={client}
@@ -540,6 +527,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   scheduleTextEdit={editor.scheduleText}
                   flushTextEdit={editor.flushText}
                   fieldEpoch={editor.fieldEpoch}
+                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
                 />
               )}
               </>

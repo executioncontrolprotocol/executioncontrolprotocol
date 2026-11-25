@@ -237,7 +237,10 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
 
 function endReactFlowNode(node: LoopNode): ReactFlowNode {
   const mode = loopMode(node)
-  const inputs: ReactFlowPort[] = [{ id: "value", name: "value", typeLabel: "unknown" }]
+  const accepted = portsFromJsonSchemaObject(node.end?.accepts)
+  const inputs: ReactFlowPort[] = accepted.some((port) => port.id === "value")
+    ? accepted
+    : [{ id: "value", name: "value", typeLabel: "unknown" }, ...accepted]
   if (mode === "while") {
     inputs.push({ id: END_REPEAT_HANDLE, name: "repeat", typeLabel: "boolean" })
   }

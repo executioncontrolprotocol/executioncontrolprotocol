@@ -81,8 +81,115 @@ test.describe("Containers and menus", () => {
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
     await page.getByTestId("ecp-if-if-1").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-delete").click()
-    await page.getByTestId("canvas-menu-item-delete-keep-steps").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+  })
+
+  test("delete with its nodes removes the if and what is inside it", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-pick").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-delete-with-nodes").click()
+    await expect
+      .poll(() => {
+        const text = readFileSync(branchLoopPath, "utf8")
+        return !text.includes('"id": "pick"') && !text.includes('"id": "expanded"') && !text.includes('"id": "compact"')
+      })
+      .toBe(true)
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+  })
+
+  test("wrap a step in an if, edit its expression, then undo and redo", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-step-Seed").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-wrap").click()
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await page.getByTestId("ecp-if-if-1").click()
+    const condition = page.getByTestId("if-condition-text")
+    await expect(condition).toBeVisible()
+    await condition.fill("input.go === 1")
+    await condition.blur()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"expression": "input.go === 1"')
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toContain("input.go === 1")
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"expression": "input.go === 1"')
+  })
+
+  test("the condition switches between expression and script", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-pick").click()
+    await page.getByTestId("if-condition-form-script").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"source": "return input.expand === true"')
+    const pickNode = () =>
+      (JSON.parse(readFileSync(branchLoopPath, "utf8")) as { steps: Array<{ id?: string; expression?: string }> }).steps.find(
+        (node) => node.id === "pick",
+      )
+    expect(pickNode()?.expression).toBeUndefined()
+    await page.getByTestId("if-condition-form-expression").click()
+    await expect.poll(() => pickNode()?.expression).toBe("input.expand === true")
+  })
+
+  test("add node in else from the start node menu creates the else side", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-gated-gate").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-add-else").click()
+    await page.getByTestId("capability-menu-search").fill("echo")
+    await page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo").click()
+    await expect
+      .poll(() => {
+        const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
+          steps: Array<{ id?: string; else?: Array<{ uses?: string }> }>
+        }
+        return parsed.steps.find((node) => node.id === "gated-gate")?.else?.[0]?.uses
+      })
+      .toBe("@executioncontrolprotocol/test.echo")
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(originalText)
+  })
+
+  test("the end node menu has Configure and a disabled Delete with the reason", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-end-end:retry").click({ button: "right" })
+    await expect(page.getByTestId("canvas-menu-item-configure")).toBeVisible()
+    const remove = page.getByTestId("canvas-menu-item-delete")
+    await expect(remove).toBeDisabled()
+    await expect(remove).toHaveAttribute("title", "Delete the loop instead")
+    await expect(page.getByTestId("canvas-menu-item-wrap")).toHaveCount(0)
+    await page.getByTestId("canvas-menu-item-configure").click()
+    await expect(page.getByTestId("node-panel")).toHaveAttribute("data-node-kind", "end")
+  })
+
+  test("changing the loop mode rewrites the fields and the file validates", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-loop-retry").click()
+    await page.getByTestId("loop-field-mode").selectOption("for")
+    await expect
+      .poll(() => {
+        const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
+          steps: Array<{ id?: string; mode?: string; maxRounds?: number; input?: { count?: number } }>
+        }
+        const retry = parsed.steps.find((node) => node.id === "retry")
+        return retry?.mode === "for" && retry.maxRounds === undefined && retry.input?.count === 1
+      })
+      .toBe(true)
+    await expect(page.getByTestId("validation-status")).toHaveAttribute("data-valid", "true", { timeout: 15_000 })
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "for"')
+  })
+
+  test("a container is not an object: no menu on its frame, only the add-node menu", async ({ page }) => {
+    await open(page, branchLoopPath)
+    const frame = page.getByTestId("ecp-frame-pick")
+    const box = await frame.boundingBox()
+    if (!box) throw new Error("missing frame")
+    await page.mouse.click(box.x + 6, box.y + box.height - 6, { button: "right" })
+    await expect(page.getByTestId("canvas-menu")).toHaveCount(0)
+    await expect(page.getByTestId("capability-menu")).toBeVisible()
   })
 
   test("delete step removes it from disk", async ({ page }) => {

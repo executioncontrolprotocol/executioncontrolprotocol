@@ -113,7 +113,7 @@ test.describe("Capability menu", () => {
     await expect(page.getByTestId("capability-menu")).toHaveCount(0)
   })
 
-  test("container Add to then inserts a step", async ({ page }) => {
+  test("start node Add node in then inserts a step first", async ({ page }) => {
     await open(page, branchPath)
     await page.getByTestId("ecp-if-pick").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-add-then").click()
@@ -125,11 +125,11 @@ test.describe("Capability menu", () => {
     }
     const ifNode = parsed.steps[0]!
     expect(ifNode.type).toBe("if")
-    expect(ifNode.then?.some((step) => step.uses === "@executioncontrolprotocol/test.echo")).toBe(true)
+    expect(ifNode.then?.[0]?.uses).toBe("@executioncontrolprotocol/test.echo")
   })
 
 
-  test("loop Add step appends with mode replace and stays valid", async ({ page }) => {
+  test("loop Add node in the loop inserts first with mode replace and stays valid", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-loop-retry").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-add-step").click()
@@ -140,9 +140,9 @@ test.describe("Capability menu", () => {
     }
     const retry = parsed.steps.find((node) => node.id === "retry")
     expect(retry?.steps).toHaveLength(2)
-    const added = retry?.steps?.[1]
+    const added = retry?.steps?.[0]
     expect(added).toMatchObject({ uses: "@executioncontrolprotocol/test.echo", mode: "replace" })
-    expect(retry?.steps?.[0]?.id).toBe("tick")
+    expect(retry?.steps?.[1]?.id).toBe("tick")
     await expect(page.getByTestId("validation-status")).toHaveAttribute("data-valid", "true", { timeout: 15_000 })
   })
 

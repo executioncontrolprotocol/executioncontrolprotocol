@@ -8,6 +8,12 @@ pre-realignment App (`legacy/packages/app`, deleted in `8fd1f4c7`; read it with
 `git show 8fd1f4c7^:legacy/packages/app/<path>`) showed canvas editing that the realigned App doesn't
 have yet. This plan brings those features back on the v2 manifest and the host API.
 
+**Superseded in part:** [`graph-model.md`](graph-model.md) replaces the route-edge model this plan was
+written for. D2 (a branch arm is the edge), D3 (containers with a header menu), D3a (container and
+edge right-click) and the [Deleting connections](#deleting-connections) table are superseded: the model
+is nodes and branches, containers are visual only, and Delete follows `graph-model.md` and
+`spec/11-app.md`. The other decisions stand.
+
 **Scope change:** spec 11 says the App is "view and run; expression editing on graph edges is in
 scope", and `REALIGNMENT-PLAN.md` § Later lists "App editing: canvas edits written through `commit`
 and patches". This plan moves the canvas edits below into scope. Spec 11 and the plan are updated in
@@ -18,8 +24,8 @@ phase 0, before any code.
 | # | Decision |
 | --- | --- |
 | D1 | **Deleting a connection removes the connector, never a node.** The connector disappears entirely; it doesn't just lose its condition or expression. Nodes it connected stay on the canvas and in the file, now disconnected, and the execution is invalid until they're reconnected. See [Deleting connections](#deleting-connections). |
-| D2 | **A branch arm is the edge.** A branch has no node of its own. Each connector shows at most one pill (branch-arm labels only; nested labels join with ` › `). Conditions are edited in the right-hand panel (one Branch section per arm on that connector). The pill or edge path selects the connector; one ⋯ menu per connector opens Configure / Delete. |
-| D3 | **Every structure is a container.** Branches, parallels and loops of every mode get the same frame `forEach` has today, with the structure's label and a ⋯ menu (Configure, Delete) on the frame header. Wrapping steps in a branch / parallel / loop creates that container. |
+| D2 | **Superseded by `graph-model.md`.** ~~**A branch arm is the edge.** A branch has no node of its own. Each connector shows at most one pill (branch-arm labels only; nested labels join with ` › `). Conditions are edited in the right-hand panel (one Branch section per arm on that connector). The pill or edge path selects the connector; one ⋯ menu per connector opens Configure / Delete.~~ |
+| D3 | **Superseded by `graph-model.md` (containers are visual only; the start node carries the menu).** ~~**Every structure is a container.** Branches, parallels and loops of every mode get the same frame `forEach` has today, with the structure's label and a ⋯ menu (Configure, Delete) on the frame header. Wrapping steps in a branch / parallel / loop creates that container.~~ |
 | D3a | **The App owns right-click.** Right-click never shows the browser menu anywhere on the canvas: on empty canvas it opens the capability menu, on a container its ⋯ menu, on an edge its ⋯ menu, on a node the node menu. Wrap is only in the node menu. |
 | D4 | **The right-hand panel is where things are configured.** Menus only pick an action; Configure opens the panel. No modal configure dialogs (legacy had `RouteConfigureDialog` / `StepConfigureDialog`). |
 | D5 | **One capability picker.** Right-clicking the canvas and dropping a connection on empty canvas open the same searchable capability menu at the cursor. |
@@ -32,6 +38,10 @@ phase 0, before any code.
 | D11 | **Positions live in the UI only.** Dragged positions are kept in the browser, not in the manifest, for now. |
 
 ## Deleting connections
+
+> **Superseded by [`graph-model.md`](graph-model.md).** Delete on a branch removes the `$ref`; Delete on a
+> start node splices its nodes into the parent; `end` is not deletable alone. The table below is the
+> route-edge model and is kept for history only.
 
 Delete on a connector removes that connector. Nothing it connected is deleted; a node left without
 its connection is **disconnected**: drawn where it was, saved in the file, and reported by

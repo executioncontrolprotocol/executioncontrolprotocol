@@ -76,6 +76,28 @@ test.describe("Delete key", () => {
     await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"id": "compact"')).toBe(true)
   })
 
+  test("Delete on an if keeps its nodes and undo restores the if", async ({ page }) => {
+    await open(page)
+    const before = readFileSync(branchLoopPath, "utf8")
+    await page.getByTestId("ecp-if-pick").click()
+    await page.keyboard.press("Delete")
+    await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"id": "pick"')).toBe(true)
+    await expect(page.getByTestId("ecp-step-expanded")).toBeVisible()
+    await expect(page.getByTestId("ecp-step-compact")).toBeVisible()
+    await page.keyboard.press(`${mod}+KeyZ`)
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(before)
+  })
+
+  test("Delete on a selected branch removes the reference", async ({ page }) => {
+    await open(page)
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await edge.click({ force: true })
+    const before = readFileSync(branchLoopPath, "utf8")
+    await page.keyboard.press("Delete")
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(before)
+    await expect(page.locator(".react-flow__edge.ecp-rf-edge--selected")).toHaveCount(0)
+  })
+
   test("Delete does not remove loop end nodes", async ({ page }) => {
     await open(page)
     await page.getByTestId("ecp-end-end:retry").click()
@@ -83,6 +105,7 @@ test.describe("Delete key", () => {
     await page.keyboard.press("Delete")
     expect(readFileSync(branchLoopPath, "utf8")).toBe(before)
     await expect(page.getByTestId("ecp-end-end:retry")).toBeVisible()
+    await expect(page.getByTestId("structure-edit-error")).toContainText("Delete the loop instead")
   })
 
   test("read-only replay ignores Delete", async ({ page }) => {

@@ -6,7 +6,6 @@ import type {
   ParallelNode,
   StepNode,
 } from "@executioncontrolprotocol/protocol"
-import { acceptsPropertyKeys } from "./io-from-schema.js"
 import { isStepNode } from "./io-from-schema.js"
 import {
   cloneManifest,
@@ -16,19 +15,26 @@ import {
   isStructureNode,
   manifestDetached,
   nodeContainsId,
+  STATE_KEY_PATTERN,
+  takenStateKeys,
 } from "./manifest-walk.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
-import { LOOP_ITEM_HANDLE } from "./types.js"
+import {
+  IF_ELSE_HANDLE,
+  IF_THEN_HANDLE,
+  LOOP_INDEX_HANDLE,
+  LOOP_ITEM_HANDLE,
+  PARALLEL_PATH_HANDLE_PREFIX,
+  loopIdFromEndNodeId,
+} from "./types.js"
 import { STRUCTURE_EDIT_STEP_NOT_FOUND, STRUCTURE_EDIT_STRUCTURE_NOT_FOUND } from "./structure-edit.js"
 
 /** Node id pattern from execution.base.schema.json: `^[A-Za-z][A-Za-z0-9_-]{0,63}$`. */
 const NODE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 
-/** Step `as` pattern from execution.base.schema.json: `^[A-Za-z_][A-Za-z0-9_]*$`. */
-const AS_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
-
 /**
- * Where to insert a newly added capability step.
+ * Where to insert a newly added capability step. `loop-body`, `then-side`, `else-side` and `path-side` insert at the start
+ * of that list; `new-path` appends a path holding the step.
  * @category App
  */
 export type AddStepPlacement =
@@ -36,6 +42,7 @@ export type AddStepPlacement =
   | { kind: "loop-body"; loopId: string }
   | { kind: "then-side"; ifId: string }
   | { kind: "else-side"; ifId: string }
+  | { kind: "path-side"; parallelId: string; pathIndex: number }
   | { kind: "new-path"; parallelId: string }
   | { kind: "before" | "after"; nodeId: string }
 
@@ -50,34 +57,6 @@ export type AddStepResult =
 
 
 
-
-function collectStepAs(nodes: readonly Node[], out: Set<string>): void {
-  for (const node of nodes) {
-    if (isStepNode(node)) {
-      if (typeof node.as === "string") out.add(node.as)
-      continue
-    }
-    if (node.type === "loop") {
-      if (typeof node.as === "string") out.add(node.as)
-      if (typeof node.into === "string") out.add(node.into)
-      collectStepAs(node.steps, out)
-    } else if (node.type === "if") {
-      collectStepAs(node.then, out)
-      if (node.else) collectStepAs(node.else, out)
-    } else if (node.type === "parallel") {
-      for (const path of node.paths) collectStepAs(path, out)
-    }
-  }
-}
-
-function allTakenAs(manifest: ExecutionManifest): Set<string> {
-  const names = new Set<string>()
-  collectStepAs(manifest.steps, names)
-  const detached = manifestDetached(manifest)
-  if (detached) collectStepAs(detached, names)
-  for (const key of acceptsPropertyKeys(manifest)) names.add(key)
-  return names
-}
 
 function shortNameFromCapability(id: string): string {
   const dot = id.lastIndexOf(".")
@@ -122,7 +101,7 @@ function uniqueNodeId(stem: string, taken: Set<string>): string {
  */
 export function allocateAsName(manifest: ExecutionManifest, capabilityId: string): string {
   const idStem = idStemFromShort(shortNameFromCapability(capabilityId))
-  return uniqueAsName(asStemFromIdStem(idStem), allTakenAs(manifest))
+  return uniqueAsName(asStemFromIdStem(idStem), takenStateKeys(manifest))
 }
 
 function uniqueAsName(stem: string, taken: Set<string>): string {
@@ -130,7 +109,7 @@ function uniqueAsName(stem: string, taken: Set<string>): string {
   for (;;) {
     const suffix = n === 1 ? "" : String(n)
     const candidate = stem + suffix
-    if (AS_PATTERN.test(candidate) && !taken.has(candidate)) return candidate
+    if (STATE_KEY_PATTERN.test(candidate) && !taken.has(candidate)) return candidate
     n += 1
   }
 }
@@ -177,7 +156,7 @@ function placementNeedsReplaceMode(manifest: ExecutionManifest, placement: AddSt
     if (detached && isEnclosedInWhileOrForBody(detached, ifId, false)) return true
     return false
   }
-  if (placement.kind === "new-path") {
+  if (placement.kind === "new-path" || placement.kind === "path-side") {
     if (isEnclosedInWhileOrForBody(manifest.steps, placement.parallelId, false)) return true
     const detached = manifestDetached(manifest)
     if (detached && isEnclosedInWhileOrForBody(detached, placement.parallelId, false)) return true
@@ -205,13 +184,29 @@ export function placementForConnectionOrigin(
     if (!first) return { kind: "top" }
     return { kind: "before", nodeId: first.id }
   }
-  const loop = findStructure(manifest, origin.nodeId)
-  if (loop?.type === "loop") {
-    if (origin.handleId === LOOP_ITEM_HANDLE) {
-      const first = loop.steps[0]
+  const structure = findStructure(manifest, origin.nodeId)
+  if (structure && origin.side === "output") {
+    if (structure.type === "if") {
+      if (origin.handleId === IF_THEN_HANDLE) return { kind: "then-side", ifId: structure.id }
+      if (origin.handleId === IF_ELSE_HANDLE) return { kind: "else-side", ifId: structure.id }
+    } else if (structure.type === "parallel" && origin.handleId.startsWith(PARALLEL_PATH_HANDLE_PREFIX)) {
+      const pathIndex = Number.parseInt(origin.handleId.slice(PARALLEL_PATH_HANDLE_PREFIX.length), 10) - 1
+      if (Number.isInteger(pathIndex) && pathIndex >= 0 && pathIndex < structure.paths.length) {
+        return { kind: "path-side", parallelId: structure.id, pathIndex }
+      }
+    } else if (structure.type === "loop" && (origin.handleId === LOOP_ITEM_HANDLE || origin.handleId === LOOP_INDEX_HANDLE)) {
+      const first = structure.steps[0]
       if (first) return { kind: "before", nodeId: first.id }
-      return { kind: "loop-body", loopId: loop.id }
+      return { kind: "loop-body", loopId: structure.id }
     }
+  }
+  const endLoopId = loopIdFromEndNodeId(origin.nodeId)
+  const endOf = endLoopId ? findStructure(manifest, endLoopId) : undefined
+  if (endOf?.type === "loop") {
+    if (origin.side === "output") return { kind: "after", nodeId: endOf.id }
+    const last = endOf.steps[endOf.steps.length - 1]
+    if (last) return { kind: "after", nodeId: last.id }
+    return { kind: "loop-body", loopId: endOf.id }
   }
   if (origin.side === "output") return { kind: "after", nodeId: origin.nodeId }
   return { kind: "before", nodeId: origin.nodeId }
@@ -278,7 +273,7 @@ export function addCapabilityStep(
   if (placement.kind === "loop-body") {
     const loop = findStructure(next, placement.loopId)
     if (!loop || loop.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-    loop.steps.push(step)
+    loop.steps.unshift(step)
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }
@@ -287,7 +282,7 @@ export function addCapabilityStep(
   if (placement.kind === "then-side") {
     const ifNode = findStructure(next, placement.ifId)
     if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-    ifNode.then.push(step)
+    ifNode.then.unshift(step)
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }
@@ -296,7 +291,18 @@ export function addCapabilityStep(
   if (placement.kind === "else-side") {
     const ifNode = findStructure(next, placement.ifId)
     if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-    ifNode.else = [...(ifNode.else ?? []), step]
+    ifNode.else = [step, ...(ifNode.else ?? [])]
+    const finalized = finalizeManifest(next)
+    if (!finalized.ok) return finalized
+    return { ok: true, manifest: finalized.manifest, stepId: step.id }
+  }
+
+  if (placement.kind === "path-side") {
+    const parallel = findStructure(next, placement.parallelId)
+    if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    const path = parallel.paths[placement.pathIndex]
+    if (!path) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    path.unshift(step)
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }

@@ -107,4 +107,35 @@ test.describe("Connections and edge menus", () => {
     await page.getByTestId("canvas-menu-item-wrap").hover()
     await expect(page.getByTestId("canvas-menu-item-wrap-if")).toBeVisible()
   })
+
+  test("a loop mode change from the panel is one undo step", async ({ page }) => {
+    await open(page, branchLoopPath)
+    const before = readFileSync(branchLoopPath, "utf8")
+    await page.getByTestId("ecp-loop-retry").click()
+    await page.getByTestId("loop-field-mode").selectOption("forEach")
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "forEach"')
+    const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
+      steps: Array<{ id?: string; as?: string; into?: string; maxRounds?: number }>
+    }
+    const retry = parsed.steps.find((node) => node.id === "retry")
+    expect(retry?.as).toBeTruthy()
+    expect(retry?.into).toBeTruthy()
+    expect(retry?.maxRounds).toBeUndefined()
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(before)
+  })
+
+  test("the if panel binds an input and a branch appears", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-pick").click()
+    await page.getByTestId("if-inputs-new-key").fill("who")
+    await page.getByTestId("if-inputs-add").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"who": ""')
+    const mode = page.getByTestId("if-inputs-who-mode")
+    await mode.selectOption("ref")
+    const value = page.getByTestId("if-inputs-who-value")
+    await value.fill("state.message")
+    await value.blur()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"$ref": "state.message"')
+  })
 })

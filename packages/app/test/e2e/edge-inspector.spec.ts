@@ -48,4 +48,30 @@ test.describe("Edge inspector", () => {
       return step !== undefined && !("seed" in (step.input ?? {}))
     }, { timeout: 15_000 }).toBe(true)
   })
+
+  test("selecting a branch shows its ports and a Delete button, nothing else", async ({ page }) => {
+    await open(page)
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await edge.click({ force: true })
+    const panel = page.getByTestId("edge-panel")
+    await expect(panel).toBeVisible()
+    await expect(page.getByTestId("edge-source-port")).toContainText("/")
+    await expect(page.getByTestId("edge-target-port")).toContainText("/")
+    await expect(page.getByTestId("edge-delete")).toBeEnabled()
+    await expect(panel.locator("textarea, input, select")).toHaveCount(0)
+  })
+
+  test("the Delete button removes the reference and undo restores it", async ({ page }) => {
+    await open(page)
+    const before = readFileSync(manifestPath, "utf8")
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await edge.click({ force: true })
+    await page.getByTestId("edge-delete").click()
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).not.toBe(before)
+    await expect(page.getByTestId("edge-panel")).toHaveCount(0)
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => JSON.stringify(JSON.parse(readFileSync(manifestPath, "utf8")))).toBe(
+      JSON.stringify(JSON.parse(before)),
+    )
+  })
 })

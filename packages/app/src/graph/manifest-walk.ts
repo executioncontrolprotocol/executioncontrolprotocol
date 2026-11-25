@@ -1,5 +1,5 @@
 import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
-import { isStepNode } from "./io-from-schema.js"
+import { acceptsPropertyKeys, isStepNode } from "./io-from-schema.js"
 import { STRUCTURE_EDIT_EMPTY_STEPS, type StructureEditResult } from "./structure-edit.js"
 
 /*
@@ -150,6 +150,64 @@ export function allNodeIds(manifest: ExecutionManifest): Set<string> {
   const detached = manifestDetached(manifest)
   if (detached) collectAllNodeIds(detached, ids)
   return ids
+}
+
+/** @internal */
+export function locateNode(manifest: ExecutionManifest, id: string): NodePlacement | undefined {
+  const hit = findNodePlacement(manifest.steps, id)
+  if (hit) return hit
+  const detached = manifestDetached(manifest)
+  return detached ? findNodePlacement(detached, id) : undefined
+}
+
+function collectStateKeys(nodes: readonly Node[], out: Set<string>): void {
+  for (const node of nodes) {
+    if (isStepNode(node)) {
+      if (typeof node.as === "string") out.add(node.as)
+      continue
+    }
+    if (typeof node.as === "string") out.add(node.as)
+    if (node.type === "loop") {
+      if (typeof node.as === "string" && node.mode === "forEach") out.add(`${node.as}Index`)
+      if (typeof node.into === "string") out.add(node.into)
+      collectStateKeys(node.steps, out)
+    } else if (node.type === "if") {
+      collectStateKeys(node.then, out)
+      if (node.else) collectStateKeys(node.else, out)
+    } else if (node.type === "parallel") {
+      for (const path of node.paths) collectStateKeys(path, out)
+    }
+  }
+}
+
+/** Every state key already named in the manifest: step and structure `as`, loop `into` / `<as>Index`, execution inputs. @internal */
+export function takenStateKeys(manifest: ExecutionManifest): Set<string> {
+  const names = new Set<string>()
+  collectStateKeys(manifest.steps, names)
+  const detached = manifestDetached(manifest)
+  if (detached) collectStateKeys(detached, names)
+  for (const key of acceptsPropertyKeys(manifest)) names.add(key)
+  return names
+}
+
+/** State key pattern from execution.base.schema.json: `^[A-Za-z_][A-Za-z0-9_]*$`. @internal */
+export const STATE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+/** First name `stem`, `stem2`, `stem3`, … that no state key in the manifest uses. @internal */
+export function freeStateKey(manifest: ExecutionManifest, stem: string): string {
+  const taken = takenStateKeys(manifest)
+  const base = STATE_KEY_PATTERN.test(stem) ? stem : `n_${stem.replace(/[^A-Za-z0-9_]/g, "_")}`
+  let n = 1
+  for (;;) {
+    const candidate = n === 1 ? base : `${base}${n}`
+    if (STATE_KEY_PATTERN.test(candidate) && !taken.has(candidate)) return candidate
+    n += 1
+  }
+}
+
+/** State key derived from a node id (`by-tier` becomes `by_tier`), unique in the manifest. @internal */
+export function freeStateKeyForId(manifest: ExecutionManifest, nodeId: string): string {
+  return freeStateKey(manifest, nodeId.replace(/-/g, "_"))
 }
 
 /** @internal */

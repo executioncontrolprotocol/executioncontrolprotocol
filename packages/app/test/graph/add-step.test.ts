@@ -82,7 +82,7 @@ describe("addCapabilityStep", () => {
     expect(ids.indexOf("a")).toBeLessThan(ids.indexOf("echo"))
   })
 
-  it("appends to loop body with mode replace", () => {
+  it("inserts at the start of the loop body with mode replace", () => {
     const base = load("loop.ecp.json")
     const result = addCapabilityStep(base, { id: echo }, { kind: "loop-body", loopId: "refine" })
     expect(result.ok).toBe(true)
@@ -90,7 +90,7 @@ describe("addCapabilityStep", () => {
     const loop = result.manifest.steps.find((node) => node.id === "refine")
     expect(loop?.type).toBe("loop")
     if (loop?.type !== "loop") return
-    const added = loop.steps.at(-1)
+    const added = loop.steps[0]
     stepShape(added)
     expect(added).toMatchObject({ mode: "replace" })
   })
@@ -102,7 +102,7 @@ describe("addCapabilityStep", () => {
     if (!result.ok) return
     const loop = result.manifest.steps.find((node) => node.id === "rows")
     if (loop?.type !== "loop") return
-    const added = loop.steps.at(-1) as StepNode
+    const added = loop.steps[0] as StepNode
     expect(added.mode).toBeUndefined()
   })
 
@@ -191,7 +191,7 @@ describe("addCapabilityStep", () => {
     if (!loopBody.ok) return
     const loop = loopBody.manifest.steps.find((node) => node.id === "rows")
     if (loop?.type !== "loop") return
-    const added = loop.steps.at(-1) as StepNode
+    const added = loop.steps[0] as StepNode
     expect(added.as).not.toBe("row")
     expect(added.as).not.toBe("results")
   })

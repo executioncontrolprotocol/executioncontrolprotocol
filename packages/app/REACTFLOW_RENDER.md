@@ -24,10 +24,12 @@ The encoder is pure: it takes a v2 execution manifest and optional capability sc
 - **`if`** (`ecp-if`): input ports from `accepts`; output ports `then` and `else`.
 - **`parallel`** (`ecp-parallel`): optional shared inputs; output ports `path 1`, `path 2`, …
 - **`loop`** (`ecp-loop`): `items` / `count` inputs; `item` / `index` outputs as mode requires.
-- **`end`** (`ecp-end`, id `end:<loopId>`): body inputs including `value` and `repeat` (`while`);
-  output `results`.
-- **Frames** (`ecp-frame`): visual containers with **bands** (no label or menu). The start node is
-  pinned on the left stroke; loop `end` on the right. Band sub-clusters drive dagre layout.
+- **`end`** (`ecp-end`, id `end:<loopId>`): input ports from `end.accepts` plus `value` and `repeat`
+  (`while`); output `results`.
+- **Frames** (`ecp-frame`): visual containers with **bands**. Drawn only (`pointerEvents: none`):
+  never selected, configured, right-clicked as an object, or connected to; no label or menu. The
+  start node is pinned on the left edge; loop `end` on the right. Band sub-clusters drive dagre
+  layout, which is sensitive to edge insertion order (loop driver edges are emitted first).
 
 ## Run overlay
 
@@ -37,6 +39,18 @@ The encoder is pure: it takes a v2 execution manifest and optional capability sc
 
 ## Editing
 
-- Delete on a selected **branch** removes the `$ref` on the target input.
-- Delete on an **`if` / `parallel` / `loop` start** unwraps and splices body nodes; **`end` is not deletable**.
-- Wrap in **`if`**, **`parallel`** (multi-select), or **`loop`** (`while` shell with `maxRounds: 1`).
+The model is nodes and branches; see `realignment/graph-model.md`.
+
+- A **branch** is one output port to one input port, stored as a `$ref` in the target node's `input`
+  (step, `if`, `parallel`, loop driver, `end`). Delete on a selected branch (key, menu or edge panel
+  button) removes the `$ref`.
+- Delete on an **`if` / `parallel` / `loop` start** removes it and splices its nodes into the parent
+  (`then` before `else`, paths in order, loop body); "Delete with its nodes" removes them too.
+  Delete on **`end`** does nothing and reports "Delete the loop instead".
+- Dropping a branch on a side port, path port or `end` `results` sets `as` / `into` on the owning node
+  when missing; the drop is refused when types don't fit or the reader would run before the writer.
+- Wrap in **`if`**, **`parallel`** (two or more siblings, one per path), or **`loop`** (`while` shell
+  with `maxRounds: 1`).
+- Panels: `if` (condition as expression or script), `parallel` (read-only paths, Add path), `loop`
+  (mode, driver, `as`, `into`, ...), `end` (accepts, input bindings, gather, returns). All edits are
+  pure functions in `src/graph/panel-edit.ts` and `structure-edit.ts`.

@@ -23,7 +23,9 @@ import {
   deleteConnector,
   deleteStep,
   isDataHandle,
+  isStructureHeaderSelection,
   isValidDataConnection,
+  placementAtFlowPoint,
   placementForConnectionOrigin,
   portOnDocument,
   removeStructure,
@@ -51,7 +53,6 @@ import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
-import { FrameActionsContext, type FrameActionsContextValue } from "./frame-actions-context.js"
 import { EcpEndNode } from "./EcpEndNode.js"
 import { EcpIfNode } from "./EcpIfNode.js"
 import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
@@ -160,6 +161,10 @@ function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | und
   return { kind: "top", after: selectedId }
 }
 
+function findStepNode(document: ReactFlowDocument, nodeId: string): boolean {
+  return document.nodes.some((node) => node.id === nodeId && node.type === "ecp-step")
+}
+
 function stepStatus(run: RunGraphState, id: string): ReactFlowStepStatus | undefined {
   const step = run.steps[id]
   if (step) return step.status
@@ -180,20 +185,6 @@ function connectedHandles(document: ReactFlowDocument): {
   return { targets, sources }
 }
 
-function structureIdFromSelection(
-  document: ReactFlowDocument,
-  selectedId: string | undefined,
-): string | undefined {
-  if (!selectedId) return undefined
-  const frame = document.nodes.find(
-    (node) => node.type === "ecp-frame" && (node.data as ReactFlowFrameData).structureId === selectedId,
-  )
-  if (frame) return selectedId
-  const loop = document.nodes.find((node) => node.type === "ecp-loop" && node.id === selectedId)
-  if (loop) return selectedId
-  return undefined
-}
-
 function ifBandByStepId(document: ReactFlowDocument): Map<string, { ifId: string; band: "then" | "else" }> {
   const out = new Map<string, { ifId: string; band: "then" | "else" }>()
   for (const node of document.nodes) {
@@ -207,23 +198,6 @@ function ifBandByStepId(document: ReactFlowDocument): Map<string, { ifId: string
     }
   }
   return out
-}
-
-function frameAtFlowPoint(document: ReactFlowDocument, point: { x: number; y: number }): ReactFlowNode | undefined {
-  const hit = document.nodes
-    .filter((node) => node.type === "ecp-frame")
-    .filter((frame) => {
-      const w = frame.style?.width ?? 0
-      const h = frame.style?.height ?? 0
-      return (
-        point.x >= frame.position.x &&
-        point.y >= frame.position.y &&
-        point.x <= frame.position.x + w &&
-        point.y <= frame.position.y + h
-      )
-    })
-    .sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0))
-  return hit[0]
 }
 
 function buildNodes(
@@ -322,7 +296,7 @@ function buildNodes(
     const stepSelected = node.type === "ecp-step" && selectedStepIds.includes(node.id)
     const structureSelected =
       selectedId === node.id &&
-      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel")
+      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end")
     return {
       id: node.id,
       type: node.type,
@@ -492,7 +466,6 @@ function GraphCanvasBody({
   const screenToFlowRef = useRef<
     ((position: { x: number; y: number }) => { x: number; y: number }) | undefined
   >(undefined)
-  const selectedStructureId = useMemo(() => structureIdFromSelection(document, selectedId), [document, selectedId])
   const [nodes, setNodes] = useState<Node[]>(built)
 
   useEffect(() => {
@@ -535,29 +508,6 @@ function GraphCanvasBody({
   )
 
   const closeMenu = useCallback(() => setMenu(undefined), [])
-
-  const frameActions = useMemo<FrameActionsContextValue>(
-    () => ({
-      selectedStructureId,
-      onHeaderClick: (structureId) => {
-        onSelectEdge(undefined)
-        onSelectSteps([])
-        onSelect(structureId)
-      },
-      onOpenMenu: (structureId, clientX, clientY) => {
-        setMenu({ kind: "container", structureId, clientX, clientY })
-      },
-    }),
-    [onSelect, onSelectEdge, onSelectSteps, selectedStructureId],
-  )
-
-  const openContainerMenu = useCallback(
-    (structureId: string, clientX: number, clientY: number) => {
-      openCanvasContextMenu({ kind: "frame", structureId }, { preventDefault: () => {} })
-      setMenu({ kind: "container", structureId, clientX, clientY })
-    },
-    [],
-  )
 
   const edgeMenu = useMemo<EdgeMenuContextValue>(
     () => ({
@@ -635,7 +585,6 @@ function GraphCanvasBody({
   const canvasEdit = useMemo(() => ({ manifest, document }), [document, manifest])
 
   return (
-    <FrameActionsContext.Provider value={frameActions}>
     <EdgeMenuContext.Provider value={edgeMenu}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
     <CanvasEditContext.Provider value={canvasEdit}>
@@ -667,23 +616,24 @@ function GraphCanvasBody({
           return
         }
         onSelectSteps([])
-        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") onSelect(node.id)
-        else if (node.type === "ecp-io") onSelect(node.id)
+        if (
+          node.type === "ecp-loop" ||
+          node.type === "ecp-if" ||
+          node.type === "ecp-parallel" ||
+          node.type === "ecp-end" ||
+          node.type === "ecp-io"
+        ) {
+          onSelect(node.id)
+        }
       }}
       onNodeContextMenu={(event, node) => {
-        if (node.type === "ecp-step") {
-          if (openCanvasContextMenu({ kind: "step", stepId: node.id }, event) === "node") {
-            setMenu({ kind: "node", stepId: node.id, clientX: event.clientX, clientY: event.clientY })
-          }
+        if (node.type === "ecp-io") {
+          openCanvasContextMenu({ kind: "io" }, event)
           return
         }
-        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
-          if (openCanvasContextMenu({ kind: "loop", structureId: node.id }, event) === "container") {
-            setMenu({ kind: "container", structureId: node.id, clientX: event.clientX, clientY: event.clientY })
-          }
-          return
+        if (openCanvasContextMenu({ kind: "node", nodeId: node.id }, event) === "node") {
+          setMenu({ kind: "node", nodeId: node.id, clientX: event.clientX, clientY: event.clientY })
         }
-        if (node.type === "ecp-io") openCanvasContextMenu({ kind: "io" }, event)
       }}
       onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
       onEdgeMouseLeave={() => setHoveredEdgeId(undefined)}
@@ -703,16 +653,10 @@ function GraphCanvasBody({
       onPaneContextMenu={(event) => {
         openCanvasContextMenu({ kind: "pane" }, event)
         const project = screenToFlowRef.current
-        if (!project) return
+        if (!project || readOnly || !onOpenCapabilityMenu) return
         const flow = project({ x: event.clientX, y: event.clientY })
-        const frame = frameAtFlowPoint(document, flow)
-        if (frame) {
-          const structureId = (frame.data as ReactFlowFrameData).structureId
-          openContainerMenu(structureId, event.clientX, event.clientY)
-          return
-        }
-        if (readOnly || !onOpenCapabilityMenu) return
-        onOpenCapabilityMenu(event.clientX, event.clientY, topLevelPlacement(manifest, selectedId), undefined, undefined, flow)
+        const placement = placementAtFlowPoint(manifest, document, flow) ?? topLevelPlacement(manifest, selectedId)
+        onOpenCapabilityMenu(event.clientX, event.clientY, placement, undefined, undefined, flow)
       }}
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
@@ -772,15 +716,13 @@ function GraphCanvasBody({
         onClose={closeMenu}
         onConfigure={() => {
           if (menu.kind === "node") {
-            onSelectSteps([])
-            onSelect(menu.stepId)
-          } else if (menu.kind === "edge") {
+            onSelectEdge(undefined)
+            onSelectSteps(findStepNode(document, menu.nodeId) ? [menu.nodeId] : [])
+            onSelect(menu.nodeId)
+          } else {
             onSelect(undefined)
             onSelectSteps([])
             onSelectEdge({ edgeId: menu.edgeId })
-          } else {
-            onSelectSteps([])
-            onSelect(menu.structureId)
           }
           closeMenu()
         }}
@@ -794,26 +736,24 @@ function GraphCanvasBody({
         }}
         onWrap={(kind) => {
           if (menu.kind !== "node") return
-          const ids = wrapSelectionIds(selectedStepIds, menu.stepId)
+          const ids = wrapSelectionIds(selectedStepIds, menu.nodeId)
           void applyEdit((current) => wrapSteps(current, ids, kind)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
-        onDeleteStep={() => {
+        onDelete={() => {
           if (menu.kind !== "node") return
-          void applyEdit((current) => deleteStep(current, menu.stepId)).then((ok) => {
+          const nodeId = menu.nodeId
+          void applyEdit((current) =>
+            isStructureHeaderSelection(current, nodeId) ? unwrapStructure(current, nodeId) : deleteStep(current, nodeId),
+          ).then((ok) => {
             if (ok) closeMenu()
           })
         }}
-        onUnwrap={() => {
-          if (menu.kind !== "container") return
-          void applyEdit((current) => unwrapStructure(current, menu.structureId)).then((ok) => {
-            if (ok) closeMenu()
-          })
-        }}
-        onRemoveStructure={() => {
-          if (menu.kind !== "container") return
-          void applyEdit((current) => removeStructure(current, menu.structureId)).then((ok) => {
+        onDeleteWithNodes={() => {
+          if (menu.kind !== "node") return
+          const nodeId = menu.nodeId
+          void applyEdit((current) => removeStructure(current, nodeId)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
@@ -828,6 +768,5 @@ function GraphCanvasBody({
       />
     ) : null}
     </EdgeMenuContext.Provider>
-    </FrameActionsContext.Provider>
   )
 }

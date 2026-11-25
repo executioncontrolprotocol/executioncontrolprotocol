@@ -3,12 +3,12 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { dataEdgeInspectorMeta, executionToReactFlow } from "../../src/graph/index.js"
+import { executionToReactFlow } from "../../src/graph/index.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 
 describe("branch-loop data inspector", () => {
-  it("reads if expression input via data edge target", () => {
+  it("encodes an if input reference as a data edge with its binding path", () => {
     const manifest = JSON.parse(
       readFileSync(path.join(repoRoot, "examples/branch-loop/branch-loop.ecp.json"), "utf8"),
     ) as ExecutionManifest
@@ -19,8 +19,8 @@ describe("branch-loop data inspector", () => {
     if (ifNode?.type === "if" && ifNode.input) {
       const keys = Object.keys(ifNode.input)
       if (keys[0]) {
-        const meta = dataEdgeInspectorMeta(manifest, ifNode.id, keys[0]!)
-        expect(meta?.markerKind).toBe("ref")
+        const edge = doc.edges.find((entry) => entry.target === ifNode.id)
+        expect(edge?.data.kind === "data" && edge.data.bindingPath).toBeTruthy()
       }
     }
   })

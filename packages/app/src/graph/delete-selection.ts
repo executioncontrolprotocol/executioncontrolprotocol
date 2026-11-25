@@ -6,16 +6,21 @@ import {
   unwrapStructure,
   type StructureEditResult,
 } from "./structure-edit.js"
-import type { ReactFlowEdge } from "./types.js"
+import { loopIdFromEndNodeId, type ReactFlowEdge } from "./types.js"
+
+/** Why a loop `end` node can't be deleted on its own. @category App */
+export const STRUCTURE_EDIT_DELETE_END = "Delete the loop instead"
 
 /**
- * Canvas selection mapped to a delete edit.
+ * Canvas selection mapped to a delete edit: a start node (`if` / `parallel` / `loop`) is removed and its nodes stay,
+ * a loop `end` is refused, a branch loses its `$ref`.
  * @category App
  */
 export type DeleteSelection =
   | { kind: "none" }
   | { kind: "steps"; stepIds: readonly string[] }
   | { kind: "structure"; structureId: string }
+  | { kind: "end"; endNodeId: string }
   | { kind: "connector"; edge: ReactFlowEdge }
 
 /**
@@ -41,13 +46,14 @@ export function deleteSelection(
   if (selection.kind === "structure") {
     return unwrapStructure(manifest, selection.structureId)
   }
+  if (selection.kind === "end") return { ok: false, reason: STRUCTURE_EDIT_DELETE_END }
   const preview = connectorDeletePreview(manifest, selection.edge)
   if (!preview.ok) return { ok: false, reason: preview.reason }
   return deleteConnector(manifest, selection.edge)
 }
 
 /**
- * Whether `structureId` selects a branch, parallel, or loop container (not a step).
+ * Whether `structureId` is the id of a start node (`if`, `parallel` or `loop`), not a step.
  * @category App
  */
 export function isStructureHeaderSelection(manifest: ExecutionManifest, structureId: string): boolean {
@@ -55,4 +61,13 @@ export function isStructureHeaderSelection(manifest: ExecutionManifest, structur
   if (!hit) return false
   const node = hit.parent[hit.index]
   return node.type === "if" || node.type === "parallel" || node.type === "loop"
+}
+/**
+ * Whether `nodeId` is the React Flow id of a loop `end` node that exists in the manifest.
+ * @category App
+ */
+export function isEndNodeSelection(manifest: ExecutionManifest, nodeId: string): boolean {
+  const loopId = loopIdFromEndNodeId(nodeId)
+  if (!loopId) return false
+  return findNodePlacement(manifest.steps, loopId)?.node.type === "loop"
 }
