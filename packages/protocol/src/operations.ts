@@ -42,6 +42,8 @@ export interface RetrieveInput {
   type: RetrieveType
   /** Exactly one item, full detail. */
   id?: string
+  /** Absolute path to an execution file on path-capable hosts. */
+  path?: string
   /** Case-insensitive search. Capabilities, executions and configs only. */
   query?: string
   /** List filters. */
@@ -54,9 +56,11 @@ export interface RetrieveInput {
     status?: RunStatus
     /** Client request id. */
     clientRequestId?: string
+    /** List `*.ecp.json` under this directory (execution list only). */
+    dir?: string
   }
   /** Extra sections for a run or execution. */
-  include?: Array<"steps" | "events" | "manifest" | "state" | "document">
+  include?: Array<"steps" | "events" | "manifest" | "state" | "document" | "scripts">
   /** Maximum items. Default 10, max 100. */
   limit?: number
   /** Formatter id. Default JSON. */
@@ -190,8 +194,37 @@ export interface CommitInput {
   object?: unknown
   /** JSON Patch for update. Mutually exclusive with `object`. */
   patch?: PatchOp[]
-  /** Required for update and delete. */
-  ifVersion?: number
+  /** Required for update and delete. Integer for stored ids; opaque string for paths. */
+  ifVersion?: number | string
+  /** Absolute path to an execution file on path-capable hosts (update/delete only). */
+  path?: string
+  /** Store despite L2/L3 validation errors when L1 passes (execution create/update only). */
+  draft?: boolean
+  /** Relative script paths to write beside the execution (execution create/update only). */
+  scripts?: Record<string, string>
+}
+
+/**
+ * Single execution from `retrieve` by id or path.
+ * @category Operations
+ */
+export interface ExecutionItem {
+  /** Stored execution id. */
+  id?: string
+  /** File path when addressed by path. */
+  path?: string
+  /** Numeric version for stored ids; opaque string for paths. */
+  version: number | string
+  /** Parsed manifest. */
+  manifest: ExecutionManifest
+  /** Current L0–L3 validation (errors and warnings). */
+  issues: ValidationIssue[]
+  /** Warning-severity issues from validation or stored meta. */
+  warnings: ValidationIssue[]
+  /** Last update time (ISO-8601). */
+  updatedAt: string
+  /** Referenced `$script.path` file contents when `include` contains `scripts`. */
+  scripts?: Record<string, string>
 }
 
 /**
@@ -201,10 +234,12 @@ export interface CommitInput {
 export interface CommitData {
   /** Object kind. */
   type: CommitType
-  /** Object id. */
-  id: string
+  /** Object id when stored by id. */
+  id?: string
   /** New version, or null after delete. */
-  version: number | null
+  version: number | string | null
   /** Warnings stored with the object. */
   warnings?: ValidationIssue[]
+  /** Validation issues when `draft: true` was used. */
+  issues?: ValidationIssue[]
 }

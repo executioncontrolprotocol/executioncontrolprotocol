@@ -34,6 +34,7 @@ test.describe("Edge inspector", () => {
   async function open(page: Page): Promise<void> {
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: manifestPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
     await expect(page.getByTestId("ecp-step-translate")).toBeVisible({ timeout: 20_000 })
   }
 
@@ -62,18 +63,24 @@ test.describe("Edge inspector", () => {
     const editor = page.getByTestId("edge-expr-editor")
     const unique = `(state) => state.locale === '${Date.now()}'`
     await editor.fill(unique)
-    await expect(page.getByTestId("edge-save")).toBeEnabled({ timeout: 10_000 })
-    await page.getByTestId("edge-save").click()
-    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 10_000 }).toBe(true)
+    await editor.blur()
+    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
     expect(before).not.toContain(unique)
   })
 
-  test("shows syntax error and blocks save", async ({ page }) => {
+  test("shows syntax error and still autosaves draft", async ({ page }) => {
     await open(page)
     await selectTranslateGateExpr(page)
-    await page.getByTestId("edge-expr-editor").fill("(state) => { return ")
+    // Still reads state.locale, so the expr-read data edge (and its panel) survives the autosave.
+    const broken = "(state) => state.locale ==="
+    await page.getByTestId("edge-expr-editor").fill(broken)
     await expect(page.getByTestId("edge-expr-issues")).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId("edge-save")).toBeDisabled()
+    await expect(page.getByTestId("edge-save")).toHaveCount(0)
+    await page.getByTestId("edge-expr-editor").blur()
+    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(broken), { timeout: 15_000 }).toBe(true)
+    // Once autosaved, the issues stay listed (they used to vanish when the text matched the saved text).
+    await page.waitForTimeout(1_500)
+    await expect(page.getByTestId("edge-expr-issues")).toBeVisible()
   })
 
   test("ref-only data edge has no editor", async ({ page }) => {

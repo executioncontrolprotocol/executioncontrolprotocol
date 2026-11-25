@@ -1,23 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Braces, CheckCircle2, History, Network, Play, ShieldAlert, TriangleAlert } from "lucide-react"
-import type { ExecutionManifest, RunDetail } from "@executioncontrolprotocol/protocol"
+import type { RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
+  addCapabilityStep,
   executionToReactFlow,
+  insertConnectedStep,
+  placeWithOverrides,
+  reactFlowLayoutFitKey,
   replayRunEvents,
+  type PositionOverrides,
   type ReactFlowDocument,
   type RunGraphState,
 } from "../../graph/index.js"
+import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
+import { retrieveItem } from "../../client/results.js"
 import { useCapabilities } from "../hooks/useCapabilities.js"
-import { useExecutionDocument, type ExecutionSource } from "../hooks/useExecutionDocument.js"
+import { useExecutionDocument, type ExecutionRetrieveHook, type ExecutionSource } from "../hooks/useExecutionDocument.js"
+import { useExecutionEditor } from "../hooks/useExecutionEditor.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
-import { GraphCanvas, type FocusRequest } from "./GraphCanvas.js"
+import type { Node } from "@executioncontrolprotocol/protocol"
+import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
+import { StructurePanel } from "./StructurePanel.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
+import { CapabilityMenu, type CapabilityMenuRequest } from "./CapabilityMenu.js"
+import { usePositionOverrides } from "../hooks/usePositionOverrides.js"
+import type { CapabilityMenuEntry } from "../lib/group-capabilities.js"
 
 /**
  * Sidebar tab of the execution workspace.
@@ -48,11 +61,27 @@ export interface WorkspaceProps {
 
 interface EncodedGraph {
   document?: ReactFlowDocument
+  layoutKey?: string
   error?: string
 }
 
 function sourceLabel(source: ExecutionSource): string {
   return source.kind === "path" ? source.path : source.id
+}
+
+function isBranchOrParallel(nodes: Node[], id: string): boolean {
+  for (const node of nodes) {
+    if (node.type === "branch" && node.id === id) return true
+    if (node.type === "parallel" && node.id === id) return true
+    if (node.type === "branch") {
+      for (const arm of node.branches) if (isBranchOrParallel(arm.steps, id)) return true
+    } else if (node.type === "parallel") {
+      for (const line of node.branches) if (isBranchOrParallel(line, id)) return true
+    } else if (node.type === "loop") {
+      if (isBranchOrParallel(node.steps, id)) return true
+    }
+  }
+  return false
 }
 
 /**
@@ -62,56 +91,121 @@ function sourceLabel(source: ExecutionSource): string {
  * @category App
  */
 export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
-  const doc = useExecutionDocument(client, source, onUnauthorized)
-  const [draftManifest, setDraftManifest] = useState<ExecutionManifest | undefined>(undefined)
-  const [draftDiscardNote, setDraftDiscardNote] = useState<string | undefined>(undefined)
-  const effectiveManifest = draftManifest ?? doc.manifest
+  const retrieveHookRef = useRef<ExecutionRetrieveHook | undefined>(undefined)
+  const doc = useExecutionDocument(client, source, onUnauthorized, {
+    startRetrieve: () => retrieveHookRef.current?.startRetrieve() ?? 0,
+    handleRetrieve: (item, isFirstLoad, generation) =>
+      retrieveHookRef.current?.handleRetrieve(item, isFirstLoad, generation) ?? { bumpLoad: true },
+  })
   const capabilities = useCapabilities(client, doc.manifest)
   const live = useLiveRun(client, source, onUnauthorized)
   const [tab, setTab] = useState<WorkspaceTab>("graph")
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined)
+  const [selectedStepIds, setSelectedStepIds] = useState<string[]>([])
+  const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | undefined>(undefined)
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined)
+  const [capabilityMenu, setCapabilityMenu] = useState<CapabilityMenuRequest | undefined>(undefined)
   const [replay, setReplay] = useState<{ detail: RunDetail; graph: RunGraphState } | undefined>(undefined)
   const lastGood = useRef<ReactFlowDocument | undefined>(undefined)
-  const prevLoads = useRef(doc.loads)
+  const lastLayoutKey = useRef<string | undefined>(undefined)
+  const suppressNextFit = useRef(false)
+  const readOnly = live.busy || replay !== undefined
+  const editor = useExecutionEditor(
+    client,
+    source,
+    doc.manifest,
+    doc.version,
+    doc.validation?.issues ?? [],
+    readOnly,
+    onUnauthorized,
+  )
+  retrieveHookRef.current = { startRetrieve: editor.startRetrieve, handleRetrieve: editor.handleRetrieve }
+  const workingManifest = editor.local ?? doc.manifest
 
-  useEffect(() => {
-    if (doc.loads > prevLoads.current && draftManifest !== undefined) {
-      setDraftManifest(undefined)
-      setDraftDiscardNote("External change reloaded the execution; unsaved edits were discarded.")
+  const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
+    if (!workingManifest) return {}
+    try {
+      return { document: executionToReactFlow(workingManifest, { capabilitySchemas: capabilities.schemas }) }
+    } catch (error) {
+      return { error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}` }
     }
-    prevLoads.current = doc.loads
-  }, [doc.loads, draftManifest])
+  }, [workingManifest, capabilities.schemas])
+  const dagreDocument = dagre.document
+
+  const graphIdSets = useMemo(() => {
+    if (!dagreDocument) return { nonFrame: [] as string[], frames: [] as string[] }
+    const nonFrame: string[] = []
+    const frames: string[] = []
+    for (const node of dagreDocument.nodes) {
+      if (node.type === "ecp-frame") frames.push(node.id)
+      else nonFrame.push(node.id)
+    }
+    return { nonFrame, frames }
+  }, [dagreDocument])
+
+  const { overrides, commit: commitOverrides, clear: clearOverrides } = usePositionOverrides(
+    source,
+    graphIdSets.nonFrame,
+    graphIdSets.frames,
+  )
 
   const encoded = useMemo<EncodedGraph>(() => {
-    if (!doc.manifest) return { document: lastGood.current }
-    try {
-      const document = executionToReactFlow(doc.manifest, { capabilitySchemas: capabilities.schemas })
-      lastGood.current = document
-      return { document }
-    } catch (error) {
-      return {
-        document: lastGood.current,
-        error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}`,
-      }
-    }
-  }, [doc.manifest, capabilities.schemas])
+    if (!dagreDocument) return { document: lastGood.current, layoutKey: lastLayoutKey.current }
+    const layoutKey = reactFlowLayoutFitKey(dagreDocument)
+    const document = placeWithOverrides(dagreDocument, overrides)
+    lastGood.current = document
+    lastLayoutKey.current = layoutKey
+    return { document, layoutKey }
+  }, [dagreDocument, overrides])
 
+  const encodeError = dagre.error
+
+  const validation = editor.validation ?? doc.validation
   const nodeErrors = useMemo(
-    () => nodeErrorIssues(doc.validation?.issues ?? [], doc.manifest),
-    [doc.validation, doc.manifest],
+    () => nodeErrorIssues(validation?.issues ?? [], workingManifest),
+    [validation, workingManifest],
   )
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
-  const selectedEdge = encoded.document?.edges.find((edge) => edge.id === selectedEdgeId)
+  const selectedEdgeRecord = encoded.document?.edges.find((edge) => edge.id === selectedEdge?.edgeId)
   const overlay = replay?.graph ?? live.graph
   const runId = replay?.detail.id ?? live.runId
   const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
+  const applyManifestEdit = editor.applyEdit
+  const structureEditError = editor.structureError
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (readOnly || editor.conflictReplaying) return
+      const target = event.target
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return
+        if (target.closest(".monaco-editor")) return
+      }
+      const mod = event.metaKey || event.ctrlKey
+      if (!mod) return
+      if (event.key === "z" || event.key === "Z") {
+        if (event.shiftKey) {
+          event.preventDefault()
+          void editor.redo()
+        } else {
+          event.preventDefault()
+          void editor.undo()
+        }
+      } else if (event.key === "y" || event.key === "Y") {
+        event.preventDefault()
+        void editor.redo()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [editor, readOnly])
 
   const selectFromIssue = useCallback((nodeId: string) => {
-    setSelectedEdgeId(undefined)
+    setSelectedEdge(undefined)
     setSelectedId(nodeId)
+    setSelectedStepIds([nodeId])
     setFocus((previous) => ({ id: nodeId, nonce: (previous?.nonce ?? 0) + 1 }))
   }, [])
 
@@ -120,10 +214,95 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     if (nodeId) setTab("graph")
   }, [])
 
-  const selectFromEdge = useCallback((edgeId: string | undefined) => {
-    setSelectedEdgeId(edgeId)
-    if (edgeId) setTab("graph")
+  const selectFromEdge = useCallback((selection: SelectedEdge | undefined) => {
+    setSelectedEdge(selection)
+    if (selection) setTab("graph")
   }, [])
+
+  const openCapabilityMenu = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      placement: CapabilityMenuRequest["placement"],
+      origin?: CapabilityMenuRequest["origin"],
+      originPort?: CapabilityMenuRequest["originPort"],
+      flowPosition?: CapabilityMenuRequest["flowPosition"],
+    ) => {
+      if (readOnly) return
+      setCapabilityMenu({ clientX, clientY, placement, origin, originPort, flowPosition })
+    },
+    [readOnly],
+  )
+
+  const onPositionDragStop = useCallback(
+    (updates: PositionOverrides) => {
+      commitOverrides((current) => ({ ...current, ...updates }))
+    },
+    [commitOverrides],
+  )
+
+  const onAutoLayout = useCallback(() => {
+    clearOverrides()
+  }, [clearOverrides])
+
+  const onCapabilityPick = useCallback(
+    (entry: CapabilityMenuEntry) => {
+      const request = capabilityMenu
+      if (!request || readOnly) return
+      setCapabilityMenu(undefined)
+      let stepId: string | undefined
+      const finish = (saved: boolean): void => {
+        if (!saved || !stepId) return
+        setSelectedEdge(undefined)
+        setSelectedStepIds([stepId])
+        setSelectedId(stepId)
+        setTab("graph")
+      }
+
+      const pinFlowPosition = (id: string): void => {
+        if (!request.flowPosition) return
+        suppressNextFit.current = true
+        commitOverrides((current) => ({ ...current, [id]: request.flowPosition! }))
+      }
+
+      if (request.origin && request.originPort) {
+        void client
+          .retrieve({ type: "capability", id: entry.id })
+          .then((response) => {
+            const capability = retrieveItem<CapabilityEntry>(response)
+            if (!capability) {
+              const message = response.ok ? "Capability could not be loaded." : response.error.message
+              void applyManifestEdit(() => ({ ok: false, reason: message }))
+              return
+            }
+            void applyManifestEdit((current) => {
+              const result = insertConnectedStep(
+                current,
+                { id: capability.id, accepts: capability.accepts, returns: capability.returns },
+                request.origin!,
+                request.originPort!,
+              )
+              if (result.ok) {
+                stepId = result.stepId
+                pinFlowPosition(result.stepId)
+              }
+              return result
+            }).then(finish)
+          })
+        return
+      }
+
+      void applyManifestEdit((current) => {
+        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
+        if (result.ok) {
+          stepId = result.stepId
+          pinFlowPosition(result.stepId)
+        }
+        return result
+      }).then(finish)
+    },
+    [applyManifestEdit, capabilityMenu, client, commitOverrides, readOnly],
+  )
 
   const onRun = useCallback(
     (input: Record<string, unknown>) => {
@@ -139,16 +318,27 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
-  const title = doc.manifest?.execution?.label ?? doc.manifest?.execution?.id ?? sourceLabel(source)
-  const valid = doc.validation?.valid
+  const structurePanelId =
+    selectedId && workingManifest && !selectedNode && isBranchOrParallel(workingManifest.steps, selectedId)
+      ? selectedId
+      : undefined
+  const title = workingManifest?.execution?.label ?? workingManifest?.execution?.id ?? sourceLabel(source)
+  const valid = validation?.valid
+  const saveStatusLabel =
+    editor.status === "saving" ? "Saving…" : editor.status === "error" ? (editor.statusError ?? "Save failed") : "Saved"
+  const versionConflictNote = editor.versionConflictNote ?? doc.versionConflictNote
+  const draftDiscardNote = editor.draftDiscardNote
 
   return (
     <div
       data-testid="workspace"
       data-source={source.kind}
       data-selected-node={selectedId ?? ""}
-      data-selected-edge={selectedEdgeId ?? ""}
+      data-selected-steps={selectedStepIds.join(",")}
+      data-selected-edge={selectedEdge?.edgeId ?? ""}
+      data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
+      data-version={doc.version !== undefined ? String(doc.version) : ""}
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="flex shrink-0 items-center gap-3 border-b border-outline-variant bg-surface-container-low px-gutter py-2">
@@ -165,9 +355,16 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             className={`status-pill ${valid ? "status-pill--valid" : "status-pill--invalid"}`}
           >
             {valid ? <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> : <TriangleAlert className="h-3 w-3" aria-hidden="true" />}
-            {valid ? "Valid" : `${doc.validation?.issues.filter((issue) => issue.severity === "error").length ?? 0} errors`}
+            {valid ? "Valid" : `${validation?.issues.filter((issue) => issue.severity === "error").length ?? 0} errors`}
           </span>
         )}
+        <span
+          data-testid="save-status"
+          data-state={editor.status}
+          className="status-pill font-mono text-[11px] text-on-surface-variant"
+        >
+          {saveStatusLabel}
+        </span>
       </div>
 
       {doc.loadError ? (
@@ -184,10 +381,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </span>
         </div>
       ) : null}
-      {encoded.error ? (
+      {encodeError ? (
         <div role="alert" className="shrink-0 border-b border-error/40 px-gutter py-2 text-[13px] text-error">
-          {encoded.error}
+          {encodeError}
         </div>
+      ) : null}
+      {versionConflictNote ? (
+        <p
+          data-testid="version-conflict-note"
+          className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant"
+        >
+          {versionConflictNote}
+        </p>
       ) : null}
       {draftDiscardNote ? (
         <p data-testid="draft-discard-note" className="shrink-0 border-b border-outline-variant px-gutter py-2 text-[12px] text-on-surface-variant">
@@ -197,17 +402,42 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
       <div className="flex min-h-0 flex-1">
         <section data-testid="graph-canvas" className="relative min-w-0 flex-1">
-          {encoded.document ? (
+          {encoded.document && workingManifest ? (
+            <>
             <GraphCanvas
               document={encoded.document}
+              layoutKey={encoded.layoutKey ?? ""}
+              manifest={workingManifest}
               run={overlay}
               nodeErrors={nodeErrors}
               selectedId={selectedId}
-              selectedEdgeId={selectedEdgeId}
+              selectedStepIds={selectedStepIds}
+              readOnly={readOnly}
+              selectedEdge={selectedEdge}
               onSelect={selectFromCanvas}
+              onSelectSteps={setSelectedStepIds}
               onSelectEdge={selectFromEdge}
+              applyEdit={applyManifestEdit}
               focus={focus}
+              onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
+              onMenuDismiss={() => setCapabilityMenu(undefined)}
+              onPositionDragStop={onPositionDragStop}
+              onAutoLayout={onAutoLayout}
+              suppressNextFitRef={suppressNextFit}
+              onUndo={() => void editor.undo()}
+              onRedo={() => void editor.redo()}
+              undoDisabled={readOnly || editor.conflictReplaying || !editor.canUndo}
+              redoDisabled={readOnly || editor.conflictReplaying || !editor.canRedo}
             />
+            {capabilityMenu && !readOnly ? (
+              <CapabilityMenu
+                client={client}
+                request={capabilityMenu}
+                onClose={() => setCapabilityMenu(undefined)}
+                onPick={(entry) => onCapabilityPick(entry)}
+              />
+            ) : null}
+            </>
           ) : (
             <div className="node-canvas flex h-full items-center justify-center text-[13px] text-on-surface-variant">
               {doc.loading ? "Loading the execution…" : "The execution could not be loaded."}
@@ -244,33 +474,36 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
           </nav>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {tab === "graph" ? (
-              selectedEdge ? (
+              <>
+              {structureEditError ? (
+                <p className="mb-3 text-[11px] text-error" data-testid="structure-edit-error">
+                  {structureEditError}
+                </p>
+              ) : null}
+              {selectedEdgeRecord ? (
                 <EdgePanel
                   client={client}
-                  source={source}
-                  storedVersion={doc.storedVersion}
-                  manifest={doc.manifest}
-                  draft={draftManifest}
-                  onDraftChange={(next) => {
-                    setDraftDiscardNote(undefined)
-                    setDraftManifest(next)
-                  }}
-                  edge={selectedEdge}
+                  manifest={workingManifest}
+                  edge={selectedEdgeRecord}
+                  level={selectedEdge?.level ?? 0}
                   runId={runId}
                   runSource={runSource}
                   onUnauthorized={onUnauthorized}
+                  readOnly={readOnly}
+                  applyManifestEdit={applyManifestEdit}
+                  scheduleTextEdit={editor.scheduleText}
+                  flushTextEdit={editor.flushText}
+                  discardTextEdit={editor.discardText}
+                  fieldEpoch={editor.fieldEpoch}
+                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
                 />
+              ) : structurePanelId ? (
+                <StructurePanel manifest={workingManifest} structureId={structurePanelId} />
               ) : (
                 <NodePanel
                   client={client}
                   source={source}
-                  storedVersion={doc.storedVersion}
-                  draft={draftManifest}
-                  onDraftChange={(next) => {
-                    setDraftDiscardNote(undefined)
-                    setDraftManifest(next)
-                  }}
-                  manifest={effectiveManifest}
+                  manifest={workingManifest}
                   executionPath={source.kind === "path" ? source.path : undefined}
                   node={selectedNode}
                   capability={selectedUses ? capabilities.byId[selectedUses] : undefined}
@@ -278,20 +511,26 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   runStep={selectedId ? overlay.steps[selectedId] : undefined}
                   runLoopItems={selectedId ? overlay.loopItems[selectedId] : undefined}
                   runLoop={selectedId ? overlay.loops[selectedId] : undefined}
-                  reloadKey={doc.loads}
+                  reloadKey={editor.externalEpoch}
                   onUnauthorized={onUnauthorized}
+                  readOnly={readOnly}
+                  applyManifestEdit={applyManifestEdit}
+                  scheduleTextEdit={editor.scheduleText}
+                  flushTextEdit={editor.flushText}
+                  fieldEpoch={editor.fieldEpoch}
                 />
-              )
+              )}
+              </>
             ) : null}
             {tab === "validation" ? (
               <ValidationView
-                validation={doc.validation}
-                manifest={doc.manifest}
+                validation={validation}
+                manifest={workingManifest}
                 loadError={doc.loadError}
                 onSelectNode={selectFromIssue}
               />
             ) : null}
-            {tab === "run" ? <RunView manifest={doc.manifest} run={live} onRun={onRun} client={client} /> : null}
+            {tab === "run" ? <RunView manifest={workingManifest} run={live} onRun={onRun} client={client} /> : null}
             {tab === "runs" ? (
               <RunsView
                 client={client}
@@ -302,7 +541,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 onReplay={onReplay}
               />
             ) : null}
-            {tab === "json" ? <JsonView manifest={effectiveManifest} /> : null}
+            {tab === "json" ? <JsonView manifest={workingManifest} /> : null}
           </div>
         </aside>
       </div>

@@ -58,7 +58,7 @@ function fileName(path: string): string {
  * @category App
  */
 export function HomeView({ client, dir, onOpen }: HomeViewProps) {
-  const [files, setFiles] = useState<string[] | undefined>(undefined)
+  const [files, setFiles] = useState<Array<{ path: string; version: string }> | undefined>(undefined)
   const [filesError, setFilesError] = useState<string | undefined>(undefined)
   const [executions, setExecutions] = useState<StoredExecutionSummary[] | undefined>(undefined)
   const [runs, setRuns] = useState<RunRecord[] | undefined>(undefined)
@@ -68,8 +68,16 @@ export function HomeView({ client, dir, onOpen }: HomeViewProps) {
     let alive = true
     if (dir) {
       client
-        .listFiles(dir)
-        .then((list) => alive && setFiles(list))
+        .retrieve({ type: "execution", filter: { dir }, limit: EXECUTION_LIST_LIMIT })
+        .then((response) => {
+          if (!alive) return
+          if (!response.ok) {
+            setFilesError(response.error.message)
+            return
+          }
+          const rows = retrieveItems<{ path: string; version: string }>(response)
+          setFiles(rows)
+        })
         .catch((error: unknown) => alive && setFilesError(messageOf(error)))
     }
     client
@@ -124,16 +132,16 @@ export function HomeView({ client, dir, onOpen }: HomeViewProps) {
             {files && files.length > 0 ? (
               <ul className="space-y-1">
                 {files.map((file) => (
-                  <li key={file}>
+                  <li key={file.path}>
                     <button
                       type="button"
                       data-testid="home-file"
-                      data-path={file}
-                      onClick={() => onOpen({ open: file })}
+                      data-path={file.path}
+                      onClick={() => onOpen({ open: file.path })}
                       className="flex w-full items-baseline gap-3 rounded px-2 py-1.5 text-left hover:bg-surface-container-high"
                     >
-                      <span className="font-mono text-[13px] text-on-surface">{fileName(file)}</span>
-                      <span className="truncate font-mono text-[11px] text-on-surface-variant">{file}</span>
+                      <span className="font-mono text-[13px] text-on-surface">{fileName(file.path)}</span>
+                      <span className="truncate font-mono text-[11px] text-on-surface-variant">{file.path}</span>
                     </button>
                   </li>
                 ))}

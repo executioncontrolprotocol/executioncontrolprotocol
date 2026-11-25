@@ -4,6 +4,67 @@
  */
 export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
+  attachAfter,
+  attachAsArm,
+  attachAsLine,
+  CONNECTION_EDIT_HANDLE,
+  CONNECTION_EDIT_INCOMPATIBLE,
+  CONNECTION_EDIT_INSIDE,
+  CONNECTION_EDIT_LOOP,
+  CONNECTION_EDIT_NOT_BINDING,
+  CONNECTION_EDIT_ORDER,
+  CONNECTION_EDIT_SELF,
+  connectInput,
+  insertConnectedStep,
+  type ConnectInputTarget,
+  deleteArm,
+  deleteParallelLine,
+  deleteConnector,
+  deleteSequenceLink,
+  connectorDeletePreview,
+  detachedNodeIds,
+  disconnectInput,
+} from "./connection-edit.js"
+export { isValidManifestFlowConnection, resolveFlowConnect, type FlowConnectAction } from "./flow-connect.js"
+export {
+  addArmCondition,
+  makeDefaultArm,
+  ROUTE_EDIT_ARM_HAS_CONDITION,
+  ROUTE_EDIT_DEFAULT_EXISTS,
+  setArmLabel,
+  setLoopField,
+} from "./route-edit.js"
+export {
+  addCapabilityStep,
+  allocateAsName,
+  findStructure,
+  placementForConnectionOrigin,
+  type AddStepPlacement,
+  type AddStepResult,
+} from "./add-step.js"
+export { firstMatchingPort, portTypeKind, portsAreCompatible, type PortTypeKind } from "./port-compat.js"
+export { sourceVisibleTo } from "./read-order.js"
+export {
+  connectInputTarget,
+  dataConnectionRefusal,
+  isDataHandle,
+  isValidDataConnection,
+  portOnDocument,
+} from "./data-connect.js"
+export {
+  STRUCTURE_EDIT_CONTIGUOUS,
+  STRUCTURE_EDIT_EMPTY_STEPS,
+  STRUCTURE_EDIT_PARALLEL_MIN,
+  STRUCTURE_EDIT_STEP_NOT_FOUND,
+  STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
+  deleteStep,
+  removeStructure,
+  unwrapStructure,
+  wrapSelectionIds,
+  wrapSteps,
+  type StructureEditResult,
+} from "./structure-edit.js"
+export {
   applyDataEdgeDraft,
   applyRouteEdgeDraft,
   dataEdgeEditable,
@@ -78,7 +139,26 @@ export {
   valueSchemasFromCapabilitySchema,
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
-export { layoutReactFlowDocument } from "./layout.js"
+export {
+  boundsAroundNodeIds,
+  frameBounds,
+  FRAME_PADDING,
+  layoutReactFlowDocument,
+  unionRect,
+  type BoundsNode,
+  type FrameMembership,
+  type FrameRect,
+} from "./layout.js"
+export {
+  POSITION_STORAGE_PREFIX,
+  parsePositionOverrides,
+  placeWithOverrides,
+  positionStorageKey,
+  prunePositionOverrides,
+  reactFlowLayoutFitKey,
+  type NodePosition,
+  type PositionOverrides,
+} from "./positions.js"
 export {
   ReactFlowRunProgress,
   reactFlowRunProgress,
@@ -96,6 +176,8 @@ export {
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
   LOOP_COLLECT_HANDLE,
   LOOP_INTO_HANDLE,
   LOOP_ITEM_HANDLE,
@@ -124,6 +206,7 @@ export type {
   ReactFlowPortBinding,
   ReactFlowRouteEdgeData,
   ReactFlowRouteKind,
+  ReactFlowRouteLevel,
   ReactFlowRunLifecycleDetail,
   ReactFlowRunOutcome,
   ReactFlowStepData,

@@ -1,13 +1,16 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
-import type { ReactFlowLoopItemsData } from "../../graph/index.js"
-import { InputPortRow, OutputPortRow } from "./ports.js"
+import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, type ReactFlowLoopItemsData } from "../../graph/index.js"
+import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
  * Data for {@link EcpLoopNode}: structure metadata plus run overlay counts.
  * @category App
  */
 export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
+  flowConnectable?: boolean
+  dataConnectable?: boolean
   /** Items finished so far (`forEach`). */
   done?: number
   /** Total item count (`forEach`). */
@@ -26,11 +29,13 @@ export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
  */
 export function EcpLoopNode({ id, data, selected }: NodeProps) {
   const node = data as unknown as EcpLoopNodeData
+  const dataConnectable = node.dataConnectable ?? false
   const targets = new Set(node.connectedTargetHandles ?? [])
   const sources = new Set(node.connectedSourceHandles ?? [])
   const classes = [
     "ecp-rf-node min-w-[200px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm",
     selected ? "ecp-rf-node--selected" : "",
+    node.detached ? "ecp-rf-node--detached" : "",
   ]
   const mode = node.mode ?? "while"
 
@@ -40,6 +45,13 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
+      <FlowInHandle connectable={node.flowConnectable ?? false} />
+      <FlowOutHandle connectable={node.flowConnectable ?? false} />
+      {node.detached ? (
+        <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
+          disconnected
+        </span>
+      ) : null}
       <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 font-display text-[11px] font-semibold leading-tight text-on-surface">
@@ -77,10 +89,22 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       </div>
       <div className="flex flex-col gap-1">
         {node.inputs.map((port) => (
-          <InputPortRow key={`in-${port.id}`} port={port} connected={port.binding === "ref" || targets.has(port.id)} />
+          <DragInputPort
+            key={`in-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={port.binding === "ref" || targets.has(port.id)}
+            connectable={false}
+          />
         ))}
         {node.outputs.map((port) => (
-          <OutputPortRow key={`out-${port.id}`} port={port} connected={sources.has(port.id)} />
+          <DragOutputPort
+            key={`out-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={sources.has(port.id)}
+            connectable={dataConnectable && (port.id === LOOP_ITEM_HANDLE || port.id === LOOP_INTO_HANDLE)}
+          />
         ))}
       </div>
     </div>

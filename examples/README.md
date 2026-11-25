@@ -14,6 +14,7 @@ JSONata) reshape data between steps; **`expr`** on steps, branch arms, and loops
 | `psd-artboards-renditions/` | `plugin-azure-blob-storage`, `plugin-adobe-firefly-services`, `plugin-jsonata` (deterministic: reflow a PSD into new artboards, one JPEG per artboard found by layer type) |
 | `weekly-brief/` | `plugin-anthropic` |
 | `branch-loop/` | `plugin-test` |
+| `patterns/` | `plugin-test` (branch, parallel, while / for / forEach loops, and nested containers) |
 | `dogfood-reshape/` | Core transform walkthrough |
 | `dogfood-photo/` | `plugin-azure-blob-storage` |
 | `dogfood-caption/` | `plugin-anthropic` |

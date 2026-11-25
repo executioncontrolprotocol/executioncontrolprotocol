@@ -29,4 +29,15 @@ export {
   type WithFileLockOptions,
 } from "./storage/atomic.js"
 export { HomePaths, EXECUTION_FILE_MAX_BYTES, SCRIPT_FILE_MAX_BYTES, stableStringify } from "./storage/paths.js"
+export {
+  executionPathVersion,
+  FILE_MAX_BYTES,
+  listExecutionFilePaths,
+  LocalExecutionFiles,
+  manifestExecutionText,
+  resolveScriptKey,
+  SCRIPTS_MAP_MAX_BYTES,
+  scriptPathEntriesOf,
+  scriptPathsOf,
+} from "./storage/execution-files.js"
 export { LocalSecrets, envNameForKey, canonicalSecretKey } from "./secrets/secrets.js"

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-parallel",
+    "label": "Pattern: parallel",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "default": "ECP"
+        }
+      },
+      "required": [
+        "topic"
+      ]
+    },
+    "returns": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "research",
+      "label": "Research in parallel",
+      "branches": [
+        [
+          {
+            "id": "search-web",
+            "label": "Search the web",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": {
+                "$ref": "state.topic"
+              }
+            },
+            "as": "search_web"
+          }
+        ],
+        [
+          {
+            "id": "search-docs",
+            "label": "Search the docs",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": {
+                "$ref": "state.topic"
+              }
+            },
+            "as": "search_docs"
+          }
+        ],
+        [
+          {
+            "id": "search-issues",
+            "label": "Search issues",
+            "uses": "@executioncontrolprotocol/test.echo",
+            "input": {
+              "value": {
+                "$ref": "state.topic"
+              }
+            },
+            "as": "search_issues"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "summary",
+      "label": "Summarize (after every line)",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.search_web.echo"
+        }
+      },
+      "as": "summary"
+    }
+  ]
+}

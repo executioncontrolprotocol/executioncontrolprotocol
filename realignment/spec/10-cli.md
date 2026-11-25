@@ -20,9 +20,9 @@ lists via host `retrieve --type plugin`.
 | `ecp host logs` | `--lines <n>` (default 50), `--supervisor` | Tail the log file |
 | `ecp mcp start` | — | Run the MCP relay on stdio (09). Never prints to stdout except MCP frames; logs go to `logs/relay.log` |
 | `ecp app` | `[path]`, `--id <id>`, `--no-open` | Ensure a host; open `http://127.0.0.1:<port>/app/#token=<token>&open=<absolute path>` (or `&dir=<cwd>` with no path, or `&id=<id>`) in the default browser; hot reload is always on (11). `--no-open` prints the URL |
-| `ecp retrieve` | `--type`, `--id`, `--query`, `--limit`, `--include a,b`, `--filter key=value` (repeatable), `--format <id>`, `--out <file>`, `--no-start-host`, `--json` | Operation 06 |
+| `ecp retrieve` | `--type`, `--id`, `--path`, `--query`, `--limit`, `--include a,b`, `--filter key=value` (repeatable), `--format <id>`, `--out <file>`, `--no-start-host`, `--json` | Operation 06 |
 | `ecp execute` | `[path \| id]`, `--input <json \| @file \| ->`, `--validate`, `--no-wait`, `--resume <runId>`, `--cancel <runId>`, `--out <file>`, `--no-start-host`, `--json` | Operation 06. Positional: ends in `.ecp.json` or contains a path separator → `path`, else `id` |
-| `ecp commit` | `--type`, `--action`, `--id`, `--object <@file \| ->`, `--patch <@file \| ->`, `--if-version <n>`, `--no-start-host`, `--json` | Operation 06 |
+| `ecp commit` | `--type`, `--action`, `--id`, `--path`, `--object <@file \| ->`, `--patch <@file \| ->`, `--if-version <version>`, `--draft`, `--no-start-host`, `--json` | Operation 06 |
 | `ecp plugins` | `--json`, `--no-start-host` | Host plugin list: columns `package`, `version`, `source`, `manifest` (`ok` or first-issue summary). `--json` → `{ ok, data: { type: "plugin", items, total } }` |
 | `ecp plugins install` (alias `plugins add`) | `<package>`, `--force`, `--verbose`, `--json` | Install from npm, friendly name (`test` → `@executioncontrolprotocol/test`), or tarball path (converted to `file:` URL). Already installed without `--force` → exit 0 `alreadyInstalled`. Manifest invalid → exit 2 `ECP_MANIFEST_INVALID` (package stays). Missing `"oclif": {}` → exit 2 with regenerate hint |
 | `ecp plugins link` | `[path]` (default `.`), `--install` / `--no-install`, `--verbose`, `--json` | Link a local package; manifest check; touches marker before envelope |

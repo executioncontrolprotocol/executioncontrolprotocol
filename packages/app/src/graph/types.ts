@@ -48,6 +48,8 @@ export interface ReactFlowPort {
  * @category App
  */
 export interface ReactFlowStepData {
+  /** True when the step is listed under manifest `detached`. */
+  detached?: boolean
   /** Display label (`label`, else the node id). */
   label: string
   /** Capability id (`uses`). */
@@ -94,17 +96,39 @@ export interface ReactFlowIoData {
 }
 
 /**
- * Decorative frame around a parallel line (not a dagre parent; drawn after layout).
+ * Decorative frame around a branch, parallel, or loop (not a dagre parent; drawn after layout).
  * @category App
  */
 export interface ReactFlowFrameData {
-  /** Parallel or loop node id in the execution manifest. */
+  /** True when the framed structure is under manifest `detached`. */
+  detached?: boolean
+  /** Branch, parallel, or loop id in the manifest. */
   structureId: string
-  /** Parallel line index (always `0` for loop frames). */
-  armIndex: number
-  /** Structure label when the parallel node declares one, or a loop summary label. */
+  /** Which structure this frame outlines. */
+  structureKind: "branch" | "parallel" | "loop"
+  /** Set when `structureKind` is `loop`. */
+  loopMode?: "while" | "for" | "forEach"
+  /** Node `label`, or the fallback summary. */
   label?: string
+  /** Body node ids used to size this frame after layout overrides. */
+  memberNodeIds: string[]
+  /** Nested frame ids contained in this frame. */
+  childFrameIds: string[]
+  /** Nesting depth (`0` at the top level). */
+  depth: number
 }
+
+/**
+ * Target handle id for structural route edges (flow into a node).
+ * @category App
+ */
+export const FLOW_IN_HANDLE = "flow-in"
+
+/**
+ * Source handle id for structural route edges (flow out of a node).
+ * @category App
+ */
+export const FLOW_OUT_HANDLE = "flow-out"
 
 /**
  * Target handle id for a `forEach` loop node's `ref` port.
@@ -135,6 +159,8 @@ export const LOOP_ITEM_HANDLE = "item"
  * @category App
  */
 export interface ReactFlowLoopItemsData {
+  /** True when the loop is listed under manifest `detached`. */
+  detached?: boolean
   /** Display label (`label`, else the node id). */
   label: string
   /** Loop mode. */
@@ -175,7 +201,7 @@ export interface ReactFlowNode {
   /** Node payload. */
   data: ReactFlowStepData | ReactFlowIoData | ReactFlowFrameData | ReactFlowLoopItemsData
   /** Soft size hint from layout. */
-  style?: { width?: number; height?: number }
+  style?: { width?: number; height?: number; pointerEvents?: string }
   /** Draw order; frames sit behind steps. */
   zIndex?: number
 }
@@ -191,6 +217,33 @@ export type ReactFlowEdgeKind = "data" | "control" | "route"
  * @category App
  */
 export type ReactFlowRouteKind = "branch" | "parallel" | "loop" | "sequence"
+
+/**
+ * One level of route metadata on a structural edge (branch arm, parallel line or loop).
+ * @category App
+ */
+export interface ReactFlowRouteLevel {
+  /** Structural subtype at this level. */
+  route: ReactFlowRouteKind
+  /** Branch, parallel or loop node id in the execution manifest (or an arbitrary id for `sequence`). */
+  structureId?: string
+  /** Branch arm index or parallel line index. */
+  armIndex?: number
+  /** Arm or structure label when present. */
+  label?: string
+  /** Branch arm `expr` or loop `expr` badge text. */
+  exprBadge?: string
+  /** Full `expr` source for the edge inspector (not the badge). */
+  exprSource?: string
+  /** True for the branch arm without `expr` (the default arm). */
+  defaultArm?: boolean
+  /** Loop `maxRounds` (`while` mode). */
+  maxRounds?: number
+  /** Loop repetition mode when `route` is `loop`. */
+  loopMode?: "while" | "for" | "forEach"
+  /** Leaf step ids under this arm, line or loop body (for skipped styling). */
+  stepIds?: string[]
+}
 
 /**
  * Metadata on a published route edge (branch, parallel or loop structure).
@@ -221,6 +274,10 @@ export interface ReactFlowRouteEdgeData {
   loopBack?: boolean
   /** Leaf step ids under this arm, line or loop body (for skipped styling). */
   stepIds?: string[]
+  /**
+   * Structure stack this edge crosses, outermost first. Flat fields on the edge equal `levels[0]`.
+   */
+  levels: ReactFlowRouteLevel[]
 }
 
 /**
@@ -232,6 +289,10 @@ export interface ReactFlowDataEdgeData {
   kind: "data"
   /** Dotted input path on the target step (`targetHandle`). */
   inputPath: string
+  /** Manifest binding path (`walkInputRefs` path) for edits. */
+  bindingPath?: string
+  /** `$script.params` key when the binding is a script param ref. */
+  paramKey?: string
   /** State path the edge reads (after `parseStateRef`). */
   statePath: string
 }

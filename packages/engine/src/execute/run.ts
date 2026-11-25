@@ -15,7 +15,7 @@ import type {
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { DEFAULT_STEP_TIMEOUT_MS } from "../container/constants.js"
-import { HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
+import { detachedIssue, HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIssues } from "../validate/validate.js"
 import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
 import { executeLoopItems, type LoopItemsRuntime } from "./run-loop-items.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
@@ -209,6 +209,23 @@ export function startExecution(
   input: Record<string, unknown>,
   deps: RunDependencies,
 ): ActiveRun {
+  if (Array.isArray(manifest.detached) && manifest.detached.length > 0) {
+    const error = detachedIssue(0, manifest.detached[0])
+    const outcome = Promise.resolve<RunOutcome>({
+      status: "failed",
+      result: {},
+      steps: [],
+      events: [],
+      records: [],
+      error,
+      state: { ...input },
+    })
+    return {
+      outcome,
+      cancel() {},
+      interrupt() {},
+    }
+  }
   const controller = new AbortController()
   if (deps.signal) {
     if (deps.signal.aborted) controller.abort()

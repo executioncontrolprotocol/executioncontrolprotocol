@@ -53,7 +53,7 @@ with `host.json` on clean and idle stop.
   shutdown host, delete `host.json` and `supervisor.pid`, exit. Idle checks are skipped while
   `hostStatus` is `starting`, `draining`, or `failed`. **Activity** (updates host
   `lastActivityAt`; supervisor health polls do not): `POST /v1/retrieve`, `/v1/execute`,
-  `/v1/commit`; `GET /v1/file`, `PUT /v1/file`, `/v1/files`; an open watch stream holds shutdown until it
+  `/v1/commit`; an open watch stream holds shutdown until it
   closes (heartbeats do not reset `lastActivityAt`). `activeRuns > 0` blocks shutdown. Health,
   static `/app` assets, and admin drain/shutdown do not count.
 - **Control server** on `controlPort` (same token, same Host-header check):
@@ -98,10 +98,7 @@ with `host.json` on clean and idle stop.
 | `POST /v1/retrieve` | token | `RetrieveInput` → envelope |
 | `POST /v1/execute` | token | `ExecuteInput` → envelope |
 | `POST /v1/commit` | token | `CommitInput` → envelope |
-| `GET /v1/watch?types=run,execution,config&runId=…&path=…` | token | Server-sent events stream: storage changes, run events (04), and changes to an execution file and its `$script.path` files (`path`, App hot reload); heartbeat comment every 15 s |
-| `GET /v1/file?path=<absolute>` | token | Read-only text of a `.ecp.json` file or a `$script.path` it references (App); max 2 MB |
-| `PUT /v1/file?path=<absolute>` | token | Replace an existing `.ecp.json` the App has open (`GET /v1/watch?path=` on that file); absolute path only; body is UTF-8 text; atomic write; max 2 MB; never `$script.path` targets; 204 on success |
-| `GET /v1/files?dir=<absolute>` | token | `*.ecp.json` files under `dir`, depth 3, max 200, skipping `node_modules` and dot-folders (App home) |
+| `GET /v1/watch?types=run,execution,config&runId=…&id=…&path=…` | token | Server-sent events stream; `id` and `path` are the execution address from 06, at most one of them; `path` watches that file and its `$script.path` files; `id` watches that stored execution; also storage changes and run events (04); heartbeat comment every 15 s. A path on a host with no paths is `ECP_REQUEST_INVALID` |
 | `POST /v1/admin/drain` | token | `{ timeoutMs }` → `{ interrupted: [runIds] }` |
 | `POST /v1/admin/shutdown` | token | `{}` → `{}` then exit |
 | `GET /app/*` | none for the static bundle; the App's API calls need the token | Prebuilt App |
@@ -123,9 +120,10 @@ with `host.json` on clean and idle stop.
 - `ecp mcp start` runs `startRelay({ cwd: process.cwd() })`: an MCP server over stdio
   (`@modelcontextprotocol/sdk`, server name `ecp`, version = package version) with exactly three
   tools: `retrieve`, `execute`, `commit`. No resources, prompts or other tools.
-- Tool `inputSchema` = the operation input schemas from `protocol` (06). The `execution` field
-  allows an inline manifest (base schema, not plugin-aware), `{ id }`, `{ path }`,
-  `{ id, patch }`.
+- Tool `inputSchema` = the operation input schemas from `protocol` (06). Those schemas include
+  execution `path` on `retrieve` and `commit`, `draft` and `scripts` on `commit`, and
+  `filter.dir` plus `include: ["scripts"]` on `retrieve`. The `execution` field allows an inline
+  manifest (base schema, not plugin-aware), `{ id }`, `{ path }`, `{ id, patch }`.
 - **Tool descriptions** (normative content, wording may be tightened): what the tool does;
   that `retrieve` is how to discover capabilities and their `accepts`/`returns`; the fix loop
   (`execute` with `mode: "validate"`, read `issues`, fix, repeat); prefer `path` for local files;
@@ -134,8 +132,8 @@ with `host.json` on clean and idle stop.
 - **Host discovery per call:** read `host.json`; `GET /v1/health`. Missing or failing → run
   `ecp host start` (spawn the CLI with the same `ECP_HOME`), wait up to 15 s. Still failing →
   tool error `ECP_HOST_UNAVAILABLE` with the log paths.
-- **Paths:** relative `execution.path`, `output.path` and file paths in inputs resolved against
-  the relay's `cwd` before forwarding.
+- **Paths:** relative `execution.path`, `retrieve`/`commit` `path`, `filter.dir`, `output.path`
+  and file paths in inputs resolved against the relay's `cwd` before forwarding.
 - **Restarts:** connection refused or 503 `ECP_HOST_RESTARTING` → poll health every 250 ms up to
   30 s, then retry once. `execute` sends a `clientRequestId` (UUID); if the connection drops
   after sending, the relay looks the run up with `retrieve { type: "run", filter: { clientRequestId } }`

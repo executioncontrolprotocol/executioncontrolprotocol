@@ -33,6 +33,27 @@ function routeEdges(doc: ReactFlowDocument): Array<ReactFlowEdge & { data: React
   return doc.edges.filter((edge): edge is ReactFlowEdge & { data: ReactFlowRouteEdgeData } => edge.data.kind === "route")
 }
 
+function routeBetween(doc: ReactFlowDocument, source: string, target: string): ReactFlowRouteEdgeData {
+  const edge = routeEdges(doc).find((e) => e.source === source && e.target === target)
+  if (!edge) throw new Error(`no route edge ${source} -> ${target}`)
+  return edge.data
+}
+
+function expectFlatMatchesLevel0(data: ReactFlowRouteEdgeData): void {
+  const l0 = data.levels[0]
+  expect(l0).toBeDefined()
+  expect(data.route).toBe(l0!.route)
+  expect(data.structureId).toBe(l0!.structureId)
+  expect(data.armIndex).toBe(l0!.armIndex)
+  expect(data.label).toBe(l0!.label)
+  expect(data.exprBadge).toBe(l0!.exprBadge)
+  expect(data.exprSource).toBe(l0!.exprSource)
+  expect(data.defaultArm).toBe(l0!.defaultArm)
+  expect(data.maxRounds).toBe(l0!.maxRounds)
+  expect(data.loopMode).toBe(l0!.loopMode)
+  expect(data.stepIds).toEqual(l0!.stepIds)
+}
+
 function dataEdges(doc: ReactFlowDocument): ReactFlowEdge[] {
   return doc.edges.filter((edge) => edge.data.kind === "data")
 }
@@ -164,6 +185,237 @@ describe("route edges", () => {
       true,
     )
     expect(doc.nodes).toHaveLength(5)
+  })
+
+  it("nested branch: each arm keeps outer and inner levels on edges from the prefix step", () => {
+    const doc = executionToReactFlow(load("nested-branch.ecp.json"))
+    const toX = routeBetween(doc, "a", "x")
+    expect(toX.levels).toHaveLength(2)
+    expect(toX.levels[0]).toMatchObject({
+      route: "branch",
+      structureId: "outer",
+      armIndex: 0,
+      label: "outer",
+      exprBadge: "true",
+      exprSource: "(state) => true",
+      stepIds: ["x", "w"],
+    })
+    expect(toX.levels[1]).toMatchObject({
+      route: "branch",
+      structureId: "inner",
+      armIndex: 0,
+      label: "inner",
+      exprBadge: "1 === 1",
+      exprSource: "(state) => 1 === 1",
+      stepIds: ["x"],
+    })
+    expectFlatMatchesLevel0(toX)
+
+    const toW = routeBetween(doc, "a", "w")
+    expect(toW.levels[0]).toMatchObject({ structureId: "outer", armIndex: 0, label: "outer", exprSource: "(state) => true" })
+    expect(toW.levels[1]).toMatchObject({ structureId: "inner", armIndex: 1, defaultArm: true, stepIds: ["w"] })
+    expect(toW.levels[1]?.label).toBeUndefined()
+    expect(toW.levels[1]?.exprBadge).toBeUndefined()
+    expect(toW.levels[1]?.exprSource).toBeUndefined()
+
+    const toN = routeBetween(doc, "a", "n")
+    expect(toN.levels).toHaveLength(1)
+    expect(toN.levels[0]).toMatchObject({ structureId: "outer", armIndex: 1, defaultArm: true, stepIds: ["n"] })
+    expectFlatMatchesLevel0(toN)
+  })
+
+  it("branch arm into while loop: branch level then loop level on the head entry edge", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "branch",
+          id: "pick",
+          branches: [
+            {
+              label: "go",
+              expr: "(state) => state.on",
+              steps: [
+                {
+                  type: "loop",
+                  id: "spin",
+                  expr: "(state) => state.tick",
+                  maxRounds: 3,
+                  steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" } }],
+                },
+              ],
+            },
+            { steps: [{ id: "skip", uses: "@executioncontrolprotocol/test.echo", input: { value: "s" } }] },
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const intoHead = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "spin")
+    expect(intoHead.levels).toHaveLength(2)
+    expect(intoHead.levels[0]).toMatchObject({ route: "branch", structureId: "pick", armIndex: 0, label: "go" })
+    expect(intoHead.levels[1]).toMatchObject({ route: "loop", structureId: "spin", loopMode: "while", maxRounds: 3 })
+    expectFlatMatchesLevel0(intoHead)
+    const intoBody = routeBetween(doc, "spin", "body")
+    expect(intoBody.levels).toHaveLength(1)
+    expect(intoBody.levels[0]).toMatchObject({ route: "loop", structureId: "spin" })
+    expect(intoBody.structureId).toBe("spin")
+    const back = routeEdges(doc).find((e) => e.data.loopBack)!
+    expect(back.data.levels).toHaveLength(1)
+    expect(back.data.levels[0]).toMatchObject({ route: "loop", structureId: "spin" })
+  })
+
+  it("branch arm into for loop carries ref badge on the inner loop level", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "branch",
+          id: "pick",
+          branches: [
+            {
+              expr: "(state) => true",
+              steps: [
+                {
+                  type: "loop",
+                  mode: "for",
+                  id: "rounds",
+                  ref: "state.items",
+                  as: "item",
+                  steps: [{ id: "tick", uses: "@executioncontrolprotocol/test.echo", input: { value: "t" } }],
+                },
+              ],
+            },
+            { steps: [{ id: "other", uses: "@executioncontrolprotocol/test.echo", input: { value: "o" } }] },
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const intoHead = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "rounds")
+    expect(intoHead.levels).toHaveLength(2)
+    expect(intoHead.levels[1]).toMatchObject({ loopMode: "for", exprBadge: "ref: state.items" })
+  })
+
+  it("branch arm into forEach: head entry is branch level only; body edge is forEach loop level", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "branch",
+          id: "pick",
+          branches: [
+            {
+              expr: "(state) => state.go",
+              steps: [
+                {
+                  type: "loop",
+                  mode: "forEach",
+                  id: "each",
+                  ref: "state.items",
+                  as: "item",
+                  into: "out",
+                  steps: [{ id: "work", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" } }],
+                },
+              ],
+            },
+            { steps: [{ id: "idle", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" } }] },
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const intoHead = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "each")
+    expect(intoHead.levels).toHaveLength(1)
+    expect(intoHead.levels[0]).toMatchObject({ route: "branch", structureId: "pick", armIndex: 0 })
+    expect(intoHead.levels[0]?.loopMode).toBeUndefined()
+    const intoBody = routeBetween(doc, "each", "work")
+    expect(intoBody.levels).toHaveLength(1)
+    expect(intoBody.levels[0]).toMatchObject({ route: "loop", loopMode: "forEach", structureId: "each" })
+  })
+
+  it("branch arm into parallel composes branch and parallel levels", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "branch",
+          id: "pick",
+          branches: [
+            {
+              expr: "(state) => state.a",
+              steps: [
+                {
+                  type: "parallel",
+                  id: "both",
+                  branches: [
+                    [{ id: "left", uses: "@executioncontrolprotocol/test.echo", input: { value: "l" } }],
+                    [{ id: "right", uses: "@executioncontrolprotocol/test.echo", input: { value: "r" } }],
+                  ],
+                },
+              ],
+            },
+            { steps: [{ id: "solo", uses: "@executioncontrolprotocol/test.echo", input: { value: "s" } }] },
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const toLeft = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "left")
+    expect(toLeft.levels).toHaveLength(2)
+    expect(toLeft.levels[0]).toMatchObject({ route: "branch", structureId: "pick", armIndex: 0 })
+    expect(toLeft.levels[1]).toMatchObject({ route: "parallel", structureId: "both", armIndex: 0 })
+    expectFlatMatchesLevel0(toLeft)
+    const toRight = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "right")
+    expect(toRight.levels[1]).toMatchObject({ armIndex: 1 })
+  })
+
+  it("parallel line into branch composes parallel then branch levels", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "parallel",
+          id: "lanes",
+          branches: [
+            [
+              {
+                type: "branch",
+                id: "inner",
+                branches: [
+                  {
+                    expr: "(state) => true",
+                    steps: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" } }],
+                  },
+                  { steps: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "n" } }] },
+                ],
+              },
+            ],
+            [{ id: "plain", uses: "@executioncontrolprotocol/test.echo", input: { value: "p" } }],
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const toYes = routeBetween(doc, EXECUTION_ACCEPTS_NODE_ID, "yes")
+    expect(toYes.levels).toHaveLength(2)
+    expect(toYes.levels[0]).toMatchObject({ route: "parallel", structureId: "lanes", armIndex: 0 })
+    expect(toYes.levels[1]).toMatchObject({ route: "branch", structureId: "inner", armIndex: 0 })
+    expectFlatMatchesLevel0(toYes)
+  })
+
+  it.each(["branch.ecp.json", "loop.ecp.json"])("%s route edges expose levels[0] equal to flat fields", (name) => {
+    const doc = executionToReactFlow(load(name))
+    for (const edge of routeEdges(doc)) {
+      if (edge.data.loopBack) continue
+      expect(edge.data.levels.length).toBeGreaterThanOrEqual(1)
+      expectFlatMatchesLevel0(edge.data)
+    }
   })
 })
 
@@ -474,6 +726,7 @@ describe("parallel frames", () => {
     const frames = frameNodes(doc)
     // One frame (and one label) for the whole parallel, not one per line.
     expect(frames).toHaveLength(1)
+    expect((frames[0]!.data as ReactFlowFrameData).structureKind).toBe("parallel")
     for (const stepId of ["left", "right"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
   })
 
@@ -486,18 +739,43 @@ describe("parallel frames", () => {
     expect(routeEdges(doc).every((e) => e.data.label === undefined)).toBe(true)
   })
 
-  it("branch and loop fixtures gain no frame", () => {
-    expect(frameNodes(executionToReactFlow(load("branch.ecp.json")))).toHaveLength(0)
-    expect(frameNodes(executionToReactFlow(load("loop.ecp.json")))).toHaveLength(0)
-    expect(frameNodes(executionToReactFlow(load("loop-for.ecp.json")))).toHaveLength(0)
+  it("emits frames for branch, while, for, and forEach loops", () => {
+    const branchDoc = executionToReactFlow(load("branch.ecp.json"))
+    const branchFrame = frameNodes(branchDoc)[0]!
+    expect((branchFrame.data as ReactFlowFrameData).structureKind).toBe("branch")
+    expect((branchFrame.data as ReactFlowFrameData).label).toBe("branch")
+
+    const whileDoc = executionToReactFlow(load("loop.ecp.json"))
+    const whileFrame = frameNodes(whileDoc)[0]!
+    expect((whileFrame.data as ReactFlowFrameData).structureKind).toBe("loop")
+    expect((whileFrame.data as ReactFlowFrameData).loopMode).toBe("while")
+    expect(encloses(whileFrame, stepNode(whileDoc, "tick"))).toBe(true)
+    expect(encloses(whileFrame, whileDoc.nodes.find((n) => n.id === "refine")!)).toBe(true)
+
+    const forDoc = executionToReactFlow(load("loop-for.ecp.json"))
+    const forFrame = frameNodes(forDoc)[0]!
+    expect((forFrame.data as ReactFlowFrameData).label).toBe("for N")
+
+    const feDoc = executionToReactFlow(load("loop-foreach.ecp.json"))
+    const feFrame = frameNodes(feDoc)[0]!
+    expect((feFrame.data as ReactFlowFrameData).label).toMatch(/^forEach/)
+    expect(encloses(feFrame, stepNode(feDoc, "rows"))).toBe(true)
   })
 
-  it("a parallel whose line holds a loop and a branch still gets one enclosing frame", () => {
-    // nested.ecp.json: parallel `outer` with lines [loop > branch > step `nested`] and [step `side`].
+  it("nested parallel, loop and branch produce nested frames", () => {
     const doc = executionToReactFlow(load("nested.ecp.json"))
     const frames = frameNodes(doc)
-    expect(frames).toHaveLength(1)
-    for (const stepId of ["nested", "side"]) expect(encloses(frames[0]!, stepNode(doc, stepId))).toBe(true)
+    expect(frames).toHaveLength(3)
+    const outer = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "outer")!
+    const inner = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "inner")!
+    const arm = frames.find((f) => (f.data as ReactFlowFrameData).structureId === "arm")!
+    expect(encloses(outer, stepNode(doc, "side"))).toBe(true)
+    expect(encloses(inner, stepNode(doc, "inner"))).toBe(true)
+    expect(encloses(arm, stepNode(doc, "nested"))).toBe(true)
+    expect(outer.position.y).toBeLessThan(inner.position.y)
+    expect(inner.position.y).toBeLessThan(arm.position.y)
+    expect((outer.zIndex ?? 0)).toBeLessThan(inner.zIndex ?? 0)
+    expect((inner.zIndex ?? 0)).toBeLessThan(arm.zIndex ?? 0)
   })
 })
 
@@ -545,5 +823,70 @@ describe("edge cases", () => {
     const doc = executionToReactFlow(load("localize-banner.ecp.json"))
     expect(step(doc, "translate").label).toBe("Translate headline")
     expect(step(doc, "doc").label).toBe("doc")
+  })
+})
+
+describe("detached layout", () => {
+  const invalidDir = path.resolve(here, "../../../../fixtures/manifests/invalid")
+
+  it("stamps detached steps and places them below the main flow", () => {
+    const manifest = JSON.parse(readFileSync(path.join(invalidDir, "detached.ecp.json"), "utf8")) as ExecutionManifest
+    const doc = executionToReactFlow(manifest)
+    const aside = doc.nodes.find((node) => node.id === "aside")
+    expect(aside?.type).toBe("ecp-step")
+    expect((aside?.data as ReactFlowStepData).detached).toBe(true)
+    for (const edge of doc.edges) {
+      expect(edge.source).not.toBe("aside")
+      expect(edge.target).not.toBe("aside")
+    }
+    const mainNodes = doc.nodes.filter((node) => node.id !== "aside" && !(node.data as { detached?: boolean }).detached)
+    const mainMaxY = mainNodes.reduce((max, node) => Math.max(max, node.position.y), -Infinity)
+    const detachedMinY = aside ? aside.position.y : Infinity
+    expect(detachedMinY).toBeGreaterThan(mainMaxY)
+  })
+
+  it("detached branch frame is stamped and has no incident route edges", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" }],
+      detached: [
+        {
+          type: "branch",
+          id: "asideBranch",
+          branches: [{ expr: "(state) => true", steps: [{ id: "aside", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "aside" }] }],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const frame = doc.nodes.find((node) => node.type === "ecp-frame" && (node.data as ReactFlowFrameData).structureId === "asideBranch")
+    expect((frame?.data as ReactFlowFrameData).detached).toBe(true)
+    const memberIds = new Set(["asideBranch", "aside"])
+    for (const edge of doc.edges) {
+      if (edge.data.kind === "route") {
+        expect(memberIds.has(edge.source) && memberIds.has(edge.target)).toBe(false)
+      }
+    }
+  })
+
+  it("data edges carry bindingPath and paramKey for script params", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" }, as: "w" },
+        {
+          id: "r",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: {
+            code: { $script: { lang: "js", source: "1", params: { p: { $ref: "state.w" } } } },
+          },
+          as: "r",
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "r")
+    expect(edge?.data).toMatchObject({ bindingPath: "code", paramKey: "p" })
   })
 })

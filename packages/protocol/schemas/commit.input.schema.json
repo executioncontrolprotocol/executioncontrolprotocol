@@ -8,9 +8,17 @@
     "type": { "enum": ["execution", "config"] },
     "action": { "enum": ["create", "update", "delete"] },
     "id": { "type": "string", "minLength": 1 },
+    "path": { "type": "string", "minLength": 1 },
     "object": {},
     "patch": { "type": "array" },
-    "ifVersion": { "type": "integer", "minimum": 1 }
+    "ifVersion": {
+      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "minLength": 1 }]
+    },
+    "draft": { "type": "boolean" },
+    "scripts": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
   },
   "allOf": [
     {
@@ -20,6 +28,33 @@
     {
       "if": { "properties": { "action": { "const": "update" } }, "required": ["action"] },
       "then": { "not": { "required": ["object", "patch"] } }
+    },
+    {
+      "if": { "properties": { "action": { "const": "create" } }, "required": ["action"] },
+      "then": { "not": { "required": ["path"] } }
+    },
+    {
+      "if": { "properties": { "action": { "enum": ["update", "delete"] } }, "required": ["action"] },
+      "then": {
+        "oneOf": [
+          { "required": ["id"], "not": { "required": ["path"] } },
+          { "required": ["path"], "not": { "required": ["id"] } }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "draft": { "const": true } }, "required": ["draft"] },
+      "then": {
+        "properties": { "type": { "const": "execution" }, "action": { "enum": ["create", "update"] } },
+        "required": ["type", "action"]
+      }
+    },
+    {
+      "if": { "required": ["scripts"] },
+      "then": {
+        "properties": { "type": { "const": "execution" }, "action": { "enum": ["create", "update"] } },
+        "required": ["type", "action"]
+      }
     }
   ]
 }

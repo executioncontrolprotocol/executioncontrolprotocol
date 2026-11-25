@@ -193,7 +193,7 @@ test.describe("A8 App", () => {
     await openPath(page, harness.parallelPath)
     // One frame for the whole parallel, not one per line.
     await expect(page.locator('[data-testid^="ecp-frame-label-prepare"]')).toHaveCount(1)
-    const label = page.getByTestId("ecp-frame-label-prepare-0")
+    const label = page.getByTestId("ecp-frame-label-prepare")
     await expect(label).toBeVisible()
     await expect(label).toHaveText("Prepare both sides in parallel for the pipeline")
     const labelBox = await label.boundingBox()

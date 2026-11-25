@@ -88,6 +88,14 @@ describe("error catalogue", () => {
     })
   })
 
+  it("catalogues ECP_NODE_DETACHED as validation", () => {
+    expect(catalogueEntry("ECP_NODE_DETACHED")).toEqual({
+      httpStatus: 422,
+      exitCode: 2,
+      kind: "validation",
+    })
+  })
+
   it("catalogues ECP_LIMIT_EXCEEDED as a runtime failure", () => {
     expect(catalogueEntry("ECP_LIMIT_EXCEEDED")).toEqual({
       httpStatus: null,
@@ -284,6 +292,33 @@ describe("JSON Schemas", () => {
       const validate = compiler.compile(readJson(path.join(schemaDir, name)) as object)
       expect(validate(sample), name).toBe(true)
     }
+  })
+})
+
+describe("path draft operation input schemas", () => {
+  it("allows path, draft, scripts, and string ifVersion on commit", () => {
+    const commitValidate = ajv().compile(readJson(path.join(schemaDir, "commit.input.schema.json")) as object)
+    expect(
+      commitValidate({
+        type: "execution",
+        action: "update",
+        path: "/tmp/flow.ecp.json",
+        ifVersion: "abc123",
+        draft: true,
+        object: {},
+        scripts: { "a.js": "x" },
+      }),
+    ).toBe(true)
+    expect(commitValidate({ type: "execution", action: "create", path: "/tmp/x.ecp.json", object: {} })).toBe(false)
+  })
+
+  it("allows path, filter.dir, and include scripts on retrieve", () => {
+    const retrieveValidate = ajv().compile(readJson(path.join(schemaDir, "retrieve.input.schema.json")) as object)
+    expect(
+      retrieveValidate({ type: "execution", path: "/tmp/x.ecp.json", include: ["scripts"] }),
+    ).toBe(true)
+    expect(retrieveValidate({ type: "execution", filter: { dir: "/tmp" } })).toBe(true)
+    expect(retrieveValidate({ type: "config", scripts: true, include: ["scripts"] } as never)).toBe(false)
   })
 })
 
@@ -489,6 +524,13 @@ describe("execution fixtures", () => {
     for (const name of readdirSync(validDir).filter((file) => file.endsWith(".ecp.json"))) {
       expect(validate(readJson(path.join(validDir, name))), name).toBe(true)
     }
+  })
+
+  it("accepts detached when non-empty and rejects an empty detached array", () => {
+    const withDetached = readJson(path.join(invalidDir, "detached.ecp.json"))
+    expect(validate(withDetached)).toBe(true)
+    expect(validate({ ...withDetached, detached: [] })).toBe(false)
+    expect(errorPaths(validate)).toContain("/detached")
   })
 
   it("rejects every schema-level invalid fixture at the expected path", () => {

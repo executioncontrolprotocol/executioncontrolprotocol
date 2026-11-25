@@ -38,6 +38,67 @@ describe("dataEdgeEditable", () => {
 })
 
 describe("applyRouteEdgeDraft", () => {
+  const nestedManifest: ExecutionManifest = {
+    schema: "@executioncontrolprotocol.execution",
+    version: "2.0",
+    steps: [
+      {
+        type: "branch",
+        id: "outer",
+        branches: [
+          {
+            expr: "(state) => true",
+            steps: [
+              {
+                type: "branch",
+                id: "inner",
+                branches: [
+                  {
+                    expr: "(state) => 1 === 1",
+                    steps: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+                  },
+                  { steps: [{ id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" } }] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  const nestedEdgeData = {
+    kind: "route" as const,
+    route: "branch" as const,
+    structureId: "outer",
+    armIndex: 0,
+    exprSource: "(state) => true",
+    levels: [
+      { route: "branch" as const, structureId: "outer", armIndex: 0, exprSource: "(state) => true", stepIds: ["x", "w"] },
+      { route: "branch" as const, structureId: "inner", armIndex: 0, exprSource: "(state) => 1 === 1", stepIds: ["x"] },
+    ],
+  }
+
+  it("updates inner arm expr without touching the outer arm", () => {
+    const next = applyRouteEdgeDraft(nestedManifest, nestedEdgeData, "(state) => false", 1)
+    const root = next?.steps?.[0] as { branches?: Array<{ expr?: string; steps?: Array<{ branches?: Array<{ expr?: string }> }> }> }
+    const outerExpr = root?.branches?.[0]?.expr
+    const innerExpr = root?.branches?.[0]?.steps?.[0]?.branches?.[0]?.expr
+    expect(outerExpr).toBe("(state) => true")
+    expect(innerExpr).toBe("(state) => false")
+  })
+
+  it("refuses inner default arms", () => {
+    const innerDefault = {
+      ...nestedEdgeData,
+      levels: [
+        nestedEdgeData.levels[0]!,
+        { route: "branch" as const, structureId: "inner", armIndex: 1, defaultArm: true, stepIds: ["w"] },
+      ],
+    }
+    expect(applyRouteEdgeDraft(nestedManifest, innerDefault, "(state) => false", 1)).toBeUndefined()
+  })
+
   const branchManifest: ExecutionManifest = {
     schema: "@executioncontrolprotocol.execution",
     version: "2.0",
@@ -53,7 +114,13 @@ describe("applyRouteEdgeDraft", () => {
   it("updates branch arm expr", () => {
     const next = applyRouteEdgeDraft(
       branchManifest,
-      { kind: "route", route: "branch", structureId: "pick", armIndex: 0 },
+      {
+        kind: "route",
+        route: "branch",
+        structureId: "pick",
+        armIndex: 0,
+        levels: [{ route: "branch", structureId: "pick", armIndex: 0 }],
+      },
       "state.off",
     )
     const arm = (next?.steps?.[0] as { branches?: Array<{ expr?: string }> })?.branches?.[0]
@@ -64,7 +131,14 @@ describe("applyRouteEdgeDraft", () => {
     expect(
       applyRouteEdgeDraft(
         branchManifest,
-        { kind: "route", route: "branch", structureId: "pick", armIndex: 1, defaultArm: true },
+        {
+          kind: "route",
+          route: "branch",
+          structureId: "pick",
+          armIndex: 1,
+          defaultArm: true,
+          levels: [{ route: "branch", structureId: "pick", armIndex: 1, defaultArm: true }],
+        },
         "nope",
       ),
     ).toBeUndefined()

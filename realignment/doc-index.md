@@ -16,12 +16,12 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | --- | --- |
 | Top-level docs | 9 |
 | Agent rules | 13 |
-| Plan / phases / spec | 35 |
+| Plan / phases / spec | 36 |
 | Package READMEs | 10 |
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
-| Examples | 15 |
-| Other | 28 |
+| Examples | 16 |
+| Other | 38 |
 
 ## All files
 
@@ -50,6 +50,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.cursor/rules/testing.mdc` | Agent rules | current |
 | `.cursor/rules/typescript.mdc` | Agent rules | current |
 | `realignment/README.md` | Plan / phases / spec | current |
+| `realignment/app-canvas-editing.md` | Plan / phases / spec | current |
 | `realignment/doc-index.md` | Plan / phases / spec | current |
 | `realignment/evidence/a10-localize-banner.md` | Plan / phases / spec | current |
 | `realignment/file-access.md` | Plan / phases / spec | current |
@@ -111,6 +112,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `examples/dogfood-reshape/README.md` | Examples | current |
 | `examples/echo/README.md` | Examples | current |
 | `examples/localize-banner/README.md` | Examples | current |
+| `examples/patterns/README.md` | Examples | current |
 | `examples/psd-artboards-renditions/README.md` | Examples | current |
 | `examples/psd-artboards/README.md` | Examples | current |
 | `examples/psd-generate-background/README.md` | Examples | current |
@@ -123,11 +125,20 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/README.md` | Other | current |
 | `.changeset/adobe-request-limit.md` | Other | current |
 | `.changeset/anthropic-images-psd-artboards.md` | Other | current |
+| `.changeset/app-autosave-undo.md` | Other | current |
+| `.changeset/app-capability-menu.md` | Other | current |
+| `.changeset/app-connections.md` | Other | current |
+| `.changeset/app-containers.md` | Other | current |
+| `.changeset/app-drag-connect.md` | Other | current |
+| `.changeset/app-host-api-only.md` | Other | current |
+| `.changeset/app-node-drag.md` | Other | current |
+| `.changeset/app-route-pill-levels.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/capture-pr4.md` | Other | current |
 | `.changeset/core-parse-csv.md` | Other | current |
 | `.changeset/core-transform-step-contracts.md` | Other | current |
 | `.changeset/declared-file-access-pr2.md` | Other | current |
+| `.changeset/detached-steps.md` | Other | current |
 | `.changeset/file-service-pr1.md` | Other | current |
 | `.changeset/graph-connectivity.md` | Other | current |
 | `.changeset/host-auto-start.md` | Other | current |
@@ -135,6 +146,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/loop-modes.md` | Other | current |
 | `.changeset/mvp-realignment-majors.md` | Other | current |
 | `.changeset/nested-file-ref-sweep.md` | Other | current |
+| `.changeset/path-draft-commit.md` | Other | current |
 | `.changeset/plugin-commands.md` | Other | current |
 | `.changeset/plugin-manifest-2.md` | Other | current |
 | `.changeset/plugin-package-names.md` | Other | current |

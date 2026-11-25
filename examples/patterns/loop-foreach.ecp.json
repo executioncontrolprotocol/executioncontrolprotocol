@@ -1,0 +1,62 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-loop-foreach",
+    "label": "Pattern: forEach loop",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "ada",
+            "grace",
+            "linus"
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "loop",
+      "mode": "forEach",
+      "id": "each-name",
+      "label": "For each name",
+      "ref": "state.names",
+      "as": "name",
+      "concurrency": 2,
+      "steps": [
+        {
+          "id": "greet",
+          "label": "Greet one name",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": {
+              "$ref": "state.name"
+            }
+          },
+          "as": "greet"
+        }
+      ],
+      "collect": "state.greet",
+      "into": "greetings"
+    },
+    {
+      "id": "report",
+      "label": "Report all greetings",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.greetings"
+        }
+      },
+      "as": "report"
+    }
+  ]
+}

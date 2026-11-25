@@ -315,11 +315,13 @@ function skipsOutputSchemaCheck(schema: Record<string, unknown>): boolean {
 const COMBINATOR_NOISE = new Set(["if", "then", "else", "anyOf", "oneOf", "allOf", "not", "false"])
 
 /**
- * Validate an execution object through L0–L3, and L4 when `input` is set.
- * Uses the base document schema plus per-capability raw accepts with marker filtering.
+ * Validate an execution through L0–L3 and report whether L0/L1 errors block draft commit.
  * @category Validation
  */
-export async function validateExecution(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
+export async function validateExecutionLayers(
+  manifest: unknown,
+  options: ValidateOptions,
+): Promise<{ result: ValidationResult; blocksDraft: boolean }> {
   const schemas =
     options.schemaSet ??
     (await HostSchemaSet.create(options.capabilities, {
@@ -329,7 +331,7 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
   const manifestHash = await sha256Hex(canonicalJson(manifest))
   const loaded = loadObject(manifest)
   if (loaded) {
-    return finish([loaded], manifestHash, schemas.schemaHash)
+    return { result: finish([loaded], manifestHash, schemas.schemaHash), blocksDraft: true }
   }
   const secretEnv = collectSecretEnvIssues(manifest)
   const secretEnvPaths = [...new Set(secretEnv.map((issue) => issue.path))]
@@ -357,6 +359,10 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
   const unknownUses = checkUnknownUses(manifest, options.capabilities)
   const capabilityInputRaw = isManifest(checked) ? await checkCapabilityInputs(checked, schemas, options.capabilities) : []
   const capabilityInput = capabilityInputRaw.filter((issue) => !atOrUnderSecretEnv(issue.path))
+  // A draft can be stored whenever the document is an execution at all (L0 + the base structure schema). Capability
+  // checks (unknown `uses`, step input vs `accepts`) are reported but don't block it: an unbound required input after
+  // deleting a connection, or a plugin that isn't installed here, must still save (spec 06 draft).
+  const blocksDraft = structural.some((issue) => issue.severity === "error")
   const enriched = isManifest(manifest)
     ? await enrichCapabilities(options.capabilities, schemas)
     : options.capabilities
@@ -368,7 +374,17 @@ export async function validateExecution(manifest: unknown, options: ValidateOpti
       : checkDataFlow(manifest, enriched)
   const inputIssues = options.input ? validateRunInput(manifest, options.input) : []
   const combined = collapseLoopFieldIssues(collapseScriptPositionIssues([...layerErrors, ...flow, ...inputIssues]))
-  return finish(dedupeIssues(combined), manifestHash, schemas.schemaHash)
+  const result = finish(dedupeIssues(combined), manifestHash, schemas.schemaHash)
+  return { result, blocksDraft }
+}
+
+/**
+ * Validate an execution object through L0–L3, and L4 when `input` is set.
+ * Uses the base document schema plus per-capability raw accepts with marker filtering.
+ * @category Validation
+ */
+export async function validateExecution(manifest: unknown, options: ValidateOptions): Promise<ValidationResult> {
+  return (await validateExecutionLayers(manifest, options)).result
 }
 
 /** Deep copy with every `$secret` / `$env` marker object replaced by `null`. */
@@ -579,6 +595,7 @@ function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEn
     }
   }
   visit(manifest.steps, "/steps")
+  if (Array.isArray(manifest.detached)) visit(manifest.detached, "/detached")
   return issues
 }
 
@@ -677,6 +694,7 @@ async function checkCapabilityInputs(
     }
   }
   await visit(manifest.steps, "/steps")
+  if (Array.isArray(manifest.detached)) await visit(manifest.detached, "/detached")
   return issues
 }
 
@@ -750,6 +768,12 @@ async function checkSemantics(manifest: unknown, options: ValidateOptions): Prom
   const inputNames = new Set(Object.keys(schemaProperties(recordProperty(manifest.execution, "accepts")) ?? {}))
   const configs = new Map((options.configs ?? []).map((config) => [config.id, config]))
   await walkSemantics(manifest.steps, "/steps", { inLoop: false }, issues, seen, inputNames, configs, options)
+  if (Array.isArray(manifest.detached)) {
+    for (let index = 0; index < manifest.detached.length; index += 1) {
+      issues.push(detachedIssue(index, manifest.detached[index]))
+    }
+    await walkSemantics(manifest.detached, "/detached", { inLoop: false }, issues, seen, inputNames, configs, options)
+  }
   return issues
 }
 
@@ -1224,6 +1248,23 @@ function trim(value: unknown, max: number): unknown {
   const text = JSON.stringify(value)
   if (text === undefined || text.length <= max) return value
   return text.slice(0, max)
+}
+
+/**
+ * L2 issue for one entry in `detached`.
+ * @category Environment
+ */
+export function detachedIssue(index: number, entry: unknown): ValidationIssue {
+  const id = isRecord(entry) && typeof entry.id === "string" ? entry.id : undefined
+  return {
+    ...semantic(
+      "ECP_NODE_DETACHED",
+      id === undefined ? "Step isn't connected to the flow" : `Step ${id} isn't connected to the flow`,
+      `/detached/${index}`,
+      id,
+    ),
+    suggestions: ["Reconnect it or delete it"],
+  }
 }
 
 function semantic(code: ValidationIssue["code"], message: string, path: string, nodeId?: string): ValidationIssue {

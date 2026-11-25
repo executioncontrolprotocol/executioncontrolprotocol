@@ -5,6 +5,7 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   acceptsPropertyKeys,
+  detachedNodeIds,
   executionToReactFlow,
   EXECUTION_RETURNS_NODE_ID,
   returnsSourceKeys,
@@ -12,9 +13,10 @@ import {
   walkInputRefs,
   type ReactFlowDocument,
   type ReactFlowEdge,
+  type ReactFlowRouteEdgeData,
 } from "../../src/graph/index.js"
 import { jsonSchemaObjectProperties } from "../../src/graph/json-schema.js"
-import { LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
+import { FLOW_IN_HANDLE, FLOW_OUT_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, "../../../..")
@@ -61,14 +63,16 @@ function dataEdges(doc: ReactFlowDocument): ReactFlowEdge[] {
   return doc.edges.filter((edge) => edge.data.kind === "data")
 }
 
-function assertC2(doc: ReactFlowDocument, file: string): void {
+function assertC2(doc: ReactFlowDocument, file: string, manifest?: ExecutionManifest): void {
   const connected = new Set<string>()
   for (const edge of doc.edges) {
     connected.add(edge.source)
     connected.add(edge.target)
   }
+  const exempt = manifest ? detachedNodeIds(manifest) : new Set<string>()
   for (const node of doc.nodes) {
     if (node.type === "ecp-frame") continue
+    if (exempt.has(node.id)) continue
     expect(connected.has(node.id), `${file} orphaned node ${node.id}`).toBe(true)
   }
 }
@@ -171,7 +175,7 @@ describe("graph connectivity invariant", () => {
     const relative = path.relative(repoRoot, file)
     try {
       assertC1(manifest, doc, relative)
-      assertC2(doc, relative)
+      assertC2(doc, relative, manifest)
       connectivityResults.push({ file: relative, ok: true })
     } catch (error) {
       connectivityResults.push({ file: relative, ok: false })
@@ -263,5 +267,53 @@ describe("connectivity focused cases", () => {
     expect(dataEdges(doc)).toContainEqual(
       expect.objectContaining({ source: "rounds", sourceHandle: LOOP_ITEM_HANDLE, target: "tick" }),
     )
+  })
+
+  it.each(manifestPaths)("%s route edges use flow handles", (file) => {
+    const doc = executionToReactFlow(loadManifest(file))
+    for (const edge of doc.edges) {
+      if (edge.data.kind !== "route") continue
+      expect(edge.sourceHandle, `${file} ${edge.id} sourceHandle`).toBe(FLOW_OUT_HANDLE)
+      expect(edge.targetHandle, `${file} ${edge.id} targetHandle`).toBe(FLOW_IN_HANDLE)
+    }
+  })
+
+  it.each(manifestPaths)("%s publishes every branch arm expr on a route edge level", (file) => {
+    const manifest = loadManifest(file)
+    const expected: Array<{ structureId: string; armIndex: number; expr: string }> = []
+    const walk = (nodes: AnyNode[]): void => {
+      for (const node of nodes) {
+        if (node.type === "branch") {
+          const arms = node.branches as Array<{ expr?: string; steps?: AnyNode[] }>
+          arms.forEach((arm, armIndex) => {
+            if (typeof arm.expr === "string") {
+              expected.push({ structureId: node.id, armIndex, expr: arm.expr })
+            }
+            if (arm.steps) walk(arm.steps)
+          })
+        } else if (node.type === "parallel") {
+          for (const line of node.branches as AnyNode[][]) walk(line)
+        } else if (node.type === "loop" && node.steps) {
+          walk(node.steps as AnyNode[])
+        }
+      }
+    }
+    walk((manifest.steps ?? []) as AnyNode[])
+    const doc = executionToReactFlow(manifest)
+    const found = new Set<string>()
+    for (const edge of doc.edges) {
+      if (edge.data.kind !== "route") continue
+      const data = edge.data as ReactFlowRouteEdgeData
+      for (const level of data.levels) {
+        if (level.route === "branch" && typeof level.exprSource === "string") {
+          found.add(`${level.structureId}:${level.armIndex}:${level.exprSource}`)
+        }
+      }
+    }
+    for (const arm of expected) {
+      expect(found.has(`${arm.structureId}:${arm.armIndex}:${arm.expr}`), `${file} missing arm ${arm.structureId}[${arm.armIndex}]`).toBe(
+        true,
+      )
+    }
   })
 })

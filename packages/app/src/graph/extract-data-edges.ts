@@ -196,7 +196,7 @@ function joinPath(path: string, key: string): string {
 export function walkInputRefs(
   value: unknown,
   path: string,
-  visit: (inputPath: string, refPath: string) => void,
+  visit: (inputPath: string, refPath: string, paramKey?: string) => void,
 ): void {
   const refPath = refPathFromValue(value)
   if (refPath !== undefined) {
@@ -205,9 +205,9 @@ export function walkInputRefs(
   }
   if (isExprMarker(value)) return
   if (isScriptMarker(value)) {
-    for (const param of Object.values(value.$script.params ?? {})) {
+    for (const [key, param] of Object.entries(value.$script.params ?? {})) {
       const paramRef = refPathFromValue(param)
-      if (paramRef !== undefined) visit(path, paramRef)
+      if (paramRef !== undefined) visit(path, paramRef, key)
     }
     return
   }
@@ -321,6 +321,8 @@ interface WriterHit {
   id: string
   order: number
   enclosingLoopId?: string
+  /** Every loop enclosing the writer, outermost first. */
+  loopStack?: readonly string[]
 }
 
 interface SourceIndex {
@@ -354,7 +356,11 @@ function buildSourceIndex(
     const { step, order, enclosingLoopStack } = placement
     if (!step.as) continue
     const enclosingLoopId = enclosingLoopStack.at(-1)
-    const hit: WriterHit = { id: step.id, order, ...(enclosingLoopId ? { enclosingLoopId } : {}) }
+    const hit: WriterHit = {
+      id: step.id,
+      order,
+      ...(enclosingLoopId ? { enclosingLoopId, loopStack: [...enclosingLoopStack] } : {}),
+    }
     if (enclosingLoopId) {
       const list = bodyWriters.get(step.as) ?? []
       list.push(hit)
@@ -382,12 +388,31 @@ function buildSourceIndex(
     return filtered.at(-1)?.id
   }
 
-  function resolveAtOrder(asKey: string, maxOrder: number, enclosingLoopId?: string): string | undefined {
+  /**
+   * A body writer is visible after its loops when every loop it sits in (that doesn't also enclose the reader) is a
+   * `while` / `for` loop the reader comes after; `forEach` body writes stay in the item's scope (spec 03 L3).
+   */
+  function escapesTo(hit: WriterHit, maxOrder: number, readerStack: readonly string[]): boolean {
+    const left = (hit.loopStack ?? []).filter((loopId) => !readerStack.includes(loopId))
+    if (left.length === 0) return false
+    return left.every((loopId) => {
+      const scope = loopById.get(loopId)
+      return scope !== undefined && scope.mode !== "forEach" && scope.endOrder < maxOrder
+    })
+  }
+
+  function resolveAtOrder(
+    asKey: string,
+    maxOrder: number,
+    enclosingLoopId?: string,
+    readerStack: readonly string[] = enclosingLoopId ? [enclosingLoopId] : [],
+  ): string | undefined {
     if (enclosingLoopId) {
       const body = lastBefore(bodyWriters.get(asKey) ?? [], maxOrder, enclosingLoopId)
       if (body) return body
     }
-    const global = lastBefore(globalWriters.get(asKey) ?? [], maxOrder)
+    const escaped = (bodyWriters.get(asKey) ?? []).filter((hit) => escapesTo(hit, maxOrder, readerStack))
+    const global = lastBefore([...(globalWriters.get(asKey) ?? []), ...escaped].sort((a, b) => a.order - b.order), maxOrder)
     if (global) return global
     if (acceptsKeys?.has(asKey)) return EXECUTION_ACCEPTS_NODE_ID
     return undefined
@@ -402,7 +427,7 @@ function buildSourceIndex(
 
       const placementOrder = readerOrder ?? orderById.get(readerId) ?? Number.POSITIVE_INFINITY
       const enclosing = stack.at(-1) ?? (loopById.has(readerId) ? readerId : undefined)
-      const resolved = resolveAtOrder(asKey, placementOrder, enclosing)
+      const resolved = resolveAtOrder(asKey, placementOrder, enclosing, stack)
       if (resolved) return resolved
       const candidates = [
         ...(globalWriters.get(asKey) ?? []),
@@ -450,6 +475,8 @@ function pushReadEdge(
   wholeFallback: boolean,
   readerOrder?: number,
   enclosingStack?: string[],
+  bindingPath?: string,
+  paramKey?: string,
 ): void {
   const parsed = parseStateRef(statePath)
   if (!parsed) return
@@ -479,7 +506,13 @@ function pushReadEdge(
     target: readerId,
     sourceHandle,
     targetHandle,
-    data: { kind: "data", inputPath: targetHandle, statePath },
+    data: {
+      kind: "data",
+      inputPath: targetHandle,
+      statePath,
+      ...(bindingPath !== undefined ? { bindingPath } : {}),
+      ...(paramKey !== undefined ? { paramKey } : {}),
+    },
   })
 }
 
@@ -567,7 +600,7 @@ export function extractDataEdges(
     if (!step.input) continue
     const inputPortIds = inputPortIdsByStepId?.get(step.id)
     for (const [name, value] of Object.entries(step.input)) {
-      walkInputRefs(value, name, (inputPath, refPath) => {
+      walkInputRefs(value, name, (inputPath, refPath, paramKey) => {
         pushReadEdge(
           ctx,
           step.id,
@@ -576,6 +609,8 @@ export function extractDataEdges(
           false,
           undefined,
           enclosingLoopStack,
+          inputPath,
+          paramKey,
         )
       })
     }

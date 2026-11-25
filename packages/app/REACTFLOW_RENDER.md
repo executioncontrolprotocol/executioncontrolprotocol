@@ -16,7 +16,8 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   (`state.<as>` and `state.<as>Index` in `forEach`).
 - **C2. No orphaned nodes.** Every rendered node (steps, loop head nodes, the Inputs and Outputs nodes) has
   at least one visible edge. Frames are not nodes for this purpose. Otherwise-orphaned nodes keep their
-  layout control edges as visible `sequence` route edges (no label).
+  layout control edges as visible `sequence` route edges (no label). A `detached` step is drawn with no
+  flow connector, shows a "disconnected" badge, and is exempt from C2.
 
 - **Published edges are `data` or `route`.** Layout may insert temporary unlabelled `control`
   edges between sequential steps; strip those before publishing. Never invent fake `$ref`s for
@@ -42,15 +43,25 @@ The encoder is pure: it takes a v2 execution manifest (`@executioncontrolprotoco
   loop head into the body entry (no loop-back). `sequence` routes preserve connectivity for literal-only
   steps. Parallel lines use dashed route edges without repeating the structure label (the label is drawn
   on the frame).
-- **Parallel and forEach frames.** After dagre, emit one `ecp-frame` overlay per parallel node or
-  `forEach` loop body: a non-interactive box sized to the union of that structure's step nodes (with
-  padding). The structure label is drawn on the frame, not on the route edges. Frames are not dagre
-  parents and never set `parentId`.
+- **Frames for every structure.** After dagre, emit an `ecp-frame` for every branch, parallel and loop
+  (all modes), sized to its body after layout, with the structure label on the frame. Parallel still
+  has one frame around the whole parallel. Frames are not dagre parents and never set
+  `parentId`.
 - **Loop head node.** Every `loop` (all modes) is an `ecp-loop` node at the head of the body (or frame for
   `forEach`), with target handles for `ref` / `expr` / `collect` and source handles `item` and `into` as
   applicable.
-- **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch and loop
-  structure stay on route edges; parallel structure uses frames plus route connectors.
+- **No group containers.** Do not emit `ecp-group` / `parentId` nesting. Branch arms stay route
+  edges with pills inside the branch frame; every structure uses a frame plus those route connectors.
+- **Route pills and menus.** Route edge flat fields equal `levels[0]`; `levels` is the full stack, outer
+  first, including nested branch, parallel and loop entries. `EcpRouteEdge` draws one pill per
+  non-empty level (loop-back edges draw none). Each pill is a clickable control and selects that edge
+  and level. Each pill and each frame header has a ⋯ control.
+- **Flow handles.** Every step, loop and I/O node has a dedicated flow-in handle on the left and flow-out
+  on the right (centred on the header), separate from data ports. Inputs exposes only flow-out; Outputs
+  only flow-in. Published **route** edges set `sourceHandle` / `targetHandle` to those ids; data edges use
+  port handles only.
+- **Dragged positions.** Dragged positions override dagre for the nodes that were moved, including when
+  layout runs again after a structure change. Frames are recomputed from the nodes' current positions.
 - **Inputs and Outputs nodes.** `execution.accepts` is always projected as the `ecp:accepts`
   node (possibly empty); `execution.returns` becomes the `ecp:returns` node when it declares
   properties.

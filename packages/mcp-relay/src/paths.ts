@@ -6,10 +6,15 @@ import type { CommitInput, ExecuteInput, RetrieveInput } from "@executioncontrol
  * @category MCP
  */
 export function resolveRetrievePaths(input: RetrieveInput, cwd: string): RetrieveInput {
-  if (!input.output?.path) return input
+  const filter =
+    input.filter?.dir !== undefined
+      ? { ...input.filter, dir: resolveAgainst(cwd, input.filter.dir) }
+      : input.filter
   return {
     ...input,
-    output: { path: resolveAgainst(cwd, input.output.path) },
+    path: input.path ? resolveAgainst(cwd, input.path) : undefined,
+    filter,
+    output: input.output?.path ? { path: resolveAgainst(cwd, input.output.path) } : input.output,
   }
 }
 
@@ -32,8 +37,11 @@ export function resolveExecutePaths(input: ExecuteInput, cwd: string): ExecuteIn
  * Resolve relative paths in commit input against cwd (object/patch file refs are already inlined by clients).
  * @category MCP
  */
-export function resolveCommitPaths(input: CommitInput, _cwd: string): CommitInput {
-  return input
+export function resolveCommitPaths(input: CommitInput, cwd: string): CommitInput {
+  return {
+    ...input,
+    path: input.path ? resolveAgainst(cwd, input.path) : undefined,
+  }
 }
 
 /**

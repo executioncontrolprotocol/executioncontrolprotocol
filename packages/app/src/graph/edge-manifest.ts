@@ -1,6 +1,6 @@
 import type { ExecutionManifest, Node, StepNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { isRefMarker, refPathFromValue } from "./markers.js"
-import type { ReactFlowRouteEdgeData } from "./types.js"
+import type { ReactFlowRouteEdgeData, ReactFlowRouteLevel } from "./types.js"
 
 /**
  * Marker kind carried on a data edge for the edge inspector.
@@ -148,19 +148,42 @@ export function dataEdgeInspectorMeta(
   return undefined
 }
 
+function routeLevelAt(data: ReactFlowRouteEdgeData, levelIndex: number): ReactFlowRouteLevel | undefined {
+  const fromLevels = data.levels?.[levelIndex]
+  if (fromLevels) return fromLevels
+  if (levelIndex !== 0) return undefined
+  return {
+    route: data.route,
+    ...(data.structureId !== undefined ? { structureId: data.structureId } : {}),
+    ...(data.armIndex !== undefined ? { armIndex: data.armIndex } : {}),
+    ...(data.label !== undefined ? { label: data.label } : {}),
+    ...(data.exprBadge !== undefined ? { exprBadge: data.exprBadge } : {}),
+    ...(data.exprSource !== undefined ? { exprSource: data.exprSource } : {}),
+    ...(data.defaultArm !== undefined ? { defaultArm: data.defaultArm } : {}),
+    ...(data.maxRounds !== undefined ? { maxRounds: data.maxRounds } : {}),
+    ...(data.loopMode !== undefined ? { loopMode: data.loopMode } : {}),
+    ...(data.stepIds !== undefined ? { stepIds: data.stepIds } : {}),
+  }
+}
+
 /**
- * Inspector metadata for a route edge (branch arm or loop `expr`).
+ * Inspector metadata for a route edge (branch arm or loop `expr`) at a stack level.
  * @category App
  */
-export function routeEdgeInspectorMeta(manifest: ExecutionManifest, data: ReactFlowRouteEdgeData): RouteEdgeInspectorMeta | undefined {
-  if (data.route === "sequence") return undefined
-  if (data.defaultArm) {
+export function routeEdgeInspectorMeta(
+  manifest: ExecutionManifest,
+  data: ReactFlowRouteEdgeData,
+  levelIndex = 0,
+): RouteEdgeInspectorMeta | undefined {
+  const level = routeLevelAt(data, levelIndex)
+  if (!level || level.route === "sequence") return undefined
+  if (level.defaultArm) {
     return { manifestPointer: "", validatePointer: "", defaultArm: true }
   }
-  if (!data.structureId) return undefined
-  const base = stepManifestPointer(manifest, data.structureId)
+  if (!level.structureId) return undefined
+  const base = stepManifestPointer(manifest, level.structureId)
   if (!base) return undefined
-  if (data.route === "loop") {
+  if (level.route === "loop") {
     const exprSource = readManifestPointer(manifest, `${base}/expr`)
     return {
       manifestPointer: `${base}/expr`,
@@ -168,8 +191,8 @@ export function routeEdgeInspectorMeta(manifest: ExecutionManifest, data: ReactF
       ...(typeof exprSource === "string" ? { exprSource } : {}),
     }
   }
-  if (data.route === "branch" && data.armIndex !== undefined) {
-    const armPointer = `${base}/branches/${data.armIndex}`
+  if (level.route === "branch" && level.armIndex !== undefined) {
+    const armPointer = `${base}/branches/${level.armIndex}`
     const exprSource = readManifestPointer(manifest, `${armPointer}/expr`)
     return {
       manifestPointer: `${armPointer}/expr`,

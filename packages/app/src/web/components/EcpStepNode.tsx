@@ -1,13 +1,18 @@
 import type { NodeProps } from "@xyflow/react"
 import { AlertTriangle, Filter } from "lucide-react"
-import type { ReactFlowStepData, ReactFlowStepStatus } from "../../graph/index.js"
-import { InputPortRow, OutputPortRow } from "./ports.js"
+import { EXPR_HANDLE_ID, type ReactFlowStepData, type ReactFlowStepStatus } from "../../graph/index.js"
+import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
  * Data for {@link EcpStepNode}: the encoded step plus run and validation overlays.
  * @category App
  */
 export interface EcpStepNodeData extends ReactFlowStepData {
+  /** When true, flow handles accept reconnect gestures. */
+  flowConnectable?: boolean
+  /** When true, data ports accept connection gestures. */
+  dataConnectable?: boolean
   /** Run status, when a run is shown. */
   status?: ReactFlowStepStatus
   /** Loop round of the status, when inside a loop. */
@@ -31,6 +36,7 @@ export interface EcpStepNodeData extends ReactFlowStepData {
  */
 export function EcpStepNode({ id, data, selected }: NodeProps) {
   const step = data as unknown as EcpStepNodeData
+  const dataConnectable = step.dataConnectable ?? false
   const targets = new Set(step.connectedTargetHandles ?? [])
   const sources = new Set(step.connectedSourceHandles ?? [])
   const classes = [
@@ -38,6 +44,7 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
     step.status && step.status !== "idle" ? `ecp-rf-node--${step.status}` : "",
     step.invalid ? "ecp-rf-node--invalid" : "",
     selected ? "ecp-rf-node--selected" : "",
+    step.detached ? "ecp-rf-node--detached" : "",
   ]
   const showError = Boolean(step.errorMessage) && (step.invalid || step.status === "failed")
 
@@ -49,6 +56,13 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       data-invalid={step.invalid ? "true" : "false"}
       className={classes.join(" ")}
     >
+      <FlowInHandle connectable={step.flowConnectable ?? false} />
+      <FlowOutHandle connectable={step.flowConnectable ?? false} />
+      {step.detached ? (
+        <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
+          disconnected
+        </span>
+      ) : null}
       <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="font-display text-[11px] font-semibold leading-tight text-on-surface">{step.label}</div>
@@ -85,14 +99,22 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       </div>
       <div className="flex flex-col gap-1">
         {step.inputs.map((port) => (
-          <InputPortRow
+          <DragInputPort
             key={`in-${port.id}`}
+            nodeId={id}
             port={port}
             connected={port.binding === "ref" || targets.has(port.id)}
+            connectable={dataConnectable && port.id !== EXPR_HANDLE_ID}
           />
         ))}
         {step.outputs.map((port) => (
-          <OutputPortRow key={`out-${port.id}`} port={port} connected={sources.has(port.id)} />
+          <DragOutputPort
+            key={`out-${port.id}`}
+            nodeId={id}
+            port={port}
+            connected={sources.has(port.id)}
+            connectable={dataConnectable}
+          />
         ))}
       </div>
     </div>

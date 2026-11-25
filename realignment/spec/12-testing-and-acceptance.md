@@ -114,3 +114,17 @@ Ubuntu and Windows CI, and A10 has been run live once with the result recorded.
 | A10 | Live (manual or CI with secrets): the Firefly `localize-banner` execution (converted dogfood) validates and runs against real Firefly and Anthropic, producing a PSD; output recorded in the Phase 8 PR | Real dogfood |
 | A11 | Benchmarks B1–B8 recorded; the background-host decision written in the plan; budgets enforced in CI | Performance decision |
 | A12 | `legacy/` deleted; `pnpm run check` green; coverage floors met; docs and agent rules match the code | Clean finish |
+
+### Canvas editing acceptance
+
+Additional acceptance for App canvas editing (later phases; not part of the A1–A12 MVP gate):
+
+- A manifest with `detached` is refused by `execute` and by `execute` in validate mode with
+  `ECP_NODE_DETACHED` (fixture: `fixtures/manifests/invalid/detached.ecp.json`, added in a later
+  phase).
+- Strict `commit` of a manifest with L2/L3 errors refuses; `commit` with `draft: true` stores it
+  and returns `{ version, issues }`; `execute` still refuses.
+- `retrieve` and `commit` by path round-trip; a stale `ifVersion` returns `ECP_VERSION_CONFLICT`.
+- The App makes no request outside `POST /v1/retrieve`, `POST /v1/execute`, `POST /v1/commit`,
+  `GET /v1/watch`, and `GET /v1/runs/:id/artifacts/:name`.
+- App canvas e2e: menus, connect (incompatible drop refused), autosave with no Save button.

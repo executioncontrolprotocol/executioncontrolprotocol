@@ -37,7 +37,7 @@ export class UnauthorizedError extends Error {
 }
 
 /**
- * Thrown by the file routes and on network failures: carries the host's refusal.
+ * Thrown when a host request fails: carries the host's refusal.
  * @category App
  */
 export class HostRequestError extends Error {
@@ -125,6 +125,8 @@ export interface WatchUrlOptions {
   runId?: string
   /** Absolute `.ecp.json` path to watch (with its `$script.path` files). */
   path?: string
+  /** Stored execution id to watch (with `execution` and `run` storage events). */
+  id?: string
 }
 
 /**
@@ -139,7 +141,7 @@ export interface AppHostClientOptions {
 }
 
 /**
- * Browser client for the host HTTP API: the three operations plus the App's file routes.
+ * Browser client for the host HTTP API: retrieve, execute, commit, watch, and artifacts.
  * Every request carries `Authorization: Bearer <token>`.
  * @category App
  */
@@ -177,36 +179,6 @@ export class AppHostClient {
     return this.post("/v1/commit", input)
   }
 
-  /** `PUT /v1/file?path=`: replace an open `.ecp.json` file (must be on the App watch set). */
-  async putFile(path: string, text: string): Promise<void> {
-    const response = await this.send(`/v1/file?${new URLSearchParams({ path })}`, {
-      method: "PUT",
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-      body: text,
-    })
-    if (response.status === 204) return
-    const body = await response.text()
-    throw this.refusal(response.status, body)
-  }
-
-  /** `GET /v1/file?path=`: text of an execution file or one of its `$script.path` files. */
-  async getFile(path: string): Promise<string> {
-    const response = await this.send(`/v1/file?${new URLSearchParams({ path })}`, { method: "GET" })
-    const text = await response.text()
-    if (response.ok) return text
-    throw this.refusal(response.status, text)
-  }
-
-  /** `GET /v1/files?dir=`: absolute `*.ecp.json` paths under `dir`. */
-  async listFiles(dir: string): Promise<string[]> {
-    const response = await this.send(`/v1/files?${new URLSearchParams({ dir })}`, { method: "GET" })
-    const text = await response.text()
-    const envelope = toOperationResponse<{ files?: unknown }>(response.status, parseJson(text))
-    if (!envelope.ok) throw new HostRequestError(envelope.error, response.status)
-    const files = envelope.data.files
-    return Array.isArray(files) ? files.filter((file): file is string => typeof file === "string") : []
-  }
-
   /** Absolute URL of `GET /v1/runs/:runId/artifacts/:name`. */
   artifactPath(runId: string, name: string): string {
     return this.url(
@@ -233,6 +205,7 @@ export class AppHostClient {
     if (options.types && options.types.length > 0) params.set("types", options.types.join(","))
     if (options.runId) params.set("runId", options.runId)
     if (options.path) params.set("path", options.path)
+    if (options.id) params.set("id", options.id)
     const query = params.toString()
     return this.url(`/v1/watch${query ? `?${query}` : ""}`)
   }

@@ -16,7 +16,7 @@ import {
   returnsReactFlowNode,
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
-import { boundsAroundNodeIds, FRAME_PADDING, layoutReactFlowDocument } from "./layout.js"
+import { frameBounds, layoutReactFlowDocument, type LayoutCluster } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import type {
   CapabilitySchemaIndex,
@@ -28,27 +28,92 @@ import type {
   ReactFlowNode,
   ReactFlowPort,
   ReactFlowRouteEdgeData,
+  ReactFlowRouteLevel,
   ReactFlowStepData,
 } from "./types.js"
-import { LOOP_COLLECT_HANDLE, LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "./types.js"
+import {
+  FLOW_IN_HANDLE,
+  FLOW_OUT_HANDLE,
+  LOOP_COLLECT_HANDLE,
+  LOOP_INTO_HANDLE,
+  LOOP_ITEM_HANDLE,
+  LOOP_REF_HANDLE,
+} from "./types.js"
+
+/** One post-layout overlay frame per branch, parallel, or loop. */
+interface StructureFrame {
+  /** Stable React Flow node id (`ecp:frame:…`). */
+  frameId: string
+  /** Manifest structure id. */
+  structureId: string
+  structureKind: "branch" | "parallel" | "loop"
+  loopMode?: "while" | "for" | "forEach"
+  /** Header text. */
+  label: string
+  /** Body node ids, including loop heads. */
+  memberNodeIds: string[]
+  /** Nested frame ids contained in this frame. */
+  childFrameIds: string[]
+  /** Nesting depth (`0` at the top level). */
+  depth: number
+}
+
+interface FrameStackEntry {
+  spec: StructureFrame
+}
 
 interface EncodeContext {
   capabilitySchemas: CapabilitySchemaIndex | undefined
-  parallelFrames: ParallelLineFrame[]
+  structureFrames: StructureFrame[]
+  frameStack: FrameStackEntry[]
 }
 
-/** One overlay frame per parallel node (around all its lines), emitted after layout. */
-interface ParallelLineFrame {
-  /** Stable node id. */
-  frameId: string
-  /** Parallel node id. */
-  structureId: string
-  /** Parallel line index. */
-  armIndex: number
-  /** Parallel structure label, when set. */
-  label?: string
-  /** Leaf step ids on this line. */
-  stepIds: string[]
+function beginStructureFrame(
+  ctx: EncodeContext,
+  partial: Pick<StructureFrame, "frameId" | "structureId" | "structureKind" | "label"> &
+    Partial<Pick<StructureFrame, "loopMode">>,
+): void {
+  const parent = ctx.frameStack[ctx.frameStack.length - 1]
+  const spec: StructureFrame = {
+    frameId: partial.frameId,
+    structureId: partial.structureId,
+    structureKind: partial.structureKind,
+    label: partial.label,
+    memberNodeIds: [],
+    childFrameIds: [],
+    depth: ctx.frameStack.length,
+    ...(partial.loopMode !== undefined ? { loopMode: partial.loopMode } : {}),
+  }
+  if (parent) parent.spec.childFrameIds.push(spec.frameId)
+  ctx.frameStack.push({ spec })
+  ctx.structureFrames.push(spec)
+}
+
+function layoutClusters(frames: readonly StructureFrame[]): LayoutCluster[] {
+  return frames.map((frame) => ({
+    id: frame.frameId,
+    memberNodeIds: frame.memberNodeIds,
+    childClusterIds: frame.childFrameIds,
+  }))
+}
+
+function endStructureFrame(ctx: EncodeContext, memberNodeIds: readonly string[]): void {
+  const current = ctx.frameStack.pop()
+  if (current) current.spec.memberNodeIds = [...memberNodeIds]
+}
+
+function structureFrameLabel(node: BranchNode | ParallelNode | LoopNode): string {
+  if (node.label) return node.label
+  if (node.type === "branch") return "branch"
+  if (node.type === "parallel") return "parallel"
+  const mode = loopMode(node)
+  if (mode === "forEach") return loopItemsFrameLabel(node)
+  if (mode === "while") return "while"
+  return "for N"
+}
+
+function nodeIdsInSegment(seg: RenderSegment): string[] {
+  return seg.nodes.map((node) => node.id)
 }
 
 /** Route metadata a parent uses to draw labelled edges into a structure's entries. */
@@ -75,6 +140,26 @@ function connectControl(edges: ReactFlowEdge[], fromIds: string[], toIds: string
   }
 }
 
+function routePayload(level: ReactFlowRouteLevel, extra?: { loopBack?: boolean }): Omit<ReactFlowRouteEdgeData, "kind"> {
+  return { ...level, levels: [level], ...extra }
+}
+
+function composedRouteEntries(seg: RenderSegment, outer: ReactFlowRouteLevel): RouteEntry[] {
+  if (seg.routeEntries && seg.routeEntries.length > 0) {
+    return seg.routeEntries.map((entry) => ({
+      entryId: entry.entryId,
+      data: {
+        ...outer,
+        levels: [outer, ...entry.data.levels],
+      },
+    }))
+  }
+  return seg.entryIds.map((entryId) => ({
+    entryId,
+    data: { ...outer, levels: [outer] },
+  }))
+}
+
 function connectRoutes(edges: ReactFlowEdge[], fromIds: string[], entries: RouteEntry[], prefix: string): void {
   let i = 0
   for (const from of fromIds) {
@@ -83,6 +168,8 @@ function connectRoutes(edges: ReactFlowEdge[], fromIds: string[], entries: Route
         id: `route-${prefix}-${i++}-${from}-${entry.entryId}`,
         source: from,
         target: entry.entryId,
+        sourceHandle: FLOW_OUT_HANDLE,
+        targetHandle: FLOW_IN_HANDLE,
         data: { kind: "route", ...entry.data },
       })
     }
@@ -117,61 +204,63 @@ function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
 
 function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
   const out: RenderSegment = { nodes: [], edges: [], entryIds: [], exitIds: [], routeEntries: [] }
-  // One frame around the whole parallel (every line), so its label appears once.
-  ctx.parallelFrames.push({
+  beginStructureFrame(ctx, {
     frameId: `ecp:frame:${node.id}`,
     structureId: node.id,
-    armIndex: 0,
-    ...(node.label ? { label: node.label } : {}),
-    stepIds: node.branches.flatMap((line) => leafStepIds(line)),
+    structureKind: "parallel",
+    label: structureFrameLabel(node),
   })
+  const memberIds = new Set<string>()
   node.branches.forEach((line, lineIndex) => {
     const seg = renderNodes(line, ctx)
     out.nodes.push(...seg.nodes)
     out.edges.push(...seg.edges)
     out.entryIds.push(...seg.entryIds)
     out.exitIds.push(...seg.exitIds)
+    for (const id of nodeIdsInSegment(seg)) memberIds.add(id)
     const stepIds = leafStepIds(line)
-    for (const entryId of seg.entryIds) {
-      out.routeEntries?.push({
-        entryId,
-        data: {
-          route: "parallel",
-          structureId: node.id,
-          armIndex: lineIndex,
-          stepIds,
-        },
-      })
+    const outer: ReactFlowRouteLevel = {
+      route: "parallel",
+      structureId: node.id,
+      armIndex: lineIndex,
+      stepIds,
     }
+    out.routeEntries?.push(...composedRouteEntries(seg, outer))
   })
+  endStructureFrame(ctx, [...memberIds])
   return out
 }
 
 function renderBranch(node: BranchNode, ctx: EncodeContext): RenderSegment {
   const out: RenderSegment = { nodes: [], edges: [], entryIds: [], exitIds: [], routeEntries: [] }
+  beginStructureFrame(ctx, {
+    frameId: `ecp:frame:${node.id}`,
+    structureId: node.id,
+    structureKind: "branch",
+    label: structureFrameLabel(node),
+  })
+  const memberIds = new Set<string>()
   node.branches.forEach((arm, armIndex) => {
     const seg = renderNodes(arm.steps, ctx)
     out.nodes.push(...seg.nodes)
     out.edges.push(...seg.edges)
     out.entryIds.push(...seg.entryIds)
     out.exitIds.push(...seg.exitIds)
+    for (const id of nodeIdsInSegment(seg)) memberIds.add(id)
     const stepIds = leafStepIds(arm.steps)
-    for (const entryId of seg.entryIds) {
-      out.routeEntries?.push({
-        entryId,
-        data: {
-          route: "branch",
-          structureId: node.id,
-          armIndex,
-          ...(arm.label ? { label: arm.label } : {}),
-          ...(arm.expr !== undefined
-            ? { exprBadge: formatExprBadge(arm.expr), exprSource: arm.expr }
-            : { defaultArm: true }),
-          stepIds,
-        },
-      })
+    const outer: ReactFlowRouteLevel = {
+      route: "branch",
+      structureId: node.id,
+      armIndex,
+      ...(arm.label ? { label: arm.label } : {}),
+      ...(arm.expr !== undefined
+        ? { exprBadge: formatExprBadge(arm.expr), exprSource: arm.expr }
+        : { defaultArm: true }),
+      stepIds,
     }
+    out.routeEntries?.push(...composedRouteEntries(seg, outer))
   })
+  endStructureFrame(ctx, [...memberIds])
   return out
 }
 
@@ -182,10 +271,17 @@ function loopMode(node: LoopNode): "while" | "for" | "forEach" {
 function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   const mode = loopMode(node)
   if (mode === "forEach") return renderLoopForEach(node, ctx)
+  beginStructureFrame(ctx, {
+    frameId: `ecp:frame:${node.id}`,
+    structureId: node.id,
+    structureKind: "loop",
+    loopMode: mode,
+    label: structureFrameLabel(node),
+  })
   const head = loopReactFlowNode(node)
   const seg = renderNodes(node.steps, ctx)
   const gateLabel = node.expr ? formatExprBadge(node.expr) : node.ref ? `ref: ${node.ref}` : "loop"
-  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
+  const loopLevel: ReactFlowRouteLevel = {
     route: "loop",
     structureId: node.id,
     loopMode: mode,
@@ -195,11 +291,12 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
     stepIds: leafStepIds(node.steps),
   }
+  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = routePayload(loopLevel)
   const edges = [...seg.edges]
   connectRoutes(
     edges,
     [node.id],
-    seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    composedRouteEntries(seg, loopLevel),
     `loop-${node.id}`,
   )
   let i = 0
@@ -208,9 +305,12 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
       id: `route-loop-back-${node.id}-${i++}-${from}-${node.id}`,
       source: from,
       target: node.id,
-      data: { kind: "route", ...routeBase, loopBack: true },
+      sourceHandle: FLOW_OUT_HANDLE,
+      targetHandle: FLOW_IN_HANDLE,
+      data: { kind: "route", ...routePayload(loopLevel, { loopBack: true }) },
     })
   }
+  endStructureFrame(ctx, [node.id, ...nodeIdsInSegment(seg)])
   return {
     nodes: [head, ...seg.nodes],
     edges,
@@ -296,16 +396,16 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
 }
 
 function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
-  const head = loopReactFlowNode(node)
-  const seg = renderNodes(node.steps, ctx)
-  ctx.parallelFrames.push({
+  beginStructureFrame(ctx, {
     frameId: `ecp:frame:${node.id}`,
     structureId: node.id,
-    armIndex: 0,
-    label: loopItemsFrameLabel(node),
-    stepIds: leafStepIds(node.steps),
+    structureKind: "loop",
+    loopMode: "forEach",
+    label: structureFrameLabel(node),
   })
-  const routeBase: Omit<ReactFlowRouteEdgeData, "kind"> = {
+  const head = loopReactFlowNode(node)
+  const seg = renderNodes(node.steps, ctx)
+  const loopLevel: ReactFlowRouteLevel = {
     route: "loop",
     loopMode: "forEach",
     structureId: node.id,
@@ -315,9 +415,10 @@ function renderLoopForEach(node: LoopNode, ctx: EncodeContext): RenderSegment {
   connectRoutes(
     edges,
     [node.id],
-    seg.entryIds.map((entryId) => ({ entryId, data: routeBase })),
+    composedRouteEntries(seg, loopLevel),
     `loop-items-${node.id}`,
   )
+  endStructureFrame(ctx, [node.id, ...nodeIdsInSegment(seg)])
   return {
     nodes: [head, ...seg.nodes],
     edges,
@@ -438,7 +539,11 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
  * Keep layout-only control edges as visible `sequence` routes for nodes that would
  * otherwise have no published edge (C2 orphan guard).
  */
-function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFlowEdge[]): ReactFlowEdge[] {
+function publishOrphanSequenceEdges(
+  nodes: ReactFlowNode[],
+  layoutEdges: ReactFlowEdge[],
+  exemptNodeIds?: ReadonlySet<string>,
+): ReactFlowEdge[] {
   const frameIds = new Set(nodes.filter((node) => node.type === "ecp-frame").map((node) => node.id))
   const published = layoutEdges.filter((edge) => edge.data.kind !== "control")
   const connected = new Set<string>()
@@ -447,7 +552,15 @@ function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFl
     connected.add(edge.target)
   }
   const orphans = new Set(
-    nodes.filter((node) => node.type !== "ecp-frame" && !frameIds.has(node.id) && !connected.has(node.id)).map((n) => n.id),
+    nodes
+      .filter(
+        (node) =>
+          node.type !== "ecp-frame" &&
+          !frameIds.has(node.id) &&
+          !connected.has(node.id) &&
+          !(exemptNodeIds?.has(node.id) ?? false),
+      )
+      .map((n) => n.id),
   )
   if (orphans.size === 0) return published
 
@@ -460,7 +573,12 @@ function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFl
       id: `route-seq-${edge.id}`,
       source: edge.source,
       target: edge.target,
-      data: { kind: "route", route: "sequence", structureId: edge.source },
+      sourceHandle: FLOW_OUT_HANDLE,
+      targetHandle: FLOW_IN_HANDLE,
+      data: {
+        kind: "route",
+        ...routePayload({ route: "sequence", structureId: edge.source }),
+      },
     }
     if (seen.has(routeEdge.id)) continue
     seen.add(routeEdge.id)
@@ -471,35 +589,40 @@ function publishOrphanSequenceEdges(nodes: ReactFlowNode[], layoutEdges: ReactFl
   return out
 }
 
-function frameNodesForParallel(
+function frameNodesForStructures(
   laid: ReactFlowDocument,
-  frames: readonly ParallelLineFrame[],
+  frames: readonly StructureFrame[],
   options?: ReactFlowEncodeOptions,
+  detachedStructureIds?: ReadonlySet<string>,
 ): ReactFlowNode[] {
   const nodeWidth = options?.nodeWidth ?? 260
   const nodeHeight = options?.nodeHeight ?? 160
+  const rects = frameBounds(laid.nodes, frames, { nodeWidth, nodeHeight })
+
   const out: ReactFlowNode[] = []
   for (const spec of frames) {
-    const inner = boundsAroundNodeIds(laid.nodes, spec.stepIds, nodeWidth, nodeHeight)
-    if (!inner) continue
-    const labelGap = spec.label ? FRAME_PADDING.label : 0
+    const rect = rects.get(spec.frameId)
+    if (!rect) continue
     const data: ReactFlowFrameData = {
       structureId: spec.structureId,
-      armIndex: spec.armIndex,
-      ...(spec.label ? { label: spec.label } : {}),
+      structureKind: spec.structureKind,
+      ...(spec.loopMode !== undefined ? { loopMode: spec.loopMode } : {}),
+      label: spec.label,
+      memberNodeIds: [...spec.memberNodeIds],
+      childFrameIds: [...spec.childFrameIds],
+      depth: spec.depth,
+      ...(detachedStructureIds?.has(spec.structureId) ? { detached: true } : {}),
     }
     out.push({
       id: spec.frameId,
       type: "ecp-frame",
-      position: {
-        x: inner.x - FRAME_PADDING.x,
-        y: inner.y - FRAME_PADDING.y - labelGap,
-      },
+      position: { x: rect.x, y: rect.y },
       style: {
-        width: inner.width + FRAME_PADDING.x * 2,
-        height: inner.height + FRAME_PADDING.y * 2 + labelGap,
+        width: rect.width,
+        height: rect.height,
+        pointerEvents: "none",
       },
-      zIndex: 0,
+      zIndex: spec.depth,
       data,
     })
   }
@@ -520,8 +643,8 @@ export function executionToReactFlow(
   manifest: ExecutionManifest,
   options?: ReactFlowEncodeOptions,
 ): ReactFlowDocument {
-  const parallelFrames: ParallelLineFrame[] = []
-  const ctx: EncodeContext = { capabilitySchemas: options?.capabilitySchemas, parallelFrames }
+  const structureFrames: StructureFrame[] = []
+  const ctx: EncodeContext = { capabilitySchemas: options?.capabilitySchemas, structureFrames, frameStack: [] }
   const steps = Array.isArray(manifest.steps) ? manifest.steps : []
   const acceptsNode = acceptsReactFlowNode(manifest)
   const returnsNode = returnsReactFlowNode(manifest)
@@ -568,11 +691,67 @@ export function executionToReactFlow(
     connectControl(layoutEdges, body.exitIds, [returnsNode.id], "io-returns")
   }
 
-  const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options)
-  const frames = frameNodesForParallel(laid, parallelFrames, options)
-  const allNodes = [...frames, ...laid.nodes]
+  const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options, layoutClusters(structureFrames))
+  let flowNodes = laid.nodes
+  const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
+  const detachedStructureIds = new Set<string>()
+  const detachedEntityIds = new Set<string>()
+
+  if (detachedRoots.length > 0) {
+    const detachedFrames: StructureFrame[] = []
+    const detachedCtx: EncodeContext = {
+      capabilitySchemas: options?.capabilitySchemas,
+      structureFrames: detachedFrames,
+      frameStack: [],
+    }
+    const detachedSeg = renderNodes(detachedRoots, detachedCtx)
+    const controlEdges = detachedSeg.edges.filter((edge) => edge.data.kind === "control")
+    const detachedLaid = layoutReactFlowDocument(
+      { nodes: detachedSeg.nodes, edges: controlEdges },
+      options,
+      layoutClusters(detachedFrames),
+    )
+    const mainMaxY = flowNodes.reduce((max, node) => {
+      const height = node.style?.height ?? options?.nodeHeight ?? 160
+      return Math.max(max, node.position.y + height)
+    }, 0)
+    const mainMinX = flowNodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
+    const detachedMinY = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity)
+    const detachedMinX = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
+    const dy = mainMaxY + 48 - detachedMinY
+    const dx = mainMinX - detachedMinX
+    const stampDetached = (node: ReactFlowNode): ReactFlowNode => {
+      detachedEntityIds.add(node.id)
+      if (node.type === "ecp-step" || node.type === "ecp-loop") {
+        return { ...node, data: { ...node.data, detached: true } }
+      }
+      return node
+    }
+    const translated = detachedLaid.nodes.map((node) =>
+      stampDetached({
+        ...node,
+        position: { x: node.position.x + dx, y: node.position.y + dy },
+      }),
+    )
+    flowNodes = [...flowNodes, ...translated]
+    structureFrames.push(...detachedFrames)
+    for (const root of detachedRoots) {
+      detachedStructureIds.add(root.id)
+      const walk = (n: Node): void => {
+        detachedStructureIds.add(n.id)
+        if (n.type === "branch") for (const arm of n.branches) for (const child of arm.steps) walk(child)
+        else if (n.type === "parallel") for (const line of n.branches) for (const child of line) walk(child)
+        else if (n.type === "loop") for (const child of n.steps) walk(child)
+      }
+      walk(root)
+    }
+  }
+
+  const laidForFrames = { nodes: flowNodes, edges: laid.edges }
+  const frames = frameNodesForStructures(laidForFrames, structureFrames, options, detachedStructureIds)
+  const allNodes = [...frames, ...flowNodes]
   return {
     nodes: allNodes,
-    edges: publishOrphanSequenceEdges(allNodes, laid.edges),
+    edges: publishOrphanSequenceEdges(allNodes, laid.edges, detachedEntityIds),
   }
 }
