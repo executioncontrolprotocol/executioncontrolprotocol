@@ -1,17 +1,15 @@
 import { createContext, useContext } from "react"
 
 /**
- * Canvas actions for route and data edge menus.
+ * Canvas actions for data branch menus.
  * @category App
  */
 export interface EdgeMenuContextValue {
   /** Edge id under the pointer, for hover affordance. */
   hoveredEdgeId?: string
-  /** Selected edge id from the route selection context. */
+  /** Selected data branch id. */
   selectedEdgeId?: string
-  /** Selected route level index. */
-  selectedLevel?: number
-  openMenu: (edgeId: string, level: number, clientX: number, clientY: number) => void
+  openMenu: (edgeId: string, clientX: number, clientY: number) => void
 }
 
 /** @category App */

@@ -262,13 +262,6 @@
     stroke-width: 2.5;
   }
 
-  .react-flow__edge.ecp-rf-edge--route path.react-flow__edge-path {
-    stroke: var(--color-outline) !important;
-    stroke-width: 1.5 !important;
-    stroke-dasharray: 6 4 !important;
-    opacity: 0.85;
-  }
-
   .react-flow__edge.ecp-rf-edge--taken path.react-flow__edge-path {
     stroke: var(--color-status-valid) !important;
     opacity: 1;

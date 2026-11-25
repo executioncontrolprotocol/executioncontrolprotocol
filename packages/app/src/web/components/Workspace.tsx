@@ -13,9 +13,7 @@ import {
   type ReactFlowDocument,
   deleteSelection,
   isStructureHeaderSelection,
-  routeDeleteTarget,
   type DeleteSelection,
-  type ReactFlowRouteEdgeData,
   type RunGraphState,
 } from "../../graph/index.js"
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
@@ -74,16 +72,16 @@ function sourceLabel(source: ExecutionSource): string {
   return source.kind === "path" ? source.path : source.id
 }
 
-function isBranchOrParallel(nodes: Node[], id: string): boolean {
+function isIfOrParallel(nodes: Node[], id: string): boolean {
   for (const node of nodes) {
-    if (node.type === "branch" && node.id === id) return true
-    if (node.type === "parallel" && node.id === id) return true
-    if (node.type === "branch") {
-      for (const arm of node.branches) if (isBranchOrParallel(arm.steps, id)) return true
+    if ((node.type === "if" || node.type === "parallel") && node.id === id) return true
+    if (node.type === "if") {
+      if (isIfOrParallel(node.then, id)) return true
+      if (node.else && isIfOrParallel(node.else, id)) return true
     } else if (node.type === "parallel") {
-      for (const line of node.branches) if (isBranchOrParallel(line, id)) return true
+      for (const path of node.paths) if (isIfOrParallel(path, id)) return true
     } else if (node.type === "loop") {
-      if (isBranchOrParallel(node.steps, id)) return true
+      if (isIfOrParallel(node.steps, id)) return true
     }
   }
   return false
@@ -173,8 +171,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
   const selectedEdgeRecord = encoded.document?.edges.find((edge) => edge.id === selectedEdge?.edgeId)
   const overlay = replay?.graph ?? live.graph
-  const runId = replay?.detail.id ?? live.runId
-  const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
   const applyManifestEdit = editor.applyEdit
   const structureEditError = editor.structureError
@@ -198,13 +194,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               return { kind: "steps", stepIds: selectedStepIds }
             }
             if (selectedEdgeRecord) {
-              const level =
-                selectedEdgeRecord.data.kind === "route"
-                  ? (routeDeleteTarget((selectedEdgeRecord.data as ReactFlowRouteEdgeData).levels) ??
-                    selectedEdge?.level ??
-                    0)
-                  : (selectedEdge?.level ?? 0)
-              return { kind: "connector", edge: selectedEdgeRecord, level }
+              return { kind: "connector", edge: selectedEdgeRecord }
             }
             if (selectedId && isStructureHeaderSelection(workingManifest, selectedId)) {
               return { kind: "structure", structureId: selectedId }
@@ -367,7 +357,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
   const structurePanelId =
-    selectedId && workingManifest && !selectedNode && isBranchOrParallel(workingManifest.steps, selectedId)
+    selectedId && workingManifest && !selectedNode && isIfOrParallel(workingManifest.steps, selectedId)
       ? selectedId
       : undefined
   const title = workingManifest?.execution?.label ?? workingManifest?.execution?.id ?? sourceLabel(source)
@@ -384,7 +374,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-selected-node={selectedId ?? ""}
       data-selected-steps={selectedStepIds.join(",")}
       data-selected-edge={selectedEdge?.edgeId ?? ""}
-      data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
       data-version={doc.version !== undefined ? String(doc.version) : ""}
       className="flex min-h-0 flex-1 flex-col"
@@ -529,21 +518,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                 </p>
               ) : null}
               {selectedEdgeRecord ? (
-                <EdgePanel
-                  client={client}
-                  manifest={workingManifest}
-                  edge={selectedEdgeRecord}
-                  runId={runId}
-                  runSource={runSource}
-                  onUnauthorized={onUnauthorized}
-                  readOnly={readOnly}
-                  applyManifestEdit={applyManifestEdit}
-                  scheduleTextEdit={editor.scheduleText}
-                  flushTextEdit={editor.flushText}
-                  discardTextEdit={editor.discardText}
-                  fieldEpoch={editor.fieldEpoch}
-                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
-                />
+                <EdgePanel manifest={workingManifest} edge={selectedEdgeRecord} />
               ) : structurePanelId ? (
                 <StructurePanel manifest={workingManifest} structureId={structurePanelId} />
               ) : (

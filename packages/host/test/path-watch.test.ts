@@ -207,4 +207,47 @@ describe("path watch", () => {
     })
     expect(chunks.join("")).toContain("event: file")
   }, 15_000)
+
+  it("rejects watching a non-ecp execution path", () => {
+    expect(() => watchExecutionPath("/tmp/not-json.txt", () => undefined)).toThrow(/ecp\.json/)
+  })
+
+  it("notifies test hooks when the watcher attaches", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-path-watch-ready-"))
+    const execPath = path.join(dir, "ready.ecp.json")
+    writeFileSync(execPath, `${JSON.stringify(smallest, null, 2)}\n`)
+    await new Promise<void>((resolve) => {
+      onPathWatchReadyForTests(() => resolve())
+      const stop = watchExecutionPath(execPath, () => undefined)
+      setTimeout(() => {
+        stop()
+        resolve()
+      }, 500)
+    })
+  })
+
+  it("tolerates invalid execution json when resolving script paths", () => {
+    const dir = path.join(os.tmpdir(), `ecp-path-watch-bad-${Date.now()}`)
+    mkdirSync(dir, { recursive: true })
+    const execPath = path.join(dir, "bad.ecp.json")
+    writeFileSync(execPath, "{ not-json")
+    expect(() => {
+      const stop = watchExecutionPath(execPath, () => undefined)
+      stop()
+    }).not.toThrow()
+  })
+
+  it("stops callbacks after dispose", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ecp-path-watch-stop-"))
+    const execPath = path.join(dir, "stop.ecp.json")
+    writeFileSync(execPath, `${JSON.stringify(smallest, null, 2)}\n`)
+    let calls = 0
+    const stop = watchExecutionPath(execPath, () => {
+      calls += 1
+    })
+    stop()
+    writeFileSync(execPath, `${JSON.stringify({ ...smallest, version: "2.0" }, null, 2)}\n`)
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    expect(calls).toBe(0)
+  })
 })

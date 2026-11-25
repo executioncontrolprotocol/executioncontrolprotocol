@@ -15,10 +15,7 @@ import { findStepPlacement } from "./manifest-walk.js"
 import { portsAreCompatible } from "./port-compat.js"
 import { sourceVisibleTo } from "./read-order.js"
 import { EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
-import { EXPR_HANDLE_ID } from "./extract-data-edges.js"
 import {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
   LOOP_COLLECT_HANDLE,
   LOOP_REF_HANDLE,
   type ReactFlowDocument,
@@ -33,8 +30,7 @@ import {
  * @category App
  */
 export function isDataHandle(handleId: string | null | undefined): boolean {
-  if (!handleId) return false
-  return handleId !== FLOW_IN_HANDLE && handleId !== FLOW_OUT_HANDLE
+  return Boolean(handleId)
 }
 
 function stepPort(
@@ -84,13 +80,13 @@ export function portOnDocument(
 
 function disallowedSource(nodeId: string, handleId: string): boolean {
   if (nodeId === EXECUTION_RETURNS_NODE_ID) return true
-  if (handleId === EXPR_HANDLE_ID || handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
+  if (handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
   return false
 }
 
 function disallowedTarget(nodeId: string, handleId: string): boolean {
   if (nodeId === EXECUTION_RETURNS_NODE_ID) return true
-  if (handleId === EXPR_HANDLE_ID || handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
+  if (handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
   return false
 }
 

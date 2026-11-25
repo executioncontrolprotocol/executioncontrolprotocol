@@ -117,7 +117,7 @@
       "id": "upload-backgrounds",
       "label": "Publish each background",
       "mode": "forEach",
-      "ref": "state.checked.backgrounds",
+      "input": { "items": { "$ref": "state.checked.backgrounds" } },
       "as": "background",
       "concurrency": 3,
       "steps": [
@@ -157,7 +157,7 @@
           "as": "named"
         }
       ],
-      "collect": "state.named",
+      "end": { "input": { "value": { "$ref": "state.named" } } },
       "into": "backgrounds"
     },
     {
@@ -263,7 +263,7 @@
       "id": "build-variants",
       "label": "Build and render each variant",
       "mode": "forEach",
-      "ref": "state.prepared.rows",
+      "input": { "items": { "$ref": "state.prepared.rows" } },
       "as": "variant",
       "concurrency": 2,
       "onError": "fail",
@@ -417,7 +417,7 @@
           "as": "summary"
         }
       ],
-      "collect": "state.summary",
+      "end": { "input": { "value": { "$ref": "state.summary" } } },
       "into": "variants"
     },
     {
@@ -433,7 +433,7 @@
       "id": "cleanup-backgrounds",
       "label": "Remove the published backgrounds",
       "mode": "forEach",
-      "ref": "state.backgrounds",
+      "input": { "items": { "$ref": "state.backgrounds" } },
       "as": "published",
       "concurrency": 3,
       "steps": [
@@ -446,7 +446,7 @@
           "as": "removed"
         }
       ],
-      "collect": "state.removed.deleted",
+      "end": { "input": { "value": { "$ref": "state.removed.deleted" } } },
       "into": "removedBackgrounds"
     },
     {

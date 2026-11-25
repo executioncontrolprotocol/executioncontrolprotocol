@@ -1,10 +1,9 @@
 import type { SyntheticEvent } from "react"
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react"
 import { useEdgeMenuActions } from "./edge-menu-context.js"
-import { useRouteEdgeSelection } from "./route-edge-selection-context.js"
 
 /**
- * Data edge from a `$ref` / `$state` / `$expr` read, an `expr` gate or a `returns` key.
+ * Data branch from a producing port to a step input `$ref`.
  * @category App
  */
 export function EcpDataEdge({
@@ -20,7 +19,6 @@ export function EcpDataEdge({
   interactionWidth,
 }: EdgeProps) {
   const menu = useEdgeMenuActions()
-  const selection = useRouteEdgeSelection()
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition })
 
   const stopPointer = (event: SyntheticEvent): void => {
@@ -31,10 +29,10 @@ export function EcpDataEdge({
     event.preventDefault()
     event.stopPropagation()
     const mouse = event as unknown as { clientX: number; clientY: number }
-    menu.openMenu(id, 0, mouse.clientX, mouse.clientY)
+    menu.openMenu(id, mouse.clientX, mouse.clientY)
   }
 
-  const visible = menu.hoveredEdgeId === id || (selection.selectedEdgeId === id && selection.selectedLevel === 0)
+  const visible = menu.hoveredEdgeId === id || menu.selectedEdgeId === id
 
   return (
     <>

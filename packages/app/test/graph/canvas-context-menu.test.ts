@@ -8,7 +8,7 @@ describe("openCanvasContextMenu", () => {
     { kind: "io" as const, expect: "none" as const },
     { kind: "step" as const, stepId: "a", expect: "node" as const },
     { kind: "loop" as const, structureId: "loop-1", expect: "container" as const },
-    { kind: "frame" as const, structureId: "branch-1", expect: "container" as const },
+    { kind: "frame" as const, structureId: "if-1", expect: "container" as const },
   ]
 
   it.each(targets)("calls preventDefault and returns $expect for $kind", (target) => {

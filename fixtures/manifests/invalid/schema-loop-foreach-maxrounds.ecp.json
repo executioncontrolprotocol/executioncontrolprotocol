@@ -4,9 +4,13 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "forEach",
       "id": "items",
-      "ref": "state.rows",
+      "mode": "forEach",
+      "input": {
+        "items": {
+          "$ref": "state.rows"
+        }
+      },
       "as": "row",
       "maxRounds": 3,
       "steps": [
@@ -19,7 +23,13 @@
           "as": "out"
         }
       ],
-      "collect": "state.out",
+      "end": {
+        "input": {
+          "value": {
+            "$ref": "state.out"
+          }
+        }
+      },
       "into": "results"
     }
   ]

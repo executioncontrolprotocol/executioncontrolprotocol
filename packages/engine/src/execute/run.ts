@@ -19,7 +19,7 @@ import { detachedIssue, HostSchemaSet, mapCapabilityInputIssues, mapStepOutputIs
 import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
 import { executeLoopItems, type LoopItemsRuntime } from "./run-loop-items.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
-import { resolveStatePath, resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
+import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
 import { MAX_ROUNDS_LIMIT } from "@executioncontrolprotocol/protocol"
 
 /**
@@ -89,7 +89,7 @@ export interface RunDependencies {
   defaultStepTimeoutMs?: number
   /** External cancel or interrupt signal. */
   signal?: AbortSignal
-  /** Resume cursor. Skip completed nodes and restore loop and branch state. */
+  /** Resume cursor. Skip completed nodes and restore loop and if choice state. */
   cursor?: RunCursor
   /** Run id used when writing to {@link RunDependencies.store}. */
   runId?: string
@@ -140,11 +140,18 @@ interface StagedWrite {
   value: unknown
 }
 
+interface LoopEndLike {
+  accepts?: Record<string, unknown>
+  input?: unknown
+  expression?: string
+  script?: unknown
+  returns?: Record<string, unknown>
+}
+
 interface NodeLike {
   type?: string
   id: string
   uses?: string
-  expr?: string
   input?: unknown
   accepts?: Record<string, unknown>
   returns?: Record<string, unknown>
@@ -152,19 +159,22 @@ interface NodeLike {
   expression?: string
   as?: string
   mode?: string
-  ref?: string
   config?: string
   steps?: NodeLike[]
-  branches?: unknown
+  then?: NodeLike[]
+  else?: NodeLike[]
+  paths?: NodeLike[][]
+  end?: LoopEndLike
   maxRounds?: number
   maxConcurrency?: number
   /** When false, skip uniform output capture. Default true. */
   persist?: boolean
-  collect?: string
   into?: string
   concurrency?: number
   onError?: "fail" | "continue"
 }
+
+type IfSelectReason = "true" | "false" | "throw" | "missing" | "non-boolean"
 
 interface Runtime {
   deps: RunDependencies
@@ -244,7 +254,7 @@ export function startExecution(
       completed: [...(deps.cursor?.completed ?? [])],
       inProgress: deps.cursor?.inProgress,
       loops: { ...(deps.cursor?.loops ?? {}) },
-      branches: { ...(deps.cursor?.branches ?? {}) },
+      choices: { ...(deps.cursor?.choices ?? {}) },
       loopItems: { ...(deps.cursor?.loopItems ?? {}) },
     },
     completed: new Set(deps.cursor?.completed ?? []),
@@ -330,7 +340,7 @@ function finish(
       completed: [...runtime.completed],
       inProgress: runtime.cursor.inProgress,
       loops: { ...runtime.cursor.loops },
-      branches: { ...runtime.cursor.branches },
+      choices: { ...runtime.cursor.choices },
       loopItems: { ...runtime.cursor.loopItems },
     },
     state: redact(state, runtime.secrets) as Record<string, unknown>,
@@ -363,8 +373,8 @@ async function runNode(
 ): Promise<void> {
   if (runtime.completed.has(node.id) && runtime.cursor.inProgress !== node.id) return
   runtime.cursor.inProgress = node.id
-  if (node.type === "branch") {
-    await runBranch(node, state, runtime, emit, round, nodePointer)
+  if (node.type === "if") {
+    await runIf(node, state, runtime, emit, round, nodePointer)
   } else if (node.type === "loop") {
     const loopMode = typeof node.mode === "string" ? node.mode : "while"
     if (loopMode === "forEach") {
@@ -399,16 +409,6 @@ async function runStep(
     status: "completed",
     ...(round === undefined ? {} : { round }),
     ...(runtime.items?.length ? { items: [...runtime.items] } : {}),
-  }
-  if (node.expr) {
-    const gate = await runtime.deps.expression.evaluate(node.expr, state, "control")
-    if (gate !== true) {
-      summary.status = "skipped"
-      runtime.steps.push(summary)
-      emit("step.skip", { nodeId: node.id, round, ...stepItemFields(runtime) })
-      await persistStep(runtime, node, summary, {}, null, null)
-      return
-    }
   }
   runtime.steps.push(summary)
   const capability =
@@ -578,7 +578,7 @@ async function runStep(
   }
 }
 
-async function runBranch(
+async function runIf(
   node: NodeLike,
   state: Record<string, unknown>,
   runtime: Runtime,
@@ -586,28 +586,91 @@ async function runBranch(
   round: number | undefined,
   nodePointer: string,
 ): Promise<void> {
-  const arms = Array.isArray(node.branches) ? (node.branches as Array<{ expr?: string; steps?: NodeLike[] }>) : []
-  const restored = runtime.cursor.branches[node.id]
-  let selected: number | null = restored ?? null
+  const restored = runtime.cursor.choices[node.id]
+  let side: "then" | "else" | null = restored ?? null
+  let input: Record<string, unknown> | undefined
   if (restored === undefined) {
-    for (let index = 0; index < arms.length; index += 1) {
-      const arm = arms[index]
-      if (!arm) continue
-      if (arm.expr === undefined) {
-        selected = index
-        break
-      }
-      const gate = await runtime.deps.expression.evaluate(arm.expr, state, "control")
-      if (gate === true) {
-        selected = index
-        break
+    const decided = await decideIfSide(node, state, runtime)
+    side = decided.side
+    input = decided.input
+    if (side !== null) runtime.cursor.choices[node.id] = side
+    emit("if.select", { nodeId: node.id, side, reason: decided.reason })
+  }
+  if (side === null) return
+  const scopedAs = typeof node.as === "string" ? node.as : undefined
+  let wroteScoped = false
+  try {
+    if (scopedAs) {
+      // Resume: the condition isn't evaluated again, so the input is resolved here.
+      const value = input ?? (await resolveConditionInput(node, state, runtime).catch(() => undefined))
+      if (value !== undefined) {
+        assertScopedAsFree(state, scopedAs, nodePointer, runtime)
+        state[scopedAs] = value
+        wroteScoped = true
       }
     }
+    const list = side === "then" ? node.then : node.else
+    await runNodes(asNodes(list ?? []), state, runtime, emit, round, `${nodePointer}/${side}`)
+  } finally {
+    if (wroteScoped && scopedAs) delete state[scopedAs]
   }
-  if (selected !== null) runtime.cursor.branches[node.id] = selected
-  emit("branch.select", { nodeId: node.id, arm: selected })
-  const chosen = selected === null ? undefined : arms[selected]
-  if (chosen?.steps) await runNodes(asNodes(chosen.steps as never), state, runtime, emit, round, `${nodePointer}/branches/${selected}/steps`)
+}
+
+async function decideIfSide(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+): Promise<{ side: "then" | "else" | null; reason: IfSelectReason; input?: Record<string, unknown> }> {
+  const hasElse = Array.isArray(node.else) && node.else.length > 0
+  let input: Record<string, unknown>
+  try {
+    input = await resolveConditionInput(node, state, runtime)
+  } catch (error) {
+    const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined
+    if (code === "ECP_REF_UNRESOLVED") {
+      return hasElse ? { side: "else", reason: "missing" } : { side: null, reason: "missing" }
+    }
+    throw error
+  }
+  try {
+    const value = await evaluateConditionExpression(node, input, runtime)
+    if (value === true) return { side: "then", reason: "true", input }
+    const reason: IfSelectReason = value === false ? "false" : "non-boolean"
+    return { side: hasElse ? "else" : null, reason, input }
+  } catch {
+    return { side: hasElse ? "else" : null, reason: "throw", input }
+  }
+}
+
+async function resolveConditionInput(
+  node: NodeLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+): Promise<Record<string, unknown>> {
+  const raw = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
+  return isRecord(raw) ? raw : {}
+}
+
+async function evaluateConditionExpression(node: NodeLike, input: Record<string, unknown>, runtime: Runtime): Promise<unknown> {
+  if (typeof node.expression === "string") {
+    return runtime.deps.expression.evaluateExpression(node.expression, input)
+  }
+  if (node.script !== undefined) {
+    const source = await resolveStepScript(node.script, runtime.deps.readText, runtime.deps.executionDir)
+    return runtime.deps.expression.evaluateScript(source, input)
+  }
+  throw Object.assign(new Error("If node is incomplete."), { code: "ECP_STEP_FAILED" })
+}
+
+function assertScopedAsFree(state: Record<string, unknown>, asKey: string, nodePointer: string, runtime: Runtime): void {
+  // On resume the saved state still holds the scoped value from the interrupted run.
+  if (runtime.deps.cursor !== undefined) return
+  if (Object.prototype.hasOwnProperty.call(state, asKey)) {
+    throw Object.assign(new Error(`Scoped as ${asKey} collides with existing state.`), {
+      code: "ECP_COMMIT_CONFLICT",
+      path: `${nodePointer}/as`,
+    })
+  }
 }
 
 async function runLoopWhile(
@@ -621,10 +684,9 @@ async function runLoopWhile(
   const resumeRound = runtime.deps.cursor?.loops[node.id]
   const resumeNode = runtime.deps.cursor?.inProgress
   let round = resumeRound ?? 0
+  let lastGathered: unknown
   while (round < maxRounds) {
     if (runtime.controller.signal.aborted || runtime.interrupted) return
-    const gate = await evaluateLoopGate(node, state, runtime, nodePointer)
-    if (gate !== true) break
     const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
     if (!isResumeRound) {
       for (const id of collectIds(node.steps ?? [])) {
@@ -634,9 +696,19 @@ async function runLoopWhile(
     runtime.cursor.loops[node.id] = round
     emit("loop.round", { nodeId: node.id, round })
     await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
+    const end = node.end
+    if (!end) {
+      throw Object.assign(new Error("Loop end node is missing."), { code: "ECP_STEP_FAILED", path: `${nodePointer}/end` })
+    }
+    lastGathered = await gatherLoopEnd(end, state, runtime, `${nodePointer}/end`)
+    const repeat = await readLoopRepeat(end, state, runtime, `${nodePointer}/end/input/repeat`)
+    const again = repeat.again === true
+    emit("loop.repeat", { nodeId: node.id, round, again, reason: repeat.reason ?? null })
+    if (!again) break
     round += 1
   }
-  if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: round })
+  if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: maxRounds })
+  if (node.into) state[node.into] = lastGathered
 }
 
 async function runLoopFor(
@@ -661,6 +733,11 @@ async function runLoopFor(
   const count = await resolveLoopCount(node, state, runtime, nodePointer)
   const resumeNode = runtime.deps.cursor?.inProgress
   let round = resumeRound ?? 0
+  let lastGathered: unknown
+  const end = node.end
+  if (!end) {
+    throw Object.assign(new Error("Loop end node is missing."), { code: "ECP_STEP_FAILED", path: `${nodePointer}/end` })
+  }
   try {
     while (round < count) {
       if (runtime.controller.signal.aborted || runtime.interrupted) return
@@ -674,34 +751,13 @@ async function runLoopFor(
       runtime.cursor.loops[node.id] = round
       emit("loop.round", { nodeId: node.id, round })
       await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
+      lastGathered = await gatherLoopEnd(end, state, runtime, `${nodePointer}/end`)
       round += 1
     }
   } finally {
     delete state[asKey]
   }
-}
-
-async function evaluateLoopGate(
-  node: NodeLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  nodePointer: string,
-): Promise<boolean> {
-  if (typeof node.ref === "string") {
-    const value = resolveStatePath(node.ref, state)
-    if (typeof value !== "boolean") {
-      throw Object.assign(new Error("Loop gate must be a boolean."), {
-        code: "ECP_TYPE_MISMATCH",
-        path: `${nodePointer}/ref`,
-      })
-    }
-    return value
-  }
-  if (typeof node.expr === "string") {
-    const gate = await runtime.deps.expression.evaluate(node.expr, state, "control")
-    return gate === true
-  }
-  throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
+  if (node.into && count > 0) state[node.into] = lastGathered
 }
 
 async function resolveLoopCount(
@@ -710,27 +766,61 @@ async function resolveLoopCount(
   runtime: Runtime,
   nodePointer: string,
 ): Promise<number> {
-  let value: unknown
-  if (typeof node.ref === "string") {
-    value = resolveStatePath(node.ref, state)
-  } else if (typeof node.expr === "string") {
-    value = await runtime.deps.expression.evaluate(node.expr, state, "value")
-  } else {
-    throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
-  }
+  const raw = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
+  const value = isRecord(raw) ? raw.count : undefined
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
     throw Object.assign(new Error("Loop count must be a non-negative integer."), {
       code: "ECP_TYPE_MISMATCH",
-      path: nodePointer,
+      path: `${nodePointer}/input/count`,
     })
   }
   if (value > MAX_ROUNDS_LIMIT) {
     throw Object.assign(new Error(`Loop count exceeds the limit of ${MAX_ROUNDS_LIMIT}.`), {
       code: "ECP_LIMIT_EXCEEDED",
-      path: nodePointer,
+      path: `${nodePointer}/input/count`,
     })
   }
   return value
+}
+
+async function gatherLoopEnd(
+  end: LoopEndLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  _endPointer: string,
+): Promise<unknown> {
+  const resolved = await resolveValue(end.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
+  const input = isRecord(resolved) ? resolved : {}
+  if (typeof end.expression === "string") {
+    return runtime.deps.expression.evaluateExpression(end.expression, input)
+  }
+  if (end.script !== undefined) {
+    const source = await resolveStepScript(end.script, runtime.deps.readText, runtime.deps.executionDir)
+    return runtime.deps.expression.evaluateScript(source, input)
+  }
+  if (!Object.prototype.hasOwnProperty.call(input, "value")) {
+    return undefined
+  }
+  return input.value
+}
+
+async function readLoopRepeat(
+  end: LoopEndLike,
+  state: Record<string, unknown>,
+  runtime: Runtime,
+  _repeatPointer: string,
+): Promise<{ again: boolean; reason?: "throw" | "missing" | "non-boolean" }> {
+  const raw = isRecord(end.input) ? end.input.repeat : undefined
+  if (raw === undefined) return { again: false, reason: "missing" }
+  try {
+    const resolved = await resolveValue({ repeat: raw }, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
+    const value = isRecord(resolved) ? resolved.repeat : undefined
+    if (value === true) return { again: true }
+    if (value === false) return { again: false }
+    return { again: false, reason: "non-boolean" }
+  } catch {
+    return { again: false, reason: "throw" }
+  }
 }
 
 function collectIds(nodes: NodeLike[]): string[] {
@@ -738,11 +828,10 @@ function collectIds(nodes: NodeLike[]): string[] {
   for (const node of nodes) {
     ids.push(node.id)
     if (node.steps) ids.push(...collectIds(node.steps))
-    if (Array.isArray(node.branches)) {
-      for (const arm of node.branches) {
-        if (Array.isArray(arm)) ids.push(...collectIds(arm as NodeLike[]))
-        else if (isRecord(arm) && Array.isArray(arm.steps)) ids.push(...collectIds(arm.steps as NodeLike[]))
-      }
+    if (node.then) ids.push(...collectIds(node.then))
+    if (node.else) ids.push(...collectIds(node.else))
+    if (Array.isArray(node.paths)) {
+      for (const path of node.paths) ids.push(...collectIds(path))
     }
   }
   return ids
@@ -756,33 +845,45 @@ async function runParallel(
   round: number | undefined,
   nodePointer: string,
 ): Promise<void> {
-  const lines = Array.isArray(node.branches) ? (node.branches as NodeLike[][]) : []
-  const limit = node.maxConcurrency ?? runtime.deps.maxConcurrency ?? 4
-  const local = new AbortController()
-  const onParent = (): void => local.abort()
-  runtime.controller.signal.addEventListener("abort", onParent)
-  let failure: unknown
-  let cursor = 0
-  const workers = Array.from({ length: Math.min(limit, lines.length) }, async () => {
-    while (cursor < lines.length) {
-      const index = cursor
-      cursor += 1
-      const line = lines[index]
-      if (!line || local.signal.aborted) return
-      const child: Runtime = { ...runtime, controller: local }
-      try {
-        await runNodes(asNodes(line as never), state, child, emit, round, `${nodePointer}/branches/${index}`)
-      } catch (error) {
-        if (!failure) {
-          failure = error
-          local.abort()
+  const lines = Array.isArray(node.paths) ? node.paths : []
+  const scopedAs = typeof node.as === "string" ? node.as : undefined
+  let wroteScoped = false
+  try {
+    if (scopedAs) {
+      const resolved = await resolveConditionInput(node, state, runtime)
+      assertScopedAsFree(state, scopedAs, nodePointer, runtime)
+      state[scopedAs] = resolved
+      wroteScoped = true
+    }
+    const limit = node.maxConcurrency ?? runtime.deps.maxConcurrency ?? 4
+    const local = new AbortController()
+    const onParent = (): void => local.abort()
+    runtime.controller.signal.addEventListener("abort", onParent)
+    let failure: unknown
+    let cursor = 0
+    const workers = Array.from({ length: Math.min(limit, lines.length) }, async () => {
+      while (cursor < lines.length) {
+        const index = cursor
+        cursor += 1
+        const line = lines[index]
+        if (!line || local.signal.aborted) return
+        const child: Runtime = { ...runtime, controller: local }
+        try {
+          await runNodes(asNodes(line as never), state, child, emit, round, `${nodePointer}/paths/${index}`)
+        } catch (error) {
+          if (!failure) {
+            failure = error
+            local.abort()
+          }
         }
       }
-    }
-  })
-  await Promise.all(workers)
-  runtime.controller.signal.removeEventListener("abort", onParent)
-  if (failure) throw failure
+    })
+    await Promise.all(workers)
+    runtime.controller.signal.removeEventListener("abort", onParent)
+    if (failure) throw failure
+  } finally {
+    if (wroteScoped && scopedAs) delete state[scopedAs]
+  }
 }
 
 async function runLoopItemsNode(
@@ -807,6 +908,8 @@ async function runLoopItemsNode(
       cursor: { loopItems: runtime.deps.cursor?.loopItems },
     },
   }
+  itemsRuntime.deps.readText = runtime.deps.readText
+  itemsRuntime.deps.executionDir = runtime.deps.executionDir
   await executeLoopItems(node, state, itemsRuntime, emit, nodePointer, {
     runBody: async (steps, itemState, itemRuntime, itemEmit, prefix) => {
       const slice = itemRuntime as LoopItemsRuntime
@@ -825,6 +928,7 @@ async function runLoopItemsNode(
       })
       await runNodes(asNodes(steps), itemState, child, itemEmit, undefined, prefix)
     },
+    gatherEnd: (end, itemState, endPointer) => gatherLoopEnd(end, itemState, runtime, endPointer),
     toIssue: (error) => toIssue(error, runtime.secrets, nodePointer),
   })
   runtime.cursor.loopItems = itemsRuntime.cursor.loopItems

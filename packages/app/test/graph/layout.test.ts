@@ -24,13 +24,13 @@ describe("boundsAroundNodeIds", () => {
 })
 
 describe("layoutReactFlowDocument", () => {
-  it("lays out nodes left to right, ignoring loop-back routes and edges to unknown nodes", () => {
+  it("lays out nodes left to right and skips edges to unknown nodes", () => {
     const doc = {
       nodes: [node("a", 0, 0), node("b", 0, 0)],
       edges: [
-        { id: "ab", source: "a", target: "b", data: { kind: "route" } },
-        { id: "ba", source: "b", target: "a", data: { kind: "route", loopBack: true } },
-        { id: "ax", source: "a", target: "x", data: { kind: "route" } },
+        { id: "ab", source: "a", target: "b", data: { kind: "control" } },
+        { id: "ba", source: "b", target: "a", data: { kind: "control" } },
+        { id: "ax", source: "a", target: "x", data: { kind: "control" } },
       ],
     } as unknown as ReactFlowDocument
     const laid = layoutReactFlowDocument(doc)
@@ -43,7 +43,7 @@ describe("layoutReactFlowDocument", () => {
   it("honours direction and node size options", () => {
     const doc = {
       nodes: [node("a", 0, 0), node("b", 0, 0)],
-      edges: [{ id: "ab", source: "a", target: "b", data: { kind: "route" } }],
+      edges: [{ id: "ab", source: "a", target: "b", data: { kind: "control" } }],
     } as unknown as ReactFlowDocument
     const laid = layoutReactFlowDocument(doc, { direction: "TB", nodeWidth: 200, nodeHeight: 80 } as never)
     expect(laid.nodes[0]!.position.y).toBeLessThan(laid.nodes[1]!.position.y)

@@ -1,6 +1,7 @@
 import type {
-  BranchNode,
   ExecutionManifest,
+  IfNode,
+  LoopEndNode,
   LoopNode,
   Node,
   ParallelNode,
@@ -39,30 +40,22 @@ export const STRUCTURE_EDIT_STEP_NOT_FOUND = "Step not found"
 /** @category App */
 export const STRUCTURE_EDIT_STRUCTURE_NOT_FOUND = "Structure not found"
 
-
-
-
-
-
-
-function nextStructureId(prefix: "branch" | "parallel" | "loop", taken: Set<string>): string {
+function nextStructureId(prefix: "if" | "parallel" | "loop", taken: Set<string>): string {
   let n = 1
   while (taken.has(`${prefix}-${n}`)) n += 1
   return `${prefix}-${n}`
 }
 
-
-
-
-
-
 function structureBody(node: Node): Node[] {
-  if (node.type === "branch") return node.branches.flatMap((arm) => arm.steps)
-  if (node.type === "parallel") return node.branches.flatMap((line) => line)
+  if (node.type === "if") {
+    const out = [...node.then]
+    if (node.else) out.push(...node.else)
+    return out
+  }
+  if (node.type === "parallel") return node.paths.flat()
   if (node.type === "loop") return [...node.steps]
   return []
 }
-
 
 /**
  * Step ids to wrap: the multi-selection when the right-clicked step is in it, else that step alone.
@@ -73,14 +66,18 @@ export function wrapSelectionIds(selectedStepIds: readonly string[], rightClicke
   return [rightClickedId]
 }
 
+const defaultLoopEnd = (): LoopEndNode => ({
+  input: { repeat: false },
+})
+
 /**
- * Wrap contiguous sibling steps in a new branch, parallel, or `while` loop.
+ * Wrap contiguous sibling steps in a new `if`, `parallel`, or `while` loop.
  * @category App
  */
 export function wrapSteps(
   manifest: ExecutionManifest,
   stepIds: readonly string[],
-  kind: "branch" | "parallel" | "loop",
+  kind: "if" | "parallel" | "loop",
 ): StructureEditResult {
   if (stepIds.length === 0) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
   const unique = [...new Set(stepIds)]
@@ -121,19 +118,20 @@ export function wrapSteps(
   const slice = parentList.splice(nextIndexes[0]!, nextIndexes.length)
   let inserted: Node
 
-  if (kind === "branch") {
-    const id = nextStructureId("branch", taken)
+  if (kind === "if") {
+    const id = nextStructureId("if", taken)
     inserted = {
-      type: "branch",
+      type: "if",
       id,
-      branches: [{ label: "condition", expr: "(state) => true", steps: slice as StepNode[] }],
-    } satisfies BranchNode
+      expression: "true",
+      then: slice as StepNode[],
+    } satisfies IfNode
   } else if (kind === "parallel") {
     const id = nextStructureId("parallel", taken)
     inserted = {
       type: "parallel",
       id,
-      branches: (slice as StepNode[]).map((step) => [step]),
+      paths: (slice as StepNode[]).map((step) => [step]),
     } satisfies ParallelNode
   } else {
     const id = nextStructureId("loop", taken)
@@ -141,9 +139,9 @@ export function wrapSteps(
       type: "loop",
       id,
       mode: "while",
-      expr: "(state) => true",
       maxRounds: 1,
       steps: slice as StepNode[],
+      end: defaultLoopEnd(),
     } satisfies LoopNode
   }
 
@@ -181,6 +179,27 @@ export function removeStructure(manifest: ExecutionManifest, structureId: string
  * Remove one step and apply the emptiness cascade.
  * @category App
  */
+/** Update a scalar field on a loop node (canvas panel). @category App */
+export function setLoopField(
+  manifest: ExecutionManifest,
+  loopId: string,
+  field: string,
+  value: unknown,
+): StructureEditResult {
+  const next = cloneManifest(manifest)
+  const hit = findNodePlacement(next.steps, loopId)
+  if (!hit || hit.node.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+  const loop = hit.node
+  if (field === "maxRounds" && typeof value === "number") loop.maxRounds = value
+  else if (field === "concurrency" && typeof value === "number") loop.concurrency = value
+  else if (field === "onError" && (value === "fail" || value === "continue")) loop.onError = value
+  else if (field === "as" && typeof value === "string") loop.as = value
+  else if (field === "into" && typeof value === "string") loop.into = value
+  else if (field === "mode" && (value === "while" || value === "for" || value === "forEach")) loop.mode = value
+  else return { ok: false, reason: "Invalid loop field" }
+  return finalizeManifest(next)
+}
+
 export function deleteStep(manifest: ExecutionManifest, stepId: string): StructureEditResult {
   const next = cloneManifest(manifest)
   const hit = findStepPlacement(next.steps, stepId)

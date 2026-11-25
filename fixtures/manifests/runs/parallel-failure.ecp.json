@@ -5,7 +5,7 @@
     {
       "type": "parallel",
       "id": "both",
-      "branches": [
+      "paths": [
         [
           {
             "id": "slow",

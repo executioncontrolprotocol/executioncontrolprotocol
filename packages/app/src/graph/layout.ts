@@ -13,7 +13,7 @@ const DEFAULT_NODE_HEIGHT = 160
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
 
-/** Padding around parallel line frames (pixels). */
+/** Padding around parallel path frames (pixels). */
 export const FRAME_PADDING = { x: 20, y: 16, label: 28 }
 
 /**
@@ -153,7 +153,7 @@ export function frameBounds(
 
 /**
  * Assign dagre layout positions to nodes, returning a new document.
- * Loop-back route edges are drawn but excluded from rank constraints.
+ * Layout-only control edges participate in dagre when both endpoints exist.
  * @category App
  */
 /**
@@ -193,7 +193,6 @@ export function layoutReactFlowDocument(
   applyLayoutClusters(graph, clusters, ids)
   for (const edge of doc.edges) {
     if (!ids.has(edge.source) || !ids.has(edge.target)) continue
-    if (edge.data.kind === "route" && edge.data.loopBack) continue
     graph.setEdge(edge.source, edge.target)
   }
 

@@ -162,7 +162,7 @@ a path segment `@<nodeId>` selects the node with that id anywhere in the graph.
 
 ```json
 [ { "op": "replace", "path": "/steps/@translate/input/prompt", "value": "Translate politely" },
-  { "op": "add", "path": "/steps/@check-headline/branches/1/steps/-", "value": { "id": "log", "uses": "…" } } ]
+  { "op": "add", "path": "/steps/@check-headline/else/-", "value": { "id": "log", "uses": "…" } } ]
 ```
 
 `@<nodeId>` may appear once, as the first segment after `/steps` (it resolves to that node's
@@ -187,7 +187,7 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_TYPE_MISMATCH` | Referenced type can't fit the target | 422 | 2 |
 | `ECP_COMMIT_CONFLICT` | Two writers for one key, `create` in a loop, `create` on an existing key | 422 / run-time | 2 / 1 |
 | `ECP_RETURNS_UNRESOLVED` | `execution.returns` key never produced (error) or maybe (warning) | 422 | 2 |
-| `ECP_EXPR_INVALID` | `expr`/`$expr` syntax, or `$expr` used in an input | 422 | 2 |
+| `ECP_EXPR_INVALID` | `if`/`end` `expression` syntax, or `$expr` used in an input | 422 | 2 |
 | `ECP_SCRIPT_INVALID` | `$script` syntax, missing file, both/neither of source/path | 422 / run-time | 2 / 1 |
 | `ECP_CONFIG_UNKNOWN` | Named config doesn't exist | 422 | 2 |
 | `ECP_CONFIG_INVALID` | Config fails the plugin's config schema | 422 | 2 |
@@ -206,7 +206,6 @@ JSON object). Unknown id → `ECP_PATCH_INVALID`. A patch that fails to apply �
 | `ECP_PLUGIN_LOAD_FAILED` | Plugin module failed to import or has no handler | — (in run) | 1 |
 | `ECP_PROVIDER_ERROR` | Upstream provider (HTTP / cloud SDK) returned an error | — (in run) | 1 |
 | `ECP_RUN_CANCELLED` | Run ended by cancel | — (in run) | 1 |
-| `ECP_LOOP_UNTYPED` | `forEach` loop uses `expr` instead of `ref` (items untyped at validation) | 422 (warning) | 0 |
 | `ECP_LIMIT_EXCEEDED` | Run-time cap exceeded (for example loop item count or `for` count) | — (in run) | 1 |
 | `ECP_HOST_RESTARTING` | Host draining; retry after `retryAfterMs` | 503 | 4 |
 | `ECP_HOST_UNAVAILABLE` | No host reachable and starting one failed | — | 4 |

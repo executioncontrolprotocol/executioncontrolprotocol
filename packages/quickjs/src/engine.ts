@@ -32,7 +32,7 @@ export class ScriptEvaluationError extends Error {
 }
 
 /**
- * Failure from {@link QuickJsExpressionEngine.evaluate}. `code` is an `ECP_EXPR_*` catalogue code.
+ * Failure from {@link QuickJsExpressionEngine.evaluateExpression}. `code` is an `ECP_EXPR_*` catalogue code.
  * @category Environment
  */
 export class ExpressionEvaluationError extends Error {
@@ -155,23 +155,57 @@ export class QuickJsExpressionEngine implements ExpressionEngine {
   }
 
   /**
-   * Evaluate one function source. `control` requires a boolean.
+   * Evaluate one expression over a frozen `input` object.
    * Throws {@link ExpressionEvaluationError}.
    */
-  async evaluate(source: string, state: unknown, kind: "control" | "value"): Promise<unknown> {
-    if (!this.runtime) await this.start()
-    const runtime = this.runtime
-    if (!runtime) throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "QuickJS runtime is not available.")
+  async evaluateExpression(source: string, input: unknown): Promise<unknown> {
+    if (!this.module) await this.start()
+    const module = this.module
+    if (!module) throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "QuickJS runtime is not available.")
+    const runtime = module.newRuntime()
+    runtime.setMemoryLimit(this.limits.memoryBytes)
     const context = runtime.newContext()
     runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + this.limits.timeoutMs))
     try {
-      return this.run(context, source, state, kind)
+      const inputJson = JSON.stringify(input === undefined ? null : input)
+      const setup = context.evalCode(
+        `${FREEZE_HELPER}\nglobalThis.__ecpInput = __ecpFreeze(JSON.parse(${JSON.stringify(inputJson)}))`,
+      )
+      this.assertOk(context, setup)
+      const call = context.evalCode(`"use strict"; const input = globalThis.__ecpInput; (${source})`)
+      if (call.error) {
+        const message = errorText(context.dump(call.error))
+        call.dispose()
+        if (/interrupted/i.test(message)) {
+          throw new ExpressionEvaluationError("ECP_EXPR_TIMEOUT", "Expression exceeded the time budget.")
+        }
+        if (/out of memory/i.test(message)) {
+          throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "Expression exceeded the memory limit.")
+        }
+        throw new ExpressionEvaluationError("ECP_EXPR_FAILED", message)
+      }
+      const value: unknown = context.dump(call.value)
+      call.dispose()
+      let encoded: string
+      try {
+        encoded = JSON.stringify(value)
+      } catch (error) {
+        throw new ExpressionEvaluationError(
+          "ECP_EXPR_RESULT_INVALID",
+          error instanceof Error ? error.message : "Expression result is not JSON.",
+        )
+      }
+      if (encoded.length > this.limits.maxResultBytes) {
+        throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "Expression result exceeded the size limit.")
+      }
+      return value
     } catch (error) {
       if (error instanceof ExpressionEvaluationError) throw error
       throw new ExpressionEvaluationError("ECP_EXPR_FAILED", error instanceof Error ? error.message : String(error))
     } finally {
       runtime.removeInterruptHandler()
       context.dispose()
+      runtime.dispose()
     }
   }
 
@@ -233,29 +267,6 @@ export class QuickJsExpressionEngine implements ExpressionEngine {
     }
   }
 
-  private run(context: QuickJSContext, source: string, state: unknown, kind: "control" | "value"): unknown {
-    const stateJson = JSON.stringify(state === undefined ? null : state)
-    const setup = context.evalCode(
-      `${FREEZE_HELPER}\nglobalThis.__ecpState = __ecpFreeze(JSON.parse(${JSON.stringify(stateJson)}))`,
-    )
-    this.assertOk(context, setup)
-    const call = context.evalCode(`(${source})(globalThis.__ecpState)`)
-    if (call.error) {
-      const message = errorText(context.dump(call.error))
-      call.dispose()
-      if (/interrupted/i.test(message)) {
-        throw new ExpressionEvaluationError("ECP_EXPR_TIMEOUT", "Expression exceeded the time budget.")
-      }
-      if (/out of memory/i.test(message)) {
-        throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "Expression exceeded the memory limit.")
-      }
-      throw new ExpressionEvaluationError("ECP_EXPR_FAILED", message)
-    }
-    const value: unknown = context.dump(call.value)
-    call.dispose()
-    return this.checkResult(value, kind)
-  }
-
   private assertOk(context: QuickJSContext, result: ReturnType<QuickJSContext["evalCode"]>): void {
     if (!result.error) {
       result.dispose()
@@ -276,27 +287,6 @@ export class QuickJsExpressionEngine implements ExpressionEngine {
     throw new ScriptEvaluationError("ECP_SCRIPT_FAILED", message)
   }
 
-  private checkResult(value: unknown, kind: "control" | "value"): unknown {
-    let encoded: string
-    try {
-      encoded = JSON.stringify(value)
-    } catch (error) {
-      throw new ExpressionEvaluationError(
-        "ECP_EXPR_RESULT_INVALID",
-        error instanceof Error ? error.message : "Expression result is not JSON.",
-      )
-    }
-    if (encoded === undefined) {
-      throw new ExpressionEvaluationError("ECP_EXPR_RESULT_INVALID", "Expression result is not JSON.")
-    }
-    if (kind === "value" && encoded.length > this.limits.maxResultBytes) {
-      throw new ExpressionEvaluationError("ECP_EXPR_FAILED", "Expression result exceeded the size limit.")
-    }
-    if (kind === "control" && typeof value !== "boolean") {
-      throw new ExpressionEvaluationError("ECP_EXPR_RESULT_INVALID", "A control expression must return a boolean.")
-    }
-    return value
-  }
 }
 
 function errorText(dumped: unknown): string {

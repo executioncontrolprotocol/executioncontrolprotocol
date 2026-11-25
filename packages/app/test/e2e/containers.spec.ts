@@ -40,9 +40,9 @@ test.describe("Containers and menus", () => {
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
-  test("branch-loop shows frames for branch and while loop", async ({ page }) => {
+  test("branch-loop shows frames for if and while loop", async ({ page }) => {
     await open(page, branchLoopPath)
-    await expect(page.getByTestId("ecp-frame-route")).toBeVisible()
+    await expect(page.getByTestId("ecp-frame-pick")).toBeVisible()
     await expect(page.getByTestId("ecp-frame-retry")).toBeVisible()
   })
 
@@ -64,22 +64,22 @@ test.describe("Containers and menus", () => {
     expect(await page.evaluate(() => window.__ecpContextMenuPrevented)).toBe(true)
   })
 
-  test("wrap in branch saves and shows a frame", async ({ page }) => {
+  test("wrap in if saves and shows a frame", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-step-expanded").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
-    await page.getByTestId("canvas-menu-item-wrap-branch").click()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "branch-1"')
-    await expect(page.locator('[data-testid="ecp-frame-branch-1"]')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await expect(page.locator('[data-testid="ecp-frame-if-1"]')).toBeVisible({ timeout: 15_000 })
   })
 
   test("delete keep steps restores the file", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-step-expanded").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
-    await page.getByTestId("canvas-menu-item-wrap-branch").click()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "branch-1"')
-    await page.getByTestId("ecp-frame-menu-branch-1").click()
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await page.getByTestId("ecp-frame-menu-if-1").click()
     await page.getByTestId("canvas-menu-item-delete").click()
     await page.getByTestId("canvas-menu-item-delete-keep-steps").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)

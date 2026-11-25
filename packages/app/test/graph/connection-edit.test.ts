@@ -7,14 +7,10 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   attachAfter,
-  attachAsArm,
-  attachAsLine,
   CONNECTION_EDIT_INSIDE,
-  CONNECTION_EDIT_LOOP,
   CONNECTION_EDIT_NOT_BINDING,
   connectorDeletePreview,
   deleteConnector,
-  deleteArm,
   deleteParallelLine,
   deleteSequenceLink,
   detachedNodeIds,
@@ -42,7 +38,7 @@ describe("connection-edit", () => {
     const doc = executionToReactFlow(manifest)
     const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "fromExpr")
     expect(edge).toBeDefined()
-    expect(connectorDeletePreview(manifest, edge!, 0).ok).toBe(true)
+    expect(connectorDeletePreview(manifest, edge!).ok).toBe(true)
   })
 
   it("disconnectInput removes a top-level $ref without mutating input argument", () => {
@@ -122,27 +118,6 @@ describe("connection-edit", () => {
     expect(disconnectInput(base, "s", "value")).toMatchObject({ ok: false, reason: CONNECTION_EDIT_NOT_BINDING })
   })
 
-  it("deleteArm appends to an existing detached list", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "branch",
-          id: "b",
-          branches: [
-            { expr: "(state) => true", steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }] },
-            { expr: "(state) => false", steps: [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }] },
-          ],
-        },
-      ],
-      detached: [{ id: "old", uses: "@executioncontrolprotocol/test.echo", input: { value: "o" }, as: "old" }],
-    }
-    const result = deleteArm(base, "b", 0)
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.manifest.detached?.map((n) => n.id)).toEqual(["old", "A"])
-  })
-
   it("deleteParallelLine with three lines keeps the parallel", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -151,7 +126,7 @@ describe("connection-edit", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
             [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }],
             [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }],
@@ -164,105 +139,27 @@ describe("connection-edit", () => {
     if (result.ok) {
       const parallel = result.manifest.steps[0]!
       expect(parallel.type).toBe("parallel")
-      if (parallel.type === "parallel") expect(parallel.branches).toHaveLength(2)
+      if (parallel.type === "parallel") expect(parallel.paths).toHaveLength(2)
       expect(result.manifest.detached?.[0]?.id).toBe("B")
     }
   })
 
-  it("attachAsArm refuses missing in-flow branch", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [],
-      detached: [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }],
-    }
-    expect(attachAsArm(base, "missing", "C").ok).toBe(false)
-    expect(attachAsLine(base, "missing", "C").ok).toBe(false)
-  })
-
-  it("attachAsLine refuses when target parallel is inside the detached root", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "parallel",
-          id: "live",
-          branches: [[{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }]],
-        },
-      ],
-      detached: [
-        {
-          type: "parallel",
-          id: "wrap",
-          branches: [
-            [
-              {
-                type: "parallel",
-                id: "inner",
-                branches: [[{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }]],
-              },
-            ],
-          ],
-        },
-      ],
-    }
-    expect(attachAsLine(base, "live", "wrap").ok).toBe(true)
-    expect(attachAsLine(base, "inner", "wrap").reason).toBe(CONNECTION_EDIT_INSIDE)
-  })
-
-  it("deleteConnector refuses unknown route kind", () => {
+  it("deleteConnector refuses control edges", () => {
     const edge = {
       id: "e",
       source: "A",
       target: "B",
-      data: { kind: "route" as const, route: "loop" as const, levels: [{ route: "loop" as const }] },
+      data: { kind: "control" as const },
     }
-    expect(deleteConnector(load("markers.ecp.json"), edge as never, 0).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
-    const unknown = {
-      id: "e",
-      source: "A",
-      target: "B",
-      data: { kind: "route" as const, route: "branch" as const, levels: [{ route: "branch" as const }] },
-    }
-    expect(connectorDeletePreview(load("markers.ecp.json"), unknown as never, 0)).toMatchObject({ ok: false })
-    expect(deleteConnector(load("markers.ecp.json"), unknown as never, 0).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
+    expect(deleteConnector(load("markers.ecp.json"), edge as never).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
+    expect(connectorDeletePreview(load("markers.ecp.json"), edge as never)).toMatchObject({ ok: false })
   })
 
-  it("connectorDeletePreview refuses out-of-range level", () => {
-    const doc = executionToReactFlow(load("nested-branch.ecp.json"))
-    const edge = doc.edges[0]!
-    expect(connectorDeletePreview(load("nested-branch.ecp.json"), edge, 99)).toMatchObject({ ok: false })
-  })
-
-  it("connectorDeletePreview accepts parallel level", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "parallel",
-          id: "p",
-          branches: [
-            [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
-            [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }],
-          ],
-        },
-      ],
-    }
-    const doc = executionToReactFlow(base)
-    const edge = doc.edges.find((entry) => entry.data.kind === "route" && entry.target === "B")
-    expect(edge).toBeDefined()
-    expect(connectorDeletePreview(base, edge!, 0).ok).toBe(true)
-  })
-
-  it("deleteArm on nested branch detaches only the inner arm", () => {
-    const base = load("nested-branch.ecp.json")
-    const result = deleteArm(base, "inner", 0)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.manifest.detached?.[0]?.id).toBe("x")
-    expect(validate(result.manifest)).toBe(true)
+  it("connectorDeletePreview accepts deletable data edges", () => {
+    const manifest = load("markers.ecp.json")
+    const doc = executionToReactFlow(manifest)
+    const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "fromExpr")!
+    expect(connectorDeletePreview(manifest, edge).ok).toBe(true)
   })
 
   it("deleteParallelLine splices when two lines remain", () => {
@@ -273,7 +170,7 @@ describe("connection-edit", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
             [
               { id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" },
@@ -306,15 +203,13 @@ describe("connection-edit", () => {
     if (ok.ok) expect(ok.manifest.steps[0]!.id).toBe("A")
   })
 
-  it("attach helpers refuse when detached list is missing", () => {
+  it("attachAfter refuses when detached list is missing", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
     }
     expect(attachAfter(base, "A", "C").reason).toBe(STRUCTURE_EDIT_STEP_NOT_FOUND)
-    expect(attachAsArm(base, "A", "C").reason).toBe(STRUCTURE_EDIT_STEP_NOT_FOUND)
-    expect(attachAsLine(base, "A", "C").reason).toBe(STRUCTURE_EDIT_STEP_NOT_FOUND)
   })
 
   it("deleteSequenceLink refuses missing target", () => {
@@ -336,19 +231,6 @@ describe("connection-edit", () => {
     expect(validate(result.manifest)).toBe(true)
   })
 
-  it("round trip deleteArm then attachAsArm validates", () => {
-  // Ajv does not enforce default-arm order (L2).
-    const base = load("nested-branch.ecp.json")
-    const removed = deleteArm(base, "outer", 0)
-    expect(removed.ok).toBe(true)
-    if (!removed.ok) return
-    const detachedId = removed.manifest.detached?.[0]?.id
-    expect(detachedId).toBeDefined()
-    const reattached = attachAsArm(removed.manifest, "outer", detachedId!)
-    expect(reattached.ok).toBe(true)
-    if (reattached.ok) expect(validate(reattached.manifest)).toBe(true)
-  })
-
   it("attachAfter refuses missing detached id", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -362,7 +244,7 @@ describe("connection-edit", () => {
     const manifest = load("markers.ecp.json")
     const doc = executionToReactFlow(manifest)
     const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "fromExpr")!
-    const result = deleteConnector(manifest, edge, 0)
+    const result = deleteConnector(manifest, edge)
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.manifest.steps[1]!.input?.seed).toBeUndefined()
   })
@@ -449,53 +331,21 @@ describe("connection-edit", () => {
       steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "b",
-          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }] }],
+          expression: "true",
+          then: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }],
         },
       ],
     }
     expect(attachAfter(base, "inner", "b").reason).toBe(CONNECTION_EDIT_INSIDE)
   })
 
-  it("attachAsArm refuses when target branch is inside the detached root", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "branch",
-          id: "route",
-          branches: [{ expr: "(state) => true", steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }] }],
-        },
-      ],
-      detached: [
-        {
-          type: "branch",
-          id: "wrap",
-          branches: [
-            {
-              expr: "(state) => true",
-              steps: [
-                {
-                  type: "branch",
-                  id: "inner",
-                  branches: [{ expr: "(state) => true", steps: [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }] }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    }
-    expect(attachAsArm(base, "inner", "wrap").reason).toBe(CONNECTION_EDIT_INSIDE)
-  })
-
   it("deleteParallelLine refuses bad line index", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
-      steps: [{ type: "parallel", id: "p", branches: [[{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }]] }],
+      steps: [{ type: "parallel", id: "p", paths: [[{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }]] }],
     }
     expect(deleteParallelLine(base, "p", 1).ok).toBe(false)
   })
@@ -508,31 +358,28 @@ describe("connection-edit", () => {
         {
           type: "loop",
           id: "l",
-          expr: "(state) => true",
+          mode: "while",
           maxRounds: 1,
           steps: [{ id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only" }],
+          end: { input: { repeat: false } },
         },
       ],
     }
     expect(deleteSequenceLink(base, "only")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
   })
 
-  it("deleteSequenceLink moves tail inside an arm", () => {
+  it("deleteSequenceLink moves tail inside an if side", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "branch",
+          type: "if",
           id: "b",
-          branches: [
-            {
-              expr: "(state) => true",
-              steps: [
-                { id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" },
-                { id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" },
-              ],
-            },
+          expression: "true",
+          then: [
+            { id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" },
+            { id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" },
           ],
         },
       ],
@@ -540,9 +387,9 @@ describe("connection-edit", () => {
     const result = deleteSequenceLink(base, "B")
     expect(result.ok).toBe(true)
     if (result.ok) {
-      const branch = result.manifest.steps[0]!
-      expect(branch.type).toBe("branch")
-      if (branch.type === "branch") expect(branch.branches[0]!.steps.map((n) => n.id)).toEqual(["A"])
+      const ifNode = result.manifest.steps[0]!
+      expect(ifNode.type).toBe("if")
+      if (ifNode.type === "if") expect(ifNode.then.map((n) => n.id)).toEqual(["A"])
       expect(result.manifest.detached?.map((n) => n.id)).toEqual(["B"])
     }
   })
@@ -563,7 +410,7 @@ describe("connection-edit", () => {
     }
     const doc = executionToReactFlow(base)
     const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "l")
-    if (edge) expect(connectorDeletePreview(base, edge, 0)).toMatchObject({ ok: false })
+    if (edge) expect(connectorDeletePreview(base, edge)).toMatchObject({ ok: false })
   })
 
   it("deleteConnector refuses data edge without bindingPath", () => {
@@ -573,66 +420,15 @@ describe("connection-edit", () => {
       target: "r",
       data: { kind: "data" as const, inputPath: "seed" },
     }
-    expect(deleteConnector(load("markers.ecp.json"), edge as never, 0).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
+    expect(deleteConnector(load("markers.ecp.json"), edge as never).reason).toBe(CONNECTION_EDIT_NOT_BINDING)
   })
 
-  it("connectorDeletePreview disables loop and expr data edges", () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        { id: "gated", uses: "@executioncontrolprotocol/test.echo", expr: "(state) => true", input: { value: "x" }, as: "gated" },
-        {
-          type: "loop",
-          id: "retry",
-          expr: "(state) => true",
-          maxRounds: 2,
-          steps: [{ id: "tick", uses: "@executioncontrolprotocol/test.echo", input: { value: "t" }, as: "tick" }],
-        },
-      ],
-    }
+  it("connectorDeletePreview refuses loop target data edges", () => {
+    const manifest = load("loop-foreach.ecp.json")
     const doc = executionToReactFlow(manifest)
-    const loopEdge = doc.edges.find((edge) => edge.data.kind === "route" && edge.data.route === "loop")
+    const loopEdge = doc.edges.find((edge) => edge.data.kind === "data" && edge.target === "rows")
     expect(loopEdge).toBeDefined()
-    expect(connectorDeletePreview(manifest, loopEdge!, 0)).toMatchObject({ ok: false, reason: CONNECTION_EDIT_LOOP })
-    const exprData = doc.edges.find((edge) => edge.data.kind === "data" && edge.targetHandle === "expr")
-    if (exprData) expect(connectorDeletePreview(manifest, exprData, 0).ok).toBe(false)
-  })
-
-  it("deleteArm on last arm removes the branch when other steps remain", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "branch",
-          id: "b",
-          branches: [{ expr: "(state) => true", steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }] }],
-        },
-        { id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" },
-      ],
-    }
-    const result = deleteArm(base, "b", 0)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.manifest.steps.map((n) => n.id)).toEqual(["keep"])
-      expect(result.manifest.detached?.[0]?.id).toBe("A")
-    }
-  })
-
-  it("deleteArm refuses when top-level steps would empty", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "branch",
-          id: "only",
-          branches: [{ expr: "(state) => true", steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }] }],
-        },
-      ],
-    }
-    expect(deleteArm(base, "only", 0)).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
+    expect(connectorDeletePreview(manifest, loopEdge!)).toMatchObject({ ok: false, reason: CONNECTION_EDIT_NOT_BINDING })
   })
 
   it("attachAfter inserts as first loop body step", () => {
@@ -678,9 +474,10 @@ describe("connection-edit", () => {
       steps: [{ id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "wrap",
-          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }] }],
+          expression: "true",
+          then: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }],
         },
       ],
     }
@@ -695,73 +492,24 @@ describe("connection-edit", () => {
       steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "wrap",
-          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }] }],
+          expression: "true",
+          then: [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: "i" }, as: "inner" }],
         },
       ],
     }
     expect(attachAfter(base, "A", "inner").reason).toBe(STRUCTURE_EDIT_STEP_NOT_FOUND)
   })
 
-  it("deleteConnector deletes a parallel line level", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "parallel",
-          id: "p",
-          branches: [
-            [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
-            [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }],
-            [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }],
-          ],
-        },
-      ],
+  it("deleteConnector refuses non-data edges", () => {
+    const edge = {
+      id: "e",
+      source: "A",
+      target: "B",
+      data: { kind: "control" as const },
     }
-    const doc = executionToReactFlow(base)
-    const edge = doc.edges.find(
-      (entry) => entry.data.kind === "route" && entry.target === "B" && (entry.data as { route?: string }).route === "parallel",
-    )
-    expect(edge).toBeDefined()
-    const level = (edge!.data as { levels: Array<{ armIndex?: number }> }).levels.findIndex((l) => l.armIndex === 1)
-    const result = deleteConnector(base, edge!, level)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      const parallel = result.manifest.steps[0]!
-      expect(parallel.type).toBe("parallel")
-      if (parallel.type === "parallel") expect(parallel.branches).toHaveLength(2)
-    }
-  })
-
-  it("deleteConnector deletes a sequence link", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        { id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" },
-        { id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" },
-      ],
-    }
-    const doc = executionToReactFlow(base)
-    const edge = doc.edges.find((entry) => entry.data.kind === "route" && entry.target === "B")
-    expect(edge).toBeDefined()
-    const result = deleteConnector(base, edge!, 0)
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.manifest.steps.map((n) => n.id)).toEqual(["A"])
-  })
-
-  it("connectorDeletePreview disables Inputs sequence delete", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
-    }
-    const doc = executionToReactFlow(base)
-    const edge = doc.edges.find((entry) => entry.data.kind === "route" && entry.target === "A")
-    expect(edge).toBeDefined()
-    expect(connectorDeletePreview(base, edge!, 0)).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
+    expect(deleteConnector(load("markers.ecp.json"), edge as never)).toMatchObject({ ok: false, reason: CONNECTION_EDIT_NOT_BINDING })
   })
 
   it("detachedNodeIds walks nested detached structures", () => {
@@ -773,7 +521,7 @@ describe("connection-edit", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [
               {
                 type: "loop",
@@ -810,57 +558,4 @@ describe("connection-edit", () => {
     }
   })
 
-  it("attachAsArm appends when every arm is conditional", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "branch",
-          id: "b",
-          branches: [
-            { expr: "(state) => true", steps: [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }] },
-            { expr: "(state) => false", steps: [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }] },
-          ],
-        },
-      ],
-      detached: [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }],
-    }
-    const result = attachAsArm(base, "b", "C")
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      const branch = result.manifest.steps[0]!
-      if (branch.type === "branch") expect(branch.branches[branch.branches.length - 1]!.steps[0]!.id).toBe("C")
-    }
-  })
-
-  it("deleteArm refuses bad branch or arm index", () => {
-    expect(deleteArm(load("nested-branch.ecp.json"), "missing", 0).ok).toBe(false)
-    expect(deleteArm(load("nested-branch.ecp.json"), "outer", 9).ok).toBe(false)
-  })
-
-  it("attachAsLine appends a parallel line", () => {
-    const base: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "parallel",
-          id: "p",
-          branches: [
-            [{ id: "A", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "A" }],
-            [{ id: "B", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "B" }],
-          ],
-        },
-      ],
-      detached: [{ id: "C", uses: "@executioncontrolprotocol/test.echo", input: { value: "c" }, as: "C" }],
-    }
-    const result = attachAsLine(base, "p", "C")
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    const parallel = result.manifest.steps[0]!
-    expect(parallel.type).toBe("parallel")
-    if (parallel.type === "parallel") expect(parallel.branches).toHaveLength(3)
-    expect(validate(result.manifest)).toBe(true)
-  })
 })

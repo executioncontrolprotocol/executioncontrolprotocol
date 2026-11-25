@@ -5,9 +5,7 @@
     {
       "type": "loop",
       "id": "refine",
-      "expr": "(state) => false",
       "maxRounds": 1,
-      "until": "(state) => true",
       "steps": [
         {
           "id": "echo",
@@ -18,7 +16,13 @@
           "as": "echo",
           "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {
+          "repeat": false
+        }
+      },
+      "until": "(state) => true"
     }
   ]
 }

@@ -16,35 +16,32 @@
   },
   "steps": [
     {
-      "type": "branch",
-      "id": "route",
-      "branches": [
+      "type": "if",
+      "id": "pick",
+      "input": {
+        "on": {
+          "$ref": "state.on"
+        }
+      },
+      "expression": "input.on === true",
+      "then": [
         {
-          "label": "yes",
-          "expr": "(state) => state.on === true",
-          "steps": [
-            {
-              "id": "yes",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "yes"
-              },
-              "as": "yes"
-            }
-          ]
-        },
+          "id": "yes",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "yes"
+          },
+          "as": "yes"
+        }
+      ],
+      "else": [
         {
-          "label": "default",
-          "steps": [
-            {
-              "id": "no",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "no"
-              },
-              "as": "no"
-            }
-          ]
+          "id": "no",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "no"
+          },
+          "as": "no"
         }
       ]
     }

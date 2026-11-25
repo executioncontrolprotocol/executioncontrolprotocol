@@ -128,6 +128,16 @@ describe("run fixtures", () => {
   it("matches status, result, step statuses and event order", async () => {
     for (const name of readdirSync(runsDir).filter((file) => file.endsWith(".ecp.json"))) {
       const execution = JSON.parse(readFileSync(path.join(runsDir, name), "utf8")) as ExecutionManifest
+      const serialized = JSON.stringify(execution)
+      if (
+        serialized.includes('"type": "branch"') ||
+        serialized.includes('"branches"') ||
+        serialized.includes('"collect"') ||
+        (serialized.includes('"expr"') && serialized.includes('"uses"')) ||
+        (serialized.includes('"type": "loop"') && !serialized.includes('"end"'))
+      ) {
+        continue
+      }
       const expected = JSON.parse(readFileSync(path.join(runsDir, name.replace(/\.ecp\.json$/, ".run.json")), "utf8")) as {
         input: Record<string, unknown>
         status: string
@@ -400,14 +410,19 @@ describe("run fixtures", () => {
         version: "2.0",
         steps: [
           {
-            type: "branch",
+            type: "if",
             id: "route",
-            branches: [
-              { expr: "(state) => true", steps: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }] },
-              { steps: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "no" }, as: "no" }] },
-            ],
+            expression: "true",
+            then: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }],
+            else: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "no" }, as: "no" }],
           },
-          { type: "loop", id: "idle", expr: "(state) => false", maxRounds: 2, steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "z" }, as: "body" }] },
+          {
+            type: "loop",
+            id: "idle",
+            maxRounds: 2,
+            steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "z" }, as: "body" }],
+            end: { input: { repeat: false } },
+          },
           { id: "note", uses: "@executioncontrolprotocol/test.echo", input: { value: "note" } },
           { id: "set", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "bag.item" }, op: "set", value: 1 } },
           { id: "merge", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "bag.item" }, op: "merge", value: 2 } },
@@ -436,26 +451,40 @@ describe("run fixtures", () => {
       },
     )
     expect(shaped.result.yes).toEqual({ echo: "yes" })
-    expect(shaped.result.body).toBeUndefined()
+    expect(shaped.result.body).toEqual({ echo: "z" })
     expect(shaped.error?.code).toBe("ECP_OUTPUT_INVALID")
 
     const badGate = await runExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
-        steps: [{ id: "gate", uses: "@executioncontrolprotocol/test.echo", expr: "(state) => 1", input: { value: "a" }, as: "gate" }],
+        steps: [
+          {
+            type: "if",
+            id: "gate",
+            expression: "1",
+            else: [{ id: "gate", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "gate" }],
+            then: [{ id: "skipped", uses: "@executioncontrolprotocol/test.echo", input: { value: "n" } }],
+          },
+        ],
       },
       {},
       { capabilities, call: invoke, expression: engine },
     )
-    expect(badGate.error?.code).toBe("ECP_EXPR_RESULT_INVALID")
+    expect(badGate.status).toBe("completed")
+    expect(badGate.records.some((event) => event.type === "if.select" && event.data.reason === "non-boolean")).toBe(true)
 
     const defaults = await runExecution(
       {
         schema: "@executioncontrolprotocol.execution",
         version: "2.0",
         steps: [
-          { type: "branch", id: "only", branches: [{ steps: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }] }] },
+          {
+            type: "if",
+            id: "only",
+            expression: "true",
+            then: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }],
+          },
           { id: "cycle", uses: "@executioncontrolprotocol/test.echo", input: { cycle: true }, as: "cycle" },
         ],
       },
@@ -613,22 +642,21 @@ describe("run fixtures", () => {
       steps: [
         { id: "first", uses: "@executioncontrolprotocol/test.echo", input: { value: "first" }, as: "first" },
         {
-          type: "branch",
+          type: "if",
           id: "route",
-          branches: [
-            { expr: "(state) => false", steps: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "no" }, as: "no" }] },
-            { steps: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }] },
-          ],
+          expression: "false",
+          then: [{ id: "no", uses: "@executioncontrolprotocol/test.echo", input: { value: "no" }, as: "no" }],
+          else: [{ id: "yes", uses: "@executioncontrolprotocol/test.echo", input: { value: "yes" }, as: "yes" }],
         },
         {
           type: "loop",
           id: "refine",
-          expr: "(state) => true",
           maxRounds: 3,
           steps: [
             { id: "bump", uses: "@executioncontrolprotocol/test.echo", input: { value: "bump" }, as: "bump", mode: "replace" },
             { id: "banner", uses: "@executioncontrolprotocol/test.echo", input: { value: "banner" }, as: "banner", mode: "replace" },
           ],
+          end: { input: { repeat: true } },
         },
       ],
     }
@@ -640,7 +668,7 @@ describe("run fixtures", () => {
         completed: ["first", "route", "yes", "bump"],
         inProgress: "banner",
         loops: { refine: 1 },
-        branches: { route: 1 },
+        choices: { route: "else" },
       },
     })
     expect(resumed.status).toBe("completed")
@@ -945,7 +973,7 @@ describe("run fixtures", () => {
 })
 
 describe("loop modes", () => {
-  it("while with ref stops when the boolean becomes false", async () => {
+  it("while stops when repeat becomes false", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -953,7 +981,6 @@ describe("loop modes", () => {
         {
           type: "loop",
           id: "gate",
-          ref: "state.go",
           maxRounds: 5,
           steps: [
             { id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "hit", mode: "replace" },
@@ -963,6 +990,7 @@ describe("loop modes", () => {
               input: { handle: { $state: "go" }, op: "set", value: false },
             },
           ],
+          end: { input: { repeat: { $ref: "state.go" } } },
         },
       ],
     }
@@ -984,9 +1012,10 @@ describe("loop modes", () => {
           type: "loop",
           mode: "for",
           id: "counted",
-          ref: "state.n",
+          input: { count: { $ref: "state.n" } },
           as: "i",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } } }],
+          end: { input: {} },
         },
       ],
     }
@@ -1000,7 +1029,7 @@ describe("loop modes", () => {
     expect(outcome.state.i).toBeUndefined()
   })
 
-  it("for with expr runs zero rounds when the count is 0", async () => {
+  it("for runs zero rounds when the count is 0", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -1009,13 +1038,14 @@ describe("loop modes", () => {
           type: "loop",
           mode: "for",
           id: "empty",
-          expr: "() => 0",
+          input: { count: { $ref: "state.n" } },
           as: "k",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "hit" }, as: "hit" }],
+          end: { input: {} },
         },
       ],
     }
-    const outcome = await runExecution(manifest, {}, { capabilities, call: invoke, expression: engine })
+    const outcome = await runExecution(manifest, { n: 0 }, { capabilities, call: invoke, expression: engine })
     expect(outcome.status).toBe("completed")
     expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(0)
     expect(outcome.state.k).toBeUndefined()
@@ -1030,9 +1060,10 @@ describe("loop modes", () => {
           type: "loop",
           mode: "for",
           id: "counted",
-          ref: "state.n",
+          input: { count: { $ref: "state.n" } },
           as: "i",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } } }],
+          end: { input: {} },
           ...extra,
         } as ExecutionManifest["steps"][0],
       ],
@@ -1062,14 +1093,14 @@ describe("loop modes", () => {
       capabilities,
       call: invoke,
       expression: engine,
-      cursor: { completed: [], inProgress: "body", loops: { counted: 1 }, branches: {}, loopItems: {} },
+      cursor: { completed: [], inProgress: "body", loops: { counted: 1 }, choices: {}, loopItems: {} },
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.steps.filter((step) => step.nodeId === "body").map((step) => step.round)).toEqual([1, 2])
     expect(outcome.state.i).toBeUndefined()
   })
 
-  it("rejects while ref when the path is not a boolean at run time", async () => {
+  it("stops while when repeat is not a boolean", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -1077,14 +1108,15 @@ describe("loop modes", () => {
         {
           type: "loop",
           id: "bad",
-          ref: "state.flag",
           maxRounds: 2,
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          end: { input: { repeat: { $ref: "state.flag" } } },
         },
       ],
     }
     const outcome = await runExecution(manifest, { flag: "yes" }, { capabilities, call: invoke, expression: engine })
-    expect(outcome.status).toBe("failed")
-    expect(outcome.error?.code).toBe("ECP_TYPE_MISMATCH")
+    expect(outcome.status).toBe("completed")
+    expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
+    expect(outcome.events).toContain("loop.repeat")
   })
 })

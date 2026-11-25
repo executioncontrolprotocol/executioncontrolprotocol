@@ -9,7 +9,7 @@ App) gets the same `ValidationResult`, so an agent can fix and resubmit in a loo
 | --- | --- | --- |
 | L0 Load | JSON parse, file exists, `schema`/`version` constants | `ECP_EXECUTION_LOAD`, `ECP_NOT_FOUND` |
 | L1 Schema | Base structure + per-step raw `accepts` + marker filter: node shapes, marker syntax, step `input` against step `accepts` when `contract` is `"step"` else the capability's raw `accepts`, `$script` only at string positions (input markers), unknown capability ids | `ECP_MANIFEST_INVALID`, `ECP_CAPABILITY_UNKNOWN`, `ECP_INPUT_INVALID` |
-| L2 Semantics | Unique ids, default arm last, step `mode` needs `as`, `as` not an input name, `create` inside `while`/`for` loop bodies, loop exactly one of `ref`/`expr`, per-mode field validity (names the mode), `expr` syntax (gates and loop `expr`), no `$expr` in `input` or `$script.params`, `$script` syntax and file (input markers only), transform plain `script` has `lang: "js"`, one of `source`/`path`, no `params` and no `$script` wrapper; step `accepts`/`returns` required iff `contract` is `"step"`, forbidden otherwise; `script`/`expression` presence matches capability `code`; config ids exist and validate, no `$secret`/`$env` in the execution | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT`, `ECP_NODE_DETACHED` |
+| L2 Semantics | Unique ids, step `mode` needs `as`, `as` not an execution input name, `create` inside `while`/`for` loop bodies, `if` exactly one of `expression`/`script` and non-empty `then`, `as` on `if`/`parallel` requires `input`, `parallel` has at least two non-empty `paths`, loop per-mode fields (`input.items` / `input.count`, `end`, `into`, `repeat` on while `end` only, no `as` on while), `if`/`end` expression syntax, no `$expr` in `input` or `$script.params`, `$script` syntax and file (input markers only), transform plain `script` has `lang: "js"`, one of `source`/`path`, no `params` and no `$script` wrapper; step `accepts`/`returns` required iff `contract` is `"step"`, forbidden otherwise; `script`/`expression` presence matches capability `code`; config ids exist and validate, no `$secret`/`$env` in the execution; old node shapes (`branch`, step `expr`, loop `ref`/`collect`, `parallel.branches`) → schema rejection | `ECP_MANIFEST_INVALID`, `ECP_EXPR_INVALID`, `ECP_SCRIPT_INVALID`, `ECP_CONFIG_UNKNOWN`, `ECP_CONFIG_INVALID`, `ECP_COMMIT_CONFLICT`, `ECP_NODE_DETACHED` |
 | L3 Data flow | Every `$ref` resolves in order, paths exist in `returns`/`accepts`, types fit, maybe-missing handling, parallel isolation, write conflicts, `execution.returns` keys produced | `ECP_REF_UNRESOLVED`, `ECP_REF_MAYBE_MISSING`, `ECP_REF_PATH_INVALID`, `ECP_TYPE_MISMATCH`, `ECP_COMMIT_CONFLICT`, `ECP_RETURNS_UNRESOLVED` |
 | L4 Run input | Run `input` against `execution.accepts` (on `execute` only, after L0–L3) | `ECP_INPUT_INVALID` (path under `/input`) |
 
@@ -30,7 +30,7 @@ interface ValidationIssue {
   code: EcpErrorCode            // catalogue in 06
   severity: "error" | "warning"
   message: string               // one sentence, model-readable, names the offending value
-  path: string                  // JSON Pointer into the manifest ("/steps/1/branches/0/steps/2/input/prompt"); "/input/..." for run input; "" means the whole document (for example not JSON)
+  path: string                  // JSON Pointer into the manifest ("/steps/1/then/0/input/prompt"); "/input/..." for run input; "" means the whole document (for example not JSON)
   nodeId?: string               // id of the enclosing node
   line?: number; column?: number // for expr/$expr/$script syntax errors, relative to that source text
   expected?: unknown            // the relevant JSON Schema fragment (trimmed to 2 KB)
@@ -55,7 +55,7 @@ candidate set: capability ids, property names in `accepts`/`returns`, state keys
 
 The host validates executions in two stages. Rules that keep errors precise (mandatory):
 
-1. **Nodes dispatch on `type`:** `if type=branch then Branch else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds. The loop arm enforces `mode` and per-mode fields with `if`/`then`. This lives in the base execution schema shipped in `protocol`.
+1. **Nodes dispatch on `type`:** `if type=if then If else if loop … else if parallel … else Step`. Never `oneOf`/`anyOf` across node kinds. The loop subschema enforces `mode` and per-mode fields with `if`/`then`. This lives in the base execution schema shipped in `protocol`.
 2. **Base structure only at compile time:** the host compiles **one** base document validator (node shapes, marker object syntax via `$defs/value`, ids, `uses` as a string matching the capability-id pattern). It never inlines capability `accepts` and never enumerates installed capability ids in the schema. Unknown `uses` values are an engine check (`ECP_CAPABILITY_UNKNOWN` / `ECP_PLUGINS_MISSING`) with suggestions.
 3. **Per-step input against raw `accepts`:** for each step whose `uses` is installed, the host validates `input` against that capability's raw `accepts` schema (from the plugin's `ecp.schema.json`, loaded lazily). Markers are not wrapped into the schema. The engine walks `input`, records marker JSON Pointers, runs the raw validator, and **drops only errors explained by a marker**: errors at or under a marker position; `additionalProperties` naming a marker key; `anyOf`/`oneOf` failures where some branch's errors are all explained (matched by `schemaPath` prefix). Remaining input errors are `ECP_INPUT_INVALID`. Two rules that keep equivalence with today's wrapped path: (a) on an object schema without `additionalProperties: false`, an undeclared property accepts any value, so a `$script` there is allowed; (b) marker syntax (e.g. `$script` needs `lang: "js"` and exactly one of `source`/`path`) is still validated by the base schema's marker defs, independently of `accepts`.
 4. **`$script` positions:** resolve the raw subschema at the marker's path; the position is valid only if that subschema accepts a string (or is an open schema). Otherwise `ECP_SCRIPT_INVALID`. Setting both `source` and `path` on a `$script` object is a single `ECP_SCRIPT_INVALID` (not a schema oneOf failure). Inline `$expr` in `input` or `$script.params` → `ECP_EXPR_INVALID`.
@@ -81,42 +81,46 @@ to `{ schema, certainty: "definite" | "maybe", producer: nodeId | "input" }`.
    - Walk `<rest>` through the producer schema (`properties`, `items` for numeric segments, `additionalProperties` when it's a schema). Missing → `ECP_REF_PATH_INVALID` with suggestions from sibling property names. A schema with no `type` and no `properties` (unknown) stops the walk without error.
    - Type fit: compare the referenced schema's `type` set to the target position's `type` set in `accepts` (`integer` fits `number`; target without `type` accepts anything). No overlap → `ECP_TYPE_MISMATCH` with `expected` and the referenced schema as `actual`.
    - **File access (F4):** when the target schema has `x-ecp-file.access: "url"`, a literal ref must be `kind: "url"`, and a bound producer schema must not allow any other kind. Binding a full `FileRef` union or a literal `file` / `artifact` ref → `ECP_TYPE_MISMATCH` with a suggestion to publish the file first (for example `@executioncontrolprotocol/azure-blob-storage.upload`) and bind its `file` output. A source with no kind information (for example a transform with `returns: {}`) is not rejected here; the run-time check below catches a wrong kind. When `x-ecp-file.mediaTypes` is set, a literal `mediaType` on the ref must match (`type/*` wildcards allowed); omitted `mediaType` skips the check. The host re-checks on resolved step input with an Ajv `x-ecp-file` keyword (`ECP_INPUT_INVALID` with the same suggestion).
-2. If the step has `as`: record the key with the capability's `returns` schema, transformed by `mode`: `create`/`replace` → `returns`; `merge` → object merge of existing and `returns` properties; `append` → `{ type: "array", items: returns }`. Certainty `definite`, or `maybe` if the step has an `expr` gate or sits in a maybe context.
+2. If the step has `as`: record the key with the capability's `returns` schema, transformed by `mode`: `create`/`replace` → `returns`; `merge` → object merge of existing and `returns` properties; `append` → `{ type: "array", items: returns }`. Certainty `definite`, or `maybe` if the step sits in a maybe context.
 3. `mode: "create"` on a key that is already `definite` → `ECP_COMMIT_CONFLICT`.
 
-**Branch:** check each arm from a copy of the entry environment. After the branch, a key
-produced inside is `definite` only if produced (definite) in **every** arm **and** a default arm
-exists; otherwise `maybe`. Differing schemas for the same key become `anyOf`.
+**`if`:** when `as` is set, add `state.<as>` (typed from `accepts`, `definite`) for the `then` and
+`else` sides only; it is not visible after the `if`. Refs to `state.<as>` outside the sides →
+`ECP_REF_UNRESOLVED`. Scoped `as` must not collide with an execution input name, a key already in
+the entry environment, or an enclosing loop's `as` / `<as>Index` → `ECP_COMMIT_CONFLICT`. Check each
+side from the scoped environment. After the `if`, a key produced inside is `definite` only when
+produced (definite) on **both** sides; with no `else`, keys from `then` only are `maybe`.
 
-**Loop (`while`, default):** the driver is checked in the entry environment: `ref` must be a
-boolean (`ECP_TYPE_MISMATCH` when the producer schema is known and not boolean). Check the body
-from a copy of the entry environment, with keys the body produces pre-seeded as `maybe`. After
-the loop, keys the body produces are `maybe` (zero rounds possible). `create` on any `as` inside
-the body → `ECP_COMMIT_CONFLICT`.
+**Loop (`while`, default):** `end.input.repeat` refs are checked in the entry environment (boolean
+when the producer schema is known). Check the body from a copy of the entry environment. After the
+loop, keys the body produces unconditionally are `definite` (the body runs at least once). Optional
+`into` is `maybe`. `create` in the body → `ECP_COMMIT_CONFLICT`.
 
-**Loop (`for`):** the driver is read once: `ref` must be an integer (`ECP_TYPE_MISMATCH` when
-known and not integer). The body is checked with `<as>` (integer, `definite`) added; `<as>` must
-not already exist in the entry environment (`ECP_COMMIT_CONFLICT`). Same shared-state /
-`create`-forbidden rules as `while`.
+**Loop (`for`):** `input.count` must be an integer (`ECP_TYPE_MISMATCH` when known and not integer).
+The body is checked with `<as>` (integer, `definite`) added; `<as>` must not already exist in the
+entry environment (`ECP_COMMIT_CONFLICT`). Same shared-state / `create`-forbidden rules as `while`.
+After the loop, `into` is `maybe` (count may be `0`).
 
-**Loop (`forEach`):** the driver is read once: `ref` must be an array (`ECP_TYPE_MISMATCH` when
-known and not an array). With `expr` instead of `ref`, item element type is `{}` and validation
-adds warning `ECP_LOOP_UNTYPED` on the loop path. The body is checked from a copy of the entry
+**Loop (`forEach`):** `input.items` must be an array (`ECP_TYPE_MISMATCH` when known and not an array).
+Element type comes from the items schema when known. The body is checked from a copy of the entry
 environment plus `<as>` (element schema) and `<as>Index` (integer), both `definite`; either key
 already present → `ECP_COMMIT_CONFLICT`. `create` is allowed in the body (nested `while`/`for`
-still forbid it). `collect` is checked in the body's environment (`ECP_REF_MAYBE_MISSING` when
-the producer is `maybe`). After the node, only `<into>` (array of `collect`'s schema, or that
-schema or `null` with `onError: "continue"`) and `<into>Errors` with `"continue"` are added;
-either already `definite` → `ECP_COMMIT_CONFLICT`.
+still forbid it). `end.input` refs (including `value`) are checked in the body's environment.
+After the node, `<into>` (array of gathered results, or elements / `null` with `onError: "continue"`)
+and `<into>Errors` with `"continue"` are added; either already `definite` → `ECP_COMMIT_CONFLICT`.
 
-**Parallel:** check each line from a copy of the entry environment (no line sees another's
-output). Two lines producing the same key → `ECP_COMMIT_CONFLICT`. After: the union of all
-lines' outputs with their own certainty.
+**`parallel`:** check each path from a copy of the entry environment (no path sees another's
+output). A ref to a commit from another path → `ECP_REF_UNRESOLVED` (parallel sibling). Two paths
+producing the same key → `ECP_COMMIT_CONFLICT`. Scoped `as` on the parallel node follows the same
+rules as on `if`. After: the union of all paths' outputs with their own certainty.
+
+**Pointer forms** for nested nodes: `/then/…`, `/else/…`, `/paths/<n>/…`, `/steps/…` (loop body),
+`/end/…` (loop gather inputs and expression).
 
 **End:** each `execution.returns` property must be in the environment: missing →
 `ECP_RETURNS_UNRESOLVED` (error); `maybe` → warning with the same code.
 
-**Not checked in the MVP:** the contents of `expr` gate functions (opaque JavaScript).
+**Not checked in the MVP:** the run-time result of opaque `if` / `end` expressions beyond syntax.
 
 ## Where validation runs
 
@@ -133,7 +137,7 @@ lines' outputs with their own certainty.
 ## Editor support
 
 - `$ECP_HOME/schema/execution.schema.json`: a small root dispatch rewritten when `schemaHash`
-  changes. Per-plugin editor schema files live beside it under `schema/plugins/`. Root branches
+  changes. Per-plugin editor schema files live beside it under `schema/plugins/`. Root dispatch
   use relative `$ref`s to `#/$defs/<name>.editorInput` (marker-wrapped `accepts`). `ecp retrieve --type schema`
   prints the root path; `include=document` returns the parsed document.
 - Users add `"$schema": "<root file URL>"` to `.ecp.json` files (an absolute `file:///` URL;

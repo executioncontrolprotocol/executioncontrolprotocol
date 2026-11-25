@@ -17,7 +17,6 @@ import {
 } from "@xyflow/react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
-  armRunState,
   connectInputAndAttach,
   connectInputTarget,
   dataConnectionRefusal,
@@ -28,12 +27,10 @@ import {
   placementForConnectionOrigin,
   portOnDocument,
   removeStructure,
-  routeDeleteTarget,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
   CONNECTION_EDIT_INCOMPATIBLE,
-  type ReactFlowRouteEdgeData,
   frameBounds,
   type AddStepPlacement,
   type FrameMembership,
@@ -54,11 +51,12 @@ import { CanvasMenu, type CanvasMenuState } from "./CanvasMenu.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
 import { EcpFrameNode } from "./EcpFrameNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
-import { EcpRouteEdge } from "./EcpRouteEdge.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
 import { FrameActionsContext, type FrameActionsContextValue } from "./frame-actions-context.js"
-import { RouteEdgeSelectionContext, type RouteEdgeSelectionContextValue } from "./route-edge-selection-context.js"
+import { EcpEndNode } from "./EcpEndNode.js"
+import { EcpIfNode } from "./EcpIfNode.js"
 import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
+import { EcpParallelNode } from "./EcpParallelNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 import { CanvasEditContext } from "./canvas-edit-context.js"
 import type { CapabilityOriginPort } from "./CapabilityMenu.js"
@@ -68,20 +66,21 @@ const nodeTypes = {
   "ecp-io": EcpIoNode,
   "ecp-frame": EcpFrameNode,
   "ecp-loop": EcpLoopNode,
+  "ecp-if": EcpIfNode,
+  "ecp-parallel": EcpParallelNode,
+  "ecp-end": EcpEndNode,
 }
-const edgeTypes = { "ecp-data": EcpDataEdge, "ecp-route": EcpRouteEdge }
+const edgeTypes = { "ecp-data": EcpDataEdge }
 const EDGE_INTERACTION_WIDTH = 20
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 }
 
 /**
- * Selected edge on the canvas, including the route level for stacked pills.
+ * Selected data branch on the canvas.
  * @category App
  */
 export interface SelectedEdge {
   /** Published edge id. */
   edgeId: string
-  /** Index into `levels` on a route edge (`0` for data edges and path clicks). */
-  level: number
 }
 
 /**
@@ -116,7 +115,7 @@ export interface GraphCanvasProps {
   selectedStepIds: readonly string[]
   /** True while a run is busy or a replay is selected. */
   readOnly: boolean
-  /** Selected edge and route level, when any. */
+  /** Selected data branch, when any. */
   selectedEdge?: SelectedEdge
   /** Called with the clicked node id, or undefined when the pane is clicked. */
   onSelect: (id: string | undefined) => void
@@ -299,28 +298,9 @@ function buildNodes(
   })
 }
 
-function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdge?: SelectedEdge): Edge[] {
+function buildEdges(document: ReactFlowDocument, _run: RunGraphState, selectedEdge?: SelectedEdge): Edge[] {
   const edges: Edge[] = []
   for (const edge of document.edges) {
-    if (edge.data.kind === "route") {
-      const armState = armRunState(edge.data, run)
-      const stateClass = armState === "idle" ? "" : ` ecp-rf-edge--${armState}`
-      const selected = edge.id === selectedEdge?.edgeId
-      edges.push({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-        type: "ecp-route",
-        data: { ...edge.data, armState },
-        className: `ecp-rf-edge--route${stateClass}${selected ? " ecp-rf-edge--selected" : ""}`,
-        interactionWidth: EDGE_INTERACTION_WIDTH,
-        selectable: true,
-        selected,
-      })
-      continue
-    }
     if (edge.data.kind !== "data" || !edge.sourceHandle || !edge.targetHandle) continue
     const selected = edge.id === selectedEdge?.edgeId
     edges.push({
@@ -503,18 +483,6 @@ function GraphCanvasBody({
     ((position: { x: number; y: number }) => { x: number; y: number }) | undefined
   >(undefined)
   const selectedStructureId = useMemo(() => structureIdFromSelection(document, selectedId), [document, selectedId])
-  const routeSelection = useMemo<RouteEdgeSelectionContextValue>(
-    () => ({
-      selectedEdgeId: selectedEdge?.edgeId,
-      selectedLevel: selectedEdge?.level,
-      select: (edgeId, level) => {
-        onSelect(undefined)
-        onSelectSteps([])
-        onSelectEdge({ edgeId, level })
-      },
-    }),
-    [onSelect, onSelectEdge, onSelectSteps, selectedEdge?.edgeId, selectedEdge?.level],
-  )
   const [nodes, setNodes] = useState<Node[]>(built)
 
   useEffect(() => {
@@ -585,12 +553,11 @@ function GraphCanvasBody({
     () => ({
       hoveredEdgeId,
       selectedEdgeId: selectedEdge?.edgeId,
-      selectedLevel: selectedEdge?.level,
-      openMenu: (edgeId, level, clientX, clientY) => {
-        setMenu({ kind: "edge", edgeId, level, clientX, clientY })
+      openMenu: (edgeId, clientX, clientY) => {
+        setMenu({ kind: "edge", edgeId, clientX, clientY })
       },
     }),
-    [hoveredEdgeId, selectedEdge?.edgeId, selectedEdge?.level],
+    [hoveredEdgeId, selectedEdge?.edgeId],
   )
 
   const onConnect = useCallback(
@@ -611,15 +578,6 @@ function GraphCanvasBody({
       return isValidDataConnection(manifest, document, c)
     },
     [document, manifest, readOnly],
-  )
-
-  const deleteLevelForEdge = useCallback(
-    (edgeId: string): number => {
-      const edge = document.edges.find((entry) => entry.id === edgeId)
-      if (!edge || edge.data.kind !== "route") return 0
-      return routeDeleteTarget((edge.data as ReactFlowRouteEdgeData).levels) ?? 0
-    },
-    [document.edges],
   )
 
   const onConnectEnd = useCallback(
@@ -669,7 +627,6 @@ function GraphCanvasBody({
   return (
     <FrameActionsContext.Provider value={frameActions}>
     <EdgeMenuContext.Provider value={edgeMenu}>
-    <RouteEdgeSelectionContext.Provider value={routeSelection}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
     <CanvasEditContext.Provider value={canvasEdit}>
     <ReactFlow
@@ -725,7 +682,6 @@ function GraphCanvasBody({
           setMenu({
             kind: "edge",
             edgeId: edge.id,
-            level: deleteLevelForEdge(edge.id),
             clientX: event.clientX,
             clientY: event.clientY,
           })
@@ -751,7 +707,7 @@ function GraphCanvasBody({
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
         onSelectSteps([])
-        onSelectEdge({ edgeId: edge.id, level: deleteLevelForEdge(edge.id) })
+        onSelectEdge({ edgeId: edge.id })
       }}
       onPaneClick={() => {
         onSelect(undefined)
@@ -811,7 +767,7 @@ function GraphCanvasBody({
           } else if (menu.kind === "edge") {
             onSelect(undefined)
             onSelectSteps([])
-            onSelectEdge({ edgeId: menu.edgeId, level: menu.level })
+            onSelectEdge({ edgeId: menu.edgeId })
           } else {
             onSelectSteps([])
             onSelect(menu.structureId)
@@ -822,7 +778,7 @@ function GraphCanvasBody({
           if (menu.kind !== "edge") return
           const edge = document.edges.find((entry) => entry.id === menu.edgeId)
           if (!edge) return
-          void applyEdit((current) => deleteConnector(current, edge, menu.level)).then((ok) => {
+          void applyEdit((current) => deleteConnector(current, edge)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
@@ -861,7 +817,6 @@ function GraphCanvasBody({
         }
       />
     ) : null}
-    </RouteEdgeSelectionContext.Provider>
     </EdgeMenuContext.Provider>
     </FrameActionsContext.Provider>
   )

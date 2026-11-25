@@ -63,5 +63,5 @@ export const A3_INVALID_NAMES = [
   "ref-unresolved",
   "plugins-missing",
   "mode-without-as",
-  "default-arm-not-last",
+  "schema-if-empty-then",
 ] as const

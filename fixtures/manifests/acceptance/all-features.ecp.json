@@ -7,9 +7,13 @@
     "accepts": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" }
+        "name": {
+          "type": "string"
+        }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "returns": {
       "type": "object",
@@ -37,26 +41,36 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" }
+          "name": {
+            "type": "string"
+          }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "value": { "type": "string" }
+          "value": {
+            "type": "string"
+          }
         },
-        "required": ["value"],
+        "required": [
+          "value"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "name": { "$ref": "state.name" }
+        "name": {
+          "$ref": "state.name"
+        }
       },
       "script": {
-          "lang": "js",
-          "source": "return { value: `hello ${input.name}` }"
-        },
+        "lang": "js",
+        "source": "return { value: `hello ${input.name}` }"
+      },
       "as": "greeting",
       "mode": "replace"
     },
@@ -64,7 +78,9 @@
       "id": "note",
       "uses": "@executioncontrolprotocol/test.stage",
       "input": {
-        "handle": { "$state": "history" },
+        "handle": {
+          "$state": "history"
+        },
         "op": "append",
         "value": "started"
       },
@@ -72,47 +88,52 @@
       "mode": "replace"
     },
     {
-      "type": "branch",
+      "type": "if",
       "id": "pick",
-      "branches": [
+      "input": {
+        "name": {
+          "$ref": "state.name"
+        }
+      },
+      "expression": "typeof input.name === 'string'",
+      "then": [
         {
-          "label": "named",
-          "expr": "(state) => typeof state.name === 'string'",
-          "steps": [
-            {
-              "id": "named",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": { "value": "named" },
-              "as": "branch",
-              "mode": "replace"
-            }
-          ]
-        },
+          "id": "named",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "named"
+          },
+          "as": "branch",
+          "mode": "replace"
+        }
+      ],
+      "else": [
         {
-          "label": "default",
-          "steps": [
-            {
-              "id": "fallback",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": { "value": "default" },
-              "as": "branch",
-              "mode": "replace"
-            }
-          ]
+          "id": "fallback",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "default"
+          },
+          "as": "branch",
+          "mode": "replace"
         }
       ]
     },
     {
       "id": "mode-create",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "a" },
+      "input": {
+        "value": "a"
+      },
       "as": "bag",
       "mode": "create"
     },
     {
       "id": "mode-replace",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "b" },
+      "input": {
+        "value": "b"
+      },
       "as": "bag",
       "mode": "replace"
     },
@@ -130,16 +151,26 @@
     {
       "id": "mode-append",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "c" },
+      "input": {
+        "value": "c"
+      },
       "as": "bag",
       "mode": "append"
     },
     {
-      "id": "gated",
-      "uses": "@executioncontrolprotocol/test.echo",
-      "expr": "(state) => false",
-      "input": { "value": "x" },
-      "as": "maybe"
+      "type": "if",
+      "id": "gated-gate",
+      "expression": "false",
+      "then": [
+        {
+          "id": "gated",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "x"
+          },
+          "as": "maybe"
+        }
+      ]
     },
     {
       "id": "ref-echo",
@@ -218,43 +249,57 @@
     {
       "type": "loop",
       "id": "spinner",
-      "expr": "(state) => true",
       "maxRounds": 2,
       "steps": [
         {
           "id": "spin",
           "uses": "@executioncontrolprotocol/test.echo",
-          "input": { "value": "spin" },
+          "input": {
+            "value": "spin"
+          },
           "as": "spin",
           "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {
+          "repeat": false
+        }
+      }
     },
     {
       "type": "loop",
       "id": "refine",
-      "expr": "(state) => state.lap === undefined",
       "maxRounds": 4,
       "steps": [
         {
           "id": "lap",
           "uses": "@executioncontrolprotocol/test.echo",
-          "input": { "value": "lap" },
+          "input": {
+            "value": "lap"
+          },
           "as": "lap",
           "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {
+          "repeat": false
+        }
+      }
     },
     {
       "type": "parallel",
       "id": "together",
       "maxConcurrency": 1,
-      "branches": [
+      "paths": [
         [
           {
             "id": "left",
             "uses": "@executioncontrolprotocol/test.echo",
-            "input": { "value": "L" },
+            "input": {
+              "value": "L"
+            },
             "as": "left",
             "mode": "replace"
           }
@@ -263,7 +308,9 @@
           {
             "id": "right",
             "uses": "@executioncontrolprotocol/test.echo",
-            "input": { "value": "R" },
+            "input": {
+              "value": "R"
+            },
             "as": "right",
             "mode": "replace"
           }

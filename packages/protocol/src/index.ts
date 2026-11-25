@@ -37,13 +37,13 @@ export type { EcpErrorCode, ErrorCatalogueEntry, ErrorKind } from "./errors.js"
 export { FIRST_PARTY_PLUGINS, firstPartyInstallCommand, firstPartyPlugin, pluginIdFromCapability } from "./first-party.js"
 export type { FirstPartyPlugin } from "./first-party.js"
 export type {
-  BranchArm,
-  BranchNode,
   CommitMode,
   ExecutionBlock,
   ExecutionManifest,
   ExprMarker,
+  IfNode,
   JsonValue,
+  LoopEndNode,
   LoopNode,
   Node,
   ParallelNode,

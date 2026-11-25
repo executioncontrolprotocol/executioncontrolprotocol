@@ -6,11 +6,9 @@ import {
   STRUCTURE_EDIT_PARALLEL_MIN,
   connectorDeletePreview,
   findStructure,
-  routeDeleteMenuLabel,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
-  type ReactFlowRouteEdgeData,
 } from "../../graph/index.js"
 
 export type CanvasMenuState =
@@ -29,7 +27,6 @@ export type CanvasMenuState =
   | {
       kind: "edge"
       edgeId: string
-      level: number
       clientX: number
       clientY: number
     }
@@ -42,7 +39,7 @@ interface CanvasMenuProps {
   edges: readonly ReactFlowEdge[]
   onClose: () => void
   onConfigure: () => void
-  onWrap: (kind: "branch" | "parallel" | "loop") => void
+  onWrap: (kind: "if" | "parallel" | "loop") => void
   onDeleteStep: () => void
   onUnwrap: () => void
   onRemoveStructure: () => void
@@ -86,7 +83,7 @@ export function CanvasMenu({
   const wrapIds =
     state.kind === "node" ? wrapSelectionIds(selectedStepIds, state.stepId) : ([] as string[])
 
-  const wrapBranch = state.kind === "node" ? wrapSteps(manifest, wrapIds, "branch") : undefined
+  const wrapIf = state.kind === "node" ? wrapSteps(manifest, wrapIds, "if") : undefined
   const wrapParallel = state.kind === "node" ? wrapSteps(manifest, wrapIds, "parallel") : undefined
   const wrapLoop = state.kind === "node" ? wrapSteps(manifest, wrapIds, "loop") : undefined
 
@@ -136,13 +133,10 @@ export function CanvasMenu({
   const edgeRecord = state.kind === "edge" ? edges.find((edge) => edge.id === state.edgeId) : undefined
   const deletePreview =
     state.kind === "edge" && edgeRecord
-      ? connectorDeletePreview(manifest, edgeRecord, state.level)
+      ? connectorDeletePreview(manifest, edgeRecord)
       : { ok: false as const, reason: "" }
 
-  const deleteConnectorLabel =
-    state.kind === "edge" && edgeRecord?.data.kind === "route"
-      ? routeDeleteMenuLabel((edgeRecord.data as ReactFlowRouteEdgeData).levels, state.level)
-      : "Delete"
+  const deleteConnectorLabel = "Delete branch"
 
   const structure =
     state.kind === "container" ? findStructure(manifest, state.structureId) : undefined
@@ -157,21 +151,21 @@ export function CanvasMenu({
               action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "loop-body", loopId: structure.id }),
             },
           ]
-        : structure.type === "branch"
+        : structure.type === "if"
           ? [
               {
-                id: "add-arm",
-                label: "Add arm…",
-                action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-arm", branchId: structure.id }),
+                id: "add-then",
+                label: "Add to then…",
+                action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "then-side", ifId: structure.id }),
               },
             ]
           : structure.type === "parallel"
             ? [
                 {
-                  id: "add-line",
-                  label: "Add line…",
+                  id: "add-path",
+                  label: "Add path…",
                   action: () =>
-                    onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-line", parallelId: structure.id }),
+                    onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-path", parallelId: structure.id }),
                 },
               ]
             : []
@@ -273,12 +267,12 @@ export function CanvasMenu({
           <button
             type="button"
             role="menuitem"
-            data-testid="canvas-menu-item-wrap-branch"
-            disabled={wrapBranch !== undefined && !wrapBranch.ok}
+            data-testid="canvas-menu-item-wrap-if"
+            disabled={wrapIf !== undefined && !wrapIf.ok}
             className="block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
-            onClick={() => onWrap("branch")}
+            onClick={() => onWrap("if")}
           >
-            Branch
+            If
           </button>
           <button
             type="button"

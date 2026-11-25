@@ -1,10 +1,10 @@
-import type { BranchNode, ExecutionManifest, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
 import { isStepNode } from "./io-from-schema.js"
 import { STRUCTURE_EDIT_EMPTY_STEPS, type StructureEditResult } from "./structure-edit.js"
 
 /*
- * Shared, non-exported-from-index helpers for the pure manifest edit modules (structure-edit, connection-edit,
- * route-edit): locate nodes, clone, and apply the emptiness cleanup.
+ * Shared, non-exported-from-index helpers for the pure manifest edit modules (structure-edit, connection-edit):
+ * locate nodes, clone, and apply the emptiness cleanup.
  */
 
 /** Where a node sits: the list holding it and its index. */
@@ -25,25 +25,27 @@ export function cloneManifest(manifest: ExecutionManifest): ExecutionManifest {
   return structuredClone(manifest)
 }
 
+function walkChildren(node: Node, visit: (list: Node[]) => void): void {
+  if (node.type === "if") {
+    visit(node.then)
+    if (node.else) visit(node.else)
+  } else if (node.type === "parallel") {
+    for (const path of node.paths) visit(path)
+  } else if (node.type === "loop") {
+    visit(node.steps)
+  }
+}
+
 /** @internal */
 export function findNodePlacement(nodes: Node[], id: string): NodePlacement | undefined {
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index]!
     if (node.id === id) return { parent: nodes, index, node }
-    if (node.type === "branch") {
-      for (const arm of node.branches) {
-        const hit = findNodePlacement(arm.steps, id)
-        if (hit) return hit
-      }
-    } else if (node.type === "parallel") {
-      for (const line of node.branches) {
-        const hit = findNodePlacement(line, id)
-        if (hit) return hit
-      }
-    } else if (node.type === "loop") {
-      const hit = findNodePlacement(node.steps, id)
-      if (hit) return hit
-    }
+    let hit: NodePlacement | undefined
+    walkChildren(node, (list) => {
+      if (!hit) hit = findNodePlacement(list, id)
+    })
+    if (hit) return hit
   }
   return undefined
 }
@@ -53,20 +55,11 @@ export function findStepPlacement(nodes: Node[], stepId: string): StepPlacement 
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index]!
     if (isStepNode(node) && node.id === stepId) return { parent: nodes, index }
-    if (node.type === "branch") {
-      for (const arm of node.branches) {
-        const hit = findStepPlacement(arm.steps, stepId)
-        if (hit) return hit
-      }
-    } else if (node.type === "parallel") {
-      for (const line of node.branches) {
-        const hit = findStepPlacement(line, stepId)
-        if (hit) return hit
-      }
-    } else if (node.type === "loop") {
-      const hit = findStepPlacement(node.steps, stepId)
-      if (hit) return hit
-    }
+    let hit: StepPlacement | undefined
+    walkChildren(node, (list) => {
+      if (!hit) hit = findStepPlacement(list, stepId)
+    })
+    if (hit) return hit
   }
   return undefined
 }
@@ -86,18 +79,21 @@ export function cleanNodes(nodes: Node[]): Node[] {
 /** @internal */
 export function cleanNode(node: Node): Node | Node[] | null {
   if (isStepNode(node)) return node
-  if (node.type === "branch") {
-    const branches = node.branches
-      .map((arm) => ({ ...arm, steps: cleanNodes(arm.steps) }))
-      .filter((arm) => arm.steps.length > 0)
-    if (branches.length === 0) return null
-    return { ...node, branches }
+  if (node.type === "if") {
+    const thenSteps = cleanNodes(node.then)
+    const elseSteps = node.else ? cleanNodes(node.else) : undefined
+    if (thenSteps.length === 0) return null
+    return {
+      ...node,
+      then: thenSteps,
+      ...(elseSteps && elseSteps.length > 0 ? { else: elseSteps } : {}),
+    }
   }
   if (node.type === "parallel") {
-    const branches = node.branches.map((line) => cleanNodes(line)).filter((line) => line.length > 0)
-    if (branches.length === 0) return null
-    if (branches.length === 1) return branches[0]!
-    return { ...node, branches }
+    const paths = node.paths.map((path) => cleanNodes(path)).filter((path) => path.length > 0)
+    if (paths.length === 0) return null
+    if (paths.length === 1) return paths[0]!
+    return { ...node, paths }
   }
   if (node.type === "loop") {
     const steps = cleanNodes(node.steps)
@@ -121,8 +117,8 @@ export function finalizeManifest(manifest: ExecutionManifest): StructureEditResu
 }
 
 /** @internal */
-export function isStructureNode(node: Node): node is BranchNode | ParallelNode | LoopNode {
-  return node.type === "branch" || node.type === "parallel" || node.type === "loop"
+export function isStructureNode(node: Node): node is IfNode | ParallelNode | LoopNode {
+  return node.type === "if" || node.type === "parallel" || node.type === "loop"
 }
 
 /** @internal */
@@ -136,10 +132,11 @@ export function collectAllNodeIds(nodes: readonly Node[], out: Set<string>): voi
   for (const node of nodes) {
     out.add(node.id)
     if (isStepNode(node)) continue
-    if (node.type === "branch") {
-      for (const arm of node.branches) collectAllNodeIds(arm.steps, out)
+    if (node.type === "if") {
+      collectAllNodeIds(node.then, out)
+      if (node.else) collectAllNodeIds(node.else, out)
     } else if (node.type === "parallel") {
-      for (const line of node.branches) collectAllNodeIds(line, out)
+      for (const path of node.paths) collectAllNodeIds(path, out)
     } else if (node.type === "loop") {
       collectAllNodeIds(node.steps, out)
     }
@@ -159,15 +156,13 @@ export function allNodeIds(manifest: ExecutionManifest): Set<string> {
 export function nodeContainsId(root: Node, id: string): boolean {
   if (root.id === id) return true
   if (isStepNode(root)) return false
-  if (root.type === "branch") {
-    for (const arm of root.branches) {
-      for (const child of arm.steps) {
-        if (nodeContainsId(child, id)) return true
-      }
+  if (root.type === "if") {
+    for (const child of [...root.then, ...(root.else ?? [])]) {
+      if (nodeContainsId(child, id)) return true
     }
   } else if (root.type === "parallel") {
-    for (const line of root.branches) {
-      for (const child of line) {
+    for (const path of root.paths) {
+      for (const child of path) {
         if (nodeContainsId(child, id)) return true
       }
     }

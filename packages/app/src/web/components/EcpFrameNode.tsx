@@ -6,7 +6,7 @@ import { useFrameActions } from "./frame-actions-context.js"
 
 function FrameIcon({ data }: { data: ReactFlowFrameData }) {
   const className = "h-3.5 w-3.5 shrink-0 text-on-surface-variant"
-  if (data.structureKind === "branch") return <GitBranch className={className} aria-hidden="true" />
+  if (data.structureKind === "if") return <GitBranch className={className} aria-hidden="true" />
   if (data.structureKind === "parallel") return <Columns2 className={className} aria-hidden="true" />
   return <Repeat className={className} aria-hidden="true" />
 }

@@ -5,8 +5,6 @@
 export { executionToReactFlow } from "./execution-to-reactflow.js"
 export {
   attachAfter,
-  attachAsArm,
-  attachAsLine,
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_INCOMPATIBLE,
   CONNECTION_EDIT_INSIDE,
@@ -21,7 +19,6 @@ export {
   placementManifestForDetachedConnect,
   insertConnectedStep,
   type ConnectInputTarget,
-  deleteArm,
   deleteParallelLine,
   deleteConnector,
   deleteSequenceLink,
@@ -30,15 +27,6 @@ export {
   disconnectInput,
 } from "./connection-edit.js"
 export { deleteSelection, isStructureHeaderSelection, type DeleteSelection } from "./delete-selection.js"
-export { routeDeleteMenuLabel, routeDeleteTarget, routeEdgeLabel } from "./route-edge-label.js"
-export {
-  addArmCondition,
-  makeDefaultArm,
-  ROUTE_EDIT_ARM_HAS_CONDITION,
-  ROUTE_EDIT_DEFAULT_EXISTS,
-  setArmLabel,
-  setLoopField,
-} from "./route-edit.js"
 export {
   addCapabilityStep,
   allocateAsName,
@@ -67,27 +55,21 @@ export {
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
+  setLoopField,
   type StructureEditResult,
 } from "./structure-edit.js"
-export {
-  applyDataEdgeDraft,
-  applyRouteEdgeDraft,
-  dataEdgeEditable,
-  routeEdgeEditable,
-} from "./edge-panel-logic.js"
+export { applyDataEdgeDraft, dataEdgeEditable } from "./edge-panel-logic.js"
 export {
   dataEdgeInspectorMeta,
   exprIssuesAtPointer,
   inputManifestPointer,
   readManifestPointer,
   replaceManifestPointer,
-  routeEdgeInspectorMeta,
   stepManifestPointer,
   valueAtInputPath,
   valueAtStateRef,
   type DataEdgeInspectorMeta,
   type DataEdgeMarkerKind,
-  type RouteEdgeInspectorMeta,
 } from "./edge-manifest.js"
 export {
   collectSteps,
@@ -171,8 +153,8 @@ export {
 } from "./progress.js"
 export {
   applyRunEvent,
-  armRunState,
   createRunGraphState,
+  ifSideRunState,
   reduceRunEvent,
   replayRunEvents,
   type RunGraphLoopItems,
@@ -181,22 +163,30 @@ export {
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
+  END_REPEAT_HANDLE,
+  END_RESULTS_HANDLE,
+  IF_ELSE_HANDLE,
+  IF_THEN_HANDLE,
   LOOP_COLLECT_HANDLE,
+  LOOP_COUNT_HANDLE,
+  LOOP_INDEX_HANDLE,
   LOOP_INTO_HANDLE,
   LOOP_ITEM_HANDLE,
+  LOOP_ITEMS_HANDLE,
   LOOP_REF_HANDLE,
+  PARALLEL_PATH_HANDLE_PREFIX,
+  loopEndNodeId,
 } from "./types.js"
 export type {
   CapabilityIoSchemas,
   CapabilitySchemaIndex,
-  ReactFlowArmRunState,
-  ReactFlowArmStatusDetail,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
+  ReactFlowEndData,
+  ReactFlowIfData,
+  ReactFlowIfChoiceDetail,
   ReactFlowLoopItemsData,
   ReactFlowLoopProgressDetail,
   ReactFlowFrameData,
@@ -207,11 +197,9 @@ export type {
   ReactFlowControlEdgeData,
   ReactFlowDataEdgeData,
   ReactFlowPlainEdgeData,
+  ReactFlowParallelData,
   ReactFlowPort,
   ReactFlowPortBinding,
-  ReactFlowRouteEdgeData,
-  ReactFlowRouteKind,
-  ReactFlowRouteLevel,
   ReactFlowRunLifecycleDetail,
   ReactFlowRunOutcome,
   ReactFlowStepData,

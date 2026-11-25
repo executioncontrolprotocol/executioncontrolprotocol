@@ -5,7 +5,6 @@
     {
       "type": "loop",
       "id": "loop",
-      "expr": "(state) => false",
       "maxRounds": 1,
       "steps": [
         {
@@ -17,7 +16,12 @@
           "as": "item",
           "mode": "create"
         }
-      ]
+      ],
+      "end": {
+        "input": {
+          "repeat": false
+        }
+      }
     }
   ]
 }

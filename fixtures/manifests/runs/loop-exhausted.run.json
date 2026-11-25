@@ -18,6 +18,7 @@
     "loop.round",
     "step.start",
     "step.end",
+    "loop.repeat",
     "loop.exhausted",
     "run.end"
   ]

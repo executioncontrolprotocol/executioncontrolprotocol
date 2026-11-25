@@ -106,8 +106,6 @@ export interface StepNode {
   uses: string
   /** Config object id `<plugin-short>/<name>`. */
   config?: string
-  /** Gate. `false` skips the step. */
-  expr?: string
   /** Input, validated against the capability `accepts` after markers resolve. */
   input?: Record<string, JsonValue | ValueMarker>
   /**
@@ -131,36 +129,51 @@ export interface StepNode {
 }
 
 /**
- * One arm of a branch. An arm without `expr` is the default and must be last.
+ * Condition node. `true` runs {@link IfNode.then}; `false` and any failure run {@link IfNode.else}.
  * @category Definitions
  */
-export interface BranchArm {
-  /** Display label. */
-  label?: string
-  /** When omitted, this is the default arm. */
-  expr?: string
-  /** Nodes to run when the arm is selected. */
-  steps: Node[]
-}
-
-/**
- * Ordered arms. The first arm whose `expr` is true runs.
- * @category Definitions
- */
-export interface BranchNode {
+export interface IfNode {
   /** Node kind. */
-  type: "branch"
+  type: "if"
   /** Unique node id. */
   id: string
   /** Display label. */
   label?: string
-  /** Arms, at least one. */
-  branches: BranchArm[]
+  /** Input port types for the condition. */
+  accepts?: Record<string, unknown>
+  /** Branches into input ports. */
+  input?: Record<string, JsonValue | ValueMarker>
+  /** Condition expression over frozen `input`. Exactly one of `expression` and `script`. */
+  expression?: string
+  /** Condition script body with `return`. Exactly one of `expression` and `script`. */
+  script?: ScriptDescriptor
+  /** Scoped alias for the resolved input inside `then` / `else`. Requires `input`. */
+  as?: string
+  /** Nodes when the condition is true. At least one. */
+  then: Node[]
+  /** Nodes when the condition is false or failed. */
+  else?: Node[]
+}
+
+/**
+ * Loop end node. Gathers each round's result and, in `while` mode, carries `repeat`.
+ * @category Definitions
+ */
+export interface LoopEndNode {
+  /** Typed inputs from the loop body. */
+  accepts?: Record<string, unknown>
+  /** Values bound into the end node, including `repeat` for `while`. */
+  input: Record<string, JsonValue | ValueMarker>
+  /** Gather expression over frozen `input`. Exactly one of `expression` and `script` when set. */
+  expression?: string
+  /** Gather script with `return`. Exactly one of `expression` and `script` when set. */
+  script?: ScriptDescriptor
+  /** Schema for one gathered value. */
+  returns?: Record<string, unknown>
 }
 
 /**
  * Loop. `mode` selects how it repeats: `while` (default), `for` or `forEach`.
- * Exactly one of {@link LoopNode.ref} and {@link LoopNode.expr} drives the loop.
  * @category Definitions
  */
 export interface LoopNode {
@@ -172,25 +185,17 @@ export interface LoopNode {
   label?: string
   /** How the loop repeats. Default `while`. */
   mode?: "while" | "for" | "forEach"
-  /**
-   * State path driving the loop (same syntax as `$ref`, without the marker).
-   * Boolean in `while`, integer in `for`, array in `forEach`.
-   */
-  ref?: string
-  /**
-   * JavaScript function driving the loop. Checked before each round in `while`;
-   * read once in `for` and `forEach`.
-   */
-  expr?: string
-  /** Inclusive upper bound for `while` mode, 1..1000. */
-  maxRounds?: number
+  /** Driver inputs: `items` for `forEach`, `count` for `for`; omitted for `while`. */
+  input?: Record<string, JsonValue | ValueMarker>
   /** Iteration or item key for `for` and `forEach` modes. */
   as?: string
+  /** Inclusive upper bound for `while` mode, 1..1000. */
+  maxRounds?: number
   /** Body. */
   steps: Node[]
-  /** State path collected per item in `forEach` mode. */
-  collect?: string
-  /** State array key for collected results in `forEach` mode. */
+  /** End node that gathers results and reads `repeat` in `while` mode. */
+  end: LoopEndNode
+  /** State key for collected results (`forEach` required; optional for `for` / `while`). */
   into?: string
   /** Concurrent items in `forEach` mode. Default 1, max {@link MAX_LOOP_CONCURRENCY}. */
   concurrency?: number
@@ -199,7 +204,7 @@ export interface LoopNode {
 }
 
 /**
- * Concurrent lists of nodes. Each list runs in order.
+ * Concurrent lists of nodes. Each path runs in order.
  * @category Definitions
  */
 export interface ParallelNode {
@@ -209,17 +214,23 @@ export interface ParallelNode {
   id: string
   /** Display label. */
   label?: string
-  /** Maximum lists in flight. Default is the host setting (4). */
+  /** Optional shared input ports. */
+  accepts?: Record<string, unknown>
+  /** Branches into shared input ports. */
+  input?: Record<string, JsonValue | ValueMarker>
+  /** Scoped alias for the resolved input on every path. Requires `input`. */
+  as?: string
+  /** Maximum paths in flight. Default is the host setting (4). */
   maxConcurrency?: number
-  /** At least two lists, each with at least one node. */
-  branches: Node[][]
+  /** At least two paths, each with at least one node. */
+  paths: Node[][]
 }
 
 /**
  * Any node in an execution.
  * @category Definitions
  */
-export type Node = StepNode | BranchNode | LoopNode | ParallelNode
+export type Node = StepNode | IfNode | LoopNode | ParallelNode
 
 /**
  * Optional document metadata. `id` is required to commit.

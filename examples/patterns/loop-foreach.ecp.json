@@ -25,10 +25,14 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "forEach",
       "id": "each-name",
       "label": "For each name",
-      "ref": "state.names",
+      "mode": "forEach",
+      "input": {
+        "items": {
+          "$ref": "state.names"
+        }
+      },
       "as": "name",
       "concurrency": 2,
       "steps": [
@@ -44,7 +48,13 @@
           "as": "greet"
         }
       ],
-      "collect": "state.greet",
+      "end": {
+        "input": {
+          "value": {
+            "$ref": "state.greet"
+          }
+        }
+      },
       "into": "greetings"
     },
     {

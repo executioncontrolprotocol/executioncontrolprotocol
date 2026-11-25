@@ -1,6 +1,6 @@
 import type {
-  BranchNode,
   ExecutionManifest,
+  IfNode,
   LoopNode,
   Node,
   ParallelNode,
@@ -18,7 +18,7 @@ import {
   nodeContainsId,
 } from "./manifest-walk.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE } from "./types.js"
+import { LOOP_ITEM_HANDLE } from "./types.js"
 import { STRUCTURE_EDIT_STEP_NOT_FOUND, STRUCTURE_EDIT_STRUCTURE_NOT_FOUND } from "./structure-edit.js"
 
 /** Node id pattern from execution.base.schema.json: `^[A-Za-z][A-Za-z0-9_-]{0,63}$`. */
@@ -34,8 +34,9 @@ const AS_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 export type AddStepPlacement =
   | { kind: "top"; after?: string }
   | { kind: "loop-body"; loopId: string }
-  | { kind: "new-arm"; branchId: string }
-  | { kind: "new-line"; parallelId: string }
+  | { kind: "then-side"; ifId: string }
+  | { kind: "else-side"; ifId: string }
+  | { kind: "new-path"; parallelId: string }
   | { kind: "before" | "after"; nodeId: string }
 
 /**
@@ -60,10 +61,11 @@ function collectStepAs(nodes: readonly Node[], out: Set<string>): void {
       if (typeof node.as === "string") out.add(node.as)
       if (typeof node.into === "string") out.add(node.into)
       collectStepAs(node.steps, out)
-    } else if (node.type === "branch") {
-      for (const arm of node.branches) collectStepAs(arm.steps, out)
+    } else if (node.type === "if") {
+      collectStepAs(node.then, out)
+      if (node.else) collectStepAs(node.else, out)
     } else if (node.type === "parallel") {
-      for (const line of node.branches) collectStepAs(line, out)
+      for (const path of node.paths) collectStepAs(path, out)
     }
   }
 }
@@ -149,13 +151,12 @@ function isEnclosedInWhileOrForBody(nodes: readonly Node[], structureId: string,
       const mode = node.mode ?? "while"
       const childIn = mode === "while" || mode === "for"
       if (isEnclosedInWhileOrForBody(node.steps, structureId, childIn)) return true
-    } else if (node.type === "branch") {
-      for (const arm of node.branches) {
-        if (isEnclosedInWhileOrForBody(arm.steps, structureId, inBody)) return true
-      }
+    } else if (node.type === "if") {
+      if (isEnclosedInWhileOrForBody(node.then, structureId, inBody)) return true
+      if (node.else && isEnclosedInWhileOrForBody(node.else, structureId, inBody)) return true
     } else if (node.type === "parallel") {
-      for (const line of node.branches) {
-        if (isEnclosedInWhileOrForBody(line, structureId, inBody)) return true
+      for (const path of node.paths) {
+        if (isEnclosedInWhileOrForBody(path, structureId, inBody)) return true
       }
     }
   }
@@ -169,13 +170,14 @@ function placementNeedsReplaceMode(manifest: ExecutionManifest, placement: AddSt
     const mode = loop.mode ?? "while"
     return mode === "while" || mode === "for"
   }
-  if (placement.kind === "new-arm") {
-    if (isEnclosedInWhileOrForBody(manifest.steps, placement.branchId, false)) return true
+  if (placement.kind === "then-side" || placement.kind === "else-side") {
+    const ifId = placement.ifId
+    if (isEnclosedInWhileOrForBody(manifest.steps, ifId, false)) return true
     const detached = manifestDetached(manifest)
-    if (detached && isEnclosedInWhileOrForBody(detached, placement.branchId, false)) return true
+    if (detached && isEnclosedInWhileOrForBody(detached, ifId, false)) return true
     return false
   }
-  if (placement.kind === "new-line") {
+  if (placement.kind === "new-path") {
     if (isEnclosedInWhileOrForBody(manifest.steps, placement.parallelId, false)) return true
     const detached = manifestDetached(manifest)
     if (detached && isEnclosedInWhileOrForBody(detached, placement.parallelId, false)) return true
@@ -210,9 +212,6 @@ export function placementForConnectionOrigin(
       if (first) return { kind: "before", nodeId: first.id }
       return { kind: "loop-body", loopId: loop.id }
     }
-    if (origin.handleId === LOOP_INTO_HANDLE) {
-      return { kind: "after", nodeId: loop.id }
-    }
   }
   if (origin.side === "output") return { kind: "after", nodeId: origin.nodeId }
   return { kind: "before", nodeId: origin.nodeId }
@@ -238,7 +237,7 @@ function buildStep(
 export function findStructure(
   manifest: ExecutionManifest,
   id: string,
-): BranchNode | ParallelNode | LoopNode | undefined {
+): IfNode | ParallelNode | LoopNode | undefined {
   const hit = findNodePlacement(manifest.steps, id)
   if (hit && isStructureNode(hit.node)) return hit.node
   const detached = manifestDetached(manifest)
@@ -285,22 +284,28 @@ export function addCapabilityStep(
     return { ok: true, manifest: finalized.manifest, stepId: step.id }
   }
 
-  if (placement.kind === "new-arm") {
-    const branch = findStructure(next, placement.branchId)
-    if (!branch || branch.type !== "branch") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-    const arm = { expr: "(state) => true", steps: [step] }
-    const defaultIndex = branch.branches.findIndex((entry) => entry.expr === undefined)
-    if (defaultIndex >= 0) branch.branches.splice(defaultIndex, 0, arm)
-    else branch.branches.push(arm)
+  if (placement.kind === "then-side") {
+    const ifNode = findStructure(next, placement.ifId)
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.then.push(step)
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }
   }
 
-  if (placement.kind === "new-line") {
+  if (placement.kind === "else-side") {
+    const ifNode = findStructure(next, placement.ifId)
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.else = [...(ifNode.else ?? []), step]
+    const finalized = finalizeManifest(next)
+    if (!finalized.ok) return finalized
+    return { ok: true, manifest: finalized.manifest, stepId: step.id }
+  }
+
+  if (placement.kind === "new-path") {
     const parallel = findStructure(next, placement.parallelId)
     if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-    parallel.branches.push([step])
+    parallel.paths.push([step])
     const finalized = finalizeManifest(next)
     if (!finalized.ok) return finalized
     return { ok: true, manifest: finalized.manifest, stepId: step.id }

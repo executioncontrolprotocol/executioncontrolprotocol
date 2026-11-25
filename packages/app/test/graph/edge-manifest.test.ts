@@ -5,7 +5,6 @@ import {
   inputManifestPointer,
   readManifestPointer,
   replaceManifestPointer,
-  routeEdgeInspectorMeta,
   valueAtInputPath,
   valueAtStateRef,
 } from "../../src/graph/edge-manifest.js"
@@ -26,19 +25,19 @@ const manifest: ExecutionManifest = {
       as: "out",
     },
     {
-      type: "branch",
+      type: "if",
       id: "pick",
-      branches: [
-        { label: "yes", expr: "state.flag === true", steps: [{ id: "a", uses: "@executioncontrolprotocol/test.echo" }] },
-        { label: "default", steps: [{ id: "b", uses: "@executioncontrolprotocol/test.echo" }] },
-      ],
+      expression: "state.flag === true",
+      then: [{ id: "a", uses: "@executioncontrolprotocol/test.echo" }],
+      else: [{ id: "b", uses: "@executioncontrolprotocol/test.echo" }],
     },
     {
       type: "loop",
       id: "loop",
-      expr: "state.on === true",
+      mode: "while",
       maxRounds: 3,
       steps: [{ id: "c", uses: "@executioncontrolprotocol/test.echo" }],
+      end: { input: { repeat: { $ref: "state.on" } }, expression: "true" },
     },
   ],
 }
@@ -79,6 +78,18 @@ describe("dataEdgeInspectorMeta", () => {
     expect(dataEdgeInspectorMeta(manifest, "reader", "missing")).toBeUndefined()
   })
 
+  it("reads $expr on an input path", () => {
+    const exprManifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { seed: { $expr: "state.x" } } }],
+    }
+    const meta = dataEdgeInspectorMeta(exprManifest, "s", "seed")
+    expect(meta?.markerKind).toBe("expr")
+    expect(meta?.exprSource).toBe("state.x")
+    expect(meta?.validatePointer).toBe("/steps/0/input/seed/$expr")
+  })
+
   it("returns undefined when the input value is not a ref or expr", () => {
     const plain: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -88,17 +99,7 @@ describe("dataEdgeInspectorMeta", () => {
     expect(dataEdgeInspectorMeta(plain, "plain", "value")).toBeUndefined()
   })
 
-  it("reads step expr-gate handle", () => {
-    const gated: ExecutionManifest = {
-      ...manifest,
-      steps: [{ id: "gated", uses: "@executioncontrolprotocol/test.echo", expr: "(state) => state.on", input: {} }],
-    }
-    const meta = dataEdgeInspectorMeta(gated, "gated", "expr")
-    expect(meta?.markerKind).toBe("expr-gate")
-    expect(meta?.exprSource).toContain("state.on")
-  })
-
-  it("finds steps nested under parallel lines", () => {
+  it("finds steps nested under parallel paths", () => {
     const parallel: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -106,141 +107,13 @@ describe("dataEdgeInspectorMeta", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [{ id: "inner", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.x" } } }],
           ],
         },
       ],
     }
     expect(dataEdgeInspectorMeta(parallel, "inner", "value")?.markerKind).toBe("ref")
-  })
-})
-
-describe("routeEdgeInspectorMeta", () => {
-  const nestedManifest: ExecutionManifest = {
-    schema: "@executioncontrolprotocol.execution",
-    version: "2.0",
-    steps: [
-      {
-        type: "branch",
-        id: "outer",
-        branches: [
-          {
-            expr: "(state) => true",
-            steps: [
-              {
-                type: "branch",
-                id: "inner",
-                branches: [
-                  {
-                    expr: "(state) => 1 === 1",
-                    steps: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-                  },
-                  { steps: [{ id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" } }] },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  }
-
-  const nestedEdgeData = {
-    kind: "route" as const,
-    route: "branch" as const,
-    structureId: "outer",
-    armIndex: 0,
-    exprSource: "(state) => true",
-    levels: [
-      { route: "branch" as const, structureId: "outer", armIndex: 0, exprSource: "(state) => true", stepIds: ["x", "w"] },
-      { route: "branch" as const, structureId: "inner", armIndex: 0, exprSource: "(state) => 1 === 1", stepIds: ["x"] },
-    ],
-  }
-
-  it("reads inner branch arm expr at level 1", () => {
-    const meta = routeEdgeInspectorMeta(nestedManifest, nestedEdgeData, 1)
-    expect(meta?.manifestPointer).toBe("/steps/0/branches/0/steps/0/branches/0/expr")
-    expect(meta?.exprSource).toBe("(state) => 1 === 1")
-  })
-  it("reads branch arm expr", () => {
-    const meta = routeEdgeInspectorMeta(manifest, {
-      kind: "route",
-      route: "branch",
-      structureId: "pick",
-      armIndex: 0,
-      exprSource: "state.flag === true",
-      levels: [{ route: "branch", structureId: "pick", armIndex: 0, exprSource: "state.flag === true" }],
-    })
-    expect(meta?.exprSource).toBe("state.flag === true")
-    expect(meta?.manifestPointer).toContain("/branches/0/expr")
-  })
-
-  it("marks the default arm read-only", () => {
-    const meta = routeEdgeInspectorMeta(manifest, {
-      kind: "route",
-      route: "branch",
-      structureId: "pick",
-      armIndex: 1,
-      defaultArm: true,
-      levels: [{ route: "branch", structureId: "pick", armIndex: 1, defaultArm: true }],
-    })
-    expect(meta?.defaultArm).toBe(true)
-  })
-
-  it("falls back to flat route fields when levels is empty", () => {
-    const meta = routeEdgeInspectorMeta(manifest, {
-      kind: "route",
-      route: "loop",
-      structureId: "loop",
-      exprSource: "state.on === true",
-      levels: [],
-    })
-    expect(meta?.exprSource).toBe("state.on === true")
-  })
-
-  it("returns undefined for sequence route levels", () => {
-    expect(
-      routeEdgeInspectorMeta(manifest, {
-        kind: "route",
-        route: "sequence",
-        levels: [{ route: "sequence", stepIds: ["a"] }],
-      }),
-    ).toBeUndefined()
-  })
-
-  it("reads loop expr", () => {
-    const meta = routeEdgeInspectorMeta(manifest, {
-      kind: "route",
-      route: "loop",
-      structureId: "loop",
-      exprSource: "state.on === true",
-      levels: [{ route: "loop", structureId: "loop", exprSource: "state.on === true" }],
-    })
-    expect(meta?.exprSource).toBe("state.on === true")
-  })
-
-  it("returns undefined when the structure id is missing from the manifest", () => {
-    expect(
-      routeEdgeInspectorMeta(manifest, {
-        kind: "route",
-        route: "branch",
-        structureId: "missing",
-        armIndex: 0,
-        levels: [{ route: "branch", structureId: "missing", armIndex: 0, exprSource: "true" }],
-      }),
-    ).toBeUndefined()
-  })
-
-  it("returns undefined for unsupported route kinds", () => {
-    expect(
-      routeEdgeInspectorMeta(manifest, {
-        kind: "route",
-        route: "parallel",
-        structureId: "prepare",
-        levels: [{ route: "parallel", structureId: "prepare" }],
-      }),
-    ).toBeUndefined()
   })
 })
 
@@ -287,47 +160,30 @@ describe("edge-manifest structure walks", () => {
     version: "2.0",
     steps: [
       {
-        type: "branch",
+        type: "if",
         id: "pick",
-        branches: [
-          {
-            expr: "(state) => state.on",
-            steps: [{ id: "armStep", uses: "@x/a", input: { v: { $ref: "state.a" } }, as: "a" }],
-          },
-        ],
+        expression: "state.on",
+        then: [{ id: "thenStep", uses: "@x/a", input: { v: { $ref: "state.a" } }, as: "a" }],
       },
       {
         type: "loop",
         id: "again",
-        expr: "(state) => !state.done",
+        mode: "while",
         maxRounds: 2,
-        steps: [{ id: "bodyStep", uses: "@x/b", input: { w: { $ref: "state.a" } }, as: "b", expr: "(state) => true" }],
+        steps: [{ id: "bodyStep", uses: "@x/b", input: { w: { $ref: "state.a" } }, as: "b" }],
+        end: { input: { repeat: false } },
       },
     ],
   }
 
-  it("finds steps inside branch arms and loop bodies", () => {
-    expect(dataEdgeInspectorMeta(nested, "armStep", "v")?.refPath).toBe("state.a")
+  it("finds steps inside if sides and loop bodies", () => {
+    expect(dataEdgeInspectorMeta(nested, "thenStep", "v")?.refPath).toBe("state.a")
     expect(dataEdgeInspectorMeta(nested, "bodyStep", "w")?.refPath).toBe("state.a")
-    // The step's own expr gate is found through the loop too.
-    expect(dataEdgeInspectorMeta(nested, "bodyStep", "expr")?.exprSource).toBe("(state) => true")
-    expect(inputManifestPointer(nested, "armStep", "v")).toBe("/steps/0/branches/0/steps/0/input/v")
-  })
-
-  it("expr-gate meta omits source when step has no expr", () => {
-    const noExpr: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [{ id: "plain", uses: "@executioncontrolprotocol/test.echo", input: {} }],
-    }
-    const meta = dataEdgeInspectorMeta(noExpr, "plain", "expr")
-    expect(meta?.markerKind).toBe("expr-gate")
-    expect(meta?.exprSource).toBeUndefined()
+    expect(inputManifestPointer(nested, "thenStep", "v")).toBe("/steps/0/then/0/input/v")
   })
 
   it("returns undefined for a step that doesn't exist", () => {
     expect(dataEdgeInspectorMeta(nested, "missing", "v")).toBeUndefined()
-    expect(dataEdgeInspectorMeta(nested, "missing", "expr")).toBeUndefined()
     expect(inputManifestPointer(nested, "missing", "v")).toBeUndefined()
   })
 })

@@ -12,6 +12,7 @@ import {
   STRUCTURE_EDIT_STEP_NOT_FOUND,
   deleteStep,
   removeStructure,
+  setLoopField,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
@@ -45,7 +46,7 @@ function flatTwoStep(): ExecutionManifest {
 
 describe("structure-edit", () => {
   it("rejects wrap with no step ids", () => {
-    expect(wrapSteps(flatTwoStep(), [], "branch")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
+    expect(wrapSteps(flatTwoStep(), [], "if")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
   })
 
   it("wrapSelectionIds prefers the multi-selection", () => {
@@ -53,9 +54,9 @@ describe("structure-edit", () => {
     expect(wrapSelectionIds(["A", "B"], "C")).toEqual(["C"])
   })
 
-  it("wrapSteps branch and round-trips", () => {
+  it("wrapSteps if and round-trips", () => {
     const base = flatTwoStep()
-    const wrapped = wrapSteps(base, ["A", "B"], "branch")
+    const wrapped = wrapSteps(base, ["A", "B"], "if")
     expect(wrapped.ok).toBe(true)
     if (!wrapped.ok) return
     expect(validate(wrapped.manifest)).toBe(true)
@@ -79,7 +80,7 @@ describe("structure-edit", () => {
 
   it("rejects non-contiguous and cross-line wraps", () => {
     const parallel = load("parallel.ecp.json")
-    expect(wrapSteps(parallel, ["left", "right"], "branch")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_CONTIGUOUS })
+    expect(wrapSteps(parallel, ["left", "right"], "if")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_CONTIGUOUS })
     const three: ExecutionManifest = {
       ...flatTwoStep(),
       steps: [
@@ -94,30 +95,31 @@ describe("structure-edit", () => {
     const manifest = {
       ...flatTwoStep(),
       detached: [
-        { id: "branch-1", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "branch-1" },
+        { id: "if-1", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "if-1" },
       ],
     } as ExecutionManifest
-    const wrapped = wrapSteps(manifest, ["A"], "branch")
+    const wrapped = wrapSteps(manifest, ["A"], "if")
     expect(wrapped.ok).toBe(true)
-    if (wrapped.ok) expect(wrapped.manifest.steps[0]!.id).toBe("branch-2")
+    if (wrapped.ok) expect(wrapped.manifest.steps[0]!.id).toBe("if-2")
   })
 
-  it("allocates branch-2 when branch-1 exists", () => {
+  it("allocates if-2 when if-1 exists", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "branch",
-          id: "branch-1",
-          branches: [{ label: "a", steps: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }] }],
+          type: "if",
+          id: "if-1",
+          expression: "true",
+          then: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
         },
         { id: "wrap-me", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" }, as: "wrap-me" },
       ],
     }
-    const wrapped = wrapSteps(manifest, ["wrap-me"], "branch")
+    const wrapped = wrapSteps(manifest, ["wrap-me"], "if")
     expect(wrapped.ok).toBe(true)
-    if (wrapped.ok) expect(wrapped.manifest.steps.some((node) => node.id === "branch-2")).toBe(true)
+    if (wrapped.ok) expect(wrapped.manifest.steps.some((node) => node.id === "if-2")).toBe(true)
   })
 
   it("deleteStep cascades parallel to a single line", () => {
@@ -155,16 +157,17 @@ describe("structure-edit", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [
               {
                 type: "loop",
                 id: "L",
-                expr: "(state) => true",
+                mode: "while",
                 maxRounds: 1,
                 steps: [
                   { id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only" },
                 ],
+                end: { input: { repeat: false } },
               },
             ],
             [{ id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" }],
@@ -194,7 +197,7 @@ describe("structure-edit", () => {
     const base = flatTwoStep()
     const removed = removeStructure(base, "missing")
     expect(removed).toMatchObject({ ok: false, reason: "Structure not found" })
-    const wrapped = wrapSteps(base, ["A", "B"], "branch")
+    const wrapped = wrapSteps(base, ["A", "B"], "if")
     if (!wrapped.ok) throw new Error("wrap failed")
     const id = wrapped.manifest.steps[0]!.id
     const after = removeStructure(wrapped.manifest, id)
@@ -213,10 +216,29 @@ describe("structure-edit", () => {
     expect(wrapSteps(base, ["A", "B", "missing"], "loop")).toMatchObject({ ok: false })
   })
 
+  it("setLoopField updates loop end and refuses unknown structures", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "L",
+          mode: "while",
+          maxRounds: 2,
+          steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+          end: { input: { repeat: false } },
+        },
+      ],
+    }
+    const ok = setLoopField(manifest, "L", "maxRounds", 4)
+    expect(ok.ok).toBe(true)
+  })
+
   it("does not mutate the input manifest on failure", () => {
     const base = flatTwoStep()
     const snapshot = structuredClone(base)
-    wrapSteps(base, ["A", "missing"], "branch")
+    wrapSteps(base, ["A", "missing"], "if")
     expect(base).toEqual(snapshot)
     deleteStep(base, "missing")
     expect(base).toEqual(snapshot)

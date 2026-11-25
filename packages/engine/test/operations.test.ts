@@ -265,7 +265,7 @@ describe("operations", () => {
       const detail = await storage.runs.get(interruptRun.data.runId, ["state"])
       await storage.runs.update(interruptRun.data.runId, {
         status: "interrupted",
-        cursor: { completed: ["first"], inProgress: "wait", loops: {}, branches: {} },
+        cursor: { completed: ["first"], inProgress: "wait", loops: {}, choices: {} },
       })
       const resumed = await host.operations.execute({ resume: interruptRun.data.runId })
       expect(resumed.ok).toBe(true)
@@ -632,18 +632,24 @@ describe("operations", () => {
         version: "2.0",
         steps: [
           {
+            type: "if",
             id: "gate",
-            uses: "@executioncontrolprotocol/test.echo",
-            expr: "(state) => false",
-            input: { value: "x" },
-            as: "gate",
+            expression: "false",
+            then: [
+              {
+                id: "inner",
+                uses: "@executioncontrolprotocol/test.echo",
+                input: { value: "x" },
+                as: "gate",
+              },
+            ],
           },
         ],
       },
       input: {},
     })
     expect(skipped.ok).toBe(true)
-    if (skipped.ok && "steps" in skipped.data) expect(skipped.data.steps[0]?.status).toBe("skipped")
+    if (skipped.ok && "steps" in skipped.data) expect(skipped.data.steps.find((step) => step.nodeId === "inner")).toBeUndefined()
 
     await host.stop()
   })

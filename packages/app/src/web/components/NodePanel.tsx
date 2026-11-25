@@ -82,14 +82,16 @@ function findLoop(manifest: ExecutionManifest | undefined, id: string): LoopNode
     for (const node of nodes) {
       if (node.type === "loop" && node.id === id) return node
       if (node.type === "parallel") {
-        for (const line of node.branches) {
+        for (const line of node.paths) {
           const hit = walk(line)
           if (hit) return hit
         }
-      } else if (node.type === "branch") {
-        for (const arm of node.branches) {
-          const hit = walk(arm.steps)
-          if (hit) return hit
+      } else if (node.type === "if") {
+        const hitThen = walk(node.then)
+        if (hitThen) return hitThen
+        if (node.else) {
+          const hitElse = walk(node.else)
+          if (hitElse) return hitElse
         }
       } else if (node.type === "loop") {
         const hit = walk(node.steps)
@@ -113,29 +115,22 @@ function patchStep(
 ): ExecutionManifest {
   const walk = (nodes: Node[]): Node[] =>
     nodes.map((node) => {
-      if (node.type === "branch") {
+      if (node.type === "if") {
         return {
           ...node,
-          branches: node.branches.map((arm) => ({ ...arm, steps: walk(arm.steps) })),
+          then: walk(node.then),
+          ...(node.else ? { else: walk(node.else) } : {}),
         }
       }
       if (node.type === "loop") return { ...node, steps: walk(node.steps) }
-      if (node.type === "parallel") return { ...node, branches: node.branches.map((branch) => walk(branch)) }
+      if (node.type === "parallel") return { ...node, paths: node.paths.map((path) => walk(path)) }
       if ((node as StepNode).id === stepId) return patch(node as StepNode)
       return node
     })
   return { ...manifest, steps: walk(manifest.steps) }
 }
 
-type LoopFieldKey =
-  | "ref"
-  | "expr"
-  | "maxRounds"
-  | "as"
-  | "into"
-  | "collect"
-  | "concurrency"
-  | "onError"
+type LoopFieldKey = "maxRounds" | "as" | "into" | "concurrency" | "onError"
 
 function LoopItemsPanel({
   node,
@@ -165,7 +160,6 @@ function LoopItemsPanel({
   const loopFieldKey = `${node.id}-${fieldEpoch}`
   const source = findLoop(manifest, node.id)
   const mode = data.mode ?? "while"
-  const driver: "ref" | "expr" = source?.expr !== undefined ? "expr" : "ref"
   const [fieldError, setFieldError] = useState<string | undefined>(undefined)
 
   const queueField = useCallback(
@@ -204,18 +198,6 @@ function LoopItemsPanel({
     [applyManifestEdit, flushTextEdit, manifest, node.id, queueField, readOnly, scheduleTextEdit],
   )
 
-  const switchDriver = useCallback(
-    (next: "ref" | "expr") => {
-      if (next === driver) return
-      if (next === "ref") {
-        void saveField("ref", source?.ref ?? "state.value")
-      } else {
-        void saveField("expr", source?.expr?.trim() ? source.expr : "(state) => true")
-      }
-    },
-    [driver, saveField, source?.expr, source?.ref],
-  )
-
   const disabled = readOnly || !applyManifestEdit || !manifest
 
   return (
@@ -233,60 +215,6 @@ function LoopItemsPanel({
         <Row label="Mode">{mode}</Row>
       </div>
       <div key={loopFieldKey} className="space-y-3 border-t border-outline-variant pt-3">
-        <p className="font-mono text-label uppercase text-on-surface-variant">Driver</p>
-        <div className="flex gap-2" data-testid="loop-field-driver">
-          <button
-            type="button"
-            disabled={disabled}
-            className={`rounded border px-2 py-1 font-mono text-[11px] disabled:opacity-40 ${
-              driver === "ref" ? "border-primary text-on-surface" : "border-outline-variant"
-            }`}
-            onClick={() => switchDriver("ref")}
-          >
-            ref
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            className={`rounded border px-2 py-1 font-mono text-[11px] disabled:opacity-40 ${
-              driver === "expr" ? "border-primary text-on-surface" : "border-outline-variant"
-            }`}
-            onClick={() => switchDriver("expr")}
-          >
-            expr
-          </button>
-        </div>
-        {driver === "ref" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Ref</span>
-            <input
-              data-testid="loop-field-ref"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.ref ?? (data.refPath ? `state.${data.refPath}` : "")}
-              disabled={disabled}
-              onChange={(event) => queueField("ref", event.target.value)}
-              onBlur={(event) => void saveField("ref", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("ref", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
-        ) : (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Expr</span>
-            <input
-              data-testid="loop-field-expr"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.expr ?? data.exprBadge ?? ""}
-              disabled={disabled}
-              onChange={(event) => queueField("expr", event.target.value)}
-              onBlur={(event) => void saveField("expr", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("expr", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
-        )}
         {mode === "while" ? (
           <label className="block space-y-1">
             <span className="font-mono text-label uppercase text-on-surface-variant">Max rounds</span>
@@ -337,20 +265,6 @@ function LoopItemsPanel({
                 onBlur={(event) => void saveField("into", event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void saveField("into", (event.target as HTMLInputElement).value)
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Collect</span>
-              <input
-                data-testid="loop-field-collect"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.collect ?? (data.collectPath ? `state.${data.collectPath}` : "")}
-                disabled={disabled}
-                onChange={(event) => queueField("collect", event.target.value)}
-                onBlur={(event) => void saveField("collect", event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveField("collect", (event.target as HTMLInputElement).value)
                 }}
               />
             </label>
@@ -560,7 +474,6 @@ function ScriptText({
 
 function bindingSummary(port: ReactFlowPort): string {
   if (port.binding === "ref") return `ref ${port.refPath ?? ""}${port.refOptional ? " (optional)" : ""}`
-  if (port.binding === "expr") return "expr"
   if (port.binding === "script") return port.scriptPath ? `script ${port.scriptPath}` : "script (inline)"
   if (port.binding === "literal") return port.valueTitle ?? port.valuePreview ?? "literal"
   return "not set"
@@ -596,11 +509,6 @@ function InputBinding({
         </span>
       </div>
       <p className="break-all font-mono text-[11px] text-on-surface-variant">{bindingSummary(port)}</p>
-      {port.binding === "expr" && port.exprSource ? (
-        <pre className="overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-primary-fixed">
-          {port.exprSource}
-        </pre>
-      ) : null}
       {port.binding === "script" && port.scriptSource ? (
         <pre data-testid="node-input-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
           {port.scriptSource}
@@ -804,7 +712,7 @@ function TransformCodePanel({
 }
 
 /**
- * Details of the selected node: capability, bindings (with script text), `expr`, config,
+ * Details of the selected node: capability, bindings (with script text), config,
  * validation issues and the capability's `accepts` / `returns` schemas.
  * @category App
  */
@@ -880,7 +788,6 @@ export function NodePanel({
             {data.mode ? ` (${data.mode})` : ""}
           </Row>
         ) : null}
-        {step?.expr ? <Row label="Expr">{step.expr}</Row> : null}
         {runStep ? (
           <Row label="Status">
             <span data-testid="node-run-status">{runStep.status}</span>

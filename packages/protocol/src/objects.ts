@@ -30,8 +30,8 @@ export interface RunCursor {
   inProgress?: string
   /** Loop id to the round index that was in progress. */
   loops: Record<string, number>
-  /** Branch id to the arm index that was selected. */
-  branches: Record<string, number>
+  /** `if` node id to the side that was taken. */
+  choices: Record<string, "then" | "else">
   /** Outermost `forEach` loop id to item indexes that finished. */
   loopItems?: Record<string, { completed: number[] }>
 }
@@ -358,7 +358,8 @@ export type RunEventType =
   | "step.end"
   | "step.error"
   | "step.warning"
-  | "branch.select"
+  | "if.select"
+  | "loop.repeat"
   | "loop.round"
   | "loop.exhausted"
   | "loop.start"

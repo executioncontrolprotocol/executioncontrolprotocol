@@ -46,7 +46,6 @@ export const ERROR_CATALOGUE = {
   ECP_RETURNS_UNRESOLVED: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_EXPR_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_SCRIPT_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
-  ECP_LOOP_UNTYPED: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_CONFIG_UNKNOWN: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_CONFIG_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_PATCH_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },

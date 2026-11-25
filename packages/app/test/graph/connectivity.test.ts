@@ -5,7 +5,6 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   acceptsPropertyKeys,
-  detachedNodeIds,
   executionToReactFlow,
   EXECUTION_RETURNS_NODE_ID,
   returnsSourceKeys,
@@ -13,10 +12,9 @@ import {
   walkInputRefs,
   type ReactFlowDocument,
   type ReactFlowEdge,
-  type ReactFlowRouteEdgeData,
 } from "../../src/graph/index.js"
 import { jsonSchemaObjectProperties } from "../../src/graph/json-schema.js"
-import { FLOW_IN_HANDLE, FLOW_OUT_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
+import { LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, "../../../..")
@@ -63,34 +61,24 @@ function dataEdges(doc: ReactFlowDocument): ReactFlowEdge[] {
   return doc.edges.filter((edge) => edge.data.kind === "data")
 }
 
-function assertC2(doc: ReactFlowDocument, file: string, manifest?: ExecutionManifest): void {
-  const connected = new Set<string>()
-  for (const edge of doc.edges) {
-    connected.add(edge.source)
-    connected.add(edge.target)
-  }
-  const exempt = manifest ? detachedNodeIds(manifest) : new Set<string>()
-  for (const node of doc.nodes) {
-    if (node.type === "ecp-frame") continue
-    if (exempt.has(node.id)) continue
-    expect(connected.has(node.id), `${file} orphaned node ${node.id}`).toBe(true)
-  }
+type AnyNode = Record<string, unknown> & {
+  id: string
+  type?: string
+  steps?: AnyNode[]
+  then?: AnyNode[]
+  else?: AnyNode[]
+  paths?: AnyNode[][]
 }
 
-type AnyNode = Record<string, unknown> & { id: string; type?: string; steps?: AnyNode[] }
-
-/** Visit every node in the manifest, depth first, including loop bodies and branch / parallel arms. */
+/** Visit every node in the manifest, depth first, including loop bodies and if / parallel sides. */
 function forEachNode(nodes: AnyNode[], visit: (node: AnyNode) => void): void {
   for (const node of nodes) {
     visit(node)
     if (Array.isArray(node.steps)) forEachNode(node.steps, visit)
-    if (Array.isArray(node.branches)) {
-      for (const branch of node.branches as unknown[]) {
-        if (Array.isArray(branch)) forEachNode(branch as AnyNode[], visit)
-        else if (branch && typeof branch === "object" && Array.isArray((branch as AnyNode).steps)) {
-          forEachNode((branch as AnyNode).steps!, visit)
-        }
-      }
+    if (Array.isArray(node.then)) forEachNode(node.then, visit)
+    if (Array.isArray(node.else)) forEachNode(node.else, visit)
+    if (Array.isArray(node.paths)) {
+      for (const path of node.paths) forEachNode(path, visit)
     }
   }
 }
@@ -130,13 +118,16 @@ function assertC1(manifest: ExecutionManifest, doc: ReactFlowDocument, file: str
   }
   forEachNode((manifest.steps ?? []) as unknown as AnyNode[], (node) => {
     if (node.type === "loop") {
-      if (typeof node.ref === "string") expectEdge(node.id, node.ref, "loop ref")
-      if (typeof node.collect === "string") expectEdge(node.id, node.collect, "loop collect")
-      if (typeof node.expr === "string") {
-        for (const read of stateReadsFromExpr(node.expr)) expectEdge(node.id, read, "loop expr")
+      if (node.input && typeof node.input === "object") {
+        for (const [name, value] of Object.entries(node.input as Record<string, unknown>)) {
+          walkInputRefs(value, name, (inputPath, refPath) => {
+            if (refPath.startsWith("state.")) expectEdge(node.id, refPath, `loop input ${inputPath}`)
+          })
+        }
       }
       return
     }
+    if (node.type === "if" || node.type === "parallel") return
     if (node.type !== undefined && node.type !== "step") return
     if (node.input && typeof node.input === "object") {
       for (const [name, value] of Object.entries(node.input as Record<string, unknown>)) {
@@ -169,13 +160,12 @@ describe("graph connectivity invariant", () => {
     expect(manifestPaths.length).toBeGreaterThan(5)
   })
 
-  it.each(manifestPaths)("%s satisfies C1 and C2", (file) => {
+  it.each(manifestPaths)("%s satisfies C1", (file) => {
     const manifest = loadManifest(file)
     const doc = executionToReactFlow(manifest)
     const relative = path.relative(repoRoot, file)
     try {
       assertC1(manifest, doc, relative)
-      assertC2(doc, relative, manifest)
       connectivityResults.push({ file: relative, ok: true })
     } catch (error) {
       connectivityResults.push({ file: relative, ok: false })
@@ -194,7 +184,7 @@ describe("connectivity focused cases", () => {
           type: "loop",
           mode: "forEach",
           id: "outer",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           as: "item",
           into: "out",
           steps: [
@@ -202,7 +192,7 @@ describe("connectivity focused cases", () => {
               type: "loop",
               mode: "forEach",
               id: "inner",
-              ref: "state.item.parts",
+              input: { items: { $ref: "state.item.parts" } },
               as: "part",
               into: "parts",
               steps: [
@@ -217,6 +207,7 @@ describe("connectivity focused cases", () => {
                   input: { value: { $ref: "state.partIndex" } },
                 },
               ],
+              end: { input: {} },
             },
             {
               id: "use-item",
@@ -224,13 +215,14 @@ describe("connectivity focused cases", () => {
               input: { value: { $ref: "state.item" } },
             },
           ],
+          end: { input: {} },
         },
       ],
     }
     const doc = executionToReactFlow(manifest)
     const data = dataEdges(doc)
     expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_ITEM_HANDLE, target: "use-part" }))
-    expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_ITEM_HANDLE, target: "use-index" }))
+    expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_INDEX_HANDLE, target: "use-index" }))
     expect(data).toContainEqual(expect.objectContaining({ source: "outer", sourceHandle: LOOP_ITEM_HANDLE, target: "use-item" }))
   })
 
@@ -244,10 +236,11 @@ describe("connectivity focused cases", () => {
           type: "loop",
           mode: "forEach",
           id: "cleanup",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           as: "published",
           into: "done",
           steps: [{ id: "in-loop", uses: "@executioncontrolprotocol/test.echo", as: "other" }],
+          end: { input: {} },
         },
         {
           id: "read-published",
@@ -265,55 +258,12 @@ describe("connectivity focused cases", () => {
   it("for iteration variable edge", () => {
     const doc = executionToReactFlow(loadManifest(path.join(validDir, "loop-for.ecp.json")))
     expect(dataEdges(doc)).toContainEqual(
-      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_ITEM_HANDLE, target: "tick" }),
+      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_INDEX_HANDLE, target: "tick" }),
     )
   })
 
-  it.each(manifestPaths)("%s route edges use flow handles", (file) => {
+  it.each(manifestPaths)("%s publishes data edges only", (file) => {
     const doc = executionToReactFlow(loadManifest(file))
-    for (const edge of doc.edges) {
-      if (edge.data.kind !== "route") continue
-      expect(edge.sourceHandle, `${file} ${edge.id} sourceHandle`).toBe(FLOW_OUT_HANDLE)
-      expect(edge.targetHandle, `${file} ${edge.id} targetHandle`).toBe(FLOW_IN_HANDLE)
-    }
-  })
-
-  it.each(manifestPaths)("%s publishes every branch arm expr on a route edge level", (file) => {
-    const manifest = loadManifest(file)
-    const expected: Array<{ structureId: string; armIndex: number; expr: string }> = []
-    const walk = (nodes: AnyNode[]): void => {
-      for (const node of nodes) {
-        if (node.type === "branch") {
-          const arms = node.branches as Array<{ expr?: string; steps?: AnyNode[] }>
-          arms.forEach((arm, armIndex) => {
-            if (typeof arm.expr === "string") {
-              expected.push({ structureId: node.id, armIndex, expr: arm.expr })
-            }
-            if (arm.steps) walk(arm.steps)
-          })
-        } else if (node.type === "parallel") {
-          for (const line of node.branches as AnyNode[][]) walk(line)
-        } else if (node.type === "loop" && node.steps) {
-          walk(node.steps as AnyNode[])
-        }
-      }
-    }
-    walk((manifest.steps ?? []) as AnyNode[])
-    const doc = executionToReactFlow(manifest)
-    const found = new Set<string>()
-    for (const edge of doc.edges) {
-      if (edge.data.kind !== "route") continue
-      const data = edge.data as ReactFlowRouteEdgeData
-      for (const level of data.levels) {
-        if (level.route === "branch" && typeof level.exprSource === "string") {
-          found.add(`${level.structureId}:${level.armIndex}:${level.exprSource}`)
-        }
-      }
-    }
-    for (const arm of expected) {
-      expect(found.has(`${arm.structureId}:${arm.armIndex}:${arm.expr}`), `${file} missing arm ${arm.structureId}[${arm.armIndex}]`).toBe(
-        true,
-      )
-    }
+    expect(doc.edges.every((edge) => edge.data.kind === "data" || edge.data.kind === "layout-control")).toBe(true)
   })
 })

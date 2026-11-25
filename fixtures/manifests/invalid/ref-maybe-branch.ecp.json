@@ -3,34 +3,17 @@
   "version": "2.0",
   "steps": [
     {
-      "type": "branch",
+      "type": "if",
       "id": "pick",
-      "branches": [
+      "expression": "true",
+      "then": [
         {
-          "expr": "(state) => true",
-          "steps": [
-            {
-              "id": "a",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "a"
-              },
-              "as": "picked"
-            }
-          ]
-        },
-        {
-          "expr": "(state) => false",
-          "steps": [
-            {
-              "id": "b",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "b"
-              },
-              "as": "picked"
-            }
-          ]
+          "id": "a",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "a"
+          },
+          "as": "picked"
         }
       ]
     },

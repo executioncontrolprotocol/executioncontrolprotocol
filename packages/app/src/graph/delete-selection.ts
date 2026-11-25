@@ -16,7 +16,7 @@ export type DeleteSelection =
   | { kind: "none" }
   | { kind: "steps"; stepIds: readonly string[] }
   | { kind: "structure"; structureId: string }
-  | { kind: "connector"; edge: ReactFlowEdge; level: number }
+  | { kind: "connector"; edge: ReactFlowEdge }
 
 /**
  * Pure Delete / Backspace dispatch for the graph selection.
@@ -41,9 +41,9 @@ export function deleteSelection(
   if (selection.kind === "structure") {
     return unwrapStructure(manifest, selection.structureId)
   }
-  const preview = connectorDeletePreview(manifest, selection.edge, selection.level)
+  const preview = connectorDeletePreview(manifest, selection.edge)
   if (!preview.ok) return { ok: false, reason: preview.reason }
-  return deleteConnector(manifest, selection.edge, selection.level)
+  return deleteConnector(manifest, selection.edge)
 }
 
 /**
@@ -54,5 +54,5 @@ export function isStructureHeaderSelection(manifest: ExecutionManifest, structur
   const hit = findNodePlacement(manifest.steps, structureId)
   if (!hit) return false
   const node = hit.parent[hit.index]
-  return node.type === "branch" || node.type === "parallel" || node.type === "loop"
+  return node.type === "if" || node.type === "parallel" || node.type === "loop"
 }

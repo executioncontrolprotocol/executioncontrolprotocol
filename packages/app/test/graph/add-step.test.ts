@@ -106,57 +106,50 @@ describe("addCapabilityStep", () => {
     expect(added.mode).toBeUndefined()
   })
 
-  it("adds arm before default", () => {
+  it("adds to else side of an if", () => {
     const base = load("branch.ecp.json")
-    const result = addCapabilityStep(base, { id: echo }, { kind: "new-arm", branchId: "route" })
+    const ifId = base.steps.find((node) => node.type === "if")?.id
+    expect(ifId).toBeDefined()
+    const result = addCapabilityStep(base, { id: echo }, { kind: "else-side", ifId: ifId! })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const branch = result.manifest.steps[0]
-    expect(branch.type).toBe("branch")
-    if (branch.type !== "branch") return
-    expect(branch.branches).toHaveLength(3)
-    expect(branch.branches[1]).toMatchObject({
-      expr: "(state) => true",
-      steps: [{ uses: echo }],
-    })
-    expect(branch.branches[2]?.expr).toBeUndefined()
+    const ifNode = result.manifest.steps[0]
+    expect(ifNode.type).toBe("if")
+    if (ifNode.type !== "if") return
+    expect(ifNode.else?.some((step) => step.uses === echo)).toBe(true)
   })
 
-  it("appends arm when every arm is conditional", () => {
+  it("adds to then side of an if", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "branch",
+          type: "if",
           id: "b",
-          branches: [
-            {
-              expr: "(state) => true",
-              steps: [{ id: "keep", uses: echo, input: { value: "k" }, as: "keep" }],
-            },
-          ],
+          expression: "true",
+          then: [{ id: "keep", uses: echo, input: { value: "k" }, as: "keep" }],
         },
       ],
     }
-    const result = addCapabilityStep(base, { id: echo }, { kind: "new-arm", branchId: "b" })
+    const result = addCapabilityStep(base, { id: echo }, { kind: "then-side", ifId: "b" })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const branch = result.manifest.steps[0]
-    if (branch.type !== "branch") return
-    expect(branch.branches).toHaveLength(2)
-    expect(branch.branches[1]?.expr).toBe("(state) => true")
+    const ifNode = result.manifest.steps[0]
+    if (ifNode.type !== "if") return
+    expect(ifNode.then).toHaveLength(2)
+    expect(ifNode.then[1]).toMatchObject({ uses: echo })
   })
 
-  it("adds parallel line", () => {
+  it("adds parallel path", () => {
     const base = load("parallel.ecp.json")
-    const result = addCapabilityStep(base, { id: echo }, { kind: "new-line", parallelId: "prepare" })
+    const result = addCapabilityStep(base, { id: echo }, { kind: "new-path", parallelId: "prepare" })
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const parallel = result.manifest.steps[0]
     if (parallel.type !== "parallel") return
-    expect(parallel.branches).toHaveLength(3)
-    expect(parallel.branches[2]?.[0]).toMatchObject({ uses: echo })
+    expect(parallel.paths).toHaveLength(3)
+    expect(parallel.paths[2]?.[0]).toMatchObject({ uses: echo })
   })
 
   it("resolves id collisions", () => {
@@ -238,22 +231,22 @@ describe("addCapabilityStep", () => {
 
   it("rejects wrong structure kinds for placement", () => {
     const base = load("branch.ecp.json")
-    expect(addCapabilityStep(base, { id: echo }, { kind: "loop-body", loopId: "route" })).toMatchObject({
+    expect(addCapabilityStep(base, { id: echo }, { kind: "loop-body", loopId: "pick" })).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
     })
-    expect(addCapabilityStep(base, { id: echo }, { kind: "new-arm", branchId: "no" })).toMatchObject({
+    expect(addCapabilityStep(base, { id: echo }, { kind: "then-side", ifId: "no" })).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
     })
     const loop = load("loop.ecp.json")
-    expect(addCapabilityStep(loop, { id: echo }, { kind: "new-line", parallelId: "refine" })).toMatchObject({
+    expect(addCapabilityStep(loop, { id: echo }, { kind: "new-path", parallelId: "refine" })).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
     })
   })
 
-  it("sets replace when adding arm inside a while loop", () => {
+  it("sets replace when adding to then side inside a while loop", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -261,25 +254,28 @@ describe("addCapabilityStep", () => {
         {
           type: "loop",
           id: "retry",
-          expr: "(state) => true",
+          mode: "while",
+          maxRounds: 2,
           steps: [
             {
-              type: "branch",
-              id: "route",
-              branches: [{ expr: "(state) => true", steps: [] }],
+              type: "if",
+              id: "pick",
+              expression: "true",
+              then: [],
             },
           ],
+          end: { input: { repeat: false } },
         },
       ],
     }
-    const result = addCapabilityStep(base, { id: echo }, { kind: "new-arm", branchId: "route" })
+    const result = addCapabilityStep(base, { id: echo }, { kind: "then-side", ifId: "pick" })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const branch = result.manifest.steps[0]
-    if (branch?.type !== "loop") return
-    const inner = branch.steps[0]
-    if (inner?.type !== "branch") return
-    const added = inner.branches[0]?.steps[0] as StepNode
+    const loop = result.manifest.steps[0]
+    if (loop?.type !== "loop") return
+    const inner = loop.steps[0]
+    if (inner?.type !== "if") return
+    const added = inner.then[0] as StepNode
     expect(added.mode).toBe("replace")
   })
 
@@ -300,7 +296,7 @@ describe("addCapabilityStep", () => {
     expect(added.as).toBe("echo2")
   })
 
-  it("sets replace on add line inside while loop", () => {
+  it("sets replace on add path inside for loop", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -309,25 +305,26 @@ describe("addCapabilityStep", () => {
           type: "loop",
           id: "rounds",
           mode: "for",
-          ref: "state.items",
+          input: { count: { $ref: "state.count" } },
           steps: [
             {
               type: "parallel",
               id: "lanes",
-              branches: [[{ id: "left", uses: echo, input: { value: "l" }, as: "left" }]],
+              paths: [[{ id: "left", uses: echo, input: { value: "l" }, as: "left" }]],
             },
           ],
+          end: { input: {} },
         },
       ],
     }
-    const result = addCapabilityStep(base, { id: echo }, { kind: "new-line", parallelId: "lanes" })
+    const result = addCapabilityStep(base, { id: echo }, { kind: "new-path", parallelId: "lanes" })
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const loop = result.manifest.steps[0]
     if (loop?.type !== "loop") return
     const parallel = loop.steps[0]
     if (parallel?.type !== "parallel") return
-    const added = parallel.branches[1]?.[0] as StepNode
+    const added = parallel.paths[1]?.[0] as StepNode
     expect(added.mode).toBe("replace")
   })
 
@@ -337,7 +334,7 @@ describe("addCapabilityStep", () => {
       version: "2.0",
       steps: [{ id: "only", uses: echo, input: { value: "x" }, as: "only" }],
     }
-    expect(addCapabilityStep(base, { id: echo }, { kind: "new-line", parallelId: "only" })).toMatchObject({
+    expect(addCapabilityStep(base, { id: echo }, { kind: "new-path", parallelId: "only" })).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
     })
@@ -406,16 +403,20 @@ describe("addCapabilityStep", () => {
     expect(before.ok).toBe(true)
   })
 
-  it("inserts before and after inside branch arms", () => {
+  it("inserts before and after inside if then and else", () => {
     const base = load("branch.ecp.json")
-    const afterArm = addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "yes" })
-    expect(afterArm.ok).toBe(true)
-    if (!afterArm.ok) return
-    const branch = afterArm.manifest.steps[0]
-    if (branch.type !== "branch") return
-    expect(branch.branches[0]?.steps.map((step) => step.id)).toContain("echo")
-    const beforeArm = addCapabilityStep(base, { id: echo }, { kind: "before", nodeId: "no" })
-    expect(beforeArm.ok).toBe(true)
+    const afterThen = addCapabilityStep(base, { id: echo }, { kind: "after", nodeId: "yes" })
+    expect(afterThen.ok).toBe(true)
+    if (!afterThen.ok) return
+    const gate = afterThen.manifest.steps[0]
+    if (gate.type !== "if") return
+    expect(gate.then.map((step) => step.id)).toContain("echo")
+    const beforeElse = addCapabilityStep(base, { id: echo }, { kind: "before", nodeId: "no" })
+    expect(beforeElse.ok).toBe(true)
+    if (!beforeElse.ok) return
+    const gate2 = beforeElse.manifest.steps[0]
+    if (gate2.type !== "if") return
+    expect(gate2.else?.map((step) => step.id)).toContain("echo")
   })
 
   it("rejects unknown before/after anchors", () => {

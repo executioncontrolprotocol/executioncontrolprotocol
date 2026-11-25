@@ -9,10 +9,8 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "while",
       "id": "retry",
       "label": "Retry until ready",
-      "expr": "(state) => state.attempt === undefined",
       "maxRounds": 3,
       "steps": [
         {
@@ -24,8 +22,29 @@
           },
           "as": "attempt",
           "mode": "replace"
+        },
+        {
+          "id": "ready",
+          "label": "Try again?",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": false
+          },
+          "as": "ready",
+          "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {
+          "value": {
+            "$ref": "state.attempt.echo"
+          },
+          "repeat": {
+            "$ref": "state.ready.echo"
+          }
+        }
+      },
+      "into": "last_attempt"
     },
     {
       "id": "after-retry",

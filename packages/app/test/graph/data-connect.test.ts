@@ -8,11 +8,11 @@ import {
 import {
   dataConnectionRefusal,
   isDataHandle,
+  connectInputTarget,
   isValidDataConnection,
   portOnDocument,
 } from "../../src/graph/data-connect.js"
-import { EXPR_HANDLE_ID } from "../../src/graph/extract-data-edges.js"
-import { FLOW_IN_HANDLE } from "../../src/graph/types.js"
+import { LOOP_REF_HANDLE } from "../../src/graph/types.js"
 
 const echo = "@executioncontrolprotocol/test.echo"
 const delay = "@executioncontrolprotocol/test.delay"
@@ -45,8 +45,8 @@ describe("data-connect", () => {
 
   it("detects data handles", () => {
     expect(isDataHandle("text")).toBe(true)
-    expect(isDataHandle(FLOW_IN_HANDLE)).toBe(false)
-    expect(isDataHandle(EXPR_HANDLE_ID)).toBe(true)
+    expect(isDataHandle(null)).toBe(false)
+    expect(isDataHandle(LOOP_REF_HANDLE)).toBe(true)
   })
 
   it("loads encoded ports", () => {
@@ -92,7 +92,7 @@ describe("data-connect", () => {
     const missingHandle = {
       source: "writer",
       target: "later",
-      sourceHandle: FLOW_IN_HANDLE,
+      sourceHandle: LOOP_REF_HANDLE,
       targetHandle: "value",
     }
     expect(isValidDataConnection(manifest(), document, missingHandle)).toBe(false)
@@ -121,9 +121,10 @@ describe("data-connect", () => {
       steps: [{ id: "writer", uses: echo, input: { value: "w" }, as: "writer" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "wrap",
-          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: echo, as: "inner" }] }],
+          expression: "true",
+          then: [{ id: "inner", uses: echo, as: "inner" }],
         },
       ],
     }
@@ -169,5 +170,29 @@ describe("data-connect", () => {
       targetHandle: "ms",
     }
     expect(isValidDataConnection(manifest(), document, incompatible)).toBe(false)
+  })
+
+  it("portOnDocument and refusal handle loop ports and missing fields", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "L",
+          mode: "for",
+          as: "i",
+          count: 2,
+          steps: [{ id: "body", uses: echo, as: "body" }],
+          end: { input: { value: 0 } },
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest, { capabilitySchemas: schemas })
+    expect(portOnDocument(doc, "L", "index", "output")).toBeDefined()
+    expect(portOnDocument(doc, "L", "index", "input")).toBeUndefined()
+    expect(portOnDocument(doc, "missing", "x", "output")).toBeUndefined()
+    expect(dataConnectionRefusal(manifest, doc, {})).toBeDefined()
+    expect(connectInputTarget({ source: "body", target: "body", sourceHandle: "output", targetHandle: "value" })).toBeDefined()
   })
 })

@@ -20,10 +20,14 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "for",
       "id": "rounds",
       "label": "Repeat count times",
-      "ref": "state.count",
+      "mode": "for",
+      "input": {
+        "count": {
+          "$ref": "state.count"
+        }
+      },
       "as": "i",
       "steps": [
         {
@@ -38,7 +42,10 @@
           "as": "tick",
           "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {}
+      }
     },
     {
       "id": "after-rounds",

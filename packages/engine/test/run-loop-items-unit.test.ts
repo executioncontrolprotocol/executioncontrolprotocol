@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest"
-import { executeLoopItems, type ExecuteForEachDeps, type LoopItemsRuntime } from "../src/execute/run-loop-items.js"
+import { beforeAll, describe, expect, it } from "vitest"
+import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
+import { executeLoopItems, type ExecuteLoopItemsDeps, type LoopItemsRuntime } from "../src/execute/run-loop-items.js"
+import { loopEndValue } from "./manifest-helpers.js"
+
+const engine = new QuickJsExpressionEngine()
+
+beforeAll(async () => {
+  await engine.start()
+})
 
 function runtime(overrides: Partial<LoopItemsRuntime> = {}): LoopItemsRuntime {
   return {
@@ -9,13 +17,22 @@ function runtime(overrides: Partial<LoopItemsRuntime> = {}): LoopItemsRuntime {
     interrupted: false,
     completed: new Set(),
     cursor: { loopItems: {} },
-    deps: {},
+    deps: { expression: engine },
     ...overrides,
   }
 }
 
-const deps: ExecuteForEachDeps = {
+const baseNode = {
+  id: "f",
+  input: { items: { $ref: "state.rows" } },
+  as: "row",
+  end: loopEndValue("state.row"),
+  steps: [] as unknown[],
+}
+
+const deps: ExecuteLoopItemsDeps = {
   runBody: async () => {},
+  gatherEnd: async (_end, itemState) => itemState.row,
   toIssue: (error) => ({
     code: "ECP_STEP_FAILED",
     severity: "error",
@@ -26,29 +43,15 @@ const deps: ExecuteForEachDeps = {
 
 describe("executeLoopItems unit", () => {
   it("rejects incomplete nodes", async () => {
-    await expect(
-      executeLoopItems({ id: "x" }, {}, runtime(), () => {}, "/steps/0", deps),
-    ).rejects.toMatchObject({ code: "ECP_STEP_FAILED" })
+    await expect(executeLoopItems({ id: "x" }, {}, runtime(), () => {}, "/steps/0", deps)).rejects.toMatchObject({
+      code: "ECP_STEP_FAILED",
+    })
   })
 
   it("rejects when into already exists", async () => {
     const state = { rows: [1], into: [] }
     await expect(
-      executeLoopItems(
-        {
-          id: "f",
-          ref: "state.rows",
-          as: "row",
-          collect: "state.row",
-          into: "into",
-          steps: [],
-        },
-        state,
-        runtime(),
-        () => {},
-        "/steps/0",
-        deps,
-      ),
+      executeLoopItems({ ...baseNode, into: "into" }, state, runtime(), () => {}, "/steps/0", deps),
     ).rejects.toMatchObject({ code: "ECP_COMMIT_CONFLICT" })
   })
 
@@ -56,18 +59,11 @@ describe("executeLoopItems unit", () => {
     let lastPartial: unknown
     const state = { rows: [1] }
     await executeLoopItems(
-      {
-        id: "f",
-        ref: "state.rows",
-        as: "row",
-        collect: "state.row",
-        into: "collected",
-        onError: "continue",
-        steps: [],
-      },
+      { ...baseNode, into: "collected", onError: "continue" },
       state,
       runtime({
         deps: {
+          expression: engine,
           store: {
             writeLoopPartial: async (_runId, _nodeId, file) => {
               lastPartial = file
@@ -93,18 +89,11 @@ describe("executeLoopItems unit", () => {
     const state = { rows: [1, 2] }
     let writes = 0
     await executeLoopItems(
-      {
-        id: "f",
-        ref: "state.rows",
-        as: "row",
-        collect: "state.row",
-        into: "collected",
-        concurrency: 1,
-        steps: [],
-      },
+      { ...baseNode, into: "collected", concurrency: 1 },
       state,
       runtime({
         deps: {
+          expression: engine,
           store: {
             readLoopPartial: async () => ({ results: { "0": 1 }, errors: [] }),
             writeLoopPartial: async () => {
@@ -125,18 +114,12 @@ describe("executeLoopItems unit", () => {
     let writes = 0
     const state: Record<string, unknown> = { rows: [1] }
     await executeLoopItems(
-      {
-        id: "inner",
-        ref: "state.rows",
-        as: "row",
-        collect: "state.row",
-        into: "collected",
-        steps: [],
-      },
+      { ...baseNode, into: "collected" },
       state,
       runtime({
         loopItemsDepth: 1,
         deps: {
+          expression: engine,
           store: {
             writeLoopPartial: async () => {
               writes += 1
@@ -156,15 +139,7 @@ describe("executeLoopItems unit", () => {
     const state = { rows: [1] }
     await expect(
       executeLoopItems(
-        {
-          id: "f",
-          ref: "state.rows",
-          as: "row",
-          collect: "state.row",
-          into: "collected",
-          onError: "continue",
-          steps: [],
-        },
+        { ...baseNode, into: "collected", onError: "continue" },
         { ...state, collectedErrors: [] },
         runtime(),
         () => {},
@@ -181,24 +156,14 @@ describe("executeLoopItems unit", () => {
       rt.interrupted = true
     }
     await executeLoopItems(
-      {
-        id: "f",
-        ref: "state.rows",
-        as: "row",
-        collect: "state.row",
-        into: "collected",
-        concurrency: 1,
-        steps: [],
-      },
+      { ...baseNode, into: "collected", concurrency: 1 },
       state,
       rt,
       emit,
       "/steps/0",
       {
         ...deps,
-        runBody: async () => {
-          /* emit sets interrupted before second item */
-        },
+        runBody: async () => {},
       },
     )
     expect(state.collected).toBeUndefined()

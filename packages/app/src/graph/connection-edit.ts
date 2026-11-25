@@ -1,13 +1,6 @@
-import type {
-  BranchNode,
-  ExecutionManifest,
-  LoopNode,
-  Node,
-  ParallelNode,
-  StepNode,
-} from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
-import { EXPR_HANDLE_ID, OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
+import { OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
 import {
   addCapabilityStep,
   placementForConnectionOrigin,
@@ -28,14 +21,13 @@ import {
 import { typeLabelFromSchema, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
 import type { ReactFlowPort } from "./types.js"
 import {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
   LOOP_COLLECT_HANDLE,
   LOOP_ITEM_HANDLE,
   LOOP_INTO_HANDLE,
   LOOP_REF_HANDLE,
+  END_RESULTS_HANDLE,
 } from "./types.js"
-import type { ReactFlowDataEdgeData, ReactFlowEdge, ReactFlowRouteEdgeData } from "./types.js"
+import type { ReactFlowDataEdgeData, ReactFlowEdge } from "./types.js"
 import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue } from "./markers.js"
 import {
   cleanNodes,
@@ -72,12 +64,6 @@ export const CONNECTION_EDIT_INSIDE = "That node is inside the disconnected step
 
 
 
-
-function findBranch(nodes: Node[], branchId: string): BranchNode | undefined {
-  const hit = findNodePlacement(nodes, branchId)
-  if (hit && hit.node.type === "branch") return hit.node
-  return undefined
-}
 
 function findParallel(nodes: Node[], parallelId: string): ParallelNode | undefined {
   const hit = findNodePlacement(nodes, parallelId)
@@ -209,31 +195,7 @@ function refuseIfEmptyTop(manifest: ExecutionManifest): StructureEditResult | un
 }
 
 /**
- * Remove a branch arm; its steps move to `detached`.
- * @category App
- */
-export function deleteArm(manifest: ExecutionManifest, branchId: string, armIndex: number): StructureEditResult {
-  const next = cloneManifest(manifest)
-  const branch = findBranch(next.steps, branchId)
-  if (!branch || armIndex < 0 || armIndex >= branch.branches.length) {
-    return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-  }
-  const placement = findNodePlacement(next.steps, branchId)!
-  const arm = branch.branches[armIndex]!
-  const moved = [...arm.steps]
-  let withDetached = appendDetached(next, moved)
-  branch.branches.splice(armIndex, 1)
-  if (branch.branches.length === 0) {
-    placement.parent.splice(placement.index, 1)
-  }
-  withDetached = { ...withDetached, steps: cleanNodes(withDetached.steps) }
-  const refused = refuseIfEmptyTop(withDetached)
-  if (refused) return refused
-  return { ok: true, manifest: withDetached }
-}
-
-/**
- * Remove a parallel line; its steps move to `detached`.
+ * Remove a parallel path; its steps move to `detached`.
  * @category App
  */
 export function deleteParallelLine(
@@ -243,15 +205,15 @@ export function deleteParallelLine(
 ): StructureEditResult {
   const next = cloneManifest(manifest)
   const parallel = findParallel(next.steps, parallelId)
-  if (!parallel || lineIndex < 0 || lineIndex >= parallel.branches.length) {
+  if (!parallel || lineIndex < 0 || lineIndex >= parallel.paths.length) {
     return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
   }
   const placement = findNodePlacement(next.steps, parallelId)!
-  const moved = [...parallel.branches[lineIndex]!]
+  const moved = [...parallel.paths[lineIndex]!]
   let withDetached = appendDetached(next, moved)
-  parallel.branches.splice(lineIndex, 1)
-  if (parallel.branches.length === 1) {
-    const survivor = parallel.branches[0]!
+  parallel.paths.splice(lineIndex, 1)
+  if (parallel.paths.length === 1) {
+    const survivor = parallel.paths[0]!
     placement.parent.splice(placement.index, 1, ...survivor)
   }
   withDetached = { ...withDetached, steps: cleanNodes(withDetached.steps) }
@@ -322,68 +284,12 @@ export function attachAfter(
 }
 
 /**
- * Attach a detached root as a new branch arm.
- * @category App
- */
-export function attachAsArm(
-  manifest: ExecutionManifest,
-  branchId: string,
-  detachedId: string,
-): StructureEditResult {
-  const list = manifest.detached
-  if (!Array.isArray(list)) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const root = list.find((node) => node.id === detachedId)
-  if (!root) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  if (nodeContainsId(root, branchId)) return { ok: false, reason: CONNECTION_EDIT_INSIDE }
-
-  const next = cloneManifest(manifest)
-  const branch = findBranch(next.steps, branchId)
-  if (!branch) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-
-  const without = dropDetachedRoot(next, detachedId)
-  if (!without) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const node = structuredClone(root)
-  const defaultIndex = branch.branches.findIndex((arm) => arm.expr === undefined)
-  const arm = { expr: "(state) => true", steps: [node] }
-  if (defaultIndex >= 0) branch.branches.splice(defaultIndex, 0, arm)
-  else branch.branches.push(arm)
-  return finalizeManifest(without)
-}
-
-/**
- * Attach a detached root as a new parallel line.
- * @category App
- */
-export function attachAsLine(
-  manifest: ExecutionManifest,
-  parallelId: string,
-  detachedId: string,
-): StructureEditResult {
-  const list = manifest.detached
-  if (!Array.isArray(list)) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const root = list.find((node) => node.id === detachedId)
-  if (!root) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  if (nodeContainsId(root, parallelId)) return { ok: false, reason: CONNECTION_EDIT_INSIDE }
-
-  const next = cloneManifest(manifest)
-  const parallel = findParallel(next.steps, parallelId)
-  if (!parallel) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-
-  const without = dropDetachedRoot(next, detachedId)
-  if (!without) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const node = structuredClone(root)
-  parallel.branches.push([node])
-  return finalizeManifest(without)
-}
-
-/**
  * Whether the connector for this edge can be deleted from the canvas menu.
  * @category App
  */
 export function connectorDeletePreview(
   manifest: ExecutionManifest,
   edge: ReactFlowEdge,
-  level: number,
 ): { ok: true } | { ok: false; reason: string } {
   if (edge.data.kind === "data") {
     const data = edge.data as ReactFlowDataEdgeData
@@ -393,33 +299,21 @@ export function connectorDeletePreview(
     if (!findStepPlacement(manifest.steps, edge.target)) {
       return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
     }
-    if (edge.targetHandle === EXPR_HANDLE_ID || !data.bindingPath) {
+    if (!data.bindingPath) {
       return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
     }
     return { ok: true }
   }
-  if (edge.data.kind !== "route") return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  const route = edge.data as ReactFlowRouteEdgeData
-  const entry = route.levels[level]
-  if (!entry) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  if (entry.route === "loop") return { ok: false, reason: CONNECTION_EDIT_LOOP }
-  if (entry.route === "sequence" && edge.source === EXECUTION_ACCEPTS_NODE_ID) {
-    return { ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS }
-  }
-  if (entry.route === "branch" && entry.structureId !== undefined && entry.armIndex !== undefined) return { ok: true }
-  if (entry.route === "parallel" && entry.structureId !== undefined && entry.armIndex !== undefined) return { ok: true }
-  if (entry.route === "sequence") return { ok: true }
   return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
 }
 
 /**
- * Apply a canvas Delete action for the selected edge / route level.
+ * Apply a canvas Delete action for the selected data branch (removes its `$ref`).
  * @category App
  */
 export function deleteConnector(
   manifest: ExecutionManifest,
   edge: ReactFlowEdge,
-  level: number,
 ): StructureEditResult {
   if (edge.data.kind === "data") {
     const data = edge.data as ReactFlowDataEdgeData
@@ -427,16 +321,6 @@ export function deleteConnector(
     if (!bindingPath) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
     return disconnectInput(manifest, edge.target, bindingPath, data.paramKey)
   }
-  const route = edge.data as ReactFlowRouteEdgeData
-  const entry = route.levels[level]
-  if (!entry) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  if (entry.route === "branch" && entry.structureId !== undefined && entry.armIndex !== undefined) {
-    return deleteArm(manifest, entry.structureId, entry.armIndex)
-  }
-  if (entry.route === "parallel" && entry.structureId !== undefined && entry.armIndex !== undefined) {
-    return deleteParallelLine(manifest, entry.structureId, entry.armIndex)
-  }
-  if (entry.route === "sequence") return deleteSequenceLink(manifest, edge.target)
   return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
 }
 
@@ -490,6 +374,15 @@ function buildStateRef(
   if (sourceNodeId === EXECUTION_ACCEPTS_NODE_ID) {
     return `state.${sourceHandle}`
   }
+  if (sourceNodeId.startsWith("end:")) {
+    const loopId = sourceNodeId.slice("end:".length)
+    if (sourceHandle === END_RESULTS_HANDLE) {
+      const loop = findLoop(manifest.steps, loopId)
+      const into = loop?.into
+      if (!into) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+      return `state.${into}`
+    }
+  }
   const loopPlacement = findNodePlacement(manifest.steps, sourceNodeId)
   if (loopPlacement?.node.type === "loop") {
     const loop = loopPlacement.node as LoopNode
@@ -498,7 +391,7 @@ function buildStateRef(
       if (!asKey) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
       return `state.${asKey}`
     }
-    if (sourceHandle === LOOP_INTO_HANDLE) {
+    if (sourceHandle === LOOP_INTO_HANDLE || sourceHandle === END_RESULTS_HANDLE) {
       const into = loop.into
       if (!into) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
       return `state.${into}`
@@ -520,13 +413,7 @@ function resolveSourceStep(manifest: ExecutionManifest, sourceNodeId: string): S
 }
 
 function isDisallowedTargetHandle(handle: string): boolean {
-  return (
-    handle === EXPR_HANDLE_ID ||
-    handle === LOOP_REF_HANDLE ||
-    handle === LOOP_COLLECT_HANDLE ||
-    handle === FLOW_IN_HANDLE ||
-    handle === FLOW_OUT_HANDLE
-  )
+  return handle === LOOP_REF_HANDLE || handle === LOOP_COLLECT_HANDLE
 }
 
 /**
@@ -566,8 +453,11 @@ function placeDetachedBeforeConnect(
   sourceHandle: string,
   detachedId: string,
 ): StructureEditResult {
-  if (sourceHandle === LOOP_INTO_HANDLE) {
-    return attachAfterLoopInto(manifest, sourceNodeId, detachedId)
+  if (sourceHandle === LOOP_INTO_HANDLE || sourceHandle === END_RESULTS_HANDLE) {
+    const loopId = sourceNodeId.startsWith("end:")
+      ? sourceNodeId.slice("end:".length)
+      : sourceNodeId
+    return attachAfterLoopInto(manifest, loopId, detachedId)
   }
   return attachAfter(manifest, sourceNodeId, detachedId)
 }
@@ -719,10 +609,11 @@ export function detachedNodeIds(manifest: ExecutionManifest): Set<string> {
   const walk = (nodes: Node[]): void => {
     for (const node of nodes) {
       ids.add(node.id)
-      if (node.type === "branch") {
-        for (const arm of node.branches) walk(arm.steps)
+      if (node.type === "if") {
+        walk(node.then)
+        if (node.else) walk(node.else)
       } else if (node.type === "parallel") {
-        for (const line of node.branches) walk(line)
+        for (const path of node.paths) walk(path)
       } else if (node.type === "loop") {
         walk(node.steps)
       }

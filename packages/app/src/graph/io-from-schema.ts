@@ -74,9 +74,10 @@ function collectCommitKeys(nodes: Node[], into: Set<string>, inForEachBody = fal
       if (node.into) into.add(node.into)
       collectCommitKeys(node.steps, into, true)
     } else if (node.type === "parallel") {
-      for (const line of node.branches) collectCommitKeys(line, into, inForEachBody)
-    } else if (node.type === "branch") {
-      for (const arm of node.branches) collectCommitKeys(arm.steps, into, inForEachBody)
+      for (const path of node.paths) collectCommitKeys(path, into, inForEachBody)
+    } else if (node.type === "if") {
+      collectCommitKeys(node.then, into, inForEachBody)
+      if (node.else) collectCommitKeys(node.else, into, inForEachBody)
     } else {
       collectCommitKeys(node.steps, into, inForEachBody)
     }

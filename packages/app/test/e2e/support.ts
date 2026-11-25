@@ -130,7 +130,7 @@ export async function startAppHarness(): Promise<AppE2eHarness> {
             id: "prepare",
             label: "Prepare both sides in parallel for the pipeline",
             maxConcurrency: 2,
-            branches: [
+            paths: [
               [
                 {
                   id: "left",

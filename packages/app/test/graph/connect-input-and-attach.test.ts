@@ -13,7 +13,7 @@ import {
   connectInputAndAttach,
 } from "../../src/graph/connection-edit.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "../../src/graph/types.js"
+import { END_RESULTS_HANDLE, LOOP_ITEM_HANDLE, LOOP_ITEMS_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const validDir = path.resolve(here, "../../../../fixtures/manifests/valid")
@@ -125,8 +125,8 @@ describe("connectInputAndAttach", () => {
       detached: [{ id: "C", uses: echo, as: "C" }],
     }
     const result = connectInputAndAttach(before, {
-      sourceNodeId: "rows",
-      sourceHandle: LOOP_INTO_HANDLE,
+      sourceNodeId: loopEndNodeId("rows"),
+      sourceHandle: END_RESULTS_HANDLE,
       targetStepId: "C",
       targetHandle: "value",
     })
@@ -147,9 +147,10 @@ describe("connectInputAndAttach", () => {
       steps: [{ id: "A", uses: echo, input: { value: "a" }, as: "A" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "wrap",
-          branches: [{ expr: "(state) => true", steps: [{ id: "inner", uses: echo, as: "inner" }] }],
+          expression: "true",
+          then: [{ id: "inner", uses: echo, as: "inner" }],
         },
       ],
     }
@@ -169,9 +170,10 @@ describe("connectInputAndAttach", () => {
       steps: [{ id: "A", uses: echo, input: { value: "a" }, as: "A" }],
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "b",
-          branches: [{ expr: "(state) => true", steps: [{ id: "s", uses: echo, as: "s" }] }],
+          expression: "true",
+          then: [{ id: "s", uses: echo, as: "s" }],
         },
       ],
     }
@@ -215,7 +217,7 @@ describe("connectInputAndAttach", () => {
     const snapshot = structuredClone(before)
     const result = connectInputAndAttach(before, {
       sourceNodeId: "rows",
-      sourceHandle: LOOP_REF_HANDLE,
+      sourceHandle: LOOP_ITEMS_HANDLE,
       targetStepId: "late",
       targetHandle: "value",
     })

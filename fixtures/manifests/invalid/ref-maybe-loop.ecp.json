@@ -5,8 +5,11 @@
     {
       "type": "loop",
       "id": "rounds",
-      "expr": "(state) => false",
-      "maxRounds": 1,
+      "mode": "for",
+      "input": {
+        "count": 0
+      },
+      "as": "i",
       "steps": [
         {
           "id": "body",
@@ -17,7 +20,10 @@
           "as": "body",
           "mode": "replace"
         }
-      ]
+      ],
+      "end": {
+        "input": {}
+      }
     },
     {
       "id": "after",

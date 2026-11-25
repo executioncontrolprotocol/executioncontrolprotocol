@@ -67,19 +67,28 @@
       "as": "prompt"
     },
     {
-      "id": "translate",
-      "label": "Translate text layers",
-      "uses": "@executioncontrolprotocol/anthropic.generate",
-      "config": "anthropic/default",
-      "expr": "(state) => state.locale !== 'en'",
-      "input": {
-        "prompt": {
-          "$ref": "state.prompt.prompt"
-        },
-        "system": "You translate PSD text-layer copy. Reply with a single raw JSON object only. No markdown fences, no commentary."
-      },
-      "as": "translation",
-      "mode": "replace"
+      "type": "if",
+      "id": "translate-gate",
+      "label": "Not English?",
+      "accepts": { "type": "object", "properties": { "locale": { "type": "string" } }, "required": ["locale"] },
+      "input": { "locale": { "$ref": "state.locale" } },
+      "expression": "input.locale !== 'en'",
+      "then": [
+        {
+          "id": "translate",
+          "label": "Translate text layers",
+          "uses": "@executioncontrolprotocol/anthropic.generate",
+          "config": "anthropic/default",
+          "input": {
+            "prompt": {
+              "$ref": "state.prompt.prompt"
+            },
+            "system": "You translate PSD text-layer copy. Reply with a single raw JSON object only. No markdown fences, no commentary."
+          },
+          "as": "translation",
+          "mode": "replace"
+        }
+      ]
     },
     {
       "id": "parsed",

@@ -71,23 +71,32 @@ function findNodePath(document: unknown, nodeId: string, prefix: string[] = []):
       if (nested) return nested
     }
   }
-  if (Array.isArray(document.branches)) {
-    for (let index = 0; index < document.branches.length; index += 1) {
-      const arm = document.branches[index]
-      const here = [...prefix, "branches", String(index)]
-      if (Array.isArray(arm)) {
-        for (let line = 0; line < arm.length; line += 1) {
-          const step = arm[line]
-          const linePath = [...here, String(line)]
-          if (isRecord(step) && step.id === nodeId) return linePath
-          const nested = findNodePath(step, nodeId, linePath)
-          if (nested) return nested
-        }
-      } else {
-        const nested = findNodePath(arm, nodeId, here)
-        if (nested) return nested
-      }
+  if (Array.isArray(document.then)) {
+    const found = findInSteps(document.then, nodeId, [...prefix, "then"])
+    if (found) return found
+  }
+  if (Array.isArray(document.else)) {
+    const found = findInSteps(document.else, nodeId, [...prefix, "else"])
+    if (found) return found
+  }
+  if (Array.isArray(document.paths)) {
+    for (let index = 0; index < document.paths.length; index += 1) {
+      const line = document.paths[index]
+      if (!Array.isArray(line)) continue
+      const found = findInSteps(line, nodeId, [...prefix, "paths", String(index)])
+      if (found) return found
     }
+  }
+  return undefined
+}
+
+function findInSteps(steps: unknown[], nodeId: string, prefix: string[]): string[] | undefined {
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index]
+    const here = [...prefix, String(index)]
+    if (isRecord(step) && step.id === nodeId) return here
+    const nested = findNodePath(step, nodeId, here)
+    if (nested) return nested
   }
   return undefined
 }

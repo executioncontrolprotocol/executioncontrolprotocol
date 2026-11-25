@@ -61,7 +61,7 @@
       "type": "parallel",
       "id": "prepare",
       "label": "Upload the template and generate the background at the same time",
-      "branches": [
+      "paths": [
         [
           {
             "id": "upload",

@@ -1,27 +1,19 @@
 ---
-description: React Flow graph rendering conventions for the App (packages/app)
-globs: packages/app/src/graph/**/*
+description: React Flow graph render rules for packages/app
+globs: packages/app/**/*
 alwaysApply: false
 ---
 
 # React Flow render
 
-Follow `packages/app/REACTFLOW_RENDER.md`. The App stays in the realignment as a client of the
-host API; its graph renders **execution manifests (v2)**.
+Follow `packages/app/REACTFLOW_RENDER.md`. The App renders **execution manifests (v2)** with the
+graph model: nodes, branches, ports, containers — not arms, routes, or pills.
 
 Non-negotiables:
 
-- Published edges are **`data` or `route`**. Data edges come from `$ref` / `$state` (including
-  nested paths) and from `expr` gates that read state, with handles. Route edges publish
-  parallel / branch / loop (`while`, `for`, `forEach`) structure. Strip unlabeled layout-control
-  edges; never
-  invent fake `$ref`s for structure.
-- Do not emit `ecp-group` / `parentId` containers. Emit one post-layout `ecp-frame` per branch,
-  parallel, and loop (no `parentId`); route connectors still carry structure detail.
-- Port bindings are literals, `$ref` / `$state`, `$script` (in `input`), and plain transform
-  `script` objects; data edges are `$ref` only (plus loop `ref` / `collect` / `into` for `forEach`).
-  Make sure output and nested input handles exist for every edged ref.
-- Ports come from capabilities' JSON Schemas in plugin manifests, not from zod at run time.
-- Fan-out through multiple `$ref`s is supported. Don't invent multi-source fan-in on one input
-  key.
-- Legacy `.when()` gates in v1 manifests map to `expr` in v2.
+- Published edges are **data** only. Layout `control` edges are stripped before publish.
+- **`if`**, **`parallel`**, **`loop`**, and loop **`end`** (`end:<loopId>`) are React Flow nodes with typed ports.
+- Branches are drawn only for **`$ref`** bindings; resolve producers per C1 (inputs, `as`, loop item/index,
+  if/parallel scoped `as`, loop `into` from `end` `results`).
+- No `ecp-route` edges, route pills, `levels`, C2 sequence orphans, or step `expr` handles.
+- Frames (`ecp-frame`) outline containers; they are not parents in dagre.

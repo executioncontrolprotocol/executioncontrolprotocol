@@ -23,11 +23,11 @@ views, runs and edits executions on the canvas. The JSON view stays read-only.
 
 | View | Content | Data |
 | --- | --- | --- |
-| Graph | React Flow canvas of the execution: step nodes (capability id, label, status), route edges for branch arms / loop / parallel lines (at most one label pill per connector; branch-arm labels only, joined with ` › ` when nested; loop `maxRounds` and conditions are not drawn on the canvas), data edges from `$ref` / `$state` / `expr` reads; every branch, parallel and loop is a frame; detached steps show a "disconnected" badge and no flow connector | `retrieve { type: "execution", id \| path }` |
+| Graph | React Flow canvas: steps, `if` / `parallel` / `loop` / `end` structure nodes with ports, data branches for `$ref` / `$state` bindings only; `ecp-frame` containers; no route pills; detached steps show a badge | `retrieve { type: "execution", id \| path }` |
 | Node panel | Selected node: capability summary and description, input bindings (literal / ref / expr / script), step `accepts`/`returns` when declared on the step else capability schemas (collapsible JSON), transform `script` or `expression` in a textarea when editable (inline `source` in the manifest; `path` scripts via `include: ["scripts"]` on `retrieve` and `scripts` on `commit`), config id. Configure opens this panel; no configure dialog | `retrieve { type: "capability", id }`, execution `retrieve` / `commit` |
-| Edge panel | Selected data or route edge: source/target handles, `$ref` (optional / fallback) or step `expr` gate; route edges show one **Branch** section per branch arm on that connector (outer first: arm label and `expr` textarea when editable; loop and parallel levels are omitted). Data bindings are `$ref` only. Syntax via `execute { mode: "validate", execution: <draft> }` (`ECP_EXPR_INVALID` at the edited pointer only). No Save button; edits are saved with `commit { type: "execution", action: "update", id \| path, ifVersion, draft: true }`. Payloads: `retrieve { type: "run", include: ["steps", "state"] }` for the selected or live run (source from state along the read path, target from the step record's resolved `input`; not on `step.end` events) | `retrieve` / `execute` / `commit` |
+| Edge panel | Selected data branch: source and target ports, `$ref` (optional / fallback); Delete removes the binding. Syntax via `execute { mode: "validate", execution: <draft> }` (`ECP_EXPR_INVALID` at the edited pointer only). Autosave via `commit { type: "execution", action: "update", id \| path, ifVersion, draft: true }`. Run payloads: `retrieve { type: "run", include: ["steps", "state"] }` when a run is selected | `retrieve` / `execute` / `commit` |
 | Validation | Issues list (code, message, path, suggestions); clicking an issue selects the node; nodes with errors get an error badge | `issues` from execution `retrieve` and draft `commit`; `execute { mode: "validate" }` |
-| Run | Input form generated from `execution.accepts` (string, number, integer, boolean, enum, object/array as JSON textarea); Run button; live per-node status (running / completed / skipped / failed / cancelled), loop overlays (`while`/`for`: round on the loop node; `forEach`: `done / count` on the loop node, `item N` on body steps from `loop.item.*` events), selected branch arm highlighted; result JSON; error with issues | `execute { wait: false }` then `/v1/watch?runId=` |
+| Run | Input form from `execution.accepts`; live step status; `if.select` highlights taken `then` / `else` side; loop overlays on loop and `end` (`loop.round`, `loop.repeat`, `loop.exhausted`, `forEach` progress); result JSON; errors with issues | `execute { wait: false }` then `/v1/watch?runId=` |
 | Runs | Run history for this execution; selecting a run replays its statuses on the graph and shows step inputs/outputs (redacted) | `retrieve { type: "run", filter: { executionId }, include: ["steps"] }` |
 | JSON | Read-only Monaco view of the manifest | — |
 
@@ -60,38 +60,21 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   good graph on screen and shows the load error (`ECP_EXECUTION_LOAD`) until the next good save.
   Reloading never interrupts a run in progress; the run panel keeps showing it. A text edit still
   inside the 500 ms autosave pause is discarded on external reload with a one-line note.
-- Layout: dagre, left-to-right; an `ecp-frame` for every branch, parallel and loop (all modes),
-  label and ⋯ on the header; parallel has one frame around the whole parallel; never
-  `parentId` (`.cursor/rules/reactflow-render.mdc`); every loop keeps its head `ecp-loop` node
-  (`ref` / `expr` / `collect` inputs, `item` / `into` outputs as applicable); `while` / `for`
-  loop-backs go from body exits to the head and are not deletable; branch arms fan out. See
-  `packages/app/REACTFLOW_RENDER.md`.
-- **Connectivity (graph).** C1: every state-bound step or loop input (`$ref` / `$state`, nested
-  paths, `$script.params`, step `expr`, loop `ref` / `expr` / `collect`, loop item, execution
-  inputs, `forEach` `into`, `returns` keys) has a visible data edge from its source. C2: every non-frame node has at least one visible edge; otherwise-orphaned nodes keep
-  sequence routes (`route: "sequence"`). C2 does not apply to a `detached` step: it is drawn with
-  no flow connector and a "disconnected" badge. See `packages/app/REACTFLOW_RENDER.md`.
+- Layout: dagre, left-to-right; an `ecp-frame` for every `if`, parallel and loop; never `parentId`.
+  Structure **nodes** (`ecp-if`, `ecp-parallel`, `ecp-loop`, `ecp-end` with id `end:<loopId>`) sit
+  inside frames with typed ports. See `packages/app/REACTFLOW_RENDER.md`.
+- **Connectivity (graph).** C1: every `$ref` in step or structure `input` (including nested paths and
+  `$script.params`) is drawn as a **data branch** from its producer (execution inputs, step `as`,
+  loop `item` / `index`, enclosing `if` / `parallel` `as` via `then` / `else` / `path N`, loop
+  `into` from `end` `results`). Literal-only inputs have no branch. No route edges or sequence
+  orphans. A `detached` step has a badge and no required connector.
 - Every canvas edit is a pure function `(manifest, action) → manifest` in `packages/app/src/graph/`.
-- Containers: branch, parallel, and loop (`while`, `for`, `forEach`) each have a frame and a ⋯
-  menu (Configure, Delete). Delete asks **keep steps** (splice the body in place, still connected;
-  branch arms and parallel lines in order) or **with its steps**.
-- Route pills: at most one label pill per connector (branch-arm labels only; several labels join
-  with ` › `; no pill when no branch arm has a label). The pill and the edge path select the
-  connector; one ⋯ menu (Configure, Delete). Delete on a multi-arm connector removes the innermost
-  branch arm and names it in the menu when labelled.
-- Deleting a connector removes it; it does not delete a node. Data edge: the `$ref` is gone and the
-  target input is unbound. Branch arm: the arm is gone and its steps are `detached`; deleting the
-  **last** arm removes the branch container too and its steps become `detached`. Parallel line: the
-  line is gone and its steps are `detached`; deleting a line from a parallel that has **two** lines
-  removes the parallel container and splices the remaining line in place, still connected (the
-  deleted line's steps become `detached`). Sequence: the link is gone and the following steps are
-  `detached`. Loop entry and loop-back are not deletable. The App never offers Delete on the link
-  from Inputs to the first step, so `steps` cannot become empty. **Delete** and **Backspace** run
-  the selection edit when focus is outside a field, Monaco, and read-only (selected steps,
-  structure header, or selected route/data connector). Delete on a structure header unwraps the
-  container and keeps its steps; the frame ⋯ menu still offers **with its steps**. **Delete step**
-  remains on the node menu.
-- Route anchors are invisible and not connectable (same handle ids for layout). Reconnect a
+- Containers: `if`, parallel, and loop each have a frame and a ⋯ menu. Delete on a structure header
+  unwraps and splices `then` then `else`, or paths in order (**keep steps**), or removes the
+  pattern (**with its steps**). The loop `end` node is not deletable alone.
+- Deleting a selected **data branch** removes the `$ref` on the target input. **Delete** and
+  **Backspace** apply to selected branches, steps, or structure headers (not the `end` node).
+- Reconnect a
   detached **root step** by dragging a compatible data output onto its input: the binding is
   written and the step is placed after the source (Inputs → first top-level step; loop `item` →
   first body step; loop `into` → immediately after the loop). Detached branch, loop, or parallel

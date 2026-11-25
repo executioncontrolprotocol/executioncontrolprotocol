@@ -7,16 +7,24 @@ import type {
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { MAX_LOOP_CONCURRENCY, MAX_LOOP_ITEMS } from "@executioncontrolprotocol/protocol"
-import { resolveStatePath } from "./resolve.js"
+import { resolveValue } from "./resolve.js"
+
+/** Loop end node shape for gathering each item result. */
+export interface LoopEndLike {
+  accepts?: Record<string, unknown>
+  input?: unknown
+  expression?: string
+  script?: unknown
+  returns?: Record<string, unknown>
+}
 
 /** Minimal loop node shape for `forEach` mode at run time. */
 export interface LoopItemsNodeLike {
   id: string
-  ref?: string
-  expr?: string
+  input?: unknown
   as?: string
   steps?: unknown[]
-  collect?: string
+  end?: LoopEndLike
   into?: string
   concurrency?: number
   onError?: "fail" | "continue"
@@ -32,10 +40,15 @@ export interface LoopItemsRuntime {
   interrupted: boolean
   cursor: {
     loopItems: Record<string, { completed: number[] }>
+    /** Per-item `if` choices and loop rounds; an interrupted item restarts, so these start empty. */
+    choices?: Record<string, "then" | "else">
+    loops?: Record<string, number>
   }
   deps: {
     clock?: RunClock
     expression: ExpressionEngine
+    readText?: (path: string) => Promise<string>
+    executionDir?: string
     store?: {
       readLoopPartial?(runId: string, nodeId: string): Promise<LoopPartialFile | undefined>
       writeLoopPartial?(runId: string, nodeId: string, file: LoopPartialFile): Promise<void>
@@ -53,6 +66,12 @@ export interface ExecuteLoopItemsDeps {
     emit: (type: RunEventType, data: Record<string, unknown>) => void,
     prefix: string,
   ) => Promise<void>
+  /** Gather one item result from the loop end node. */
+  gatherEnd: (
+    end: LoopEndLike,
+    itemState: Record<string, unknown>,
+    endPointer: string,
+  ) => Promise<unknown>
   /** Map errors to validation issues. */
   toIssue: (error: unknown) => ValidationIssue
 }
@@ -97,20 +116,16 @@ async function resolveLoopItemsSource(
   node: LoopItemsNodeLike,
   parentState: Record<string, unknown>,
   expression: ExpressionEngine,
+  readText: LoopItemsRuntime["deps"]["readText"],
+  executionDir: string | undefined,
   nodePointer: string,
 ): Promise<unknown[]> {
-  let resolved: unknown
-  if (typeof node.ref === "string") {
-    resolved = resolveStatePath(node.ref, parentState)
-  } else if (typeof node.expr === "string") {
-    resolved = await expression.evaluate(node.expr, parentState, "value")
-  } else {
-    throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
-  }
+  const raw = await resolveValue(node.input ?? {}, parentState, expression, readText, executionDir)
+  const resolved = isRecord(raw) ? raw.items : undefined
   if (!Array.isArray(resolved)) {
     throw Object.assign(new Error("Loop items must resolve to an array."), {
       code: "ECP_TYPE_MISMATCH",
-      path: nodePointer,
+      path: `${nodePointer}/input/items`,
     })
   }
   return structuredClone(resolved)
@@ -130,8 +145,8 @@ export async function executeLoopItems(
 ): Promise<{ into: string; wroteErrorsKey: boolean }> {
   const asKey = node.as
   const into = node.into
-  const collectPath = node.collect
-  if (!asKey || !into || !collectPath) {
+  const end = node.end
+  if (!asKey || !into || !end) {
     throw Object.assign(new Error("forEach loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
   }
   const asIndexKey = `${asKey}Index`
@@ -140,7 +155,14 @@ export async function executeLoopItems(
   const clock = runtime.deps.clock ?? defaultRunClock()
   const writePartial = runtime.loopItemsDepth === 0
 
-  const itemsArray = await resolveLoopItemsSource(node, parentState, runtime.deps.expression, nodePointer)
+  const itemsArray = await resolveLoopItemsSource(
+    node,
+    parentState,
+    runtime.deps.expression,
+    runtime.deps.readText,
+    runtime.deps.executionDir,
+    nodePointer,
+  )
   if (itemsArray.length > MAX_LOOP_ITEMS) {
     throw Object.assign(new Error(`Loop items exceed the limit of ${MAX_LOOP_ITEMS}.`), {
       code: "ECP_LIMIT_EXCEEDED",
@@ -228,17 +250,16 @@ export async function executeLoopItems(
       loopItemsDepth: runtime.loopItemsDepth + 1,
       completed: new Set<string>(),
       cursor: {
-        completed: [],
-        loops: {},
-        branches: {},
         loopItems: runtime.cursor.loopItems,
+        choices: {},
+        loops: {},
       },
       deps: { ...runtime.deps, cursor: undefined },
     })
 
     try {
       await deps.runBody(node.steps ?? [], itemState, itemRuntime, emit, `${nodePointer}/steps`)
-      const collected = resolveStatePath(collectPath, itemState)
+      const collected = await deps.gatherEnd(end, itemState, `${nodePointer}/end`)
       results[index] = collected
       completed.add(index)
       await recordPartial(index, collected as JsonValue)
@@ -302,4 +323,8 @@ export async function executeLoopItems(
   }
   emit("loop.end", { nodeId: node.id, count: itemsArray.length, failed: failedCount })
   return { into, wroteErrorsKey }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

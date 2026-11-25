@@ -6,7 +6,7 @@
       "type": "parallel",
       "id": "prepare",
       "maxConcurrency": 2,
-      "branches": [
+      "paths": [
         [
           {
             "id": "left",

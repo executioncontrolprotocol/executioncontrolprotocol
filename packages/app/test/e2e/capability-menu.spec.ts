@@ -113,33 +113,21 @@ test.describe("Capability menu", () => {
     await expect(page.getByTestId("capability-menu")).toHaveCount(0)
   })
 
-  test("container Add arm inserts before default arm", async ({ page }) => {
+  test("container Add to then inserts a step", async ({ page }) => {
     await open(page, branchPath)
-    await page.getByTestId("ecp-frame-menu-route").click()
-    await page.getByTestId("canvas-menu-item-add-arm").click()
+    await page.getByTestId("ecp-frame-menu-pick").click()
+    await page.getByTestId("canvas-menu-item-add-then").click()
     await expect(page.getByTestId("capability-menu")).toBeVisible()
     await page.getByTestId("capability-menu-search").fill("echo")
     await page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo").click()
     const parsed = JSON.parse(readFileSync(branchPath, "utf8")) as {
-      steps: Array<{ type: string; branches: Array<{ expr?: string; steps: unknown[] }> }>
+      steps: Array<{ type: string; then?: Array<{ uses?: string }> }>
     }
-    const route = parsed.steps[0]!
-    expect(route.branches).toHaveLength(3)
-    expect(route.branches[1]).toMatchObject({ expr: "(state) => true" })
-    expect((route.branches[1]!.steps[0] as { uses: string }).uses).toBe("@executioncontrolprotocol/test.echo")
-    expect(route.branches[2]?.expr).toBeUndefined()
+    const ifNode = parsed.steps[0]!
+    expect(ifNode.type).toBe("if")
+    expect(ifNode.then?.some((step) => step.uses === "@executioncontrolprotocol/test.echo")).toBe(true)
   })
 
-  test("edge panel Add arm matches container add", async ({ page }) => {
-    await open(page, branchPath)
-    await page.locator('[data-testid^="ecp-route-label-"]').first().click()
-    await page.getByTestId("edge-add-arm").click()
-    await page.getByTestId("capability-menu-search").fill("echo")
-    await page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo").click()
-    const text = readFileSync(branchPath, "utf8")
-    const parsed = JSON.parse(text) as { steps: Array<{ branches: unknown[] }> }
-    expect(parsed.steps[0]!.branches).toHaveLength(3)
-  })
 
   test("loop Add step appends with mode replace and stays valid", async ({ page }) => {
     await open(page, branchLoopPath)

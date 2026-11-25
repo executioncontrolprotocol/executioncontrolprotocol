@@ -1,7 +1,7 @@
 [
   {
     "code": "ECP_MANIFEST_INVALID",
-    "path": "/steps/0/ref",
+    "path": "/steps/0/end",
     "severity": "error"
   }
 ]

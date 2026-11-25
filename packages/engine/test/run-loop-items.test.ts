@@ -6,6 +6,8 @@ import { awaitTestDelay, resetDelayForTests } from "../../../plugins/plugin-test
 import { defaultRunClock } from "../src/execute/run-loop-items.js"
 import { runExecution, startExecution, validateExecution, type StateStore } from "../src/index.js"
 import { MemoryStorage } from "../src/testing/index.js"
+import { foreachLoop, manifestWithSteps } from "./manifest-helpers.js"
+
 const engine = new EngineImpl()
 
 beforeAll(async () => {
@@ -42,31 +44,7 @@ const echoCapability = {
 }
 
 function foreachManifest(extra: Partial<ExecutionManifest["steps"][0]> = {}): ExecutionManifest {
-  return {
-    schema: "@executioncontrolprotocol.execution",
-    version: "2.0",
-    steps: [
-      {
-        type: "loop",
-        mode: "forEach",
-        id: "items",
-        ref: "state.rows",
-        as: "row",
-        concurrency: 2,
-        steps: [
-          {
-            id: "body",
-            uses: "@executioncontrolprotocol/test.echo",
-            input: { value: { "$ref": "state.row" } },
-            as: "out",
-          },
-        ],
-        collect: "state.out",
-        into: "collected",
-        ...extra,
-      } as ExecutionManifest["steps"][0],
-    ],
-  }
+  return manifestWithSteps([foreachLoop(extra as never)])
 }
 
 describe("run forEach", () => {
@@ -100,9 +78,9 @@ describe("run forEach", () => {
     expect(outcome.state.collected).toEqual([])
   })
 
-  it("resolves items from expr when ref is omitted", async () => {
+  it("resolves items from input.items when bound to state", async () => {
     const outcome = await runExecution(
-      foreachManifest({ ref: undefined, expr: "(state) => state.rows" }),
+      foreachManifest(),
       { rows: ["x", "y"] },
       { capabilities: [echoCapability], expression: engine, call: echoCall },
     )
@@ -110,10 +88,10 @@ describe("run forEach", () => {
     expect(outcome.state.collected).toEqual([{ echo: "x" }, { echo: "y" }])
   })
 
-  it("fails when expr does not return an array", async () => {
+  it("fails when items is not an array at run time", async () => {
     const outcome = await runExecution(
-      foreachManifest({ ref: undefined, expr: "() => 1" }),
-      {},
+      foreachManifest({ input: { items: { $ref: "state.notArray" } } }),
+      { notArray: "nope" },
       { capabilities: [echoCapability], expression: engine, call: echoCall },
     )
     expect(outcome.status).toBe("failed")
@@ -129,7 +107,7 @@ describe("run forEach", () => {
     expect(outcome.state.collectedErrors).toEqual([])
   })
 
-  it("fails when items is not an array at run time", async () => {
+  it("fails when default items ref resolves to a non-array", async () => {
     const outcome = await runExecution(foreachManifest(), { rows: "nope" }, {
       capabilities: [echoCapability],
       expression: engine,
@@ -159,7 +137,7 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           concurrency: 3,
           onError: "fail",
@@ -170,7 +148,7 @@ describe("run forEach", () => {
               input: { message: { "$ref": "state.row" } },
             },
           ],
-          collect: "state.row",
+          end: { input: { value: { $ref: "state.row" } } },
           into: "collected",
         },
       ],
@@ -188,40 +166,12 @@ describe("run forEach", () => {
   })
 
   it("onError continue records null and intoErrors", async () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "loop",
-          mode: "forEach",
-          id: "items",
-          ref: "state.rows",
-          as: "row",
-          concurrency: 1,
-          onError: "continue",
-          steps: [
-            {
-              id: "body",
-              uses: "@executioncontrolprotocol/test.fail",
-              expr: "(state) => state.row !== 1",
-              input: { message: "bad" },
-              as: "out",
-            },
-            {
-              id: "ok",
-              uses: "@executioncontrolprotocol/test.echo",
-              expr: "(state) => state.row === 1",
-              input: { value: { "$ref": "state.row" } },
-              as: "out",
-            },
-          ],
-          collect: "state.out",
-          into: "collected",
-        },
-      ],
-    }
-    const outcome = await runExecution(manifest, { rows: [0, 1, 2] }, {
+    const manifest: ExecutionManifest = foreachManifest({
+      concurrency: 1,
+      onError: "continue",
+      steps: [{ id: "body", uses: "@executioncontrolprotocol/test.fail", input: { message: "bad" }, as: "out" }],
+    })
+    const outcome = await runExecution(manifest, { rows: [1] }, {
       capabilities: [
         echoCapability,
         { ...echoCapability, id: "@executioncontrolprotocol/test.fail" },
@@ -230,7 +180,7 @@ describe("run forEach", () => {
       call: echoCall,
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([null, { echo: 1 }, null])
+    expect(outcome.state.collected).toEqual([null])
     expect(Array.isArray(outcome.state.collectedErrors)).toBe(true)
   })
 
@@ -256,7 +206,7 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           concurrency: 4,
           steps: [
@@ -267,7 +217,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -303,10 +253,10 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "shared",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -324,7 +274,7 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           concurrency: 2,
           steps: [
@@ -335,7 +285,7 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -378,7 +328,7 @@ describe("run forEach", () => {
       call: echoCall,
       store: storage.runs,
       runId: "r-resume",
-      cursor: { completed: [], loops: {}, branches: {}, loopItems: { items: { completed: [0] } } },
+      cursor: { completed: [], loops: {}, choices: {}, loopItems: { items: { completed: [0] } } },
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
@@ -400,10 +350,10 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "rows",
         },
       ],
@@ -423,7 +373,7 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "outer",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           concurrency: 2,
           steps: [
@@ -431,7 +381,7 @@ describe("run forEach", () => {
               type: "loop",
               mode: "forEach",
               id: "inner",
-              ref: "state.row.parts",
+              input: { items: { $ref: "state.row.parts" } },
               as: "part",
               steps: [
                 {
@@ -441,11 +391,11 @@ describe("run forEach", () => {
                   as: "piece",
                 },
               ],
-              collect: "state.piece",
+              end: { input: { value: { $ref: "state.piece" } } },
               into: "partsOut",
             },
           ],
-          collect: "state.partsOut",
+          end: { input: { value: { $ref: "state.partsOut" } } },
           into: "bundles",
         },
       ],
@@ -480,39 +430,18 @@ describe("run forEach", () => {
       },
       foreachManifest(),
     )
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
+    const manifest: ExecutionManifest = foreachManifest({
+      concurrency: 1,
       steps: [
         {
-          type: "loop",
-          mode: "forEach",
-          id: "items",
-          ref: "state.rows",
-          as: "row",
-          concurrency: 1,
-          steps: [
-            {
-              type: "loop",
-              id: "inner",
-              expr: "(state) => state.tick === undefined",
-              maxRounds: 1,
-              steps: [
-                {
-                  id: "tick",
-                  uses: "@executioncontrolprotocol/test.echo",
-                  input: { value: "t" },
-                  as: "tick",
-                  mode: "replace",
-                },
-              ],
-            },
-          ],
-          collect: "state.tick",
-          into: "collected",
+          id: "tick",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: { $ref: "state.row" } },
+          as: "tick",
         },
       ],
-    }
+      end: { input: { value: { $ref: "state.tick" } } },
+    })
     await runExecution(manifest, { rows: [1] }, {
       capabilities: [echoCapability],
       expression: engine,
@@ -523,7 +452,7 @@ describe("run forEach", () => {
     const detail = await storage.runs.get("r-loop", ["steps"])
     const step = detail?.steps?.find((record) => record.nodeId === "tick")
     expect(step?.items).toEqual([0])
-    expect(step?.round).toBe(0)
+    expect(step?.round ?? null).toBeNull()
   })
 
   function loopInItemManifest(): ExecutionManifest {
@@ -535,27 +464,18 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           concurrency: 2,
           steps: [
             {
-              type: "loop",
-              id: "inner",
-              expr: "(state) => state.tick === undefined",
-              maxRounds: 1,
-              steps: [
-                {
-                  id: "tick",
-                  uses: "@executioncontrolprotocol/test.echo",
-                  input: { value: { "$ref": "state.row" } },
-                  as: "tick",
-                  mode: "replace",
-                },
-              ],
+              id: "tick",
+              uses: "@executioncontrolprotocol/test.echo",
+              input: { value: { $ref: "state.row" } },
+              as: "tick",
             },
           ],
-          collect: "state.tick",
+          end: { input: { value: { $ref: "state.tick" } } },
           into: "collected",
         },
       ],
@@ -605,7 +525,7 @@ describe("run forEach", () => {
       capabilities: [echoCapability],
       expression: engine,
       call: echoCall,
-      cursor: { completed: [], inProgress: "tick", loops: { inner: 5 }, branches: {}, loopItems: {} },
+      cursor: { completed: [], inProgress: "tick", loops: {}, choices: {}, loopItems: {} },
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.state.collected).toEqual([{ echo: "a" }])
@@ -627,13 +547,12 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [
             {
               type: "loop",
               id: "inner",
-              expr: "(state) => false",
               maxRounds: 1,
               steps: [
                 {
@@ -646,7 +565,7 @@ describe("run forEach", () => {
               ],
             },
           ],
-          collect: "state.scratch",
+          end: { input: { value: { $ref: "state.scratch" } } },
           into: "collected",
         },
       ],
@@ -673,10 +592,10 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.tag",
+          input: { items: { $ref: "state.tag" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -701,7 +620,7 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [
             {
@@ -712,7 +631,7 @@ describe("run forEach", () => {
               mode: "create",
             },
           ],
-          collect: "state.scratch",
+          end: { input: { value: { $ref: "state.scratch" } } },
           into: "collected",
         },
       ],
@@ -730,10 +649,10 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.missing",
+          input: { items: { $ref: "state.missing" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -758,11 +677,11 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           onError: "continue",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],
@@ -793,18 +712,17 @@ describe("run forEach", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [
             {
-              id: "body",
-              expr: "(state) => false",
-              uses: "@executioncontrolprotocol/test.echo",
-              input: { value: "x" },
-              as: "out",
+              type: "if",
+              id: "gate",
+              expression: "false",
+              then: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
             },
           ],
-          collect: "state.out",
+          end: { input: { value: { $ref: "state.out" } } },
           into: "collected",
         },
       ],

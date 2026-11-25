@@ -1,7 +1,7 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_ITEM_HANDLE, LOOP_INTO_HANDLE } from "../../src/graph/types.js"
+import { END_RESULTS_HANDLE, LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
 import { sourceVisibleTo } from "../../src/graph/read-order.js"
 
 const echo = "@executioncontrolprotocol/test.echo"
@@ -33,7 +33,7 @@ describe("sourceVisibleTo", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [{ id: "a", uses: echo, input: { value: "a" }, as: "a" }],
             [{ id: "b", uses: echo, input: { value: "b" }, as: "b" }],
           ],
@@ -57,31 +57,36 @@ describe("sourceVisibleTo", () => {
           mode: "forEach",
           as: "row",
           into: "results",
-          ref: "state.items",
-          collect: "state.row",
+          input: { items: { $ref: "state.items" } },
           steps: [{ id: "body", uses: echo, input: { value: "v" }, as: "body" }],
+          end: { input: {} },
         },
         { id: "after", uses: echo, input: { value: "x" }, as: "after" },
       ],
     }
     expect(sourceVisibleTo(manifest, { nodeId: "rows", handleId: LOOP_ITEM_HANDLE }, "body")).toBe(true)
     expect(sourceVisibleTo(manifest, { nodeId: "rows", handleId: LOOP_ITEM_HANDLE }, "after")).toBe(false)
-    expect(sourceVisibleTo(manifest, { nodeId: "rows", handleId: LOOP_INTO_HANDLE }, "after")).toBe(true)
+    expect(
+      sourceVisibleTo(
+        manifest,
+        { nodeId: loopEndNodeId("rows"), handleId: END_RESULTS_HANDLE },
+        "after",
+      ),
+    ).toBe(true)
     expect(sourceVisibleTo(manifest, { nodeId: "body", handleId: "output" }, "after")).toBe(false)
   })
 
-  it("refuses branch-arm cross reads", () => {
+  it("refuses if-side cross reads", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "branch",
-          id: "route",
-          branches: [
-            { expr: "(state) => true", steps: [{ id: "a", uses: echo, input: { value: "a" }, as: "a" }] },
-            { steps: [{ id: "b", uses: echo, input: { value: "b" }, as: "b" }] },
-          ],
+          type: "if",
+          id: "pick",
+          expression: "true",
+          then: [{ id: "a", uses: echo, input: { value: "a" }, as: "a" }],
+          else: [{ id: "b", uses: echo, input: { value: "b" }, as: "b" }],
         },
       ],
     }
@@ -89,16 +94,17 @@ describe("sourceVisibleTo", () => {
     expect(sourceVisibleTo(manifest, { nodeId: "b", handleId: "output" }, "a")).toBe(false)
   })
 
-  it("allows a step inside a branch arm to read a step before the branch (engine L3 accepts it)", () => {
+  it("allows a step inside an if side to read a step before the if (engine L3 accepts it)", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         { id: "before", uses: echo, input: { value: "x" }, as: "before" },
         {
-          type: "branch",
-          id: "route",
-          branches: [{ steps: [{ id: "inner", uses: echo, input: { value: "i" }, as: "inner" }] }],
+          type: "if",
+          id: "pick",
+          expression: "true",
+          then: [{ id: "inner", uses: echo, input: { value: "i" }, as: "inner" }],
         },
       ],
     }
@@ -118,8 +124,10 @@ describe("sourceVisibleTo", () => {
         {
           type: "loop",
           id: "retry",
-          expr: "(state) => true",
+          mode: "while",
+          maxRounds: 2,
           steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
+          end: { input: { repeat: false } },
         },
         { id: "after", uses: echo, input: { value: "a" }, as: "after" },
       ],
@@ -133,6 +141,33 @@ describe("sourceVisibleTo", () => {
       sourceVisibleTo(manifest, { nodeId: EXECUTION_ACCEPTS_NODE_ID, handleId: "prompt" }, "only"),
     ).toBe(true)
   })
+
+  it("refuses missing writers and targets", () => {
+    const manifest = linear(["A"])
+    expect(sourceVisibleTo(manifest, { nodeId: "ghost", handleId: "output" }, "A")).toBe(false)
+    expect(sourceVisibleTo(manifest, { nodeId: "A", handleId: "output" }, "ghost")).toBe(false)
+  })
+
+  it("allows for-loop index inside body but not after the loop", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "rounds",
+          mode: "for",
+          input: { count: { $ref: "state.n" } },
+          as: "i",
+          steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
+          end: { input: { value: 0 } },
+        },
+        { id: "after", uses: echo, input: { value: "a" }, as: "after" },
+      ],
+    }
+    expect(sourceVisibleTo(manifest, { nodeId: "rounds", handleId: LOOP_INDEX_HANDLE }, "body")).toBe(true)
+    expect(sourceVisibleTo(manifest, { nodeId: "rounds", handleId: LOOP_INDEX_HANDLE }, "after")).toBe(false)
+  })
 })
 describe("sourceVisibleTo: reader nested deeper than the writer", () => {
   const step = (id: string) => ({ id, uses: "@executioncontrolprotocol/test.echo", as: id })
@@ -144,34 +179,50 @@ describe("sourceVisibleTo: reader nested deeper than the writer", () => {
     }) as unknown as ExecutionManifest
 
   it("a step inside a while loop reads a step before the loop", () => {
-    const m = manifestWith({ type: "loop", id: "L", mode: "while", expr: "(s) => false", maxRounds: 1, steps: [step("B")] })
+    const m = manifestWith({
+      type: "loop",
+      id: "L",
+      mode: "while",
+      maxRounds: 1,
+      steps: [step("B")],
+      end: { input: { repeat: false } },
+    })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
   })
 
-  it("a step inside a branch arm reads a step before the branch", () => {
-    const m = manifestWith({ type: "branch", id: "br", branches: [{ expr: "(s) => true", steps: [step("B")] }] })
+  it("a step inside an if side reads a step before the if", () => {
+    const m = manifestWith({ type: "if", id: "br", expression: "true", then: [step("B")] })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
   })
 
-  it("a step inside a parallel line reads a step before the parallel, not a sibling line", () => {
-    const m = manifestWith({ type: "parallel", id: "p", branches: [[step("B")], [step("C")]] })
+  it("a step inside a parallel path reads a step before the parallel, not a sibling path", () => {
+    const m = manifestWith({ type: "parallel", id: "p", paths: [[step("B")], [step("C")]] })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
     expect(sourceVisibleTo(m, { nodeId: "B", handleId: "output" }, "C")).toBe(false)
   })
 
   it("a step before a structure can't read a step inside it", () => {
-    const m = manifestWith({ type: "loop", id: "L", mode: "while", expr: "(s) => false", maxRounds: 1, steps: [step("B")] })
-    expect(sourceVisibleTo(m, { nodeId: "B", handleId: "output" }, "A")).toBe(false)
-  })
-
-  it("a step two levels deep reads a step before both structures", () => {
     const m = manifestWith({
       type: "loop",
       id: "L",
       mode: "while",
-      expr: "(s) => false",
       maxRounds: 1,
-      steps: [{ type: "branch", id: "br", branches: [{ expr: "(s) => true", steps: [step("B")] }] }],
+      steps: [step("B")],
+      end: { input: { repeat: false } },
+    })
+    expect(sourceVisibleTo(m, { nodeId: "B", handleId: "output" }, "A")).toBe(false)
+  })
+
+  it("a step two containers deep reads a step before both structures", () => {
+    const m = manifestWith({
+      type: "loop",
+      id: "L",
+      mode: "while",
+      maxRounds: 1,
+      steps: [
+        { type: "if", id: "br", expression: "true", then: [step("B")] },
+      ],
+      end: { input: { repeat: false } },
     })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
   })

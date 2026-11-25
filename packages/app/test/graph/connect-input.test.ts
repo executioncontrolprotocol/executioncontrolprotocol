@@ -13,7 +13,7 @@ import {
   insertConnectedStep,
 } from "../../src/graph/connection-edit.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
+import { END_RESULTS_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
 import { longestMatchingPortId, OUTPUT_HANDLE_ID } from "../../src/graph/extract-data-edges.js"
 import type { ReactFlowPort } from "../../src/graph/types.js"
 
@@ -106,8 +106,8 @@ describe("connectInput", () => {
       ],
     }
     const into = connectInput(withTail, {
-      sourceNodeId: "rows",
-      sourceHandle: LOOP_INTO_HANDLE,
+      sourceNodeId: loopEndNodeId("rows"),
+      sourceHandle: END_RESULTS_HANDLE,
       targetStepId: "after",
       targetHandle: "value",
     })
@@ -192,7 +192,7 @@ describe("connectInput", () => {
         sourceNodeId: "writer",
         sourceHandle: "text",
         targetStepId: "later",
-        targetHandle: "expr",
+        targetHandle: LOOP_REF_HANDLE,
       }),
     ).toMatchObject({ ok: false, reason: CONNECTION_EDIT_HANDLE })
     expect(base).toEqual(before)

@@ -5,35 +5,44 @@
     {
       "type": "parallel",
       "id": "outer",
-      "branches": [
+      "paths": [
         [
           {
             "type": "loop",
             "id": "inner",
-            "expr": "(state) => state.n === undefined",
             "maxRounds": 1,
             "steps": [
               {
-                "type": "branch",
+                "type": "if",
                 "id": "arm",
-                "branches": [
+                "expression": "true",
+                "then": [
                   {
-                    "label": "default",
-                    "steps": [
-                      {
-                        "id": "nested",
-                        "uses": "@executioncontrolprotocol/test.echo",
-                        "input": {
-                          "value": "nested"
-                        },
-                        "as": "nested",
-                        "mode": "replace"
-                      }
-                    ]
+                    "id": "arm-empty",
+                    "uses": "@executioncontrolprotocol/test.echo",
+                    "input": {
+                      "value": "noop"
+                    }
+                  }
+                ],
+                "else": [
+                  {
+                    "id": "nested",
+                    "uses": "@executioncontrolprotocol/test.echo",
+                    "input": {
+                      "value": "nested"
+                    },
+                    "as": "nested",
+                    "mode": "replace"
                   }
                 ]
               }
-            ]
+            ],
+            "end": {
+              "input": {
+                "repeat": false
+              }
+            }
           }
         ],
         [

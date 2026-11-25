@@ -1,12 +1,11 @@
 import type { ExecutionManifest, Node, StepNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
-import { isRefMarker, refPathFromValue } from "./markers.js"
-import type { ReactFlowRouteEdgeData, ReactFlowRouteLevel } from "./types.js"
+import { isExprMarker, isRefMarker, refPathFromValue } from "./markers.js"
 
 /**
  * Marker kind carried on a data edge for the edge inspector.
  * @category App
  */
-export type DataEdgeMarkerKind = "ref" | "expr" | "expr-gate"
+export type DataEdgeMarkerKind = "ref" | "expr"
 
 /**
  * Metadata for a data-edge inspector: manifest pointer and binding details.
@@ -25,23 +24,8 @@ export interface DataEdgeInspectorMeta {
   optional?: boolean
   /** Fallback on an optional `$ref`. */
   fallback?: unknown
-  /** `$expr` or step `expr` source text. */
+  /** `$expr` source text. */
   exprSource?: string
-}
-
-/**
- * Route-edge expr edit target.
- * @category App
- */
-export interface RouteEdgeInspectorMeta {
-  /** JSON Pointer to the branch arm or loop `expr` string. */
-  manifestPointer: string
-  /** Same as {@link RouteEdgeInspectorMeta.manifestPointer}. */
-  validatePointer: string
-  /** Expr source. */
-  exprSource?: string
-  /** Default branch arm (read-only). */
-  defaultArm?: boolean
 }
 
 function escapePointerSegment(segment: string): string {
@@ -63,20 +47,33 @@ function findNodePath(document: unknown, nodeId: string, prefix: string[] = []):
       if (nested) return nested
     }
   }
-  if (Array.isArray(document.branches)) {
-    for (let index = 0; index < document.branches.length; index += 1) {
-      const arm = document.branches[index]
-      const here = [...prefix, "branches", String(index)]
-      if (Array.isArray(arm)) {
-        for (let line = 0; line < arm.length; line += 1) {
-          const step = arm[line]
-          const linePath = [...here, String(line)]
-          if (isRecord(step) && step.id === nodeId) return linePath
-          const nested = findNodePath(step, nodeId, linePath)
-          if (nested) return nested
-        }
-      } else {
-        const nested = findNodePath(arm, nodeId, here)
+  if (Array.isArray(document.then)) {
+    for (let index = 0; index < document.then.length; index += 1) {
+      const step = document.then[index]
+      const here = [...prefix, "then", String(index)]
+      if (isRecord(step) && step.id === nodeId) return here
+      const nested = findNodePath(step, nodeId, here)
+      if (nested) return nested
+    }
+  }
+  if (Array.isArray(document.else)) {
+    for (let index = 0; index < document.else.length; index += 1) {
+      const step = document.else[index]
+      const here = [...prefix, "else", String(index)]
+      if (isRecord(step) && step.id === nodeId) return here
+      const nested = findNodePath(step, nodeId, here)
+      if (nested) return nested
+    }
+  }
+  if (Array.isArray(document.paths)) {
+    for (let pathIndex = 0; pathIndex < document.paths.length; pathIndex += 1) {
+      const path = document.paths[pathIndex]
+      if (!Array.isArray(path)) continue
+      for (let index = 0; index < path.length; index += 1) {
+        const step = path[index]
+        const here = [...prefix, "paths", String(pathIndex), String(index)]
+        if (isRecord(step) && step.id === nodeId) return here
+        const nested = findNodePath(step, nodeId, here)
         if (nested) return nested
       }
     }
@@ -119,18 +116,6 @@ export function dataEdgeInspectorMeta(
   targetStepId: string,
   targetHandle: string,
 ): DataEdgeInspectorMeta | undefined {
-  if (targetHandle === "expr") {
-    const base = stepManifestPointer(manifest, targetStepId)
-    if (!base) return undefined
-    const step = stepById(manifest, targetStepId)
-    const exprSource = step?.expr
-    return {
-      manifestPointer: `${base}/expr`,
-      validatePointer: `${base}/expr`,
-      markerKind: "expr-gate",
-      ...(exprSource ? { exprSource } : {}),
-    }
-  }
   const pointer = inputManifestPointer(manifest, targetStepId, targetHandle)
   if (!pointer) return undefined
   const value = readManifestPointer(manifest, pointer)
@@ -145,65 +130,19 @@ export function dataEdgeInspectorMeta(
       ...(isRefMarker(value) && value.optional === true && "fallback" in value ? { fallback: value.fallback } : {}),
     }
   }
-  return undefined
-}
-
-function routeLevelAt(data: ReactFlowRouteEdgeData, levelIndex: number): ReactFlowRouteLevel | undefined {
-  const fromLevels = data.levels?.[levelIndex]
-  if (fromLevels) return fromLevels
-  if (levelIndex !== 0) return undefined
-  return {
-    route: data.route,
-    ...(data.structureId !== undefined ? { structureId: data.structureId } : {}),
-    ...(data.armIndex !== undefined ? { armIndex: data.armIndex } : {}),
-    ...(data.label !== undefined ? { label: data.label } : {}),
-    ...(data.exprBadge !== undefined ? { exprBadge: data.exprBadge } : {}),
-    ...(data.exprSource !== undefined ? { exprSource: data.exprSource } : {}),
-    ...(data.defaultArm !== undefined ? { defaultArm: data.defaultArm } : {}),
-    ...(data.maxRounds !== undefined ? { maxRounds: data.maxRounds } : {}),
-    ...(data.loopMode !== undefined ? { loopMode: data.loopMode } : {}),
-    ...(data.stepIds !== undefined ? { stepIds: data.stepIds } : {}),
-  }
-}
-
-/**
- * Inspector metadata for a route edge (branch arm or loop `expr`) at a stack level.
- * @category App
- */
-export function routeEdgeInspectorMeta(
-  manifest: ExecutionManifest,
-  data: ReactFlowRouteEdgeData,
-  levelIndex = 0,
-): RouteEdgeInspectorMeta | undefined {
-  const level = routeLevelAt(data, levelIndex)
-  if (!level || level.route === "sequence") return undefined
-  if (level.defaultArm) {
-    return { manifestPointer: "", validatePointer: "", defaultArm: true }
-  }
-  if (!level.structureId) return undefined
-  const base = stepManifestPointer(manifest, level.structureId)
-  if (!base) return undefined
-  if (level.route === "loop") {
-    const exprSource = readManifestPointer(manifest, `${base}/expr`)
+  if (isExprMarker(value)) {
     return {
-      manifestPointer: `${base}/expr`,
-      validatePointer: `${base}/expr`,
-      ...(typeof exprSource === "string" ? { exprSource } : {}),
-    }
-  }
-  if (level.route === "branch" && level.armIndex !== undefined) {
-    const armPointer = `${base}/branches/${level.armIndex}`
-    const exprSource = readManifestPointer(manifest, `${armPointer}/expr`)
-    return {
-      manifestPointer: `${armPointer}/expr`,
-      validatePointer: `${armPointer}/expr`,
-      ...(typeof exprSource === "string" ? { exprSource } : {}),
+      manifestPointer: pointer,
+      validatePointer: `${pointer}/$expr`,
+      markerKind: "expr",
+      exprSource: value.$expr,
     }
   }
   return undefined
 }
 
-function stepById(manifest: ExecutionManifest, stepId: string): StepNode | undefined {
+/** @internal */
+export function stepById(manifest: ExecutionManifest, stepId: string): StepNode | undefined {
   const steps: StepNode[] = []
   collectStepNodes(manifest.steps ?? [], steps)
   return steps.find((step) => step.id === stepId)
@@ -214,9 +153,10 @@ function collectStepNodes(nodes: Node[], out: StepNode[]): void {
     if ("uses" in node && typeof node.uses === "string") {
       out.push(node as StepNode)
     } else if (node.type === "parallel") {
-      for (const line of node.branches) collectStepNodes(line, out)
-    } else if (node.type === "branch") {
-      for (const arm of node.branches) collectStepNodes(arm.steps, out)
+      for (const path of node.paths) collectStepNodes(path, out)
+    } else if (node.type === "if") {
+      collectStepNodes(node.then, out)
+      if (node.else) collectStepNodes(node.else, out)
     } else if (node.type === "loop") {
       collectStepNodes(node.steps, out)
     }

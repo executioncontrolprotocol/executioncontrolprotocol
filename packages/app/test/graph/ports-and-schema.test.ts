@@ -85,11 +85,11 @@ describe("ensureInputPort / ensureOutputPort", () => {
     ensureOutputPort(outputs, "a")
     expect(outputs).toEqual([{ id: "a", name: "a", typeLabel: "unknown" }])
     const inputs: ReactFlowPort[] = []
-    ensureInputPort(inputs, "expr")
+    ensureInputPort(inputs, "nested.path")
     ensureInputPort(inputs, "v.k")
     ensureInputPort(inputs, "v.k")
     expect(inputs.map((p) => [p.id, p.typeLabel, p.binding])).toEqual([
-      ["expr", "expr", "expr"],
+      ["nested.path", "unknown", undefined],
       ["v.k", "unknown", undefined],
     ])
   })
@@ -100,7 +100,6 @@ describe("portsForStep", () => {
     const step: StepNode = {
       id: "s",
       uses: "@x/p.c",
-      expr: "(state) => true",
       input: {
         a: "lit",
         extra: { nested: { $ref: "state.q" } },
@@ -113,7 +112,7 @@ describe("portsForStep", () => {
       accepts: { type: "object", properties: { a: { type: "string" }, b: { type: "number" } }, required: ["a"] },
     })
     const byId = new Map(ports.inputs.map((p) => [p.id, p]))
-    expect([...byId.keys()]).toEqual(["a", "b", "extra", "extra.nested", "s", "both", "list", "list.2", "list.0", "list.1", "expr"])
+    expect([...byId.keys()]).toEqual(["a", "b", "extra", "extra.nested", "s", "both", "list", "list.2", "list.0", "list.1"])
     expect(byId.get("a")).toMatchObject({ typeLabel: "string!", binding: "literal", valuePreview: "lit", valueSchema: { type: "string" } })
     expect(byId.get("b")?.binding).toBeUndefined()
     expect(byId.get("extra")).toMatchObject({ binding: "literal" })
@@ -124,7 +123,6 @@ describe("portsForStep", () => {
     expect(byId.get("list.0")).toMatchObject({ binding: "ref", refPath: "k.items" })
     expect(byId.get("list.1")).toMatchObject({ binding: "ref", refPath: "k" })
     expect(byId.get("list.2")).toMatchObject({ binding: "script", scriptSource: "2" })
-    expect(byId.get("expr")).toMatchObject({ binding: "expr", exprSource: "(state) => true" })
   })
 
   it("does not let a nested script param ref replace the script binding", () => {

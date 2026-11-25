@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
@@ -55,9 +55,9 @@ describe("validation edges", () => {
   it("covers syntax, run input, config, refs, and commit modes", async () => {
     const syntax = await validateExecution(
       execution([
-        step("literal", { expr: "1" }),
-        step("tail", { expr: "(state) => true; 1" }),
-        step("star", { expr: "function* (state) { return true }" }),
+        { type: "if", id: "literal", expression: "1 ++", then: [step("literal")] },
+        { type: "if", id: "tail", expression: "true; 1", then: [step("tail")] },
+        { type: "if", id: "star", expression: "await 1", then: [step("star")] },
       ] as ExecutionManifest["steps"]),
       { capabilities },
     )
@@ -123,7 +123,7 @@ describe("validation edges", () => {
         {
           type: "parallel",
           id: "both",
-          branches: [
+          paths: [
             [step("left")],
             [{ id: "right", uses: echo.id, input: { value: { $ref: "state.left" } }, as: "right" }],
           ],
@@ -234,23 +234,24 @@ describe("validation", () => {
     expect(paths).toEqual(sorted)
   })
 
-  it("reports data-flow edges for gates, branches, loops, parallel lines, and types", async () => {
+  it("reports data-flow edges for if nodes, loops, parallel paths, and types", async () => {
     const gated = await validateExecution(
       execution([
-        step("gated", { expr: "(state) => false" }),
+        { type: "if", id: "pick", expression: "false", then: [step("gated")] },
         { id: "after", uses: echo.id, input: { value: { $ref: "state.gated" } }, as: "after" },
       ] as ExecutionManifest["steps"]),
       { capabilities },
     )
     expect(gated.issues.some((issue) => issue.code === "ECP_REF_MAYBE_MISSING")).toBe(true)
 
-    const branch = await validateExecution(
+    const routed = await validateExecution(
       execution(
         [
           {
-            type: "branch",
+            type: "if",
             id: "route",
-            branches: [{ expr: "(state) => true", steps: [step("made")] }],
+            expression: "true",
+            then: [step("made")],
           },
           { id: "use", uses: echo.id, input: { value: { $ref: "state.made" } }, as: "use" },
         ] as ExecutionManifest["steps"],
@@ -258,16 +259,16 @@ describe("validation", () => {
       ),
       { capabilities },
     )
-    expect(branch.issues.some((issue) => issue.code === "ECP_RETURNS_UNRESOLVED" && issue.severity === "warning")).toBe(true)
+    expect(routed.issues.some((issue) => issue.code === "ECP_RETURNS_UNRESOLVED" && issue.severity === "warning")).toBe(true)
 
     const loop = await validateExecution(
       execution([
         {
           type: "loop",
           id: "again",
-          expr: "(state) => false",
           maxRounds: 1,
           steps: [step("body", { mode: "replace" })],
+          end: { input: { repeat: false } },
         },
       ] as ExecutionManifest["steps"]),
       { capabilities },
@@ -279,7 +280,7 @@ describe("validation", () => {
         {
           type: "parallel",
           id: "both",
-          branches: [[step("same")], [step("same", { id: "other" })]],
+          paths: [[step("same")], [step("same", { id: "other" })]],
         },
       ] as ExecutionManifest["steps"]),
       { capabilities },
@@ -392,36 +393,29 @@ describe("validation output contract (F2–F4)", () => {
     ])
   })
 
-  it("validates a forEach manifest produced by the valid fixture", async () => {
-    const manifest = JSON.parse(
-      readFileSync(path.resolve(here, "../../../fixtures/manifests/valid/loop-foreach.ecp.json"), "utf8"),
-    ) as ExecutionManifest
-    const coreManifest = JSON.parse(
-      readFileSync(path.resolve(here, "../../../plugins/plugin-core/ecp.manifest.json"), "utf8"),
-    ) as { plugin: { id: string; package: string; version: string }; capabilities: Array<Record<string, unknown>> }
-    const coreSchema = JSON.parse(
-      readFileSync(path.resolve(here, "../../../plugins/plugin-core/ecp.schema.json"), "utf8"),
-    ) as { $defs: Record<string, Record<string, unknown>> }
-    const coreCapabilities: CapabilityEntry[] = coreManifest.capabilities.map((capability) => ({
-      id: String(capability.id),
-      plugin: coreManifest.plugin.id,
-      package: coreManifest.plugin.package,
-      pluginVersion: coreManifest.plugin.version,
-      summary: String(capability.summary),
-      description: String(capability.description),
-      useCases: capability.useCases as string[],
-      projections: capability.projections as string[],
-      accepts: coreSchema.$defs[`${String(capability.name)}.accepts`],
-      returns: coreSchema.$defs[`${String(capability.name)}.returns`],
-      configSchema: coreSchema.$defs.config,
-      contract: capability.contract as "step",
-      code: capability.code as "script",
-    }))
-    const result = await validateExecution(manifest, { capabilities: [...capabilities, ...coreCapabilities] })
+  it("validates a forEach manifest with typed input.items", async () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      execution: { accepts: { type: "object", properties: { rows: { type: "array" } }, required: ["rows"] } },
+      steps: [
+        {
+          type: "loop",
+          mode: "forEach",
+          id: "rows",
+          input: { items: { $ref: "state.rows" } },
+          as: "row",
+          into: "out",
+          steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row" } }, as: "piece" }],
+          end: { input: { value: { $ref: "state.piece" } } },
+        },
+      ],
+    }
+    const result = await validateExecution(manifest, { capabilities })
     expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
   })
 
-  it("warns ECP_LOOP_UNTYPED when forEach uses expr for items", async () => {
+  it("rejects repeat on forEach end", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -429,18 +423,17 @@ describe("validation output contract (F2–F4)", () => {
         {
           type: "loop",
           mode: "forEach",
-          id: "untyped",
-          expr: "(state) => state.rows ?? []",
+          id: "rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.row" } } }],
-          collect: "state.row",
           into: "out",
+          steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row" } } }],
+          end: { input: { repeat: false, value: { $ref: "state.row" } } },
         },
       ],
     }
     const result = await validateExecution(manifest, validateOpts)
-    expect(result.issues.some((issue) => issue.code === "ECP_LOOP_UNTYPED" && issue.severity === "warning")).toBe(true)
-    expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
+    expect(result.issues.some((issue) => issue.path === "/steps/0/end/input/repeat")).toBe(true)
   })
 
   it("reports schema-secret-positions without schema noise", async () => {
@@ -489,4 +482,15 @@ describe("validation output contract (F2–F4)", () => {
     expect(broken.blocksDraft).toBe(true)
   })
 
+  const invalidDir = path.resolve(here, "../../../fixtures/manifests/invalid")
+  const invalidFixtureNames = readdirSync(invalidDir)
+    .filter((name) => name.endsWith(".ecp.json") && name !== "not-json.ecp.json")
+    .sort()
+
+  it.each(invalidFixtureNames)('invalid fixture %s fails validation', async (name) => {
+    const manifest = JSON.parse(readFileSync(path.join(invalidDir, name), "utf8")) as ExecutionManifest
+    const result = await validateExecution(manifest, validateOpts)
+    expect(result.valid).toBe(false)
+    expect(result.issues.length).toBeGreaterThan(0)
+  })
 })

@@ -1,7 +1,6 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
 import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, type ReactFlowLoopItemsData } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle } from "./ports.js"
 import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
@@ -44,8 +43,6 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle />
-      <FlowOutHandle />
       {node.detached ? (
         <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
           disconnected
@@ -57,9 +54,6 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             <Repeat className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             {node.label}
           </div>
-          {node.exprBadge ? (
-            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">{node.exprBadge}</div>
-          ) : null}
           {mode === "forEach" && node.as && node.into ? (
             <div className="mt-1 font-mono text-[10px] text-on-surface-variant">
               as {node.as} → {node.into}
