@@ -3,10 +3,15 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import {
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_INCOMPATIBLE,
+  CONNECTION_EDIT_NOT_STEP,
   CONNECTION_EDIT_ORDER,
   CONNECTION_EDIT_SELF,
+  CONNECTION_EDIT_SOURCE_DETACHED,
   type ConnectInputTarget,
+  detachedNodeIds,
+  placementManifestForDetachedConnect,
 } from "./connection-edit.js"
+import { findStepPlacement } from "./manifest-walk.js"
 import { portsAreCompatible } from "./port-compat.js"
 import { sourceVisibleTo } from "./read-order.js"
 import { EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
@@ -123,6 +128,26 @@ export function dataConnectionRefusal(
   if (!sourcePort || !targetPort) return CONNECTION_EDIT_HANDLE
   if (!portsAreCompatible(sourcePort, targetPort)) return CONNECTION_EDIT_INCOMPATIBLE
   if (source === target) return CONNECTION_EDIT_SELF
+
+  const detachedRoots = new Set((manifest.detached ?? []).map((node) => node.id))
+  const exempt = detachedNodeIds(manifest)
+  if (exempt.has(target) && !detachedRoots.has(target)) {
+    return CONNECTION_EDIT_NOT_STEP
+  }
+  if (detachedRoots.has(target)) {
+    if (exempt.has(source)) return CONNECTION_EDIT_SOURCE_DETACHED
+    if (findStepPlacement(manifest.steps, target)) {
+      return !sourceVisibleTo(manifest, { nodeId: source, handleId: sourceHandle }, target)
+        ? CONNECTION_EDIT_ORDER
+        : undefined
+    }
+    const placed = placementManifestForDetachedConnect(manifest, source, sourceHandle, target)
+    if (!placed) return CONNECTION_EDIT_NOT_STEP
+    return !sourceVisibleTo(placed, { nodeId: source, handleId: sourceHandle }, target)
+      ? CONNECTION_EDIT_ORDER
+      : undefined
+  }
+
   if (!sourceVisibleTo(manifest, { nodeId: source, handleId: sourceHandle }, target)) return CONNECTION_EDIT_ORDER
   return undefined
 }

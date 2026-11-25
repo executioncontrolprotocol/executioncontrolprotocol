@@ -11,6 +11,11 @@ import {
   replayRunEvents,
   type PositionOverrides,
   type ReactFlowDocument,
+  deleteSelection,
+  isStructureHeaderSelection,
+  routeDeleteTarget,
+  type DeleteSelection,
+  type ReactFlowRouteEdgeData,
   type RunGraphState,
 } from "../../graph/index.js"
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
@@ -184,7 +189,41 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
         if (target.closest(".monaco-editor")) return
       }
       const mod = event.metaKey || event.ctrlKey
-      if (!mod) return
+      if (!mod) {
+        if (event.key === "Delete" || event.key === "Backspace") {
+          if (event.repeat) return
+          if (!workingManifest) return
+          const selection: DeleteSelection = (() => {
+            if (selectedStepIds.length > 0) {
+              return { kind: "steps", stepIds: selectedStepIds }
+            }
+            if (selectedEdgeRecord) {
+              const level =
+                selectedEdgeRecord.data.kind === "route"
+                  ? (routeDeleteTarget((selectedEdgeRecord.data as ReactFlowRouteEdgeData).levels) ??
+                    selectedEdge?.level ??
+                    0)
+                  : (selectedEdge?.level ?? 0)
+              return { kind: "connector", edge: selectedEdgeRecord, level }
+            }
+            if (selectedId && isStructureHeaderSelection(workingManifest, selectedId)) {
+              return { kind: "structure", structureId: selectedId }
+            }
+            return { kind: "none" }
+          })()
+          const edit = deleteSelection(workingManifest, selection, readOnly)
+          if (edit === undefined) return
+          event.preventDefault()
+          void applyManifestEdit(() => edit).then((ok) => {
+            if (ok) {
+              setSelectedId(undefined)
+              setSelectedStepIds([])
+              setSelectedEdge(undefined)
+            }
+          })
+        }
+        return
+      }
       if (event.key === "z" || event.key === "Z") {
         if (event.shiftKey) {
           event.preventDefault()
@@ -200,7 +239,16 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [editor, readOnly])
+  }, [
+    applyManifestEdit,
+    editor,
+    readOnly,
+    selectedEdge,
+    selectedEdgeRecord,
+    selectedId,
+    selectedStepIds,
+    workingManifest,
+  ])
 
   const selectFromIssue = useCallback((nodeId: string) => {
     setSelectedEdge(undefined)
@@ -485,7 +533,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   client={client}
                   manifest={workingManifest}
                   edge={selectedEdgeRecord}
-                  level={selectedEdge?.level ?? 0}
                   runId={runId}
                   runSource={runSource}
                   onUnauthorized={onUnauthorized}

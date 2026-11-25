@@ -9,7 +9,6 @@ import { DragInputPort, DragOutputPort } from "./drag-port.js"
  * @category App
  */
 export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
-  flowConnectable?: boolean
   dataConnectable?: boolean
   /** Items finished so far (`forEach`). */
   done?: number
@@ -45,8 +44,8 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle connectable={node.flowConnectable ?? false} />
-      <FlowOutHandle connectable={node.flowConnectable ?? false} />
+      <FlowInHandle />
+      <FlowOutHandle />
       {node.detached ? (
         <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
           disconnected

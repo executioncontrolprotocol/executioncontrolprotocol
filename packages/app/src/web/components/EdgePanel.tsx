@@ -35,8 +35,6 @@ export interface EdgePanelProps {
   client: AppHostClient
   manifest?: ExecutionManifest
   edge?: ReactFlowEdge
-  /** Route stack level to inspect (`0` for data edges and path clicks). */
-  level?: number
   runId?: string
   runSource: "live" | "replay" | "none"
   onUnauthorized: () => void
@@ -73,6 +71,7 @@ function RouteArmFields({
   fieldEpoch: number
   onAddArm?: (clientX: number, clientY: number) => void
 }) {
+  const labelId = `edge-arm-label-${branchId}-${armIndex}`
   const armLabel = useMemo(() => {
     const walk = (nodes: ExecutionManifest["steps"]): string => {
       for (const node of nodes) {
@@ -111,13 +110,13 @@ function RouteArmFields({
   )
 
   return (
-    <div className="space-y-2 border-t border-outline-variant pt-2">
-      <label className="font-mono text-label uppercase text-on-surface-variant" htmlFor="edge-arm-label">
+    <div className="space-y-2">
+      <label className="font-mono text-label uppercase text-on-surface-variant" htmlFor={labelId}>
         Arm label
       </label>
       <input
         key={`${branchId}-${armIndex}-${fieldEpoch}`}
-        id="edge-arm-label"
+        id={labelId}
         data-testid="edge-arm-label"
         className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
         defaultValue={armLabel}
@@ -166,6 +165,174 @@ function RouteArmFields({
         </button>
       )}
     </div>
+  )
+}
+
+function RouteBranchSection({
+  client,
+  manifest,
+  edge,
+  levelIndex,
+  runId: _runId,
+  runSource: _runSource,
+  onUnauthorized,
+  readOnly,
+  applyManifestEdit,
+  scheduleTextEdit,
+  flushTextEdit,
+  fieldEpoch,
+  onOpenCapabilityMenu,
+}: {
+  client: AppHostClient
+  manifest: ExecutionManifest
+  edge: ReactFlowEdge
+  levelIndex: number
+  runId?: string
+  runSource: "live" | "replay" | "none"
+  onUnauthorized: () => void
+  readOnly: boolean
+  applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  scheduleTextEdit: (request: EditorApplyRequest) => void
+  flushTextEdit: () => void
+  fieldEpoch: number
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
+}) {
+  const routeData = edge.data as ReactFlowRouteEdgeData
+  const routeLevel = routeData.levels[levelIndex]
+  const routeMeta = useMemo(
+    () => routeEdgeInspectorMeta(manifest, routeData, levelIndex),
+    [manifest, routeData, levelIndex],
+  )
+  const editable = routeEdgeEditable(routeMeta)
+  const savedExpr = routeMeta?.exprSource ?? ""
+  const [exprText, setExprText] = useState(savedExpr)
+  const [exprIssues, setExprIssues] = useState<ValidationIssue[]>([])
+
+  useEffect(() => {
+    setExprText(savedExpr)
+    setExprIssues([])
+  }, [edge.id, levelIndex, fieldEpoch, savedExpr])
+
+  const validateDraft = useCallback(
+    async (nextManifest: ExecutionManifest) => {
+      const response = await client.execute({ mode: "validate", execution: nextManifest })
+      const validation = validationFromExecute(response)
+      setExprIssues(exprIssuesAtPointer(validation.issues, routeMeta?.validatePointer ?? ""))
+      return validation
+    },
+    [client, routeMeta?.validatePointer],
+  )
+
+  const queueExpression = useCallback(
+    (nextText: string = exprText) => {
+      if (readOnly || nextText === savedExpr) return
+      scheduleTextEdit({
+        label: "Expression",
+        apply: (current) => {
+          const applied = applyRouteEdgeDraft(current, routeData, nextText, levelIndex)
+          return applied
+            ? { ok: true as const, manifest: applied }
+            : { ok: false, reason: "Expression could not be applied." }
+        },
+      })
+    },
+    [exprText, levelIndex, readOnly, routeData, savedExpr, scheduleTextEdit],
+  )
+
+  useEffect(() => {
+    if (!editable || exprText.trim() === "") {
+      setExprIssues([])
+      return
+    }
+    let alive = true
+    const handle = setTimeout(() => {
+      void (async () => {
+        const applied = applyRouteEdgeDraft(manifest, routeData, exprText, levelIndex)
+        const next = applied ?? manifest
+        if (!alive) return
+        try {
+          await validateDraft(next)
+        } catch (error) {
+          if (error instanceof UnauthorizedError) onUnauthorized()
+        }
+      })()
+    }, 300)
+    return () => {
+      alive = false
+      clearTimeout(handle)
+    }
+  }, [editable, exprText, levelIndex, manifest, onUnauthorized, routeData, validateDraft])
+
+  if (
+    !routeLevel ||
+    routeLevel.route !== "branch" ||
+    routeLevel.structureId === undefined ||
+    routeLevel.armIndex === undefined ||
+    !applyManifestEdit
+  ) {
+    return null
+  }
+
+  const exprId = `edge-expr-editor-${routeLevel.structureId}-${routeLevel.armIndex}`
+
+  return (
+    <section
+      data-testid="edge-branch-section"
+      data-structure-id={routeLevel.structureId}
+      data-arm-index={String(routeLevel.armIndex)}
+      className="space-y-3 rounded border border-outline-variant bg-surface-container-lowest p-3"
+    >
+      <h4 className="font-mono text-label uppercase text-on-surface-variant">Branch</h4>
+      {routeMeta?.defaultArm ? (
+        <p data-testid="edge-route-default" className="text-[11px] text-on-surface-variant">
+          Default arm (no expr)
+        </p>
+      ) : null}
+      <RouteArmFields
+        manifest={manifest}
+        branchId={routeLevel.structureId}
+        armIndex={routeLevel.armIndex}
+        defaultArm={routeLevel.defaultArm ?? routeMeta?.defaultArm}
+        readOnly={readOnly}
+        applyManifestEdit={applyManifestEdit}
+        scheduleTextEdit={scheduleTextEdit}
+        flushTextEdit={flushTextEdit}
+        fieldEpoch={fieldEpoch}
+        onAddArm={
+          onOpenCapabilityMenu
+            ? (clientX, clientY) =>
+                onOpenCapabilityMenu(clientX, clientY, {
+                  kind: "new-arm",
+                  branchId: routeLevel.structureId!,
+                })
+            : undefined
+        }
+      />
+      {routeMeta?.defaultArm ? null : editable ? (
+        <div className="space-y-2 border-t border-outline-variant pt-2">
+          <label className="font-mono text-label uppercase text-on-surface-variant" htmlFor={exprId}>
+            Expression
+          </label>
+          <textarea
+            id={exprId}
+            data-testid="edge-expr-editor"
+            className="min-h-[120px] w-full rounded border border-outline-variant bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface"
+            value={exprText}
+            readOnly={readOnly}
+            onChange={(event) => {
+              const next = event.target.value
+              setExprText(next)
+              queueExpression(next)
+            }}
+            onBlur={() => {
+              queueExpression(exprText)
+              flushTextEdit()
+            }}
+          />
+          <IssueList issues={exprIssues} />
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -239,7 +406,6 @@ export function EdgePanel({
   client,
   manifest,
   edge,
-  level = 0,
   runId,
   runSource,
   onUnauthorized,
@@ -259,33 +425,28 @@ export function EdgePanel({
     return dataEdgeInspectorMeta(manifest, edge.target, (edge.data as ReactFlowDataEdgeData).inputPath)
   }, [manifest, edge])
 
-  const routeMeta = useMemo(() => {
-    if (!manifest || !edge || edge.data.kind !== "route") return undefined
-    return routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData, level)
-  }, [manifest, edge, level])
+  const branchLevelIndexes = useMemo(() => {
+    if (!edge || edge.data.kind !== "route") return [] as number[]
+    const levels = (edge.data as ReactFlowRouteEdgeData).levels
+    const indexes: number[] = []
+    levels.forEach((level, index) => {
+      if (level.route === "branch") indexes.push(index)
+    })
+    return indexes
+  }, [edge])
 
-  const routeLevel =
-    edge?.data.kind === "route" ? (edge.data as ReactFlowRouteEdgeData).levels[level] : undefined
-
-  const editable =
-    edge?.data.kind === "data" ? dataEdgeEditable(dataMeta) : edge?.data.kind === "route" ? routeEdgeEditable(routeMeta) : false
+  const editable = edge?.data.kind === "data" ? dataEdgeEditable(dataMeta) : false
 
   const savedExpr = useMemo(() => {
-    if (!manifest || !edge) return ""
-    if (edge.data.kind === "data") {
-      const data = edge.data as ReactFlowDataEdgeData
-      return dataEdgeInspectorMeta(manifest, edge.target, data.inputPath)?.exprSource ?? ""
-    }
-    if (edge.data.kind === "route") {
-      return routeEdgeInspectorMeta(manifest, edge.data as ReactFlowRouteEdgeData, level)?.exprSource ?? ""
-    }
-    return ""
-  }, [manifest, edge, level])
+    if (!manifest || !edge || edge.data.kind !== "data") return ""
+    const data = edge.data as ReactFlowDataEdgeData
+    return dataEdgeInspectorMeta(manifest, edge.target, data.inputPath)?.exprSource ?? ""
+  }, [manifest, edge])
 
   useEffect(() => {
     setExprText(savedExpr)
     setExprIssues([])
-  }, [edge?.id, level, fieldEpoch])
+  }, [edge?.id, fieldEpoch, savedExpr])
 
   const dataEdge = edge?.data.kind === "data" ? (edge.data as ReactFlowDataEdgeData) : undefined
   const payload = useEdgeRunPayload(
@@ -301,38 +462,27 @@ export function EdgePanel({
     async (nextManifest: ExecutionManifest) => {
       const response = await client.execute({ mode: "validate", execution: nextManifest })
       const validation = validationFromExecute(response)
-      const pointer =
-        edge?.data.kind === "data" ? dataMeta?.validatePointer : edge?.data.kind === "route" ? routeMeta?.validatePointer : ""
-      setExprIssues(exprIssuesAtPointer(validation.issues, pointer ?? ""))
+      setExprIssues(exprIssuesAtPointer(validation.issues, dataMeta?.validatePointer ?? ""))
       return validation
     },
-    [client, edge?.data.kind, dataMeta?.validatePointer, routeMeta?.validatePointer],
+    [client, dataMeta?.validatePointer],
   )
 
   const queueExpression = useCallback(
     (nextText: string = exprText) => {
-      if (!manifest || readOnly || !edge || nextText === savedExpr) return
+      if (!manifest || readOnly || !edge || edge.data.kind !== "data" || !dataEdge || nextText === savedExpr) return
       scheduleTextEdit({
         label: "Expression",
         apply: (current) => {
-          if (edge.data.kind === "data" && dataEdge) {
-            const applied = applyDataEdgeDraft(current, edge.target, dataEdge, nextText)
-            return applied ? { ok: true as const, manifest: applied } : { ok: false, reason: "Expression could not be applied." }
-          }
-          if (edge.data.kind === "route") {
-            const applied = applyRouteEdgeDraft(current, edge.data as ReactFlowRouteEdgeData, nextText, level)
-            return applied ? { ok: true as const, manifest: applied } : { ok: false, reason: "Expression could not be applied." }
-          }
-          return { ok: false, reason: "Edge is not editable." }
+          const applied = applyDataEdgeDraft(current, edge.target, dataEdge, nextText)
+          return applied ? { ok: true as const, manifest: applied } : { ok: false, reason: "Expression could not be applied." }
         },
       })
     },
-    [dataEdge, edge, exprText, level, manifest, readOnly, savedExpr, scheduleTextEdit],
+    [dataEdge, edge, exprText, manifest, readOnly, savedExpr, scheduleTextEdit],
   )
 
   useEffect(() => {
-    // Validate the text whether or not it's saved yet: with autosave the text becomes the saved text ~500 ms after
-    // typing stops, and its syntax issues must stay listed (and show for an already-broken saved expression).
     if (!editable || !manifest || exprText.trim() === "") {
       setExprIssues([])
       return
@@ -340,14 +490,9 @@ export function EdgePanel({
     let alive = true
     const handle = setTimeout(() => {
       void (async () => {
-        let next = manifest
-        if (edge?.data.kind === "data" && dataEdge) {
-          const applied = applyDataEdgeDraft(manifest, edge.target, dataEdge, exprText)
-          if (applied) next = applied
-        } else if (edge?.data.kind === "route") {
-          const applied = applyRouteEdgeDraft(manifest, edge.data as ReactFlowRouteEdgeData, exprText, level)
-          if (applied) next = applied
-        }
+        if (!edge || edge.data.kind !== "data" || !dataEdge) return
+        const applied = applyDataEdgeDraft(manifest, edge.target, dataEdge, exprText)
+        const next = applied ?? manifest
         if (!alive) return
         try {
           await validateDraft(next)
@@ -360,14 +505,14 @@ export function EdgePanel({
       alive = false
       clearTimeout(handle)
     }
-  }, [dataEdge, edge, editable, exprText, level, manifest, onUnauthorized, savedExpr, validateDraft])
+  }, [dataEdge, edge, editable, exprText, manifest, onUnauthorized, validateDraft])
 
   useEffect(() => {
     return () => {
       flushTextEdit()
       discardTextEdit()
     }
-  }, [discardTextEdit, edge?.id, flushTextEdit, level])
+  }, [discardTextEdit, edge?.id, flushTextEdit])
 
   if (!edge) {
     return (
@@ -409,44 +554,26 @@ export function EdgePanel({
         </div>
       ) : null}
 
-      {isRoute && routeMeta ? (
-        <div className="space-y-2 text-[12px]">
-          <p className="font-mono text-label uppercase text-on-surface-variant">Route</p>
-          {routeMeta.defaultArm ? (
-            <p data-testid="edge-route-default" className="text-on-surface-variant">
-              Default arm (no expr)
-            </p>
-          ) : (
-            <p className="font-mono text-[11px] text-on-surface">expr</p>
-          )}
-          {routeLevel?.route === "branch" &&
-          routeLevel.structureId !== undefined &&
-          routeLevel.armIndex !== undefined &&
-          manifest &&
-          applyManifestEdit ? (
-            <RouteArmFields
+      {isRoute && manifest
+        ? branchLevelIndexes.map((levelIndex) => (
+            <RouteBranchSection
+              key={levelIndex}
+              client={client}
               manifest={manifest}
-              branchId={routeLevel.structureId}
-              armIndex={routeLevel.armIndex}
-              defaultArm={routeLevel.defaultArm ?? routeMeta?.defaultArm}
+              edge={edge}
+              levelIndex={levelIndex}
+              runId={runId}
+              runSource={runSource}
+              onUnauthorized={onUnauthorized}
               readOnly={readOnly}
               applyManifestEdit={applyManifestEdit}
               scheduleTextEdit={scheduleTextEdit}
               flushTextEdit={flushTextEdit}
               fieldEpoch={fieldEpoch}
-              onAddArm={
-                onOpenCapabilityMenu
-                  ? (clientX, clientY) =>
-                      onOpenCapabilityMenu(clientX, clientY, {
-                        kind: "new-arm",
-                        branchId: routeLevel.structureId!,
-                      })
-                  : undefined
-              }
+              onOpenCapabilityMenu={onOpenCapabilityMenu}
             />
-          ) : null}
-        </div>
-      ) : null}
+          ))
+        : null}
 
       {isData && dataMeta?.markerKind === "ref" ? null : editable ? (
         <div className="space-y-2">
@@ -480,7 +607,6 @@ export function EdgePanel({
           <PayloadBlock label="target" payload={payload} value={payload.targetValue} />
         </div>
       ) : null}
-
     </section>
   )
 }
