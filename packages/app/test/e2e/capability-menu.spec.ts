@@ -115,7 +115,7 @@ test.describe("Capability menu", () => {
 
   test("container Add to then inserts a step", async ({ page }) => {
     await open(page, branchPath)
-    await page.getByTestId("ecp-frame-menu-pick").click()
+    await page.getByTestId("ecp-if-pick").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-add-then").click()
     await expect(page.getByTestId("capability-menu")).toBeVisible()
     await page.getByTestId("capability-menu-search").fill("echo")
@@ -131,7 +131,7 @@ test.describe("Capability menu", () => {
 
   test("loop Add step appends with mode replace and stays valid", async ({ page }) => {
     await open(page, branchLoopPath)
-    await page.getByTestId("ecp-frame-menu-retry").click()
+    await page.getByTestId("ecp-loop-retry").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-add-step").click()
     await page.getByTestId("capability-menu-search").fill("echo")
     await page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo").click()

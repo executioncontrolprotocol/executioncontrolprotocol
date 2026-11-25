@@ -8,8 +8,10 @@ import type {
   ReactFlowStepData,
 } from "./types.js"
 
-const DEFAULT_NODE_WIDTH = 260
-const DEFAULT_NODE_HEIGHT = 160
+/** Default React Flow node width (pixels) used by the layout. @category App */
+export const DEFAULT_NODE_WIDTH = 260
+/** Default node height (pixels) when a node has none. @category App */
+export const DEFAULT_NODE_HEIGHT = 160
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
 
@@ -124,7 +126,7 @@ export function boundsAroundNodeIds(
 export function frameBounds(
   nodes: readonly BoundsNode[],
   frames: readonly FrameMembership[],
-  options?: { nodeWidth?: number; nodeHeight?: number },
+  options?: { nodeWidth?: number; nodeHeight?: number; headerless?: boolean },
 ): Map<string, FrameRect> {
   const nodeWidth = options?.nodeWidth ?? DEFAULT_NODE_WIDTH
   const nodeHeight = options?.nodeHeight ?? DEFAULT_NODE_HEIGHT
@@ -140,7 +142,7 @@ export function frameBounds(
     }
     if (!inner) continue
     const pad = FRAME_PADDING
-    const labelGap = pad.label
+    const labelGap = options?.headerless ? 0 : pad.label
     rects.set(spec.frameId, {
       x: inner.x - pad.x,
       y: inner.y - pad.y - labelGap,

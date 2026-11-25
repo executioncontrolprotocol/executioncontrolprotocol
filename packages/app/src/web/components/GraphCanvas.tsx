@@ -31,9 +31,8 @@ import {
   wrapSelectionIds,
   wrapSteps,
   CONNECTION_EDIT_INCOMPATIBLE,
-  frameBounds,
+  pinContainers,
   type AddStepPlacement,
-  type FrameMembership,
   type PositionOverrides,
   type ReactFlowDocument,
   type ReactFlowFrameData,
@@ -195,6 +194,21 @@ function structureIdFromSelection(
   return undefined
 }
 
+function ifBandByStepId(document: ReactFlowDocument): Map<string, { ifId: string; band: "then" | "else" }> {
+  const out = new Map<string, { ifId: string; band: "then" | "else" }>()
+  for (const node of document.nodes) {
+    if (node.type !== "ecp-frame") continue
+    const frame = node.data as ReactFlowFrameData
+    if (frame.structureKind !== "if") continue
+    for (const band of frame.bands) {
+      const side = band.label === "then" ? "then" : band.label === "else" ? "else" : undefined
+      if (!side) continue
+      for (const memberId of band.memberNodeIds) out.set(memberId, { ifId: frame.structureId, band: side })
+    }
+  }
+  return out
+}
+
 function frameAtFlowPoint(document: ReactFlowDocument, point: { x: number; y: number }): ReactFlowNode | undefined {
   const hit = document.nodes
     .filter((node) => node.type === "ecp-frame")
@@ -222,6 +236,7 @@ function buildNodes(
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
   const dataConnectable = !readOnly
+  const ifBands = ifBandByStepId(document)
   return document.nodes.map((node) => {
     const connected = {
       connectedTargetHandles: targets.get(node.id) ?? [],
@@ -231,7 +246,12 @@ function buildNodes(
     if (node.type === "ecp-step") {
       const runStep = run.steps[node.id]
       const issues = nodeErrors[node.id] ?? []
-      const status = stepStatus(run, node.id)
+      let status = stepStatus(run, node.id)
+      const band = ifBands.get(node.id)
+      if (band && band.ifId in run.choices) {
+        const choice = run.choices[band.ifId]
+        if (choice !== null && choice !== band.band) status = "skipped"
+      }
       const stepData = node.data as ReactFlowStepData
       const step: EcpStepNodeData = {
         ...stepData,
@@ -256,6 +276,23 @@ function buildNodes(
         ...(loopRound ? { round: loopRound.round } : {}),
       }
       data = loopNode as unknown as Record<string, unknown>
+    } else if (node.type === "ecp-if") {
+      const choice = run.choices[node.id]
+      data = {
+        ...node.data,
+        ...connected,
+        dataConnectable,
+        ...(choice !== undefined ? { choiceSide: choice } : {}),
+      }
+    } else if (node.type === "ecp-end") {
+      const loopId = (node.data as { loopId: string }).loopId
+      const loopRound = run.loops[loopId]
+      data = {
+        ...node.data,
+        ...connected,
+        dataConnectable,
+        ...(loopRound ? { round: loopRound.round, exhausted: loopRound.exhausted } : {}),
+      }
     } else {
       data = { ...node.data, ...connected, dataConnectable }
     }
@@ -283,13 +320,15 @@ function buildNodes(
       }
     }
     const stepSelected = node.type === "ecp-step" && selectedStepIds.includes(node.id)
-    const loopSelected = node.type === "ecp-loop" && selectedId === node.id
+    const structureSelected =
+      selectedId === node.id &&
+      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel")
     return {
       id: node.id,
       type: node.type,
       position: node.position,
       data,
-      selected: stepSelected || loopSelected || (node.type === "ecp-io" && selectedId === node.id),
+      selected: stepSelected || structureSelected || (node.type === "ecp-io" && selectedId === node.id),
       zIndex: 1000,
       connectable: dataConnectable,
       deletable: false,
@@ -332,38 +371,9 @@ function FocusNode({ focus }: { focus?: FocusRequest }) {
   return null
 }
 
-function frameMembershipFromNodes(nodes: readonly Node[]): FrameMembership[] {
-  const out: FrameMembership[] = []
-  for (const node of nodes) {
-    if (node.type !== "ecp-frame") continue
-    const data = node.data as unknown as ReactFlowFrameData
-    out.push({
-      frameId: node.id,
-      memberNodeIds: data.memberNodeIds,
-      childFrameIds: data.childFrameIds,
-      depth: data.depth,
-    })
-  }
-  return out
-}
-
+/** Re-fit containers after nodes move: boxes hold their nodes, start / end nodes stay on the edges. */
 function applyFrameBoundsToNodes(nodes: Node[]): Node[] {
-  const rects = frameBounds(nodes, frameMembershipFromNodes(nodes))
-  return nodes.map((node) => {
-    if (node.type !== "ecp-frame") return node
-    const rect = rects.get(node.id)
-    if (!rect) return node
-    return {
-      ...node,
-      position: { x: rect.x, y: rect.y },
-      style: {
-        ...(node.style ?? {}),
-        width: rect.width,
-        height: rect.height,
-        pointerEvents: "none",
-      },
-    }
-  })
+  return pinContainers(nodes as unknown as ReactFlowNode[]) as unknown as Node[]
 }
 
 function CaptureFlowProjection() {
@@ -657,7 +667,7 @@ function GraphCanvasBody({
           return
         }
         onSelectSteps([])
-        if (node.type === "ecp-loop") onSelect(node.id)
+        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") onSelect(node.id)
         else if (node.type === "ecp-io") onSelect(node.id)
       }}
       onNodeContextMenu={(event, node) => {
@@ -667,7 +677,7 @@ function GraphCanvasBody({
           }
           return
         }
-        if (node.type === "ecp-loop") {
+        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
           if (openCanvasContextMenu({ kind: "loop", structureId: node.id }, event) === "container") {
             setMenu({ kind: "container", structureId: node.id, clientX: event.clientX, clientY: event.clientY })
           }

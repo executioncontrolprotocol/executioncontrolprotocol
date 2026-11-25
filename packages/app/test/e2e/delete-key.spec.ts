@@ -69,7 +69,7 @@ test.describe("Delete key", () => {
 
   test("Delete on a branch frame unwraps the structure", async ({ page }) => {
     await open(page)
-    await page.getByTestId("ecp-frame-label-pick").click()
+    await page.getByTestId("ecp-if-pick").click()
     await page.keyboard.press("Delete")
     await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"id": "pick"')).toBe(true)
     await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"id": "expanded"')).toBe(true)

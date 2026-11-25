@@ -75,7 +75,7 @@
     },
     {
       "id": "summary",
-      "label": "Summarize (after every line)",
+      "label": "Summarize (after every path)",
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {

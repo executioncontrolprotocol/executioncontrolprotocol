@@ -2,8 +2,9 @@
 
 Portable v2 executions for the realignment host. Each folder has a `*.ecp.json` file with a
 `$schema` line and a short README. **Transforms** (`@executioncontrolprotocol/core.transform` or
-JSONata) reshape data between steps; **`expr`** on steps, branch arms, and loops is control only
-(boolean gates). Step `input` binds data with `$ref` / `$state` / `$script`, not inline `$expr`.
+JSONata) reshape data between steps. Control flow is made of nodes: an `if` decides with an `expression` or
+`script` over its typed `input`, and a loop's `end` node gathers each round's result. Step `input` binds data with
+`$ref` / `$state` / `$script`, not inline `$expr`.
 
 | Example | Plugins |
 | --- | --- |

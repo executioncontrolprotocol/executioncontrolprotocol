@@ -272,13 +272,33 @@
   }
 
   .ecp-rf-frame {
+    position: relative;
     pointer-events: none;
     box-sizing: border-box;
     border: 1px dashed var(--color-outline);
     border-radius: 0.5rem;
     /* No fill: frames are nodes, and React Flow draws edges and their pills under nodes, so a fill would tint
-       every edge and pill that crosses a frame. The dashed border and header carry the container. */
+       every edge and pill that crosses a frame. The dashed border carries the container. */
     background: transparent;
+  }
+
+  .ecp-rf-frame-band-divider {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dashed var(--color-outline);
+    pointer-events: none;
+  }
+
+  .ecp-rf-detached-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--color-on-surface-variant);
+    pointer-events: none;
   }
 
   .ecp-rf-frame-header {

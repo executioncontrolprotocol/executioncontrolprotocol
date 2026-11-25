@@ -86,6 +86,19 @@ export interface ReactFlowIoData {
 }
 
 /**
+ * Visual band inside a container (`then` / `else`, parallel paths, loop body).
+ * @category App
+ */
+export interface ReactFlowFrameBand {
+  /** Layout cluster id for this band. */
+  bandId: string
+  /** Display label (`then`, `path 1`, …). */
+  label: string
+  /** Node ids laid out inside this band (excludes the start / end pins). */
+  memberNodeIds: string[]
+}
+
+/**
  * Decorative frame around a branch, parallel, or loop (not a dagre parent; drawn after layout).
  * @category App
  */
@@ -100,6 +113,17 @@ export interface ReactFlowFrameData {
   loopMode?: "while" | "for" | "forEach"
   /** Node `label`, or the fallback summary. */
   label?: string
+  /** Structure start node (`if`, `parallel`, or loop head) pinned on the left edge. */
+  startNodeId: string
+  /** Loop `end` node pinned on the right edge, when present. */
+  endNodeId?: string
+  /** Bands inside this container. */
+  bands: ReactFlowFrameBand[]
+  /**
+   * Horizontal divider positions inside the frame (pixels from the frame top), in paint order.
+   * Used for `if` then/else separation.
+   */
+  bandDividerYs?: number[]
   /** Body node ids used to size this frame after layout overrides. */
   memberNodeIds: string[]
   /** Nested frame ids contained in this frame. */

@@ -69,9 +69,12 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   `into` from `end` `results`). Literal-only inputs have no branch. No route edges or sequence
   orphans. A `detached` step has a badge and no required connector.
 - Every canvas edit is a pure function `(manifest, action) → manifest` in `packages/app/src/graph/`.
-- Containers: `if`, parallel, and loop each have a frame and a ⋯ menu. Delete on a structure header
-  unwraps and splices `then` then `else`, or paths in order (**keep steps**), or removes the
-  pattern (**with its steps**). The loop `end` node is not deletable alone.
+- Containers: dotted `ecp-frame` outlines with **bands** (`if`: `then` / `else`; `parallel`: one band
+  per path; `loop`: body band). The **start** node (`if`, `parallel`, `loop`) is pinned on the left
+  stroke with input ports outside; loop **`end`** is pinned on the right. The frame has no label or
+  menu; the start node carries the label and container menu. Delete on a start node unwraps and
+  splices `then` then `else`, or paths in order (**keep steps**), or removes the pattern (**with its
+  steps**). The loop `end` node is not deletable alone.
 - Deleting a selected **data branch** removes the `$ref` on the target input. **Delete** and
   **Backspace** apply to selected branches, steps, or structure headers (not the `end` node).
 - Reconnect a

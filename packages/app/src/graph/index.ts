@@ -75,7 +75,6 @@ export {
   collectSteps,
   EXPR_HANDLE_ID,
   extractDataEdges,
-  extractExprEdges,
   formatExprBadge,
   longestMatchingPortId,
   OUTPUT_HANDLE_ID,
@@ -127,7 +126,18 @@ export {
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
 export {
+  adjustFrameRectForPins,
+  containerRects,
+  pinContainers,
+  applyContainerGeometry,
+  CONTAINER_PIN_TOLERANCE,
+  isPinnedToContainerEdge,
+  type StructureFrameBand,
+  type StructureFrameGeometry,
+} from "./container-geometry.js"
+export {
   boundsAroundNodeIds,
+  DEFAULT_NODE_WIDTH,
   frameBounds,
   FRAME_PADDING,
   layoutReactFlowDocument,
@@ -189,6 +199,7 @@ export type {
   ReactFlowIfChoiceDetail,
   ReactFlowLoopItemsData,
   ReactFlowLoopProgressDetail,
+  ReactFlowFrameBand,
   ReactFlowFrameData,
   ReactFlowIoData,
   ReactFlowIoKind,

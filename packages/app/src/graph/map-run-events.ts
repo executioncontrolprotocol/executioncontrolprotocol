@@ -161,7 +161,9 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
       return { ...base, choices: { ...base.choices, [nodeId]: side } }
     }
     case "loop.repeat":
-      return base
+      // Records the round the check ran in; only `loop.exhausted` means maxRounds was reached.
+      if (!nodeId || round === undefined) return base
+      return { ...base, loops: { ...base.loops, [nodeId]: { round, exhausted: false } } }
     case "loop.round":
       if (!nodeId || round === undefined) return base
       return { ...base, loops: { ...base.loops, [nodeId]: { round, exhausted: false } } }
@@ -286,6 +288,9 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
         const side = data.side === "then" || data.side === "else" ? data.side : null
         bus.emitIfChoice(nodeId, side)
       }
+      return
+    case "loop.repeat":
+      if (nodeId && round !== undefined) bus.emitLoopRound(nodeId, round)
       return
     case "loop.round":
       if (nodeId && round !== undefined) bus.emitLoopRound(nodeId, round)

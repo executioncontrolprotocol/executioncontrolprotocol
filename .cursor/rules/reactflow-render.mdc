@@ -16,4 +16,5 @@ Non-negotiables:
 - Branches are drawn only for **`$ref`** bindings; resolve producers per C1 (inputs, `as`, loop item/index,
   if/parallel scoped `as`, loop `into` from `end` `results`).
 - No `ecp-route` edges, route pills, `levels`, C2 sequence orphans, or step `expr` handles.
-- Frames (`ecp-frame`) outline containers; they are not parents in dagre.
+- Frames (`ecp-frame`) outline containers with bands; start / `end` nodes pin to the left / right
+  stroke. Band clusters are dagre parents; frames are not `parentId` in React Flow.

@@ -10,6 +10,7 @@ import {
   LOOP_ITEMS_HANDLE,
   IF_THEN_HANDLE,
   END_RESULTS_HANDLE,
+  type ReactFlowFrameData,
 } from "../../src/graph/index.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -48,6 +49,48 @@ describe("executionToReactFlow", () => {
     expect(doc.nodes.some((n) => n.type === "ecp-parallel")).toBe(true)
     expect(doc.nodes.some((n) => n.type === "ecp-frame")).toBe(true)
     expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
+  })
+
+  it.each(patternNames)("%s frames expose bands and start pins", (name) => {
+    const doc = executionToReactFlow(loadPattern(name))
+    const frames = doc.nodes.filter((n) => n.type === "ecp-frame")
+    for (const frame of frames) {
+      const data = frame.data as ReactFlowFrameData
+      expect(data.startNodeId.length).toBeGreaterThan(0)
+      expect(data.bands.length).toBeGreaterThan(0)
+      for (const band of data.bands) {
+        expect(band.bandId.startsWith("ecp:band:")).toBe(true)
+      }
+      if (data.structureKind === "loop") {
+        expect(data.endNodeId).toBeDefined()
+        expect(data.bands.some((b) => b.label === "body")).toBe(true)
+      }
+      if (data.structureKind === "if") {
+        expect(data.bands.some((b) => b.label === "then")).toBe(true)
+      }
+      if (data.structureKind === "parallel") {
+        expect(data.bands.every((b) => b.label.startsWith("path "))).toBe(true)
+      }
+    }
+  })
+
+  it("branch pattern if frame uses then and else band ids", () => {
+    const doc = executionToReactFlow(loadPattern("branch.ecp.json"))
+    const frame = doc.nodes.find((n) => n.id === "ecp:frame:by-tier")
+    expect(frame).toBeDefined()
+    const data = frame!.data as ReactFlowFrameData
+    expect(data.bands.map((b) => b.bandId)).toEqual(["ecp:band:by-tier:then", "ecp:band:by-tier:else"])
+    expect(data.startNodeId).toBe("by-tier")
+  })
+
+  it("loop-foreach pattern pins loop start and end", () => {
+    const doc = executionToReactFlow(loadPattern("loop-foreach.ecp.json"))
+    const loop = doc.nodes.find((n) => n.type === "ecp-loop")!
+    const frame = doc.nodes.find((n) => n.id === `ecp:frame:${loop.id}`)!
+    const data = frame.data as ReactFlowFrameData
+    expect(data.startNodeId).toBe(loop.id)
+    expect(data.endNodeId).toBe(loopEndNodeId(loop.id))
+    expect(data.bands[0]?.bandId).toBe(`ecp:band:${loop.id}:body`)
   })
 
   it("literal-only steps may have no data edges", () => {

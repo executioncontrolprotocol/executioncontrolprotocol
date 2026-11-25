@@ -226,6 +226,17 @@ describe("applyRunEvent", () => {
     expect(bus.currentLoopItems("fe")).toEqual({ count: 2, done: 1, failed: 0 })
   })
 
+  it("records loop.repeat as the round, and only loop.exhausted as reaching maxRounds", () => {
+    const bus = new ReactFlowRunProgress()
+    const seen = record(bus)
+    applyRunEvent(bus, ev("loop.repeat", { nodeId: "lp", round: 2, again: false, reason: null }))
+    expect(seen).toContainEqual(["loop:round", { structureId: "lp", round: 2 }])
+    let state = reduceRunEvent(createRunGraphState(), ev("loop.repeat", { nodeId: "lp", round: 2, again: false }))
+    expect(state.loops.lp).toEqual({ round: 2, exhausted: false })
+    state = reduceRunEvent(state, ev("loop.exhausted", { nodeId: "lp", rounds: 3 }))
+    expect(state.loops.lp?.exhausted).toBe(true)
+  })
+
   it("emits nothing for events missing their node id or round, or for run.resume", () => {
     const bus = new ReactFlowRunProgress()
     const seen = record(bus)

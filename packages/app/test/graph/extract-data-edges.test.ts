@@ -115,7 +115,7 @@ describe("walkers", () => {
   })
 })
 
-describe("extractDataEdges / extractExprEdges", () => {
+describe("extractDataEdges", () => {
   const nodes: Node[] = [
     { id: "w1", uses: "@x/p.c", input: { v: 1 }, as: "k" },
     { id: "r1", uses: "@x/p.c", input: { v: { $ref: "state.k" } } },

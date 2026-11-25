@@ -26,7 +26,8 @@ The encoder is pure: it takes a v2 execution manifest and optional capability sc
 - **`loop`** (`ecp-loop`): `items` / `count` inputs; `item` / `index` outputs as mode requires.
 - **`end`** (`ecp-end`, id `end:<loopId>`): body inputs including `value` and `repeat` (`while`);
   output `results`.
-- **Frames** (`ecp-frame`): visual containers for `if`, `parallel`, and `loop` (not dagre parents).
+- **Frames** (`ecp-frame`): visual containers with **bands** (no label or menu). The start node is
+  pinned on the left stroke; loop `end` on the right. Band sub-clusters drive dagre layout.
 
 ## Run overlay
 

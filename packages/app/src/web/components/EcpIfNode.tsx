@@ -7,6 +7,8 @@ interface EcpIfNodeData extends ReactFlowIfData {
   dataConnectable?: boolean
   connectedTargetHandles?: string[]
   connectedSourceHandles?: string[]
+  /** Taken side from `if.select` during a run overlay (`null` = neither). */
+  choiceSide?: "then" | "else" | null
 }
 
 /**
@@ -22,10 +24,14 @@ export function EcpIfNode({ id, data, selected }: NodeProps) {
     <div
       data-testid={`ecp-if-${id}`}
       data-selected={selected ? "true" : "false"}
+      data-choice-side={node.choiceSide ?? ""}
       className={[
         "ecp-rf-node min-w-[200px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm",
         selected ? "ecp-rf-node--selected" : "",
         node.detached ? "ecp-rf-node--detached" : "",
+        node.choiceSide === "then" ? "ecp-rf-if--then" : "",
+        node.choiceSide === "else" ? "ecp-rf-if--else" : "",
+        node.choiceSide === null ? "ecp-rf-if--none" : "",
       ].join(" ")}
     >
       {node.detached ? (

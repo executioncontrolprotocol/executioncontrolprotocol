@@ -9,6 +9,12 @@ import {
   returnsReactFlowNode,
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
+import {
+  adjustFrameRectForPins,
+  applyContainerGeometry,
+  pinContainers,
+  type StructureFrameGeometry,
+} from "./container-geometry.js"
 import { frameBounds, layoutReactFlowDocument, type LayoutCluster } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import { refPathFromValue } from "./markers.js"
@@ -40,15 +46,13 @@ import {
   loopEndNodeId,
 } from "./types.js"
 
-interface StructureFrame {
-  frameId: string
+interface StructureFrame extends StructureFrameGeometry {
   structureId: string
-  structureKind: "if" | "parallel" | "loop"
   loopMode?: "while" | "for" | "forEach"
   label: string
-  memberNodeIds: string[]
-  childFrameIds: string[]
-  depth: number
+  startNodeId: string
+  endNodeId?: string
+  bands: StructureFrameGeometry["bands"]
 }
 
 interface EncodeContext {
@@ -77,6 +81,8 @@ function beginStructureFrame(
     label: partial.label,
     memberNodeIds: [],
     childFrameIds: [],
+    bands: [],
+    startNodeId: "",
     depth: ctx.frameStack.length,
     ...(partial.loopMode !== undefined ? { loopMode: partial.loopMode } : {}),
   }
@@ -91,11 +97,16 @@ function endStructureFrame(ctx: EncodeContext, memberNodeIds: readonly string[])
 }
 
 function layoutClusters(frames: readonly StructureFrame[]): LayoutCluster[] {
-  return frames.map((frame) => ({
-    id: frame.frameId,
-    memberNodeIds: frame.memberNodeIds,
-    childClusterIds: frame.childFrameIds,
-  }))
+  const out: LayoutCluster[] = []
+  for (const frame of frames) {
+    for (const band of frame.bands) {
+      out.push({ id: band.bandId, memberNodeIds: band.memberNodeIds, childClusterIds: [] })
+    }
+    const frameMembers = [frame.startNodeId, ...(frame.endNodeId ? [frame.endNodeId] : [])]
+    const childClusterIds = [...frame.bands.map((band) => band.bandId), ...frame.childFrameIds]
+    out.push({ id: frame.frameId, memberNodeIds: frameMembers, childClusterIds })
+  }
+  return out
 }
 
 function connectControl(edges: ReactFlowEdge[], fromIds: string[], toIds: string[], prefix: string): void {
@@ -248,9 +259,18 @@ function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
     structureKind: "if",
     label: structureFrameLabel(node),
   })
+  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
+  if (frameSpec) frameSpec.startNodeId = node.id
   const thenSeg = renderNodes(node.then, ctx)
   const elseSeg = node.else ? renderNodes(node.else, ctx) : { nodes: [], edges: [], entryIds: [], exitIds: [] }
-  const memberIds = new Set<string>([node.id, ...nodeIdsInSegment(thenSeg), ...nodeIdsInSegment(elseSeg)])
+  const thenIds = nodeIdsInSegment(thenSeg)
+  const elseIds = nodeIdsInSegment(elseSeg)
+  const bands: StructureFrame["bands"] = [
+    { bandId: `ecp:band:${node.id}:then`, label: "then", memberNodeIds: thenIds },
+  ]
+  if (node.else) bands.push({ bandId: `ecp:band:${node.id}:else`, label: "else", memberNodeIds: elseIds })
+  if (frameSpec) frameSpec.bands = bands
+  const memberIds = new Set<string>([node.id, ...thenIds, ...elseIds])
   const edges = [...thenSeg.edges, ...elseSeg.edges]
   if (thenSeg.entryIds.length > 0) connectControl(edges, [node.id], thenSeg.entryIds, `if-then-${node.id}`)
   if (elseSeg.entryIds.length > 0) connectControl(edges, [node.id], elseSeg.entryIds, `if-else-${node.id}`)
@@ -271,16 +291,26 @@ function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
     structureKind: "parallel",
     label: structureFrameLabel(node),
   })
+  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
+  if (frameSpec) frameSpec.startNodeId = node.id
   const out: RenderSegment = { nodes: [head], edges: [], entryIds: [node.id], exitIds: [] }
   const memberIds = new Set<string>([node.id])
+  const bands: StructureFrame["bands"] = []
   node.paths.forEach((path, index) => {
     const seg = renderNodes(path, ctx)
     out.nodes.push(...seg.nodes)
     out.edges.push(...seg.edges)
-    for (const id of nodeIdsInSegment(seg)) memberIds.add(id)
+    const pathIds = nodeIdsInSegment(seg)
+    for (const id of pathIds) memberIds.add(id)
+    bands.push({
+      bandId: `ecp:band:${node.id}:path-${index + 1}`,
+      label: `path ${index + 1}`,
+      memberNodeIds: pathIds,
+    })
     if (seg.entryIds.length > 0) connectControl(out.edges, [node.id], seg.entryIds, `par-${node.id}-${index}`)
     out.exitIds.push(...seg.exitIds)
   })
+  if (frameSpec) frameSpec.bands = bands
   endStructureFrame(ctx, [...memberIds])
   return out
 }
@@ -295,9 +325,18 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     loopMode: loopMode(node),
     label: structureFrameLabel(node),
   })
+  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
+  if (frameSpec) {
+    frameSpec.startNodeId = node.id
+    frameSpec.endNodeId = endNode.id
+  }
   const seg = renderNodes(node.steps, ctx)
   const edges = [...seg.edges]
-  const memberIds = new Set<string>([node.id, endNode.id, ...nodeIdsInSegment(seg)])
+  const bodyIds = nodeIdsInSegment(seg)
+  if (frameSpec) {
+    frameSpec.bands = [{ bandId: `ecp:band:${node.id}:body`, label: "body", memberNodeIds: bodyIds }]
+  }
+  const memberIds = new Set<string>([node.id, endNode.id, ...bodyIds])
   if (seg.entryIds.length > 0) connectControl(edges, [node.id], seg.entryIds, `loop-body-${node.id}`)
   if (seg.exitIds.length > 0) connectControl(edges, seg.exitIds, [endNode.id], `loop-end-${node.id}`)
   else connectControl(edges, [node.id], [endNode.id], `loop-end-empty-${node.id}`)
@@ -433,16 +472,25 @@ function frameNodesForStructures(
 ): ReactFlowNode[] {
   const nodeWidth = options?.nodeWidth ?? 260
   const nodeHeight = options?.nodeHeight ?? 160
-  const rects = frameBounds(laid.nodes, frames, { nodeWidth, nodeHeight })
+  const rects = frameBounds(laid.nodes, frames, { nodeWidth, nodeHeight, headerless: true })
   const out: ReactFlowNode[] = []
   for (const spec of frames) {
-    const rect = rects.get(spec.frameId)
-    if (!rect) continue
+    const rawRect = rects.get(spec.frameId)
+    if (!rawRect) continue
+    const rect = adjustFrameRectForPins(rawRect, laid.nodes, spec, nodeWidth)
     const data: ReactFlowFrameData = {
       structureId: spec.structureId,
       structureKind: spec.structureKind,
       ...(spec.loopMode !== undefined ? { loopMode: spec.loopMode } : {}),
       label: spec.label,
+      startNodeId: spec.startNodeId,
+      ...(spec.endNodeId !== undefined ? { endNodeId: spec.endNodeId } : {}),
+      bands: spec.bands.map((band) => ({
+        bandId: band.bandId,
+        label: band.label,
+        memberNodeIds: [...band.memberNodeIds],
+      })),
+      ...(spec.bandDividerYs !== undefined ? { bandDividerYs: [...spec.bandDividerYs] } : {}),
       memberNodeIds: [...spec.memberNodeIds],
       childFrameIds: [...spec.childFrameIds],
       depth: spec.depth,
@@ -515,7 +563,8 @@ export function executionToReactFlow(
   if (returnsNode && body.exitIds.length > 0) connectControl(layoutEdges, body.exitIds, [returnsNode.id], "io-returns")
 
   const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options, layoutClusters(structureFrames))
-  let flowNodes = laid.nodes
+  const geometryLaid = applyContainerGeometry(laid, structureFrames, options)
+  let flowNodes = geometryLaid.nodes
   const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
   const detachedStructureIds = new Set<string>()
 
@@ -528,11 +577,12 @@ export function executionToReactFlow(
     }
     const detachedSeg = renderNodes(detachedRoots, detachedCtx)
     const controlEdges = detachedSeg.edges.filter((edge) => edge.data.kind === "control")
-    const detachedLaid = layoutReactFlowDocument(
+    const detachedLayout = layoutReactFlowDocument(
       { nodes: detachedSeg.nodes, edges: controlEdges },
       options,
       layoutClusters(detachedFrames),
     )
+    const detachedLaid = applyContainerGeometry(detachedLayout, detachedFrames, options)
     const mainMaxY = flowNodes.reduce((max, node) => Math.max(max, node.position.y + (node.style?.height ?? 160)), 0)
     const mainMinX = flowNodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
     const detachedMinY = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity)
@@ -549,7 +599,7 @@ export function executionToReactFlow(
     for (const root of detachedRoots) walkDetachedIds(root, detachedStructureIds)
   }
 
-  const laidForFrames = { nodes: flowNodes, edges: laid.edges }
+  const laidForFrames = { nodes: flowNodes, edges: geometryLaid.edges }
   const frames = frameNodesForStructures(laidForFrames, structureFrames, options, detachedStructureIds)
-  return { nodes: [...frames, ...flowNodes], edges: publishEdges(laid.edges) }
+  return { nodes: pinContainers([...frames, ...flowNodes]), edges: publishEdges(geometryLaid.edges) }
 }

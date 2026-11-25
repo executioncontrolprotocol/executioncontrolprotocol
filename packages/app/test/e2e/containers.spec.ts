@@ -79,7 +79,7 @@ test.describe("Containers and menus", () => {
     await page.getByTestId("canvas-menu-item-wrap").click()
     await page.getByTestId("canvas-menu-item-wrap-if").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
-    await page.getByTestId("ecp-frame-menu-if-1").click()
+    await page.getByTestId("ecp-if-if-1").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-delete").click()
     await page.getByTestId("canvas-menu-item-delete-keep-steps").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
