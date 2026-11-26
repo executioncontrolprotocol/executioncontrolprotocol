@@ -23,9 +23,9 @@ describe("loop-items partial file", () => {
         },
         { schema: "@executioncontrolprotocol.execution", version: "2.0", steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo" }] },
       )
-      await store.writeLoopPartial("run-1", "items", { results: { "0": { ok: true } }, errors: [] })
+      await store.writeLoopPartial("run-1", "items", { rounds: { "0": { out: { ok: true } } }, errors: [] })
       const read = await store.readLoopPartial("run-1", "items")
-      expect(read?.results["0"]).toEqual({ ok: true })
+      expect(read?.rounds["0"]).toEqual({ out: { ok: true } })
     } finally {
       rmSync(home, { recursive: true, force: true })
     }

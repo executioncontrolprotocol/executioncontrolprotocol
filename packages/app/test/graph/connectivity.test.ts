@@ -8,7 +8,6 @@ import {
   executionToReactFlow,
   EXECUTION_RETURNS_NODE_ID,
   extractDataEdges,
-  loopEndNodeId,
   resolveInputHandle,
   returnsSourceKeys,
   walkInputRefs,
@@ -108,16 +107,6 @@ function collectRefBindings(nodes: Node[]): RefBinding[] {
             walkInputRefs(value, name, (inputPath, refPath) => {
               if (refPath.startsWith("state.") || refPath.startsWith("$state")) {
                 bindings.push({ readerId: node.id, inputPath, refPath })
-              }
-            })
-          }
-        }
-        const endId = loopEndNodeId(node.id)
-        if (node.end?.input) {
-          for (const [name, value] of Object.entries(node.end.input)) {
-            walkInputRefs(value, name, (inputPath, refPath) => {
-              if (refPath.startsWith("state.") || refPath.startsWith("$state")) {
-                bindings.push({ readerId: endId, inputPath, refPath })
               }
             })
           }
@@ -222,7 +211,6 @@ describe("connectivity focused cases", () => {
           id: "outer",
           input: { items: { $ref: "state.items" } },
           as: "item",
-          into: "out",
           steps: [
             {
               type: "loop",
@@ -230,7 +218,6 @@ describe("connectivity focused cases", () => {
               id: "inner",
               input: { items: { $ref: "state.item.parts" } },
               as: "part",
-              into: "parts",
               steps: [
                 {
                   id: "use-part",
@@ -243,7 +230,6 @@ describe("connectivity focused cases", () => {
                   input: { value: { $ref: "state.partIndex" } },
                 },
               ],
-              end: { input: {} },
             },
             {
               id: "use-item",
@@ -251,7 +237,6 @@ describe("connectivity focused cases", () => {
               input: { value: { $ref: "state.item" } },
             },
           ],
-          end: { input: {} },
         },
       ],
     }
@@ -274,9 +259,7 @@ describe("connectivity focused cases", () => {
           id: "cleanup",
           input: { items: { $ref: "state.items" } },
           as: "published",
-          into: "done",
           steps: [{ id: "in-loop", uses: "@executioncontrolprotocol/test.echo", as: "other" }],
-          end: { input: {} },
         },
         {
           id: "read-published",
@@ -298,14 +281,14 @@ describe("connectivity focused cases", () => {
     )
   })
 
-  it("if input and loop end repeat branches", () => {
+  it("if input and for loop count branches", () => {
     const branch = executionToReactFlow(loadManifest(path.join(examplesDir, "patterns/branch.ecp.json")))
     expect(dataEdges(branch)).toContainEqual(
       expect.objectContaining({ target: "by-tier", targetHandle: "tier", sourceHandle: "tier" }),
     )
-    const loopWhile = executionToReactFlow(loadManifest(path.join(examplesDir, "patterns/loop-while.ecp.json")))
-    expect(dataEdges(loopWhile)).toContainEqual(
-      expect.objectContaining({ target: "end:retry", targetHandle: "repeat" }),
+    const loopFor = executionToReactFlow(loadManifest(path.join(examplesDir, "patterns/loop-for.ecp.json")))
+    expect(dataEdges(loopFor)).toContainEqual(
+      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_INDEX_HANDLE, target: "tick" }),
     )
   })
 

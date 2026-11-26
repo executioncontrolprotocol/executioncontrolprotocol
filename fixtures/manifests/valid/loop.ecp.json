@@ -5,7 +5,9 @@
     {
       "type": "loop",
       "id": "refine",
-      "maxRounds": 2,
+      "mode": "for",
+      "as": "round",
+      "input": { "count": 2 },
       "steps": [
         {
           "id": "tick",
@@ -16,12 +18,7 @@
           "as": "tick",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     }
   ]
 }

@@ -22,6 +22,7 @@ import {
   resolveValue,
   runExecution,
   startExecution,
+  validateExecution,
   VERSION,
   type CaptureOneDelegate,
   type StateStore,
@@ -133,8 +134,7 @@ describe("run fixtures", () => {
         serialized.includes('"type": "branch"') ||
         serialized.includes('"branches"') ||
         serialized.includes('"collect"') ||
-        (serialized.includes('"expr"') && serialized.includes('"uses"')) ||
-        (serialized.includes('"type": "loop"') && !serialized.includes('"end"'))
+        (serialized.includes('"expr"') && serialized.includes('"uses"'))
       ) {
         continue
       }
@@ -418,10 +418,11 @@ describe("run fixtures", () => {
           },
           {
             type: "loop",
+            mode: "for",
             id: "idle",
-            maxRounds: 2,
+            input: { count: 1 },
+            as: "i",
             steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "z" }, as: "body" }],
-            end: { input: { repeat: false } },
           },
           { id: "note", uses: "@executioncontrolprotocol/test.echo", input: { value: "note" } },
           { id: "set", uses: "@executioncontrolprotocol/test.stage", input: { handle: { $state: "bag.item" }, op: "set", value: 1 } },
@@ -451,7 +452,7 @@ describe("run fixtures", () => {
       },
     )
     expect(shaped.result.yes).toEqual({ echo: "yes" })
-    expect(shaped.result.body).toEqual({ echo: "z" })
+    expect(shaped.result.body).toEqual([{ echo: "z" }])
     expect(shaped.error?.code).toBe("ECP_OUTPUT_INVALID")
 
     const badGate = await runExecution(
@@ -650,33 +651,35 @@ describe("run fixtures", () => {
         },
         {
           type: "loop",
+          mode: "for",
           id: "refine",
-          maxRounds: 3,
+          input: { count: 2 },
+          as: "i",
           steps: [
             { id: "bump", uses: "@executioncontrolprotocol/test.echo", input: { value: "bump" }, as: "bump", mode: "replace" },
             { id: "banner", uses: "@executioncontrolprotocol/test.echo", input: { value: "banner" }, as: "banner", mode: "replace" },
           ],
-          end: { input: { repeat: true } },
         },
       ],
     }
-    const resumed = await runExecution(resumeManifest, { first: { echo: "first" }, yes: { echo: "yes" }, bump: { echo: "bump" } }, {
+    const resumed = await runExecution(resumeManifest, { first: { echo: "first" }, yes: { echo: "yes" } }, {
       capabilities,
       call: invoke,
       expression: engine,
       cursor: {
         completed: ["first", "route", "yes", "bump"],
         inProgress: "banner",
-        loops: { refine: 1 },
+        loops: { refine: 0 },
         choices: { route: "else" },
+        loopItems: {},
       },
     })
     expect(resumed.status).toBe("completed")
     expect(resumed.events[0]).toBe("run.start")
     expect(resumed.events).toContain("run.resume")
-    expect(resumed.steps.map((step) => step.nodeId)).toEqual(["banner", "bump", "banner"])
-    expect(resumed.result.banner).toEqual({ echo: "banner" })
-    expect(resumed.result.bump).toEqual({ echo: "bump" })
+    expect(resumed.steps.map((step) => step.nodeId)).toEqual(["bump", "banner"])
+    expect(resumed.result.banner).toEqual([null, { echo: "banner" }])
+    expect(resumed.result.bump).toEqual([null, { echo: "bump" }])
 
     const schemas = await HostSchemaSet.create(capabilities)
     const invalidInput = await runExecution(
@@ -973,36 +976,6 @@ describe("run fixtures", () => {
 })
 
 describe("loop modes", () => {
-  it("while stops when repeat becomes false", async () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "loop",
-          id: "gate",
-          maxRounds: 5,
-          steps: [
-            { id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "hit", mode: "replace" },
-            {
-              id: "off",
-              uses: "@executioncontrolprotocol/test.stage",
-              input: { handle: { $state: "go" }, op: "set", value: false },
-            },
-          ],
-          end: { input: { repeat: { $ref: "state.go" } } },
-        },
-      ],
-    }
-    const outcome = await runExecution(manifest, { go: true }, {
-      capabilities,
-      call: invoke,
-      expression: engine,
-    })
-    expect(outcome.status).toBe("completed")
-    expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
-  })
-
   it("for with ref runs a fixed number of rounds and clears as", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
@@ -1014,8 +987,7 @@ describe("loop modes", () => {
           id: "counted",
           input: { count: { $ref: "state.n" } },
           as: "i",
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } } }],
-          end: { input: {} },
+          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } }, as: "hit" }],
         },
       ],
     }
@@ -1026,6 +998,7 @@ describe("loop modes", () => {
     })
     expect(outcome.status).toBe("completed")
     expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(3)
+    expect(outcome.state.hit).toEqual([{ echo: 0 }, { echo: 1 }, { echo: 2 }])
     expect(outcome.state.i).toBeUndefined()
   })
 
@@ -1041,13 +1014,13 @@ describe("loop modes", () => {
           input: { count: { $ref: "state.n" } },
           as: "k",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "hit" }, as: "hit" }],
-          end: { input: {} },
         },
       ],
     }
     const outcome = await runExecution(manifest, { n: 0 }, { capabilities, call: invoke, expression: engine })
     expect(outcome.status).toBe("completed")
     expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(0)
+    expect(outcome.state.hit).toEqual([])
     expect(outcome.state.k).toBeUndefined()
   })
 
@@ -1062,8 +1035,7 @@ describe("loop modes", () => {
           id: "counted",
           input: { count: { $ref: "state.n" } },
           as: "i",
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } } }],
-          end: { input: {} },
+          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.i" } }, as: "hit" }],
           ...extra,
         } as ExecutionManifest["steps"][0],
       ],
@@ -1084,8 +1056,16 @@ describe("loop modes", () => {
   })
 
   it("for fails ECP_COMMIT_CONFLICT when as already exists on a fresh start", async () => {
-    const outcome = await runExecution(forManifest(), { n: 2, i: 7 }, { capabilities, call: invoke, expression: engine })
-    expect(outcome.error?.code).toBe("ECP_COMMIT_CONFLICT")
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "seed", uses: "@executioncontrolprotocol/test.echo", input: { value: 0 }, as: "i" },
+        ...forManifest().steps,
+      ],
+    }
+    const report = await validateExecution(manifest, { capabilities, expression: engine })
+    expect(report.issues.some((issue) => issue.code === "ECP_COMMIT_CONFLICT" && issue.path?.endsWith("/as"))).toBe(true)
   })
 
   it("for resumes at the interrupted iteration even though the saved state holds as", async () => {
@@ -1096,27 +1076,8 @@ describe("loop modes", () => {
       cursor: { completed: [], inProgress: "body", loops: { counted: 1 }, choices: {}, loopItems: {} },
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.steps.filter((step) => step.nodeId === "body").map((step) => step.round)).toEqual([1, 2])
-    expect(outcome.state.i).toBeUndefined()
+    expect(outcome.steps.filter((step) => step.nodeId === "body").map((step) => step.round)).toEqual([2])
+    expect(outcome.state.hit).toEqual([null, null, { echo: 2 }])
   })
 
-  it("stops while when repeat is not a boolean", async () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "loop",
-          id: "bad",
-          maxRounds: 2,
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-          end: { input: { repeat: { $ref: "state.flag" } } },
-        },
-      ],
-    }
-    const outcome = await runExecution(manifest, { flag: "yes" }, { capabilities, call: invoke, expression: engine })
-    expect(outcome.status).toBe("completed")
-    expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
-    expect(outcome.events).toContain("loop.repeat")
-  })
 })

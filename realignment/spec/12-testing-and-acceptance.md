@@ -33,7 +33,7 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
   test plugins in the engine tests, where its only issue is the missing `anthropic/default` config).
 - **Invalid (one per code that L0–L3 can produce):** at least one fixture for each of
   `ECP_EXECUTION_LOAD`, `ECP_MANIFEST_INVALID` (unknown property, missing `steps`, duplicate
-  id, empty `if.then`, `mode` without `as`, `$secret` in execution, `maxRounds` 0, old graph shapes),
+  id, empty `if.then`, `mode` without `as`, `$secret` in execution, `while` / stored `end` / `into`, old graph shapes),
   `ECP_CAPABILITY_UNKNOWN` (with suggestion), `ECP_PLUGINS_MISSING`, `ECP_INPUT_INVALID` (wrong
   type, missing required, unknown property, enum), `ECP_EXPR_INVALID` (syntax, two params,
   async), `ECP_SCRIPT_INVALID` (syntax with line/col, missing file, both source and path,

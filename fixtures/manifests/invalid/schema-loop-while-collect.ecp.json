@@ -5,7 +5,6 @@
     {
       "type": "loop",
       "id": "refine",
-      "maxRounds": 1,
       "steps": [
         {
           "id": "echo",
@@ -17,11 +16,6 @@
           "mode": "replace"
         }
       ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      },
       "collect": "state.out"
     }
   ]

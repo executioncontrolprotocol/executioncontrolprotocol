@@ -2,7 +2,6 @@ import type {
   ExecutionManifest,
   IfNode,
   JsonValue,
-  LoopEndNode,
   LoopNode,
   Node,
   ParallelNode,
@@ -40,17 +39,8 @@ export const PANEL_EDIT_SCRIPT_FILE = "The script is in a file; edit the file"
 /** Reason when the condition text doesn't match the form being edited. @category App */
 export const PANEL_EDIT_CONDITION_FORM = "Switch the condition to that form first"
 
-/** Reason when a `while` loop is given a driver. @category App */
-export const PANEL_EDIT_WHILE_DRIVER = "A while loop has no driver; it reads repeat on its end node"
-
-/** Reason when `repeat` is bound on an `end` that isn't closing a `while` loop. @category App */
-export const PANEL_EDIT_REPEAT_WHILE_ONLY = "repeat is only used by while loops"
-
 /** Default condition expression for an `if`. @category App */
 export const IF_DEFAULT_EXPRESSION = "true"
-
-/** Default gather expression for an `end` (the spec's "no expression" result). @category App */
-export const END_DEFAULT_EXPRESSION = "input.value"
 
 /**
  * How an input is supplied in the panel: nothing (the key is removed), a literal, or a `$ref` branch.
@@ -220,16 +210,6 @@ export function ensureStructureAs(draft: ExecutionManifest, node: IfNode | Paral
   node.as = freeStateKeyForId(draft, node.id)
   node.input ??= {}
   return node.as
-}
-
-/**
- * Give a loop an `into` when it has none (a free name derived from its id). Returns the `into`. Mutates `loop`.
- * @category App
- */
-export function ensureLoopInto(draft: ExecutionManifest, loop: LoopNode): string {
-  if (loop.into) return loop.into
-  loop.into = freeStateKeyForId(draft, loop.id)
-  return loop.into
 }
 
 function conditionFormOf(holder: ConditionHolder): ConditionForm {
@@ -438,13 +418,12 @@ export function addParallelPath(manifest: ExecutionManifest, parallelId: string,
 }
 
 /**
- * Bind, set or clear a loop's driver input: `items` for `forEach`, `count` for `for`. A `while` loop has no driver.
+ * Bind, set or clear a loop's driver input: `items` for `forEach`, `count` for `for`.
  * @category App
  */
 export function setLoopDriver(manifest: ExecutionManifest, loopId: string, binding: InputBindingEdit): StructureEditResult {
   return editStructure<LoopNode>(manifest, loopId, ["loop"], (loop) => {
-    const mode = loop.mode ?? "while"
-    if (mode === "while") return PANEL_EDIT_WHILE_DRIVER
+    const mode = loop.mode
     const reason = applyBinding(loop as InputHolder, mode === "forEach" ? "items" : "count", binding)
     if (reason !== undefined) return reason
     // `for` and `forEach` loops require an `input` object, so an unbound driver leaves `input: {}`
@@ -465,98 +444,10 @@ export function setLoopLabel(manifest: ExecutionManifest, loopId: string, label:
   })
 }
 
-function editEnd(
-  manifest: ExecutionManifest,
-  loopId: string,
-  mutate: (end: LoopEndNode, loop: LoopNode) => string | undefined,
-): StructureEditResult {
-  return editStructure<LoopNode>(manifest, loopId, ["loop"], (loop) => {
-    loop.end ??= { input: {} }
-    loop.end.input ??= {}
-    return mutate(loop.end, loop)
-  })
-}
-
 /**
- * Set or clear a loop `end`'s `accepts` schema (the types of its input ports).
- * @category App
- */
-export function setEndAccepts(
-  manifest: ExecutionManifest,
-  loopId: string,
-  accepts: Record<string, unknown> | undefined,
-): StructureEditResult {
-  return editEnd(manifest, loopId, (end) => setOptionalSchema(end, "accepts", accepts))
-}
-
-/**
- * Set or clear the schema of one gathered value (`end.returns`).
- * @category App
- */
-export function setEndReturns(
-  manifest: ExecutionManifest,
-  loopId: string,
-  returns: Record<string, unknown> | undefined,
-): StructureEditResult {
-  return editEnd(manifest, loopId, (end) => setOptionalSchema(end, "returns", returns))
-}
-
-/**
- * Choose how a loop `end` gathers a round's result: `none` (the result is `input.value`), an `expression`, or a
- * `script`. The text carries over between the two forms the way {@link setIfConditionForm} does.
- * @category App
- */
-export function setEndGatherForm(manifest: ExecutionManifest, loopId: string, form: ConditionForm): StructureEditResult {
-  return editEnd(manifest, loopId, (end) => {
-    convertCondition(end, form, END_DEFAULT_EXPRESSION)
-    return undefined
-  })
-}
-
-/**
- * Set the text of a loop `end`'s gather in its current form: the `expression`, or the inline `script` source.
- * @category App
- */
-export function setEndGatherText(manifest: ExecutionManifest, loopId: string, text: string): StructureEditResult {
-  return editEnd(manifest, loopId, (end) => setConditionText(end, text))
-}
-
-/**
- * Bind, set or clear one of a loop `end`'s inputs (`value`, `repeat`, or an `accepts` key). `repeat` is `while`-only.
- * @category App
- */
-export function setEndInputBinding(
-  manifest: ExecutionManifest,
-  loopId: string,
-  key: string,
-  binding: InputBindingEdit,
-): StructureEditResult {
-  return editEnd(manifest, loopId, (end, loop) => {
-    if (key === "repeat" && binding.kind !== "unset" && (loop.mode ?? "while") !== "while") {
-      return PANEL_EDIT_REPEAT_WHILE_ONLY
-    }
-    return applyBinding(end as InputHolder, key, binding)
-  })
-}
-
-/**
- * Form of an `if` condition or loop `end` gather as written in the manifest.
+ * Form of an `if` condition as written in the manifest.
  * @category App
  */
 export function conditionForm(holder: ConditionHolder): ConditionForm {
   return conditionFormOf(holder)
-}
-
-/**
- * Set a loop's `into`, or clear it. A `forEach` loop requires one; validation reports it when missing.
- * @category App
- */
-export function setLoopInto(manifest: ExecutionManifest, loopId: string, into: string | undefined): StructureEditResult {
-  const checked = checkStateKey(into)
-  if ("reason" in checked) return { ok: false, reason: checked.reason }
-  return editStructure<LoopNode>(manifest, loopId, ["loop"], (loop) => {
-    if (checked.key === undefined) delete loop.into
-    else loop.into = checked.key
-    return undefined
-  })
 }

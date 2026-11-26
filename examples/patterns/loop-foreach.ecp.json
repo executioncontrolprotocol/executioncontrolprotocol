@@ -47,15 +47,7 @@
           },
           "as": "greet"
         }
-      ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.greet"
-          }
-        }
-      },
-      "into": "greetings"
+      ]
     },
     {
       "id": "report",
@@ -63,7 +55,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.greetings"
+          "$ref": "state.greet"
         }
       },
       "as": "report"

@@ -1,5 +1,4 @@
 import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
-import { validateExecution } from "@executioncontrolprotocol/engine"
 import { describe, expect, it } from "vitest"
 import {
   addCapabilityStep,
@@ -14,7 +13,6 @@ import {
   dataConnectionRefusal,
   deleteConnector,
   deleteSelection,
-  END_RESULTS_HANDLE,
   executionToReactFlow,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
@@ -27,7 +25,6 @@ import {
   loopIdFromEndNodeId,
   portOnDocument,
   removeStructure,
-  setLoopField,
   STRUCTURE_EDIT_DELETE_END,
   STRUCTURE_EDIT_PARALLEL_MIN,
   wrapSteps,
@@ -65,11 +62,6 @@ function node<T extends Node>(manifest: ExecutionManifest, id: string): T {
   return hit.node as T
 }
 
-async function issueCodes(manifest: ExecutionManifest): Promise<string[]> {
-  const result = await validateExecution(manifest, { capabilities: [] })
-  return result.issues.filter((issue) => issue.code !== "ECP_PLUGINS_MISSING").map((issue) => `${issue.code} ${issue.path}`)
-}
-
 /** A graph with every start node kind: step, if (then and else), parallel, forEach loop with an `end`, and a last step. */
 function graph(): ExecutionManifest {
   const base = manifestOf(
@@ -93,7 +85,6 @@ function graph(): ExecutionManifest {
       as: "item",
       input: { items: { $ref: "state.xs" } },
       steps: [step("body", { value: "b" })],
-      end: { input: {} },
     },
     step("last", { value: "z" }),
   )
@@ -139,7 +130,7 @@ describe("drawing a branch into a start node or an end", () => {
     const withParallel = ok(connect(base, EXECUTION_ACCEPTS_NODE_ID, "doc", "fan", "doc"))
     expect(node<ParallelNode>(withParallel, "fan").input).toEqual({ doc: { $ref: "state.doc" } })
     const withDriver = ok(connect(base, EXECUTION_ACCEPTS_NODE_ID, "files", "lp", LOOP_ITEMS_HANDLE))
-    expect(node<LoopNode>(withDriver, "lp").input).toEqual({ items: { $ref: "state.files" } })
+    expect(node<LoopNode>(withDriver, "lp").input).toEqual({ items: { $ref: ["state.xs", "state.files"] } })
   })
 
   it("binds a step output to the loop count driver of a for loop", () => {
@@ -150,21 +141,15 @@ describe("drawing a branch into a start node or an end", () => {
       as: "i",
       input: { count: 1 },
       steps: [step("body", { value: "b" }, { mode: "replace" })],
-      end: { input: {} },
     })
     const next = ok(connect(base, "src", "output", "lp", LOOP_COUNT_HANDLE))
     expect(node<LoopNode>(next, "lp").input).toEqual({ count: { $ref: "state.src" } })
   })
 
-  it("binds a body step to the end value", () => {
-    const next = ok(connect(graph(), "body", "output", loopEndNodeId("lp"), "value"))
-    expect(node<LoopNode>(next, "lp").end?.input).toEqual({ value: { $ref: "state.body" } })
-  })
-
-  it("binds the loop item and index to the end, and to a body step", () => {
+  it("binds the loop item and index to a body step", () => {
     const base = graph()
-    const item = ok(connect(base, "lp", LOOP_ITEM_HANDLE, loopEndNodeId("lp"), "value"))
-    expect(node<LoopNode>(item, "lp").end?.input).toEqual({ value: { $ref: "state.item" } })
+    const item = ok(connect(base, "lp", LOOP_ITEM_HANDLE, "body", "value"))
+    expect(node<StepNode>(item, "body").input?.value).toEqual({ $ref: "state.item" })
     const index = ok(connect(base, "lp", LOOP_INDEX_HANDLE, "body", "n"))
     expect(node<StepNode>(index, "body").input?.n).toEqual({ $ref: "state.itemIndex" })
   })
@@ -177,7 +162,6 @@ describe("drawing a branch into a start node or an end", () => {
       as: "i",
       input: { count: 2 },
       steps: [step("body", { value: "b" }, { mode: "replace" })],
-      end: { input: {} },
     })
     const next = ok(connect(base, "lp", LOOP_INDEX_HANDLE, "body", "n"))
     expect(node<StepNode>(next, "body").input?.n).toEqual({ $ref: "state.i" })
@@ -210,44 +194,11 @@ describe("drawing a branch into a start node or an end", () => {
     expect(node<StepNode>(next, "left").input?.from).toEqual({ $ref: "state.fan" })
   })
 
-  it("sets into on a loop when drawing from the end results port", () => {
-    const next = ok(connect(graph(), loopEndNodeId("lp"), END_RESULTS_HANDLE, "last", "all"))
-    expect(node<LoopNode>(next, "lp").into).toBe("lp")
-    expect(node<StepNode>(next, "last").input?.all).toEqual({ $ref: "state.lp" })
-  })
-
-  it("reuses the into a loop already has", () => {
-    const base = graph()
-    node<LoopNode>(base, "lp").into = "rows"
-    const next = ok(connect(base, loopEndNodeId("lp"), END_RESULTS_HANDLE, "last", "all"))
-    expect(node<LoopNode>(next, "lp").into).toBe("rows")
-  })
-
-  it("picks a free name when the id name is already used", () => {
-    const base = manifestOf(step("lp", { value: "taken" }), {
-      type: "loop",
-      id: "lp-loop",
-      mode: "forEach",
-      as: "item",
-      input: { items: { $ref: "state.xs" } },
-      steps: [step("body", { value: "b" })],
-      end: { input: { value: { $ref: "state.body" } } },
-    }, step("last"))
-    const next = ok(connect(base, loopEndNodeId("lp-loop"), END_RESULTS_HANDLE, "last", "all"))
-    expect(node<LoopNode>(next, "lp-loop").into).toBe("lp_loop")
-  })
-
   it("does not change the manifest it is given", () => {
     const base = graph()
     const before = JSON.stringify(base)
     ok(connect(base, "gate", IF_THEN_HANDLE, "yes", "from"))
-    ok(connect(base, loopEndNodeId("lp"), END_RESULTS_HANDLE, "last", "all"))
     expect(JSON.stringify(base)).toBe(before)
-  })
-
-  it("a branch into an end validates once the end is complete", async () => {
-    const next = ok(connect(graph(), "body", "output", loopEndNodeId("lp"), "value"))
-    expect(await issueCodes(ok(setLoopField(next, "lp", "into", "rows")))).toEqual([])
   })
 
   describe("refusals", () => {
@@ -262,15 +213,15 @@ describe("drawing a branch into a start node or an end", () => {
 
     it("refuses a loop driver port the mode does not have", () => {
       expect(refusal(connect(graph(), "src", "output", "lp", LOOP_COUNT_HANDLE))).toBe(CONNECTION_EDIT_HANDLE)
-      const whileLoop = manifestOf(step("src"), {
+      const forLoop = manifestOf(step("src"), {
         type: "loop",
         id: "w",
-        mode: "while",
-        maxRounds: 2,
+        mode: "for",
+        as: "i",
+        input: { count: 2 },
         steps: [step("body", { value: "b" }, { mode: "replace" })],
-        end: { input: { repeat: false } },
       })
-      expect(refusal(connect(whileLoop, "src", "output", "w", LOOP_ITEMS_HANDLE))).toBe(CONNECTION_EDIT_HANDLE)
+      expect(refusal(connect(forLoop, "src", "output", "w", LOOP_ITEMS_HANDLE))).toBe(CONNECTION_EDIT_HANDLE)
     })
 
     it("refuses a reader that runs before the writer", () => {
@@ -290,9 +241,8 @@ describe("drawing a branch into a start node or an end", () => {
       expect(refusal(connect(graph(), "fan", "path-1", "right", "x"))).toBe(CONNECTION_EDIT_ORDER)
     })
 
-    it("refuses the item port outside the loop and the end results inside it", () => {
+    it("refuses the item port outside the loop", () => {
       expect(refusal(connect(graph(), "lp", LOOP_ITEM_HANDLE, "last", "x"))).toBe(CONNECTION_EDIT_ORDER)
-      expect(refusal(connect(graph(), loopEndNodeId("lp"), END_RESULTS_HANDLE, "body", "x"))).toBe(CONNECTION_EDIT_ORDER)
     })
 
     it("refuses a port the source does not have", () => {
@@ -311,9 +261,9 @@ describe("drawing a branch into a start node or an end", () => {
       expect(connect(graph(), "src", "output", "ghost", "x").ok).toBe(false)
     })
 
-    it("refuses to read a value written only inside a sibling forEach round", () => {
+    it("allows a step after a forEach loop to read the body output", () => {
       const result = connect(graph(), "body", "output", "last", "x")
-      expect(result.ok).toBe(false)
+      expect(result.ok).toBe(true)
     })
   })
 })
@@ -342,16 +292,10 @@ describe("read order for start nodes and ends", () => {
     expect(visible(base, "yes", "output", "last")).toBe(true)
   })
 
-  it("the item port is readable by the end of its own loop and not after it", () => {
+  it("the item port is readable inside the loop body but not after it", () => {
     const base = graph()
-    expect(visible(base, "lp", LOOP_ITEM_HANDLE, loopEndNodeId("lp"))).toBe(true)
+    expect(visible(base, "lp", LOOP_ITEM_HANDLE, "body")).toBe(true)
     expect(visible(base, "lp", LOOP_ITEM_HANDLE, "last")).toBe(false)
-  })
-
-  it("the end results are readable after the loop", () => {
-    const base = graph()
-    expect(visible(base, loopEndNodeId("lp"), END_RESULTS_HANDLE, "last")).toBe(true)
-    expect(visible(base, loopEndNodeId("lp"), END_RESULTS_HANDLE, "body")).toBe(false)
   })
 
   it("Inputs are readable by every node", () => {
@@ -378,21 +322,42 @@ describe("deleting a branch", () => {
     ["an if input", "gate", "mode"],
     ["a parallel input", "fan", "doc"],
     ["the loop driver", "lp", LOOP_ITEMS_HANDLE],
-    ["an end input", loopEndNodeId("lp"), "value"],
   ])("removes the $ref into %s", (_label, target, handle) => {
+    const driverBase: ExecutionManifest = {
+      ...manifestOf(
+        step("src", { value: "a" }),
+        {
+          type: "loop",
+          id: "lp",
+          mode: "forEach",
+          as: "item",
+          input: {},
+          steps: [step("body", { value: "b" })],
+        },
+        step("last", { value: "z" }),
+      ),
+      execution: {
+        accepts: {
+          type: "object",
+          properties: { files: { type: "array" } },
+        },
+      },
+    }
     const drawn = ok(
       target === "lp"
-        ? connect(graph(), EXECUTION_ACCEPTS_NODE_ID, "files", target, handle)
-        : target === loopEndNodeId("lp")
-          ? connect(graph(), "body", "output", target, handle)
-          : connect(graph(), "src", "output", target, handle),
+        ? connect(driverBase, EXECUTION_ACCEPTS_NODE_ID, "files", target, handle)
+        : connect(graph(), "src", "output", target, handle),
     )
     const edge = edgeTo(drawn, target, handle)
     expect(connectorDeletePreview(drawn, edge).ok).toBe(true)
     const removed = ok(deleteConnector(drawn, edge))
-    const holder = target === loopEndNodeId("lp") ? node<LoopNode>(removed, "lp").end : node<IfNode | ParallelNode | LoopNode>(removed, target)
+    const holder = node<IfNode | ParallelNode | LoopNode>(removed, target)
     const key = target === "lp" ? "items" : handle
-    expect((holder as { input?: Record<string, unknown> }).input?.[key]).toBeUndefined()
+    if (target === "lp") {
+      expect((holder as { input?: Record<string, unknown> }).input?.items).toBeUndefined()
+    } else {
+      expect((holder as { input?: Record<string, unknown> }).input?.[key]).toBeUndefined()
+    }
     expect(deleteSelection(drawn, { kind: "connector", edge }, false)).toMatchObject({ ok: true })
   })
 
@@ -449,7 +414,7 @@ describe("deleting a start node and an end", () => {
       expression: "true",
       then: [
         step("first"),
-        { type: "loop", id: "inner", mode: "for", as: "i", input: { count: 2 }, steps: [step("deep", { value: "d" }, { mode: "replace" })], end: { input: {} } },
+        { type: "loop", id: "inner", mode: "for", as: "i", input: { count: 2 }, steps: [step("deep", { value: "d" }, { mode: "replace" })] },
       ],
     })
     const next = ok(deleteSelection(base, { kind: "structure", structureId: "inner" }, false)!)
@@ -495,7 +460,7 @@ describe("wrapping nodes", () => {
   it("wraps one step in an if, a parallel (refused) and a loop", () => {
     const base = graph()
     expect(ok(wrapSteps(base, ["src"], "if")).steps[0]).toMatchObject({ type: "if" })
-    expect(ok(wrapSteps(base, ["src"], "loop")).steps[0]).toMatchObject({ type: "loop", mode: "while" })
+    expect(ok(wrapSteps(base, ["src"], "loop")).steps[0]).toMatchObject({ type: "loop", mode: "for" })
     expect(refusal(wrapSteps(base, ["src"], "parallel"))).toBe(STRUCTURE_EDIT_PARALLEL_MIN)
     expect(STRUCTURE_EDIT_PARALLEL_MIN).toBe("Select two or more nodes, one per path")
   })
@@ -567,17 +532,17 @@ describe("adding a node", () => {
     expect(stepIdsOf(fan.paths[2]!)).toEqual([added.stepId])
   })
 
-  it("sets replace on a step added to a side or path inside a while loop, and not outside one", () => {
+  it("sets replace on a step added to a side or path inside a for loop, and not outside one", () => {
     const base = manifestOf({
       type: "loop",
       id: "w",
-      mode: "while",
-      maxRounds: 2,
+      mode: "for",
+      as: "i",
+      input: { count: 2 },
       steps: [
         { type: "if", id: "inner", expression: "true", then: [step("t", { value: "t" }, { mode: "replace" })] },
         { type: "parallel", id: "par", paths: [[step("p", { value: "p" }, { mode: "replace" })]] },
       ],
-      end: { input: { repeat: false } },
     })
     const onThen = add(base, { kind: "then-side", ifId: "inner" })
     expect(node<StepNode>(onThen.manifest, onThen.stepId).mode).toBe("replace")
@@ -596,7 +561,7 @@ describe("ports of start nodes and ends on the document", () => {
     expect(portOnDocument(doc, "gate", IF_THEN_HANDLE, "output")?.id).toBe(IF_THEN_HANDLE)
     expect(portOnDocument(doc, "gate", IF_ELSE_HANDLE, "output")?.id).toBe(IF_ELSE_HANDLE)
     expect(portOnDocument(doc, "fan", "path-1", "output")?.id).toBe("path-1")
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")?.id).toBe("value")
+    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")).toBeUndefined()
     expect(portOnDocument(doc, "lp", LOOP_ITEMS_HANDLE, "input")?.id).toBe(LOOP_ITEMS_HANDLE)
   })
 
@@ -609,16 +574,12 @@ describe("ports of start nodes and ends on the document", () => {
     expect(portOnDocument(doc, "fan", "doc", "input")?.id).toBe("doc")
   })
 
-  it("builds the end ports from end accepts, with value and repeat", () => {
-    const base = graph()
-    node<LoopNode>(base, "lp").end = { accepts: { type: "object", properties: { score: { type: "number" } } }, input: {} }
-    const doc = executionToReactFlow(base)
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "score", "input")?.typeLabel).toContain("number")
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")).toBeDefined()
-    const whileDoc = executionToReactFlow(
-      manifestOf({ type: "loop", id: "w", mode: "while", maxRounds: 2, steps: [step("b", { value: "b" }, { mode: "replace" })], end: { input: { repeat: false } } }),
-    )
-    expect(portOnDocument(whileDoc, loopEndNodeId("w"), "repeat", "input")).toBeDefined()
+  it("keeps loop end nodes on the canvas without data ports", () => {
+    const doc = executionToReactFlow(graph())
+    const end = doc.nodes.find((node) => node.id === loopEndNodeId("lp"))
+    expect(end?.type).toBe("ecp-end")
+    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")).toBeUndefined()
+    expect(portOnDocument(doc, loopEndNodeId("lp"), "repeat", "input")).toBeUndefined()
   })
 
   it("does not find a port the node does not have", () => {
@@ -634,7 +595,7 @@ describe("ports of start nodes and ends on the document", () => {
     const refusalOf = (source: string, sourceHandle: string, target: string, targetHandle: string): string | undefined =>
       dataConnectionRefusal(base, doc, { source, target, sourceHandle, targetHandle })
     expect(refusalOf("src", "output", "gate", "mode")).toBeUndefined()
-    expect(refusalOf("body", "output", loopEndNodeId("lp"), "value")).toBeUndefined()
+    expect(refusalOf("body", "output", loopEndNodeId("lp"), "value")).toBe(CONNECTION_EDIT_HANDLE)
     expect(refusalOf("last", "output", "gate", "mode")).toBe(CONNECTION_EDIT_ORDER)
     expect(refusalOf("src", "output", "gate", "nope")).toBe(CONNECTION_EDIT_HANDLE)
     expect(refusalOf("gate", IF_THEN_HANDLE, "gate", "mode")).toBe(CONNECTION_EDIT_SELF)
@@ -679,15 +640,6 @@ describe("where a node dropped from a port goes", () => {
     const empty = graph()
     node<LoopNode>(empty, "lp").steps = []
     expect(placementForConnectionOrigin(empty, origin("lp", LOOP_INDEX_HANDLE))).toEqual({ kind: "loop-body", loopId: "lp" })
-  })
-
-  it("the end node goes after the loop from its output and after the last body node from its input", () => {
-    const end = loopEndNodeId("lp")
-    expect(placementForConnectionOrigin(graph(), origin(end, END_RESULTS_HANDLE))).toEqual({ kind: "after", nodeId: "lp" })
-    expect(placementForConnectionOrigin(graph(), origin(end, "value", "input"))).toEqual({ kind: "after", nodeId: "body" })
-    const empty = graph()
-    node<LoopNode>(empty, "lp").steps = []
-    expect(placementForConnectionOrigin(empty, origin(end, "value", "input"))).toEqual({ kind: "loop-body", loopId: "lp" })
   })
 
   it("a step goes after its output and before its input", () => {

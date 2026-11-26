@@ -20,10 +20,7 @@
           "as": "body",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {}
-      }
+      ]
     },
     {
       "id": "after",

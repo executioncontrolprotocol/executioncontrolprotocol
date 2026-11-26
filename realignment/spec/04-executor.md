@@ -84,32 +84,18 @@ present; otherwise nothing runs. Event `if.select` with `side` (`"then"` / `"els
 the chosen side runs, the resolved `input` is written to `state.<as>` for the duration of that
 side (scoped; removed in `finally`, including after resume once the side finishes).
 
-**Loop `while` (default):** `round = 0`; while `round < maxRounds`: run the body, evaluate `end`
-(gather + read `repeat`). `true` `repeat` runs another round; `false`, a throw, missing
-`repeat`, or a non-boolean `repeat` stops (soft — no run failure). Event `loop.round` each round,
-`loop.repeat` after each `end`, and `loop.exhausted` when the cap is reached with
-`rounds === maxRounds`. Optional `into` receives the last gathered value.
+**Loop `for`:** read `input.count` once (`0..1000`). Each round clones the pre-loop parent snapshot,
+binds `state.<as>` to the index, runs the body on that copy, and stores exported keys per round.
+Emit `loop.round`. Count `0` publishes `[]` for every exported key. When the loop finishes, arrays
+merge to the parent (`create` / `replace`). `for` step records use `<nodeId>#<round>`.
 
-**Loop `for`:** read `input.count` once (non-negative integer `0..1000`; else
-`ECP_TYPE_MISMATCH` / `ECP_LIMIT_EXCEEDED`). For each iteration, bind `state.<as>` to the index,
-run the body on shared state, gather via `end`, emit `loop.round`, then remove `state.<as>` when
-the loop ends (including after resume). Optional `into` receives the last gathered value when
-count `> 0`.
+**Loop `forEach`:** read `input.items` once (max 10 000). Same collector as `for`, with
+`concurrency` and `onError`. Failed items with `onError: "continue"` store `null` at that index.
+Events `loop.start`, `loop.item.*`, `loop.end`. Step records use `<nodeId>#i<index>` and carry
+`items` (outermost first).
 
-**Loop `forEach`:** read `input.items` once (must be an array; more than 10 000 items →
-`ECP_LIMIT_EXCEEDED`) and snapshot the state. Each item runs the body on its own deep copy of
-that snapshot plus `state.<as>` and `state.<as>Index`; body commits stay in the copy and
-`state.json` is not written for them. After the body, gather via `end` (`value` or
-`expression` / `script`; a throw fails the item). Up to `concurrency` items (1–32, default 1) run
-at once, started in index order. When every item has finished, `state.<into>` = the results in
-item order (`create`), then `state.json` is written. `onError: "fail"` (default): stop starting
-items, let running ones finish, fail with the lowest-index error, commit nothing. `"continue"`:
-failed item → `null`, append to `state.<into>Errors`. Step records inside `forEach` carry `items`
-(outermost first). Nested `forEach` snapshots the outer item; nested `while`/`for` use the item
-copy.
-
-`while` / `for` step records are keyed `<nodeId>#<round>` (rounds from 0); `forEach` uses
-`<nodeId>#i<index>`.
+**`$ref` list (merge port):** read every path; exactly one present value wins (`null` counts);
+none present → `optional` / `fallback` / `ECP_REF_UNRESOLVED`; two present → `ECP_REF_AMBIGUOUS`.
 
 **`parallel`:** optional scoped `as` (same rules as `if`). Run each path as a sequence, at most
 `maxConcurrency` paths at a time (paths start in array order). Paths share the run's state object;
@@ -121,9 +107,8 @@ first error. Steps aborted this way get status `cancelled`.
 
 Recursive over the JSON value, depth-first, object keys in insertion order:
 
-- `$ref`: read the path from state. Missing (any segment `undefined`) → if `optional`: use
-  `fallback` when present, else omit the property (or `null` when inside an array); if not
-  optional → fail `ECP_REF_UNRESOLVED` (run-time; the validator should have caught most cases).
+- `$ref` (string or array of strings): string — read the path from state (missing → optional /
+  `fallback` / `ECP_REF_UNRESOLVED`). Array — merge port: the one committed value wins; see above.
 - `$state`: becomes `{ "$state": "<path>" }` handle object passed through untouched.
 - `$script`: resolve `params`, read `source` or the file at `path`, syntax-check (02), produce
   `const params = <JSON.stringify(params)>;\n<script text>`. Errors: `ECP_SCRIPT_INVALID`.
@@ -187,8 +172,8 @@ This includes capability outputs (a plugin echoing a key back).
 
 `execute { cancel: runId }` aborts the run's `AbortSignal`. In-flight capability calls receive
 the abort; the run ends `cancelled` once they settle (or after 10 s, whichever first). Nodes
-not started are not run. A `forEach` loop stops starting items, aborts running ones and does not
-commit `into`.
+not started are not run. A `forEach` loop stops starting items and aborts running ones without
+writing parent arrays until the loop would have finished normally.
 
 ## Resume
 
@@ -218,9 +203,7 @@ commit `into`.
 | `step.end` | `nodeId`, `round?`, `item?`, `items?`, `durationMs`, `as?` |
 | `step.error` | `nodeId`, `round?`, `item?`, `items?`, `error` (issue) |
 | `if.select` | `nodeId`, `side` (`"then"` / `"else"` / `null`), `reason` |
-| `loop.round` | `nodeId`, `round` (`while`, `for`) |
-| `loop.repeat` | `nodeId`, `round`, `again`, `reason?` (`while`, after each `end`) |
-| `loop.exhausted` | `nodeId`, `rounds` (`while` only) |
+| `loop.round` | `nodeId`, `round` (`for`) |
 | `loop.start` | `nodeId`, `count` (`forEach`) |
 | `loop.item.start` | `nodeId`, `index` |
 | `loop.item.end` | `nodeId`, `index`, `durationMs` |

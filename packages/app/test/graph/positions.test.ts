@@ -104,13 +104,14 @@ describe("prunePositionOverrides", () => {
 })
 describe("placeWithOverrides keeps start and end nodes on the container's edges", () => {
   const manifest = JSON.parse(
-    readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns/loop-while.ecp.json"), "utf8"),
+    readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns/loop-for.ecp.json"), "utf8"),
   ) as ExecutionManifest
 
   function edges(document: ReturnType<typeof executionToReactFlow>) {
-    const frame = document.nodes.find((node) => node.id === "ecp:frame:retry")!
-    const start = document.nodes.find((node) => node.id === "retry")!
-    const end = document.nodes.find((node) => node.id === "end:retry")!
+    const loopId = manifest.steps.find((step) => step.type === "loop")?.id ?? "retry"
+    const frame = document.nodes.find((node) => node.id === `ecp:frame:${loopId}`)!
+    const start = document.nodes.find((node) => node.id === loopId)!
+    const end = document.nodes.find((node) => node.id === `end:${loopId}`)!
     const width = Number(frame.style?.width)
     return {
       left: frame.position.x,
@@ -127,11 +128,13 @@ describe("placeWithOverrides keeps start and end nodes on the container's edges"
   })
 
   it("after the start node and a body node are dragged", () => {
+    const loopId = manifest.steps.find((step) => step.type === "loop")?.id ?? "rounds"
     const encoded = executionToReactFlow(manifest)
-    const start = encoded.nodes.find((node) => node.id === "retry")!
+    const start = encoded.nodes.find((node) => node.id === loopId)!
+    const bodyId = (manifest.steps[0] as { type: string; steps?: Array<{ id: string }> }).steps?.[0]?.id ?? "tick"
     const placed = placeWithOverrides(encoded, {
-      retry: { x: start.position.x - 100, y: start.position.y + 40 },
-      attempt: { x: 900, y: 400 },
+      [loopId]: { x: start.position.x - 100, y: start.position.y + 40 },
+      [bodyId]: { x: 900, y: 400 },
     })
     const at = edges(placed)
     expect(at.startCentre).toBe(at.left)
@@ -140,10 +143,12 @@ describe("placeWithOverrides keeps start and end nodes on the container's edges"
 
   it("grows the container and moves the end node when a body node is dragged past it", () => {
     const encoded = executionToReactFlow(manifest)
-    const end = encoded.nodes.find((node) => node.id === "end:retry")!
-    const placed = placeWithOverrides(encoded, { attempt: { x: end.position.x + 600, y: end.position.y } })
+    const loopId = manifest.steps.find((step) => step.type === "loop")?.id ?? "retry"
+    const bodyId = (manifest.steps[0] as { type: string; steps?: Array<{ id: string }> }).steps?.[0]?.id ?? "attempt"
+    const end = encoded.nodes.find((node) => node.id === `end:${loopId}`)!
+    const placed = placeWithOverrides(encoded, { [bodyId]: { x: end.position.x + 600, y: end.position.y } })
     const at = edges(placed)
-    const attempt = placed.nodes.find((node) => node.id === "attempt")!
+    const attempt = placed.nodes.find((node) => node.id === bodyId)!
     expect(attempt.position.x + DEFAULT_NODE_WIDTH).toBeLessThan(at.right)
     expect(at.endCentre).toBe(at.right)
     expect(at.right).toBeGreaterThan(end.position.x + DEFAULT_NODE_WIDTH / 2)

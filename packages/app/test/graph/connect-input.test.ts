@@ -13,7 +13,7 @@ import {
   insertConnectedStep,
 } from "../../src/graph/connection-edit.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { END_RESULTS_HANDLE, LOOP_ITEM_HANDLE, LOOP_REF_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
+import { LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "../../src/graph/types.js"
 import { longestMatchingPortId, OUTPUT_HANDLE_ID } from "../../src/graph/extract-data-edges.js"
 import type { ReactFlowPort } from "../../src/graph/types.js"
 
@@ -105,18 +105,18 @@ describe("connectInput", () => {
         { id: "after", uses: echo, input: { value: "t" }, as: "after" },
       ],
     }
-    const into = connectInput(withTail, {
-      sourceNodeId: loopEndNodeId("rows"),
-      sourceHandle: END_RESULTS_HANDLE,
+    const afterLoop = connectInput(withTail, {
+      sourceNodeId: "echo",
+      sourceHandle: "output",
       targetStepId: "after",
       targetHandle: "value",
     })
-    expect(into.ok).toBe(true)
-    if (into.ok) {
-      const after = into.manifest.steps.find((node) => node.id === "after") as {
+    expect(afterLoop.ok).toBe(true)
+    if (afterLoop.ok) {
+      const after = afterLoop.manifest.steps.find((node) => node.id === "after") as {
         input?: { value?: { $ref?: string } }
       }
-      expect(after?.input?.value).toEqual({ $ref: "state.results" })
+      expect(after?.input?.value).toEqual({ $ref: "state.echoed" })
     }
   })
 
@@ -152,8 +152,7 @@ describe("connectInput", () => {
           type: "loop",
           id: "rows",
           mode: "forEach",
-          into: "out",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
         },
       ],

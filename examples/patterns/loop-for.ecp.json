@@ -42,10 +42,7 @@
           "as": "tick",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {}
-      }
+      ]
     },
     {
       "id": "after-rounds",
@@ -53,7 +50,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.tick.echo",
+          "$ref": "state.tick",
           "optional": true,
           "fallback": "the loop ran zero times"
         }

@@ -90,7 +90,11 @@
       "type": "loop",
       "id": "retry",
       "label": "retry",
-      "maxRounds": 2,
+      "mode": "for",
+      "input": {
+        "count": 1
+      },
+      "as": "i",
       "steps": [
         {
           "id": "tick",
@@ -101,12 +105,7 @@
           "as": "tick",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     }
   ]
 }

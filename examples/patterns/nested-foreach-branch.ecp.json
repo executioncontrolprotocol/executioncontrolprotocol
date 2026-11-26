@@ -97,7 +97,9 @@
               "type": "loop",
               "id": "batch-wait",
               "label": "Wait for a batch slot",
-              "maxRounds": 2,
+              "mode": "for",
+              "as": "round",
+              "input": { "count": 2 },
               "steps": [
                 {
                   "id": "slot",
@@ -111,12 +113,7 @@
                   "as": "slot",
                   "mode": "replace"
                 }
-              ],
-              "end": {
-                "input": {
-                  "repeat": false
-                }
-              }
+              ]
             }
           ]
         },
@@ -131,15 +128,7 @@
           },
           "as": "ship"
         }
-      ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.ship"
-          }
-        }
-      },
-      "into": "shipped"
+      ]
     },
     {
       "id": "notify",
@@ -147,7 +136,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.shipped"
+          "$ref": "state.ship"
         }
       },
       "as": "notify"

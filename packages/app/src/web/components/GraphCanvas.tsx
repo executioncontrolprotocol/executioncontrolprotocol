@@ -265,7 +265,7 @@ function buildNodes(
         ...node.data,
         ...connected,
         dataConnectable,
-        ...(loopRound ? { round: loopRound.round, exhausted: loopRound.exhausted } : {}),
+        ...(loopRound ? { round: loopRound.round } : {}),
       }
     } else {
       data = { ...node.data, ...connected, dataConnectable }

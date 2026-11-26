@@ -17,7 +17,7 @@ import {
 } from "./container-geometry.js"
 import { frameBounds, layoutReactFlowDocument, type LayoutCluster } from "./layout.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
-import { refPathFromValue } from "./markers.js"
+import { refPathsFromValue } from "./markers.js"
 import { portsFromJsonSchemaObject } from "./io-from-schema.js"
 import type {
   CapabilitySchemaIndex,
@@ -34,8 +34,6 @@ import type {
   ReactFlowStepData,
 } from "./types.js"
 import {
-  END_REPEAT_HANDLE,
-  END_RESULTS_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_COUNT_HANDLE,
@@ -48,7 +46,7 @@ import {
 
 interface StructureFrame extends StructureFrameGeometry {
   structureId: string
-  loopMode?: "while" | "for" | "forEach"
+  loopMode?: "for" | "forEach"
   label: string
   startNodeId: string
   endNodeId?: string
@@ -122,14 +120,12 @@ function structureFrameLabel(node: IfNode | ParallelNode | LoopNode): string {
   if (node.label) return node.label
   if (node.type === "if") return "if"
   if (node.type === "parallel") return "parallel"
-  const mode = node.mode ?? "while"
-  if (mode === "forEach") return "forEach"
-  if (mode === "while") return "while"
+  if (node.mode === "forEach") return "forEach"
   return "for"
 }
 
-function loopMode(node: LoopNode): "while" | "for" | "forEach" {
-  return node.mode ?? "while"
+function loopMode(node: LoopNode): "for" | "forEach" {
+  return node.mode
 }
 
 function nodeIdsInSegment(seg: RenderSegment): string[] {
@@ -163,11 +159,11 @@ function ifPorts(node: IfNode): { inputs: ReactFlowPort[]; outputs: ReactFlowPor
   ]
   if (node.input) {
     for (const [key, value] of Object.entries(node.input)) {
-      const ref = refPathFromValue(value)
+      const paths = refPathsFromValue(value)
       const port = inputs.find((p) => p.id === key) ?? { id: key, name: key, typeLabel: "unknown" }
-      if (ref) {
+      if (paths && paths.length > 0) {
         port.binding = "ref"
-        port.refPath = ref.startsWith("state.") ? ref.slice(6) : ref
+        port.refPath = paths.map((ref) => (ref.startsWith("state.") ? ref.slice(6) : ref)).join(", ")
       }
     }
   }
@@ -226,8 +222,6 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
     label: node.label ?? node.id,
     mode,
     ...(node.as !== undefined ? { as: node.as } : {}),
-    ...(node.into !== undefined ? { into: node.into } : {}),
-    ...(node.maxRounds !== undefined ? { maxRounds: node.maxRounds } : {}),
     ...(mode === "forEach" ? { concurrency: node.concurrency ?? 1, onError: node.onError ?? "fail" } : {}),
     inputs,
     outputs,
@@ -236,20 +230,11 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
 }
 
 function endReactFlowNode(node: LoopNode): ReactFlowNode {
-  const mode = loopMode(node)
-  const accepted = portsFromJsonSchemaObject(node.end?.accepts)
-  const inputs: ReactFlowPort[] = accepted.some((port) => port.id === "value")
-    ? accepted
-    : [{ id: "value", name: "value", typeLabel: "unknown" }, ...accepted]
-  if (mode === "while") {
-    inputs.push({ id: END_REPEAT_HANDLE, name: "repeat", typeLabel: "boolean" })
-  }
-  const outputs: ReactFlowPort[] = [{ id: END_RESULTS_HANDLE, name: "results", typeLabel: "unknown" }]
   const data: ReactFlowEndData = {
     loopId: node.id,
     label: "end",
-    inputs,
-    outputs,
+    inputs: [],
+    outputs: [],
   }
   return { id: loopEndNodeId(node.id), type: "ecp-end", position: { x: 0, y: 0 }, data }
 }
@@ -375,7 +360,7 @@ function renderNodes(nodes: Node[], ctx: EncodeContext): RenderSegment {
 }
 
 function returnsSourceHandle(node: ReactFlowNode): string {
-  if (node.type === "ecp-end") return END_RESULTS_HANDLE
+  if (node.type === "ecp-end") return OUTPUT_HANDLE_ID
   if (node.type === "ecp-loop") {
     const data = node.data as ReactFlowLoopItemsData
     return data.outputs[0]?.id ?? LOOP_ITEM_HANDLE
@@ -391,12 +376,6 @@ function lastWriterByKey(nodes: ReactFlowNode[]): Map<string, ReactFlowNode> {
     if (node.type === "ecp-step") {
       const as = (node.data as ReactFlowStepData).as
       if (as) out.set(as, node)
-    }
-    if (node.type === "ecp-end") {
-      const loopId = (node.data as ReactFlowEndData).loopId
-      const loop = nodes.find((n) => n.id === loopId)
-      const into = loop?.type === "ecp-loop" ? (loop.data as ReactFlowLoopItemsData).into : undefined
-      if (into) out.set(into, node)
     }
   }
   return out

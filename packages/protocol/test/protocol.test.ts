@@ -319,7 +319,7 @@ describe("loop node schema", () => {
   const validate = ajv().compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
   const base = { schema: EXECUTION_SCHEMA, version: EXECUTION_VERSION }
 
-  it("accepts while loop with end.repeat and maxRounds", () => {
+  it("rejects while mode, stored end, into, and maxRounds", () => {
     expect(
       validate({
         ...base,
@@ -327,16 +327,17 @@ describe("loop node schema", () => {
           {
             type: "loop",
             id: "L",
+            mode: "while",
             maxRounds: 3,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
             end: { input: { repeat: true } },
           },
         ],
       }),
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it("accepts forEach loop with input.items, end.value, and mode fields", () => {
+  it("accepts forEach without end or into", () => {
     expect(
       validate({
         ...base,
@@ -347,10 +348,8 @@ describe("loop node schema", () => {
             id: "items",
             input: { items: { $ref: "state.rows" } },
             as: "row",
-            into: "results",
             concurrency: 2,
             steps: [{ id: "echo", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-            end: { input: { value: { $ref: "state.out" } } },
           },
         ],
       }),
@@ -369,14 +368,13 @@ describe("loop node schema", () => {
             input: { count: 3 },
             as: "i",
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-            end: { input: { value: { $ref: "state.out" } } },
           },
         ],
       }),
     ).toBe(true)
   })
 
-  it("rejects a loop without end", () => {
+  it("rejects a loop without mode", () => {
     expect(
       validate({
         ...base,
@@ -384,7 +382,6 @@ describe("loop node schema", () => {
           {
             type: "loop",
             id: "L",
-            maxRounds: 1,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
           },
         ],
@@ -422,6 +419,33 @@ describe("loop node schema", () => {
             maxRounds: 1,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
             end: { input: { value: { $ref: "state.out" } } },
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("accepts a merge-port $ref list and rejects a list of one", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            id: "read",
+            uses: "@executioncontrolprotocol/test.echo",
+            input: { value: { $ref: ["state.a", "state.b"] } },
+          },
+        ],
+      }),
+    ).toBe(true)
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            id: "read",
+            uses: "@executioncontrolprotocol/test.echo",
+            input: { value: { $ref: ["state.a"] } },
           },
         ],
       }),

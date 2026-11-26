@@ -4,7 +4,10 @@
   "steps": [
     {
       "type": "loop",
+      "mode": "for",
       "id": "refine",
+      "input": { "count": 1 },
+      "as": "i",
       "maxRounds": 0,
       "steps": [
         {
@@ -16,12 +19,7 @@
           "as": "echo",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     }
   ]
 }

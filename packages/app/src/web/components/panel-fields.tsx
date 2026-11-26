@@ -273,6 +273,7 @@ function viewOfBinding(value: unknown): BindingView {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     const marker = value as Record<string, unknown>
     if (typeof marker.$ref === "string") return { mode: "ref", text: marker.$ref }
+    if (Array.isArray(marker.$ref)) return { mode: "ref", text: marker.$ref.join(", ") }
     if ("$script" in marker) return { mode: "script", text: "" }
   }
   return { mode: "literal", text: literalText(value as JsonValue) }

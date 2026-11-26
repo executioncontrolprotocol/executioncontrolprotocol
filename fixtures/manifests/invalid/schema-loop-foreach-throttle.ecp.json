@@ -22,14 +22,6 @@
           "as": "out"
         }
       ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.out"
-          }
-        }
-      },
-      "into": "results",
       "throttle": {
         "starts": 1,
         "perSeconds": 60

@@ -20,7 +20,6 @@ import { captureStepOutput, type CaptureOneDelegate } from "./capture-output.js"
 import { executeLoopItems, type LoopItemsRuntime } from "./run-loop-items.js"
 import { createPublishLedger, type PublishLedger } from "./publish.js"
 import { resolveStepScript, resolveValue, type ScriptReader } from "./resolve.js"
-import { MAX_ROUNDS_LIMIT } from "@executioncontrolprotocol/protocol"
 
 /**
  * One line in an execute response.
@@ -140,14 +139,6 @@ interface StagedWrite {
   value: unknown
 }
 
-interface LoopEndLike {
-  accepts?: Record<string, unknown>
-  input?: unknown
-  expression?: string
-  script?: unknown
-  returns?: Record<string, unknown>
-}
-
 interface NodeLike {
   type?: string
   id: string
@@ -164,12 +155,9 @@ interface NodeLike {
   then?: NodeLike[]
   else?: NodeLike[]
   paths?: NodeLike[][]
-  end?: LoopEndLike
-  maxRounds?: number
   maxConcurrency?: number
   /** When false, skip uniform output capture. Default true. */
   persist?: boolean
-  into?: string
   concurrency?: number
   onError?: "fail" | "continue"
 }
@@ -376,14 +364,7 @@ async function runNode(
   if (node.type === "if") {
     await runIf(node, state, runtime, emit, round, nodePointer)
   } else if (node.type === "loop") {
-    const loopMode = typeof node.mode === "string" ? node.mode : "while"
-    if (loopMode === "forEach") {
-      await runLoopItemsNode(node, state, runtime, emit, nodePointer)
-    } else if (loopMode === "for") {
-      await runLoopFor(node, state, runtime, emit, nodePointer)
-    } else {
-      await runLoopWhile(node, state, runtime, emit, nodePointer)
-    }
+    await runLoopNode(node, state, runtime, emit, nodePointer)
   } else if (node.type === "parallel") {
     await runParallel(node, state, runtime, emit, round, nodePointer)
   } else {
@@ -673,156 +654,6 @@ function assertScopedAsFree(state: Record<string, unknown>, asKey: string, nodeP
   }
 }
 
-async function runLoopWhile(
-  node: NodeLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  nodePointer: string,
-): Promise<void> {
-  const maxRounds = node.maxRounds ?? 1
-  const resumeRound = runtime.deps.cursor?.loops[node.id]
-  const resumeNode = runtime.deps.cursor?.inProgress
-  let round = resumeRound ?? 0
-  let lastGathered: unknown
-  while (round < maxRounds) {
-    if (runtime.controller.signal.aborted || runtime.interrupted) return
-    const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
-    if (!isResumeRound) {
-      for (const id of collectIds(node.steps ?? [])) {
-        runtime.completed.delete(id)
-      }
-    }
-    runtime.cursor.loops[node.id] = round
-    emit("loop.round", { nodeId: node.id, round })
-    await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
-    const end = node.end
-    if (!end) {
-      throw Object.assign(new Error("Loop end node is missing."), { code: "ECP_STEP_FAILED", path: `${nodePointer}/end` })
-    }
-    lastGathered = await gatherLoopEnd(end, state, runtime, `${nodePointer}/end`)
-    const repeat = await readLoopRepeat(end, state, runtime, `${nodePointer}/end/input/repeat`)
-    const again = repeat.again === true
-    emit("loop.repeat", { nodeId: node.id, round, again, reason: repeat.reason ?? null })
-    if (!again) break
-    round += 1
-  }
-  if (round >= maxRounds) emit("loop.exhausted", { nodeId: node.id, rounds: maxRounds })
-  if (node.into) state[node.into] = lastGathered
-}
-
-async function runLoopFor(
-  node: NodeLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  emit: (type: RunEventType, data: Record<string, unknown>) => void,
-  nodePointer: string,
-): Promise<void> {
-  const asKey = node.as
-  if (!asKey) {
-    throw Object.assign(new Error("for loop requires as."), { code: "ECP_STEP_FAILED", path: nodePointer })
-  }
-  const resumeRound = runtime.deps.cursor?.loops[node.id]
-  // On resume the saved state still holds `as` from the interrupted iteration; it is this loop's own binding.
-  if (resumeRound === undefined && Object.prototype.hasOwnProperty.call(state, asKey)) {
-    throw Object.assign(new Error(`for loop binds ${asKey}, which already exists.`), {
-      code: "ECP_COMMIT_CONFLICT",
-      path: `${nodePointer}/as`,
-    })
-  }
-  const count = await resolveLoopCount(node, state, runtime, nodePointer)
-  const resumeNode = runtime.deps.cursor?.inProgress
-  let round = resumeRound ?? 0
-  let lastGathered: unknown
-  const end = node.end
-  if (!end) {
-    throw Object.assign(new Error("Loop end node is missing."), { code: "ECP_STEP_FAILED", path: `${nodePointer}/end` })
-  }
-  try {
-    while (round < count) {
-      if (runtime.controller.signal.aborted || runtime.interrupted) return
-      const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
-      if (!isResumeRound) {
-        for (const id of collectIds(node.steps ?? [])) {
-          runtime.completed.delete(id)
-        }
-      }
-      state[asKey] = round
-      runtime.cursor.loops[node.id] = round
-      emit("loop.round", { nodeId: node.id, round })
-      await runNodes(node.steps ?? [], state, runtime, emit, round, `${nodePointer}/steps`)
-      lastGathered = await gatherLoopEnd(end, state, runtime, `${nodePointer}/end`)
-      round += 1
-    }
-  } finally {
-    delete state[asKey]
-  }
-  if (node.into && count > 0) state[node.into] = lastGathered
-}
-
-async function resolveLoopCount(
-  node: NodeLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  nodePointer: string,
-): Promise<number> {
-  const raw = await resolveValue(node.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
-  const value = isRecord(raw) ? raw.count : undefined
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw Object.assign(new Error("Loop count must be a non-negative integer."), {
-      code: "ECP_TYPE_MISMATCH",
-      path: `${nodePointer}/input/count`,
-    })
-  }
-  if (value > MAX_ROUNDS_LIMIT) {
-    throw Object.assign(new Error(`Loop count exceeds the limit of ${MAX_ROUNDS_LIMIT}.`), {
-      code: "ECP_LIMIT_EXCEEDED",
-      path: `${nodePointer}/input/count`,
-    })
-  }
-  return value
-}
-
-async function gatherLoopEnd(
-  end: LoopEndLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  _endPointer: string,
-): Promise<unknown> {
-  const resolved = await resolveValue(end.input ?? {}, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
-  const input = isRecord(resolved) ? resolved : {}
-  if (typeof end.expression === "string") {
-    return runtime.deps.expression.evaluateExpression(end.expression, input)
-  }
-  if (end.script !== undefined) {
-    const source = await resolveStepScript(end.script, runtime.deps.readText, runtime.deps.executionDir)
-    return runtime.deps.expression.evaluateScript(source, input)
-  }
-  if (!Object.prototype.hasOwnProperty.call(input, "value")) {
-    return undefined
-  }
-  return input.value
-}
-
-async function readLoopRepeat(
-  end: LoopEndLike,
-  state: Record<string, unknown>,
-  runtime: Runtime,
-  _repeatPointer: string,
-): Promise<{ again: boolean; reason?: "throw" | "missing" | "non-boolean" }> {
-  const raw = isRecord(end.input) ? end.input.repeat : undefined
-  if (raw === undefined) return { again: false, reason: "missing" }
-  try {
-    const resolved = await resolveValue({ repeat: raw }, state, runtime.deps.expression, runtime.deps.readText, runtime.deps.executionDir)
-    const value = isRecord(resolved) ? resolved.repeat : undefined
-    if (value === true) return { again: true }
-    if (value === false) return { again: false }
-    return { again: false, reason: "non-boolean" }
-  } catch {
-    return { again: false, reason: "throw" }
-  }
-}
-
 function collectIds(nodes: NodeLike[]): string[] {
   const ids: string[] = []
   for (const node of nodes) {
@@ -886,13 +717,14 @@ async function runParallel(
   }
 }
 
-async function runLoopItemsNode(
+async function runLoopNode(
   node: NodeLike,
   state: Record<string, unknown>,
   runtime: Runtime,
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   nodePointer: string,
 ): Promise<void> {
+  const loopMode = node.mode === "for" ? "for" : "forEach"
   const itemsRuntime: LoopItemsRuntime = {
     runId: runtime.runId,
     loopItemsDepth: runtime.loopItemsDepth,
@@ -900,19 +732,30 @@ async function runLoopItemsNode(
     completed: runtime.completed,
     controller: runtime.controller,
     interrupted: runtime.interrupted,
-    cursor: { loopItems: runtime.cursor.loopItems ?? {} },
+    cursor: {
+      loopItems: runtime.cursor.loopItems ?? {},
+      loops: { ...runtime.cursor.loops },
+    },
     deps: {
       clock: runtime.deps.clock,
       expression: runtime.deps.expression,
       store: runtime.deps.store,
-      cursor: { loopItems: runtime.deps.cursor?.loopItems },
+      cursor: { loopItems: runtime.deps.cursor?.loopItems, loops: runtime.deps.cursor?.loops },
     },
   }
   itemsRuntime.deps.readText = runtime.deps.readText
   itemsRuntime.deps.executionDir = runtime.deps.executionDir
-  await executeLoopItems(node, state, itemsRuntime, emit, nodePointer, {
-    runBody: async (steps, itemState, itemRuntime, itemEmit, prefix) => {
+  await executeLoopItems({ ...node, mode: loopMode }, state, itemsRuntime, emit, nodePointer, {
+    runBody: async (steps, itemState, itemRuntime, itemEmit, prefix, round) => {
       const slice = itemRuntime as LoopItemsRuntime
+      const resumeNode = runtime.deps.cursor?.inProgress
+      const resumeRound = loopMode === "for" ? runtime.deps.cursor?.loops[node.id] : undefined
+      const isResumeRound = resumeRound !== undefined && round === resumeRound && Boolean(resumeNode)
+      if (!isResumeRound) {
+        for (const id of collectIds(steps as NodeLike[])) {
+          runtime.completed.delete(id)
+        }
+      }
       const child = Object.assign(slice as unknown as Runtime, {
         deps: { ...runtime.deps, cursor: undefined },
         secrets: runtime.secrets,
@@ -926,12 +769,12 @@ async function runLoopItemsNode(
         loopItemsDepth: slice.loopItemsDepth,
         items: slice.items,
       })
-      await runNodes(asNodes(steps), itemState, child, itemEmit, undefined, prefix)
+      await runNodes(asNodes(steps), itemState, child, itemEmit, loopMode === "for" ? round : undefined, prefix)
     },
-    gatherEnd: (end, itemState, endPointer) => gatherLoopEnd(end, itemState, runtime, endPointer),
     toIssue: (error) => toIssue(error, runtime.secrets, nodePointer),
   })
   runtime.cursor.loopItems = itemsRuntime.cursor.loopItems
+  if (itemsRuntime.cursor.loops) runtime.cursor.loops = itemsRuntime.cursor.loops
   if (!runtime.items?.length) await runtime.deps.store?.writeState(runtime.runId, redact(state, runtime.secrets))
 }
 

@@ -89,15 +89,7 @@
           },
           "as": "echoed"
         }
-      ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.echoed"
-          }
-        }
-      },
-      "into": "results"
+      ]
     }
   ]
 }

@@ -13,7 +13,7 @@ export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
   done?: number
   /** Total item count (`forEach`). */
   count?: number
-  /** Current round (`while` / `for`). */
+  /** Current round (`for`). */
   round?: number
   /** Input port ids with an incoming data edge. */
   connectedTargetHandles?: string[]
@@ -35,7 +35,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
     selected ? "ecp-rf-node--selected" : "",
     node.detached ? "ecp-rf-node--detached" : "",
   ]
-  const mode = node.mode ?? "while"
+  const mode = node.mode ?? "for"
 
   return (
     <div
@@ -54,18 +54,12 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             <Repeat className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             {node.label}
           </div>
-          {mode === "forEach" && node.as && node.into ? (
-            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">
-              as {node.as} → {node.into}
-            </div>
-          ) : null}
-          {mode === "for" && node.as ? (
+          {node.as ? (
             <div className="mt-1 font-mono text-[10px] text-on-surface-variant">as {node.as}</div>
           ) : null}
           <div className="mt-1 font-mono text-[9px] text-on-surface-variant">
             {mode}
             {mode === "forEach" ? ` · ×${node.concurrency ?? 1}` : ""}
-            {mode === "while" && node.maxRounds !== undefined ? ` · max ${node.maxRounds}` : ""}
             {mode === "forEach" && node.onError === "continue" ? " · onError: continue" : ""}
           </div>
           {node.count !== undefined ? (

@@ -4,8 +4,10 @@
   "steps": [
     {
       "type": "loop",
+      "mode": "for",
       "id": "refine",
-      "maxRounds": 1,
+      "input": { "count": 1 },
+      "as": "i",
       "steps": [
         {
           "id": "tick",
@@ -16,12 +18,7 @@
           "as": "tick",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": true
-        }
-      }
+      ]
     }
   ]
 }

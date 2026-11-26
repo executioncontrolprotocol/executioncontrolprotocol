@@ -22,15 +22,7 @@
           },
           "as": "out"
         }
-      ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.out"
-          }
-        }
-      },
-      "into": "results"
+      ]
     }
   ]
 }

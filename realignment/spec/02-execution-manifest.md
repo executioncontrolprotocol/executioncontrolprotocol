@@ -87,29 +87,26 @@ it to `replace`).
 
 ### Loop
 
-One node type, three modes. Omit `mode` for `while`. Every loop has a required `end` node.
+One control node; required `mode` is `"for"` or `"forEach"`. The drawn `end` is not stored. Each
+round / item runs on a state copy; when the loop finishes, every body `as` (except the loop's item /
+index names) is published to the parent as an ordered array (`T[]`, `null` slots when a writer did
+not run or `onError: "continue"`). `count: 0` still publishes `[]`. Nested loops publish `T[][]`.
 
 ```json
-{ "type": "loop", "id": "refine", "maxRounds": 3, "steps": [ … ],
-  "end": { "input": { "repeat": { "$ref": "state.check.again" }, "value": { "$ref": "state.body" } } } }
-{ "type": "loop", "mode": "for", "id": "n", "input": { "count": { "$ref": "state.count" } }, "as": "i", "steps": [ … ],
-  "end": { "input": { "value": { "$ref": "state.last" } } }, "into": "last" }
+{ "type": "loop", "mode": "for", "id": "n", "input": { "count": { "$ref": "state.count" } }, "as": "i", "steps": [ … ] }
 { "type": "loop", "mode": "forEach", "id": "variants", "input": { "items": { "$ref": "state.rows" } }, "as": "row",
-  "steps": [ … ],
-  "end": { "input": { "value": { "$ref": "state.itemResult" } } }, "into": "results",
-  "concurrency": 2, "onError": "continue" }
+  "steps": [ … ], "concurrency": 2, "onError": "continue" }
 ```
 
-| `mode` | Driver (`input`) | `end` | Body state | Required loop fields | Only in this mode |
-| --- | --- | --- | --- | --- | --- |
-| `while` (default) | none; each round ends by reading `end.input.repeat` (`true` runs again) | `input.repeat` required; optional `value` / `expression` / `script` gather | Shared; `create` in the body → `ECP_COMMIT_CONFLICT`; no `as` | `maxRounds` (`1..1000`), `end` | `maxRounds`, `loop.exhausted`, `loop.repeat` |
-| `for` | `count` (integer), read once (`0..1000`) | gather via `value` or `expression` / `script` | Shared; `state.<as>` is the index (from 0) during the loop; `create` in the body → `ECP_COMMIT_CONFLICT` | `input.count`, `as`, `end` | optional `into` (last gathered value; count `0` skips writing `into`) |
-| `forEach` | `items` (array), read once (`0..10000` at run time) | gather each item's result | Each item on a deep copy plus `state.<as>` and `state.<as>Index`; `create` allowed in the body | `input.items`, `as`, `into`, `end` | `concurrency` (`1..32`, default `1`), `onError` (`"fail"` or `"continue"`) |
+| `mode` | Driver (`input`) | Body state | Required loop fields | Only in this mode |
+| --- | --- | --- | --- | --- |
+| `for` | `count` (integer), read once (`0..1000`) | Copy per round; `state.<as>` is the index; `create` allowed in the body | `mode`, `input.count`, `as` | `loop.round` |
+| `forEach` | `items` (array), read once (`0..10000` at run time) | Deep copy per item; `state.<as>` and `state.<as>Index` | `mode`, `input.items`, `as` | `concurrency` (`1..32`, default `1`), `onError` (`"fail"` or `"continue"`), `loop.start` / `loop.item.*` / `loop.end` |
 
-`end.input.value` is required when the loop has `into` and `end` has no `expression` / `script`.
-`repeat` is while-only. See 03 and 04.
+`while`, stored `end`, `into`, `maxRounds`, `loop.repeat`, and `loop.exhausted` are rejected. See
+03 and 04.
 
-The separate `type: "forEach"` node and loop `throttle` are removed. See `realignment/loops.md`.
+The separate `type: "forEach"` node and loop `throttle` are removed. See `realignment/graph-model.md`.
 
 ### Parallel
 
@@ -123,23 +120,6 @@ The separate `type: "forEach"` node and loop `throttle` are removed. See `realig
 - Optional `accepts` / `input` / `as` pass the same scoped input object to every path (see 04).
 - `maxConcurrency`: optional integer `>= 1`; default = host setting (4).
 
-### `end` (loop gather node)
-
-Embedded on each loop as `end` (not a manifest step). Shape:
-
-```json
-"end": {
-  "accepts": { "type": "object", "properties": { "ship": { } } },
-  "input": { "value": { "$ref": "state.ship" }, "repeat": { "$ref": "state.check.again" } },
-  "expression": "input.value",
-  "returns": { "type": "object" }
-}
-```
-
-- `input.value` gathers the round / item result when there is no `expression` / `script`.
-- `input.repeat` is while-only (`true` means go again).
-- Optional `expression` or `script` evaluates over frozen resolved `input` (same rules as `if`).
-
 ## Markers and node fields
 
 See `realignment/loops.md` for the full design.
@@ -151,15 +131,14 @@ See `realignment/loops.md` for the full design.
 
 | Marker | Shape | Resolves to | Allowed in |
 | --- | --- | --- | --- |
-| Ref | `{ "$ref": "state.<path>", "optional"?, "fallback"? }` | Value at path | `input`, `$script.params` |
+| Ref | `{ "$ref": "state.<path>" \| ["state.<a>", "state.<b>", …], "optional"?, "fallback"? }` | Value at path, or merge port (list of 2+ paths) | `input`, `$script.params` |
 | State handle | `{ "$state": "<path>" }` | Staged-write handle | `input` |
 | Script | `{ "$script": { "lang", "source"?\|"path"?, "params"?, "ecmaVersion"? } }` | Syntax-checked string for a capability | `input` (string positions), `$script.params` |
 | Secret / env | `{ "$secret": "…" }` / `{ "$env": "…" }` | Config values only | Config objects, not executions |
 
 **Plain node fields (not markers):** step `script` on `code: "script"` capabilities
 `{ "lang": "js", "source"?: "…", "path"?: "…", "ecmaVersion"?: n }` with exactly one of
-`source` / `path`; `if` / loop `end` `expression`; loop `mode`, `as`, `into`, `maxRounds`,
-`concurrency`, `onError`.
+`source` / `path`; `if` `expression` / `script`; loop `mode`, `as`, `concurrency`, `onError`.
 
 ## Expressions (`if` / `end` `expression` fields)
 

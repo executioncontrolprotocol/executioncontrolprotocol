@@ -9,8 +9,10 @@
         [
           {
             "type": "loop",
+            "mode": "for",
             "id": "inner",
-            "maxRounds": 1,
+            "input": { "count": 1 },
+            "as": "i",
             "steps": [
               {
                 "type": "if",
@@ -37,12 +39,7 @@
                   }
                 ]
               }
-            ],
-            "end": {
-              "input": {
-                "repeat": false
-              }
-            }
+            ]
           }
         ],
         [

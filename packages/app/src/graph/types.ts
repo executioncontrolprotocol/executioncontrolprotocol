@@ -110,7 +110,7 @@ export interface ReactFlowFrameData {
   /** Which structure this frame outlines. */
   structureKind: "if" | "parallel" | "loop"
   /** Set when `structureKind` is `loop`. */
-  loopMode?: "while" | "for" | "forEach"
+  loopMode?: "for" | "forEach"
   /** Node `label`, or the fallback summary. */
   label?: string
   /** Structure start node (`if`, `parallel`, or loop head) pinned on the left edge. */
@@ -153,11 +153,7 @@ export const IF_ELSE_HANDLE = "else"
 /** Prefix for parallel path output handles (`path-1`, `path-2`, …). @category App */
 export const PARALLEL_PATH_HANDLE_PREFIX = "path-"
 
-/** Target handle on a loop `end` node for the `repeat` input (`while`). @category App */
-export const END_REPEAT_HANDLE = "repeat"
 
-/** Source handle on a loop `end` node's gathered `results` output. @category App */
-export const END_RESULTS_HANDLE = "results"
 
 /** @deprecated Old loop `ref` port id; retained for layout tests during migration. @category App */
 export const LOOP_REF_HANDLE = "ref"
@@ -200,13 +196,9 @@ export interface ReactFlowLoopItemsData {
   /** Display label (`label`, else the node id). */
   label: string
   /** Loop mode. */
-  mode: "while" | "for" | "forEach"
+  mode: "for" | "forEach"
   /** Item state key (`as`), for `for` / `forEach`. */
   as?: string
-  /** `into` state key, for `forEach`. */
-  into?: string
-  /** `maxRounds` for `while` loops. */
-  maxRounds?: number
   /** Configured concurrency (default 1), for `forEach`. */
   concurrency?: number
   /** Item error policy, for `forEach`. */
@@ -432,8 +424,6 @@ export interface ReactFlowLoopRoundDetail {
   structureId: string
   /** Current round (0-based). */
   round: number
-  /** True when the loop stopped because it reached `maxRounds`. */
-  exhausted?: boolean
 }
 
 /**

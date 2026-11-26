@@ -47,7 +47,6 @@ const graphInvalid = [
   "schema-maxrounds-zero",
   "ref-parallel-sibling",
   "ref-maybe-branch",
-  "ref-maybe-loop",
   "ref-maybe-missing",
   "commit-loop",
   "commit-parallel",
@@ -106,7 +105,6 @@ describe("graph model invalid manifests", () => {
         mode: "for",
         as: "i",
         steps: [{ id: "b", uses: echoCapability.id, input: { value: "x" } }],
-        end: { input: { value: 0 } },
       },
     ])
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
@@ -121,7 +119,6 @@ describe("graph model invalid manifests", () => {
         id: "fe",
         mode: "forEach",
         steps: [],
-        end: { input: { value: { $ref: "state.x" } } },
       },
     ])
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
@@ -199,7 +196,6 @@ describe("graph model invalid manifests", () => {
         input: { items: { $ref: "state.rows" } },
         throttle: 1,
         steps: [],
-        end: { input: { value: { $ref: "state.x" } } },
       },
     ])
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
@@ -269,33 +265,29 @@ describe("graph model invalid manifests", () => {
     expect(result.valid).toBe(false)
   })
 
-  it("rejects while loop without maxRounds", async () => {
-    const manifest = manifestWithSteps([
-      {
-        type: "loop",
-        id: "w",
-        mode: "while",
-        steps: [],
-        end: { input: { repeat: false } },
-      },
-    ])
-    const result = await validateExecution(manifest, { capabilities: [echoCapability] })
-    expect(result.valid).toBe(false)
-    expect(result.issues.some((issue) => issue.path?.includes("maxRounds"))).toBe(true)
-  })
-
-  it("rejects loop end without repeat or value for while", async () => {
+  it("rejects while loop mode, end, and maxRounds", async () => {
     const manifest = manifestWithSteps([
       {
         type: "loop",
         id: "w",
         mode: "while",
         maxRounds: 2,
+        as: "i",
+        input: { count: 1 },
         steps: [],
-        end: { input: {} },
+        end: { input: { repeat: false } },
       },
     ])
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
     expect(result.valid).toBe(false)
+    expect(result.issues.some((issue) => issue.path === "/steps/0/mode")).toBe(true)
+  })
+
+  it("accepts ref-maybe-loop when for count is zero", async () => {
+    const manifest = JSON.parse(
+      readFileSync(path.join(validDir, "ref-maybe-loop.ecp.json"), "utf8"),
+    ) as ExecutionManifest
+    const result = await validateExecution(manifest, { capabilities: [echoCapability] })
+    expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
   })
 })

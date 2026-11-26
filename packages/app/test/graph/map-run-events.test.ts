@@ -61,27 +61,19 @@ describe("reduceRunEvent / replayRunEvents", () => {
     expect(state.steps.b).toEqual({ status: "failed" })
   })
 
-  it("tracks loop rounds and exhaustion, with the round on steps", () => {
+  it("tracks for loop rounds on the structure and steps", () => {
     const state = replayRunEvents([
       ev("run.start"),
-      ev("loop.round", { nodeId: "refine", round: 0 }),
+      ev("loop.round", { nodeId: "rounds", round: 0 }),
       ev("step.start", { nodeId: "tick", round: 0 }),
       ev("step.end", { nodeId: "tick", round: 0 }),
-      ev("loop.round", { nodeId: "refine", round: 1 }),
+      ev("loop.round", { nodeId: "rounds", round: 1 }),
       ev("step.start", { nodeId: "tick", round: 1 }),
       ev("step.end", { nodeId: "tick", round: 1 }),
-      ev("loop.exhausted", { nodeId: "refine", rounds: 2 }),
     ])
-    expect(state.loops.refine).toEqual({ round: 1, exhausted: true })
+    expect(state.loops.rounds).toEqual({ round: 1 })
     expect(state.steps.tick).toEqual({ status: "completed", round: 1 })
     expect(state.status).toBe("running")
-  })
-
-  it("loop.exhausted without a prior round infers the last round", () => {
-    const state = reduceRunEvent(createRunGraphState(), ev("loop.exhausted", { nodeId: "l", rounds: 3 }))
-    expect(state.loops.l).toEqual({ round: 2, exhausted: true })
-    const zero = reduceRunEvent(createRunGraphState(), ev("loop.exhausted", { nodeId: "l" }))
-    expect(zero.loops.l).toEqual({ round: 0, exhausted: true })
   })
 
   it("records if.select choices", () => {
@@ -120,7 +112,6 @@ describe("reduceRunEvent / replayRunEvents", () => {
       "step.error",
       "if.select",
       "loop.round",
-      "loop.exhausted",
       "loop.start",
       "loop.item.start",
       "loop.item.end",
@@ -195,7 +186,6 @@ describe("applyRunEvent", () => {
     applyRunEvent(bus, ev("if.select", { nodeId: "br", side: "else", reason: "false" }))
     applyRunEvent(bus, ev("if.select", { nodeId: "br2", side: null, reason: "missing" }))
     applyRunEvent(bus, ev("loop.round", { nodeId: "lp", round: 2 }))
-    applyRunEvent(bus, ev("loop.exhausted", { nodeId: "lp", rounds: 3 }))
     applyRunEvent(bus, ev("run.interrupted", { reason: "host-crash" }))
     applyRunEvent(bus, ev("run.end", { status: "failed" }), "run-1")
     expect(seen).toEqual([
@@ -208,7 +198,6 @@ describe("applyRunEvent", () => {
       ["if:choice", { ifId: "br", side: "else" }],
       ["if:choice", { ifId: "br2", side: null }],
       ["loop:round", { structureId: "lp", round: 2 }],
-      ["loop:round", { structureId: "lp", round: 2, exhausted: true }],
       ["run:done", { outcome: "interrupted" }],
       ["run:done", { runId: "run-1", outcome: "failed" }],
     ])
@@ -226,30 +215,15 @@ describe("applyRunEvent", () => {
     expect(bus.currentLoopItems("fe")).toEqual({ count: 2, done: 1, failed: 0 })
   })
 
-  it("records loop.repeat as the round, and only loop.exhausted as reaching maxRounds", () => {
-    const bus = new ReactFlowRunProgress()
-    const seen = record(bus)
-    applyRunEvent(bus, ev("loop.repeat", { nodeId: "lp", round: 2, again: false, reason: null }))
-    expect(seen).toContainEqual(["loop:round", { structureId: "lp", round: 2 }])
-    let state = reduceRunEvent(createRunGraphState(), ev("loop.repeat", { nodeId: "lp", round: 2, again: false }))
-    expect(state.loops.lp).toEqual({ round: 2, exhausted: false })
-    state = reduceRunEvent(state, ev("loop.exhausted", { nodeId: "lp", rounds: 3 }))
-    expect(state.loops.lp?.exhausted).toBe(true)
-  })
-
   it("emits nothing for events missing their node id or round, or for run.resume", () => {
     const bus = new ReactFlowRunProgress()
     const seen = record(bus)
-    for (const type of ["step.start", "step.skip", "step.end", "step.error", "if.select", "loop.round", "loop.exhausted", "run.resume"] as const) {
+    for (const type of ["step.start", "step.skip", "step.end", "step.error", "if.select", "loop.round", "run.resume"] as const) {
       applyRunEvent(bus, ev(type, {}))
     }
     applyRunEvent(bus, ev("loop.round", { nodeId: "l" }))
     applyRunEvent(bus, { seq: 1, at: "", type: "run.start" } as unknown as RunEvent)
-    applyRunEvent(bus, ev("loop.exhausted", { nodeId: "l" }))
-    expect(seen).toEqual([
-      ["run:reset", {}],
-      ["loop:round", { structureId: "l", round: 0, exhausted: true }],
-    ])
+    expect(seen).toEqual([["run:reset", {}]])
   })
 
   it("shared bus defaults to empty lifecycle details", () => {

@@ -85,7 +85,6 @@ export function RunView({ manifest, run, onRun, client }: RunViewProps) {
             <li key={`loop-${loopId}`} data-testid="run-loop" data-node-id={loopId} className="flex items-center gap-1.5">
               <Repeat className="h-3 w-3" aria-hidden="true" />
               {loopId}: round {loop.round}
-              {loop.exhausted ? " (reached maxRounds)" : ""}
             </li>
           ))}
           {choices.map(([ifId, side]) => (

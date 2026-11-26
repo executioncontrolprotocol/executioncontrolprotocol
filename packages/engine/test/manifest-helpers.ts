@@ -1,18 +1,4 @@
-import type { ExecutionManifest, IfNode, LoopEndNode, LoopNode } from "@executioncontrolprotocol/protocol"
-
-/**
- * Default {@link LoopEndNode} for a while loop that stops after one round.
- */
-export const WHILE_END_STOP: LoopEndNode = {
-  input: { repeat: false },
-}
-
-/**
- * Loop end that gathers `state.<path>` each round / item.
- */
-export function loopEndValue(ref: string): LoopEndNode {
-  return { input: { value: { $ref: ref } } }
-}
+import type { ExecutionManifest, IfNode, LoopNode } from "@executioncontrolprotocol/protocol"
 
 /**
  * Reference forEach loop used across engine tests.
@@ -33,22 +19,6 @@ export function foreachLoop(extra: Partial<LoopNode> = {}): LoopNode {
         as: "out",
       },
     ],
-    end: loopEndValue("state.out"),
-    into: "collected",
-    ...extra,
-  }
-}
-
-/**
- * Minimal while loop shell with a stop `end`.
- */
-export function whileLoop(extra: Partial<LoopNode> = {}): LoopNode {
-  return {
-    type: "loop",
-    id: "loop",
-    maxRounds: 1,
-    steps: [],
-    end: WHILE_END_STOP,
     ...extra,
   }
 }
@@ -63,14 +33,21 @@ export function forLoop(extra: Partial<LoopNode> = {}): LoopNode {
     id: "counted",
     input: { count: { $ref: "state.n" } },
     as: "i",
-    steps: [],
-    end: loopEndValue("state.last"),
+    steps: [
+      {
+        id: "body",
+        uses: "@executioncontrolprotocol/test.echo",
+        input: { value: { $ref: "state.i" } },
+        as: "out",
+        mode: "replace",
+      },
+    ],
     ...extra,
   }
 }
 
 /**
- * Convert a simple two-arm branch test into an `if` node.
+ * Convert a simple two-arm test into an `if` node.
  */
 export function ifTrueThenElse(thenSteps: IfNode["then"], elseSteps?: IfNode["then"], expression = "true"): IfNode {
   return {

@@ -9,7 +9,8 @@ const patternsDir = path.join(repoRoot, "examples/patterns")
 
 const examples = [
   "branch.ecp.json",
-  "loop-while.ecp.json",
+  "loop-for.ecp.json",
+  "loop-foreach.ecp.json",
   "nested-foreach-branch.ecp.json",
   "nested-parallel.ecp.json",
 ] as const
@@ -82,10 +83,4 @@ test.describe("Container geometry", () => {
     expect(ids.some((id) => id.includes("by-tier") && id.includes("tier"))).toBe(true)
   })
 
-  test("loop-while: repeat branch into end", async ({ page }) => {
-    await open(page, "loop-while.ecp.json")
-    await expect(page.locator(".react-flow__edge").first()).toBeVisible({ timeout: 10_000 })
-    const ids = await page.locator(".react-flow__edge").evaluateAll((els) => els.map((el) => el.getAttribute("data-id") ?? ""))
-    expect(ids.some((id) => id.includes("end:retry") && id.includes("repeat"))).toBe(true)
-  })
 })

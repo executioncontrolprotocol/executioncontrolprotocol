@@ -265,10 +265,11 @@ describe("validation", () => {
       execution([
         {
           type: "loop",
+          mode: "for",
           id: "again",
-          maxRounds: 1,
+          input: { count: 1 },
+          as: "i",
           steps: [step("body", { mode: "replace" })],
-          end: { input: { repeat: false } },
         },
       ] as ExecutionManifest["steps"]),
       { capabilities },
@@ -405,9 +406,7 @@ describe("validation output contract (F2–F4)", () => {
           id: "rows",
           input: { items: { $ref: "state.rows" } },
           as: "row",
-          into: "out",
           steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row" } }, as: "piece" }],
-          end: { input: { value: { $ref: "state.piece" } } },
         },
       ],
     }
@@ -415,7 +414,7 @@ describe("validation output contract (F2–F4)", () => {
     expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
   })
 
-  it("rejects repeat on forEach end", async () => {
+  it("rejects loop end on forEach", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -426,14 +425,13 @@ describe("validation output contract (F2–F4)", () => {
           id: "rows",
           input: { items: { $ref: "state.rows" } },
           as: "row",
-          into: "out",
-          steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row" } } }],
-          end: { input: { repeat: false, value: { $ref: "state.row" } } },
+          steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row" } }, as: "out" }],
+          end: { input: { value: { $ref: "state.out" } } },
         },
       ],
     }
     const result = await validateExecution(manifest, validateOpts)
-    expect(result.issues.some((issue) => issue.path === "/steps/0/end/input/repeat")).toBe(true)
+    expect(result.issues.some((issue) => issue.path === "/steps/0/end")).toBe(true)
   })
 
   it("reports schema-secret-positions without schema noise", async () => {
@@ -484,7 +482,10 @@ describe("validation output contract (F2–F4)", () => {
 
   const invalidDir = path.resolve(here, "../../../fixtures/manifests/invalid")
   const invalidFixtureNames = readdirSync(invalidDir)
-    .filter((name) => name.endsWith(".ecp.json") && name !== "not-json.ecp.json")
+    .filter(
+      (name) =>
+        name.endsWith(".ecp.json") && name !== "not-json.ecp.json" && name !== "ref-maybe-loop.ecp.json",
+    )
     .sort()
 
   it.each(invalidFixtureNames)('invalid fixture %s fails validation', async (name) => {

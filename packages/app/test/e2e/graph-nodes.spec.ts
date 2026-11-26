@@ -9,6 +9,7 @@ import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const nestedParallelSource = path.join(repoRoot, "examples/patterns/nested-parallel.ecp.json")
 const nestedForeachSource = path.join(repoRoot, "examples/patterns/nested-foreach-branch.ecp.json")
+const ifInLoopSource = path.join(repoRoot, "examples/patterns/if-in-loop.ecp.json")
 
 test.describe("Graph nodes (no structural edge labels)", () => {
   test.describe.configure({ mode: "serial" })
@@ -16,13 +17,16 @@ test.describe("Graph nodes (no structural edge labels)", () => {
   let harness: AppE2eHarness
   let nestedParallelPath: string
   let nestedForeachPath: string
+  let ifInLoopPath: string
 
   test.beforeAll(async () => {
     harness = await startAppHarness()
     nestedParallelPath = path.join(harness.workDir, "nested-parallel.ecp.json")
     nestedForeachPath = path.join(harness.workDir, "nested-foreach-branch.ecp.json")
+    ifInLoopPath = path.join(harness.workDir, "if-in-loop.ecp.json")
     copyFileSync(nestedParallelSource, nestedParallelPath)
     copyFileSync(nestedForeachSource, nestedForeachPath)
+    copyFileSync(ifInLoopSource, ifInLoopPath)
   })
 
   test.afterAll(async () => {
@@ -45,5 +49,28 @@ test.describe("Graph nodes (no structural edge labels)", () => {
   test("nested foreach-branch renders loop end nodes", async ({ page }) => {
     await open(page, nestedForeachPath)
     await expect(page.locator('[data-testid^="ecp-end-"]').first()).toBeVisible({ timeout: 15_000 })
+  })
+
+  test("if-in-loop: Ship input merges both branch picks; Notify reads after loop", async ({ page }) => {
+    await open(page, ifInLoopPath)
+    const manifest = JSON.parse(readFileSync(ifInLoopSource, "utf8")) as ExecutionManifest
+    const doc = executionToReactFlow(manifest)
+    const shipInputs = doc.edges.filter((edge) => edge.data.kind === "data" && edge.target === "ship")
+    const pickSources = new Set(shipInputs.map((edge) => edge.source))
+    expect(pickSources.has("pick-fast")).toBe(true)
+    expect(pickSources.has("pick-standard")).toBe(true)
+    const notifyFromShip = doc.edges.some(
+      (edge) => edge.data.kind === "data" && edge.source === "ship" && edge.target === "notify",
+    )
+    expect(notifyFromShip).toBe(true)
+    await expect(page.getByTestId("ecp-step-ship")).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId("ecp-step-notify")).toBeVisible()
+    await expect(page.locator(".react-flow__edge").first()).toBeVisible({ timeout: 10_000 })
+    const ids = await page.locator(".react-flow__edge").evaluateAll((els) =>
+      els.map((el) => el.getAttribute("data-id") ?? ""),
+    )
+    expect(ids.some((id) => id.includes("pick-fast") && id.includes("ship"))).toBe(true)
+    expect(ids.some((id) => id.includes("pick-standard") && id.includes("ship"))).toBe(true)
+    expect(ids.some((id) => id.includes("ship") && id.includes("notify"))).toBe(true)
   })
 })

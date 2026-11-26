@@ -82,12 +82,12 @@ test.describe("App host API allowlist", () => {
     copyFileSync(branchLoopSource, branchLoopPath)
     await openPath(page, harness, branchLoopPath)
     await page.getByTestId("ecp-loop-retry").click()
-    const field = page.getByTestId("loop-field-max-rounds")
+    const field = page.getByTestId("loop-field-as")
     await expect(field).toBeVisible({ timeout: 10_000 })
-    const unique = String(4 + (Date.now() % 10))
+    const unique = `item_${Date.now() % 10_000}`
     await field.fill(unique)
     await field.blur()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes(`"maxRounds": ${unique}`), { timeout: 15_000 }).toBe(true)
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes(`"as": "${unique}"`), { timeout: 15_000 }).toBe(true)
 
     const transformDir = mkdtempSync(path.join(os.tmpdir(), "ecp-allowlist-transform-"))
     const transformScript = path.join(transformDir, "step.js")

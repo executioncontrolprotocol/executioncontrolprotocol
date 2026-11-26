@@ -132,70 +132,30 @@
         { "not": { "anyOf": [{ "required": ["expression"] }, { "required": ["script"] }] } }
       ]
     },
-    "loopEnd": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["input"],
-      "properties": {
-        "accepts": { "$ref": "#/$defs/objectSchema" },
-        "input": { "$ref": "#/$defs/inputObject" },
-        "expression": { "type": "string", "minLength": 1 },
-        "script": { "$ref": "#/$defs/plainScript" },
-        "returns": { "$ref": "#/$defs/objectSchema" }
-      },
-      "oneOf": [
-        { "required": ["expression"], "not": { "required": ["script"] } },
-        { "required": ["script"], "not": { "required": ["expression"] } },
-        { "not": { "anyOf": [{ "required": ["expression"] }, { "required": ["script"] }] } }
-      ]
-    },
     "loop": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "steps", "end"],
+      "required": ["type", "id", "mode", "as", "input", "steps"],
       "properties": {
         "type": { "const": "loop" },
         "id": { "$ref": "#/$defs/nodeId" },
         "label": { "type": "string" },
-        "mode": { "enum": ["while", "for", "forEach"] },
+        "mode": { "enum": ["for", "forEach"] },
         "input": { "$ref": "#/$defs/inputObject" },
-        "maxRounds": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "as": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "into": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
         "concurrency": { "type": "integer", "minimum": 1, "maximum": 32 },
         "onError": { "enum": ["fail", "continue"] },
         "steps": {
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/node" }
-        },
-        "end": { "$ref": "#/$defs/loopEnd" }
+        }
       },
       "allOf": [
         {
-          "if": {
-            "anyOf": [
-              { "not": { "required": ["mode"] } },
-              { "properties": { "mode": { "const": "while" } }, "required": ["mode"] }
-            ]
-          },
-          "then": {
-            "required": ["maxRounds"],
-            "properties": {
-              "as": false,
-              "into": true,
-              "concurrency": false,
-              "onError": false,
-              "input": false
-            }
-          }
-        },
-        {
           "if": { "properties": { "mode": { "const": "for" } }, "required": ["mode"] },
           "then": {
-            "required": ["as", "input"],
             "properties": {
-              "maxRounds": false,
               "concurrency": false,
               "onError": false
             }
@@ -203,12 +163,7 @@
         },
         {
           "if": { "properties": { "mode": { "const": "forEach" } }, "required": ["mode"] },
-          "then": {
-            "required": ["as", "into", "input"],
-            "properties": {
-              "maxRounds": false
-            }
-          }
+          "then": {}
         }
       ]
     },
@@ -283,7 +238,16 @@
       "additionalProperties": false,
       "required": ["$ref"],
       "properties": {
-        "$ref": { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" },
+        "$ref": {
+          "oneOf": [
+            { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" },
+            {
+              "type": "array",
+              "minItems": 2,
+              "items": { "type": "string", "pattern": "^state(?:\\.(?:[A-Za-z_$][A-Za-z0-9_$-]*|[0-9]+))+$" }
+            }
+          ]
+        },
         "optional": { "type": "boolean" },
         "fallback": {}
       }

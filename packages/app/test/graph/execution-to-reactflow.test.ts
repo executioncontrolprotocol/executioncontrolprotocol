@@ -9,7 +9,6 @@ import {
   loopEndNodeId,
   LOOP_ITEMS_HANDLE,
   IF_THEN_HANDLE,
-  END_RESULTS_HANDLE,
   type ReactFlowFrameData,
 } from "../../src/graph/index.js"
 
@@ -35,13 +34,15 @@ describe("executionToReactFlow", () => {
     expect(doc.edges.some((e) => e.targetHandle === IF_THEN_HANDLE)).toBe(false)
   })
 
-  it("encodes foreach loop with end node and items port", () => {
+  it("encodes foreach loop with end node shell and items port", () => {
     const doc = executionToReactFlow(loadPattern("loop-foreach.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")
     expect(loop).toBeDefined()
     expect(doc.nodes.some((n) => n.id === loopEndNodeId(loop!.id))).toBe(true)
     expect(doc.edges.some((e) => e.targetHandle === LOOP_ITEMS_HANDLE)).toBe(true)
-    expect(doc.edges.some((e) => e.sourceHandle === END_RESULTS_HANDLE)).toBe(true)
+    const end = doc.nodes.find((n) => n.id === loopEndNodeId(loop!.id))!
+    expect((end.data as { inputs: unknown[]; outputs: unknown[] }).inputs).toEqual([])
+    expect((end.data as { inputs: unknown[]; outputs: unknown[] }).outputs).toEqual([])
   })
 
   it("encodes parallel with start node and frames", () => {

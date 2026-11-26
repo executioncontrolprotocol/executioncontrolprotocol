@@ -178,8 +178,7 @@ describe("manifest conformance", () => {
         serialized.includes('"type": "branch"') ||
         serialized.includes('"branches"') ||
         serialized.includes('"collect"') ||
-        (serialized.includes('"expr"') && serialized.includes('"uses"')) ||
-        (serialized.includes('"type": "loop"') && !serialized.includes('"end"'))
+        (serialized.includes('"expr"') && serialized.includes('"uses"'))
       ) {
         continue
       }
@@ -331,8 +330,7 @@ describe("run conformance through execute", () => {
         serialized.includes('"type": "branch"') ||
         serialized.includes('"branches"') ||
         serialized.includes('"collect"') ||
-        (serialized.includes('"expr"') && serialized.includes('"uses"')) ||
-        (serialized.includes('"type": "loop"') && !serialized.includes('"end"'))
+        (serialized.includes('"expr"') && serialized.includes('"uses"'))
       ) {
         continue
       }

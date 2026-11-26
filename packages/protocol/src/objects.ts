@@ -41,8 +41,8 @@ export interface RunCursor {
  * @category Definitions
  */
 export interface LoopPartialFile {
-  /** Item index (string key) to collected value, or `null` when continuing past an error. */
-  results: Record<string, JsonValue | null>
+  /** Round / item index (string key) to keys written in that round, or `null` on continue. */
+  rounds: Record<string, Record<string, JsonValue | null> | null>
   /** Failed item indexes when `onError` is `continue`. */
   errors: Array<{ index: number; error: ValidationIssue }>
 }
@@ -359,9 +359,7 @@ export type RunEventType =
   | "step.error"
   | "step.warning"
   | "if.select"
-  | "loop.repeat"
   | "loop.round"
-  | "loop.exhausted"
   | "loop.start"
   | "loop.item.start"
   | "loop.item.end"

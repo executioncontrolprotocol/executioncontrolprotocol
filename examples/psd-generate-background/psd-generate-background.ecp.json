@@ -113,18 +113,42 @@
           "background": {
             "type": "object",
             "properties": {
-              "kind": { "const": "url" },
-              "url": { "type": "string" }
+              "kind": {
+                "const": "url"
+              },
+              "url": {
+                "type": "string"
+              }
             },
-            "required": ["kind", "url"]
+            "required": [
+              "kind",
+              "url"
+            ]
           },
-          "backgroundLayer": { "type": "string" },
-          "headline": { "type": "string" },
-          "headlineLayer": { "type": "string" },
-          "subhead": { "type": "string" },
-          "subheadLayer": { "type": "string" }
+          "backgroundLayer": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "headlineLayer": {
+            "type": "string"
+          },
+          "subhead": {
+            "type": "string"
+          },
+          "subheadLayer": {
+            "type": "string"
+          }
         },
-        "required": ["background", "backgroundLayer", "headline", "headlineLayer", "subhead", "subheadLayer"],
+        "required": [
+          "background",
+          "backgroundLayer",
+          "headline",
+          "headlineLayer",
+          "subhead",
+          "subheadLayer"
+        ],
         "additionalProperties": false
       },
       "returns": {
@@ -135,35 +159,79 @@
             "items": {
               "type": "object",
               "properties": {
-                "name": { "type": "string" },
-                "type": { "type": "string" },
-                "operation": { "type": "object" },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "operation": {
+                  "type": "object"
+                },
                 "image": {
                   "type": "object",
                   "properties": {
-                    "kind": { "const": "url" },
-                    "url": { "type": "string" }
+                    "kind": {
+                      "const": "url"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
                   },
-                  "required": ["kind", "url"]
+                  "required": [
+                    "kind",
+                    "url"
+                  ]
                 },
-                "text": { "type": "object" },
-                "transformMode": { "type": "string" }
+                "text": {
+                  "type": "object"
+                },
+                "transformMode": {
+                  "type": "string"
+                }
               }
             }
           }
         },
-        "required": ["layers"],
+        "required": [
+          "layers"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "background": { "$ref": "state.background.images.0" },
-        "backgroundLayer": { "$ref": "state.backgroundLayer", "optional": true, "fallback": "Background" },
-        "headline": { "$ref": "state.headline", "optional": true, "fallback": "" },
-        "headlineLayer": { "$ref": "state.headlineLayer", "optional": true, "fallback": "Headline" },
-        "subhead": { "$ref": "state.subhead", "optional": true, "fallback": "" },
-        "subheadLayer": { "$ref": "state.subheadLayer", "optional": true, "fallback": "Subhead" }
+        "background": {
+          "$ref": "state.background.images.0"
+        },
+        "backgroundLayer": {
+          "$ref": "state.backgroundLayer",
+          "optional": true,
+          "fallback": "Background"
+        },
+        "headline": {
+          "$ref": "state.headline",
+          "optional": true,
+          "fallback": ""
+        },
+        "headlineLayer": {
+          "$ref": "state.headlineLayer",
+          "optional": true,
+          "fallback": "Headline"
+        },
+        "subhead": {
+          "$ref": "state.subhead",
+          "optional": true,
+          "fallback": ""
+        },
+        "subheadLayer": {
+          "$ref": "state.subheadLayer",
+          "optional": true,
+          "fallback": "Subhead"
+        }
       },
-      "script": { "lang": "js", "path": "scripts/composite-layers.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/composite-layers.js"
+      },
       "as": "layers"
     },
     {

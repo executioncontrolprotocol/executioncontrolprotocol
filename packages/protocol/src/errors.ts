@@ -40,6 +40,7 @@ export const ERROR_CATALOGUE = {
   ECP_INPUT_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_REF_UNRESOLVED: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_REF_MAYBE_MISSING: { httpStatus: 422, exitCode: 2, kind: "validation" },
+  ECP_REF_AMBIGUOUS: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_REF_PATH_INVALID: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_TYPE_MISMATCH: { httpStatus: 422, exitCode: 2, kind: "validation" },
   ECP_COMMIT_CONFLICT: { httpStatus: 422, exitCode: 2, kind: "validation" },

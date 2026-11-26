@@ -59,7 +59,7 @@ describe("run forEach", () => {
       },
     )
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([
+    expect(outcome.state.out).toEqual([
       { echo: "a" },
       { echo: "b" },
       { echo: "c" },
@@ -68,14 +68,14 @@ describe("run forEach", () => {
     expect(outcome.events).toContain("loop.end")
   })
 
-  it("commits empty into for an empty items array", async () => {
+  it("commits empty out arrays for an empty items array", async () => {
     const outcome = await runExecution(foreachManifest(), { rows: [] }, {
       capabilities: [echoCapability],
       expression: engine,
       call: echoCall,
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([])
+    expect(outcome.state.out).toEqual([])
   })
 
   it("resolves items from input.items when bound to state", async () => {
@@ -85,7 +85,7 @@ describe("run forEach", () => {
       { capabilities: [echoCapability], expression: engine, call: echoCall },
     )
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([{ echo: "x" }, { echo: "y" }])
+    expect(outcome.state.out).toEqual([{ echo: "x" }, { echo: "y" }])
   })
 
   it("fails when items is not an array at run time", async () => {
@@ -98,14 +98,6 @@ describe("run forEach", () => {
     expect(outcome.error?.code).toBe("ECP_TYPE_MISMATCH")
   })
 
-  it("commits empty intoErrors for an empty array when onError is continue", async () => {
-    const outcome = await runExecution(foreachManifest({ onError: "continue" }), { rows: [] }, {
-      capabilities: [echoCapability],
-      expression: engine,
-      call: echoCall,
-    })
-    expect(outcome.state.collectedErrors).toEqual([])
-  })
 
   it("fails when default items ref resolves to a non-array", async () => {
     const outcome = await runExecution(foreachManifest(), { rows: "nope" }, {
@@ -146,10 +138,9 @@ describe("run forEach", () => {
               id: "body",
               uses: "@executioncontrolprotocol/test.fail",
               input: { message: { "$ref": "state.row" } },
+              as: "out",
             },
           ],
-          end: { input: { value: { $ref: "state.row" } } },
-          into: "collected",
         },
       ],
     }
@@ -165,7 +156,7 @@ describe("run forEach", () => {
     expect(outcome.error?.details).toMatchObject({ index: 0 })
   })
 
-  it("onError continue records null and intoErrors", async () => {
+  it("onError continue records null slots in the out array", async () => {
     const manifest: ExecutionManifest = foreachManifest({
       concurrency: 1,
       onError: "continue",
@@ -180,8 +171,7 @@ describe("run forEach", () => {
       call: echoCall,
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([null])
-    expect(Array.isArray(outcome.state.collectedErrors)).toBe(true)
+    expect(outcome.state.out).toEqual([null])
   })
 
   it("writes partial results under concurrency without losing entries", async () => {
@@ -217,8 +207,6 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }
@@ -234,7 +222,7 @@ describe("run forEach", () => {
     })
     expect(outcome.status).toBe("completed")
     const partial = await storage.runs.readLoopPartial!("r-partial", "items")
-    expect(Object.keys(partial?.results ?? {}).sort()).toEqual(["0", "1", "2", "3"])
+    expect(Object.keys(partial?.rounds ?? {}).sort()).toEqual(["0", "1", "2", "3"])
   })
 
   it("rejects a forEach as key that shadows parent state (L3)", async () => {
@@ -256,8 +244,6 @@ describe("run forEach", () => {
           input: { items: { $ref: "state.rows" } },
           as: "shared",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }
@@ -265,7 +251,7 @@ describe("run forEach", () => {
     expect(result.issues.some((issue) => issue.code === "ECP_COMMIT_CONFLICT")).toBe(true)
   })
 
-  it("cancel stops in-flight items and does not commit into", async () => {
+  it("cancel stops in-flight items and does not commit body arrays", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -285,8 +271,6 @@ describe("run forEach", () => {
               as: "out",
             },
           ],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }
@@ -301,7 +285,7 @@ describe("run forEach", () => {
     setTimeout(() => active.cancel(), 20)
     const outcome = await active.outcome
     expect(outcome.status).toBe("cancelled")
-    expect(outcome.state.collected).toBeUndefined()
+    expect(outcome.state.out).toBeUndefined()
   })
 
   it("resumes by skipping items already recorded in the partial file", async () => {
@@ -319,7 +303,7 @@ describe("run forEach", () => {
       foreachManifest(),
     )
     await storage.runs.writeLoopPartial!("r-resume", "items", {
-      results: { "0": { echo: "a" } },
+      rounds: { "0": { out: { echo: "a" } } },
       errors: [],
     })
     const outcome = await runExecution(foreachManifest(), { rows: ["a", "b"] }, {
@@ -331,35 +315,34 @@ describe("run forEach", () => {
       cursor: { completed: [], loops: {}, choices: {}, loopItems: { items: { completed: [0] } } },
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
+    expect(outcome.state.out).toEqual([{ echo: "a" }, { echo: "b" }])
   })
 
-  it("rejects duplicate into (L3)", async () => {
+  it("rejects duplicate body export keys in parent scope (L3)", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       execution: {
         accepts: {
           type: "object",
-          properties: { rows: { type: "array", items: { type: "string" } } },
+          properties: { rows: { type: "array" } },
           required: ["rows"],
         },
       },
       steps: [
+        { id: "seed", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" },
         {
           type: "loop",
           mode: "forEach",
           id: "items",
           input: { items: { $ref: "state.rows" } },
           as: "row",
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "rows",
+          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" }, as: "out" }],
         },
       ],
     }
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
-    expect(result.issues.some((issue) => issue.code === "ECP_COMMIT_CONFLICT" && issue.path?.endsWith("/into"))).toBe(
+    expect(result.issues.some((issue) => issue.code === "ECP_COMMIT_CONFLICT" && issue.path?.endsWith("/steps"))).toBe(
       true,
     )
   })
@@ -391,12 +374,8 @@ describe("run forEach", () => {
                   as: "piece",
                 },
               ],
-              end: { input: { value: { $ref: "state.piece" } } },
-              into: "partsOut",
             },
           ],
-          end: { input: { value: { $ref: "state.partsOut" } } },
-          into: "bundles",
         },
       ],
     }
@@ -406,7 +385,10 @@ describe("run forEach", () => {
       { capabilities: [echoCapability], expression: engine, call: echoCall },
     )
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.bundles).toHaveLength(2)
+    expect(outcome.state.piece).toEqual([
+      [{ echo: "a" }, { echo: "b" }],
+      [{ echo: "c" }],
+    ])
   })
 
   it("defaultRunClock sleep rejects an aborted signal", async () => {
@@ -440,7 +422,6 @@ describe("run forEach", () => {
           as: "tick",
         },
       ],
-      end: { input: { value: { $ref: "state.tick" } } },
     })
     await runExecution(manifest, { rows: [1] }, {
       capabilities: [echoCapability],
@@ -475,8 +456,6 @@ describe("run forEach", () => {
               as: "tick",
             },
           ],
-          end: { input: { value: { $ref: "state.tick" } } },
-          into: "collected",
         },
       ],
     }
@@ -510,11 +489,10 @@ describe("run forEach", () => {
       runId: "r-scope",
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
+    expect(outcome.state.tick).toEqual([{ echo: "a" }, { echo: "b" }])
     expect(written.length).toBeGreaterThan(0)
     for (const state of written) {
       expect(state).not.toHaveProperty("row")
-      expect(state).not.toHaveProperty("tick")
     }
     expect(outcome.cursor?.loops).not.toHaveProperty("inner")
     expect(outcome.cursor?.completed).not.toContain("tick")
@@ -528,7 +506,7 @@ describe("run forEach", () => {
       cursor: { completed: [], inProgress: "tick", loops: {}, choices: {}, loopItems: {} },
     })
     expect(outcome.status).toBe("completed")
-    expect(outcome.state.collected).toEqual([{ echo: "a" }])
+    expect(outcome.state.tick).toEqual([{ echo: "a" }])
   })
 
   it("rejects create inside a nested loop within forEach (L3)", async () => {
@@ -552,9 +530,18 @@ describe("run forEach", () => {
           steps: [
             {
               type: "loop",
+              mode: "for",
               id: "inner",
-              maxRounds: 1,
+              input: { count: 1 },
+              as: "i",
               steps: [
+                {
+                  id: "warm",
+                  uses: "@executioncontrolprotocol/test.echo",
+                  input: { value: "x" },
+                  as: "scratch",
+                  mode: "replace",
+                },
                 {
                   id: "body",
                   uses: "@executioncontrolprotocol/test.echo",
@@ -565,15 +552,17 @@ describe("run forEach", () => {
               ],
             },
           ],
-          end: { input: { value: { $ref: "state.scratch" } } },
-          into: "collected",
         },
       ],
     }
     const result = await validateExecution(manifest, { capabilities: [echoCapability] })
-    expect(result.issues.some((issue) => issue.code === "ECP_COMMIT_CONFLICT" && issue.path?.endsWith("/mode"))).toBe(
-      true,
-    )
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.code === "ECP_COMMIT_CONFLICT" &&
+          (issue.path?.endsWith("/mode") || issue.path?.endsWith("/as")),
+      ),
+    ).toBe(true)
   })
 
   it("flags items refs that are not arrays (L3)", async () => {
@@ -595,8 +584,6 @@ describe("run forEach", () => {
           input: { items: { $ref: "state.tag" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }
@@ -631,8 +618,6 @@ describe("run forEach", () => {
               mode: "create",
             },
           ],
-          end: { input: { value: { $ref: "state.scratch" } } },
-          into: "collected",
         },
       ],
     }
@@ -652,8 +637,6 @@ describe("run forEach", () => {
           input: { items: { $ref: "state.missing" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }
@@ -661,42 +644,7 @@ describe("run forEach", () => {
     expect(result.issues.some((issue) => issue.code === "ECP_REF_UNRESOLVED")).toBe(true)
   })
 
-  it("rejects duplicate intoErrors when onError is continue (L3)", async () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      execution: {
-        accepts: {
-          type: "object",
-          properties: { collectedErrors: { type: "array", items: { type: "object" } } },
-          required: ["collectedErrors"],
-        },
-      },
-      steps: [
-        {
-          type: "loop",
-          mode: "forEach",
-          id: "items",
-          input: { items: { $ref: "state.rows" } },
-          as: "row",
-          onError: "continue",
-          steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
-        },
-      ],
-    }
-    const result = await validateExecution(manifest, {
-      capabilities: [echoCapability],
-    })
-    expect(
-      result.issues.some(
-        (issue) => issue.code === "ECP_COMMIT_CONFLICT" && String(issue.message).includes("collectedErrors"),
-      ),
-    ).toBe(true)
-  })
-
-  it("flags gated collect refs at validation (L3)", async () => {
+  it("flags maybe refs to gated body exports inside the loop (L3)", async () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -721,9 +669,12 @@ describe("run forEach", () => {
               expression: "false",
               then: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "out" }],
             },
+            {
+              id: "use",
+              uses: "@executioncontrolprotocol/test.echo",
+              input: { value: { $ref: "state.out.echo" } },
+            },
           ],
-          end: { input: { value: { $ref: "state.out" } } },
-          into: "collected",
         },
       ],
     }

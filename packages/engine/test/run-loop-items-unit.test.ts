@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import { QuickJsExpressionEngine } from "../../quickjs/src/index.js"
 import { executeLoopItems, type ExecuteLoopItemsDeps, type LoopItemsRuntime } from "../src/execute/run-loop-items.js"
-import { loopEndValue } from "./manifest-helpers.js"
 
 const engine = new QuickJsExpressionEngine()
 
@@ -24,15 +23,16 @@ function runtime(overrides: Partial<LoopItemsRuntime> = {}): LoopItemsRuntime {
 
 const baseNode = {
   id: "f",
+  mode: "forEach" as const,
   input: { items: { $ref: "state.rows" } },
   as: "row",
-  end: loopEndValue("state.row"),
-  steps: [] as unknown[],
+  steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: { $ref: "state.row" } }, as: "out" }],
 }
 
 const deps: ExecuteLoopItemsDeps = {
-  runBody: async () => {},
-  gatherEnd: async (_end, itemState) => itemState.row,
+  runBody: async (_steps, itemState) => {
+    itemState.out = { echo: itemState.row }
+  },
   toIssue: (error) => ({
     code: "ECP_STEP_FAILED",
     severity: "error",
@@ -48,18 +48,18 @@ describe("executeLoopItems unit", () => {
     })
   })
 
-  it("rejects when into already exists", async () => {
-    const state = { rows: [1], into: [] }
-    await expect(
-      executeLoopItems({ ...baseNode, into: "into" }, state, runtime(), () => {}, "/steps/0", deps),
-    ).rejects.toMatchObject({ code: "ECP_COMMIT_CONFLICT" })
+  it("rejects when a body export key already exists in the parent", async () => {
+    const state = { rows: [1], out: [] }
+    await expect(executeLoopItems(baseNode, state, runtime(), () => {}, "/steps/0", deps)).rejects.toMatchObject({
+      code: "ECP_COMMIT_CONFLICT",
+    })
   })
 
   it("records continue errors in the partial file", async () => {
     let lastPartial: unknown
     const state = { rows: [1] }
     await executeLoopItems(
-      { ...baseNode, into: "collected", onError: "continue" },
+      { ...baseNode, onError: "continue" },
       state,
       runtime({
         deps: {
@@ -81,21 +81,20 @@ describe("executeLoopItems unit", () => {
       },
     )
     expect((lastPartial as { errors: unknown[] }).errors).toHaveLength(1)
-    expect(state.collected).toEqual([null])
-    expect(state.collectedErrors).toHaveLength(1)
+    expect(state.out).toEqual([null])
   })
 
-  it("loads existing partial results before starting items", async () => {
+  it("loads existing partial rounds before starting items", async () => {
     const state = { rows: [1, 2] }
     let writes = 0
     await executeLoopItems(
-      { ...baseNode, into: "collected", concurrency: 1 },
+      baseNode,
       state,
       runtime({
         deps: {
           expression: engine,
           store: {
-            readLoopPartial: async () => ({ results: { "0": 1 }, errors: [] }),
+            readLoopPartial: async () => ({ rounds: { "0": { out: 1 } }, errors: [] }),
             writeLoopPartial: async () => {
               writes += 1
             },
@@ -107,14 +106,14 @@ describe("executeLoopItems unit", () => {
       deps,
     )
     expect(writes).toBe(1)
-    expect(state.collected).toEqual([1, 2])
+    expect(state.out).toEqual([1, { echo: 2 }])
   })
 
   it("does not write partial files for nested forEach nodes", async () => {
     let writes = 0
     const state: Record<string, unknown> = { rows: [1] }
     await executeLoopItems(
-      { ...baseNode, into: "collected" },
+      baseNode,
       state,
       runtime({
         loopItemsDepth: 1,
@@ -132,31 +131,17 @@ describe("executeLoopItems unit", () => {
       deps,
     )
     expect(writes).toBe(0)
-    expect(state.collected).toEqual([1])
+    expect(state.out).toEqual([{ echo: 1 }])
   })
 
-  it("rejects when intoErrors already exists on continue", async () => {
-    const state = { rows: [1] }
-    await expect(
-      executeLoopItems(
-        { ...baseNode, into: "collected", onError: "continue" },
-        { ...state, collectedErrors: [] },
-        runtime(),
-        () => {},
-        "/steps/0",
-        deps,
-      ),
-    ).rejects.toMatchObject({ code: "ECP_COMMIT_CONFLICT" })
-  })
-
-  it("skips committing into when interrupted mid-run", async () => {
+  it("skips committing body arrays when interrupted mid-run", async () => {
     const state: Record<string, unknown> = { rows: [1, 2] }
     const rt = runtime()
     const emit = (): void => {
       rt.interrupted = true
     }
     await executeLoopItems(
-      { ...baseNode, into: "collected", concurrency: 1 },
+      { ...baseNode, concurrency: 1 },
       state,
       rt,
       emit,
@@ -166,6 +151,6 @@ describe("executeLoopItems unit", () => {
         runBody: async () => {},
       },
     )
-    expect(state.collected).toBeUndefined()
+    expect(state.out).toBeUndefined()
   })
 })

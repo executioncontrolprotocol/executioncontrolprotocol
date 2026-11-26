@@ -7,6 +7,7 @@ import {
   executionToReactFlow,
   loopEndNodeId,
   LOOP_INDEX_HANDLE,
+  LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
   setLoopField,
   removeStructure,
@@ -31,13 +32,15 @@ describe("executionToReactFlow pattern examples", () => {
     expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
   })
 
-  it("while loop has no item port on the start node", () => {
-    const doc = executionToReactFlow(load("loop-while.ecp.json"))
+  it("for loop exposes count but not item ports", () => {
+    const doc = executionToReactFlow(load("loop-for.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")
     expect(loop).toBeDefined()
-    const data = loop!.data as { outputs: Array<{ id: string }> }
-    expect(data.outputs.some((p) => p.id === LOOP_ITEMS_HANDLE)).toBe(false)
-    expect(data.outputs.some((p) => p.id === LOOP_INDEX_HANDLE)).toBe(false)
+    const data = loop!.data as { inputs: Array<{ id: string }>; outputs: Array<{ id: string }> }
+    expect(data.inputs.some((p) => p.id === LOOP_ITEMS_HANDLE)).toBe(false)
+    expect(data.outputs.some((p) => p.id === LOOP_ITEM_HANDLE)).toBe(false)
+    expect(data.inputs.some((p) => p.id === "count")).toBe(true)
+    expect(data.outputs.some((p) => p.id === LOOP_INDEX_HANDLE)).toBe(true)
   })
 
   it("nested-foreach-branch has end nodes and containers", () => {
@@ -63,18 +66,18 @@ describe("structure-edit loop panel fields", () => {
       {
         type: "loop",
         id: "L",
-        mode: "while",
-        maxRounds: 3,
-        steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-        end: { input: { repeat: false } },
+        mode: "for",
+        as: "i",
+        input: { count: 3 },
+        steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, mode: "replace" }],
       },
     ],
   }
 
   it("setLoopField updates known fields and rejects unknown", () => {
-    expect(setLoopField(base, "L", "maxRounds", 5).ok).toBe(true)
+    expect(setLoopField(base, "L", "as", "round").ok).toBe(true)
     expect(setLoopField(base, "L", "mode", "forEach").ok).toBe(true)
-    expect(setLoopField(base, "missing", "maxRounds", 1)).toMatchObject({ ok: false })
+    expect(setLoopField(base, "missing", "as", "i")).toMatchObject({ ok: false })
     expect(setLoopField(base, "L", "bad", 1)).toMatchObject({ ok: false })
   })
 

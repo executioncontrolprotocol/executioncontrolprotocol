@@ -249,7 +249,11 @@
     {
       "type": "loop",
       "id": "spinner",
-      "maxRounds": 2,
+      "mode": "for",
+      "input": {
+        "count": 1
+      },
+      "as": "i",
       "steps": [
         {
           "id": "spin",
@@ -260,17 +264,16 @@
           "as": "spin",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     },
     {
       "type": "loop",
       "id": "refine",
-      "maxRounds": 4,
+      "mode": "for",
+      "input": {
+        "count": 1
+      },
+      "as": "i",
       "steps": [
         {
           "id": "lap",
@@ -281,12 +284,7 @@
           "as": "lap",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     },
     {
       "type": "parallel",

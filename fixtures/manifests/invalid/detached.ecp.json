@@ -5,7 +5,9 @@
     {
       "id": "keep",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "keep" },
+      "input": {
+        "value": "keep"
+      },
       "as": "keep"
     }
   ],
@@ -13,7 +15,9 @@
     {
       "id": "aside",
       "uses": "@executioncontrolprotocol/test.echo",
-      "input": { "value": "aside" },
+      "input": {
+        "value": "aside"
+      },
       "as": "aside"
     }
   ]

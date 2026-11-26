@@ -28,105 +28,106 @@ async function errors(steps: unknown[], accepts?: Record<string, unknown>) {
   return report.issues.filter((issue) => issue.severity === "error").map((issue) => `${issue.code} ${issue.path}`)
 }
 
-describe("graph model dataflow: loop end", () => {
-  it("resolves a while end's repeat against the body", async () => {
-    const found = await errors([
-      {
-        type: "loop",
-        id: "w",
-        maxRounds: 3,
-        steps: [step("ready", false)],
-        end: { input: { repeat: { $ref: "state.ready.echo" } } },
-      },
-    ])
-    // echo returns a string, so repeat is a type mismatch, not an unresolved ref
-    expect(found).toEqual(["ECP_TYPE_MISMATCH /steps/0/end/input/repeat/$ref"])
-  })
-
-  it("refuses a while end that reads a key the body never writes", async () => {
-    const found = await errors([
-      { type: "loop", id: "w", maxRounds: 3, steps: [step("a", 1)], end: { input: { repeat: { $ref: "state.nope" } } } },
-    ])
-    expect(found).toEqual(["ECP_REF_UNRESOLVED /steps/0/end/input/repeat/$ref"])
-  })
-
-  it("makes a while into definite after the loop and a for into maybe", async () => {
-    const whileLoop = await errors([
-      {
-        type: "loop",
-        id: "w",
-        maxRounds: 2,
-        steps: [step("a", "x")],
-        end: { input: { value: { $ref: "state.a.echo" }, repeat: false } },
-        into: "last",
-      },
-      step("after", { $ref: "state.last" }),
-    ])
-    expect(whileLoop).toEqual([])
-    const forLoop = await errors(
+describe("graph model dataflow: loop body arrays", () => {
+  it("types forEach body exports as definite arrays after the loop", async () => {
+    const found = await errors(
       [
         {
           type: "loop",
-          id: "f",
-          mode: "for",
-          input: { count: { $ref: "state.n" } },
-          as: "i",
-          steps: [step("a", { $ref: "state.i" })],
-          end: { input: { value: { $ref: "state.a.echo" } } },
-          into: "last",
+          mode: "forEach",
+          id: "each",
+          input: { items: { $ref: "state.rows" } },
+          as: "row",
+          steps: [step("a", { $ref: "state.row" }, "out")],
         },
-        step("after", { $ref: "state.last" }),
+        step("after", { $ref: "state.out" }),
       ],
-      { n: { type: "integer" } },
+      { rows: { type: "array" } },
     )
-    expect(forLoop).toEqual(["ECP_REF_MAYBE_MISSING /steps/1/input/value/$ref"])
+    expect(found).toEqual([])
   })
 
-  it("checks end inputs against end.accepts", async () => {
+  it("publishes empty arrays when for count is zero", async () => {
     const found = await errors([
       {
         type: "loop",
-        id: "w",
-        maxRounds: 2,
-        steps: [step("a", "x")],
-        end: {
-          accepts: { type: "object", properties: { value: { type: "integer" } } },
-          input: { value: { $ref: "state.a.echo" }, repeat: false },
-        },
+        mode: "for",
+        id: "f",
+        input: { count: 0 },
+        as: "i",
+        steps: [step("body", "x")],
       },
+      step("after", { $ref: "state.body" }),
     ])
-    expect(found).toEqual(["ECP_TYPE_MISMATCH /steps/0/end/input/value/$ref"])
+    expect(found).toEqual([])
   })
 
-  it("types forEach into from end.returns, or unknown when end gathers with an expression", async () => {
-    const loop = (end: Record<string, unknown>) => ({
-      type: "loop",
-      id: "each",
-      mode: "forEach",
-      input: { items: { $ref: "state.rows" } },
-      as: "row",
-      steps: [step("a", { $ref: "state.row" })],
-      end,
-      into: "out",
-    })
-    const reader = { id: "read", uses: echo.id, input: { value: { $ref: "state.out" } }, as: "read" }
-    const typed = await errors(
+  it("refuses refs to loop as after the loop", async () => {
+    const found = await errors(
       [
-        loop({
-          input: { value: { $ref: "state.a.echo" } },
-          expression: "({ length: input.value.length })",
-          returns: { type: "object", properties: { length: { type: "integer" } } },
-        }),
-        reader,
+        {
+          type: "loop",
+          mode: "forEach",
+          id: "each",
+          input: { items: { $ref: "state.rows" } },
+          as: "row",
+          steps: [step("a", { $ref: "state.row" })],
+        },
+        step("after", { $ref: "state.row" }),
       ],
       { rows: { type: "array" } },
     )
-    expect(typed).toEqual([])
-    const gathered = await errors(
-      [loop({ input: { value: { $ref: "state.a.echo" } }, expression: "input.value.length" }), reader],
+    expect(found).toEqual(["ECP_REF_UNRESOLVED /steps/1/input/value/$ref"])
+  })
+
+  it("marks gated body exports as maybe for in-loop refs", async () => {
+    const found = await errors(
+      [
+        {
+          type: "loop",
+          mode: "forEach",
+          id: "each",
+          input: { items: { $ref: "state.rows" } },
+          as: "row",
+          steps: [
+            {
+              type: "if",
+              id: "pick",
+              expression: "false",
+              then: [step("t", "t", "out")],
+            },
+            step("use", { $ref: "state.out.echo" }),
+          ],
+        },
+      ],
       { rows: { type: "array" } },
     )
-    expect(gathered).toEqual([])
+    expect(found).toEqual(["ECP_REF_MAYBE_MISSING /steps/0/steps/1/input/value/$ref"])
+  })
+
+  it("rejects legacy end and into on loops at validation", async () => {
+    const report = await validateExecution(
+      {
+        schema: "@executioncontrolprotocol.execution",
+        version: "2.0",
+        steps: [
+          {
+            type: "loop",
+            mode: "forEach",
+            id: "rows",
+            input: { items: { $ref: "state.rows" } },
+            as: "row",
+            into: "collected",
+            steps: [],
+            end: { input: { value: { $ref: "state.row" } } },
+          },
+        ],
+      } as ExecutionManifest,
+      { capabilities: [echo] },
+    )
+    const paths = report.issues.filter((issue) => issue.severity === "error").map((issue) => issue.path)
+    expect(paths).toContain("/steps/0/end")
+    expect(paths).toContain("/steps/0/into")
   })
 })
 

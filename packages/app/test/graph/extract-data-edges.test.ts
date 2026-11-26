@@ -91,7 +91,6 @@ describe("walkers", () => {
     walkInputRefs(value, "root", (p, r, k) => seen.push([p, r, k]))
     expect(seen).toEqual([
       ["root.a", "state.x", undefined],
-      ["root.b.0", "y", undefined],
       ["root.d", "state.w", "p"],
     ])
   })
@@ -124,10 +123,10 @@ describe("extractDataEdges", () => {
     {
       type: "loop",
       id: "l",
-      mode: "while",
-      maxRounds: 2,
-      steps: [{ id: "self", uses: "@x/p.c", input: { v: { $ref: "state.later" } }, as: "later" }],
-      end: { input: { repeat: false } },
+      mode: "for",
+      as: "i",
+      input: { count: 2 },
+      steps: [{ id: "self", uses: "@x/p.c", input: { v: { $ref: "state.later" } }, as: "later", mode: "replace" }],
     },
   ]
 
@@ -139,36 +138,6 @@ describe("extractDataEdges", () => {
     ])
   })
 
-  it("forEach into reads use end results handle", () => {
-    const nodes: Node[] = [
-      {
-        type: "loop",
-        mode: "forEach",
-        id: "items",
-        as: "row",
-        into: "out",
-        input: { items: { $ref: "state.list" } },
-        steps: [
-          {
-            id: "body",
-            uses: "@x/p.c",
-            input: { a: { $ref: "state.out.summary" } },
-          },
-        ],
-        end: { input: {} },
-      },
-    ]
-    const edges = extractDataEdges(nodes)
-    expect(edges).toContainEqual(
-      expect.objectContaining({
-        source: "end:items",
-        sourceHandle: "results",
-        target: "body",
-        targetHandle: "a",
-      }),
-    )
-  })
-
   it("loop item reads inside forEach resolve to the loop head item handle", () => {
     const nodes: Node[] = [
       {
@@ -176,9 +145,7 @@ describe("extractDataEdges", () => {
         mode: "forEach",
         id: "items",
         as: "row",
-        into: "out",
         input: { items: { $ref: "state.list" } },
-        end: { input: {} },
         steps: [
           {
             id: "body",

@@ -1,9 +1,8 @@
 import type { Node, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, isStepNode } from "./io-from-schema.js"
 import { isJsonObject } from "./json-schema.js"
-import { isExprMarker, isScriptMarker, refPathFromValue } from "./markers.js"
+import { isExprMarker, isScriptMarker, refPathFromValue, refPathsFromValue } from "./markers.js"
 import {
-  END_RESULTS_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_COUNT_HANDLE,
@@ -71,9 +70,8 @@ interface ParallelScope {
 
 interface LoopScope {
   id: string
-  mode: "while" | "for" | "forEach"
+  mode: "for" | "forEach"
   as: string
-  into: string
   bodyStepIds: Set<string>
   startOrder: number
   endOrder: number
@@ -97,9 +95,8 @@ interface WalkState {
   parallelById: Map<string, ParallelScope>
 }
 
-function loopModeOf(node: { mode?: string }): "while" | "for" | "forEach" {
-  const mode = node.mode ?? "while"
-  return mode === "for" || mode === "forEach" ? mode : "while"
+function loopModeOf(node: { mode: "for" | "forEach" }): "for" | "forEach" {
+  return node.mode
 }
 
 function walkPlacements(nodes: Node[], state: WalkState): void {
@@ -119,7 +116,6 @@ function walkPlacements(nodes: Node[], state: WalkState): void {
         id: node.id,
         mode: loopModeOf(node),
         as: node.as ?? "",
-        into: node.into ?? "",
         bodyStepIds: new Set(bodySteps.map((step) => step.id)),
         startOrder,
         endOrder: startOrder,
@@ -247,16 +243,18 @@ export function walkInputRefs(
   path: string,
   visit: (inputPath: string, refPath: string, paramKey?: string) => void,
 ): void {
-  const refPath = refPathFromValue(value)
-  if (refPath !== undefined) {
-    visit(path, refPath)
+  const refPaths = refPathsFromValue(value)
+  if (refPaths !== undefined) {
+    for (const refPath of refPaths) visit(path, refPath)
     return
   }
   if (isExprMarker(value)) return
   if (isScriptMarker(value)) {
     for (const [key, param] of Object.entries(value.$script.params ?? {})) {
-      const paramRef = refPathFromValue(param)
-      if (paramRef !== undefined) visit(path, paramRef, key)
+      const paramRefs = refPathsFromValue(param)
+      if (paramRefs !== undefined) {
+        for (const refPath of paramRefs) visit(path, refPath, key)
+      }
     }
     return
   }
@@ -440,13 +438,6 @@ function buildSourceIndex(
     }
   }
 
-  for (const scope of loopById.values()) {
-    if (!scope.into) continue
-    const list = globalWriters.get(scope.into) ?? []
-    list.push({ id: scope.endNodeId, order: scope.endOrder })
-    globalWriters.set(scope.into, list)
-  }
-
   function lastBefore(hits: WriterHit[], maxOrder: number, enclosingLoopId?: string): string | undefined {
     const filtered = hits.filter((hit) => {
       if (hit.order >= maxOrder) return false
@@ -456,16 +447,13 @@ function buildSourceIndex(
     return filtered.at(-1)?.id
   }
 
-  /**
-   * A body writer is visible after its loops when every loop it sits in (that doesn't also enclose the reader) is a
-   * `while` / `for` loop the reader comes after; `forEach` body writes stay in the item's scope (spec 03 L3).
-   */
+  /** A body writer is visible after its loops when the reader sits after every enclosing loop that the reader left. */
   function escapesTo(hit: WriterHit, maxOrder: number, readerStack: readonly string[]): boolean {
     const left = (hit.loopStack ?? []).filter((loopId) => !readerStack.includes(loopId))
     if (left.length === 0) return false
     return left.every((loopId) => {
       const scope = loopById.get(loopId)
-      return scope !== undefined && scope.mode !== "forEach" && scope.endOrder < maxOrder
+      return scope !== undefined && scope.endOrder < maxOrder
     })
   }
 
@@ -533,7 +521,6 @@ function sourceHandleForLoopRead(
     return scope.mode === "for" ? LOOP_INDEX_HANDLE : LOOP_ITEM_HANDLE
   }
   if (scope.mode === "forEach" && parsed.asKey === `${scope.as}Index`) return LOOP_INDEX_HANDLE
-  if (parsed.asKey === scope.into) return END_RESULTS_HANDLE
   if (wholeFallback) {
     return longestPrefixId(parsed.fieldPath, outputPortIdsByStepId?.get(scope.id)) ?? OUTPUT_HANDLE_ID
   }
@@ -564,8 +551,6 @@ function pushReadEdge(
     sourceHandle = scope
       ? sourceHandleForLoopRead(scope, parsed, ctx.outputPortIdsByStepId, wholeFallback)
       : LOOP_ITEM_HANDLE
-  } else if (sourceId.startsWith("end:")) {
-    sourceHandle = END_RESULTS_HANDLE
   } else if (containerAsSourceId(parsed.asKey, readerScope ?? [])) {
     sourceHandle = containerAsSourceId(parsed.asKey, readerScope ?? [])!.handleId
   } else if (wholeFallback) {
@@ -662,7 +647,6 @@ function pushStructureInputEdges(
         })
       } else if (node.type === "loop") {
         const loopScope = loopById.get(node.id)
-        const endId = loopScope?.endNodeId
         const bodyStack = [...loopStack, node.id]
         if (phase === "loop-drivers" && loopScope && node.input) {
           const portIds = inputPortIdsByStepId?.get(node.id)
@@ -685,25 +669,6 @@ function pushStructureInputEdges(
                 inputPath,
                 paramKey,
                 scope,
-              )
-            })
-          }
-        }
-        if (phase === "others" && loopScope && endId && node.end?.input) {
-          const portIds = inputPortIdsByStepId?.get(endId)
-          for (const [key, value] of Object.entries(node.end.input)) {
-            walkInputRefs(value, key, (inputPath, refPath, paramKey) => {
-              pushReadEdge(
-                ctx,
-                endId,
-                refPath,
-                resolveInputHandle(inputPath, portIds),
-                false,
-                loopScope.endOrder,
-                bodyStack,
-                inputPath,
-                paramKey,
-                [...scope, { kind: "loop", id: node.id }],
               )
             })
           }

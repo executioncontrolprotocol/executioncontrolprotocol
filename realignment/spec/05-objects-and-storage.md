@@ -133,16 +133,21 @@ name adds `#i<items>` joined with `.` before any round: `render#i2.json`, `tick#
 `i` keeps item 2 apart from loop round 2. Captured artifact names follow the same rule
 (`step-i2.4-r1-…`).
 
-## forEach partial results (`loop-items/<nodeId>.json`)
+## Loop partial file (`loop-items/<nodeId>.json`, outermost `for` or `forEach` only)
 
 ```json
-{ "results": { "0": { … }, "2": null }, "errors": [ { "index": 2, "error": { … } } ] }
+{
+  "rounds": {
+    "0": { "label": { "echo": "a" } },
+    "2": null
+  },
+  "errors": [ { "index": 2, "error": { … } } ]
+}
 ```
 
-Written atomically after each finished item of an outermost `forEach` loop. A present key is a
-recorded result (`null` for an item that failed under `onError: "continue"`). Resume reads this
-file; the cursor's `loopItems` map is a summary written with the run record. A run record without
-`loopItems` in its cursor reads as `{}`.
+Each finished round / item records the keys the body wrote (`null` for the whole slot when
+`onError: "continue"` fails the item). Resume skips completed indexes and rebuilds parent arrays
+without re-running finished rounds.
 
 ## Capability entry (`retrieve` item)
 

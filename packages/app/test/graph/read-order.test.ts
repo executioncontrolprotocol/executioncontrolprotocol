@@ -1,7 +1,7 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { END_RESULTS_HANDLE, LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
+import { LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
 import { sourceVisibleTo } from "../../src/graph/read-order.js"
 
 const echo = "@executioncontrolprotocol/test.echo"
@@ -46,7 +46,7 @@ describe("sourceVisibleTo", () => {
     expect(sourceVisibleTo(manifest, { nodeId: "a", handleId: "output" }, "after")).toBe(true)
   })
 
-  it("handles forEach item and into visibility", () => {
+  it("handles forEach item visibility and body output after the loop", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -56,24 +56,15 @@ describe("sourceVisibleTo", () => {
           id: "rows",
           mode: "forEach",
           as: "row",
-          into: "results",
           input: { items: { $ref: "state.items" } },
           steps: [{ id: "body", uses: echo, input: { value: "v" }, as: "body" }],
-          end: { input: {} },
         },
         { id: "after", uses: echo, input: { value: "x" }, as: "after" },
       ],
     }
     expect(sourceVisibleTo(manifest, { nodeId: "rows", handleId: LOOP_ITEM_HANDLE }, "body")).toBe(true)
     expect(sourceVisibleTo(manifest, { nodeId: "rows", handleId: LOOP_ITEM_HANDLE }, "after")).toBe(false)
-    expect(
-      sourceVisibleTo(
-        manifest,
-        { nodeId: loopEndNodeId("rows"), handleId: END_RESULTS_HANDLE },
-        "after",
-      ),
-    ).toBe(true)
-    expect(sourceVisibleTo(manifest, { nodeId: "body", handleId: "output" }, "after")).toBe(false)
+    expect(sourceVisibleTo(manifest, { nodeId: "body", handleId: "output" }, "after")).toBe(true)
   })
 
   it("refuses if-side cross reads", () => {
@@ -116,7 +107,7 @@ describe("sourceVisibleTo", () => {
     expect(sourceVisibleTo(manifest, { nodeId: "only", handleId: "output" }, "only")).toBe(false)
   })
 
-  it("allows a step after a while loop to read body output", () => {
+  it("allows a step after a for loop to read the last body output", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -124,10 +115,10 @@ describe("sourceVisibleTo", () => {
         {
           type: "loop",
           id: "retry",
-          mode: "while",
-          maxRounds: 2,
-          steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
-          end: { input: { repeat: false } },
+          mode: "for",
+          as: "i",
+          input: { count: 2 },
+          steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body", mode: "replace" }],
         },
         { id: "after", uses: echo, input: { value: "a" }, as: "after" },
       ],
@@ -160,7 +151,6 @@ describe("sourceVisibleTo", () => {
           input: { count: { $ref: "state.n" } },
           as: "i",
           steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
-          end: { input: { value: 0 } },
         },
         { id: "after", uses: echo, input: { value: "a" }, as: "after" },
       ],
@@ -178,14 +168,14 @@ describe("sourceVisibleTo: reader nested deeper than the writer", () => {
       steps: [step("A"), structure, ...after.map(step)],
     }) as unknown as ExecutionManifest
 
-  it("a step inside a while loop reads a step before the loop", () => {
+  it("a step inside a for loop reads a step before the loop", () => {
     const m = manifestWith({
       type: "loop",
       id: "L",
-      mode: "while",
-      maxRounds: 1,
+      mode: "for",
+      as: "i",
+      input: { count: 1 },
       steps: [step("B")],
-      end: { input: { repeat: false } },
     })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
   })
@@ -205,10 +195,10 @@ describe("sourceVisibleTo: reader nested deeper than the writer", () => {
     const m = manifestWith({
       type: "loop",
       id: "L",
-      mode: "while",
-      maxRounds: 1,
+      mode: "for",
+      as: "i",
+      input: { count: 1 },
       steps: [step("B")],
-      end: { input: { repeat: false } },
     })
     expect(sourceVisibleTo(m, { nodeId: "B", handleId: "output" }, "A")).toBe(false)
   })
@@ -217,12 +207,12 @@ describe("sourceVisibleTo: reader nested deeper than the writer", () => {
     const m = manifestWith({
       type: "loop",
       id: "L",
-      mode: "while",
-      maxRounds: 1,
+      mode: "for",
+      as: "i",
+      input: { count: 1 },
       steps: [
         { type: "if", id: "br", expression: "true", then: [step("B")] },
       ],
-      end: { input: { repeat: false } },
     })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
   })

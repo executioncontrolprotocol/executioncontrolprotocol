@@ -81,9 +81,6 @@ export const TRANSFORM_MAX_RESULT_BYTES = 4 * 1024 * 1024
 /** Maximum editor schema bytes returned inline on `retrieve` type `schema` with `include: ["document"]`. @category Definitions */
 export const SCHEMA_DOCUMENT_INLINE_MAX_BYTES = 262_144
 
-/** Loop `maxRounds` upper bound. @category Definitions */
-export const MAX_ROUNDS_LIMIT = 1000
-
 /** `forEach` loop `concurrency` upper bound. @category Definitions */
 export const MAX_LOOP_CONCURRENCY = 32
 

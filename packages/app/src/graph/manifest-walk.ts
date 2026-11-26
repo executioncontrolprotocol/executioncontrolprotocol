@@ -169,7 +169,6 @@ function collectStateKeys(nodes: readonly Node[], out: Set<string>): void {
     if (typeof node.as === "string") out.add(node.as)
     if (node.type === "loop") {
       if (typeof node.as === "string" && node.mode === "forEach") out.add(`${node.as}Index`)
-      if (typeof node.into === "string") out.add(node.into)
       collectStateKeys(node.steps, out)
     } else if (node.type === "if") {
       collectStateKeys(node.then, out)
@@ -180,7 +179,7 @@ function collectStateKeys(nodes: readonly Node[], out: Set<string>): void {
   }
 }
 
-/** Every state key already named in the manifest: step and structure `as`, loop `into` / `<as>Index`, execution inputs. @internal */
+/** Every state key already named in the manifest: step and structure `as`, loop `<as>Index`, execution inputs. @internal */
 export function takenStateKeys(manifest: ExecutionManifest): Set<string> {
   const names = new Set<string>()
   collectStateKeys(manifest.steps, names)

@@ -1,19 +1,13 @@
-import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
 import { validateExecution } from "@executioncontrolprotocol/engine"
 import { describe, expect, it } from "vitest"
 import {
   addParallelPath,
   conditionForm,
-  ensureLoopInto,
   ensureStructureAs,
   normalizeRefPath,
   parseLiteralInput,
   parseSchemaText,
-  setEndAccepts,
-  setEndGatherForm,
-  setEndGatherText,
-  setEndInputBinding,
-  setEndReturns,
   setIfAccepts,
   setIfAs,
   setIfConditionForm,
@@ -21,7 +15,6 @@ import {
   setIfInputBinding,
   setIfLabel,
   setLoopDriver,
-  setLoopInto,
   setLoopLabel,
   setLoopMode,
   setParallelAccepts,
@@ -34,11 +27,9 @@ import {
   PANEL_EDIT_INPUT_KEY,
   PANEL_EDIT_PATH_EMPTY,
   PANEL_EDIT_REF_PATH,
-  PANEL_EDIT_REPEAT_WHILE_ONLY,
   PANEL_EDIT_SCHEMA_OBJECT,
   PANEL_EDIT_SCRIPT_FILE,
   PANEL_EDIT_STATE_KEY,
-  PANEL_EDIT_WHILE_DRIVER,
   STRUCTURE_EDIT_STRUCTURE_NOT_FOUND,
   type LoopMode,
   type StructureEditResult,
@@ -66,23 +57,18 @@ function parallelManifest(extra: Partial<ParallelNode> = {}): ExecutionManifest 
 
 function loopOf(mode: LoopMode): LoopNode {
   const body = [{ ...step("body", { $ref: "state.item" }), ...(mode === "forEach" ? {} : { mode: "replace" as const }) }]
-  if (mode === "while") {
-    return { type: "loop", id: "lp", mode, maxRounds: 3, steps: body, end: { input: { repeat: false } } }
-  }
   if (mode === "for") {
-    return { type: "loop", id: "lp", mode, as: "i", input: { count: 2 }, steps: body, end: { input: {} } }
+    return { type: "loop", id: "lp", mode, as: "i", input: { count: 2 }, steps: body }
   }
   return {
     type: "loop",
     id: "lp",
     mode,
     as: "item",
-    into: "res",
     concurrency: 2,
     onError: "continue",
     input: { items: { $ref: "state.xs" } },
     steps: body,
-    end: { input: { value: { $ref: "state.body" } } },
   }
 }
 
@@ -363,7 +349,7 @@ describe("structure label", () => {
     for (const [manifest, id] of [
       [ifManifest(), "gate"],
       [parallelManifest(), "fan"],
-      [loopManifest("while"), "lp"],
+      [loopManifest("for"), "lp"],
     ] as const) {
       const labelled = ok(setStructureLabel(manifest, id, "Named"))
       expect((node(labelled, id) as { label?: string }).label).toBe("Named")
@@ -394,27 +380,14 @@ describe("loop edits", () => {
     expect(node<LoopNode>(cleared, "lp").input).toEqual({})
   })
 
-  it("refuses a driver on a while loop and a bad reference", () => {
-    expect(refusal(setLoopDriver(loopManifest("while"), "lp", { kind: "literal", value: 1 }))).toBe(PANEL_EDIT_WHILE_DRIVER)
+  it("refuses a bad driver reference and unknown structures", () => {
     expect(refusal(setLoopDriver(loopManifest("forEach"), "lp", { kind: "ref", path: "??" }))).toBe(PANEL_EDIT_REF_PATH)
     expect(refusal(setLoopDriver(ifManifest(), "gate", { kind: "unset" }))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
   })
 
-  it("sets and clears into, and refuses a bad name", () => {
-    const named = ok(setLoopInto(loopManifest("for"), "lp", "out"))
-    expect(node<LoopNode>(named, "lp").into).toBe("out")
-    expect(node<LoopNode>(ok(setLoopInto(named, "lp", "")), "lp").into).toBeUndefined()
-    expect(node<LoopNode>(ok(setLoopInto(named, "lp", undefined)), "lp").into).toBeUndefined()
-    expect(refusal(setLoopInto(loopManifest("for"), "lp", "bad name"))).toBe(PANEL_EDIT_STATE_KEY)
-    expect(refusal(setLoopInto(ifManifest(), "gate", "out"))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
-  })
-
-  it("ensureLoopInto and ensureStructureAs allocate a free name from the id, once", () => {
+  it("ensureStructureAs allocates a free name from the id, once", () => {
     const manifest = manifestOf({ ...loopOf("for"), id: "my-loop" }, { type: "if", id: "my-if", expression: "true", then: [step("t")] })
     const draft = structuredClone(manifest)
-    const loop = node<LoopNode>(draft, "my-loop")
-    expect(ensureLoopInto(draft, loop)).toBe("my_loop")
-    expect(ensureLoopInto(draft, loop)).toBe("my_loop")
     const gate = node<IfNode>(draft, "my-if")
     expect(ensureStructureAs(draft, gate)).toBe("my_if")
     expect(gate.input).toEqual({})
@@ -429,207 +402,57 @@ describe("loop edits", () => {
 })
 
 describe("loop mode changes", () => {
-  const modes: LoopMode[] = ["while", "for", "forEach"]
-  const pairs = modes.flatMap((from) => modes.filter((to) => to !== from).map((to) => [from, to] as const))
-
-  it.each(pairs)("%s to %s rewrites the fields and leaves what the engine allows", async (from, to) => {
+  it.each([
+    ["for", "forEach"],
+    ["forEach", "for"],
+  ] as const)("%s to %s rewrites drivers and keeps as", async (from, to) => {
     const changed = ok(setLoopMode(loopManifest(from), "lp", to))
     const loop = node<LoopNode>(changed, "lp")
     expect(loop.mode).toBe(to)
-    if (to === "while") {
-      expect(loop.maxRounds).toBeGreaterThanOrEqual(1)
-      expect(loop.as).toBeUndefined()
-      expect(loop.input).toBeUndefined()
-      expect(loop.concurrency).toBeUndefined()
-      expect(loop.onError).toBeUndefined()
-      expect(loop.end?.input?.repeat).toBe(false)
-    } else {
-      expect(loop.maxRounds).toBeUndefined()
-      expect(loop.end?.input?.repeat).toBeUndefined()
-      expect(loop.as).toBeTruthy()
-    }
+    expect(loop.as).toBeTruthy()
+    expect(loop.input).toBeDefined()
     if (to === "for") {
       expect(loop.input?.count).toBeDefined()
       expect(loop.input?.items).toBeUndefined()
       expect(loop.concurrency).toBeUndefined()
       expect(loop.onError).toBeUndefined()
-    }
-    if (to !== "while") expect(loop.input).toBeDefined()
-    if (to === "forEach") {
+    } else {
       expect(loop.input?.count).toBeUndefined()
-      expect(loop.into).toBeTruthy()
     }
     const issues = await issueCodes(changed)
     if (to === "forEach" && from !== "forEach") {
-      // The driver is not invented: validation reports the unbound items (and the value `into` needs).
-      expect(issues.every((issue) => /\/input\/items$|\/end\/input\/value$/.test(issue.path))).toBe(true)
+      expect(issues.every((issue) => /\/input\/items$/.test(issue.path))).toBe(true)
     } else {
       expect(issues).toEqual([])
     }
   })
 
-  it("sets replace on body steps that commit with the default mode when a loop becomes while or for", () => {
-    const base = manifestOf({
-      ...loopOf("forEach"),
-      steps: [
-        step("plain"),
-        { ...step("appended"), mode: "append" },
-        { id: "quiet", uses: echo, input: { value: "q" } },
-        {
-          type: "if",
-          id: "inner",
-          expression: "true",
-          then: [{ ...step("nested"), mode: "create" }],
-        },
-      ],
-    })
-    const changed = ok(setLoopMode(base, "lp", "while"))
-    expect(node<StepNode>(changed, "plain").mode).toBe("replace")
-    expect(node<StepNode>(changed, "appended").mode).toBe("append")
-    expect(node<StepNode>(changed, "quiet").mode).toBeUndefined()
-    expect(node<StepNode>(changed, "nested").mode).toBe("replace")
-    const stayed = ok(setLoopMode(base, "lp", "forEach"))
-    expect(node<StepNode>(stayed, "plain").mode).toBeUndefined()
-  })
-
-  it("keeps the as and into a loop already has, and the count it already has", () => {
+  it("keeps the as a loop already has when switching to for", () => {
     const forEach = ok(setLoopMode(loopManifest("forEach"), "lp", "for"))
     expect(node<LoopNode>(forEach, "lp").as).toBe("item")
-    const withCount = manifestOf({ ...loopOf("for"), input: { count: 7 } })
-    const toWhileAndBack = ok(setLoopMode(ok(setLoopMode(withCount, "lp", "while")), "lp", "for"))
-    expect(node<LoopNode>(toWhileAndBack, "lp").input).toEqual({ count: 1 })
-    const forEachAgain = ok(setLoopMode(loopManifest("forEach"), "lp", "forEach"))
-    expect(node<LoopNode>(forEachAgain, "lp").into).toBe("res")
-    expect(node<LoopNode>(forEachAgain, "lp").input).toEqual({ items: { $ref: "state.xs" } })
+    const withItems = manifestOf({ ...loopOf("forEach") })
+    const back = ok(setLoopMode(withItems, "lp", "for"))
+    expect(node<LoopNode>(back, "lp").as).toBe("item")
+    expect(node<LoopNode>(back, "lp").input?.count).toBeDefined()
   })
 
-  it("keeps maxRounds and repeat when a while loop is switched to while", () => {
-    const same = ok(setLoopMode(loopManifest("while"), "lp", "while"))
-    expect(node<LoopNode>(same, "lp").maxRounds).toBe(3)
-    expect(node<LoopNode>(same, "lp").end?.input?.repeat).toBe(false)
-  })
-
-  it("keeps a repeat binding when a while loop stays a while loop", () => {
-    const base = manifestOf({ ...loopOf("while"), end: { input: { repeat: { $ref: "state.again" } } } })
-    const same = ok(setLoopMode(base, "lp", "while"))
-    expect(node<LoopNode>(same, "lp").end?.input?.repeat).toEqual({ $ref: "state.again" })
-  })
-
-  it("picks a free name for the placeholder as and into", () => {
-    const base = manifestOf(
-      { ...step("item"), as: "item" },
-      { ...step("results"), as: "results" },
-      { ...loopOf("while"), id: "lp" },
-    )
+  it("picks a free as when switching to forEach with colliding step names", () => {
+    const base = manifestOf({ ...step("item"), as: "item" }, { ...loopOf("for"), id: "lp" })
     const forEach = node<LoopNode>(ok(setLoopMode(base, "lp", "forEach")), "lp")
     expect(forEach.as).not.toBe("item")
-    expect(forEach.into).not.toBe("results")
     expect(forEach.as).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/)
-    expect(forEach.into).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/)
-  })
-
-  it("leaves the end gather alone", () => {
-    const base = manifestOf({
-      ...loopOf("forEach"),
-      end: { input: { value: { $ref: "state.body" } }, expression: "input.value", returns: { type: "string" } },
-    })
-    const end = node<LoopNode>(ok(setLoopMode(base, "lp", "for")), "lp").end
-    expect(end?.expression).toBe("input.value")
-    expect(end?.returns).toEqual({ type: "string" })
-    expect(end?.input?.value).toEqual({ $ref: "state.body" })
   })
 
   it("refuses an unknown mode, an unknown id and a node of another kind", () => {
     expect(refusal(setLoopMode(loopManifest("for"), "lp", "until" as never))).toBe("Invalid loop field")
-    expect(refusal(setLoopMode(loopManifest("for"), "nope", "while"))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
-    expect(refusal(setLoopMode(ifManifest(), "gate", "while"))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
+    expect(refusal(setLoopMode(loopManifest("for"), "nope", "forEach"))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
+    expect(refusal(setLoopMode(ifManifest(), "gate", "for"))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
   })
 
   it("does not change the manifest it is given", () => {
     const base = loopManifest("forEach")
     const before = JSON.stringify(base)
-    ok(setLoopMode(base, "lp", "while"))
+    ok(setLoopMode(base, "lp", "for"))
     expect(JSON.stringify(base)).toBe(before)
-  })
-})
-
-describe("end edits", () => {
-  it("sets and removes accepts and returns", () => {
-    const accepts = { type: "object", properties: { value: { type: "string" } } }
-    const withAccepts = ok(setEndAccepts(loopManifest("for"), "lp", accepts))
-    expect(node<LoopNode>(withAccepts, "lp").end?.accepts).toEqual(accepts)
-    expect(node<LoopNode>(ok(setEndAccepts(withAccepts, "lp", undefined)), "lp").end?.accepts).toBeUndefined()
-    const returns = { type: "string" }
-    const withReturns = ok(setEndReturns(loopManifest("for"), "lp", returns))
-    expect(node<LoopNode>(withReturns, "lp").end?.returns).toEqual(returns)
-    expect(node<LoopNode>(ok(setEndReturns(withReturns, "lp", undefined)), "lp").end?.returns).toBeUndefined()
-    expect(refusal(setEndAccepts(loopManifest("for"), "lp", [] as never))).toBe(PANEL_EDIT_SCHEMA_OBJECT)
-    expect(refusal(setEndReturns(loopManifest("for"), "lp", [] as never))).toBe(PANEL_EDIT_SCHEMA_OBJECT)
-  })
-
-  it("creates the end when a loop has none", () => {
-    const bare = manifestOf({ ...loopOf("for"), end: undefined })
-    const edited = ok(setEndReturns(bare, "lp", { type: "number" }))
-    expect(node<LoopNode>(edited, "lp").end?.returns).toEqual({ type: "number" })
-    expect(node<LoopNode>(edited, "lp").end?.input).toEqual({})
-  })
-
-  it("gathers as none, expression and script, carrying the text over", () => {
-    const base = loopManifest("forEach")
-    expect(conditionForm(node<LoopNode>(base, "lp").end ?? {})).toBe("none")
-    const expression = ok(setEndGatherForm(base, "lp", "expression"))
-    expect(node<LoopNode>(expression, "lp").end?.expression).toBe("input.value")
-    const edited = ok(setEndGatherText(expression, "lp", "input.value.toUpperCase()"))
-    expect(node<LoopNode>(edited, "lp").end?.expression).toBe("input.value.toUpperCase()")
-    const script = ok(setEndGatherForm(edited, "lp", "script"))
-    expect(node<LoopNode>(script, "lp").end?.script).toEqual({ lang: "js", source: "return input.value.toUpperCase()" })
-    expect(node<LoopNode>(script, "lp").end?.expression).toBeUndefined()
-    const scriptEdited = ok(setEndGatherText(script, "lp", "return 1"))
-    expect(node<LoopNode>(scriptEdited, "lp").end?.script?.source).toBe("return 1")
-    const none = ok(setEndGatherForm(scriptEdited, "lp", "none"))
-    expect(node<LoopNode>(none, "lp").end?.script).toBeUndefined()
-    expect(node<LoopNode>(none, "lp").end?.expression).toBeUndefined()
-  })
-
-  it("refuses gather text when there is no gather, or the script is a file", () => {
-    expect(refusal(setEndGatherText(loopManifest("forEach"), "lp", "input.value"))).toBe(PANEL_EDIT_CONDITION_FORM)
-    const filed = manifestOf({ ...loopOf("forEach"), end: { input: {}, script: { lang: "js", path: "./g.js" } } })
-    expect(refusal(setEndGatherText(filed, "lp", "return 1"))).toBe(PANEL_EDIT_SCRIPT_FILE)
-  })
-
-  it("binds value, repeat and an accepts key", () => {
-    const value = ok(setEndInputBinding(loopManifest("for"), "lp", "value", { kind: "ref", path: "state.body" }))
-    expect(node<LoopNode>(value, "lp").end?.input?.value).toEqual({ $ref: "state.body" })
-    const repeat = ok(setEndInputBinding(loopManifest("while"), "lp", "repeat", { kind: "ref", path: "state.again" }))
-    expect(node<LoopNode>(repeat, "lp").end?.input?.repeat).toEqual({ $ref: "state.again" })
-    const extra = ok(setEndInputBinding(loopManifest("for"), "lp", "score", { kind: "literal", value: 3 }))
-    expect(node<LoopNode>(extra, "lp").end?.input?.score).toBe(3)
-    const removed = ok(setEndInputBinding(value, "lp", "value", { kind: "unset" }))
-    expect(node<LoopNode>(removed, "lp").end?.input?.value).toBeUndefined()
-  })
-
-  it("refuses repeat outside a while loop, but lets it be removed", () => {
-    for (const mode of ["for", "forEach"] as const) {
-      expect(refusal(setEndInputBinding(loopManifest(mode), "lp", "repeat", { kind: "literal", value: false }))).toBe(
-        PANEL_EDIT_REPEAT_WHILE_ONLY,
-      )
-    }
-    const stray = manifestOf({ ...loopOf("for"), end: { input: { repeat: false } } })
-    const removed = ok(setEndInputBinding(stray, "lp", "repeat", { kind: "unset" }))
-    expect(node<LoopNode>(removed, "lp").end?.input?.repeat).toBeUndefined()
-  })
-
-  it("refuses a bad key or reference, and a node that is not a loop", () => {
-    expect(refusal(setEndInputBinding(loopManifest("for"), "lp", "", { kind: "unset" }))).toBe(PANEL_EDIT_INPUT_KEY)
-    expect(refusal(setEndInputBinding(loopManifest("for"), "lp", "value", { kind: "ref", path: "?" }))).toBe(PANEL_EDIT_REF_PATH)
-    expect(refusal(setEndInputBinding(ifManifest(), "gate", "value", { kind: "unset" }))).toBe(STRUCTURE_EDIT_STRUCTURE_NOT_FOUND)
-  })
-
-  it("an end gathered by script still validates", async () => {
-    let manifest = loopManifest("forEach")
-    manifest = ok(setEndGatherForm(manifest, "lp", "script"))
-    manifest = ok(setEndGatherText(manifest, "lp", "return input.value"))
-    manifest = ok(setEndReturns(manifest, "lp", { type: "object", properties: { text: { type: "string" } } }))
-    expect(await issueCodes(manifest)).toEqual([])
   })
 })

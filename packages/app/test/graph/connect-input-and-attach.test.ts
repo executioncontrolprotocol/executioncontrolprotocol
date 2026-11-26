@@ -11,9 +11,10 @@ import {
   CONNECTION_EDIT_SOURCE_DETACHED,
   connectInput,
   connectInputAndAttach,
+  placementManifestForDetachedConnect,
 } from "../../src/graph/connection-edit.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { END_RESULTS_HANDLE, LOOP_ITEM_HANDLE, LOOP_ITEMS_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
+import { LOOP_COUNT_HANDLE, LOOP_ITEM_HANDLE, LOOP_ITEMS_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const validDir = path.resolve(here, "../../../../fixtures/manifests/valid")
@@ -98,46 +99,52 @@ describe("connectInputAndAttach", () => {
 
   it("inserts at the start of a loop body when the source handle is item", () => {
     const base = load("loop-foreach.ecp.json")
+    const loopId = base.steps.find((node) => node.type === "loop")?.id ?? "rows"
     const before: ExecutionManifest = {
       ...base,
       detached: [{ id: "C", uses: echo, as: "C" }],
     }
     const result = connectInputAndAttach(before, {
-      sourceNodeId: "rows",
+      sourceNodeId: loopId,
       sourceHandle: LOOP_ITEM_HANDLE,
       targetStepId: "C",
       targetHandle: "value",
     })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    const loop = result.manifest.steps.find((node) => node.id === "rows")
+    const loop = result.manifest.steps.find((node) => node.id === loopId)
     expect(loop?.type).toBe("loop")
-    if (loop?.type === "loop") expect(loop.steps.map((node) => node.id)).toEqual(["C", "echo"])
+    if (loop?.type === "loop") expect(loop.steps.map((node) => node.id)[0]).toBe("C")
     const c = loop?.type === "loop" ? (loop.steps[0] as { input?: { value?: { $ref?: string } } }) : undefined
     expect(c?.input?.value).toEqual({ $ref: "state.row" })
   })
 
-  it("places after the loop when the source handle is into", () => {
-    const base = load("loop-foreach.ecp.json")
-    const before: ExecutionManifest = {
-      ...base,
-      steps: [...base.steps, { id: "after", uses: echo, input: { value: "t" }, as: "after" }],
+  it("places a detached step after the loop when dragging from the end node shell", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "rows",
+          mode: "forEach",
+          as: "row",
+          input: { items: { $ref: "state.items" } },
+          steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
+        },
+      ],
       detached: [{ id: "C", uses: echo, as: "C" }],
     }
-    const result = connectInputAndAttach(before, {
-      sourceNodeId: loopEndNodeId("rows"),
-      sourceHandle: END_RESULTS_HANDLE,
-      targetStepId: "C",
-      targetHandle: "value",
-    })
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.manifest.steps.map((node) => node.id)).toEqual(["pack", "rows", "C", "after"])
-    const c = result.manifest.steps[2] as { input?: { value?: { $ref?: string } } }
-    expect(c.input?.value).toEqual({ $ref: "state.results" })
-    const loop = result.manifest.steps[1]
-    expect(loop?.type).toBe("loop")
-    if (loop?.type === "loop") expect(loop.steps.map((node) => node.id)).toEqual(["echo"])
+    const placed = placementManifestForDetachedConnect(base, loopEndNodeId("rows"), "results", "C")
+    expect(placed?.steps.map((node) => node.id)).toEqual(["rows", "C"])
+    expect(
+      connectInputAndAttach(base, {
+        sourceNodeId: loopEndNodeId("rows"),
+        sourceHandle: "results",
+        targetStepId: "C",
+        targetHandle: "value",
+      }),
+    ).toMatchObject({ ok: false })
   })
 
   it("refuses nested detached steps, detached structures, and detached sources without mutating", () => {
@@ -210,13 +217,14 @@ describe("connectInputAndAttach", () => {
 
   it("discards placement when scope rejects a loop ref source", () => {
     const base = load("loop-foreach.ecp.json")
+    const loopId = base.steps.find((node) => node.type === "loop")?.id ?? "rows"
     const before: ExecutionManifest = {
       ...base,
       detached: [{ id: "late", uses: echo, as: "late" }],
     }
     const snapshot = structuredClone(before)
     const result = connectInputAndAttach(before, {
-      sourceNodeId: "rows",
+      sourceNodeId: loopId,
       sourceHandle: LOOP_ITEMS_HANDLE,
       targetStepId: "late",
       targetHandle: "value",
@@ -265,7 +273,7 @@ describe("connectInputAndAttach", () => {
     )
   })
 
-  it("connects in place when the target is an attached if, parallel or loop end node", () => {
+  it("connects in place when the target is an attached if or loop driver", () => {
     const before: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -275,9 +283,10 @@ describe("connectInputAndAttach", () => {
         {
           type: "loop",
           id: "lp",
-          maxRounds: 2,
+          mode: "for",
+          as: "i",
+          input: { count: 2 },
           steps: [{ id: "B", uses: echo, input: { value: "b" }, as: "B", mode: "replace" }],
-          end: { input: { repeat: false } },
         },
       ],
     }
@@ -291,16 +300,16 @@ describe("connectInputAndAttach", () => {
     if (!intoIf.ok) return
     expect((intoIf.manifest.steps[1] as { input?: unknown }).input).toEqual({ note: { $ref: "state.A" } })
 
-    const intoEnd = connectInputAndAttach(before, {
-      sourceNodeId: "B",
+    const intoDriver = connectInputAndAttach(before, {
+      sourceNodeId: "A",
       sourceHandle: "output",
-      targetStepId: loopEndNodeId("lp"),
-      targetHandle: "value",
+      targetStepId: "lp",
+      targetHandle: LOOP_COUNT_HANDLE,
     })
-    expect(intoEnd.ok).toBe(true)
-    if (!intoEnd.ok) return
-    expect((intoEnd.manifest.steps[2] as { end: { input: { value?: unknown } } }).end.input.value).toEqual({
-      $ref: "state.B",
+    expect(intoDriver.ok).toBe(true)
+    if (!intoDriver.ok) return
+    expect((intoDriver.manifest.steps[2] as { input?: { count?: { $ref?: string } } }).input?.count).toEqual({
+      $ref: "state.A",
     })
   })
 

@@ -19,7 +19,6 @@ import {
   collectSteps,
   setLoopDriver,
   setLoopField,
-  setLoopInto,
   setLoopLabel,
   setLoopMode,
   type AddStepPlacement,
@@ -72,7 +71,7 @@ export interface NodePanelProps {
   runStep?: RunGraphStep
   /** Run progress when the selected node is a `forEach` loop. */
   runLoopItems?: RunGraphLoopItems
-  /** Run round when the selected node is a `while` / `for` loop. */
+  /** Run round when the selected node is a `for` loop. */
   runLoop?: RunGraphLoop
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
@@ -147,9 +146,9 @@ function patchStep(
   return { ...manifest, steps: walk(manifest.steps) }
 }
 
-type LoopFieldKey = "maxRounds" | "as" | "concurrency" | "onError"
+type LoopFieldKey = "as" | "concurrency" | "onError"
 
-const LOOP_MODES = ["forEach", "for", "while"] as const
+const LOOP_MODES = ["forEach", "for"] as const
 
 function LoopItemsPanel({
   node,
@@ -178,8 +177,8 @@ function LoopItemsPanel({
 }) {
   const editor = usePanelEditor({ manifest, readOnly, fieldEpoch, applyManifestEdit, scheduleTextEdit, flushTextEdit })
   const source = findLoop(manifest, node.id)
-  const mode = source?.mode ?? data.mode ?? "while"
-  const driverKey = mode === "forEach" ? "items" : mode === "for" ? "count" : undefined
+  const mode = source?.mode ?? data.mode ?? "for"
+  const driverKey = mode === "forEach" ? "items" : "count"
   const field = (name: LoopFieldKey, value: string | number) => (current: ExecutionManifest) =>
     setLoopField(current, node.id, name, value)
 
@@ -226,35 +225,13 @@ function LoopItemsPanel({
             fixedKeys
           />
         ) : null}
-        {mode === "while" ? (
-          <TextField
-            label="Max rounds"
-            testId="loop-field-max-rounds"
-            type="number"
-            value={String(source?.maxRounds ?? data.maxRounds ?? 1)}
-            editor={editor}
-            onType={(next) => editor.type("Loop maxRounds", field("maxRounds", Number.parseInt(next, 10)))}
-            onCommit={(next) => editor.commit("Loop maxRounds", field("maxRounds", Number.parseInt(next, 10)))}
-          />
-        ) : null}
-        {mode === "for" || mode === "forEach" ? (
-          <TextField
-            label="As"
-            testId="loop-field-as"
-            value={source?.as ?? data.as ?? ""}
-            editor={editor}
-            onType={(next) => editor.type("Loop as", field("as", next))}
-            onCommit={(next) => editor.commit("Loop as", field("as", next))}
-          />
-        ) : null}
         <TextField
-          label="Into"
-          testId="loop-field-into"
-          value={source?.into ?? data.into ?? ""}
+          label="As"
+          testId="loop-field-as"
+          value={source?.as ?? data.as ?? ""}
           editor={editor}
-          placeholder={mode === "forEach" ? "required" : "optional"}
-          onType={(next) => editor.type("Loop into", (current) => setLoopInto(current, node.id, next))}
-          onCommit={(next) => editor.commit("Loop into", (current) => setLoopInto(current, node.id, next))}
+          onType={(next) => editor.type("Loop as", field("as", next))}
+          onCommit={(next) => editor.commit("Loop as", field("as", next))}
         />
         {mode === "forEach" ? (
           <>

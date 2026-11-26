@@ -5,7 +5,6 @@
     {
       "type": "loop",
       "id": "neither",
-      "maxRounds": 1,
       "steps": [
         {
           "id": "echo",

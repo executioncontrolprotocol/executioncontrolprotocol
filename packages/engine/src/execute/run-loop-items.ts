@@ -7,30 +7,23 @@ import type {
   ValidationIssue,
 } from "@executioncontrolprotocol/protocol"
 import { MAX_LOOP_CONCURRENCY, MAX_LOOP_ITEMS } from "@executioncontrolprotocol/protocol"
+import { collectLoopBodyExportKeys, diffWrittenKeys } from "./collect-keys.js"
 import { resolveValue } from "./resolve.js"
 
-/** Loop end node shape for gathering each item result. */
-export interface LoopEndLike {
-  accepts?: Record<string, unknown>
-  input?: unknown
-  expression?: string
-  script?: unknown
-  returns?: Record<string, unknown>
-}
+const MAX_FOR_COUNT = 1000
 
-/** Minimal loop node shape for `forEach` mode at run time. */
+/** Minimal loop node shape for round / item collection at run time. */
 export interface LoopItemsNodeLike {
   id: string
+  mode?: "for" | "forEach"
   input?: unknown
   as?: string
   steps?: unknown[]
-  end?: LoopEndLike
-  into?: string
   concurrency?: number
   onError?: "fail" | "continue"
 }
 
-/** Runtime slice passed into the `forEach` loop executor. */
+/** Runtime slice passed into the loop executor. */
 export interface LoopItemsRuntime {
   runId: string
   loopItemsDepth: number
@@ -40,9 +33,8 @@ export interface LoopItemsRuntime {
   interrupted: boolean
   cursor: {
     loopItems: Record<string, { completed: number[] }>
-    /** Per-item `if` choices and loop rounds; an interrupted item restarts, so these start empty. */
-    choices?: Record<string, "then" | "else">
     loops?: Record<string, number>
+    choices?: Record<string, "then" | "else">
   }
   deps: {
     clock?: RunClock
@@ -53,26 +45,20 @@ export interface LoopItemsRuntime {
       readLoopPartial?(runId: string, nodeId: string): Promise<LoopPartialFile | undefined>
       writeLoopPartial?(runId: string, nodeId: string, file: LoopPartialFile): Promise<void>
     }
-    cursor?: { loopItems?: Record<string, { completed: number[] }> }
+    cursor?: { loopItems?: Record<string, { completed: number[] }>; loops?: Record<string, number> }
   }
 }
 
 export interface ExecuteLoopItemsDeps {
-  /** Run body steps for one item state. */
+  /** Run body steps for one iteration state. */
   runBody: (
     steps: unknown[],
     itemState: Record<string, unknown>,
     itemRuntime: LoopItemsRuntime,
     emit: (type: RunEventType, data: Record<string, unknown>) => void,
     prefix: string,
+    round: number,
   ) => Promise<void>
-  /** Gather one item result from the loop end node. */
-  gatherEnd: (
-    end: LoopEndLike,
-    itemState: Record<string, unknown>,
-    endPointer: string,
-  ) => Promise<unknown>
-  /** Map errors to validation issues. */
   toIssue: (error: unknown) => ValidationIssue
 }
 
@@ -104,7 +90,7 @@ export function defaultRunClock(): RunClock {
 
 function mergeCompleted(partial: LoopPartialFile, fromCursor: number[] | undefined): Set<number> {
   const completed = new Set<number>()
-  for (const key of Object.keys(partial.results)) {
+  for (const key of Object.keys(partial.rounds)) {
     const index = Number(key)
     if (!Number.isNaN(index)) completed.add(index)
   }
@@ -112,7 +98,21 @@ function mergeCompleted(partial: LoopPartialFile, fromCursor: number[] | undefin
   return completed
 }
 
-async function resolveLoopItemsSource(
+function publishEmptyArrays(parentState: Record<string, unknown>, keys: Iterable<string>): void {
+  for (const key of keys) {
+    parentState[key] = []
+  }
+}
+
+function mergeRoundsToArrays(rounds: Array<Record<string, JsonValue | null> | null>, exportKeys: Set<string>): Record<string, JsonValue[]> {
+  const out: Record<string, JsonValue[]> = {}
+  for (const key of exportKeys) {
+    out[key] = rounds.map((slot) => (slot && Object.prototype.hasOwnProperty.call(slot, key) ? (slot[key] ?? null) : null))
+  }
+  return out
+}
+
+async function resolveForEachItems(
   node: LoopItemsNodeLike,
   parentState: Record<string, unknown>,
   expression: ExpressionEngine,
@@ -131,8 +131,33 @@ async function resolveLoopItemsSource(
   return structuredClone(resolved)
 }
 
+async function resolveForCount(
+  node: LoopItemsNodeLike,
+  parentState: Record<string, unknown>,
+  expression: ExpressionEngine,
+  readText: LoopItemsRuntime["deps"]["readText"],
+  executionDir: string | undefined,
+  nodePointer: string,
+): Promise<number> {
+  const raw = await resolveValue(node.input ?? {}, parentState, expression, readText, executionDir)
+  const value = isRecord(raw) ? raw.count : undefined
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw Object.assign(new Error("Loop count must be a non-negative integer."), {
+      code: "ECP_TYPE_MISMATCH",
+      path: `${nodePointer}/input/count`,
+    })
+  }
+  if (value > MAX_FOR_COUNT) {
+    throw Object.assign(new Error(`Loop count exceeds the limit of ${MAX_FOR_COUNT}.`), {
+      code: "ECP_LIMIT_EXCEEDED",
+      path: `${nodePointer}/input/count`,
+    })
+  }
+  return value
+}
+
 /**
- * Execute a loop node in `forEach` mode.
+ * Execute a `for` or `forEach` loop; body writes merge to arrays on the parent when the loop finishes.
  * @category Environment
  */
 export async function executeLoopItems(
@@ -142,69 +167,78 @@ export async function executeLoopItems(
   emit: (type: RunEventType, data: Record<string, unknown>) => void,
   nodePointer: string,
   deps: ExecuteLoopItemsDeps,
-): Promise<{ into: string; wroteErrorsKey: boolean }> {
+): Promise<void> {
+  const mode = node.mode ?? "forEach"
   const asKey = node.as
-  const into = node.into
-  const end = node.end
-  if (!asKey || !into || !end) {
-    throw Object.assign(new Error("forEach loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
+  if (!asKey) {
+    throw Object.assign(new Error("Loop node is incomplete."), { code: "ECP_STEP_FAILED", path: nodePointer })
   }
   const asIndexKey = `${asKey}Index`
-  const onError = node.onError ?? "fail"
-  const concurrency = Math.min(Math.max(node.concurrency ?? 1, 1), MAX_LOOP_CONCURRENCY)
+  const onError = mode === "forEach" ? (node.onError ?? "fail") : "fail"
+  const concurrency =
+    mode === "forEach" ? Math.min(Math.max(node.concurrency ?? 1, 1), MAX_LOOP_CONCURRENCY) : 1
   const clock = runtime.deps.clock ?? defaultRunClock()
   const writePartial = runtime.loopItemsDepth === 0
 
-  const itemsArray = await resolveLoopItemsSource(
-    node,
-    parentState,
-    runtime.deps.expression,
-    runtime.deps.readText,
-    runtime.deps.executionDir,
-    nodePointer,
-  )
-  if (itemsArray.length > MAX_LOOP_ITEMS) {
-    throw Object.assign(new Error(`Loop items exceed the limit of ${MAX_LOOP_ITEMS}.`), {
-      code: "ECP_LIMIT_EXCEEDED",
-      path: nodePointer,
-    })
-  }
   const base = structuredClone(parentState)
+  const exportKeys = collectLoopBodyExportKeys(node.steps ?? [], asKey, asIndexKey)
 
-  let partial: LoopPartialFile = { results: {}, errors: [] }
+  let iterationCount: number
+  let driverItems: unknown[] | undefined
+  if (mode === "forEach") {
+    driverItems = await resolveForEachItems(
+      node,
+      parentState,
+      runtime.deps.expression,
+      runtime.deps.readText,
+      runtime.deps.executionDir,
+      nodePointer,
+    )
+    if (driverItems.length > MAX_LOOP_ITEMS) {
+      throw Object.assign(new Error(`Loop items exceed the limit of ${MAX_LOOP_ITEMS}.`), {
+        code: "ECP_LIMIT_EXCEEDED",
+        path: nodePointer,
+      })
+    }
+    iterationCount = driverItems.length
+  } else {
+    iterationCount = await resolveForCount(
+      node,
+      parentState,
+      runtime.deps.expression,
+      runtime.deps.readText,
+      runtime.deps.executionDir,
+      nodePointer,
+    )
+  }
+
+  let partial: LoopPartialFile = { rounds: {}, errors: [] }
   if (writePartial && runtime.deps.store?.readLoopPartial) {
     partial = (await runtime.deps.store.readLoopPartial(runtime.runId, node.id)) ?? partial
   }
 
-  const cursorCompleted = runtime.deps.cursor?.loopItems?.[node.id]?.completed
+  const cursorCompleted =
+    mode === "forEach"
+      ? runtime.deps.cursor?.loopItems?.[node.id]?.completed
+      : runtime.deps.cursor?.loops?.[node.id] !== undefined
+        ? Array.from({ length: (runtime.deps.cursor.loops[node.id] ?? 0) + 1 }, (_, index) => index)
+        : undefined
   const completed = mergeCompleted(partial, cursorCompleted)
 
-  emit("loop.start", { nodeId: node.id, count: itemsArray.length })
-
-  if (Object.prototype.hasOwnProperty.call(parentState, into)) {
-    throw Object.assign(new Error(`Loop creates ${into}, which already exists.`), {
-      code: "ECP_COMMIT_CONFLICT",
-      path: `${nodePointer}/into`,
-    })
-  }
-  if (onError === "continue" && Object.prototype.hasOwnProperty.call(parentState, `${into}Errors`)) {
-    throw Object.assign(new Error(`Loop creates ${into}Errors, which already exists.`), {
-      code: "ECP_COMMIT_CONFLICT",
-      path: `${nodePointer}/into`,
-    })
+  if (mode === "forEach") {
+    emit("loop.start", { nodeId: node.id, count: iterationCount })
   }
 
-  if (itemsArray.length === 0) {
-    parentState[into] = []
-    if (onError === "continue") parentState[`${into}Errors`] = []
-    emit("loop.end", { nodeId: node.id, count: 0, failed: 0 })
-    return { into, wroteErrorsKey: onError === "continue" }
+  if (iterationCount === 0) {
+    publishEmptyArrays(parentState, exportKeys)
+    if (mode === "forEach") emit("loop.end", { nodeId: node.id, count: 0, failed: 0 })
+    return
   }
 
-  const results: Array<unknown | undefined> = new Array(itemsArray.length)
-  for (const [key, value] of Object.entries(partial.results)) {
+  const roundSlots: Array<Record<string, JsonValue | null> | null | undefined> = new Array(iterationCount)
+  for (const [key, slot] of Object.entries(partial.rounds)) {
     const index = Number(key)
-    if (!Number.isNaN(index) && index >= 0 && index < itemsArray.length) results[index] = value
+    if (!Number.isNaN(index) && index >= 0 && index < iterationCount) roundSlots[index] = slot ?? null
   }
 
   const errors = [...partial.errors]
@@ -214,18 +248,27 @@ export async function executeLoopItems(
   let partialChain: Promise<void> = Promise.resolve()
 
   const signal = runtime.controller.signal
+
   const updateCursor = (index: number): void => {
-    const bucket = runtime.cursor.loopItems[node.id] ?? { completed: [] }
-    if (!bucket.completed.includes(index)) bucket.completed.push(index)
-    bucket.completed.sort((a, b) => a - b)
-    runtime.cursor.loopItems[node.id] = bucket
+    if (mode === "forEach") {
+      const bucket = runtime.cursor.loopItems[node.id] ?? { completed: [] }
+      if (!bucket.completed.includes(index)) bucket.completed.push(index)
+      bucket.completed.sort((a, b) => a - b)
+      runtime.cursor.loopItems[node.id] = bucket
+    } else if (runtime.cursor.loops) {
+      runtime.cursor.loops[node.id] = index
+    }
   }
 
-  const recordPartial = async (index: number, value: JsonValue | null, error?: ValidationIssue): Promise<void> => {
+  const recordPartial = async (
+    index: number,
+    slot: Record<string, JsonValue | null> | null,
+    error?: ValidationIssue,
+  ): Promise<void> => {
     if (!writePartial || !runtime.deps.store?.writeLoopPartial) return
     await (partialChain = partialChain.then(async () => {
       const next: LoopPartialFile = {
-        results: { ...partial.results, [String(index)]: value },
+        rounds: { ...partial.rounds, [String(index)]: slot },
         errors: error ? [...partial.errors, { index, error }] : partial.errors,
       }
       partial = next
@@ -234,15 +277,27 @@ export async function executeLoopItems(
     }))
   }
 
-  const runItem = async (index: number): Promise<void> => {
-    if (completed.has(index)) return
+  const runIteration = async (index: number): Promise<void> => {
+    if (completed.has(index)) {
+      roundSlots[index] = partial.rounds[String(index)] ?? null
+      return
+    }
     if (signal.aborted || runtime.interrupted || stopStarting) return
 
     const started = clock.now()
-    emit("loop.item.start", { nodeId: node.id, index })
+    if (mode === "forEach") emit("loop.item.start", { nodeId: node.id, index })
+  if (mode === "for") {
+      runtime.cursor.loops = runtime.cursor.loops ?? {}
+      runtime.cursor.loops[node.id] = index
+      emit("loop.round", { nodeId: node.id, round: index })
+    }
 
     const itemState = structuredClone(base)
-    itemState[asKey] = structuredClone(itemsArray[index])
+    if (mode === "forEach" && driverItems) {
+      itemState[asKey] = structuredClone(driverItems[index])
+    } else {
+      itemState[asKey] = index
+    }
     itemState[asIndexKey] = index
 
     const itemRuntime = Object.assign(Object.create(runtime) as LoopItemsRuntime, {
@@ -258,28 +313,40 @@ export async function executeLoopItems(
     })
 
     try {
-      await deps.runBody(node.steps ?? [], itemState, itemRuntime, emit, `${nodePointer}/steps`)
-      const collected = await deps.gatherEnd(end, itemState, `${nodePointer}/end`)
-      results[index] = collected
+      await deps.runBody(node.steps ?? [], itemState, itemRuntime, emit, `${nodePointer}/steps`, index)
+      const written = diffWrittenKeys(base, itemState, [asKey, asIndexKey])
+      for (const key of exportKeys) {
+        if (!Object.prototype.hasOwnProperty.call(written, key)) {
+          written[key] = null
+        }
+      }
+      const slot = written as Record<string, JsonValue | null>
+      roundSlots[index] = slot
       completed.add(index)
-      await recordPartial(index, collected as JsonValue)
-      emit("loop.item.end", { nodeId: node.id, index, durationMs: clock.now() - started })
+      await recordPartial(index, slot)
+      if (mode === "forEach") emit("loop.item.end", { nodeId: node.id, index, durationMs: clock.now() - started })
     } catch (error) {
       const issue = deps.toIssue(error)
       failedCount += 1
-      emit("loop.item.error", { nodeId: node.id, index, error: issue })
+      if (mode === "forEach") emit("loop.item.error", { nodeId: node.id, index, error: issue })
       if (onError === "continue") {
-        results[index] = null
+        const nullSlot: Record<string, JsonValue | null> = {}
+        for (const key of exportKeys) nullSlot[key] = null
+        roundSlots[index] = nullSlot
         errors.push({ index, error: issue })
         completed.add(index)
-        await recordPartial(index, null, issue)
-        emit("loop.item.end", { nodeId: node.id, index, durationMs: clock.now() - started })
+        await recordPartial(index, nullSlot, issue)
+        if (mode === "forEach") emit("loop.item.end", { nodeId: node.id, index, durationMs: clock.now() - started })
         return
       }
       if (!lowestFailure || index < lowestFailure.index) {
         lowestFailure = {
           index,
-          issue: { ...issue, path: nodePointer, ...(issue.details ? { details: { ...issue.details, index } } : { details: { index } }) },
+          issue: {
+            ...issue,
+            path: nodePointer,
+            ...(issue.details ? { details: { ...issue.details, index } } : { details: { index } }),
+          },
         }
       }
       stopStarting = true
@@ -287,27 +354,25 @@ export async function executeLoopItems(
   }
 
   let nextIndex = 0
-  const workers = Array.from({ length: Math.min(concurrency, itemsArray.length) }, async () => {
-    while (nextIndex < itemsArray.length) {
+  const workers = Array.from({ length: Math.min(concurrency, iterationCount) }, async () => {
+    while (nextIndex < iterationCount) {
       if (signal.aborted || runtime.interrupted) return
       if (stopStarting && onError === "fail") return
       const index = nextIndex
       nextIndex += 1
-      if (completed.has(index)) continue
-      await runItem(index)
+      await runIteration(index)
     }
   })
   await Promise.all(workers)
-
   await partialChain
 
   if (signal.aborted || runtime.interrupted) {
-    emit("loop.end", { nodeId: node.id, count: itemsArray.length, failed: failedCount })
-    return { into, wroteErrorsKey: false }
+    if (mode === "forEach") emit("loop.end", { nodeId: node.id, count: iterationCount, failed: failedCount })
+    return
   }
 
   if (lowestFailure) {
-    emit("loop.end", { nodeId: node.id, count: itemsArray.length, failed: failedCount })
+    if (mode === "forEach") emit("loop.end", { nodeId: node.id, count: iterationCount, failed: failedCount })
     throw Object.assign(new Error(lowestFailure.issue.message), {
       code: lowestFailure.issue.code,
       path: lowestFailure.issue.path,
@@ -315,14 +380,20 @@ export async function executeLoopItems(
     })
   }
 
-  const ordered = results.map((value, index) => (completed.has(index) ? value ?? null : null))
-  parentState[into] = ordered
-  const wroteErrorsKey = onError === "continue"
-  if (wroteErrorsKey) {
-    parentState[`${into}Errors`] = [...errors].sort((a, b) => a.index - b.index)
+  const ordered = roundSlots.map((slot, index) =>
+    completed.has(index) ? (slot ?? null) : null,
+  ) as Array<Record<string, JsonValue | null> | null>
+  const merged = mergeRoundsToArrays(ordered, exportKeys)
+  for (const [key, values] of Object.entries(merged)) {
+    if (Object.prototype.hasOwnProperty.call(parentState, key) && parentState[key] !== undefined) {
+      throw Object.assign(new Error(`Loop writes ${key}, which already exists in the parent scope.`), {
+        code: "ECP_COMMIT_CONFLICT",
+        path: `${nodePointer}/steps`,
+      })
+    }
+    parentState[key] = values
   }
-  emit("loop.end", { nodeId: node.id, count: itemsArray.length, failed: failedCount })
-  return { into, wroteErrorsKey }
+  if (mode === "forEach") emit("loop.end", { nodeId: node.id, count: iterationCount, failed: failedCount })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

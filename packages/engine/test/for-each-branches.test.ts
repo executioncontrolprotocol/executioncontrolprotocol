@@ -16,7 +16,7 @@ const echo = {
   returns: { type: "object", properties: { echo: {} } },
 }
 
-/** A forEach over `items` whose body reads `state.row.name` and collects it. */
+/** A forEach over `items` whose body reads `state.row.name` and writes `names` elements. */
 function manifest(accepts: Record<string, unknown>, items: string): ExecutionManifest {
   return {
     schema: "@executioncontrolprotocol.execution",
@@ -32,10 +32,14 @@ function manifest(accepts: Record<string, unknown>, items: string): ExecutionMan
         id: "each",
         input: { items: { $ref: items } },
         as: "row",
-        steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row.name" } }, as: "out" }],
-        end: { input: { value: { $ref: "state.out.echo" } } },
-        into: "names",
-      } as ExecutionManifest["steps"][0],
+        steps: [{ id: "body", uses: echo.id, input: { value: { $ref: "state.row.name" } }, as: "names" }],
+      },
+      {
+        id: "pack",
+        uses: echo.id,
+        input: { value: { $ref: "state.names" } },
+        as: "packed",
+      },
     ],
   } as unknown as ExecutionManifest
 }

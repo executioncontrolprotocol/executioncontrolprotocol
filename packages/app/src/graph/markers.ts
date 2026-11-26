@@ -11,7 +11,20 @@ import { isJsonObject } from "./json-schema.js"
  * @category App
  */
 export function isRefMarker(value: unknown): value is RefMarker {
-  return isJsonObject(value) && typeof value.$ref === "string"
+  if (!isJsonObject(value)) return false
+  const ref = value.$ref
+  if (typeof ref === "string") return true
+  return Array.isArray(ref) && ref.length > 0 && ref.every((entry) => typeof entry === "string")
+}
+
+/**
+ * State paths on a `$ref` marker, when present.
+ * @category App
+ */
+export function refPathsFromValue(value: unknown): readonly string[] | undefined {
+  if (!isRefMarker(value)) return undefined
+  const ref = value.$ref
+  return typeof ref === "string" ? [ref] : ref
 }
 
 /**
@@ -40,10 +53,9 @@ export function isScriptMarker(value: unknown): value is ScriptMarker {
 
 /**
  * State path a `$ref` or `$state` marker points at, or `undefined` for other values.
+ * For a merge port (`$ref` list), returns the first path.
  * @category App
  */
 export function refPathFromValue(value: unknown): string | undefined {
-  if (isRefMarker(value)) return value.$ref
-  if (isStateMarker(value)) return value.$state
-  return undefined
+  return refPathsFromValue(value)?.[0]
 }

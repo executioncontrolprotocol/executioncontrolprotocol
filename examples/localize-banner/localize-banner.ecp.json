@@ -9,25 +9,39 @@
     "accepts": {
       "type": "object",
       "properties": {
-        "locale": { "type": "string" },
+        "locale": {
+          "type": "string"
+        },
         "texts": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Map of PSD text-layer name to source string to translate."
         },
         "headline": {
           "type": "string",
           "description": "Optional single string applied to every text layer not listed in texts."
         },
-        "sourceImageUrl": { "type": "string" },
-        "outputUrl": { "type": "string" }
+        "sourceImageUrl": {
+          "type": "string"
+        },
+        "outputUrl": {
+          "type": "string"
+        }
       },
-      "required": ["locale", "sourceImageUrl", "outputUrl"]
+      "required": [
+        "locale",
+        "sourceImageUrl",
+        "outputUrl"
+      ]
     },
     "returns": {
       "type": "object",
       "properties": {
-        "translation": { "type": "object" },
+        "translation": {
+          "type": "object"
+        },
         "banner": {
           "type": "object",
           "description": "Photoshop Actions output: png url FileRef when outputs request image/png."
@@ -43,35 +57,77 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "locale": { "type": "string" },
-          "texts": { "type": "object" },
-          "headline": { "type": ["string", "null"] }
+          "locale": {
+            "type": "string"
+          },
+          "texts": {
+            "type": "object"
+          },
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
-        "required": ["locale"],
+        "required": [
+          "locale"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "prompt": { "type": "string" }
+          "prompt": {
+            "type": "string"
+          }
         },
-        "required": ["prompt"],
+        "required": [
+          "prompt"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "locale": { "$ref": "state.locale" },
-        "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
-        "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
+        "locale": {
+          "$ref": "state.locale"
+        },
+        "texts": {
+          "$ref": "state.texts",
+          "optional": true,
+          "fallback": {}
+        },
+        "headline": {
+          "$ref": "state.headline",
+          "optional": true,
+          "fallback": null
+        }
       },
-      "script": { "lang": "js", "path": "scripts/translate-prompt.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/translate-prompt.js"
+      },
       "as": "prompt"
     },
     {
       "type": "if",
       "id": "translate-gate",
       "label": "Not English?",
-      "accepts": { "type": "object", "properties": { "locale": { "type": "string" } }, "required": ["locale"] },
-      "input": { "locale": { "$ref": "state.locale" } },
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale"
+        ]
+      },
+      "input": {
+        "locale": {
+          "$ref": "state.locale"
+        }
+      },
       "expression": "input.locale !== 'en'",
       "then": [
         {
@@ -97,30 +153,70 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "locale": { "type": "string" },
-          "translation": { "type": "object" },
-          "texts": { "type": "object" },
-          "headline": { "type": ["string", "null"] }
+          "locale": {
+            "type": "string"
+          },
+          "translation": {
+            "type": "object"
+          },
+          "texts": {
+            "type": "object"
+          },
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
-        "required": ["locale"],
+        "required": [
+          "locale"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "texts": { "type": "object" },
-          "headline": { "type": ["string", "null"] }
+          "texts": {
+            "type": "object"
+          },
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
-        "required": ["texts", "headline"],
+        "required": [
+          "texts",
+          "headline"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "locale": { "$ref": "state.locale" },
-        "translation": { "$ref": "state.translation", "optional": true, "fallback": {} },
-        "texts": { "$ref": "state.texts", "optional": true, "fallback": {} },
-        "headline": { "$ref": "state.headline", "optional": true, "fallback": null }
+        "locale": {
+          "$ref": "state.locale"
+        },
+        "translation": {
+          "$ref": "state.translation",
+          "optional": true,
+          "fallback": {}
+        },
+        "texts": {
+          "$ref": "state.texts",
+          "optional": true,
+          "fallback": {}
+        },
+        "headline": {
+          "$ref": "state.headline",
+          "optional": true,
+          "fallback": null
+        }
       },
-      "script": { "lang": "js", "path": "scripts/parsed-translation.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/parsed-translation.js"
+      },
       "as": "parsed"
     },
     {
@@ -130,7 +226,9 @@
       "input": {
         "image": {
           "kind": "url",
-          "url": { "$ref": "state.sourceImageUrl" },
+          "url": {
+            "$ref": "state.sourceImageUrl"
+          },
           "mediaType": "image/vnd.adobe.photoshop"
         },
         "options": {
@@ -156,7 +254,9 @@
         "outputs": [
           {
             "destination": {
-              "url": { "$ref": "state.outputUrl" },
+              "url": {
+                "$ref": "state.outputUrl"
+              },
               "storageType": "azure"
             },
             "mediaType": "image/png"

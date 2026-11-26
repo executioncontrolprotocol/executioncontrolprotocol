@@ -68,21 +68,12 @@ test.describe("Connections and edge menus", () => {
     }, { timeout: 15_000 }).toBe(true)
   })
 
-  test("while loop maxRounds edit writes to file", async ({ page }) => {
-    await open(page, branchLoopPath)
-    await page.getByTestId("ecp-loop-retry").click()
-    const field = page.getByTestId("loop-field-max-rounds")
-    await expect(field).toBeVisible()
-    await field.fill("5")
-    await field.press("Enter")
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"maxRounds": 5')).toBe(true)
-  })
-
-  test("for loop panel omits maxRounds field", async ({ page }) => {
+  test("for loop panel shows count driver and as", async ({ page }) => {
     await open(page, loopForPath)
     await page.getByTestId("ecp-loop-rounds").click()
     await expect(page.getByTestId("loop-field-as")).toBeVisible()
-    await expect(page.getByTestId("loop-field-max-rounds")).toHaveCount(0)
+    await expect(page.getByTestId("loop-driver")).toBeVisible()
+    await expect(page.getByTestId("loop-field-mode")).toBeVisible()
   })
 
   test("read-only edge menu offers Configure only", async ({ page }) => {
@@ -115,12 +106,12 @@ test.describe("Connections and edge menus", () => {
     await page.getByTestId("loop-field-mode").selectOption("forEach")
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "forEach"')
     const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
-      steps: Array<{ id?: string; as?: string; into?: string; maxRounds?: number }>
+      steps: Array<{ id?: string; as?: string; mode?: string; input?: { count?: unknown; items?: unknown } }>
     }
     const retry = parsed.steps.find((node) => node.id === "retry")
+    expect(retry?.mode).toBe("forEach")
     expect(retry?.as).toBeTruthy()
-    expect(retry?.into).toBeTruthy()
-    expect(retry?.maxRounds).toBeUndefined()
+    expect(retry?.input?.count).toBeUndefined()
     await page.getByTestId("canvas-undo").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(before)
   })

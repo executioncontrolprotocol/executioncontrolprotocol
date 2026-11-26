@@ -2,14 +2,12 @@ import type { Node } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
 import { isStepNode } from "./io-from-schema.js"
 import {
-  END_RESULTS_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
   loopEndNodeId,
-  loopIdFromEndNodeId,
 } from "./types.js"
 
 /**
@@ -43,7 +41,7 @@ interface StepWalkEntry {
 interface StructureBounds {
   id: string
   kind: "parallel" | "if" | "loop"
-  mode?: "while" | "for" | "forEach"
+  mode?: "for" | "forEach"
   startOrder: number
   endOrder: number
   scope: ScopeSegment[]
@@ -66,7 +64,7 @@ function walkIndex(nodes: Node[]): WalkIndex {
         steps.set(node.id, { order: order++, enclosingLoopStack: [...loopStack], scope: [...scope] })
       } else if (node.type === "loop") {
         const startOrder = order++
-        const mode = node.mode ?? "while"
+        const mode = node.mode
         const loopScope: ScopeSegment = { kind: "loop", id: node.id }
         steps.set(node.id, { order: startOrder, enclosingLoopStack: [...loopStack], scope: [...scope] })
         walk(node.steps, [...scope, loopScope], [...loopStack, node.id])
@@ -79,7 +77,7 @@ function walkIndex(nodes: Node[]): WalkIndex {
         structures.set(node.id, {
           id: node.id,
           kind: "loop",
-          mode: mode === "for" || mode === "forEach" ? mode : "while",
+          mode: mode === "for" || mode === "forEach" ? mode : undefined,
           startOrder,
           endOrder,
           scope: [...scope],
@@ -133,19 +131,6 @@ function divergedAtSiblingScope(writer: StepWalkEntry, reader: StepWalkEntry): b
   return false
 }
 
-function forEachBodyLeak(writer: StepWalkEntry, reader: StepWalkEntry, structures: Map<string, StructureBounds>): boolean {
-  for (let depth = writer.scope.length; depth > 0; depth -= 1) {
-    const segment = writer.scope[depth - 1]
-    if (!segment || segment.kind !== "loop") continue
-    const loop = structures.get(segment.id)
-    if (!loop || loop.mode !== "forEach") continue
-    const writerInside = writer.scope.length >= depth
-    const readerInside = reader.scope.length >= depth && reader.scope[depth - 1]?.id === segment.id
-    if (writerInside && !readerInside && reader.order > loop.endOrder) return true
-  }
-  return false
-}
-
 /** Whether the reader sits inside the band of an `if` side or `parallel` path. */
 function insideBand(reader: StepWalkEntry, structureId: string, match: (segment: ScopeSegment) => boolean): boolean {
   return reader.scope.some((segment) => segment.id === structureId && match(segment))
@@ -168,7 +153,7 @@ export function sourceVisibleTo(
     return reader !== undefined
   }
 
-  if (source.nodeId === targetStepId && source.handleId !== LOOP_ITEM_HANDLE && source.handleId !== END_RESULTS_HANDLE) {
+  if (source.nodeId === targetStepId && source.handleId !== LOOP_ITEM_HANDLE) {
     return false
   }
 
@@ -178,18 +163,7 @@ export function sourceVisibleTo(
     if (source.handleId === LOOP_ITEM_HANDLE || source.handleId === LOOP_INDEX_HANDLE) {
       return reader.enclosingLoopStack.includes(source.nodeId)
     }
-    if (source.handleId === END_RESULTS_HANDLE) {
-      return reader.order > sourceLoop.endOrder && !reader.enclosingLoopStack.includes(source.nodeId)
-    }
     return false
-  }
-
-  const endLoopId = loopIdFromEndNodeId(source.nodeId)
-  if (endLoopId) {
-    if (source.handleId !== END_RESULTS_HANDLE || !reader) return false
-    const loop = index.structures.get(endLoopId)
-    if (loop?.kind !== "loop") return false
-    return reader.order > loop.endOrder && !reader.enclosingLoopStack.includes(endLoopId)
   }
 
   const container = index.structures.get(source.nodeId)
@@ -210,7 +184,6 @@ export function sourceVisibleTo(
   if (!writer || !reader) return false
   if (reader.order <= writer.order) return false
   if (divergedAtSiblingScope(writer, reader)) return false
-  if (forEachBodyLeak(writer, reader, index.structures)) return false
   return true
 }
 

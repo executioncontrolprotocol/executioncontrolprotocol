@@ -40,7 +40,7 @@ test.describe("Containers and menus", () => {
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
-  test("branch-loop shows frames for if and while loop", async ({ page }) => {
+  test("branch-loop shows frames for if and loop", async ({ page }) => {
     await open(page, branchLoopPath)
     await expect(page.getByTestId("ecp-frame-pick")).toBeVisible()
     await expect(page.getByTestId("ecp-frame-retry")).toBeVisible()
@@ -48,7 +48,7 @@ test.describe("Containers and menus", () => {
 
   test("right-click step opens the node menu and blocks the native menu", async ({ page }) => {
     await open(page, branchLoopPath)
-  await page.evaluate(() => {
+    await page.evaluate(() => {
       window.__ecpContextMenuPrevented = false
       document.addEventListener(
         "contextmenu",
@@ -150,18 +150,6 @@ test.describe("Containers and menus", () => {
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(originalText)
   })
 
-  test("the end node menu has Configure and a disabled Delete with the reason", async ({ page }) => {
-    await open(page, branchLoopPath)
-    await page.getByTestId("ecp-end-end:retry").click({ button: "right" })
-    await expect(page.getByTestId("canvas-menu-item-configure")).toBeVisible()
-    const remove = page.getByTestId("canvas-menu-item-delete")
-    await expect(remove).toBeDisabled()
-    await expect(remove).toHaveAttribute("title", "Delete the loop instead")
-    await expect(page.getByTestId("canvas-menu-item-wrap")).toHaveCount(0)
-    await page.getByTestId("canvas-menu-item-configure").click()
-    await expect(page.getByTestId("node-panel")).toHaveAttribute("data-node-kind", "end")
-  })
-
   test("changing the loop mode rewrites the fields and the file validates", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-loop-retry").click()
@@ -169,10 +157,10 @@ test.describe("Containers and menus", () => {
     await expect
       .poll(() => {
         const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
-          steps: Array<{ id?: string; mode?: string; maxRounds?: number; input?: { count?: number } }>
+          steps: Array<{ id?: string; mode?: string; input?: { count?: number } }>
         }
         const retry = parsed.steps.find((node) => node.id === "retry")
-        return retry?.mode === "for" && retry.maxRounds === undefined && retry.input?.count === 1
+        return retry?.mode === "for" && retry.input?.count === 1
       })
       .toBe(true)
     await expect(page.getByTestId("validation-status")).toHaveAttribute("data-valid", "true", { timeout: 15_000 })

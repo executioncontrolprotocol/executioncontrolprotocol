@@ -163,12 +163,12 @@ describe("structure-edit", () => {
               {
                 type: "loop",
                 id: "L",
-                mode: "while",
-                maxRounds: 1,
+                mode: "for",
+                as: "i",
+                input: { count: 1 },
                 steps: [
-                  { id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only" },
+                  { id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only", mode: "replace" },
                 ],
-                end: { input: { repeat: false } },
               },
             ],
             [{ id: "keep", uses: "@executioncontrolprotocol/test.echo", input: { value: "k" }, as: "keep" }],
@@ -217,7 +217,7 @@ describe("structure-edit", () => {
     expect(wrapSteps(base, ["A", "B", "missing"], "loop")).toMatchObject({ ok: false })
   })
 
-  it("setLoopField updates loop end and refuses unknown structures", () => {
+  it("setLoopField updates loop as and refuses unknown structures", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -225,15 +225,16 @@ describe("structure-edit", () => {
         {
           type: "loop",
           id: "L",
-          mode: "while",
-          maxRounds: 2,
-          steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
-          end: { input: { repeat: false } },
+          mode: "for",
+          as: "i",
+          input: { count: 2 },
+          steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, mode: "replace" }],
         },
       ],
     }
-    const ok = setLoopField(manifest, "L", "maxRounds", 4)
+    const ok = setLoopField(manifest, "L", "as", "round")
     expect(ok.ok).toBe(true)
+    expect(setLoopField(manifest, "missing", "as", "i")).toMatchObject({ ok: false })
   })
 
   it("does not mutate the input manifest on failure", () => {
@@ -275,11 +276,12 @@ describe("wrapping pattern examples validates", () => {
     expect(await errors(result.manifest)).toEqual([])
   })
 
-  it("a step wrapped in a loop commits with replace so the next round can write it again", () => {
+  it("a step wrapped in a for loop is the loop body without an explicit commit mode", () => {
     const result = wrapSteps(branch, ["start"], "loop")
     if (!result.ok) throw new Error(result.reason)
-    const loop = result.manifest.steps[0] as { steps: Array<{ mode?: string }> }
-    expect(loop.steps[0]?.mode).toBe("replace")
+    const loop = result.manifest.steps[0] as { mode?: string; steps: Array<{ mode?: string }> }
+    expect(loop.mode).toBe("for")
+    expect(loop.steps[0]?.mode).toBeUndefined()
   })
 
   it("wrapping two sibling nodes in parallel stays valid", async () => {

@@ -7,15 +7,10 @@ import type {
   ReactFlowNode,
   ReactFlowParallelData,
 } from "../../graph/index.js"
-import type { IfNode, LoopNode, Node, ParallelNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
+import type { IfNode, Node, ParallelNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
   conditionForm,
   loopIdFromEndNodeId,
-  setEndAccepts,
-  setEndGatherForm,
-  setEndGatherText,
-  setEndInputBinding,
-  setEndReturns,
   setIfAccepts,
   setIfAs,
   setIfConditionForm,
@@ -250,66 +245,23 @@ export function ParallelPanel(props: StructurePanelProps) {
 }
 
 /**
- * Panel for a selected loop `end`: `accepts`, input bindings (`value`, `repeat` for `while`, and `accepts` keys), how
- * the round result is gathered (none, expression or script), and `returns`.
+ * Panel for a selected control node `end` (drawn only; nothing is stored on the loop).
  * @category App
  */
 export function EndPanel(props: StructurePanelProps) {
-  const { node, issues, manifest, fieldEpoch } = props
-  const editor = usePanelEditor(props)
+  const { node, issues } = props
   const data = node.data as ReactFlowEndData
   const loopId = loopIdFromEndNodeId(node.id) ?? data.loopId
-  const loop = manifest ? (locateNode(manifest, loopId)?.node as LoopNode | undefined) : undefined
-  const end = loop?.end
-  const form = conditionForm(end ?? {})
-  const text = end?.script?.source ?? end?.expression ?? ""
   return (
     <section data-testid="node-panel" data-node-id={node.id} data-node-kind="end" className="space-y-4">
       <PanelHeader
         icon={<CornerDownLeft className="h-4 w-4 text-primary" aria-hidden="true" />}
         title="End"
-        subtitle={`End of loop ${loopId}: gathers each round and, for while loops, decides whether to repeat.`}
+        subtitle={`End of loop ${loopId}: tunnel closes here (edits in Phase 2).`}
       />
       <div className="space-y-1.5">
         <KeyedValue label="Kind">end</KeyedValue>
         <KeyedValue label="Loop">{loopId}</KeyedValue>
-      </div>
-      <div key={`${node.id}-${fieldEpoch}`} className="space-y-3 border-t border-outline-variant pt-3">
-        <SchemaField
-          label="Accepts"
-          testId="end-field-accepts"
-          schema={end?.accepts}
-          editor={editor}
-          onChange={(schema) => (current) => setEndAccepts(current, loopId, schema)}
-        />
-        <BindingList
-          title="Inputs"
-          testId="end-inputs"
-          ports={data.inputs.map((port) => ({ name: port.name, typeLabel: port.typeLabel }))}
-          input={end?.input}
-          editor={editor}
-          onBind={(key, binding) => (current) => setEndInputBinding(current, loopId, key, binding)}
-        />
-        <ConditionField
-          key={form}
-          title="Gather"
-          testId="end-gather"
-          forms={["none", "expression", "script"]}
-          form={form}
-          text={text}
-          scriptPath={end?.script?.path}
-          editor={editor}
-          onForm={(next) => (current) => setEndGatherForm(current, loopId, next)}
-          onText={(next) => (current) => setEndGatherText(current, loopId, next)}
-        />
-        <SchemaField
-          label="Returns"
-          testId="end-field-returns"
-          schema={end?.returns}
-          editor={editor}
-          onChange={(schema) => (current) => setEndReturns(current, loopId, schema)}
-        />
-        <EditError editor={editor} />
       </div>
       <IssueList issues={issues} />
     </section>

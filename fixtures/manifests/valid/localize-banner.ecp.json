@@ -207,8 +207,10 @@
     },
     {
       "type": "loop",
+      "mode": "for",
       "id": "refine",
-      "maxRounds": 3,
+      "input": { "count": 1 },
+      "as": "i",
       "steps": [
         {
           "id": "score",
@@ -219,12 +221,7 @@
           "as": "score",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {
-          "repeat": false
-        }
-      }
+      ]
     },
     {
       "id": "stage",

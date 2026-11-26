@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { returnsReactFlowNode, returnsSourceKeys } from "../../src/graph/io-from-schema.js"
 
 describe("returnsSourceKeys", () => {
-  it("includes forEach into but not per-item as keys from the body", () => {
+  it("includes step as keys from the body but not loop item aliases", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -12,18 +12,15 @@ describe("returnsSourceKeys", () => {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "inner" }],
-          collect: "state.inner",
-          into: "collected",
         },
         { id: "tail", uses: "@executioncontrolprotocol/test.echo", input: { value: "done" }, as: "tailOut" },
       ],
     }
     const keys = returnsSourceKeys(manifest)
-    expect(keys.has("collected")).toBe(true)
-    expect(keys.has("inner")).toBe(false)
+    expect(keys.has("inner")).toBe(true)
     expect(keys.has("row")).toBe(false)
     expect(keys.has("tailOut")).toBe(true)
   })
@@ -33,25 +30,23 @@ describe("returnsSourceKeys", () => {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       execution: {
-        returns: { type: "object", properties: { collected: { type: "array" }, missing: { type: "string" } } },
+        returns: { type: "object", properties: { inner: { type: "string" }, missing: { type: "string" } } },
       },
       steps: [
         {
           type: "loop",
           mode: "forEach",
           id: "items",
-          ref: "state.rows",
+          input: { items: { $ref: "state.rows" } },
           as: "row",
           steps: [{ id: "body", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "inner" }],
-          collect: "state.inner",
-          into: "collected",
         },
       ],
     }
     const node = returnsReactFlowNode(manifest)
     expect(node).toBeDefined()
     const ports = node!.data.inputs
-    expect(ports.find((port) => port.id === "collected")?.binding).toBe("ref")
+    expect(ports.find((port) => port.id === "inner")?.binding).toBe("ref")
     expect(ports.find((port) => port.id === "missing")?.binding).toBeUndefined()
   })
 })

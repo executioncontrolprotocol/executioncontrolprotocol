@@ -2,24 +2,15 @@
   "input": {},
   "status": "completed",
   "result": {
-    "tick": {
-      "echo": "tick"
-    }
+    "tick": [{ "echo": "tick" }]
   },
   "steps": [
     {
       "nodeId": "tick",
       "status": "completed",
-      "round": 0
+      "round": 0,
+      "items": [0]
     }
   ],
-  "events": [
-    "run.start",
-    "loop.round",
-    "step.start",
-    "step.end",
-    "loop.repeat",
-    "loop.exhausted",
-    "run.end"
-  ]
+  "events": ["run.start", "loop.round", "step.start", "step.end", "run.end"]
 }

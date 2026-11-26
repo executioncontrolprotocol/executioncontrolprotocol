@@ -12,7 +12,7 @@
         }
       },
       "as": "row",
-      "maxRounds": 3,
+      "maxRounds": 2,
       "steps": [
         {
           "id": "echo",
@@ -22,15 +22,7 @@
           },
           "as": "out"
         }
-      ],
-      "end": {
-        "input": {
-          "value": {
-            "$ref": "state.out"
-          }
-        }
-      },
-      "into": "results"
+      ]
     }
   ]
 }

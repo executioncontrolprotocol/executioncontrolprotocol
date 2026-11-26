@@ -33,28 +33,28 @@ test.describe("Autosave and undo", () => {
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
   }
 
-  async function bumpMaxRounds(page: Page): Promise<number> {
+  async function bumpLoopAs(page: Page): Promise<string> {
     await page.getByTestId("ecp-loop-retry").click()
-    const field = page.getByTestId("loop-field-max-rounds")
+    const field = page.getByTestId("loop-field-as")
     await expect(field).toBeVisible({ timeout: 10_000 })
-    const next = 3 + (Date.now() % 20)
-    await field.fill(String(next))
+    const next = `round_${Date.now() % 10_000}`
+    await field.fill(next)
     await field.blur()
-    await expect.poll(() => readFileSync(loopPath, "utf8").includes(`"maxRounds": ${next}`), { timeout: 15_000 }).toBe(true)
+    await expect.poll(() => readFileSync(loopPath, "utf8").includes(`"as": "${next}"`), { timeout: 15_000 }).toBe(true)
     return next
   }
 
   test("loop field edit autosaves without Save control", async ({ page }) => {
     await open(page)
     await expect(page.getByTestId("edge-save")).toHaveCount(0)
-    await bumpMaxRounds(page)
+    await bumpLoopAs(page)
     await expect(page.getByTestId("save-status")).toHaveAttribute("data-state", "saved", { timeout: 15_000 })
   })
 
   test("undo and redo restore file contents", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(loopPath, "utf8")
-    await bumpMaxRounds(page)
+    await bumpLoopAs(page)
     await expect(page.getByTestId("canvas-undo")).toBeEnabled({ timeout: 10_000 })
     await page.getByTestId("canvas-undo").click()
     await expect
@@ -81,24 +81,10 @@ test.describe("Autosave and undo", () => {
     await expect.poll(() => readFileSync(loopPath, "utf8").includes("input.expand === false")).toBe(true)
   })
 
-  test("an end gather edit autosaves and undo restores the file", async ({ page }) => {
-    await open(page)
-    const beforeText = readFileSync(loopPath, "utf8")
-    await page.getByTestId("ecp-end-end:retry").click()
-    await page.getByTestId("end-gather-form-expression").click()
-    await expect.poll(() => readFileSync(loopPath, "utf8").includes('"expression": "input.value"'), { timeout: 15_000 }).toBe(true)
-    await page.getByTestId("canvas-undo").click()
-    await expect
-      .poll(() => JSON.stringify(JSON.parse(readFileSync(loopPath, "utf8"))))
-      .toBe(JSON.stringify(JSON.parse(beforeText)))
-    await page.getByTestId("canvas-redo").click()
-    await expect.poll(() => readFileSync(loopPath, "utf8").includes('"expression": "input.value"')).toBe(true)
-  })
-
   test("keyboard undo and redo on canvas", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(loopPath, "utf8")
-    await bumpMaxRounds(page)
+    await bumpLoopAs(page)
     await page.locator(".react-flow__pane").click()
     await page.keyboard.press(`${mod}+KeyZ`)
     await expect

@@ -20,14 +20,12 @@ export interface RunGraphStep {
 }
 
 /**
- * Loop progress on the graph (`while` / `for` rounds).
+ * Loop progress on the graph (`for` rounds).
  * @category App
  */
 export interface RunGraphLoop {
   /** Latest round started (0-based). */
   round: number
-  /** True when the loop stopped because it reached `maxRounds`. */
-  exhausted: boolean
 }
 
 /**
@@ -54,7 +52,7 @@ export interface RunGraphState {
   steps: Record<string, RunGraphStep>
   /** `if` node id to the taken side (`null` when neither side ran). */
   choices: Record<string, "then" | "else" | null>
-  /** Loop id to its round progress (`while` / `for`). */
+  /** Loop id to its round progress (`for`). */
   loops: Record<string, RunGraphLoop>
   /** Loop id to item progress (`forEach` mode). */
   loopItems: Record<string, RunGraphLoopItems>
@@ -160,25 +158,9 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
       const side = data.side === "then" || data.side === "else" ? data.side : null
       return { ...base, choices: { ...base.choices, [nodeId]: side } }
     }
-    case "loop.repeat":
-      // Records the round the check ran in; only `loop.exhausted` means maxRounds was reached.
-      if (!nodeId || round === undefined) return base
-      return { ...base, loops: { ...base.loops, [nodeId]: { round, exhausted: false } } }
     case "loop.round":
       if (!nodeId || round === undefined) return base
-      return { ...base, loops: { ...base.loops, [nodeId]: { round, exhausted: false } } }
-    case "loop.exhausted": {
-      if (!nodeId) return base
-      const rounds = typeof data.rounds === "number" ? data.rounds : 0
-      const current = base.loops[nodeId]
-      return {
-        ...base,
-        loops: {
-          ...base.loops,
-          [nodeId]: { round: current?.round ?? Math.max(0, rounds - 1), exhausted: true },
-        },
-      }
-    }
+      return { ...base, loops: { ...base.loops, [nodeId]: { round } } }
     case "loop.start": {
       if (!nodeId) return base
       const count = countField(data) ?? 0
@@ -289,17 +271,8 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
         bus.emitIfChoice(nodeId, side)
       }
       return
-    case "loop.repeat":
-      if (nodeId && round !== undefined) bus.emitLoopRound(nodeId, round)
-      return
     case "loop.round":
       if (nodeId && round !== undefined) bus.emitLoopRound(nodeId, round)
-      return
-    case "loop.exhausted":
-      if (nodeId) {
-        const rounds = typeof data.rounds === "number" ? data.rounds : 0
-        bus.emitLoopRound(nodeId, Math.max(0, rounds - 1), true)
-      }
       return
     case "loop.start": {
       if (!nodeId) return

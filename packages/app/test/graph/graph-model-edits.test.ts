@@ -11,7 +11,7 @@ import {
   setLoopField,
   unwrapStructure,
   wrapSteps,
-  END_RESULTS_HANDLE,
+  LOOP_ITEM_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_COUNT_HANDLE,
@@ -66,7 +66,7 @@ describe("graph model encoder branches", () => {
     expect((fan!.data as { inputs: unknown[] }).inputs).toEqual([])
   })
 
-  it("for loop with into draws end results branch", () => {
+  it("for loop after step can read the last body commit", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -75,23 +75,19 @@ describe("graph model encoder branches", () => {
           type: "loop",
           id: "L",
           mode: "for",
-          as: "item",
-          into: "bag",
-          count: { $expr: "2" },
-          steps: [{ id: "S", uses: echo, input: { value: { $ref: "state.item" } }, as: "S" }],
-          end: { input: { value: { $ref: "state.S" } } },
+          as: "i",
+          input: { count: 2 },
+          steps: [{ id: "S", uses: echo, input: { value: { $ref: "state.i" } }, as: "S", mode: "replace" }],
         },
-        { id: "after", uses: echo, input: { x: { $ref: "state.bag" } }, as: "after" },
+        { id: "after", uses: echo, input: { x: { $ref: "state.S" } }, as: "after" },
       ],
     }
     const doc = executionToReactFlow(manifest)
-    const endId = loopEndNodeId("L")
-    expect(doc.nodes.some((n) => n.id === endId)).toBe(true)
-    const edge = doc.edges.find((e) => e.source === endId && e.sourceHandle === END_RESULTS_HANDLE)
-    expect(edge?.target).toBe("after")
+    const edge = doc.edges.find((e) => e.source === "S" && e.target === "after")
+    expect(edge?.targetHandle).toBe("x")
   })
 
-  it("while loop without into has no results branch from end", () => {
+  it("forEach loop without as has no item ports", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -99,10 +95,9 @@ describe("graph model encoder branches", () => {
         {
           type: "loop",
           id: "W",
-          mode: "while",
-          maxRounds: 2,
+          mode: "forEach",
+          input: { items: { $ref: "state.items" } },
           steps: [{ id: "S", uses: echo, input: { value: "x" } }],
-          end: { input: { repeat: false } },
         },
       ],
     }
@@ -110,7 +105,7 @@ describe("graph model encoder branches", () => {
     const loop = doc.nodes.find((n) => n.id === "W")
     const data = loop!.data as { outputs: Array<{ id: string }> }
     expect(data.outputs.some((p) => p.id === LOOP_INDEX_HANDLE)).toBe(false)
-    expect(doc.edges.filter((e) => e.source.startsWith("end:") && e.sourceHandle === END_RESULTS_HANDLE)).toHaveLength(0)
+    expect(data.outputs.some((p) => p.id === LOOP_ITEM_HANDLE)).toBe(false)
   })
 
   it("for mode exposes count input port", () => {
@@ -123,9 +118,8 @@ describe("graph model encoder branches", () => {
           id: "F",
           mode: "for",
           as: "i",
-          count: 3,
+          input: { count: 3 },
           steps: [],
-          end: { input: { value: 0 } },
         },
       ],
     }
@@ -154,10 +148,10 @@ describe("structure-edit and data-connect branches", () => {
         {
           type: "loop",
           id: "L",
-          mode: "while",
-          maxRounds: 1,
+          mode: "for",
+          as: "i",
+          input: { count: 1 },
           steps: [],
-          end: { input: { repeat: false } },
         },
       ],
     }
@@ -320,7 +314,7 @@ describe("data-connect helpers", () => {
 })
 
 describe("end and parallel encoder branches", () => {
-  it("loop end node exposes repeat/value handles", () => {
+  it("loop end node is a shell without data ports", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -328,21 +322,19 @@ describe("end and parallel encoder branches", () => {
         {
           type: "loop",
           id: "L",
-          mode: "while",
-          maxRounds: 1,
+          mode: "for",
+          as: "i",
+          input: { count: 1 },
           steps: [],
-          end: {
-            accepts: { type: "object", properties: { note: { type: "string" } } },
-            input: { repeat: false, value: { $ref: "state.note" } },
-          },
         },
       ],
     }
     const doc = executionToReactFlow(manifest)
     const end = doc.nodes.find((n) => n.id === loopEndNodeId("L"))
     expect(end?.type).toBe("ecp-end")
-    const inputs = (end!.data as { inputs: Array<{ id: string }> }).inputs
-    expect(inputs.some((p) => p.id === "value")).toBe(true)
+    const data = end!.data as { inputs: unknown[]; outputs: unknown[] }
+    expect(data.inputs).toEqual([])
+    expect(data.outputs).toEqual([])
   })
 
   it("parallel with accepts and as draws input ports", () => {

@@ -183,6 +183,7 @@ JSON object). Unknown id â†’ `ECP_PATCH_INVALID`. A patch that fails to apply â†
 | `ECP_INPUT_INVALID` | Step input vs `accepts`, or run input vs `execution.accepts` | 422 | 2 |
 | `ECP_REF_UNRESOLVED` | `$ref` to a key not produced before this point | 422 | 2 |
 | `ECP_REF_MAYBE_MISSING` | `$ref` to a key that may not exist, without `optional`/`fallback` | 422 | 2 |
+| `ECP_REF_AMBIGUOUS` | Merge-port `$ref` list where more than one path could be present | 422 | 2 |
 | `ECP_REF_PATH_INVALID` | `$ref` path not in the producer's schema | 422 | 2 |
 | `ECP_TYPE_MISMATCH` | Referenced type can't fit the target | 422 | 2 |
 | `ECP_COMMIT_CONFLICT` | Two writers for one key, `create` in a loop, `create` on an existing key | 422 / run-time | 2 / 1 |

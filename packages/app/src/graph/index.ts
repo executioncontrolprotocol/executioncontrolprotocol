@@ -36,8 +36,6 @@ export { frameAtFlowPoint, placementAtFlowPoint } from "./band-placement.js"
 export {
   addParallelPath,
   conditionForm,
-  END_DEFAULT_EXPRESSION,
-  ensureLoopInto,
   ensureStructureAs,
   IF_DEFAULT_EXPRESSION,
   normalizeRefPath,
@@ -45,18 +43,11 @@ export {
   PANEL_EDIT_INPUT_KEY,
   PANEL_EDIT_PATH_EMPTY,
   PANEL_EDIT_REF_PATH,
-  PANEL_EDIT_REPEAT_WHILE_ONLY,
   PANEL_EDIT_SCHEMA_OBJECT,
   PANEL_EDIT_SCRIPT_FILE,
   PANEL_EDIT_STATE_KEY,
-  PANEL_EDIT_WHILE_DRIVER,
   parseLiteralInput,
   parseSchemaText,
-  setEndAccepts,
-  setEndGatherForm,
-  setEndGatherText,
-  setEndInputBinding,
-  setEndReturns,
   setIfAccepts,
   setIfAs,
   setIfConditionForm,
@@ -64,7 +55,6 @@ export {
   setIfInputBinding,
   setIfLabel,
   setLoopDriver,
-  setLoopInto,
   setLoopLabel,
   setParallelAccepts,
   setParallelAs,
@@ -147,6 +137,7 @@ export {
   isScriptMarker,
   isStateMarker,
   refPathFromValue,
+  refPathsFromValue,
 } from "./markers.js"
 export {
   ensureInputPort,
@@ -212,8 +203,6 @@ export {
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
-  END_REPEAT_HANDLE,
-  END_RESULTS_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_COLLECT_HANDLE,

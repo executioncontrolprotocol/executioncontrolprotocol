@@ -37,10 +37,7 @@
           "as": "last",
           "mode": "replace"
         }
-      ],
-      "end": {
-        "input": {}
-      }
+      ]
     }
   ]
 }

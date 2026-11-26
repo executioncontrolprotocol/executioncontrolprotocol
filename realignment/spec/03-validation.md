@@ -91,23 +91,18 @@ the entry environment, or an enclosing loop's `as` / `<as>Index` → `ECP_COMMIT
 side from the scoped environment. After the `if`, a key produced inside is `definite` only when
 produced (definite) on **both** sides; with no `else`, keys from `then` only are `maybe`.
 
-**Loop (`while`, default):** `end.input.repeat` refs are checked in the entry environment (boolean
-when the producer schema is known). Check the body from a copy of the entry environment. After the
-loop, keys the body produces unconditionally are `definite` (the body runs at least once). Optional
-`into` is `maybe`. `create` in the body → `ECP_COMMIT_CONFLICT`.
+**Loop (`for` / `forEach`):** required `mode`. Reject `while`, stored `end`, `into`, `maxRounds`.
+`input.count` / `input.items` type checks as before. The body is checked on a copy with `<as>` (and
+`<as>Index` for `forEach`) bound inside. Every other key the body writes is published after the loop
+as `{ type: "array", items: T | null }` (`definite`; count `0` / empty `items` → `[]`). `create` is
+allowed in `for` / `forEach` bodies. Inside the body, merge-port `$ref` lists use scalar types (same
+round / item).
 
-**Loop (`for`):** `input.count` must be an integer (`ECP_TYPE_MISMATCH` when known and not integer).
-The body is checked with `<as>` (integer, `definite`) added; `<as>` must not already exist in the
-entry environment (`ECP_COMMIT_CONFLICT`). Same shared-state / `create`-forbidden rules as `while`.
-After the loop, `into` is `maybe` (count may be `0`).
-
-**Loop (`forEach`):** `input.items` must be an array (`ECP_TYPE_MISMATCH` when known and not an array).
-Element type comes from the items schema when known. The body is checked from a copy of the entry
-environment plus `<as>` (element schema) and `<as>Index` (integer), both `definite`; either key
-already present → `ECP_COMMIT_CONFLICT`. `create` is allowed in the body (nested `while`/`for`
-still forbid it). `end.input` refs (including `value`) are checked in the body's environment.
-After the node, `<into>` (array of gathered results, or elements / `null` with `onError: "continue"`)
-and `<into>Errors` with `"continue"` are added; either already `definite` → `ECP_COMMIT_CONFLICT`.
+**Merge port (`$ref` list):** at least two `state.…` paths. Pairwise, writers must sit on opposite
+sides of the same `if` (including nested `if`s). Same side, two `parallel` paths, or an outside
+writer → `ECP_REF_AMBIGUOUS`. The separating `if` is **definite** when both sides are covered
+(directly or via a nested `if` whose sides are covered); otherwise `maybe` unless `optional` /
+`fallback` (`ECP_REF_MAYBE_MISSING`). Port type is the union (`anyOf`) of the sources.
 
 **`parallel`:** check each path from a copy of the entry environment (no path sees another's
 output). A ref to a commit from another path → `ECP_REF_UNRESOLVED` (parallel sibling). Two paths
@@ -115,7 +110,6 @@ producing the same key → `ECP_COMMIT_CONFLICT`. Scoped `as` on the parallel no
 rules as on `if`. After: the union of all paths' outputs with their own certainty.
 
 **Pointer forms** for nested nodes: `/then/…`, `/else/…`, `/paths/<n>/…`, `/steps/…` (loop body),
-`/end/…` (loop gather inputs and expression).
 
 **End:** each `execution.returns` property must be in the environment: missing →
 `ECP_RETURNS_UNRESOLVED` (error); `maybe` → warning with the same code.

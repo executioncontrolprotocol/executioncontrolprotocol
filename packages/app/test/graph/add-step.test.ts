@@ -246,7 +246,7 @@ describe("addCapabilityStep", () => {
     })
   })
 
-  it("sets replace when adding to then side inside a while loop", () => {
+  it("sets replace when adding to then side inside a for loop", () => {
     const base: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -254,8 +254,9 @@ describe("addCapabilityStep", () => {
         {
           type: "loop",
           id: "retry",
-          mode: "while",
-          maxRounds: 2,
+          mode: "for",
+          as: "i",
+          input: { count: 2 },
           steps: [
             {
               type: "if",
@@ -264,7 +265,6 @@ describe("addCapabilityStep", () => {
               then: [],
             },
           ],
-          end: { input: { repeat: false } },
         },
       ],
     }
@@ -313,7 +313,6 @@ describe("addCapabilityStep", () => {
               paths: [[{ id: "left", uses: echo, input: { value: "l" }, as: "left" }]],
             },
           ],
-          end: { input: {} },
         },
       ],
     }
@@ -362,8 +361,7 @@ describe("addCapabilityStep", () => {
           id: "rows",
           mode: "forEach",
           as: "row",
-          into: "out",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
         },
       ],

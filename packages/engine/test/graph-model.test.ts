@@ -141,7 +141,7 @@ describe("graph model phase 1a", () => {
     expect(outcome.events).not.toContain("if.select")
   })
 
-  it("rejects end without value when into is set", async () => {
+  it("rejects legacy loop end and into at validation", async () => {
     const result = await validateExecution(
       manifestWithSteps([
         {
@@ -152,85 +152,49 @@ describe("graph model phase 1a", () => {
           as: "row",
           into: "out",
           steps: [],
-          end: { input: {} },
+          end: { input: { value: { $ref: "state.row" } } },
         },
       ]),
       { capabilities: [echoCapability] },
     )
-    expect(result.issues.some((issue) => issue.path === "/steps/0/end/input/value")).toBe(true)
+    const paths = result.issues.filter((issue) => issue.severity === "error").map((issue) => issue.path)
+    expect(paths).toContain("/steps/0/end")
+    expect(paths).toContain("/steps/0/into")
   })
 
-  it("allows while end with only repeat", async () => {
+  it("rejects while mode and maxRounds", async () => {
     const result = await validateExecution(
       manifestWithSteps([
         {
           type: "loop",
+          mode: "while",
           id: "w",
           maxRounds: 1,
+          as: "i",
+          input: { count: 1 },
           steps: [{ id: "noop", uses: echoCapability.id, input: { value: "n" } }],
           end: { input: { repeat: false } },
         },
       ]),
       { capabilities: [echoCapability] },
     )
-    expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
+    expect(result.valid).toBe(false)
+    expect(result.issues.some((issue) => issue.path === "/steps/0/mode")).toBe(true)
   })
 
-  it("rejects repeat on forEach end at validation", async () => {
-    const result = await validateExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          mode: "forEach",
-          id: "rows",
-          input: { items: { $ref: "state.rows" } },
-          as: "row",
-          into: "out",
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: { $ref: "state.row" } } }],
-          end: { input: { repeat: false, value: { $ref: "state.row" } } },
-        },
-      ]),
-      { capabilities: [echoCapability] },
-    )
-    expect(result.issues.some((issue) => issue.path === "/steps/0/end/input/repeat")).toBe(true)
-  })
-
-  it("runs while once then stops on repeat false", async () => {
+  it("for with count 0 publishes empty body arrays", async () => {
     const outcome = await runExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w",
-          maxRounds: 3,
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: "b" }, as: "body", mode: "replace" }],
-          end: { input: { repeat: false, value: { $ref: "state.body" } } },
-        },
-      ]),
-      {},
-      runDeps,
-    )
-    expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
-    expect(outcome.events).toContain("loop.repeat")
-  })
-
-  it("for with count 0 writes no into", async () => {
-    const outcome = await runExecution(
-      manifestWithSteps([
-        {
-          ...forLoop(),
-          into: "last",
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: "x" }, as: "last" }],
-        },
-      ]),
+      manifestWithSteps([forLoop()]),
       { n: 0 },
       runDeps,
     )
-    expect(outcome.state.last).toBeUndefined()
+    expect(outcome.state.out).toEqual([])
+    expect(outcome.steps.filter((step) => step.nodeId === "body")).toHaveLength(0)
   })
 
-  it("gathers forEach via end into", async () => {
+  it("merges forEach body writes into parent arrays", async () => {
     const outcome = await runExecution(manifestWithSteps([foreachLoop()]), { rows: ["a", "b"] }, runDeps)
-    expect(outcome.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
+    expect(outcome.state.out).toEqual([{ echo: "a" }, { echo: "b" }])
   })
 })
 
@@ -314,23 +278,6 @@ describe("graph model L1/L2 rejects", () => {
     expect(emptyPath.issues.some((issue) => issue.path?.includes("/paths/0"))).toBe(true)
   })
 
-  it("rejects while with as", async () => {
-    const result = await validateExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w",
-          maxRounds: 1,
-          as: "i",
-          steps: [],
-          end: { input: { repeat: false } },
-        },
-      ]),
-      caps,
-    )
-    expect(result.issues.some((issue) => issue.path === "/steps/0/as")).toBe(true)
-  })
-
   it("rejects for without input.count and forEach without required fields", async () => {
     const forMissing = await validateExecution(
       manifestWithSteps([
@@ -340,7 +287,6 @@ describe("graph model L1/L2 rejects", () => {
           id: "f",
           as: "i",
           steps: [],
-          end: { input: { value: { $ref: "state.x" } } },
         },
       ]),
       caps,
@@ -354,7 +300,6 @@ describe("graph model L1/L2 rejects", () => {
           id: "fe",
           input: { items: { $ref: "state.rows" } },
           steps: [],
-          end: { input: {} },
         },
       ]),
       caps,
@@ -377,8 +322,8 @@ describe("graph model L1/L2 rejects", () => {
       manifestWithSteps([
         {
           type: "loop",
+          mode: "while",
           id: "l",
-          ref: "state.go",
           maxRounds: 1,
           steps: [],
           end: { input: { repeat: false } },
@@ -486,7 +431,6 @@ describe("graph model L3 dataflow", () => {
               then: [{ id: "x", uses: echoCapability.id, input: { value: "x" } }],
             },
           ],
-          end: { input: { value: { $ref: "state.x" } } },
         },
       ]),
       caps,
@@ -537,9 +481,7 @@ describe("graph model L3 dataflow", () => {
             id: "fe",
             input: { items: { $ref: "state.text" } },
             as: "row",
-            into: "out",
             steps: [{ id: "body", uses: echoCapability.id, input: { value: { $ref: "state.row" } }, as: "out" }],
-            end: { input: { value: { $ref: "state.out" } } },
           },
         ],
       },
@@ -558,8 +500,7 @@ describe("graph model L3 dataflow", () => {
             id: "f",
             input: { count: { $ref: "state.flag" } },
             as: "i",
-            steps: [{ id: "body", uses: echoCapability.id, input: { value: "x" } }],
-            end: { input: { value: { $ref: "state.x" } } },
+            steps: [{ id: "body", uses: echoCapability.id, input: { value: "x" }, as: "out" }],
           },
         ],
       },
@@ -646,61 +587,7 @@ describe("graph model run semantics", () => {
     expect(outcome.state.query).toBeUndefined()
   })
 
-  it("stops while on non-boolean repeat, throwing repeat, and emits loop.exhausted at maxRounds", async () => {
-    const nonBool = await runExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w",
-          maxRounds: 5,
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: "b" } }],
-          end: { input: { repeat: "yes" } },
-        },
-      ]),
-      {},
-      runDeps,
-    )
-    expect(nonBool.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
-    expect(nonBool.records.some((event) => event.type === "loop.repeat" && event.data.reason === "non-boolean")).toBe(
-      true,
-    )
-    const missingRepeat = await runExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w2",
-          maxRounds: 5,
-          steps: [],
-          end: { input: { repeat: { $ref: "state.toggle", optional: true } } },
-        },
-      ]),
-      {},
-      runDeps,
-    )
-    expect(
-      missingRepeat.records.some(
-        (event) => event.type === "loop.repeat" && (event.data.reason === "missing" || event.data.reason === "non-boolean"),
-      ),
-    ).toBe(true)
-    const exhausted = await runExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w3",
-          maxRounds: 2,
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: "b" } }],
-          end: { input: { repeat: true } },
-        },
-      ]),
-      {},
-      runDeps,
-    )
-    const endEvent = exhausted.records.find((event) => event.type === "loop.exhausted")
-    expect(endEvent?.data).toEqual({ nodeId: "w3", rounds: 2 })
-    expect(exhausted.steps.filter((step) => step.nodeId === "body")).toHaveLength(2)
-  })
-
-  it("writes for into from the last gathered round", async () => {
+  it("merges each for round into a body array", async () => {
     const outcome = await runExecution(
       manifestWithSteps([
         {
@@ -713,73 +600,17 @@ describe("graph model run semantics", () => {
       { n: 3 },
       runDeps,
     )
-    expect(outcome.state.last).toEqual({ echo: 2 })
-    expect(outcome.state.into).toBeUndefined()
-    const withInto = await runExecution(
-      manifestWithSteps([
-        {
-          ...forLoop(),
-          into: "summary",
-          steps: [
-            { id: "body", uses: echoCapability.id, input: { value: "v" }, as: "last", mode: "replace" },
-          ],
-        },
-      ]),
-      { n: 2 },
-      runDeps,
-    )
-    expect(withInto.state.summary).toEqual({ echo: "v" })
+    expect(outcome.state.last).toEqual([{ echo: 0 }, { echo: 1 }, { echo: 2 }])
+    expect(outcome.events).toContain("loop.round")
   })
 
-  it("commits empty forEach into as an empty array", async () => {
+  it("commits empty forEach body arrays when items is empty", async () => {
     const outcome = await runExecution(
       manifestWithSteps([{ ...foreachLoop(), concurrency: 1 }]),
       { rows: [] },
       runDeps,
     )
-    expect(outcome.state.collected).toEqual([])
-  })
-
-  it("gathers forEach with end expression and end script", async () => {
-    const expr = await runExecution(
-      manifestWithSteps([
-        {
-          ...foreachLoop(),
-          end: { input: { value: { $ref: "state.out" } }, expression: "input.value.echo + '-x'" },
-        },
-      ]),
-      { rows: ["a"] },
-      runDeps,
-    )
-    expect(expr.state.collected).toEqual(["a-x"])
-    const script = await runExecution(
-      manifestWithSteps([
-        {
-          ...foreachLoop(),
-          end: {
-            input: { value: { $ref: "state.out" } },
-            script: { lang: "js", source: "return input.value.echo + '-s'" },
-          },
-        },
-      ]),
-      { rows: ["b"] },
-      runDeps,
-    )
-    expect(script.state.collected).toEqual(["b-s"])
-  })
-
-  it("fails the run when end gather throws", async () => {
-    const outcome = await runExecution(
-      manifestWithSteps([
-        {
-          ...foreachLoop(),
-          end: { input: { value: { $ref: "state.out" } }, expression: "(() => { throw new Error('boom') })()" },
-        },
-      ]),
-      { rows: ["a"] },
-      runDeps,
-    )
-    expect(outcome.status).toBe("failed")
+    expect(outcome.state.out).toEqual([])
   })
 
   it("if with missing optional input takes else and does not write scoped as", async () => {
@@ -841,7 +672,7 @@ describe("graph model run semantics", () => {
       manifest,
     )
     await storage.runs.writeLoopPartial!("r-fe-resume", "items", {
-      results: { "0": { echo: "a" } },
+      rounds: { "0": { out: { echo: "a" } } },
       errors: [],
     })
     const first = await runExecution(manifest, { rows: ["a", "b"] }, {
@@ -851,7 +682,7 @@ describe("graph model run semantics", () => {
       cursor: { completed: [], inProgress: "body", loops: {}, choices: {}, loopItems: { items: { completed: [0] } } },
     })
     expect(first.steps.filter((step) => step.nodeId === "body")).toHaveLength(1)
-    expect(first.state.collected).toEqual([{ echo: "a" }, { echo: "b" }])
+    expect(first.state.out).toEqual([{ echo: "a" }, { echo: "b" }])
   })
 
   it("refuses detached if and loop at run time", async () => {
@@ -871,10 +702,11 @@ describe("graph model run semantics", () => {
       detached: [
         {
           type: "loop",
+          mode: "for",
           id: "aside",
-          maxRounds: 1,
+          input: { count: 0 },
+          as: "i",
           steps: [],
-          end: { input: { repeat: false } },
         },
       ],
     }
@@ -904,26 +736,6 @@ describe("graph model QuickJS expressions", () => {
     await expect(engine.evaluateExpression("(() => { while (true) {} })()", {})).rejects.toMatchObject({
       code: "ECP_EXPR_TIMEOUT",
     })
-  })
-
-  it("stores the last gathered value of a while loop in into", async () => {
-    const result = await runExecution(
-      manifestWithSteps([
-        {
-          type: "loop",
-          id: "w",
-          maxRounds: 3,
-          steps: [{ id: "body", uses: echoCapability.id, input: { value: "b" }, as: "out", mode: "replace" }],
-          end: { input: { value: { $ref: "state.out.echo" }, repeat: true }, expression: "input.value + '!'" },
-          into: "last",
-        },
-      ]),
-      {},
-      runDeps,
-    )
-    expect(result.state.last).toBe("b!")
-    expect(result.records.filter((event) => event.type === "loop.repeat")).toHaveLength(3)
-    expect(result.records.some((event) => event.type === "loop.exhausted" && event.data.rounds === 3)).toBe(true)
   })
 
   it("runs nothing when an if without else is false and records side null", async () => {

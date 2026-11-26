@@ -9,19 +9,37 @@
     "accepts": {
       "type": "object",
       "properties": {
-        "psdPath": { "type": "string", "description": "The source PSD on this machine." },
+        "psdPath": {
+          "type": "string",
+          "description": "The source PSD on this machine."
+        },
         "sizes": {
           "type": "array",
           "description": "Artboards to create, each { name, width, height, rules? } in pixels; rules override the shared layout rules for that artboard.",
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "width": { "type": "integer", "minimum": 1 },
-              "height": { "type": "integer", "minimum": 1 },
-              "rules": { "type": "object", "description": "Layout overrides for this artboard only." }
+              "name": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "rules": {
+                "type": "object",
+                "description": "Layout overrides for this artboard only."
+              }
             },
-            "required": ["name", "width", "height"]
+            "required": [
+              "name",
+              "width",
+              "height"
+            ]
           }
         },
         "rules": {
@@ -29,14 +47,25 @@
           "description": "Layout overrides for plan-layout.js: margin, gap, textScale, maxTextWidth, anchorX, anchorY, debug."
         }
       },
-      "required": ["psdPath"]
+      "required": [
+        "psdPath"
+      ]
     },
     "returns": {
       "type": "object",
       "properties": {
-        "reflow": { "type": "object", "description": "psd: the new PSD (url FileRef, captured into the run)." },
-        "structure": { "type": "object", "description": "Structural check of the new PSD against the plan; ok is the pass/fail gate." },
-        "renditions": { "type": "object", "description": "artboards: [{ name, file }] — one JPEG per artboard, in document order (captured into the run)." }
+        "reflow": {
+          "type": "object",
+          "description": "psd: the new PSD (url FileRef, captured into the run)."
+        },
+        "structure": {
+          "type": "object",
+          "description": "Structural check of the new PSD against the plan; ok is the pass/fail gate."
+        },
+        "renditions": {
+          "type": "object",
+          "description": "artboards: [{ name, file }] — one JPEG per artboard, in document order (captured into the run)."
+        }
       }
     }
   },
@@ -47,7 +76,12 @@
       "uses": "@executioncontrolprotocol/azure-blob-storage.upload",
       "config": "azure-blob-storage/default",
       "input": {
-        "file": { "kind": "file", "path": { "$ref": "state.psdPath" } },
+        "file": {
+          "kind": "file",
+          "path": {
+            "$ref": "state.psdPath"
+          }
+        },
         "contentType": "image/vnd.adobe.photoshop"
       },
       "as": "upload"
@@ -58,7 +92,9 @@
       "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
       "config": "adobe-firefly-services/default",
       "input": {
-        "image": { "$ref": "state.upload.file" }
+        "image": {
+          "$ref": "state.upload.file"
+        }
       },
       "as": "source"
     },
@@ -69,39 +105,97 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "manifest": { "type": "object" },
-          "sizes": { "type": "array" },
-          "rules": { "type": "object" }
+          "manifest": {
+            "type": "object"
+          },
+          "sizes": {
+            "type": "array"
+          },
+          "rules": {
+            "type": "object"
+          }
         },
-        "required": ["manifest", "sizes", "rules"],
+        "required": [
+          "manifest",
+          "sizes",
+          "rules"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "source": { "type": "object" },
-          "artboards": { "type": "array" },
-          "outputs": { "type": "array" },
-          "debug": { "type": "boolean" }
+          "source": {
+            "type": "object"
+          },
+          "artboards": {
+            "type": "array"
+          },
+          "outputs": {
+            "type": "array"
+          },
+          "debug": {
+            "type": "boolean"
+          }
         },
-        "required": ["source", "artboards", "outputs"],
+        "required": [
+          "source",
+          "artboards",
+          "outputs"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "manifest": { "$ref": "state.source" },
+        "manifest": {
+          "$ref": "state.source"
+        },
         "sizes": {
           "$ref": "state.sizes",
           "optional": true,
           "fallback": [
-            { "name": "Square 1080", "width": 1080, "height": 1080, "rules": { "textScale": 1.15 } },
-            { "name": "Story 1080x1920", "width": 1080, "height": 1920, "rules": { "anchorY": 0.12, "textScale": 1.35 } },
-            { "name": "Landscape 1920x1080", "width": 1920, "height": 1080 },
-            { "name": "Rectangle 300x250", "width": 300, "height": 250, "rules": { "textScale": 1.8, "margin": 0.12 } }
+            {
+              "name": "Square 1080",
+              "width": 1080,
+              "height": 1080,
+              "rules": {
+                "textScale": 1.15
+              }
+            },
+            {
+              "name": "Story 1080x1920",
+              "width": 1080,
+              "height": 1920,
+              "rules": {
+                "anchorY": 0.12,
+                "textScale": 1.35
+              }
+            },
+            {
+              "name": "Landscape 1920x1080",
+              "width": 1920,
+              "height": 1080
+            },
+            {
+              "name": "Rectangle 300x250",
+              "width": 300,
+              "height": 250,
+              "rules": {
+                "textScale": 1.8,
+                "margin": 0.12
+              }
+            }
           ]
         },
-        "rules": { "$ref": "state.rules", "optional": true, "fallback": {} }
+        "rules": {
+          "$ref": "state.rules",
+          "optional": true,
+          "fallback": {}
+        }
       },
-      "script": { "lang": "js", "path": "scripts/plan-layout.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/plan-layout.js"
+      },
       "as": "plan"
     },
     {
@@ -110,7 +204,9 @@
       "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-actions",
       "config": "adobe-firefly-services/default",
       "input": {
-        "image": { "$ref": "state.upload.file" },
+        "image": {
+          "$ref": "state.upload.file"
+        },
         "options": {
           "uxp": {
             "source": {
@@ -119,14 +215,18 @@
                   "lang": "js",
                   "path": "scripts/reflow-artboards.uxp.js",
                   "params": {
-                    "plan": { "$ref": "state.plan" }
+                    "plan": {
+                      "$ref": "state.plan"
+                    }
                   }
                 }
               }
             }
           }
         },
-        "outputs": { "$ref": "state.plan.outputs" }
+        "outputs": {
+          "$ref": "state.plan.outputs"
+        }
       },
       "as": "reflow"
     },
@@ -136,7 +236,9 @@
       "uses": "@executioncontrolprotocol/azure-blob-storage.delete",
       "config": "azure-blob-storage/default",
       "input": {
-        "blobName": { "$ref": "state.upload.blobName" },
+        "blobName": {
+          "$ref": "state.upload.blobName"
+        },
         "ifMissing": "ignore"
       }
     },
@@ -146,7 +248,9 @@
       "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-generate-manifest",
       "config": "adobe-firefly-services/default",
       "input": {
-        "image": { "$ref": "state.reflow.psd" }
+        "image": {
+          "$ref": "state.reflow.psd"
+        }
       },
       "as": "result"
     },
@@ -157,30 +261,67 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "manifest": { "type": "object" },
-          "plan": { "type": "object" }
+          "manifest": {
+            "type": "object"
+          },
+          "plan": {
+            "type": "object"
+          }
         },
-        "required": ["manifest", "plan"],
+        "required": [
+          "manifest",
+          "plan"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "ok": { "type": "boolean" },
-          "errors": { "type": "array", "items": { "type": "string" } },
-          "problems": { "type": "array", "items": { "type": "string" } },
-          "artboards": { "type": "array" },
-          "layerTypes": { "type": "array" },
-          "notes": { "type": "string" }
+          "ok": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "artboards": {
+            "type": "array"
+          },
+          "layerTypes": {
+            "type": "array"
+          },
+          "notes": {
+            "type": "string"
+          }
         },
-        "required": ["ok", "errors", "problems", "artboards"],
+        "required": [
+          "ok",
+          "errors",
+          "problems",
+          "artboards"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "manifest": { "$ref": "state.result" },
-        "plan": { "$ref": "state.plan" }
+        "manifest": {
+          "$ref": "state.result"
+        },
+        "plan": {
+          "$ref": "state.plan"
+        }
       },
-      "script": { "lang": "js", "path": "scripts/check-structure.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/check-structure.js"
+      },
       "as": "structure"
     },
     {
@@ -190,23 +331,39 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "manifest": { "type": "object" }
+          "manifest": {
+            "type": "object"
+          }
         },
-        "required": ["manifest"],
+        "required": [
+          "manifest"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "names": { "type": "array", "items": { "type": "string" } },
-          "outputs": { "type": "array" }
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array"
+          }
         },
-        "required": ["names", "outputs"],
+        "required": [
+          "names",
+          "outputs"
+        ],
         "additionalProperties": false
       },
       "expression": "( $boards := manifest.layers[type = 'artboard']; { 'names': [$boards.name], 'outputs': [$boards.{ 'destination': { 'validityPeriod': 86400 }, 'mediaType': 'image/jpeg', 'quality': 'high', 'layers': [{ 'id': id }], 'cropMode': 'layer_bounds' }] } )",
       "input": {
-        "manifest": { "$ref": "state.result" }
+        "manifest": {
+          "$ref": "state.result"
+        }
       },
       "as": "artboards"
     },
@@ -216,8 +373,12 @@
       "uses": "@executioncontrolprotocol/adobe-firefly-services.photoshop-create-composite",
       "config": "adobe-firefly-services/default",
       "input": {
-        "image": { "$ref": "state.reflow.psd" },
-        "outputs": { "$ref": "state.artboards.outputs" }
+        "image": {
+          "$ref": "state.reflow.psd"
+        },
+        "outputs": {
+          "$ref": "state.artboards.outputs"
+        }
       },
       "as": "rendered"
     },
@@ -228,10 +389,20 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "names": { "type": "array", "items": { "type": "string" } },
-          "rendered": { "type": "object" }
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rendered": {
+            "type": "object"
+          }
         },
-        "required": ["names", "rendered"],
+        "required": [
+          "names",
+          "rendered"
+        ],
         "additionalProperties": false
       },
       "returns": {
@@ -242,20 +413,33 @@
             "items": {
               "type": "object",
               "properties": {
-                "name": { "type": "string" },
-                "file": { "type": "object" }
+                "name": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "object"
+                }
               },
-              "required": ["name", "file"]
+              "required": [
+                "name",
+                "file"
+              ]
             }
           }
         },
-        "required": ["artboards"],
+        "required": [
+          "artboards"
+        ],
         "additionalProperties": false
       },
       "expression": "{ 'artboards': [$map(names, function($name, $i) { { 'name': $name, 'file': $lookup(rendered, $i = 0 ? 'jpeg' : 'jpeg' & $string($i + 1)) } })] }",
       "input": {
-        "names": { "$ref": "state.artboards.names" },
-        "rendered": { "$ref": "state.rendered" }
+        "names": {
+          "$ref": "state.artboards.names"
+        },
+        "rendered": {
+          "$ref": "state.rendered"
+        }
       },
       "as": "renditions"
     }

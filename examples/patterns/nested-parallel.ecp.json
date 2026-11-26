@@ -88,10 +88,7 @@
                     "as": "review_pass",
                     "mode": "replace"
                   }
-                ],
-                "end": {
-                  "input": {}
-                }
+                ]
               }
             ],
             "else": [
@@ -166,15 +163,7 @@
                 },
                 "as": "file_ok"
               }
-            ],
-            "end": {
-              "input": {
-                "value": {
-                  "$ref": "state.file_ok"
-                }
-              }
-            },
-            "into": "checked"
+            ]
           }
         ]
       ]
@@ -185,7 +174,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.checked"
+          "$ref": "state.file_ok"
         }
       },
       "as": "wrap_up"

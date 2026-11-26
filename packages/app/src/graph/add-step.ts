@@ -122,20 +122,19 @@ function topLevelIndexAfter(manifest: ExecutionManifest, afterId: string): numbe
   return undefined
 }
 
-function isEnclosedInWhileOrForBody(nodes: readonly Node[], structureId: string, inBody: boolean): boolean {
+function isEnclosedInForBody(nodes: readonly Node[], structureId: string, inBody: boolean): boolean {
   for (const node of nodes) {
     if (node.id === structureId) return inBody
     if (isStepNode(node)) continue
     if (node.type === "loop") {
-      const mode = node.mode ?? "while"
-      const childIn = mode === "while" || mode === "for"
-      if (isEnclosedInWhileOrForBody(node.steps, structureId, childIn)) return true
+      const childIn = node.mode === "for"
+      if (isEnclosedInForBody(node.steps, structureId, childIn)) return true
     } else if (node.type === "if") {
-      if (isEnclosedInWhileOrForBody(node.then, structureId, inBody)) return true
-      if (node.else && isEnclosedInWhileOrForBody(node.else, structureId, inBody)) return true
+      if (isEnclosedInForBody(node.then, structureId, inBody)) return true
+      if (node.else && isEnclosedInForBody(node.else, structureId, inBody)) return true
     } else if (node.type === "parallel") {
       for (const path of node.paths) {
-        if (isEnclosedInWhileOrForBody(path, structureId, inBody)) return true
+        if (isEnclosedInForBody(path, structureId, inBody)) return true
       }
     }
   }
@@ -146,26 +145,25 @@ function placementNeedsReplaceMode(manifest: ExecutionManifest, placement: AddSt
   if (placement.kind === "loop-body") {
     const loop = findStructure(manifest, placement.loopId)
     if (!loop || loop.type !== "loop") return false
-    const mode = loop.mode ?? "while"
-    return mode === "while" || mode === "for"
+    return loop.mode === "for"
   }
   if (placement.kind === "then-side" || placement.kind === "else-side") {
     const ifId = placement.ifId
-    if (isEnclosedInWhileOrForBody(manifest.steps, ifId, false)) return true
+    if (isEnclosedInForBody(manifest.steps, ifId, false)) return true
     const detached = manifestDetached(manifest)
-    if (detached && isEnclosedInWhileOrForBody(detached, ifId, false)) return true
+    if (detached && isEnclosedInForBody(detached, ifId, false)) return true
     return false
   }
   if (placement.kind === "new-path" || placement.kind === "path-side") {
-    if (isEnclosedInWhileOrForBody(manifest.steps, placement.parallelId, false)) return true
+    if (isEnclosedInForBody(manifest.steps, placement.parallelId, false)) return true
     const detached = manifestDetached(manifest)
-    if (detached && isEnclosedInWhileOrForBody(detached, placement.parallelId, false)) return true
+    if (detached && isEnclosedInForBody(detached, placement.parallelId, false)) return true
     return false
   }
   if (placement.kind === "before" || placement.kind === "after") {
-    if (isEnclosedInWhileOrForBody(manifest.steps, placement.nodeId, false)) return true
+    if (isEnclosedInForBody(manifest.steps, placement.nodeId, false)) return true
     const detached = manifestDetached(manifest)
-    if (detached && isEnclosedInWhileOrForBody(detached, placement.nodeId, false)) return true
+    if (detached && isEnclosedInForBody(detached, placement.nodeId, false)) return true
     return false
   }
   return false

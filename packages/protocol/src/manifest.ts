@@ -17,8 +17,8 @@ export type JsonValue =
  * @category Definitions
  */
 export interface RefMarker {
-  /** Path beginning with `state.`. */
-  $ref: string
+  /** One `state.…` path, or two or more paths for a merge port. */
+  $ref: string | readonly string[]
   /** When true, a missing value does not fail resolution. */
   optional?: boolean
   /** Value used when the path is missing and `optional` is true. */
@@ -156,24 +156,7 @@ export interface IfNode {
 }
 
 /**
- * Loop end node. Gathers each round's result and, in `while` mode, carries `repeat`.
- * @category Definitions
- */
-export interface LoopEndNode {
-  /** Typed inputs from the loop body. */
-  accepts?: Record<string, unknown>
-  /** Values bound into the end node, including `repeat` for `while`. */
-  input: Record<string, JsonValue | ValueMarker>
-  /** Gather expression over frozen `input`. Exactly one of `expression` and `script` when set. */
-  expression?: string
-  /** Gather script with `return`. Exactly one of `expression` and `script` when set. */
-  script?: ScriptDescriptor
-  /** Schema for one gathered value. */
-  returns?: Record<string, unknown>
-}
-
-/**
- * Loop. `mode` selects how it repeats: `while` (default), `for` or `forEach`.
+ * Loop. `mode` is `forEach` (over `input.items`) or `for` (over `input.count`).
  * @category Definitions
  */
 export interface LoopNode {
@@ -183,20 +166,14 @@ export interface LoopNode {
   id: string
   /** Display label. */
   label?: string
-  /** How the loop repeats. Default `while`. */
-  mode?: "while" | "for" | "forEach"
-  /** Driver inputs: `items` for `forEach`, `count` for `for`; omitted for `while`. */
-  input?: Record<string, JsonValue | ValueMarker>
+  /** How the loop repeats. */
+  mode: "for" | "forEach"
+  /** Driver inputs: `items` for `forEach`, `count` for `for`. */
+  input: Record<string, JsonValue | ValueMarker>
   /** Iteration or item key for `for` and `forEach` modes. */
-  as?: string
-  /** Inclusive upper bound for `while` mode, 1..1000. */
-  maxRounds?: number
+  as: string
   /** Body. */
   steps: Node[]
-  /** End node that gathers results and reads `repeat` in `while` mode. */
-  end: LoopEndNode
-  /** State key for collected results (`forEach` required; optional for `for` / `while`). */
-  into?: string
   /** Concurrent items in `forEach` mode. Default 1, max {@link MAX_LOOP_CONCURRENCY}. */
   concurrency?: number
   /** Whether one failed item fails the run in `forEach` mode. Default `fail`. */

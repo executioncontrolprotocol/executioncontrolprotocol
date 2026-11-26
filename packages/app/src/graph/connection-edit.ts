@@ -27,16 +27,14 @@ import {
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
   LOOP_REF_HANDLE,
-  END_REPEAT_HANDLE,
-  END_RESULTS_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
   loopIdFromEndNodeId,
 } from "./types.js"
-import { ensureLoopInto, ensureStructureAs } from "./panel-edit.js"
+import { ensureStructureAs } from "./panel-edit.js"
 import type { ReactFlowDataEdgeData, ReactFlowEdge } from "./types.js"
-import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue } from "./markers.js"
+import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue, refPathsFromValue } from "./markers.js"
 import {
   cleanNodes,
   cloneManifest,
@@ -162,11 +160,7 @@ interface InputTarget {
 }
 
 function resolveInputTarget(draft: ExecutionManifest, nodeId: string): InputTarget | undefined {
-  const loopId = loopIdFromEndNodeId(nodeId)
-  if (loopId) {
-    const loop = findLoop(draft.steps, loopId)
-    return loop ? { holder: loop.end, kind: "end", loop } : undefined
-  }
+  if (loopIdFromEndNodeId(nodeId)) return undefined
   const hit = findNodePlacement(draft.steps, nodeId)
   if (!hit) return undefined
   const node = hit.node
@@ -185,6 +179,7 @@ export function disconnectInput(
   targetId: string,
   inputPath: string,
   paramKey?: string,
+  refPath?: string,
 ): StructureEditResult {
   const next = cloneManifest(manifest)
   const target = resolveInputTarget(next, targetId)
@@ -209,7 +204,18 @@ export function disconnectInput(
     if (!isRefMarker(value) && !isStateMarker(value)) {
       return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
     }
-    if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+    if (isRefMarker(value) && refPath) {
+      const paths = refPathsFromValue(value) ?? []
+      const nextPaths = paths.filter((path) => path !== refPath)
+      if (nextPaths.length === paths.length) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+      if (nextPaths.length === 0) {
+        if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+      } else if (nextPaths.length === 1) {
+        assignInputPath(input, inputPath, { $ref: nextPaths[0]! })
+      } else {
+        assignInputPath(input, inputPath, { $ref: nextPaths })
+      }
+    } else if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
   }
 
   target.holder.input = input
@@ -337,7 +343,7 @@ export function deleteConnector(
   if (edge.target === EXECUTION_RETURNS_NODE_ID || !data.bindingPath) {
     return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
   }
-  return disconnectInput(manifest, edge.target, data.bindingPath, data.paramKey)
+  return disconnectInput(manifest, edge.target, data.bindingPath, data.paramKey, data.statePath)
 }
 
 export {
@@ -391,17 +397,10 @@ function buildStateRef(
   if (sourceNodeId === EXECUTION_ACCEPTS_NODE_ID) {
     return `state.${sourceHandle}`
   }
-  const endLoopId = loopIdFromEndNodeId(sourceNodeId)
-  if (endLoopId) {
-    const loop = findLoop(manifest.steps, endLoopId)
-    if (!loop || sourceHandle !== END_RESULTS_HANDLE) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
-    return `state.${ensureLoopInto(manifest, loop)}`
-  }
   const structure = findNodePlacement(manifest.steps, sourceNodeId)?.node
   if (structure?.type === "loop") {
-    if (sourceHandle === END_RESULTS_HANDLE) return `state.${ensureLoopInto(manifest, structure)}`
     const asKey = structure.as
-    const mode = structure.mode ?? "while"
+    const mode = structure.mode
     if (!asKey) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
     if (sourceHandle === LOOP_ITEM_HANDLE && mode === "forEach") return `state.${asKey}`
     if (sourceHandle === LOOP_INDEX_HANDLE && mode === "for") return `state.${asKey}`
@@ -469,15 +468,11 @@ function attachAfterLoopInto(
 function placeDetachedBeforeConnect(
   manifest: ExecutionManifest,
   sourceNodeId: string,
-  sourceHandle: string,
+  _sourceHandle: string,
   detachedId: string,
 ): StructureEditResult {
-  if (sourceHandle === END_RESULTS_HANDLE) {
-    const loopId = sourceNodeId.startsWith("end:")
-      ? sourceNodeId.slice("end:".length)
-      : sourceNodeId
-    return attachAfterLoopInto(manifest, loopId, detachedId)
-  }
+  const endLoopId = loopIdFromEndNodeId(sourceNodeId)
+  if (endLoopId) return attachAfterLoopInto(manifest, endLoopId, detachedId)
   return attachAfter(manifest, sourceNodeId, detachedId)
 }
 
@@ -534,10 +529,9 @@ export function connectInputAndAttach(
 /** Whether `handle` is an input port the target accepts a branch on (loop drivers and `repeat` depend on the mode). */
 function targetHandleAllowed(target: InputTarget, handle: string): boolean {
   if (target.kind === "loop") {
-    const mode = target.loop?.mode ?? "while"
+    const mode = target.loop?.mode
     return (mode === "forEach" && handle === LOOP_ITEMS_HANDLE) || (mode === "for" && handle === LOOP_COUNT_HANDLE)
   }
-  if (target.kind === "end" && handle === END_REPEAT_HANDLE) return (target.loop?.mode ?? "while") === "while"
   return true
 }
 
@@ -575,7 +569,15 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
   if (typeof refResult !== "string") return refResult
 
   const input = structuredClone(inputTarget.holder.input ?? {}) as Record<string, unknown>
-  assignInputPath(input, target.targetHandle, { $ref: refResult })
+  const existing = readInputAtPath(input, target.targetHandle)
+  if (isRefMarker(existing)) {
+    const paths = refPathsFromValue(existing) ?? []
+    if (paths.includes(refResult)) return { ok: true, manifest: next }
+    const merged = [...paths, refResult]
+    assignInputPath(input, target.targetHandle, { $ref: merged.length === 1 ? merged[0]! : merged })
+  } else {
+    assignInputPath(input, target.targetHandle, { $ref: refResult })
+  }
   inputTarget.holder.input = input
   return { ok: true, manifest: next }
 }

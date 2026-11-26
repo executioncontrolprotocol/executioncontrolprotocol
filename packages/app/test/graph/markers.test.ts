@@ -13,7 +13,8 @@ describe("graph markers", () => {
 
   it("reads ref paths and ignores other values", () => {
     expect(refPathFromValue({ $ref: "state.a" })).toBe("state.a")
-    expect(refPathFromValue({ $state: "state.b" })).toBe("state.b")
+    expect(refPathFromValue({ $ref: ["state.b", "state.c"] })).toBe("state.b")
+    expect(refPathFromValue({ $state: "state.b" })).toBeUndefined()
     expect(refPathFromValue({ value: 1 })).toBeUndefined()
   })
 })

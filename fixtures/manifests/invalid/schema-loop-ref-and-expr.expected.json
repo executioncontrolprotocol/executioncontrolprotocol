@@ -1,7 +1,12 @@
 [
   {
+    "code": "ECP_INPUT_INVALID",
+    "path": "/steps/0/input",
+    "severity": "error"
+  },
+  {
     "code": "ECP_MANIFEST_INVALID",
-    "path": "/steps/0/end",
+    "path": "/steps/0/mode",
     "severity": "error"
   }
 ]

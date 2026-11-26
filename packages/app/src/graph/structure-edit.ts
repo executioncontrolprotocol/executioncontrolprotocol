@@ -1,12 +1,4 @@
-import type {
-  ExecutionManifest,
-  IfNode,
-  LoopEndNode,
-  LoopNode,
-  Node,
-  ParallelNode,
-  StepNode,
-} from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
 import {
   cloneManifest,
   finalizeManifest,
@@ -18,8 +10,6 @@ import {
   allNodeIds,
   isStructureNode,
 } from "./manifest-walk.js"
-import { collectSteps } from "./extract-data-edges.js"
-
 /**
  * Outcome of a manifest structure edit.
  * @category App
@@ -69,12 +59,8 @@ export function wrapSelectionIds(selectedStepIds: readonly string[], rightClicke
   return [rightClickedId]
 }
 
-const defaultLoopEnd = (): LoopEndNode => ({
-  input: { repeat: false },
-})
-
 /**
- * Wrap contiguous sibling nodes (steps or start nodes) in a new `if`, `parallel` (one path per node), or `while` loop.
+ * Wrap contiguous sibling nodes (steps or start nodes) in a new `if`, `parallel` (one path per node), or `for` loop.
  * @category App
  */
 export function wrapSteps(
@@ -138,15 +124,15 @@ export function wrapSteps(
     } satisfies ParallelNode
   } else {
     const id = nextStructureId("loop", taken)
+    const as = freeStateKey(next, "i")
     inserted = {
       type: "loop",
       id,
-      mode: "while",
-      maxRounds: 1,
+      mode: "for",
+      as,
+      input: { count: LOOP_DEFAULT_COUNT },
       steps: slice,
-      end: defaultLoopEnd(),
     } satisfies LoopNode
-    useReplaceCommits(slice)
   }
 
   parentList.splice(nextIndexes[0]!, 0, inserted)
@@ -183,11 +169,10 @@ export function removeStructure(manifest: ExecutionManifest, structureId: string
  * Loop modes and the fields each mode uses. Changing the mode removes the fields the new mode forbids.
  * @category App
  */
-export type LoopMode = "while" | "for" | "forEach"
+export type LoopMode = "for" | "forEach"
 
 /** Loop fields (besides `mode`) that only some modes allow. */
 const LOOP_FIELD_MODES: Readonly<Record<string, readonly LoopMode[]>> = {
-  maxRounds: ["while"],
   as: ["for", "forEach"],
   concurrency: ["forEach"],
   onError: ["forEach"],
@@ -196,23 +181,9 @@ const LOOP_FIELD_MODES: Readonly<Record<string, readonly LoopMode[]>> = {
 /** Placeholder `count` for a loop switched to `for`: one iteration, so the loop validates until the user binds a count. */
 const LOOP_DEFAULT_COUNT = 1
 
-/** Placeholder `maxRounds` for a loop switched to `while`: the body runs once. */
-const LOOP_DEFAULT_MAX_ROUNDS = 1
-
 /**
  * Switch a loop to `mode`, rewriting only what the new mode needs and removing what it forbids so the result validates
- * when it can:
- *
- * - `while`: drops `as`, `input`, `concurrency`, `onError`; adds `maxRounds: 1` and `end.input.repeat: false` when missing.
- * - `for`: drops `maxRounds`, `concurrency`, `onError`, `input.items`, `end.input.repeat`; keeps or adds `as` (a free
- *   `i`) and `input.count` (literal `1`).
- * - `forEach`: drops `maxRounds`, `input.count`, `end.input.repeat`; keeps or adds `as` (a free `item`) and `into` (a
- *   free `results`). `input.items` is not invented: validation reports the unbound driver.
- *
- * Switching to `while` or `for` also sets `mode: "replace"` on body steps that commit an `as` with the default
- * `create` mode, because a `create` commit would fail on the second round.
- *
- * References to a removed `as` are left as they are; validation reports them.
+ * when it can.
  * @category App
  */
 export function setLoopMode(manifest: ExecutionManifest, loopId: string, mode: LoopMode): StructureEditResult {
@@ -220,49 +191,21 @@ export function setLoopMode(manifest: ExecutionManifest, loopId: string, mode: L
   const hit = locateNode(next, loopId)
   if (!hit || hit.node.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
   const loop = hit.node
-  if (mode !== "while" && mode !== "for" && mode !== "forEach") return { ok: false, reason: "Invalid loop field" }
-  const endInput: Record<string, unknown> = { ...(loop.end?.input ?? {}) }
+  if (mode !== "for" && mode !== "forEach") return { ok: false, reason: "Invalid loop field" }
   const input: Record<string, unknown> = { ...(loop.input ?? {}) }
-
-  if (mode === "while") {
-    delete loop.as
+  if (mode === "for") {
     delete loop.concurrency
     delete loop.onError
-    delete loop.input
-    loop.maxRounds ??= LOOP_DEFAULT_MAX_ROUNDS
-    endInput.repeat ??= false
+    delete input.items
+    input.count ??= LOOP_DEFAULT_COUNT
+    loop.as ??= freeStateKey(next, "i")
   } else {
-    delete loop.maxRounds
-    delete endInput.repeat
-    if (mode === "for") {
-      delete loop.concurrency
-      delete loop.onError
-      delete input.items
-      input.count ??= LOOP_DEFAULT_COUNT
-      loop.as ??= freeStateKey(next, "i")
-    } else {
-      delete input.count
-      loop.as ??= freeStateKey(next, "item")
-      loop.into ??= freeStateKey(next, "results")
-    }
-    // `for` and `forEach` require an `input` object even when the driver is unbound.
-    loop.input = input as LoopNode["input"]
+    delete input.count
+    loop.as ??= freeStateKey(next, "item")
   }
+  loop.input = input as LoopNode["input"]
   loop.mode = mode
-  loop.end = { ...loop.end, input: endInput as LoopEndNode["input"] }
-  if (mode !== "forEach") useReplaceCommits(loop.steps)
   return { ok: true, manifest: next }
-}
-
-/** A `create` commit fails on a loop's second round, so steps in a `while` / `for` body commit with `replace`. */
-function useReplaceCommits(nodes: Node[]): void {
-  const body: StepNode[] = []
-  collectSteps(nodes, body)
-  for (const bodyStep of body) {
-    if (bodyStep.as !== undefined && (bodyStep.mode === undefined || bodyStep.mode === "create")) {
-      bodyStep.mode = "replace"
-    }
-  }
 }
 
 /** Update a scalar field on a loop node (canvas panel). The `mode` field delegates to {@link setLoopMode}. @category App */
@@ -273,21 +216,19 @@ export function setLoopField(
   value: unknown,
 ): StructureEditResult {
   if (field === "mode") {
-    if (value === "while" || value === "for" || value === "forEach") return setLoopMode(manifest, loopId, value)
+    if (value === "for" || value === "forEach") return setLoopMode(manifest, loopId, value)
     return { ok: false, reason: "Invalid loop field" }
   }
   const next = cloneManifest(manifest)
   const hit = findNodePlacement(next.steps, loopId)
   if (!hit || hit.node.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
   const loop = hit.node
-  const mode = loop.mode ?? "while"
+  const mode = loop.mode
   const allowed = LOOP_FIELD_MODES[field]
   if (allowed && !allowed.includes(mode)) return { ok: false, reason: `${field} is not used by ${mode} loops` }
-  if (field === "maxRounds" && typeof value === "number") loop.maxRounds = value
-  else if (field === "concurrency" && typeof value === "number") loop.concurrency = value
+  if (field === "concurrency" && typeof value === "number") loop.concurrency = value
   else if (field === "onError" && (value === "fail" || value === "continue")) loop.onError = value
   else if (field === "as" && typeof value === "string") loop.as = value
-  else if (field === "into" && typeof value === "string") loop.into = value
   else return { ok: false, reason: "Invalid loop field" }
   return finalizeManifest(next)
 }

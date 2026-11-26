@@ -5,7 +5,9 @@
     "returns": {
       "type": "object",
       "properties": {
-        "caption": { "type": "object" }
+        "caption": {
+          "type": "object"
+        }
       }
     }
   },

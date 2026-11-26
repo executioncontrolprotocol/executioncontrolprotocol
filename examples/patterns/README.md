@@ -16,8 +16,8 @@ Pass `--input '{}'` (or your own values) so the `accepts` defaults apply.
 | --- | --- |
 | `branch.ecp.json` | An `if` (`Gold tier?`) whose `else` holds another `if` (`Silver tier?`), between two steps. Each condition reads `input.tier`, bound from the `tier` input. |
 | `parallel.ecp.json` | A `parallel` with three paths, then a step that reads one path's output after them. |
-| `loop-while.ecp.json` | A `while` loop: the body runs, then the `end` node reads `repeat` from a node in the body; `maxRounds` caps it. `into` keeps the last round's value. |
-| `loop-for.ecp.json` | A `for` loop driven by `input.count` (`state.count`), with the index `i`. |
-| `loop-foreach.ecp.json` | A `forEach` loop over `input.items` (`concurrency: 2`); its `end` gathers each item's result into `greetings`. |
-| `nested-foreach-branch.ecp.json` | `forEach` → `if` → (`parallel` in `then`, `while` in `else`), then a step inside the loop whose result `end` gathers. Three containers deep. |
+| `if-in-loop.ecp.json` | `forEach` over orders, `if` Express?, merge port on Pick fast / Pick standard, Ship, then Notify reading `Label[]` after the loop. |
+| `loop-for.ecp.json` | A `for` loop driven by `input.count` (`state.count`), with the index `i`; body keys leave the loop as arrays. |
+| `loop-foreach.ecp.json` | A `forEach` loop over `input.items` (`concurrency: 2`); body `as` keys are arrays after the loop. |
+| `nested-foreach-branch.ecp.json` | `forEach` → `if` → (`parallel` in `then`, `for` in `else`); read body keys as arrays after the loop. |
 | `nested-parallel.ecp.json` | `parallel` → path 1 holds an `if` → `for`; path 2 holds a `forEach` → `parallel`. Three containers deep on both paths. |

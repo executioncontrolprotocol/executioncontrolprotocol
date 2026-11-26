@@ -1,0 +1,100 @@
+{
+  "$schema": "https://executioncontrolprotocol.dev/schemas/execution.schema.json",
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "execution": {
+    "id": "pattern-if-in-loop",
+    "label": "Pattern: if inside forEach (tunnels mockup)",
+    "accepts": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "speed": { "type": "string" }
+            }
+          },
+          "default": [
+            { "id": "a", "speed": "express" },
+            { "id": "b", "speed": "standard" }
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "type": "loop",
+      "id": "each-order",
+      "label": "For each order",
+      "mode": "forEach",
+      "as": "order",
+      "input": {
+        "items": { "$ref": "state.orders" }
+      },
+      "steps": [
+        {
+          "type": "if",
+          "id": "express",
+          "label": "Express?",
+          "accepts": {
+            "type": "object",
+            "properties": {
+              "order": { "type": "object" }
+            },
+            "required": ["order"]
+          },
+          "input": {
+            "order": { "$ref": "state.order" }
+          },
+          "expression": "input.order.speed === 'express'",
+          "as": "express",
+          "then": [
+            {
+              "id": "pick-fast",
+              "label": "Pick fast",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": { "value": { "$ref": "state.express.order" } },
+              "as": "pick_fast",
+              "mode": "replace"
+            }
+          ],
+          "else": [
+            {
+              "id": "pick-standard",
+              "label": "Pick standard",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": { "value": { "$ref": "state.express.order" } },
+              "as": "pick_standard",
+              "mode": "replace"
+            }
+          ]
+        },
+        {
+          "id": "ship",
+          "label": "Ship",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": {
+              "$ref": ["state.pick_fast", "state.pick_standard"]
+            }
+          },
+          "as": "label",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
+      "id": "notify",
+      "label": "Notify",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": { "$ref": "state.label" }
+      },
+      "as": "notify"
+    }
+  ]
+}
