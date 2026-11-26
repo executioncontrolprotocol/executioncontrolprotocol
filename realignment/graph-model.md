@@ -1,6 +1,6 @@
 # Graph model: nodes, branches and tunnels
 
-**Status:** proposal for review (2026-11-26), on branch `feature/graph-model-tunnels`. It revises the containers-and-bands
+**Status:** agreed 2026-11-26 (decisions below), on branch `feature/graph-model-tunnels`. It revises the containers-and-bands
 model that PR #110 implements; that state is tagged `draft/graph-model-containers` so we can return to it.
 **Mockup:** [`mockups/tunnels-if-in-loop.png`](mockups/tunnels-if-in-loop.png) — an `if` / `else` inside a forEach.
 
@@ -85,7 +85,8 @@ multi-cardinal (its `accepts` is what you connect); its outputs are its `returns
 ```
 
 - **Outputs:** one per path, each carrying the inputs (as for `if`). No inputs → no outputs; it just starts its paths.
-- **Tunnels:** one tube per path, in a third tone, meeting at `end parallel`.
+- **Tunnels:** one tube per path, all in one tone, each with a small `path 1`, `path 2`, … label in the same style as
+  the `then` / `else` labels, meeting at `end parallel`.
 
 ### `end`
 
@@ -101,16 +102,23 @@ The end carries no data; what crosses it is decided by the branch:
 | --- | --- |
 | `parallel` | the value, definitely present (every path ran) |
 | `if` | the value, possibly missing (the other side may have run) — so the reader needs a **merge port** or `optional` + `fallback` |
-| `loop` | **an array**: one entry per item / round, in order (`T` → `T[]`; `null` for an item that failed with `onError: "continue"`). Nested loops give `T[][]`. |
+| `loop` | **an array**: one entry per item / round, in order (`T` → `T[]`; `null` for an item that failed with `onError: "continue"`). Nested loops give `T[][]`. A `for` with `count: 0` gives `[]`, so the value is always present. |
 
-**Merge port:** one input port may take one branch from each side of the same `if` and gets whichever ran:
+**Merge port:** one input port may take one branch from each side of the same `if`. In the manifest `$ref` takes a
+list, and the engine resolves it to **the one value whose side ran**, so the node receives a single value, never an
+array:
 
 ```jsonc
 "input": { "pick": { "$ref": ["state.pick_fast.pick", "state.pick_standard.pick"] } }
 ```
 
-Validation proves the refs come from different sides of the same `if` (so at most one is present) and, when every side
-contributes, the port is definite. The port's type is the union of the sources.
+- "Whose side ran" means the writer committed a value, not that the value is non-null: a step that returns `null`
+  on the side that ran still gives `null`.
+- Validation proves the refs come from different sides of the same `if` (directly, or of nested `if`s inside it), so
+  at most one is ever present. When every side contributes, the port is definite; otherwise it needs `optional` +
+  `fallback`. The port's type is the union of the sources.
+- Refs that could both be present (two paths of a `parallel`, or two nodes on the same side) are refused: there'd be
+  no single right value.
 
 ## Multi-cardinal ports
 
@@ -134,7 +142,7 @@ contributes, the port is definite. The port's type is the union of the sources.
 
 | Containers and bands (PR #110 today) | Tunnels (this proposal) |
 | --- | --- |
-| Dotted container split into `then` / `else` / path bands | Green / red / path tubes; grey box for loops; each labelled |
+| Dotted container split into `then` / `else` / path bands | Green `then` / red `else` tubes, one-tone path tubes, a grey box for loops; each labelled |
 | Start node on the container's left edge, `end` only for loops | Control node at the tunnel's start; an `end` for every control node, drawn not stored |
 | Loop `end` object: `input.value`, `repeat`, gather `expression` / `script`, `returns`; loop `into` | Removed. A branch leaving a loop carries `T[]` |
 | `while` with post-round `repeat` | Retired; `for` is count-only |
@@ -144,8 +152,8 @@ contributes, the port is definite. The port's type is the union of the sources.
 Unchanged: `if` with `accepts` / `input` / `expression` | `script` / `then` / `else`; `parallel.paths`; scoped `as` for
 control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree executor.
 
-## Open questions
+## Decisions (2026-11-26)
 
-1. Should a `for` with `count: 0` give `[]` (definite) to readers after the loop — proposed yes — rather than "missing"?
-2. Merge port syntax: a `$ref` list (above) or a separate marker such as `{ "$either": [ … ] }`?
-3. Do `parallel` path tubes need distinct tones per path, or one tone with labels `path 1`, `path 2`?
+1. A `for` with `count: 0` gives `[]` to readers after the loop.
+2. Merge ports use a `$ref` list; the engine picks the value whose side ran, so the node gets one value.
+3. `parallel` path tubes share one tone and carry `path N` labels styled like `then` / `else`.
