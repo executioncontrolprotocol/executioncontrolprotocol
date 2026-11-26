@@ -128,6 +128,38 @@ array:
 - Deleting the branch removes the binding; removing the port removes the property.
 - Capability steps don't have them: their `accepts` comes from the plugin.
 
+## App: one control node
+
+The App shows **one control node** with a **Kind** option; the manifest keeps separate types (`if`, `loop` with
+`mode`, `parallel`). It sits in the **Core** group of the add-node menu next to transform. Control is run by the
+engine, not a plugin capability. The only code a control node holds is an `if` condition; anything else that needs
+computing (a count, a filtered list, a reshaped value) is a transform node upstream.
+
+**Every kind:** Kind (if · for each · for · parallel), Label, Inputs (ports with name, type from the feeding branch,
+and a branch or a literal; together they're `accepts`). Not exposed: the id (shown read-only), the `as` name (managed
+by the App), the `end` (always paired).
+
+| Kind | Inputs | Options | Outputs into the tunnel |
+| --- | --- | --- | --- |
+| **if** | Multi-cardinal | **Condition**: expression or script, checked as you type | `then`, `else`, each carrying the inputs |
+| **for each** | One fixed port, `items` (array) | **Concurrency** (default 1); **On error**: stop, or continue (`null` entries) | `item`, `index` |
+| **for** | One fixed port, `count` (integer; branch or literal) | — | `index` |
+| **parallel** | Multi-cardinal, optional | **Paths** (add / remove, at least 2); **Max concurrency** | `path 1` … `path N`, each carrying the inputs |
+
+Loops have no expression and no pass-through inputs: nodes inside a loop read earlier values directly.
+
+**Switching kind** keeps what still applies:
+
+| From → to | Kept | Dropped / added |
+| --- | --- | --- |
+| if → parallel | inputs | condition dropped; `then` → path 1, `else` → path 2 (empty if there was no `else`) |
+| parallel → if | inputs | path 1 → `then`, path 2 → `else`; condition starts as `true`; refused while there are 3+ paths |
+| if / parallel → for each / for | nodes inside (`then` + `else`, or paths in order) become the body | inputs replaced by `items` / `count`; a branch of the same type is reconnected to it |
+| for each ↔ for | body | `items` ↔ `count`; concurrency and on error only on for each |
+| loop → if / parallel | body → `then` / path 1 | the driver port becomes an ordinary input |
+
+Branches that no longer fit after a switch stay and are flagged by validation.
+
 ## Configuration and actions
 
 - Right-hand panel: the selected node (step; `if`: inputs, condition as expression or script; `loop`: mode, driver,
@@ -157,3 +189,5 @@ control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree exe
 1. A `for` with `count: 0` gives `[]` to readers after the loop.
 2. Merge ports use a `$ref` list; the engine picks the value whose side ran, so the node gets one value.
 3. `parallel` path tubes share one tone and carry `path N` labels styled like `then` / `else`.
+4. The App has one control node with a Kind option (in the Core group); the manifest keeps `if` / `loop` / `parallel`.
+   Only `if` holds code (its condition); loops take their driver from a port; computing goes in transform nodes.
