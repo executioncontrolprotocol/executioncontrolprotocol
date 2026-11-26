@@ -1,219 +1,151 @@
-# Graph model: nodes and branches
+# Graph model: nodes, branches and tunnels
 
-**Status:** agreed 2026-11-25 (decisions below); being built on branch `feature/graph-model` (PR #110), one PR for
-the whole change.
-**Replaces:** the dotted route lines, pills and route menus of [`app-canvas-editing.md`](app-canvas-editing.md)
-(decision D2 and the "Deleting connections" table) and the expressions that live on structures and step gates in
-[spec 02](spec/02-execution-manifest.md). Everything else from that plan stays (detached steps, draft commits, the
-host-API-only App, menus, the capability menu, dragging, autosave, undo / redo).
+**Status:** proposal for review (2026-11-26), on branch `feature/graph-model-tunnels`. It revises the containers-and-bands
+model that PR #110 implements; that state is tagged `draft/graph-model-containers` so we can return to it.
+**Mockup:** [`mockups/tunnels-if-in-loop.png`](mockups/tunnels-if-in-loop.png) — an `if` / `else` inside a forEach.
 
 ## Vocabulary
 
-Only these words describe the graph:
-
 | Word | Meaning |
 | --- | --- |
-| **Node** | Anything that runs or decides: a step (capability call or transform), an `if`, a `parallel`, a `loop`, and a loop's `end`. |
-| **Port** | A named, typed input or output of a node. Types come from JSON Schema; a type that can't be known is `unknown`. |
-| **Branch** | A connection from exactly one output port to exactly one input port. It carries a value and nothing else: no condition, no expression, no settings. In the manifest a branch is the `$ref` in the target node's `input`. |
-| **Container** | The dotted boundary drawn around the nodes a pattern governs, from its start node to its end. Visual only: nothing is configured on it and nothing connects to it. Its scope comes from the manifest's nesting. |
+| **Node** | Anything that runs or decides: a step (capability call or transform) or a control node (`if`, `loop`, `parallel`). |
+| **Port** | A named, typed input or output of a node. Types come from JSON Schema; `unknown` when they can't be known. |
+| **Branch** | A connection from one output port to one input port. It carries one value — a property, a sub-object or a whole node output — and nothing else. In the manifest it's a `$ref` in the target node's `input`. **The only kind of line.** |
+| **Tunnel** | The tinted shape drawn around the nodes a control node governs, from the control node to its `end`. It shows what runs; it carries nothing and is never configured or connected to. |
+| **End** | The closing terminal of a control node. It ends the control's effect and carries no data. Drawn, never stored. |
 
-Not used: edge, arm, route, pill, level, line.
+Not used: edge, arm, route, pill, level, line, band, container.
 
 ## Principles
 
-1. **Everything that computes is a node.** Conditions, loop drivers and transforms are nodes configured the same way:
-   typed `accepts` (input ports), `input` bindings (branches into those ports), and an `expression` or `script`.
-2. **Branches carry values only.** No expression or condition ever lives on a branch.
-3. **Today's executor stays.** The manifest is a tree: nesting is scope, list order is run order. Moving to dataflow
-   execution later is a separate decision this model doesn't block.
-4. **Every port is typed.** From `accepts` / `returns` / capability schemas; `unknown` when it can't be known, which
-   connects to anything (as ports do today).
-5. **No backward branches.** Every branch goes from an earlier node to a later one, including inside loops.
+1. **Every line is data.** A branch carries a value from one port to another. Nothing else is drawn as a line.
+2. **Tunnels show control.** A node runs under a control because it sits inside its tunnel, not because something is
+   connected to it, so a node with only literal inputs can still run on one side or once per item.
+3. **No code sees ambient state.** A capability step, a transform script, an `if` condition: each sees only its
+   `input` — the values its branches and literals bind. State is the engine's record (where `$ref`s resolve, what's
+   stored and resumed), not a scope. If it isn't connected, it isn't visible.
+4. **Schemas are built by connecting.** Control nodes and transforms have multi-cardinal inputs: every branch you
+   connect adds a typed port, and the ports together are the node's `accepts`.
+5. **Today's executor stays.** The manifest is a tree: nesting is the tunnel, list order is run order.
 
-## Nodes and their ports
+## Nodes
 
 ### Step
 
-Unchanged (capability call or transform). The step-level `expr` gate is removed: a step that runs conditionally sits
-inside an `if`.
+A capability step's ports come from the plugin's `accepts` / `returns` (fixed). A transform step's inputs are
+multi-cardinal (its `accepts` is what you connect); its outputs are its `returns`.
 
 ### `if`
 
 ```jsonc
 {
   "type": "if",
-  "id": "by-tier",
-  "label": "Gold customer?",
-  "accepts": { "type": "object", "properties": { "tier": { "type": "string" } }, "required": ["tier"] },
-  "input": { "tier": { "$ref": "state.customer.tier" } },
-  "expression": "input.tier === 'gold'",          // or "script": { "lang": "js", "source": "return input.tier === 'gold'" }
-  "as": "customer",                                // optional: the input value, committed for nodes inside to bind
-  "then": [ /* nodes, minItems 1 */ ],
+  "id": "express",
+  "label": "Express?",
+  "accepts": { "type": "object", "properties": { "order": { "type": "object" } }, "required": ["order"] },
+  "input": { "order": { "$ref": "state.order" } },
+  "expression": "input.order.speed === 'express'",   // or "script": { "lang": "js", "source": "return …" }
+  "as": "express",                                   // set by the App when something inside reads a then / else port
+  "then": [ /* nodes */ ],
   "else": [ /* nodes, optional */ ]
 }
 ```
 
-- **Input ports:** the `accepts` properties, bound with branches like a step's inputs.
-- **Condition:** an `expression` or `script` evaluated with `input`, exactly as a transform is. `true` runs `then`.
-  `false` runs `else`, **and so does any failure**: the condition throws, an input it needs is missing (e.g. an
-  optional `$ref` that resolved to nothing), or it returns something other than a boolean. The run record notes
-  which happened. Reshaping data before a condition is a transform node's job, not the condition's.
-- **Output ports:** `then` and `else`. **Both carry the same value with the same contract**: the node's input,
-  typed by `accepts`. When `as` is set it's committed to state, so a node inside either side binds it with
-  `{ "$ref": "state.customer.tier" }`, and the canvas draws that as a branch from the `then` or `else` port
-  (whichever side the node is on). Type checking works on both sides.
-- **`else if`** is an `if` nested in `else`.
+- **Inputs:** multi-cardinal; they define `accepts`.
+- **Condition:** `expression` or `script` over `input`, returning a boolean. `true` runs `then`; `false`, a throw, a
+  missing optional input or a non-boolean runs `else` (the run record says why).
+- **Outputs:** `then` and `else`, each carrying the inputs with the same types. A node inside reads them with
+  `{ "$ref": "state.express.order" }`; they exist only inside the tunnel.
+- **Tunnels:** a green `then` tube and a red `else` tube (labelled, not colour-only), meeting at `end if`.
 
-### `parallel`
-
-```jsonc
-{
-  "type": "parallel",
-  "id": "research",
-  "accepts": { /* optional */ },
-  "input": { /* optional */ },
-  "as": "query",                 // optional, as for if
-  "paths": [ [ /* nodes */ ], [ /* nodes */ ] ],   // minItems 2
-  "maxConcurrency": 2
-}
-```
-
-- **Output ports:** one per path (`path 1`, `path 2`, …), each passing the node's inputs through with the same
-  contract (as `if`). A `parallel` with no `accepts` has no ports and just starts its paths.
-
-### `loop` and its `end`
+### `loop`
 
 ```jsonc
 {
   "type": "loop",
   "id": "each-order",
-  "mode": "forEach",                                   // "forEach" | "for" | "while"
-  "input": { "items": { "$ref": "state.orders" } },    // forEach: items (array); for: count (integer); while: none
-  "as": "order",                                       // name of the current item / index inside the loop
-  "concurrency": 2,                                    // forEach
-  "maxRounds": 5,                                      // while
-  "steps": [ /* the loop body */ ],
-  "end": {
-    "accepts": { /* optional: typed inputs from the body */ },
-    "input": {
-      "value": { "$ref": "state.ship" },               // what this round / item contributes
-      "repeat": { "$ref": "state.check.again" }        // while only: true = go again
-    },
-    "expression": "input.value",                       // optional: expression or script gathering the round's result
-    "returns": { /* optional schema for each gathered result */ }
-  },
-  "into": "shipped"                                    // state key for the loop's result, outside the loop
+  "mode": "forEach",                                // "forEach" | "for"
+  "input": { "items": { "$ref": "state.orders" } },  // forEach: items (array); for: count (integer)
+  "as": "order",                                    // the current item (forEach) or index (for) inside the loop
+  "concurrency": 2,                                 // forEach
+  "onError": "fail",                                // forEach
+  "steps": [ /* nodes */ ]
 }
 ```
 
-- **Start node** (`loop`), on the container's left edge:
-  - input ports: `items` (forEach) or `count` (for); none for `while`;
-  - output ports into the container: `item` and `index` (forEach), `index` (for), typed from the `items` schema.
-- **End node** (`end`), on the container's right edge. **One kind of end node closes every loop mode.**
-  - input ports from inside: its `accepts` properties (or just `value` when there's no `accepts`), and, for `while`,
-    `repeat` (`true` = go again);
-  - optional `expression` / `script`, evaluated with `input` like a transform, gathers the round's / item's result;
-    without one, the result is `input.value`;
-  - output port outside: `results` — forEach: an array of the gathered results; for / while: the last one. Typed by
-    `end.returns` when declared, else from the gathered value's type, else `unknown`.
-- **`while` checks after each round**, by reading `repeat` from a node inside the body, so the body runs at least
-  once and the check is a forward branch into the end node. A loop that may run zero times is wrapped in an `if`.
-  `maxRounds` still caps it. A failing or non-boolean `repeat` ends the loop.
-- Replaces today's loop `ref`, `expr`, string `collect`, and pre-round `while` check.
+- **Outputs inside:** `item` and `index` (forEach) or `index` (for).
+- **Tunnel:** a light grey shape around the body, ending at `end loop`.
+- **`while` is retired for now.** `for` runs exactly `count` times; there is no condition.
 
-### Inputs and Outputs
+### `parallel`
 
-Unchanged: execution `accepts` keys are output ports of the Inputs node; `returns` keys are input ports of the
-Outputs node.
+```jsonc
+{ "type": "parallel", "id": "research", "accepts": { }, "input": { }, "as": "query",
+  "paths": [ [ /* nodes */ ], [ /* nodes */ ] ], "maxConcurrency": 2 }
+```
 
-## Containers
+- **Outputs:** one per path, each carrying the inputs (as for `if`). No inputs → no outputs; it just starts its paths.
+- **Tunnels:** one tube per path, in a third tone, meeting at `end parallel`.
 
-- Drawn from the manifest tree; never configured, selected or connected to.
-- The start node (`if`, `parallel`, `loop`) sits **on the container's left edge, centred on the dotted line**: its
-  input ports are outside, its output ports inside. A loop's `end` node sits on the right edge the same way:
-  inputs inside, `results` outside. An `if` / `parallel` container closes after the last node inside it.
-- An `if` container is split into two bands, `then` (top) and `else` (bottom), level with those ports; a `parallel`
-  into one band per path. A node's band is the list it's in, so a node with only literal inputs still visibly belongs
-  to a side without needing a branch.
-- Nested containers nest (the compound layout from the pattern-examples work stays).
+### `end`
 
-## Branches on the canvas
+- Every control node has exactly one `end`. It's created and deleted with its control node and can't be added,
+  moved out or deleted on its own. It isn't stored in the manifest: it's where the control's list closes.
+- It has no ports. Branches pass across it freely.
 
-- Drawn only between an output port and an input port. Drawing one writes the `$ref`; deleting it removes the `$ref`
-  (the input becomes unbound, and validation reports it if required).
-- Refused when the types don't fit or the reader would run before the writer (today's port and scope rules).
-- A node with no branches is fine (literal inputs only). The "every node has a visible line" rule from #105 is
-  dropped.
-- Detached nodes (`detached`, `ECP_NODE_DETACHED`) stay as built: outside every container, with a badge.
+## Branches across a tunnel's end
+
+The end carries no data; what crosses it is decided by the branch:
+
+| Leaving | A branch from a node inside to a node after the `end` carries |
+| --- | --- |
+| `parallel` | the value, definitely present (every path ran) |
+| `if` | the value, possibly missing (the other side may have run) — so the reader needs a **merge port** or `optional` + `fallback` |
+| `loop` | **an array**: one entry per item / round, in order (`T` → `T[]`; `null` for an item that failed with `onError: "continue"`). Nested loops give `T[][]`. |
+
+**Merge port:** one input port may take one branch from each side of the same `if` and gets whichever ran:
+
+```jsonc
+"input": { "pick": { "$ref": ["state.pick_fast.pick", "state.pick_standard.pick"] } }
+```
+
+Validation proves the refs come from different sides of the same `if` (so at most one is present) and, when every side
+contributes, the port is definite. The port's type is the union of the sources.
+
+## Multi-cardinal ports
+
+- A control node or transform shows its connected input ports plus one empty port below them. Connecting a branch to
+  the empty port adds a property to `accepts` (named after the source port, typed from it, renamable) and the `$ref`
+  to `input`, and a new empty port appears.
+- Deleting the branch removes the binding; removing the port removes the property.
+- Capability steps don't have them: their `accepts` comes from the plugin.
 
 ## Configuration and actions
 
-- The right-hand panel shows the selected **node**: a step's inputs and capability; an `if`'s `accepts`, inputs and
-  condition; a `loop`'s mode, `items` / `count`, `as`, limits; an `end`'s inputs, gathering expression / script, `returns`.
-- A selected **branch** shows its two ports and offers Delete. Nothing else.
-- Delete (key or menu): a branch removes the `$ref`; a step removes the step; a start node removes the pattern and
-  keeps its nodes (the menu also offers "with its nodes"); a loop's `end` can't be deleted on its own.
-- Right-click on a node offers Wrap in `if` / `parallel` / `loop`, as today.
+- Right-hand panel: the selected node (step; `if`: inputs, condition as expression or script; `loop`: mode, driver,
+  limits; `parallel`: paths, limit). A selected branch shows its two ports and Delete.
+- Delete: a branch removes its `$ref`; a step removes the step; a control node removes the control and its `end`,
+  keeping its nodes (or "with its nodes"). An `end` has no Delete of its own.
+- Wrap a selection in `if` / `loop` / `parallel` (parallel needs two or more nodes, one per path).
+- Drawing a branch is refused when types don't fit or the reader runs before the writer; a node can't read the other
+  side of an `if`, another path, or a loop's item from outside it.
 
-## Schema changes (summary)
+## Changes from the `draft/graph-model-containers` state
 
-| Today (v2) | New |
+| Containers and bands (PR #110 today) | Tunnels (this proposal) |
 | --- | --- |
-| `branch` with `branches: [{ label, expr, steps }]` | `if` with `accepts`, `input`, `expression` / `script`, `then`, `else` |
-| `parallel.branches` | `parallel.paths` (+ optional `accepts` / `input` / `as`) |
-| loop `ref`, `expr`, string `collect`, pre-round `while` | loop `input.items` / `input.count`; `end` node with inputs, optional `expression` / `script`, `repeat`, `returns`; `while` checks after each round |
-| step `expr` gate | removed (use `if`) |
-| expressions that read `state` | conditions read their typed `input` only |
+| Dotted container split into `then` / `else` / path bands | Green / red / path tubes; grey box for loops; each labelled |
+| Start node on the container's left edge, `end` only for loops | Control node at the tunnel's start; an `end` for every control node, drawn not stored |
+| Loop `end` object: `input.value`, `repeat`, gather `expression` / `script`, `returns`; loop `into` | Removed. A branch leaving a loop carries `T[]` |
+| `while` with post-round `repeat` | Retired; `for` is count-only |
+| Reading after an `if`: `optional` + `fallback` | Merge port (`$ref` list), or `optional` + `fallback` |
+| `accepts` edited as JSON | Multi-cardinal ports build `accepts` (JSON still editable) |
 
-The executor keeps its shape: an `if` runs one of two lists, a `parallel` its paths, a loop its body; conditions and
-loop checks are evaluated by the same QuickJS / expression runtime transforms use. Validation gains: condition and
-`end` shapes, port types on `if` / `parallel` / `loop` / `end`, and the existing scope rules for branches.
+Unchanged: `if` with `accepts` / `input` / `expression` | `script` / `then` / `else`; `parallel.paths`; scoped `as` for
+control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree executor.
 
-## Decisions (2026-11-25)
+## Open questions
 
-1. **Stay on manifest version 2** and revise it in place (it isn't widely used yet): no version bump, no migration
-   command. Every example, fixture, skill reference and doc in the repo is converted in the same PR.
-2. **Conditions support `expression` and `script`**, built into `if` (and `end`), evaluated like a transform. Data that
-   needs reshaping first goes through a transform node.
-3. **An `if` whose condition fails runs `else`**, including a missing optional input.
-4. **`parallel` passes its inputs through** to every path's output port.
-5. **One `end` node closes every loop**, gathering results with an optional expression or script.
-
-## Resolutions (2026-11-25, from the implementation inventory)
-
-1. **Run events.** `branch.select` is replaced by `if.select` (`nodeId`, `side`: `"then"` / `"else"` / `null`,
-   `reason`: `"true"` / `"false"` / `"throw"` / `"missing"` / `"non-boolean"`). `side: null` means `then` wasn't
-   taken and there's no `else`. Loops keep `loop.start` / `loop.round` / `loop.item.*` / `loop.end` /
-   `loop.exhausted` and add `loop.repeat` (`nodeId`, `round`, `again`, `reason`) after `end` is evaluated in a
-   `while`. `parallel` adds no event. The run cursor's `branches` becomes `choices: Record<id, "then" | "else">`.
-2. **`as` on `if` / `parallel`** is a scoped value, not a step commit: no `mode`, no file capture. The resolved
-   `input` object is written to `state.<as>` before the nodes inside run and removed when the container finishes
-   (also after resume). `as` needs `input`. The key must not collide with an execution input, a key already in
-   scope, or an enclosing loop's `as` / `<as>Index` (`ECP_COMMIT_CONFLICT`). After the container it doesn't exist
-   (`ECP_REF_UNRESOLVED`). Paths of a `parallel` still don't see each other's commits.
-3. **`end` and `into`.** forEach: `into` is required and holds the array of gathered results in item order
-   (`intoErrors` with `onError: "continue"` as today). for / while: `into` is optional and holds the last gathered
-   value; a `for` with count 0 doesn't write it. `end.input.value` is required when the loop has `into`, unless
-   `end` has an `expression` / `script`. `repeat` is `while`-only, required there, and is not an `accepts`
-   property. A thrown gather fails the node (forEach `onError` applies per item); only `repeat` is soft. `as` is
-   the forEach item / `for` index; `while` has no `as`. `concurrency` / `onError` stay forEach-only, `maxRounds`
-   stays while-only and required. Unconditional writes in a `while` body are definite after the loop (it runs at
-   least once).
-4. **Resume.** `choices[ifId]` restores the side without evaluating the condition again; an `if` whose choice
-   wasn't recorded restarts. Inside a loop, completed body nodes of the round in progress are skipped, then `end`
-   runs and `repeat` is read. forEach partial files store each finished item's gathered value; an interrupted item
-   restarts from its first node. Runs started before this change aren't resumable.
-5. **`detached`** may hold a step, `if`, `parallel` or `loop` (with its `end`). Deleting a start node splices its
-   nodes into the parent list (then `then` before `else`, paths in order); "with its nodes" removes them. Only a
-   detached root step can be reattached by drawing a branch to it.
-6. **Connectivity (C1).** Every `$ref` (including nested paths and `$script.params`) is drawn as a branch from its
-   producer: an execution input, a step `as`, a loop's `item` / `index` port, the `then` / `else` / `path N` port of
-   an enclosing `if` / `parallel` for `state.<as>`, or a loop's `end` `results` port for `state.<into>`. A node with
-   only literal inputs has no branch. The "every node has a visible line" rule (C2) is gone.
-7. **Expressions.** `if` / `end` `expression` is a JavaScript expression over a frozen `input`
-   (`input.tier === 'gold'`), run in the QuickJS sandbox with today's limits; `script` is a transform-style body
-   that `return`s. The function-of-`state` form (`(state) => …`) is removed. Step `expression` for a
-   `code: "expression"` capability (JSONata) is unrelated and unchanged.
-8. **Smaller rules.** Each `parallel` path has at least one node. `ECP_LOOP_UNTYPED` is removed from the catalogue.
-   Wrapping a node in a loop from the canvas writes a valid `while` (`maxRounds: 1`, `end.input.repeat: false`).
+1. Should a `for` with `count: 0` give `[]` (definite) to readers after the loop — proposed yes — rather than "missing"?
+2. Merge port syntax: a `$ref` list (above) or a separate marker such as `{ "$either": [ … ] }`?
+3. Do `parallel` path tubes need distinct tones per path, or one tone with labels `path 1`, `path 2`?
