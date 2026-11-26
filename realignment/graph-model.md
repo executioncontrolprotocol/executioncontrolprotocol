@@ -152,11 +152,12 @@ Loops have no expression and no pass-through inputs: nodes inside a loop read ea
 
 | From → to | Kept | Dropped / added |
 | --- | --- | --- |
-| if → parallel | inputs | condition dropped; `then` → path 1, `else` → path 2 (empty if there was no `else`) |
+| if → parallel | inputs | condition dropped; `then` → path 1, `else` → path 2; not offered while there's no `else` (a path can't be empty) |
 | parallel → if | inputs | path 1 → `then`, path 2 → `else`; condition starts as `true`; refused while there are 3+ paths |
 | if / parallel → for each / for | nodes inside (`then` + `else`, or paths in order) become the body | inputs replaced by `items` / `count`; a branch of the same type is reconnected to it |
 | for each ↔ for | body | `items` ↔ `count`; concurrency and on error only on for each |
-| loop → if / parallel | body → `then` / path 1 | the driver port becomes an ordinary input |
+| loop → if | body → `then` | the driver port becomes an ordinary input |
+| loop → parallel | — | not offered (a path can't be empty): unwrap the loop, select the nodes, wrap them in parallel |
 
 Branches that no longer fit after a switch stay and are flagged by validation.
 
@@ -191,3 +192,29 @@ control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree exe
 3. `parallel` path tubes share one tone and carry `path N` labels styled like `then` / `else`.
 4. The App has one control node with a Kind option (in the Core group); the manifest keeps `if` / `loop` / `parallel`.
    Only `if` holds code (its condition); loops take their driver from a port; computing goes in transform nodes.
+
+## Resolutions (2026-11-26, from the implementation plan)
+
+1. **Every body key leaves a loop as an array.** Both `for` and `forEach` run each round / item on a copy of state;
+   when the loop finishes, every key the body wrote (except the loop's own `item` / `index` names) is written to the
+   parent as an array in round order. A round in which the writer didn't run (it sat on the other side of an `if`)
+   or failed with `onError: "continue"` gives `null` at that index. A step that returns `null` also gives `null`;
+   failures stay visible in the run record (`loop.item.error`), not in the value. `create` inside a `for` body is
+   valid (each round has its own copy).
+2. **`intoErrors` goes** with `into`.
+3. **Resume:** the outermost loop's partial file stores, per finished round / item, the keys it wrote. Resume skips
+   finished rounds and rebuilds the arrays; an interrupted round restarts. Nested loops keep no file. Runs started
+   before this change aren't resumable.
+4. **Events:** `loop.repeat` and `loop.exhausted` go; `loop.round` (for), `loop.start` / `loop.item.*` / `loop.end`
+   (forEach) and `if.select` stay. New error `ECP_REF_AMBIGUOUS` for a `$ref` list whose refs could both be present.
+5. **`as` names** stay hidden: a loop gets one from its id when it's created (nodes inside need it at once); an `if` /
+   `parallel` gets one the first time a node inside reads a `then` / `else` / path port.
+6. **Wrap in loop** creates a `for` with `count: 1`; switch the Kind to change it.
+7. **Kind switch with several inputs:** the first branch of the right type is reconnected to `items` / `count`; the
+   rest stay and validation flags them.
+8. **Merge ports in the App:** dropping a second branch on an occupied port appends to the `$ref` list when the two
+   sources are on different sides of the same `if`, and is refused otherwise; deleting one of two leaves a single
+   `$ref`. The port shows how many branches feed it.
+9. **The `T[]` cue** is the type on the reading port (`labels: Label[]`), not a label on the branch.
+10. **Core group:** the add-node menu's Core group holds the control node and transform capabilities, found by
+    their manifest (`contract: "step"`, `code: "script"`), not by a hard-coded capability id.
