@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 16 |
-| Other | 41 |
+| Other | 42 |
 
 ## All files
 
@@ -163,3 +163,4 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `packages/app/DESIGN.md` | Other | current |
 | `packages/app/REACTFLOW_RENDER.md` | Other | current |
 | `plugins/plugin-adobe-firefly-services/openapi/content-tagging/SOURCE.md` | Other | current |
+| `test-results/zz-shots-if-else/error-context.md` | Other | current |
