@@ -271,24 +271,81 @@
     opacity: 0.3 !important;
   }
 
-  .ecp-rf-frame {
+  .ecp-rf-tunnel {
     position: relative;
     pointer-events: none;
     box-sizing: border-box;
-    border: 1px dashed var(--color-outline);
-    border-radius: 0.5rem;
-    /* No fill: frames are nodes, and React Flow draws edges and their pills under nodes, so a fill would tint
-       every edge and pill that crosses a frame. The dashed border carries the container. */
-    background: transparent;
+    border-radius: 0.75rem;
+    border-width: 1px;
+    border-style: solid;
   }
 
-  .ecp-rf-frame-band-divider {
+  .ecp-rf-tunnel--then {
+    background-color: #3fb95024;
+    border-color: #3fb95073;
+  }
+
+  .ecp-rf-tunnel--else {
+    background-color: #f851491f;
+    border-color: #f8514966;
+  }
+
+  .ecp-rf-tunnel--path {
+    background-color: #58a6ff1f;
+    border-color: #58a6ff66;
+  }
+
+  .ecp-rf-tunnel--loop {
+    background-color: #d8d8d80f;
+    border-color: #9a9a9a73;
+  }
+
+  .ecp-rf-tunnel-label {
     position: absolute;
-    left: 0;
-    right: 0;
-    height: 0;
-    border-top: 1px dashed var(--color-outline);
+    top: 0.35rem;
+    left: 0.5rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
     pointer-events: none;
+  }
+
+  .ecp-rf-tunnel--then .ecp-rf-tunnel-label {
+    color: rgba(63, 185, 80, 0.9);
+  }
+
+  .ecp-rf-tunnel--else .ecp-rf-tunnel-label {
+    color: rgba(248, 81, 73, 0.9);
+  }
+
+  .ecp-rf-tunnel--path .ecp-rf-tunnel-label {
+    color: rgba(88, 166, 255, 0.9);
+  }
+
+  .ecp-rf-tunnel--loop .ecp-rf-tunnel-label {
+    color: rgba(154, 154, 154, 0.95);
+  }
+
+  .ecp-rf-tunnel--dimmed {
+    opacity: 0.35;
+  }
+
+  .ecp-rf-node--dimmed {
+    opacity: 0.45;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-then {
+    background: #3fb950 !important;
+    border-color: #2ea043 !important;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-else {
+    background: #f85149 !important;
+    border-color: #da3633 !important;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-path {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary-fixed-dim) !important;
   }
 
   .ecp-rf-detached-badge {
@@ -301,47 +358,6 @@
     pointer-events: none;
   }
 
-  .ecp-rf-frame-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.375rem;
-    max-width: 100%;
-    padding: 0.25rem 0.5rem 0.125rem;
-    color: var(--color-on-surface-variant);
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
-    line-height: 1.35;
-    cursor: pointer;
-  }
-
-  .ecp-rf-frame-label-text {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .ecp-rf-frame-menu {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .ecp-rf-frame-label {
-    max-width: 100%;
-    padding: 0.25rem 0.5rem 0.125rem;
-    color: var(--color-on-surface-variant);
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
-    line-height: 1.35;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
 
   .ecp-rf-edge-label-stack {
     position: absolute;

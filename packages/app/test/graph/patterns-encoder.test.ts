@@ -49,7 +49,7 @@ describe("executionToReactFlow pattern examples", () => {
     for (const loop of loops) {
       expect(doc.nodes.some((n) => n.id === loopEndNodeId(loop.id))).toBe(true)
     }
-    expect(doc.nodes.filter((n) => n.type === "ecp-frame").length).toBeGreaterThan(0)
+    expect(doc.nodes.filter((n) => n.type === "ecp-tunnel").length).toBeGreaterThan(0)
   })
 
   it("nested-parallel renders parallel start nodes", () => {

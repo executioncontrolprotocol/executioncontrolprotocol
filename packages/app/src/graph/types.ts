@@ -35,6 +35,8 @@ export interface ReactFlowPort {
   refPath?: string
   /** True when the `$ref` is `optional`. */
   refOptional?: boolean
+  /** Number of branches when `binding` is a merge-port `$ref` list (at least 2). */
+  refBranchCount?: number
   /** `$script.source`, when `binding` is `script` and the script is inline. */
   scriptSource?: string
   /** `$script.path`, when `binding` is `script` and the script is a file. */
@@ -86,48 +88,104 @@ export interface ReactFlowIoData {
 }
 
 /**
- * Visual band inside a container (`then` / `else`, parallel paths, loop body).
+ * Kind label shown on the unified control node.
  * @category App
  */
-export interface ReactFlowFrameBand {
-  /** Layout cluster id for this band. */
-  bandId: string
-  /** Display label (`then`, `path 1`, …). */
+export type ReactFlowControlKind = "if" | "forEach" | "for" | "parallel"
+
+/**
+ * Unified payload for `if`, `loop`, and `parallel` control nodes on the graph.
+ * @category App
+ */
+export interface ReactFlowControlData {
+  /** True when the control is listed under manifest `detached`. */
+  detached?: boolean
+  /** Kind shown read-only in the App. */
+  controlKind: ReactFlowControlKind
+  /** Display label (`label`, else the node id). */
   label: string
-  /** Node ids laid out inside this band (excludes the start / end pins). */
-  memberNodeIds: string[]
+  /** `if` condition expression, when set. */
+  expression?: string
+  /** Scoped state key (`as`), when set. */
+  as?: string
+  /** Parallel path count. */
+  pathCount?: number
+  /** Configured concurrency (`forEach`, default 1). */
+  concurrency?: number
+  /** Item error policy (`forEach`). */
+  onError?: "fail" | "continue"
+  /** Input handles. */
+  inputs: ReactFlowPort[]
+  /** Output handles. */
+  outputs: ReactFlowPort[]
 }
 
 /**
- * Decorative frame around a branch, parallel, or loop (not a dagre parent; drawn after layout).
+ * Payload for an `if` condition node on the graph.
  * @category App
  */
-export interface ReactFlowFrameData {
-  /** True when the framed structure is under manifest `detached`. */
-  detached?: boolean
-  /** Branch, parallel, or loop id in the manifest. */
+export type ReactFlowIfData = ReactFlowControlData & { controlKind: "if" }
+
+/**
+ * Payload for a loop start node on the graph.
+ * @category App
+ */
+export type ReactFlowLoopItemsData = ReactFlowControlData & { controlKind: "forEach" | "for" }
+
+/**
+ * Payload for a parallel start node on the graph.
+ * @category App
+ */
+export type ReactFlowParallelData = ReactFlowControlData & { controlKind: "parallel" }
+
+/**
+ * Visual tunnel kind drawn between a control node and its `end`.
+ * @category App
+ */
+export type ReactFlowTunnelKind = "then" | "else" | "path" | "loop"
+
+/**
+ * Decorative tunnel around a control branch (not a dagre parent; drawn after layout).
+ * @category App
+ */
+/**
+ * Tunnel metadata collected while encoding a control structure.
+ * @category App
+ */
+export interface TunnelSpec {
+  /** Tunnel node id (`ecp:tunnel:…`). */
+  tunnelId: string
+  /** Parent structure id in the manifest. */
   structureId: string
-  /** Which structure this frame outlines. */
-  structureKind: "if" | "parallel" | "loop"
-  /** Set when `structureKind` is `loop`. */
-  loopMode?: "for" | "forEach"
-  /** Node `label`, or the fallback summary. */
-  label?: string
-  /** Structure start node (`if`, `parallel`, or loop head) pinned on the left edge. */
-  startNodeId: string
-  /** Loop `end` node pinned on the right edge, when present. */
-  endNodeId?: string
-  /** Bands inside this container. */
-  bands: ReactFlowFrameBand[]
-  /**
-   * Horizontal divider positions inside the frame (pixels from the frame top), in paint order.
-   * Used for `if` then/else separation.
-   */
-  bandDividerYs?: number[]
-  /** Body node ids used to size this frame after layout overrides. */
+  tunnelKind: ReactFlowTunnelKind
+  label: string
+  controlNodeId: string
+  endNodeId: string
+  sideNodeIds: string[]
   memberNodeIds: string[]
-  /** Nested frame ids contained in this frame. */
-  childFrameIds: string[]
+  childTunnelIds: string[]
+  depth: number
+}
+
+export interface ReactFlowTunnelData {
+  /** True when the tunnel is under manifest `detached`. */
+  detached?: boolean
+  /** Parent structure id in the manifest. */
+  structureId: string
+  /** Which branch or body this tunnel outlines. */
+  tunnelKind: ReactFlowTunnelKind
+  /** Band label (`then`, `path 2`, `loop`, …). */
+  label: string
+  /** Control node for this structure (`if` / `parallel` / `loop`). */
+  controlNodeId?: string
+  /** Synthetic `end:<structureId>` node. */
+  endNodeId?: string
+  /** Nodes on this branch only, or loop body steps (excludes control and `end`). */
+  sideNodeIds?: string[]
+  /** Node ids used to size this tunnel after layout overrides. */
+  memberNodeIds: string[]
+  /** Nested tunnel node ids visually inside this tunnel. */
+  childTunnelIds: string[]
   /** Nesting depth (`0` at the top level). */
   depth: number
 }
@@ -153,99 +211,71 @@ export const IF_ELSE_HANDLE = "else"
 /** Prefix for parallel path output handles (`path-1`, `path-2`, …). @category App */
 export const PARALLEL_PATH_HANDLE_PREFIX = "path-"
 
-
-
 /** @deprecated Old loop `ref` port id; retained for layout tests during migration. @category App */
 export const LOOP_REF_HANDLE = "ref"
 
 /** @deprecated Old loop `collect` port id. @category App */
 export const LOOP_COLLECT_HANDLE = "collect"
 
-/** Prefix of a loop `end` node's React Flow id (`end:<loopId>`). @category App */
+/** Prefix of a control `end` node's React Flow id (`end:<structureId>`). @category App */
 export const END_NODE_PREFIX = "end:"
 
 /**
- * React Flow node id for a loop's synthetic `end` node.
+ * React Flow node id for a control node's synthetic `end` node (`end:<structureId>`).
  * @category App
  */
-export function loopEndNodeId(loopId: string): string {
-  return `${END_NODE_PREFIX}${loopId}`
+export function structureEndNodeId(structureId: string): string {
+  return `${END_NODE_PREFIX}${structureId}`
 }
 
 /**
- * Loop id behind a loop `end` node's React Flow id, or `undefined` when `nodeId` is not an `end` node id.
+ * @deprecated Use {@link structureEndNodeId}.
  * @category App
  */
-export function loopIdFromEndNodeId(nodeId: string): string | undefined {
+export function loopEndNodeId(loopId: string): string {
+  return structureEndNodeId(loopId)
+}
+
+/**
+ * Structure id behind a control `end` node's React Flow id, or `undefined` when `nodeId` is not an `end` id.
+ * @category App
+ */
+export function structureIdFromEndNodeId(nodeId: string): string | undefined {
   return nodeId.startsWith(END_NODE_PREFIX) && nodeId.length > END_NODE_PREFIX.length
     ? nodeId.slice(END_NODE_PREFIX.length)
     : undefined
 }
 
 /**
- * Payload for a loop head structure node on the graph (all loop modes).
+ * @deprecated Use {@link structureIdFromEndNodeId}.
  * @category App
  */
-/**
- * Payload for a loop start node on the graph.
- * @category App
- */
-export interface ReactFlowLoopItemsData {
-  /** True when the loop is listed under manifest `detached`. */
-  detached?: boolean
-  /** Display label (`label`, else the node id). */
-  label: string
-  /** Loop mode. */
-  mode: "for" | "forEach"
-  /** Item state key (`as`), for `for` / `forEach`. */
-  as?: string
-  /** Configured concurrency (default 1), for `forEach`. */
-  concurrency?: number
-  /** Item error policy, for `forEach`. */
-  onError?: "fail" | "continue"
-  /** Input handles (`items`, `count`). */
-  inputs: ReactFlowPort[]
-  /** Output handles (`item`, `index`). */
-  outputs: ReactFlowPort[]
+export function loopIdFromEndNodeId(nodeId: string): string | undefined {
+  return structureIdFromEndNodeId(nodeId)
 }
 
 /**
- * Payload for an `if` condition node on the graph.
+ * Payload for a control `end` node on the graph (drawn, not stored in the manifest).
  * @category App
  */
-export interface ReactFlowIfData {
-  detached?: boolean
+/**
+ * Layout-only placeholder for an empty branch (not shown in the App).
+ * @category App
+ */
+export interface ReactFlowPlaceholderData {
+  /** Unused; keeps the node shape valid. */
   label: string
-  expression?: string
-  as?: string
-  inputs: ReactFlowPort[]
-  outputs: ReactFlowPort[]
 }
 
-/**
- * Payload for a parallel start node on the graph.
- * @category App
- */
-export interface ReactFlowParallelData {
-  detached?: boolean
-  label: string
-  pathCount: number
-  as?: string
-  inputs: ReactFlowPort[]
-  outputs: ReactFlowPort[]
-}
-
-/**
- * Payload for a loop `end` node on the graph.
- * @category App
- */
 export interface ReactFlowEndData {
+  /** True when the parent structure is under manifest `detached`. */
   detached?: boolean
-  /** Parent loop id in the manifest. */
-  loopId: string
+  /** Parent structure id (`if`, `parallel`, or `loop`). */
+  structureId: string
+  /** Which control this ends. */
+  structureKind: "if" | "parallel" | "loop"
+  /** Display label (`end if`, `end loop`, …). */
   label: string
-  inputs: ReactFlowPort[]
-  outputs: ReactFlowPort[]
 }
 
 /**
@@ -256,21 +286,30 @@ export interface ReactFlowNode {
   /** Node id: the execution step id, or a synthetic `ecp:` id for I/O nodes. */
   id: string
   /** Node type for the viewer. */
-  type: "ecp-step" | "ecp-io" | "ecp-frame" | "ecp-loop" | "ecp-if" | "ecp-parallel" | "ecp-end"
+  type:
+    | "ecp-step"
+    | "ecp-io"
+    | "ecp-tunnel"
+    | "ecp-loop"
+    | "ecp-if"
+    | "ecp-parallel"
+    | "ecp-end"
+    | "ecp-placeholder"
   /** Layout position (absolute; the canvas is the execution surface). */
   position: { x: number; y: number }
   /** Node payload. */
   data:
     | ReactFlowStepData
     | ReactFlowIoData
-    | ReactFlowFrameData
+    | ReactFlowTunnelData
     | ReactFlowLoopItemsData
     | ReactFlowIfData
     | ReactFlowParallelData
     | ReactFlowEndData
+    | ReactFlowPlaceholderData
   /** Soft size hint from layout. */
   style?: { width?: number; height?: number; pointerEvents?: string }
-  /** Draw order; frames sit behind steps. */
+  /** Draw order; tunnels sit behind steps. */
   zIndex?: number
 }
 
@@ -364,7 +403,7 @@ export type CapabilitySchemaIndex = Record<string, CapabilityIoSchemas>
  * @category App
  */
 export interface ReactFlowEncodeOptions {
-  /** Rank direction for dagre. Default `LR`. */
+  /** Reserved for alternate layout directions. Default `LR`. */
   direction?: "LR" | "TB"
   /** Node width used for layout. */
   nodeWidth?: number
@@ -440,7 +479,6 @@ export interface ReactFlowLoopProgressDetail {
   /** Failed items when `onError: continue`. */
   failed?: number
 }
-
 
 /**
  * Terminal or interrupted outcome of a run, as shown on the graph.

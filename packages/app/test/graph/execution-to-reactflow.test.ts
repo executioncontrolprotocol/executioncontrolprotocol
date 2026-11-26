@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest"
 import {
   executionToReactFlow,
   EXECUTION_ACCEPTS_NODE_ID,
-  loopEndNodeId,
+  structureEndNodeId,
   LOOP_ITEMS_HANDLE,
   IF_THEN_HANDLE,
-  type ReactFlowFrameData,
+  type ReactFlowTunnelData,
 } from "../../src/graph/index.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -34,64 +34,121 @@ describe("executionToReactFlow", () => {
     expect(doc.edges.some((e) => e.targetHandle === IF_THEN_HANDLE)).toBe(false)
   })
 
-  it("encodes foreach loop with end node shell and items port", () => {
+  it("encodes foreach loop with end node and items port", () => {
     const doc = executionToReactFlow(loadPattern("loop-foreach.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")
     expect(loop).toBeDefined()
-    expect(doc.nodes.some((n) => n.id === loopEndNodeId(loop!.id))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === structureEndNodeId(loop!.id))).toBe(true)
     expect(doc.edges.some((e) => e.targetHandle === LOOP_ITEMS_HANDLE)).toBe(true)
-    const end = doc.nodes.find((n) => n.id === loopEndNodeId(loop!.id))!
-    expect((end.data as { inputs: unknown[]; outputs: unknown[] }).inputs).toEqual([])
-    expect((end.data as { inputs: unknown[]; outputs: unknown[] }).outputs).toEqual([])
+    const end = doc.nodes.find((n) => n.id === structureEndNodeId(loop!.id))!
+    expect((end.data as { label: string }).label).toBe("end loop")
   })
 
-  it("encodes parallel with start node and frames", () => {
+  it("encodes parallel with start node, end node, and tunnels", () => {
     const doc = executionToReactFlow(loadPattern("parallel.ecp.json"))
-    expect(doc.nodes.some((n) => n.type === "ecp-parallel")).toBe(true)
-    expect(doc.nodes.some((n) => n.type === "ecp-frame")).toBe(true)
+    const parallel = doc.nodes.find((n) => n.type === "ecp-parallel")
+    expect(parallel).toBeDefined()
+    expect(doc.nodes.some((n) => n.id === structureEndNodeId(parallel!.id))).toBe(true)
+    expect(doc.nodes.some((n) => n.type === "ecp-tunnel")).toBe(true)
     expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
   })
 
-  it.each(patternNames)("%s frames expose bands and start pins", (name) => {
+  it.each(patternNames)("%s tunnels expose member nodes", (name) => {
     const doc = executionToReactFlow(loadPattern(name))
-    const frames = doc.nodes.filter((n) => n.type === "ecp-frame")
-    for (const frame of frames) {
-      const data = frame.data as ReactFlowFrameData
-      expect(data.startNodeId.length).toBeGreaterThan(0)
-      expect(data.bands.length).toBeGreaterThan(0)
-      for (const band of data.bands) {
-        expect(band.bandId.startsWith("ecp:band:")).toBe(true)
+    const tunnels = doc.nodes.filter((n) => n.type === "ecp-tunnel")
+    for (const tunnel of tunnels) {
+      const data = tunnel.data as ReactFlowTunnelData
+      expect(data.structureId.length).toBeGreaterThan(0)
+      expect(data.memberNodeIds.length).toBeGreaterThan(0)
+      expect(tunnel.id.startsWith("ecp:tunnel:")).toBe(true)
+      if (data.tunnelKind === "loop") {
+        expect(data.memberNodeIds).toContain(structureEndNodeId(data.structureId))
+        expect(data.controlNodeId).toBe(data.structureId)
       }
-      if (data.structureKind === "loop") {
-        expect(data.endNodeId).toBeDefined()
-        expect(data.bands.some((b) => b.label === "body")).toBe(true)
+      if (data.tunnelKind === "then" || data.tunnelKind === "else") {
+        expect(data.memberNodeIds).not.toContain(structureEndNodeId(data.structureId))
+        expect(data.controlNodeId).toBe(data.structureId)
+        expect(data.endNodeId).toBe(structureEndNodeId(data.structureId))
       }
-      if (data.structureKind === "if") {
-        expect(data.bands.some((b) => b.label === "then")).toBe(true)
-      }
-      if (data.structureKind === "parallel") {
-        expect(data.bands.every((b) => b.label.startsWith("path "))).toBe(true)
+      if (data.tunnelKind === "path") {
+        expect(data.label.startsWith("path ")).toBe(true)
       }
     }
   })
 
-  it("branch pattern if frame uses then and else band ids", () => {
+  it("branch pattern if tunnel uses then and else ids", () => {
     const doc = executionToReactFlow(loadPattern("branch.ecp.json"))
-    const frame = doc.nodes.find((n) => n.id === "ecp:frame:by-tier")
-    expect(frame).toBeDefined()
-    const data = frame!.data as ReactFlowFrameData
-    expect(data.bands.map((b) => b.bandId)).toEqual(["ecp:band:by-tier:then", "ecp:band:by-tier:else"])
-    expect(data.startNodeId).toBe("by-tier")
+    const then = doc.nodes.find((n) => n.id === "ecp:tunnel:by-tier:then")
+    const elseTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:by-tier:else")
+    expect(then).toBeDefined()
+    expect(elseTunnel).toBeDefined()
+    const data = then!.data as ReactFlowTunnelData
+    expect(data.tunnelKind).toBe("then")
+    expect(data.memberNodeIds).toContain("gold-offer")
+    expect(data.memberNodeIds).not.toContain("by-tier")
+    expect(data.memberNodeIds).not.toContain(structureEndNodeId("by-tier"))
   })
 
-  it("loop-foreach pattern pins loop start and end", () => {
+  it("loop-foreach pattern emits loop tunnel wrapping end", () => {
     const doc = executionToReactFlow(loadPattern("loop-foreach.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")!
-    const frame = doc.nodes.find((n) => n.id === `ecp:frame:${loop.id}`)!
-    const data = frame.data as ReactFlowFrameData
-    expect(data.startNodeId).toBe(loop.id)
-    expect(data.endNodeId).toBe(loopEndNodeId(loop.id))
-    expect(data.bands[0]?.bandId).toBe(`ecp:band:${loop.id}:body`)
+    const tunnel = doc.nodes.find((n) => n.id === `ecp:tunnel:${loop.id}:loop`)!
+    const data = tunnel.data as ReactFlowTunnelData
+    expect(data.memberNodeIds).toContain(loop.id)
+    expect(data.memberNodeIds).toContain(structureEndNodeId(loop.id))
+  })
+
+  it("if-in-loop nests if tunnels inside loop tunnel and labels ends", () => {
+    const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
+    const loopTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:each-order:loop")
+    const thenTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:express:then")
+    const elseTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:express:else")
+    expect(loopTunnel && thenTunnel && elseTunnel).toBeTruthy()
+    expect(doc.nodes.some((n) => n.id === structureEndNodeId("express"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === structureEndNodeId("each-order"))).toBe(true)
+    const ends = doc.nodes.filter((n) => n.type === "ecp-end")
+    expect(ends.map((n) => (n.data as { label: string }).label).sort()).toEqual(["end if", "end loop"])
+  })
+
+  it("if-in-loop ship merge port shows two branches; notify input is array across loop", () => {
+    const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
+    const ship = doc.nodes.find((n) => n.id === "ship")!
+    const shipData = ship.data as { inputs: Array<{ id: string; refBranchCount?: number }> }
+    const pickPort = shipData.inputs.find((p) => p.id === "value")
+    expect(pickPort?.refBranchCount).toBe(2)
+    const notify = doc.nodes.find((n) => n.id === "notify")!
+    const notifyPort = (notify.data as { inputs: Array<{ id: string; typeLabel: string }> }).inputs.find(
+      (p) => p.id === "value",
+    )
+    expect(notifyPort?.typeLabel).toMatch(/\[\]$/)
+  })
+
+  it("merge list ref on a step input sets refBranchCount on the port", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "reader",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: { $ref: ["state.a", "state.b"] } },
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest)
+    const port = (doc.nodes.find((n) => n.id === "reader")!.data as { inputs: Array<{ refBranchCount?: number }> }).inputs[0]
+    expect(port?.refBranchCount).toBe(2)
+  })
+
+  it("if with empty else still draws else tunnel and end if", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ type: "if", id: "solo", expression: "true", then: [{ id: "t", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }] }],
+    }
+    const doc = executionToReactFlow(manifest)
+    expect(doc.nodes.some((n) => n.id === "ecp:tunnel:solo:else")).toBe(true)
+    expect(doc.nodes.some((n) => n.id === structureEndNodeId("solo"))).toBe(true)
   })
 
   it("literal-only steps may have no data edges", () => {

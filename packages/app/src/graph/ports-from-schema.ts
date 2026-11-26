@@ -5,7 +5,7 @@ import {
   isJsonObject,
   jsonSchemaObjectProperties,
 } from "./json-schema.js"
-import { isExprMarker, isRefMarker, isScriptMarker, refPathFromValue } from "./markers.js"
+import { isExprMarker, isRefMarker, isScriptMarker, refPathFromValue, refPathsFromValue } from "./markers.js"
 import type { CapabilityIoSchemas, ReactFlowPort } from "./types.js"
 import {
   typeLabelFromSchema,
@@ -105,9 +105,13 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
   for (const [name, value] of Object.entries(step.input ?? {})) {
     const port = getOrCreateInput(inputs, byName, name)
 
-    const directRef = refPathFromValue(value)
-    if (directRef !== undefined) {
-      setRef(port, directRef, isRefMarker(value) && value.optional === true)
+    const directRefs = refPathsFromValue(value)
+    if (directRefs && directRefs.length > 0) {
+      setRef(port, directRefs[0]!, isRefMarker(value) && value.optional === true)
+      if (directRefs.length > 1) {
+        port.refBranchCount = directRefs.length
+        port.refPath = directRefs.map((raw) => shortRefPath(raw)).join(", ")
+      }
       continue
     }
     if (isScriptMarker(value)) {

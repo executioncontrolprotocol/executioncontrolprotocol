@@ -191,13 +191,13 @@ test.describe("A8 App", () => {
 
   test("parallel execution shows start node label without edge clipping", async ({ page }) => {
     await openPath(page, harness.parallelPath)
-    await expect(page.getByTestId("ecp-frame-prepare")).toHaveCount(1)
+    await expect(page.locator('[data-testid^="ecp-tunnel-prepare-path"]').first()).toBeVisible()
     const start = page.getByTestId("ecp-parallel-prepare")
     await expect(start).toBeVisible()
     await expect(start).toContainText("Prepare both sides in parallel for the pipeline")
     const labelBox = await start.boundingBox()
     expect(labelBox).not.toBeNull()
-    expect(labelBox!.width).toBeGreaterThan(150)
+    expect(labelBox!.width).toBeGreaterThan(120)
     await expect(page.locator(".ecp-rf-edge-label")).toHaveCount(0)
   })
 

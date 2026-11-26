@@ -30,14 +30,24 @@ export function DragOutputPort({
   port,
   connected,
   connectable,
+  handleClassName,
 }: {
   nodeId: string
   port: ReactFlowPort
   connected: boolean
   connectable: boolean
+  handleClassName?: string
 }) {
   const drag = usePortDrag(nodeId, port.id, "source")
-  return <OutputPortRow port={port} connected={connected} connectable={connectable} drag={drag} />
+  return (
+    <OutputPortRow
+      port={port}
+      connected={connected}
+      connectable={connectable}
+      drag={drag}
+      handleClassName={handleClassName}
+    />
+  )
 }
 
 export type { PortDragState }

@@ -2,7 +2,8 @@
  * Execution graph encoder: manifest to React Flow nodes and edges, layout and run status.
  * @category App
  */
-export { executionToReactFlow } from "./execution-to-reactflow.js"
+export { executionToReactFlow, sidePlaceholderId } from "./execution-to-reactflow.js"
+export type { TunnelSpec } from "./types.js"
 export {
   attachAfter,
   CONNECTION_EDIT_HANDLE,
@@ -32,7 +33,7 @@ export {
   STRUCTURE_EDIT_DELETE_END,
   type DeleteSelection,
 } from "./delete-selection.js"
-export { frameAtFlowPoint, placementAtFlowPoint } from "./band-placement.js"
+export { frameAtFlowPoint, placementAtFlowPoint, tunnelAtFlowPoint } from "./band-placement.js"
 export {
   addParallelPath,
   conditionForm,
@@ -156,26 +157,46 @@ export {
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
 export {
-  adjustFrameRectForPins,
-  containerRects,
-  pinContainers,
-  applyContainerGeometry,
-  CONTAINER_PIN_TOLERANCE,
-  isPinnedToContainerEdge,
-  type StructureFrameBand,
-  type StructureFrameGeometry,
-} from "./container-geometry.js"
+  computeAllTunnelRects,
+  computeTunnelRect,
+  isNodeInsideTunnel,
+  nodeBox,
+  rectContainsRect,
+  rectsIntersect,
+  resizeTunnelNodes,
+  tunnelBounds,
+  tunnelRects,
+  TUNNEL_PADDING,
+} from "./tunnel-geometry.js"
+export {
+  loopsCrossedBetween,
+  loopDepthForStep,
+  typeLabelCrossingLoops,
+} from "./loop-export-type.js"
 export {
   boundsAroundNodeIds,
   DEFAULT_NODE_WIDTH,
   frameBounds,
   FRAME_PADDING,
-  layoutReactFlowDocument,
   unionRect,
   type BoundsNode,
   type FrameMembership,
   type FrameRect,
 } from "./layout.js"
+export {
+  layoutManifestTree,
+  sideStackGap,
+  treeLayoutReactFlowDocument,
+  translateDocumentNodes,
+  documentMaxY,
+  TREE_EMPTY_SIDE_HEIGHT,
+  TREE_END_HEIGHT,
+  TREE_END_WIDTH,
+  TREE_GAP_X,
+  TREE_GAP_Y,
+  TREE_NODE_WIDTH,
+  TREE_TUNNEL_PADDING,
+} from "./tree-layout.js"
 export {
   POSITION_STORAGE_PREFIX,
   parsePositionOverrides,
@@ -213,12 +234,16 @@ export {
   LOOP_REF_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
   END_NODE_PREFIX,
+  structureEndNodeId,
+  structureIdFromEndNodeId,
   loopEndNodeId,
   loopIdFromEndNodeId,
 } from "./types.js"
 export type {
   CapabilityIoSchemas,
   CapabilitySchemaIndex,
+  ReactFlowControlData,
+  ReactFlowControlKind,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,
@@ -228,8 +253,8 @@ export type {
   ReactFlowIfChoiceDetail,
   ReactFlowLoopItemsData,
   ReactFlowLoopProgressDetail,
-  ReactFlowFrameBand,
-  ReactFlowFrameData,
+  ReactFlowTunnelData,
+  ReactFlowTunnelKind,
   ReactFlowIoData,
   ReactFlowIoKind,
   ReactFlowLoopRoundDetail,

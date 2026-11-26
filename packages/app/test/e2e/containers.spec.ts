@@ -40,10 +40,10 @@ test.describe("Containers and menus", () => {
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
-  test("branch-loop shows frames for if and loop", async ({ page }) => {
+  test("branch-loop shows tunnels for if and loop", async ({ page }) => {
     await open(page, branchLoopPath)
-    await expect(page.getByTestId("ecp-frame-pick")).toBeVisible()
-    await expect(page.getByTestId("ecp-frame-retry")).toBeVisible()
+    await expect(page.locator('[data-testid^="ecp-tunnel-pick"]').first()).toBeVisible()
+    await expect(page.locator('[data-testid^="ecp-tunnel-retry"]').first()).toBeVisible()
   })
 
   test("right-click step opens the node menu and blocks the native menu", async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe("Containers and menus", () => {
     await page.getByTestId("canvas-menu-item-wrap").click()
     await page.getByTestId("canvas-menu-item-wrap-if").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
-    await expect(page.locator('[data-testid="ecp-frame-if-1"]')).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('[data-testid^="ecp-tunnel-if-1"]').first()).toBeVisible({ timeout: 15_000 })
   })
 
   test("delete keep steps restores the file", async ({ page }) => {
@@ -170,14 +170,16 @@ test.describe("Containers and menus", () => {
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "for"')
   })
 
-  test("a container is not an object: no menu on its frame, only the add-node menu", async ({ page }) => {
+  test("a tunnel is not selectable and ignores pointer events", async ({ page }) => {
     await open(page, branchLoopPath)
-    const frame = page.getByTestId("ecp-frame-pick")
-    const box = await frame.boundingBox()
-    if (!box) throw new Error("missing frame")
-    await page.mouse.click(box.x + 6, box.y + box.height - 6, { button: "right" })
-    await expect(page.getByTestId("canvas-menu")).toHaveCount(0)
-    await expect(page.getByTestId("capability-menu")).toBeVisible()
+    const tunnel = page.getByTestId("ecp-tunnel-pick-then")
+    await expect(tunnel).toBeVisible()
+    const passThrough = await tunnel.evaluate((el) => {
+      const parent = el.closest(".react-flow__node") as HTMLElement | null
+      return parent?.style.pointerEvents === "none" || getComputedStyle(el).pointerEvents === "none"
+    })
+    expect(passThrough).toBe(true)
+    await expect(tunnel).toHaveAttribute("data-kind", "then")
   })
 
   test("delete step removes it from disk", async ({ page }) => {

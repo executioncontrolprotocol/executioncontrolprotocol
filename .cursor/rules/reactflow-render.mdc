@@ -12,9 +12,10 @@ graph model: nodes, branches, ports, containers — see `realignment/graph-model
 Non-negotiables:
 
 - Published edges are **data** only. Layout `control` edges are stripped before publish.
-- **`if`**, **`parallel`**, **`loop`**, and loop **`end`** (`end:<loopId>`) are React Flow nodes with typed ports.
+- **`if`**, **`parallel`**, **`loop`**, and control **`end`** (`end:<structureId>`) are React Flow nodes;
+  the App uses one control node component for the three starts; `end` has no ports.
 - Branches are drawn only for **`$ref`** bindings; resolve producers per C1 (inputs, `as`, loop item/index,
   if/parallel scoped `as`, loop `into` from `end` `results`).
 - Data branches only (`$ref` / `$state`); structure nodes (`if` / `parallel` / `loop` / `end`) with ports; no legacy sequence-connector UI.
-- Frames (`ecp-frame`) outline containers with bands; start / `end` nodes pin to the left / right
-  stroke. Band clusters are dagre parents; frames are not `parentId` in React Flow.
+- Tunnels (`ecp-tunnel`) outline branches and loop bodies with labelled tones (`then`, `else`, `path`,
+  `loop`). Tunnels are drawn after tree layout, not `parentId` in React Flow.

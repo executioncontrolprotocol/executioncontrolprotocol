@@ -24,12 +24,10 @@ The encoder is pure: it takes a v2 execution manifest and optional capability sc
 - **`if`** (`ecp-if`): input ports from `accepts`; output ports `then` and `else`.
 - **`parallel`** (`ecp-parallel`): optional shared inputs; output ports `path 1`, `path 2`, …
 - **`loop`** (`ecp-loop`): `items` / `count` inputs; `item` / `index` outputs as mode requires.
-- **`end`** (`ecp-end`, id `end:<loopId>`): input ports from `end.accepts` plus `value` and `repeat`
-  (`while`); output `results`.
-- **Frames** (`ecp-frame`): visual containers with **bands**. Drawn only (`pointerEvents: none`):
-  never selected, configured, right-clicked as an object, or connected to; no label or menu. The
-  start node is pinned on the left edge; loop `end` on the right. Band sub-clusters drive dagre
-  layout, which is sensitive to edge insertion order (loop driver edges are emitted first).
+- **`end`** (`ecp-end`, id `end:<structureId>`): small terminal pill (`end if`, `end loop`, …).
+  Drawn only; no ports.
+- **Tunnels** (`ecp-tunnel`): tinted rounded regions for `then` / `else` / `path` / loop body.
+  Sized after tree layout from member nodes; `pointerEvents: none`.
 
 ## Run overlay
 

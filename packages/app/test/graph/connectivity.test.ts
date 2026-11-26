@@ -73,7 +73,11 @@ function inputPortIds(manifest: ExecutionManifest): Map<string, string[]> {
   const doc = executionToReactFlow(manifest)
   const out = new Map<string, string[]>()
   for (const node of doc.nodes) {
-    if (node.type === "ecp-step" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop" || node.type === "ecp-end") {
+    if (node.type === "ecp-end") {
+      out.set(node.id, [])
+      continue
+    }
+    if (node.type === "ecp-step" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop") {
       const data = node.data as { inputs: Array<{ id: string }> }
       out.set(node.id, data.inputs.map((port) => port.id))
     }

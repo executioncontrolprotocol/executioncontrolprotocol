@@ -21,7 +21,6 @@ import {
   LOOP_REF_HANDLE,
   loopIdFromEndNodeId,
   type ReactFlowDocument,
-  type ReactFlowEndData,
   type ReactFlowIfData,
   type ReactFlowIoData,
   type ReactFlowLoopItemsData,
@@ -57,7 +56,7 @@ function ioPort(
 }
 
 function structurePort(
-  data: ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData | ReactFlowEndData,
+  data: ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData,
   handleId: string,
   side: "input" | "output",
 ): ReactFlowPort | undefined {
@@ -79,12 +78,9 @@ export function portOnDocument(
   if (!node) return undefined
   if (node.type === "ecp-step") return stepPort(node.data as ReactFlowStepData, handleId, side)
   if (node.type === "ecp-io") return ioPort(node.data as ReactFlowIoData, handleId, side)
-  if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end") {
-    return structurePort(
-      node.data as ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData | ReactFlowEndData,
-      handleId,
-      side,
-    )
+  if (node.type === "ecp-end") return undefined
+  if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
+    return structurePort(node.data as ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData, handleId, side)
   }
   return undefined
 }

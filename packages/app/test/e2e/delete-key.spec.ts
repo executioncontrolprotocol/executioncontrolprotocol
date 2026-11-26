@@ -105,7 +105,7 @@ test.describe("Delete key", () => {
     await page.keyboard.press("Delete")
     expect(readFileSync(branchLoopPath, "utf8")).toBe(before)
     await expect(page.getByTestId("ecp-end-end:retry")).toBeVisible()
-    await expect(page.getByTestId("structure-edit-error")).toContainText("Delete the loop instead")
+    await expect(page.getByTestId("structure-edit-error")).toContainText("Delete the control node instead")
   })
 
   test("read-only replay ignores Delete", async ({ page }) => {

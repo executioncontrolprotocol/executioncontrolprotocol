@@ -13,9 +13,10 @@ const examples = [
   "loop-foreach.ecp.json",
   "nested-foreach-branch.ecp.json",
   "nested-parallel.ecp.json",
+  "if-in-loop.ecp.json",
 ] as const
 
-test.describe("Container geometry", () => {
+test.describe("Tunnel geometry", () => {
   test.describe.configure({ mode: "serial" })
 
   let harness: AppE2eHarness
@@ -47,40 +48,105 @@ test.describe("Container geometry", () => {
     return el.boundingBox()
   }
 
+  function contains(outer: NonNullable<Awaited<ReturnType<typeof box>>>, inner: NonNullable<Awaited<ReturnType<typeof box>>>): void {
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x - 2)
+    expect(inner.y).toBeGreaterThanOrEqual(outer.y - 2)
+    expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width + 2)
+    expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height + 2)
+  }
+
   for (const name of examples) {
-    test(`${name}: start straddles left edge and loop end the right when present`, async ({ page }) => {
+    test(`${name}: step nodes sit inside their loop tunnel when present`, async ({ page }) => {
       await open(page, name)
       const parsed = JSON.parse(readFileSync(paths.get(name)!, "utf8")) as {
-        steps: Array<{ type?: string; id: string }>
+        steps: Array<{ type?: string; id: string; steps?: Array<{ type?: string; id: string }> }>
       }
-      const firstIf = parsed.steps.find((step) => step.type === "if")
       const firstLoop = parsed.steps.find((step) => step.type === "loop")
-      // Centres within 2 screen pixels of the dotted stroke.
-      const near = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThanOrEqual(2)
-      if (firstIf) {
-        const frame = await box(page, `ecp-frame-${firstIf.id}`)
-        const start = await box(page, `ecp-if-${firstIf.id}`)
-        near(start!.x + start!.width / 2, frame!.x)
-      }
-      if (firstLoop) {
-        const frame = await box(page, `ecp-frame-${firstLoop.id}`)
-        const start = await box(page, `ecp-loop-${firstLoop.id}`)
-        const end = await box(page, `ecp-end-end:${firstLoop.id}`)
-        near(start!.x + start!.width / 2, frame!.x)
-        near(end!.x + end!.width / 2, frame!.x + frame!.width)
-      }
+      if (!firstLoop) return
+      const tunnel = await box(page, `ecp-tunnel-${firstLoop.id}-loop`)
+      const bodyStep = firstLoop.steps?.[0]
+      if (!bodyStep) return
+      const stepId = bodyStep.type === "if" ? `ecp-if-${bodyStep.id}` : `ecp-step-${bodyStep.id}`
+      const step = await box(page, stepId)
+      contains(tunnel!, step!)
     })
   }
 
-  test("branch: then band above else; tier branch renders", async ({ page }) => {
+  test("branch: then and else tunnels visible; tier branch renders", async ({ page }) => {
     await open(page, "branch.ecp.json")
-    const thenStep = await box(page, "ecp-step-gold-offer")
-    const elseBand = await box(page, "ecp-if-by-tier-silver")
-    expect(thenStep && elseBand).toBeTruthy()
-    expect(thenStep!.y + thenStep!.height).toBeLessThan(elseBand!.y)
+    const thenTunnel = await box(page, "ecp-tunnel-by-tier-then")
+    const elseTunnel = await box(page, "ecp-tunnel-by-tier-else")
+    expect(thenTunnel && elseTunnel).toBeTruthy()
+    await expect(page.getByTestId("ecp-tunnel-by-tier-then")).toContainText("then")
+    await expect(page.getByTestId("ecp-tunnel-by-tier-else")).toContainText("else")
     await expect(page.locator(".react-flow__edge").first()).toBeVisible({ timeout: 10_000 })
     const ids = await page.locator(".react-flow__edge").evaluateAll((els) => els.map((el) => el.getAttribute("data-id") ?? ""))
     expect(ids.some((id) => id.includes("by-tier") && id.includes("tier"))).toBe(true)
   })
 
+  function disjoint(
+    a: NonNullable<Awaited<ReturnType<typeof box>>>,
+    b: NonNullable<Awaited<ReturnType<typeof box>>>,
+  ): void {
+    const overlap =
+      a.x < b.x + b.width &&
+      b.x < a.x + a.width &&
+      a.y < b.y + b.height &&
+      b.y < a.y + a.height
+    expect(overlap).toBe(false)
+  }
+
+  test("if-in-loop: nested if tunnels inside loop tunnel; end labels visible", async ({ page }) => {
+    await open(page, "if-in-loop.ecp.json")
+    const loopTunnel = await box(page, "ecp-tunnel-each-order-loop")
+    const thenTunnel = await box(page, "ecp-tunnel-express-then")
+    const elseTunnel = await box(page, "ecp-tunnel-express-else")
+    contains(loopTunnel!, thenTunnel!)
+    contains(loopTunnel!, elseTunnel!)
+    disjoint(thenTunnel!, elseTunnel!)
+    const fast = await box(page, "ecp-step-pick-fast")
+    const standard = await box(page, "ecp-step-pick-standard")
+    contains(thenTunnel!, fast!)
+    expect(standard!.y + standard!.height).toBeLessThanOrEqual(elseTunnel!.y + elseTunnel!.height + 2)
+    expect(fast!.y).toBeGreaterThanOrEqual(thenTunnel!.y - 2)
+    await expect(page.getByTestId("ecp-end-end:each-order")).toContainText("end loop")
+    await expect(page.getByTestId("ecp-end-end:express")).toContainText("end if")
+    const thenBg = await page.getByTestId("ecp-tunnel-express-then").evaluate((el) => getComputedStyle(el).backgroundColor)
+    const elseBg = await page.getByTestId("ecp-tunnel-express-else").evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(thenBg).toMatch(/63,\s*185,\s*80/)
+    expect(elseBg).toMatch(/248,\s*81,\s*73/)
+  })
+
+  async function verticalCenter(page: Page, testId: string): Promise<number> {
+    const rect = await box(page, testId)
+    return rect!.y + rect!.height / 2
+  }
+
+  test("if-in-loop: control and end if share vertical centre", async ({ page }) => {
+    await open(page, "if-in-loop.ecp.json")
+    const control = await verticalCenter(page, "ecp-if-express")
+    const end = await verticalCenter(page, "ecp-end-end:express")
+    expect(Math.abs(control - end)).toBeLessThan(6)
+  })
+
+  test("branch: top-level inputs and done share vertical centre", async ({ page }) => {
+    await open(page, "branch.ecp.json")
+    const accepts = await verticalCenter(page, "ecp-io-accepts")
+    const done = await verticalCenter(page, "ecp-step-done")
+    expect(Math.abs(accepts - done)).toBeLessThan(12)
+  })
+
+  test("branch: sibling tubes disjoint; inner if inside outer else", async ({ page }) => {
+    await open(page, "branch.ecp.json")
+    const thenTunnel = await box(page, "ecp-tunnel-by-tier-then")
+    const elseTunnel = await box(page, "ecp-tunnel-by-tier-else")
+    disjoint(thenTunnel!, elseTunnel!)
+    const innerThen = await box(page, "ecp-tunnel-by-tier-silver-then")
+    const innerElse = await box(page, "ecp-tunnel-by-tier-silver-else")
+    contains(elseTunnel!, innerThen!)
+    contains(elseTunnel!, innerElse!)
+    disjoint(innerThen!, innerElse!)
+    const thenBg = await page.getByTestId("ecp-tunnel-by-tier-then").evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(thenBg).toMatch(/63,\s*185,\s*80/)
+  })
 })

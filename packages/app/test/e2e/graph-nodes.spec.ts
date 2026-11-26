@@ -39,11 +39,11 @@ test.describe("Graph nodes (no structural edge labels)", () => {
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 30_000 })
   }
 
-  test("nested parallel renders frames and no structural edge labels", async ({ page }) => {
+  test("nested parallel renders tunnels and no structural edge labels", async ({ page }) => {
     await open(page, nestedParallelPath)
     const doc = executionToReactFlow(JSON.parse(readFileSync(nestedParallelSource, "utf8")) as ExecutionManifest)
     expect(doc.edges.every((edge) => edge.data.kind === "data")).toBe(true)
-    await expect(page.locator('[data-testid^="ecp-frame-"]').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('[data-testid^="ecp-tunnel-"]').first()).toBeVisible({ timeout: 15_000 })
   })
 
   test("nested foreach-branch renders loop end nodes", async ({ page }) => {
@@ -72,5 +72,20 @@ test.describe("Graph nodes (no structural edge labels)", () => {
     expect(ids.some((id) => id.includes("pick-fast") && id.includes("ship"))).toBe(true)
     expect(ids.some((id) => id.includes("pick-standard") && id.includes("ship"))).toBe(true)
     expect(ids.some((id) => id.includes("ship") && id.includes("notify"))).toBe(true)
+    await expect(page.getByTestId("ecp-tunnel-express-then")).toContainText("then")
+    await expect(page.getByTestId("ecp-tunnel-express-else")).toContainText("else")
+    await expect(page.getByTestId("ecp-end-end:express")).toContainText("end if")
+    await expect(page.getByTestId("ecp-end-end:each-order")).toContainText("end loop")
+    const shipPort = page.getByTestId("ecp-step-ship").getByText(/value.*\(2 branches\)/)
+    await expect(shipPort).toBeVisible()
+    const notifyPort = page.getByTestId("ecp-step-notify").getByText(/value:.*\[\]/)
+    await expect(notifyPort).toBeVisible()
+    const loopTunnel = await page.getByTestId("ecp-tunnel-each-order-loop").boundingBox()
+    const thenTunnel = await page.getByTestId("ecp-tunnel-express-then").boundingBox()
+    expect(loopTunnel && thenTunnel).toBeTruthy()
+    expect(thenTunnel!.x).toBeGreaterThanOrEqual(loopTunnel!.x - 2)
+    expect(thenTunnel!.y).toBeGreaterThanOrEqual(loopTunnel!.y - 2)
+    expect(thenTunnel!.x + thenTunnel!.width).toBeLessThanOrEqual(loopTunnel!.x + loopTunnel!.width + 2)
+    expect(thenTunnel!.y + thenTunnel!.height).toBeLessThanOrEqual(loopTunnel!.y + loopTunnel!.height + 2)
   })
 })

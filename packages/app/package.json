@@ -24,7 +24,6 @@
     "typecheck:web": "tsc -p tsconfig.web.json"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^1.1.4",
     "@executioncontrolprotocol/protocol": "workspace:*"
   },
   "devDependencies": {

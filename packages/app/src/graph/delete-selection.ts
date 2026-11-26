@@ -6,10 +6,10 @@ import {
   unwrapStructure,
   type StructureEditResult,
 } from "./structure-edit.js"
-import { loopIdFromEndNodeId, type ReactFlowEdge } from "./types.js"
+import { structureIdFromEndNodeId, type ReactFlowEdge } from "./types.js"
 
-/** Why a loop `end` node can't be deleted on its own. @category App */
-export const STRUCTURE_EDIT_DELETE_END = "Delete the loop instead"
+/** Why a control `end` node can't be deleted on its own. @category App */
+export const STRUCTURE_EDIT_DELETE_END = "Delete the control node instead"
 
 /**
  * Canvas selection mapped to a delete edit: a start node (`if` / `parallel` / `loop`) is removed and its nodes stay,
@@ -67,7 +67,9 @@ export function isStructureHeaderSelection(manifest: ExecutionManifest, structur
  * @category App
  */
 export function isEndNodeSelection(manifest: ExecutionManifest, nodeId: string): boolean {
-  const loopId = loopIdFromEndNodeId(nodeId)
-  if (!loopId) return false
-  return findNodePlacement(manifest.steps, loopId)?.node.type === "loop"
+  const structureId = structureIdFromEndNodeId(nodeId)
+  if (!structureId) return false
+  const hit = findNodePlacement(manifest.steps, structureId)
+  if (!hit) return false
+  return hit.node.type === "if" || hit.node.type === "parallel" || hit.node.type === "loop"
 }

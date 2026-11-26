@@ -23,7 +23,7 @@ views, runs and edits executions on the canvas. The JSON view stays read-only.
 
 | View | Content | Data |
 | --- | --- | --- |
-| Graph | React Flow canvas: steps, `if` / `parallel` / `loop` / `end` structure nodes with ports, data branches for `$ref` / `$state` bindings only; `ecp-frame` containers; detached steps show a badge | `retrieve { type: "execution", id \| path }` |
+| Graph | React Flow canvas: steps, one control node per `if` / `loop` / `parallel` with ports, a drawn `end` for each control, labelled **tunnels** (`ecp-tunnel` backdrops), data branches for `$ref` / `$state` only; detached steps show a badge | `retrieve { type: "execution", id \| path }` |
 | Node panel | Selected node: capability summary and description, input bindings (literal / ref / script), step `accepts`/`returns` when declared on the step else capability schemas (collapsible JSON), transform `script` or `expression` in a textarea when editable (inline `source` in the manifest; `path` scripts via `include: ["scripts"]` on `retrieve` and `scripts` on `commit`), config id. Configure opens this panel; no configure dialog. Start and `if` / `loop` / `parallel` / `end` nodes have their own panels | `retrieve { type: "capability", id }`, execution `retrieve` / `commit` |
 | Structure panels | Selected `if`: label, `accepts` (JSON schema text), input bindings (unset, literal or bound `$ref`), condition as an **expression or a script** (toggle; the text carries over), `as`. Selected `parallel`: label, optional `accepts` / `input` / `as`, `maxConcurrency`, a read-only list of paths with **Add path**. Selected `loop`: label, `mode` (`forEach` / `for` / `while`), the driver (`items` for `forEach`, `count` for `for`, none for `while`), `as` (`for` / `forEach`), `concurrency` and `onError` (`forEach`), `maxRounds` (`while`), `into`. Changing the mode rewrites only what the new mode needs and removes what it forbids (`setLoopMode`); a placeholder `as` / `into` / `count` / `maxRounds` is filled so the manifest validates when it can, and an unbound `items` is left for validation to report. Selected `end` (the right-edge node `end:<loopId>`): `accepts`, input bindings (`value`, `repeat` for `while`, `accepts` keys), gather as none / expression / script, `returns`. Fields are disabled while a run is live or a replay is selected. Text fields autosave on the text debounce; selects, toggles and buttons are one saved edit and one undo step each | execution `commit` |
 | Edge panel | Selected branch: source node and port, target node and port, and a **Delete** button that removes the `$ref` (the input becomes unbound; validation reports it when required). Nothing else is editable here. Autosave via `commit { type: "execution", action: "update", id \| path, ifVersion, draft: true }` | execution `commit` |
@@ -61,20 +61,19 @@ There is no `GET` or `PUT /v1/file` and no `GET /v1/files`.
   good graph on screen and shows the load error (`ECP_EXECUTION_LOAD`) until the next good save.
   Reloading never interrupts a run in progress; the run panel keeps showing it. A text edit still
   inside the 500 ms autosave pause is discarded on external reload with a one-line note.
-- Layout: dagre, left-to-right; an `ecp-frame` for every `if`, parallel and loop; never `parentId`.
-  Structure **nodes** (`ecp-if`, `ecp-parallel`, `ecp-loop`, `ecp-end` with id `end:<loopId>`) sit
-  inside frames with typed ports. See `packages/app/REACTFLOW_RENDER.md`.
+- Layout: dagre, left-to-right; **tunnels** (`ecp-tunnel`) outline each control's lists (`then` /
+  `else`, paths, loop body); never `parentId`. Structure **nodes** (`ecp-if`, `ecp-parallel`,
+  `ecp-loop`, `ecp-end` with id `end:<controlId>`) sit inside their tunnels with typed ports. See
+  `packages/app/REACTFLOW_RENDER.md`.
 - **Connectivity (graph).** C1: every `$ref` in step or structure `input` (including nested paths and
   `$script.params`) is drawn as a **data branch** from its producer (execution inputs, step `as`,
   loop `item` / `index`, enclosing `if` / `parallel` `as` via `then` / `else` / `path N`, loop
   `into` from `end` `results`). Literal-only inputs have no branch. No sequence-only connectors or
   orphans. A `detached` step has a badge and no required connector.
 - Every canvas edit is a pure function `(manifest, action) → manifest` in `packages/app/src/graph/`.
-- Containers are drawn only: dotted `ecp-frame` outlines with **bands** (`if`: `then` / `else`;
-  `parallel`: one band per path; `loop`: body band). A container is never selected, configured,
-  right-clicked as an object, or connected to; it has no label and no menu. The **start** node (`if`,
-  `parallel`, `loop`) is pinned on the left edge and carries the label; loop **`end`** is pinned on
-  the right. Both move vertically only.
+- Tunnels are drawn only: tinted rounded backdrops with text labels (`then`, `else`, `path N`, loop
+  mode). A tunnel is never selected, configured, right-clicked as an object, or connected to. The
+  **control** node starts the tunnel; a drawn **`end`** closes it after the lists.
 - **Delete** (key and menu) by selection:
 
   | Selection | Result |

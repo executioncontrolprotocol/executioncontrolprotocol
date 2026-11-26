@@ -10,7 +10,7 @@ import type {
 import type { IfNode, Node, ParallelNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
   conditionForm,
-  loopIdFromEndNodeId,
+  structureIdFromEndNodeId,
   setIfAccepts,
   setIfAs,
   setIfConditionForm,
@@ -251,17 +251,17 @@ export function ParallelPanel(props: StructurePanelProps) {
 export function EndPanel(props: StructurePanelProps) {
   const { node, issues } = props
   const data = node.data as ReactFlowEndData
-  const loopId = loopIdFromEndNodeId(node.id) ?? data.loopId
+  const structureId = structureIdFromEndNodeId(node.id) ?? data.structureId
   return (
     <section data-testid="node-panel" data-node-id={node.id} data-node-kind="end" className="space-y-4">
       <PanelHeader
         icon={<CornerDownLeft className="h-4 w-4 text-primary" aria-hidden="true" />}
         title="End"
-        subtitle={`End of loop ${loopId}: tunnel closes here (edits in Phase 2).`}
+        subtitle={`${data.label}: tunnel closes here (drawn only).`}
       />
       <div className="space-y-1.5">
-        <KeyedValue label="Kind">end</KeyedValue>
-        <KeyedValue label="Loop">{loopId}</KeyedValue>
+        <KeyedValue label="Kind">end {data.structureKind}</KeyedValue>
+        <KeyedValue label="Structure">{structureId}</KeyedValue>
       </div>
       <IssueList issues={issues} />
     </section>

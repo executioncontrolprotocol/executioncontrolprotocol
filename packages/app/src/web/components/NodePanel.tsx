@@ -177,7 +177,7 @@ function LoopItemsPanel({
 }) {
   const editor = usePanelEditor({ manifest, readOnly, fieldEpoch, applyManifestEdit, scheduleTextEdit, flushTextEdit })
   const source = findLoop(manifest, node.id)
-  const mode = source?.mode ?? data.mode ?? "for"
+  const mode = source?.mode ?? data.controlKind ?? "for"
   const driverKey = mode === "forEach" ? "items" : "count"
   const field = (name: LoopFieldKey, value: string | number) => (current: ExecutionManifest) =>
     setLoopField(current, node.id, name, value)

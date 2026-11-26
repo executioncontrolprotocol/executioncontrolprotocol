@@ -52,6 +52,8 @@ export function InputPortRow({
   connectable?: boolean
   drag?: PortDragState
 }) {
+  const branchHint =
+    port.refBranchCount !== undefined && port.refBranchCount > 1 ? ` (${port.refBranchCount} branches)` : ""
   const allow = connectable && drag !== "incompatible"
   return (
     <div className="relative flex min-w-0 items-center gap-1 pl-2">
@@ -68,6 +70,7 @@ export function InputPortRow({
       <span className="min-w-0 truncate font-mono text-[10px] text-on-surface-variant">
         {port.name}
         <span className="text-outline">:{port.typeLabel}</span>
+        {branchHint}
         <BindingText port={port} />
       </span>
     </div>
@@ -83,11 +86,13 @@ export function OutputPortRow({
   connected,
   connectable = false,
   drag = "idle",
+  handleClassName,
 }: {
   port: ReactFlowPort
   connected: boolean
   connectable?: boolean
   drag?: PortDragState
+  handleClassName?: string
 }) {
   const allow = connectable && drag !== "incompatible"
   return (
@@ -100,7 +105,7 @@ export function OutputPortRow({
         type="source"
         position={Position.Right}
         id={port.id}
-        className={`${handleClass("output", connected)}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
+        className={`${handleClass("output", connected)}${handleClassName ? ` ${handleClassName}` : ""}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
         isConnectable={allow}
         isConnectableStart={allow}
         isConnectableEnd={allow}

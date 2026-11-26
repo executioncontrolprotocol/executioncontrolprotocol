@@ -76,7 +76,7 @@ test.describe("App host API allowlist", () => {
     await page.getByTestId("ecp-step-echo").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
     await page.getByTestId("canvas-menu-item-wrap-if").click()
-    await expect(page.locator('[data-testid^="ecp-frame-if-"]')).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('[data-testid^="ecp-tunnel-"]').first()).toBeVisible({ timeout: 15_000 })
 
     const branchLoopPath = path.join(harness.workDir, "allowlist-branch-loop.ecp.json")
     copyFileSync(branchLoopSource, branchLoopPath)

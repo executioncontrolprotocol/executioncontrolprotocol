@@ -33,11 +33,11 @@ import {
   wrapSelectionIds,
   wrapSteps,
   CONNECTION_EDIT_INCOMPATIBLE,
-  pinContainers,
+  resizeTunnelNodes,
   type AddStepPlacement,
   type PositionOverrides,
   type ReactFlowDocument,
-  type ReactFlowFrameData,
+  type ReactFlowTunnelData,
   type ReactFlowNode,
   type ReactFlowPort,
   type ReactFlowStepData,
@@ -50,13 +50,12 @@ import { findNodePlacement } from "../../graph/manifest-walk.js"
 import { openCanvasContextMenu } from "../lib/canvas-context-menu.js"
 import { CanvasMenu, type CanvasMenuState } from "./CanvasMenu.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
-import { EcpFrameNode } from "./EcpFrameNode.js"
+import { EcpControlNode } from "./EcpControlNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
 import { EcpEndNode } from "./EcpEndNode.js"
-import { EcpIfNode } from "./EcpIfNode.js"
-import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
-import { EcpParallelNode } from "./EcpParallelNode.js"
+import { EcpTunnelNode } from "./EcpTunnelNode.js"
+import type { EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 import { CanvasEditContext } from "./canvas-edit-context.js"
 import type { CapabilityOriginPort } from "./CapabilityMenu.js"
@@ -64,11 +63,12 @@ import type { CapabilityOriginPort } from "./CapabilityMenu.js"
 const nodeTypes = {
   "ecp-step": EcpStepNode,
   "ecp-io": EcpIoNode,
-  "ecp-frame": EcpFrameNode,
-  "ecp-loop": EcpLoopNode,
-  "ecp-if": EcpIfNode,
-  "ecp-parallel": EcpParallelNode,
+  "ecp-tunnel": EcpTunnelNode,
+  "ecp-loop": EcpControlNode,
+  "ecp-if": EcpControlNode,
+  "ecp-parallel": EcpControlNode,
   "ecp-end": EcpEndNode,
+  "ecp-placeholder": () => null,
 }
 const edgeTypes = { "ecp-data": EcpDataEdge }
 const EDGE_INTERACTION_WIDTH = 20
@@ -185,16 +185,14 @@ function connectedHandles(document: ReactFlowDocument): {
   return { targets, sources }
 }
 
-function ifBandByStepId(document: ReactFlowDocument): Map<string, { ifId: string; band: "then" | "else" }> {
-  const out = new Map<string, { ifId: string; band: "then" | "else" }>()
+function ifSideByStepId(document: ReactFlowDocument): Map<string, { ifId: string; side: "then" | "else" }> {
+  const out = new Map<string, { ifId: string; side: "then" | "else" }>()
   for (const node of document.nodes) {
-    if (node.type !== "ecp-frame") continue
-    const frame = node.data as ReactFlowFrameData
-    if (frame.structureKind !== "if") continue
-    for (const band of frame.bands) {
-      const side = band.label === "then" ? "then" : band.label === "else" ? "else" : undefined
-      if (!side) continue
-      for (const memberId of band.memberNodeIds) out.set(memberId, { ifId: frame.structureId, band: side })
+    if (node.type !== "ecp-tunnel") continue
+    const tunnel = node.data as ReactFlowTunnelData
+    if (tunnel.tunnelKind !== "then" && tunnel.tunnelKind !== "else") continue
+    for (const memberId of tunnel.memberNodeIds) {
+      out.set(memberId, { ifId: tunnel.structureId, side: tunnel.tunnelKind })
     }
   }
   return out
@@ -210,7 +208,8 @@ function buildNodes(
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
   const dataConnectable = !readOnly
-  const ifBands = ifBandByStepId(document)
+  const ifSides = ifSideByStepId(document)
+  const choices = run.choices
   return document.nodes.map((node) => {
     const connected = {
       connectedTargetHandles: targets.get(node.id) ?? [],
@@ -221,10 +220,10 @@ function buildNodes(
       const runStep = run.steps[node.id]
       const issues = nodeErrors[node.id] ?? []
       let status = stepStatus(run, node.id)
-      const band = ifBands.get(node.id)
-      if (band && band.ifId in run.choices) {
-        const choice = run.choices[band.ifId]
-        if (choice !== null && choice !== band.band) status = "skipped"
+      const side = ifSides.get(node.id)
+      if (side && side.ifId in choices) {
+        const choice = choices[side.ifId]
+        if (choice !== null && choice !== side.side) status = "skipped"
       }
       const stepData = node.data as ReactFlowStepData
       const step: EcpStepNodeData = {
@@ -259,29 +258,35 @@ function buildNodes(
         ...(choice !== undefined ? { choiceSide: choice } : {}),
       }
     } else if (node.type === "ecp-end") {
-      const loopId = (node.data as { loopId: string }).loopId
-      const loopRound = run.loops[loopId]
+      const structureId = (node.data as { structureId: string }).structureId
+      const loopRound = run.loops[structureId]
       data = {
         ...node.data,
-        ...connected,
         dataConnectable,
         ...(loopRound ? { round: loopRound.round } : {}),
       }
     } else {
       data = { ...node.data, ...connected, dataConnectable }
     }
-    if (node.type === "ecp-frame") {
+    if (node.type === "ecp-tunnel") {
+      const tunnel = node.data as ReactFlowTunnelData
+      let dimmed = false
+      if ((tunnel.tunnelKind === "then" || tunnel.tunnelKind === "else") && tunnel.structureId in choices) {
+        const choice = choices[tunnel.structureId]
+        if (choice !== null && choice !== tunnel.tunnelKind) dimmed = true
+      }
       return {
         id: node.id,
         type: node.type,
         position: node.position,
-        data: { ...(node.data as ReactFlowFrameData) } as unknown as Record<string, unknown>,
+        data: { ...tunnel, dimmed } as unknown as Record<string, unknown>,
         zIndex: node.zIndex ?? 0,
         selectable: false,
         draggable: false,
         connectable: false,
         deletable: false,
         focusable: false,
+        className: dimmed ? "ecp-rf-tunnel--dimmed" : undefined,
         ...(node.style?.width !== undefined
           ? {
               style: {
@@ -293,6 +298,12 @@ function buildNodes(
           : {}),
       }
     }
+    const tunnelSide = ifSides.get(node.id)
+    const nodeDimmed =
+      tunnelSide &&
+      tunnelSide.ifId in choices &&
+      choices[tunnelSide.ifId] !== null &&
+      choices[tunnelSide.ifId] !== tunnelSide.side
     const stepSelected = node.type === "ecp-step" && selectedStepIds.includes(node.id)
     const structureSelected =
       selectedId === node.id &&
@@ -306,6 +317,7 @@ function buildNodes(
       zIndex: 1000,
       connectable: dataConnectable,
       deletable: false,
+      className: nodeDimmed ? "ecp-rf-node--dimmed" : undefined,
       ...(node.style?.width !== undefined ? { style: { width: node.style.width } } : {}),
     }
   })
@@ -345,9 +357,9 @@ function FocusNode({ focus }: { focus?: FocusRequest }) {
   return null
 }
 
-/** Re-fit containers after nodes move: boxes hold their nodes, start / end nodes stay on the edges. */
-function applyFrameBoundsToNodes(nodes: Node[]): Node[] {
-  return pinContainers(nodes as unknown as ReactFlowNode[]) as unknown as Node[]
+/** Re-fit tunnels after nodes move so member bounds stay wrapped. */
+function applyTunnelBoundsToNodes(nodes: Node[]): Node[] {
+  return resizeTunnelNodes(nodes as unknown as ReactFlowNode[]) as unknown as Node[]
 }
 
 function CaptureFlowProjection() {
@@ -481,7 +493,7 @@ function GraphCanvasBody({
         if (dragPos) next = { ...next, position: dragPos, dragging: true }
         return next
       })
-      return dragging.size > 0 ? applyFrameBoundsToNodes(merged) : merged
+      return dragging.size > 0 ? applyTunnelBoundsToNodes(merged) : merged
     })
   }, [built])
 
@@ -490,7 +502,7 @@ function GraphCanvasBody({
     if (kept.length === 0) return
     setNodes((current) => {
       const next = applyNodeChanges(kept, current)
-      if (kept.some((change) => change.type === "position")) return applyFrameBoundsToNodes(next)
+      if (kept.some((change) => change.type === "position")) return applyTunnelBoundsToNodes(next)
       return next
     })
   }, [])
@@ -499,7 +511,7 @@ function GraphCanvasBody({
     (_event: MouseEvent | TouchEvent, _node: Node, dragged: Node[]) => {
       const updates: PositionOverrides = {}
       for (const node of dragged) {
-        if (node.type === "ecp-frame") continue
+        if (node.type === "ecp-tunnel") continue
         updates[node.id] = { x: node.position.x, y: node.position.y }
       }
       if (Object.keys(updates).length > 0) onPositionDragStop(updates)

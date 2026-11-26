@@ -124,7 +124,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     const nonFrame: string[] = []
     const frames: string[] = []
     for (const node of dagreDocument.nodes) {
-      if (node.type === "ecp-frame") frames.push(node.id)
+      if (node.type === "ecp-tunnel") frames.push(node.id)
       else nonFrame.push(node.id)
     }
     return { nonFrame, frames }

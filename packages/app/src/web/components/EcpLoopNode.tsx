@@ -35,7 +35,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
     selected ? "ecp-rf-node--selected" : "",
     node.detached ? "ecp-rf-node--detached" : "",
   ]
-  const mode = node.mode ?? "for"
+  const mode = node.controlKind === "forEach" ? "forEach" : "for"
 
   return (
     <div

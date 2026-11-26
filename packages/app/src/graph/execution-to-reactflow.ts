@@ -10,28 +10,36 @@ import {
 } from "./io-from-schema.js"
 import { jsonSchemaObjectProperties } from "./json-schema.js"
 import {
-  adjustFrameRectForPins,
-  applyContainerGeometry,
-  pinContainers,
-  type StructureFrameGeometry,
-} from "./container-geometry.js"
-import { frameBounds, layoutReactFlowDocument, type LayoutCluster } from "./layout.js"
+  documentMaxY,
+  treeLayoutReactFlowDocument,
+  translateDocumentNodes,
+  TREE_END_HEIGHT,
+  TREE_END_WIDTH,
+  TREE_GAP_X,
+} from "./tree-layout.js"
+import { loopsCrossedBetween, typeLabelCrossingLoops } from "./loop-export-type.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import { refPathsFromValue } from "./markers.js"
 import { portsFromJsonSchemaObject } from "./io-from-schema.js"
+import {
+  computeAllTunnelRects,
+  computeTunnelRect,
+} from "./tunnel-geometry.js"
 import type {
   CapabilitySchemaIndex,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEncodeOptions,
   ReactFlowEndData,
-  ReactFlowFrameData,
   ReactFlowIfData,
   ReactFlowLoopItemsData,
   ReactFlowNode,
   ReactFlowParallelData,
   ReactFlowPort,
   ReactFlowStepData,
+  ReactFlowTunnelData,
+  ReactFlowTunnelKind,
+  TunnelSpec,
 } from "./types.js"
 import {
   IF_ELSE_HANDLE,
@@ -41,22 +49,14 @@ import {
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  loopEndNodeId,
+  structureEndNodeId,
 } from "./types.js"
 
-interface StructureFrame extends StructureFrameGeometry {
-  structureId: string
-  loopMode?: "for" | "forEach"
-  label: string
-  startNodeId: string
-  endNodeId?: string
-  bands: StructureFrameGeometry["bands"]
-}
-
 interface EncodeContext {
+  manifest: ExecutionManifest
   capabilitySchemas: CapabilitySchemaIndex | undefined
-  structureFrames: StructureFrame[]
-  frameStack: { spec: StructureFrame }[]
+  tunnels: TunnelSpec[]
+  tunnelStack: { childTunnelIds: string[] }[]
 }
 
 interface RenderSegment {
@@ -66,45 +66,38 @@ interface RenderSegment {
   exitIds: string[]
 }
 
-function beginStructureFrame(
+function tunnelId(structureId: string, kind: ReactFlowTunnelKind, pathIndex?: number): string {
+  if (kind === "path" && pathIndex !== undefined) return `ecp:tunnel:${structureId}:path-${pathIndex + 1}`
+  return `ecp:tunnel:${structureId}:${kind}`
+}
+
+/** Layout-only placeholder id for an empty branch. @category App */
+export function sidePlaceholderId(structureId: string, sideKey: string): string {
+  return `ecp:placeholder:${structureId}:${sideKey}`
+}
+
+function sidePlaceholderNode(structureId: string, sideKey: string): ReactFlowNode {
+  return {
+    id: sidePlaceholderId(structureId, sideKey),
+    type: "ecp-placeholder",
+    position: { x: 0, y: 0 },
+    style: { width: 1, height: 1 },
+    data: { label: "" } satisfies import("./types.js").ReactFlowPlaceholderData,
+  }
+}
+
+function registerTunnel(
   ctx: EncodeContext,
-  partial: Pick<StructureFrame, "frameId" | "structureId" | "structureKind" | "label"> &
-    Partial<Pick<StructureFrame, "loopMode">>,
+  spec: Omit<TunnelSpec, "depth" | "childTunnelIds">,
 ): void {
-  const parent = ctx.frameStack[ctx.frameStack.length - 1]
-  const spec: StructureFrame = {
-    frameId: partial.frameId,
-    structureId: partial.structureId,
-    structureKind: partial.structureKind,
-    label: partial.label,
-    memberNodeIds: [],
-    childFrameIds: [],
-    bands: [],
-    startNodeId: "",
-    depth: ctx.frameStack.length,
-    ...(partial.loopMode !== undefined ? { loopMode: partial.loopMode } : {}),
+  const parent = ctx.tunnelStack[ctx.tunnelStack.length - 1]
+  const entry: TunnelSpec = {
+    ...spec,
+    childTunnelIds: [],
+    depth: ctx.tunnelStack.length,
   }
-  if (parent) parent.spec.childFrameIds.push(spec.frameId)
-  ctx.frameStack.push({ spec })
-  ctx.structureFrames.push(spec)
-}
-
-function endStructureFrame(ctx: EncodeContext, memberNodeIds: readonly string[]): void {
-  const current = ctx.frameStack.pop()
-  if (current) current.spec.memberNodeIds = [...memberNodeIds]
-}
-
-function layoutClusters(frames: readonly StructureFrame[]): LayoutCluster[] {
-  const out: LayoutCluster[] = []
-  for (const frame of frames) {
-    for (const band of frame.bands) {
-      out.push({ id: band.bandId, memberNodeIds: band.memberNodeIds, childClusterIds: [] })
-    }
-    const frameMembers = [frame.startNodeId, ...(frame.endNodeId ? [frame.endNodeId] : [])]
-    const childClusterIds = [...frame.bands.map((band) => band.bandId), ...frame.childFrameIds]
-    out.push({ id: frame.frameId, memberNodeIds: frameMembers, childClusterIds })
-  }
-  return out
+  if (parent) parent.childTunnelIds.push(entry.tunnelId)
+  ctx.tunnels.push(entry)
 }
 
 function connectControl(edges: ReactFlowEdge[], fromIds: string[], toIds: string[], prefix: string): void {
@@ -116,7 +109,7 @@ function connectControl(edges: ReactFlowEdge[], fromIds: string[], toIds: string
   }
 }
 
-function structureFrameLabel(node: IfNode | ParallelNode | LoopNode): string {
+function structureLabel(node: IfNode | ParallelNode | LoopNode): string {
   if (node.label) return node.label
   if (node.type === "if") return "if"
   if (node.type === "parallel") return "parallel"
@@ -164,6 +157,7 @@ function ifPorts(node: IfNode): { inputs: ReactFlowPort[]; outputs: ReactFlowPor
       if (paths && paths.length > 0) {
         port.binding = "ref"
         port.refPath = paths.map((ref) => (ref.startsWith("state.") ? ref.slice(6) : ref)).join(", ")
+        if (paths.length > 1) port.refBranchCount = paths.length
       }
     }
   }
@@ -173,6 +167,7 @@ function ifPorts(node: IfNode): { inputs: ReactFlowPort[]; outputs: ReactFlowPor
 function ifReactFlowNode(node: IfNode): ReactFlowNode {
   const ports = ifPorts(node)
   const data: ReactFlowIfData = {
+    controlKind: "if",
     label: node.label ?? node.id,
     ...(node.expression !== undefined ? { expression: node.expression } : {}),
     ...(node.as !== undefined ? { as: node.as } : {}),
@@ -195,6 +190,7 @@ function parallelPorts(node: ParallelNode): { inputs: ReactFlowPort[]; outputs: 
 function parallelReactFlowNode(node: ParallelNode): ReactFlowNode {
   const ports = parallelPorts(node)
   const data: ReactFlowParallelData = {
+    controlKind: "parallel",
     label: node.label ?? node.id,
     pathCount: node.paths.length,
     ...(node.as !== undefined ? { as: node.as } : {}),
@@ -219,8 +215,8 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
     if (node.as) outputs.push({ id: LOOP_INDEX_HANDLE, name: "index", typeLabel: "integer" })
   }
   const data: ReactFlowLoopItemsData = {
+    controlKind: mode,
     label: node.label ?? node.id,
-    mode,
     ...(node.as !== undefined ? { as: node.as } : {}),
     ...(mode === "forEach" ? { concurrency: node.concurrency ?? 1, onError: node.onError ?? "fail" } : {}),
     inputs,
@@ -229,111 +225,150 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
   return { id: node.id, type: "ecp-loop", position: { x: 0, y: 0 }, data }
 }
 
-function endReactFlowNode(node: LoopNode): ReactFlowNode {
-  const data: ReactFlowEndData = {
-    loopId: node.id,
-    label: "end",
-    inputs: [],
-    outputs: [],
+function endReactFlowNode(
+  structureId: string,
+  structureKind: ReactFlowEndData["structureKind"],
+  label: string,
+): ReactFlowNode {
+  const data: ReactFlowEndData = { structureId, structureKind, label }
+  return {
+    id: structureEndNodeId(structureId),
+    type: "ecp-end",
+    position: { x: 0, y: 0 },
+    style: { width: TREE_END_WIDTH, height: TREE_END_HEIGHT },
+    data,
   }
-  return { id: loopEndNodeId(node.id), type: "ecp-end", position: { x: 0, y: 0 }, data }
 }
 
 function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
   const head = ifReactFlowNode(node)
-  beginStructureFrame(ctx, {
-    frameId: `ecp:frame:${node.id}`,
-    structureId: node.id,
-    structureKind: "if",
-    label: structureFrameLabel(node),
-  })
-  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
-  if (frameSpec) frameSpec.startNodeId = node.id
+  const endId = structureEndNodeId(node.id)
+  const endNode = endReactFlowNode(node.id, "if", "end if")
+  ctx.tunnelStack.push({ childTunnelIds: [] })
   const thenSeg = renderNodes(node.then, ctx)
   const elseSeg = node.else ? renderNodes(node.else, ctx) : { nodes: [], edges: [], entryIds: [], exitIds: [] }
   const thenIds = nodeIdsInSegment(thenSeg)
   const elseIds = nodeIdsInSegment(elseSeg)
-  const bands: StructureFrame["bands"] = [
-    { bandId: `ecp:band:${node.id}:then`, label: "then", memberNodeIds: thenIds },
-  ]
-  if (node.else) bands.push({ bandId: `ecp:band:${node.id}:else`, label: "else", memberNodeIds: elseIds })
-  if (frameSpec) frameSpec.bands = bands
-  const memberIds = new Set<string>([node.id, ...thenIds, ...elseIds])
+  ctx.tunnelStack.pop()
+
+  const placeholderNodes: ReactFlowNode[] = []
+  let thenSideIds = thenIds
+  let elseSideIds = elseIds
+  if (thenIds.length === 0) {
+    const ph = sidePlaceholderNode(node.id, "then")
+    placeholderNodes.push(ph)
+    thenSideIds = [ph.id]
+  }
+  if (elseIds.length === 0) {
+    const ph = sidePlaceholderNode(node.id, "else")
+    placeholderNodes.push(ph)
+    elseSideIds = [ph.id]
+  }
+
+  registerTunnel(ctx, {
+    tunnelId: tunnelId(node.id, "then"),
+    structureId: node.id,
+    tunnelKind: "then",
+    label: "then",
+    controlNodeId: node.id,
+    endNodeId: endId,
+    sideNodeIds: thenSideIds,
+    memberNodeIds: thenSideIds,
+  })
+  registerTunnel(ctx, {
+    tunnelId: tunnelId(node.id, "else"),
+    structureId: node.id,
+    tunnelKind: "else",
+    label: "else",
+    controlNodeId: node.id,
+    endNodeId: endId,
+    sideNodeIds: elseSideIds,
+    memberNodeIds: elseSideIds,
+  })
+
   const edges = [...thenSeg.edges, ...elseSeg.edges]
   if (thenSeg.entryIds.length > 0) connectControl(edges, [node.id], thenSeg.entryIds, `if-then-${node.id}`)
+  else connectControl(edges, [node.id], thenSideIds, `if-then-ph-${node.id}`)
   if (elseSeg.entryIds.length > 0) connectControl(edges, [node.id], elseSeg.entryIds, `if-else-${node.id}`)
-  endStructureFrame(ctx, [...memberIds])
+  else if (node.else) connectControl(edges, [node.id], elseSideIds, `if-else-ph-${node.id}`)
+  else connectControl(edges, [node.id], elseSideIds, `if-else-empty-${node.id}`)
+  if (thenSeg.exitIds.length > 0) connectControl(edges, thenSeg.exitIds, [endId], `if-then-end-${node.id}`)
+  else connectControl(edges, thenSideIds, [endId], `if-then-empty-${node.id}`)
+  if (elseSeg.exitIds.length > 0) connectControl(edges, elseSeg.exitIds, [endId], `if-else-end-${node.id}`)
+  else connectControl(edges, elseSideIds, [endId], `if-else-end-empty-${node.id}`)
+
   return {
-    nodes: [head, ...thenSeg.nodes, ...elseSeg.nodes],
+    nodes: [head, endNode, ...placeholderNodes, ...thenSeg.nodes, ...elseSeg.nodes],
     edges,
     entryIds: [node.id],
-    exitIds: [...thenSeg.exitIds, ...elseSeg.exitIds],
+    exitIds: [endId],
   }
 }
 
 function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
   const head = parallelReactFlowNode(node)
-  beginStructureFrame(ctx, {
-    frameId: `ecp:frame:${node.id}`,
-    structureId: node.id,
-    structureKind: "parallel",
-    label: structureFrameLabel(node),
-  })
-  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
-  if (frameSpec) frameSpec.startNodeId = node.id
-  const out: RenderSegment = { nodes: [head], edges: [], entryIds: [node.id], exitIds: [] }
-  const memberIds = new Set<string>([node.id])
-  const bands: StructureFrame["bands"] = []
+  const endId = structureEndNodeId(node.id)
+  const endNode = endReactFlowNode(node.id, "parallel", "end parallel")
+  ctx.tunnelStack.push({ childTunnelIds: [] })
+  const out: RenderSegment = { nodes: [head, endNode], edges: [], entryIds: [node.id], exitIds: [endId] }
   node.paths.forEach((path, index) => {
     const seg = renderNodes(path, ctx)
     out.nodes.push(...seg.nodes)
     out.edges.push(...seg.edges)
     const pathIds = nodeIdsInSegment(seg)
-    for (const id of pathIds) memberIds.add(id)
-    bands.push({
-      bandId: `ecp:band:${node.id}:path-${index + 1}`,
+    const pathKey = `path-${index + 1}`
+    let sideIds = pathIds
+    if (pathIds.length === 0) {
+      const ph = sidePlaceholderNode(node.id, pathKey)
+      out.nodes.push(ph)
+      sideIds = [ph.id]
+    }
+    registerTunnel(ctx, {
+      tunnelId: tunnelId(node.id, "path", index),
+      structureId: node.id,
+      tunnelKind: "path",
       label: `path ${index + 1}`,
-      memberNodeIds: pathIds,
+      controlNodeId: node.id,
+      endNodeId: endId,
+      sideNodeIds: sideIds,
+      memberNodeIds: sideIds,
     })
     if (seg.entryIds.length > 0) connectControl(out.edges, [node.id], seg.entryIds, `par-${node.id}-${index}`)
-    out.exitIds.push(...seg.exitIds)
+    else connectControl(out.edges, [node.id], sideIds, `par-ph-${node.id}-${index}`)
+    if (seg.exitIds.length > 0) connectControl(out.edges, seg.exitIds, [endId], `par-end-${node.id}-${index}`)
+    else connectControl(out.edges, sideIds, [endId], `par-empty-${node.id}-${index}`)
   })
-  if (frameSpec) frameSpec.bands = bands
-  endStructureFrame(ctx, [...memberIds])
+  ctx.tunnelStack.pop()
   return out
 }
 
 function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   const head = loopReactFlowNode(node)
-  const endNode = endReactFlowNode(node)
-  beginStructureFrame(ctx, {
-    frameId: `ecp:frame:${node.id}`,
-    structureId: node.id,
-    structureKind: "loop",
-    loopMode: loopMode(node),
-    label: structureFrameLabel(node),
-  })
-  const frameSpec = ctx.frameStack[ctx.frameStack.length - 1]?.spec
-  if (frameSpec) {
-    frameSpec.startNodeId = node.id
-    frameSpec.endNodeId = endNode.id
-  }
+  const endId = structureEndNodeId(node.id)
+  const endNode = endReactFlowNode(node.id, "loop", "end loop")
+  ctx.tunnelStack.push({ childTunnelIds: [] })
   const seg = renderNodes(node.steps, ctx)
-  const edges = [...seg.edges]
   const bodyIds = nodeIdsInSegment(seg)
-  if (frameSpec) {
-    frameSpec.bands = [{ bandId: `ecp:band:${node.id}:body`, label: "body", memberNodeIds: bodyIds }]
-  }
-  const memberIds = new Set<string>([node.id, endNode.id, ...bodyIds])
+  registerTunnel(ctx, {
+    tunnelId: tunnelId(node.id, "loop"),
+    structureId: node.id,
+    tunnelKind: "loop",
+    label: structureLabel(node),
+    controlNodeId: node.id,
+    endNodeId: endId,
+    sideNodeIds: bodyIds,
+    memberNodeIds: [node.id, ...bodyIds, endId],
+  })
+  ctx.tunnelStack.pop()
+  const edges = [...seg.edges]
   if (seg.entryIds.length > 0) connectControl(edges, [node.id], seg.entryIds, `loop-body-${node.id}`)
-  if (seg.exitIds.length > 0) connectControl(edges, seg.exitIds, [endNode.id], `loop-end-${node.id}`)
-  else connectControl(edges, [node.id], [endNode.id], `loop-end-empty-${node.id}`)
-  endStructureFrame(ctx, [...memberIds])
+  if (seg.exitIds.length > 0) connectControl(edges, seg.exitIds, [endId], `loop-end-${node.id}`)
+  else connectControl(edges, [node.id], [endId], `loop-end-empty-${node.id}`)
   return {
-    nodes: [head, ...seg.nodes, endNode],
+    nodes: [head, endNode, ...seg.nodes],
     edges,
     entryIds: [node.id],
-    exitIds: [endNode.id],
+    exitIds: [endId],
   }
 }
 
@@ -413,6 +448,22 @@ function extractReturnsEdges(manifest: ExecutionManifest, stepNodes: ReactFlowNo
   return edges
 }
 
+function applyLoopCrossingTypes(manifest: ExecutionManifest, nodes: ReactFlowNode[], edges: ReactFlowEdge[]): void {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]))
+  for (const edge of edges) {
+    if (edge.data.kind !== "data") continue
+    const target = nodesById.get(edge.target)
+    if (!target || target.type !== "ecp-step") continue
+    const loopsCrossed = loopsCrossedBetween(manifest, edge.target, edge.source)
+    if (loopsCrossed <= 0) continue
+    const data = target.data as ReactFlowStepData
+    const handle = edge.targetHandle
+    if (!handle) continue
+    const port = data.inputs.find((p) => p.id === handle)
+    if (port) port.typeLabel = typeLabelCrossingLoops(port.typeLabel, loopsCrossed)
+  }
+}
+
 function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlowEdge[]): void {
   for (const edge of edges) {
     const source = nodesById.get(edge.source)
@@ -423,7 +474,7 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
       if (node.type === "ecp-loop") return (node.data as ReactFlowLoopItemsData).outputs
       if (node.type === "ecp-if") return (node.data as ReactFlowIfData).outputs
       if (node.type === "ecp-parallel") return (node.data as ReactFlowParallelData).outputs
-      if (node.type === "ecp-end") return (node.data as ReactFlowEndData).outputs
+      if (node.type === "ecp-end") return undefined
       if (node.type === "ecp-io") return (node.data as { outputs: ReactFlowPort[] }).outputs
       return undefined
     }
@@ -433,7 +484,7 @@ function ensureEdgePorts(nodesById: Map<string, ReactFlowNode>, edges: ReactFlow
       if (node.type === "ecp-loop") return (node.data as ReactFlowLoopItemsData).inputs
       if (node.type === "ecp-if") return (node.data as ReactFlowIfData).inputs
       if (node.type === "ecp-parallel") return (node.data as ReactFlowParallelData).inputs
-      if (node.type === "ecp-end") return (node.data as ReactFlowEndData).inputs
+      if (node.type === "ecp-end") return undefined
       if (node.type === "ecp-io") return (node.data as { inputs: ReactFlowPort[] }).inputs
       return undefined
     }
@@ -446,41 +497,45 @@ function publishEdges(layoutEdges: ReactFlowEdge[]): ReactFlowEdge[] {
   return layoutEdges.filter((edge) => edge.data.kind !== "control")
 }
 
-function frameNodesForStructures(
+function tunnelNodesForSpecs(
   laid: ReactFlowDocument,
-  frames: readonly StructureFrame[],
+  tunnels: readonly TunnelSpec[],
   options?: ReactFlowEncodeOptions,
   detachedStructureIds?: ReadonlySet<string>,
 ): ReactFlowNode[] {
-  const nodeWidth = options?.nodeWidth ?? 260
-  const nodeHeight = options?.nodeHeight ?? 160
-  const rects = frameBounds(laid.nodes, frames, { nodeWidth, nodeHeight, headerless: true })
+  const rects = computeAllTunnelRects(laid.nodes, options)
   const out: ReactFlowNode[] = []
-  for (const spec of frames) {
-    const rawRect = rects.get(spec.frameId)
-    if (!rawRect) continue
-    const rect = adjustFrameRectForPins(rawRect, laid.nodes, spec, nodeWidth)
-    const data: ReactFlowFrameData = {
+  for (const spec of tunnels) {
+    const rect =
+      rects.get(spec.tunnelId) ??
+      computeTunnelRect(
+        laid.nodes,
+        {
+          tunnelKind: spec.tunnelKind,
+          controlNodeId: spec.controlNodeId,
+          endNodeId: spec.endNodeId,
+          sideNodeIds: spec.sideNodeIds,
+          childTunnelIds: spec.childTunnelIds,
+        },
+        rects,
+        options,
+      )
+    if (!rect) continue
+    const data: ReactFlowTunnelData = {
       structureId: spec.structureId,
-      structureKind: spec.structureKind,
-      ...(spec.loopMode !== undefined ? { loopMode: spec.loopMode } : {}),
+      tunnelKind: spec.tunnelKind,
       label: spec.label,
-      startNodeId: spec.startNodeId,
-      ...(spec.endNodeId !== undefined ? { endNodeId: spec.endNodeId } : {}),
-      bands: spec.bands.map((band) => ({
-        bandId: band.bandId,
-        label: band.label,
-        memberNodeIds: [...band.memberNodeIds],
-      })),
-      ...(spec.bandDividerYs !== undefined ? { bandDividerYs: [...spec.bandDividerYs] } : {}),
+      controlNodeId: spec.controlNodeId,
+      endNodeId: spec.endNodeId,
+      sideNodeIds: [...spec.sideNodeIds],
       memberNodeIds: [...spec.memberNodeIds],
-      childFrameIds: [...spec.childFrameIds],
+      childTunnelIds: [...spec.childTunnelIds],
       depth: spec.depth,
       ...(detachedStructureIds?.has(spec.structureId) ? { detached: true } : {}),
     }
     out.push({
-      id: spec.frameId,
-      type: "ecp-frame",
+      id: spec.tunnelId,
+      type: "ecp-tunnel",
       position: { x: rect.x, y: rect.y },
       style: { width: rect.width, height: rect.height, pointerEvents: "none" },
       zIndex: spec.depth,
@@ -509,8 +564,13 @@ export function executionToReactFlow(
   manifest: ExecutionManifest,
   options?: ReactFlowEncodeOptions,
 ): ReactFlowDocument {
-  const structureFrames: StructureFrame[] = []
-  const ctx: EncodeContext = { capabilitySchemas: options?.capabilitySchemas, structureFrames, frameStack: [] }
+  const tunnels: TunnelSpec[] = []
+  const ctx: EncodeContext = {
+    manifest,
+    capabilitySchemas: options?.capabilitySchemas,
+    tunnels,
+    tunnelStack: [],
+  }
   const steps = Array.isArray(manifest.steps) ? manifest.steps : []
   const acceptsNode = acceptsReactFlowNode(manifest)
   const returnsNode = returnsReactFlowNode(manifest)
@@ -528,7 +588,7 @@ export function executionToReactFlow(
       const data = node.data as ReactFlowStepData
       outputPortIds.set(node.id, data.outputs.map((port) => port.id))
       inputPortIds.set(node.id, data.inputs.map((port) => port.id))
-    } else if (portKind === "ecp-loop" || portKind === "ecp-if" || portKind === "ecp-parallel" || portKind === "ecp-end") {
+    } else if (portKind === "ecp-loop" || portKind === "ecp-if" || portKind === "ecp-parallel") {
       const data = node.data as { inputs: ReactFlowPort[]; outputs: ReactFlowPort[] }
       outputPortIds.set(node.id, data.outputs.map((port) => port.id))
       inputPortIds.set(node.id, data.inputs.map((port) => port.id))
@@ -538,50 +598,52 @@ export function executionToReactFlow(
   const acceptsKeys = acceptsPropertyKeys(manifest)
   const dataEdges = [...extractDataEdges(steps, acceptsKeys, outputPortIds, inputPortIds), ...extractReturnsEdges(manifest, [...body.nodes])]
   ensureEdgePorts(nodesById, dataEdges)
+  applyLoopCrossingTypes(manifest, nodes, dataEdges)
 
   const layoutEdges: ReactFlowEdge[] = [...body.edges, ...dataEdges]
   if (body.entryIds.length > 0) connectControl(layoutEdges, [acceptsNode.id], body.entryIds, "io-accepts")
   else if (returnsNode) connectControl(layoutEdges, [acceptsNode.id], [returnsNode.id], "io-empty")
   if (returnsNode && body.exitIds.length > 0) connectControl(layoutEdges, body.exitIds, [returnsNode.id], "io-returns")
 
-  const laid = layoutReactFlowDocument({ nodes, edges: layoutEdges }, options, layoutClusters(structureFrames))
-  const geometryLaid = applyContainerGeometry(laid, structureFrames, options)
-  let flowNodes = geometryLaid.nodes
+  const nodeHeight = options?.nodeHeight ?? 160
+  const laid = treeLayoutReactFlowDocument(
+    { nodes, edges: layoutEdges },
+    steps,
+    options,
+    returnsNode
+      ? { acceptsId: acceptsNode.id, returnsId: returnsNode.id }
+      : { acceptsId: acceptsNode.id },
+  )
+  let flowNodes = laid.nodes
   const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
   const detachedStructureIds = new Set<string>()
 
   if (detachedRoots.length > 0) {
-    const detachedFrames: StructureFrame[] = []
+    const detachedTunnels: TunnelSpec[] = []
     const detachedCtx: EncodeContext = {
+      manifest,
       capabilitySchemas: options?.capabilitySchemas,
-      structureFrames: detachedFrames,
-      frameStack: [],
+      tunnels: detachedTunnels,
+      tunnelStack: [],
     }
     const detachedSeg = renderNodes(detachedRoots, detachedCtx)
     const controlEdges = detachedSeg.edges.filter((edge) => edge.data.kind === "control")
-    const detachedLayout = layoutReactFlowDocument(
-      { nodes: detachedSeg.nodes, edges: controlEdges },
-      options,
-      layoutClusters(detachedFrames),
-    )
-    const detachedLaid = applyContainerGeometry(detachedLayout, detachedFrames, options)
-    const mainMaxY = flowNodes.reduce((max, node) => Math.max(max, node.position.y + (node.style?.height ?? 160)), 0)
+    const detachedLayout = treeLayoutReactFlowDocument({ nodes: detachedSeg.nodes, edges: controlEdges }, detachedRoots, options)
+    const mainMaxY = documentMaxY(flowNodes, nodeHeight)
     const mainMinX = flowNodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
-    const detachedMinY = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity)
-    const detachedMinX = detachedLaid.nodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
-    const dy = mainMaxY + 48 - detachedMinY
+    const detachedMinY = detachedLayout.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity)
+    const detachedMinX = detachedLayout.nodes.reduce((min, node) => Math.min(min, node.position.x), Infinity)
+    const dy = mainMaxY + TREE_GAP_X - detachedMinY
     const dx = mainMinX - detachedMinX
-    const translated = detachedLaid.nodes.map((node) => ({
+    const translated = translateDocumentNodes(detachedLayout, dx, dy).nodes.map((node) => ({
       ...node,
-      position: { x: node.position.x + dx, y: node.position.y + dy },
       data: { ...node.data, detached: true },
     }))
     flowNodes = [...flowNodes, ...translated]
-    structureFrames.push(...detachedFrames)
+    tunnels.push(...detachedTunnels)
     for (const root of detachedRoots) walkDetachedIds(root, detachedStructureIds)
   }
 
-  const laidForFrames = { nodes: flowNodes, edges: geometryLaid.edges }
-  const frames = frameNodesForStructures(laidForFrames, structureFrames, options, detachedStructureIds)
-  return { nodes: pinContainers([...frames, ...flowNodes]), edges: publishEdges(geometryLaid.edges) }
+  const tunnelNodes = tunnelNodesForSpecs({ nodes: flowNodes, edges: laid.edges }, tunnels, options, detachedStructureIds)
+  return { nodes: [...tunnelNodes, ...flowNodes], edges: publishEdges(laid.edges) }
 }

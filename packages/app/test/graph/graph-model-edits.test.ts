@@ -332,9 +332,9 @@ describe("end and parallel encoder branches", () => {
     const doc = executionToReactFlow(manifest)
     const end = doc.nodes.find((n) => n.id === loopEndNodeId("L"))
     expect(end?.type).toBe("ecp-end")
-    const data = end!.data as { inputs: unknown[]; outputs: unknown[] }
-    expect(data.inputs).toEqual([])
-    expect(data.outputs).toEqual([])
+    const data = end!.data as { label: string; structureKind: string }
+    expect(data.label).toBe("end loop")
+    expect(data.structureKind).toBe("loop")
   })
 
   it("parallel with accepts and as draws input ports", () => {

@@ -23,6 +23,7 @@ import {
   LOOP_ITEMS_HANDLE,
   loopEndNodeId,
   loopIdFromEndNodeId,
+  structureEndNodeId,
   portOnDocument,
   removeStructure,
   STRUCTURE_EDIT_DELETE_END,
@@ -437,7 +438,7 @@ describe("deleting a start node and an end", () => {
       ok: false,
       reason: STRUCTURE_EDIT_DELETE_END,
     })
-    expect(STRUCTURE_EDIT_DELETE_END).toBe("Delete the loop instead")
+    expect(STRUCTURE_EDIT_DELETE_END).toBe("Delete the control node instead")
   })
 
   it("does nothing while a run is shown", () => {
@@ -445,10 +446,10 @@ describe("deleting a start node and an end", () => {
     expect(deleteSelection(graph(), { kind: "none" }, false)).toBeUndefined()
   })
 
-  it("tells loop end nodes from other ids", () => {
+  it("tells control end nodes from other ids", () => {
     const base = graph()
     expect(isEndNodeSelection(base, loopEndNodeId("lp"))).toBe(true)
-    expect(isEndNodeSelection(base, "end:gate")).toBe(false)
+    expect(isEndNodeSelection(base, structureEndNodeId("gate"))).toBe(true)
     expect(isEndNodeSelection(base, "lp")).toBe(false)
     expect(isEndNodeSelection(base, "ghost")).toBe(false)
     expect(loopIdFromEndNodeId(loopEndNodeId("lp"))).toBe("lp")

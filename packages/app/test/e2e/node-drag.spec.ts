@@ -90,18 +90,18 @@ test.describe("Node drag", () => {
     const before = await flowTranslate(page, "tick")
     expect(before).not.toBeNull()
 
-    const frameBefore = await page.getByTestId("ecp-frame-retry").boundingBox()
+    const tunnelBefore = await page.getByTestId("ecp-tunnel-retry-loop").boundingBox()
     await dragStepBy(page, "ecp-step-tick", 200)
     const after = await flowTranslate(page, "tick")
     expect(after).not.toBeNull()
     expect(Math.abs(after!.x - before!.x)).toBeGreaterThan(150)
-    const frameAfter = await page.getByTestId("ecp-frame-retry").boundingBox()
-    expect(frameAfter).not.toBeNull()
-    expect(frameBefore).not.toBeNull()
-    expect(frameAfter!.width).toBeGreaterThan(frameBefore!.width - 1)
+    const tunnelAfter = await page.getByTestId("ecp-tunnel-retry-loop").boundingBox()
+    expect(tunnelAfter).not.toBeNull()
+    expect(tunnelBefore).not.toBeNull()
+    expect(tunnelAfter!.width).toBeGreaterThan(tunnelBefore!.width - 1)
     const stepBox = await page.getByTestId("ecp-step-tick").boundingBox()
-    expect(stepBox!.x).toBeGreaterThanOrEqual(frameAfter!.x - 2)
-    expect(stepBox!.x + stepBox!.width).toBeLessThanOrEqual(frameAfter!.x + frameAfter!.width + 2)
+    expect(stepBox!.x).toBeGreaterThanOrEqual(tunnelAfter!.x - 2)
+    expect(stepBox!.x + stepBox!.width).toBeLessThanOrEqual(tunnelAfter!.x + tunnelAfter!.width + 2)
 
     await page.reload()
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
@@ -150,8 +150,8 @@ test.describe("Node drag", () => {
         return settled
       }, { timeout: 10_000, intervals: [100] })
       .toBe(true)
-    const clickX = paneBox!.x + paneBox!.width * 0.55
-    const clickY = paneBox!.y + paneBox!.height * 0.45
+    const clickX = paneBox!.x + paneBox!.width - 48
+    const clickY = paneBox!.y + paneBox!.height - 48
     await page.mouse.click(clickX, clickY, { button: "right" })
     await expect(page.getByTestId("capability-menu")).toBeVisible()
     await page.getByTestId("capability-menu-search").fill("echo")
