@@ -122,12 +122,12 @@ The separate `type: "forEach"` node and loop `throttle` are removed. See `realig
 
 ## Markers and node fields
 
-See `realignment/loops.md` for the full design.
+See `realignment/graph-model.md` for the full design.
 
 | Rule | Meaning |
 | --- | --- |
-| **R1** | **`$` marks a substitution in a value position** (`input`, `$script.params`, config `values`): `$ref`, `$state`, `$script` (and `$secret` / `$env` in config only). **Node fields are plain** — no `$` — including `uses`, `as`, `into`, step `mode`, loop `mode`, `if` / `end` `expression`, and a transform step's `script` object. |
-| **R2** | **Data reaches a node only through `$ref`, `$state`, or literals.** Computed outputs come from steps or a loop's `end` gather. `$script` in `input` is code passed as data, not a data transform. |
+| **R1** | **`$` marks a substitution in a value position** (`input`, `$script.params`, config `values`): `$ref`, `$state`, `$script` (and `$secret` / `$env` in config only). **Node fields are plain** — no `$` — including `uses`, `as`, step `mode`, loop `mode`, `if` `expression` / `script`, and a transform step's `script` object. |
+| **R2** | **Data reaches a node only through `$ref`, `$state`, or literals.** Computed outputs come from steps; values after a loop are arrays on body keys. `$script` in `input` is code passed as data, not a host transform. |
 
 | Marker | Shape | Resolves to | Allowed in |
 | --- | --- | --- | --- |
@@ -215,6 +215,6 @@ into a config object (05).
 ## Reference example
 
 `fixtures/manifests/valid/localize-banner.ecp.json` (written in Phase 0) uses every feature:
-accepts/returns, sequence, `$ref` with `optional`/`fallback`, `if`, `parallel`, loop
-(`while`, `for`, `forEach`) with `end`, all commit modes, `$state`, transforms with plain
+accepts/returns, sequence, `$ref` with `optional`/`fallback` and merge lists, `if`, `parallel`, loop
+(`for`, `forEach`), all commit modes, `$state`, transforms with plain
 `script` by `path` and by `source`, `$script` in `input`, and `config` on steps.

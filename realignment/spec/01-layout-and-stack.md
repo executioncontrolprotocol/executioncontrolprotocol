@@ -49,7 +49,7 @@ that fact.
 | `host` | `protocol`, `engine`, `quickjs`, `formatters`, `local` | Host process entry, HTTP API `Endpoint`, local token `Auth`, supervisor process entry, `host.json`, App static serving | Import `cli` or `mcp-relay` |
 | `mcp-relay` | `protocol`, `@modelcontextprotocol/sdk` | Stdio MCP server forwarding to the host API; host discovery and start | Import `engine` or run capabilities |
 | `cli` | `protocol`, `host` (for in-process mode and to locate entries), `mcp-relay`, `@oclif/core`, `@oclif/plugin-plugins`, `@oclif/plugin-help`, `@oclif/plugin-not-found` | oclif commands, host discovery, in-process fallback, plugin install hooks, secrets commands | Implement operation logic (it calls the engine through `host`'s in-process API or HTTP) |
-| `app` | `protocol`, `react`, `react-dom`, `@xyflow/react`, `@dagrejs/dagre`, `@monaco-editor/react` | Prebuilt web bundle served by `host` at `/app/` | Talk to anything but the host HTTP API |
+| `app` | `protocol`, `react`, `react-dom`, `@xyflow/react`, `@monaco-editor/react` | Prebuilt web bundle served by `host` at `/app/` | Talk to anything but the host HTTP API |
 | `plugin-*` | `plugin-sdk` (peer), `zod` (peer), focused SDKs | Capabilities | Import any package except `plugin-sdk`, `protocol` (types) and their own deps |
 
 Plugins declare `@executioncontrolprotocol/plugin-sdk` and `zod` as **peer dependencies** so a
@@ -72,7 +72,7 @@ plugin's install folder never carries its own copy and the registry never splits
 | @oclif/plugin-plugins | 5.5.2 (pinned) | Library for `ecp plugins install\|link\|…` only; not an oclif loaded plugin |
 | @napi-rs/keyring | 1.x | Same naming rules as legacy (`.cursor/rules/secrets-keyring.mdc`) |
 | @toon-format/toon | 2.x | TOON formatter |
-| React / @xyflow/react / dagre / Monaco | 19 / 12 / 1.x / latest | App only |
+| React / @xyflow/react / Monaco | 19 / 12 / latest | App only |
 | Playwright | as in repo | App e2e; use preinstalled browsers where available |
 
 ## TypeScript and build

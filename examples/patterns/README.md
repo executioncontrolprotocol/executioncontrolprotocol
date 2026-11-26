@@ -2,7 +2,7 @@
 
 Small executions that show each structure on its own and nested inside each other. They only use
 `@executioncontrolprotocol/test.echo`, so they run with `plugin-test` and nothing else. Open any of them in the
-App to see how containers look:
+App to see how tunnels look:
 
 ```sh
 ecp plugins link plugins/plugin-test
@@ -20,4 +20,4 @@ Pass `--input '{}'` (or your own values) so the `accepts` defaults apply.
 | `loop-for.ecp.json` | A `for` loop driven by `input.count` (`state.count`), with the index `i`; body keys leave the loop as arrays. |
 | `loop-foreach.ecp.json` | A `forEach` loop over `input.items` (`concurrency: 2`); body `as` keys are arrays after the loop. |
 | `nested-foreach-branch.ecp.json` | `forEach` → `if` → (`parallel` in `then`, `for` in `else`); read body keys as arrays after the loop. |
-| `nested-parallel.ecp.json` | `parallel` → path 1 holds an `if` → `for`; path 2 holds a `forEach` → `parallel`. Three containers deep on both paths. |
+| `nested-parallel.ecp.json` | `parallel` → path 1 holds an `if` → `for`; path 2 holds a `forEach` → `parallel`. Nested tunnels on both paths. |

@@ -12,8 +12,8 @@ into (`outputs[0].image.url`).
    expression on an edge. No placeholder nodes whose only job is to move a value into state.
 2. **Data edges are `$ref` only.** A step receives data from earlier outputs through `$ref` bindings, which are visible
    edges, typed, and checked by validation (L3).
-3. **Expressions drive control and gathers on nodes.** An `if` evaluates `expression` or `script` over its `input`
-   (boolean); a loop `end` may gather with `expression` or `script`. Expressions never reshape data on a branch.
+3. **Expressions drive control on nodes.** An `if` evaluates `expression` or `script` over its `input` (boolean).
+   Transforms reshape data; loops publish body keys as arrays. Expressions never reshape data on a branch.
 4. **Every node has a typed boundary** (`accepts` / `returns`). For a capability, the boundary is declared in the
    capability's own schema (`ecp.schema.json`) and never repeated in the workflow. A transform's contract depends on
    its use, so a transform step declares its own `accepts` / `returns`, the same way `execution.accepts` /

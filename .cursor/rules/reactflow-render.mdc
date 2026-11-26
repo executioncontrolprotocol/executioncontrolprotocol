@@ -7,15 +7,15 @@ alwaysApply: false
 # React Flow render
 
 Follow `packages/app/REACTFLOW_RENDER.md`. The App renders **execution manifests (v2)** with the
-graph model: nodes, branches, ports, containers — see `realignment/graph-model.md`.
+graph model: nodes, ports, branches, tunnels, drawn `end` terminals — see `realignment/graph-model.md`.
 
 Non-negotiables:
 
 - Published edges are **data** only. Layout `control` edges are stripped before publish.
-- **`if`**, **`parallel`**, **`loop`**, and control **`end`** (`end:<structureId>`) are React Flow nodes;
-  the App uses one control node component for the three starts; `end` has no ports.
-- Branches are drawn only for **`$ref`** bindings; resolve producers per C1 (inputs, `as`, loop item/index,
-  if/parallel scoped `as`, loop `into` from `end` `results`).
-- Data branches only (`$ref` / `$state`); structure nodes (`if` / `parallel` / `loop` / `end`) with ports; no legacy sequence-connector UI.
-- Tunnels (`ecp-tunnel`) outline branches and loop bodies with labelled tones (`then`, `else`, `path`,
-  `loop`). Tunnels are drawn after tree layout, not `parentId` in React Flow.
+- **`if`**, **`parallel`**, **`loop`**, and drawn **`end`** (`end:<controlId>`) are React Flow nodes;
+  the App uses one control node component (Kind: if · for each · for · parallel); `end` has no ports.
+- Branches are drawn only for **`$ref`** / **`$state`** bindings; resolve producers per C1 (inputs, step
+  `as`, loop `item` / `index`, `if` / `parallel` scoped `as`, merge-port `$ref` lists).
+- Data branches only; control nodes and steps with ports; no sequence-only connector UI.
+- Tunnels (`ecp-tunnel`) outline each control's lists with labelled tones (`then`, `else`, `path N`, loop
+  body). Sized after tree layout; not React Flow `parentId`.

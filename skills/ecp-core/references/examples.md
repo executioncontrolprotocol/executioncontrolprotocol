@@ -2,8 +2,8 @@
 
 Transforms move data between steps (`examples/transform/`, core plugin); transform `script` is a
 plain object (`lang`, `source`/`path`), not `{ "$script": … }`. An `if` node's `expression` or
-`script` is boolean control; a `while` loop repeats from `end.input.repeat` after each round.
-`for` and `forEach` bind drivers through loop `input` (`count` / `items`). Do not put `$expr` in
+`script` is boolean control over `input`. `for` and `forEach` bind drivers through loop `input`
+(`count` / `items`); body keys leave the loop as arrays. Do not put `$expr` in
 step `input`. Pattern manifests live under `examples/patterns/`.
 
 | Path | Role |

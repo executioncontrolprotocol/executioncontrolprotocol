@@ -7,8 +7,9 @@ This file matches the shipped MVP packages. Full decisions and diagrams live in
 ## Overview
 
 - **Executions** are JSON manifests (`@executioncontrolprotocol.execution`, version `2.0`):
-  capability steps with `if`, `parallel` and `loop` (`end`) nodes; conditions and gathers use
-  `expression` or `script` over each node's `input`. Executions never contain secrets or host config.
+  capability steps with `if`, `parallel` and `loop` (`for` / `forEach`) nodes; conditions and
+  transforms use `expression` or `script` over each node's `input`; loop body keys leave the loop as
+  arrays. Executions never contain secrets or host config.
 - **ECP host:** one restartable process with the engine (executor, validation, registry), a
   service container, plugins loaded in-process on first call, and a localhost HTTP API with
   three operations: `retrieve`, `execute`, `commit`. The host validates every capability call

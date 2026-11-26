@@ -42,7 +42,8 @@ Minimum fixture set (Phase 0 writes them; later phases add more):
   loop), `ECP_REF_PATH_INVALID` (with "did you mean"), `ECP_TYPE_MISMATCH`
   (number into string, object into string), `ECP_COMMIT_CONFLICT` (two `create`, `create` in
   loop, parallel paths same key), `ECP_RETURNS_UNRESOLVED`.
-- **Runs:** each node kind's semantics; `if` none-match (`side: null`); loop exhausted;
+- **Runs:** each node kind's semantics; `if` none-match (`side: null`); `for` / `forEach` array
+  outputs;
   parallel
   failure cancels siblings; each commit mode; `$state` staged writes discarded on failure;
   config + secret resolution and redaction; output invalid; step timeout; expr timeout; resume

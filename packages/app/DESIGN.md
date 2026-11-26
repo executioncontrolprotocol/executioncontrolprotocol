@@ -212,8 +212,9 @@ Square icon buttons (32×32) for secondary actions (e.g. Validate).
 
 ### Execution canvas
 
-- **Nodes:** `surface-container` cards with `outline-variant` border; selected/active nodes use `border-primary` and `glow-primary`.
-- **Edges:** 2px `primary` SVG paths at 60% opacity.
+- **Nodes:** `surface-container` cards with `outline-variant` border; selected/active nodes use `border-primary` and `glow-primary`. One **control** node (Kind: if · for each · for · parallel) starts each tunnel; a small **end** label closes it.
+- **Tunnels:** tinted backdrops behind `then` / `else` / path / loop lists (`ecp-tunnel`); not interactive.
+- **Edges:** 2px `primary` SVG paths at 60% opacity (data branches only).
 - **Canvas header:** Semi-transparent `surface-container-high/40` strip with uppercase `label-sm` title.
 - **Controls:** 40×40 floating buttons bottom-left with `shadow-lg`.
 
