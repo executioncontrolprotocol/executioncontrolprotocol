@@ -4,6 +4,7 @@ import type { RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
   addCapabilityStep,
+  addControlNode,
   executionToReactFlow,
   insertConnectedStep,
   placeWithOverrides,
@@ -19,6 +20,7 @@ import {
 } from "../../graph/index.js"
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
 import { retrieveItem } from "../../client/results.js"
+import { CONTROL_NODE_ENTRY_ID } from "../lib/group-capabilities.js"
 import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionRetrieveHook, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useExecutionEditor } from "../hooks/useExecutionEditor.js"
@@ -112,7 +114,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
     if (!workingManifest) return {}
     try {
-      return { document: executionToReactFlow(workingManifest, { capabilitySchemas: capabilities.schemas }) }
+      const capabilityMeta: Record<string, { contract?: "step"; code?: "script" | "expression" }> = {}
+      for (const [id, entry] of Object.entries(capabilities.byId)) {
+        if (entry.contract !== undefined || entry.code !== undefined) {
+          capabilityMeta[id] = { contract: entry.contract, code: entry.code }
+        }
+      }
+      return {
+        document: executionToReactFlow(workingManifest, {
+          capabilitySchemas: capabilities.schemas,
+          capabilityMeta,
+        }),
+      }
     } catch (error) {
       return { error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}` }
     }
@@ -318,6 +331,14 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       }
 
       void applyManifestEdit((current) => {
+        if (entry.id === CONTROL_NODE_ENTRY_ID || entry.controlNode) {
+          const result = addControlNode(current, request.placement)
+          if (result.ok) {
+            stepId = result.structureId
+            pinFlowPosition(result.structureId)
+          }
+          return result
+        }
         const result = addCapabilityStep(current, { id: entry.id }, request.placement)
         if (result.ok) {
           stepId = result.stepId

@@ -33,28 +33,28 @@ test.describe("Autosave and undo", () => {
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
   }
 
-  async function bumpLoopAs(page: Page): Promise<string> {
+  async function bumpForLoopCount(page: Page): Promise<number> {
     await page.getByTestId("ecp-loop-retry").click()
-    const field = page.getByTestId("loop-field-as")
+    const field = page.getByTestId("control-loop-driver-count-value")
     await expect(field).toBeVisible({ timeout: 10_000 })
-    const next = `round_${Date.now() % 10_000}`
-    await field.fill(next)
+    const next = (Date.now() % 5) + 2
+    await field.fill(String(next))
     await field.blur()
-    await expect.poll(() => readFileSync(loopPath, "utf8").includes(`"as": "${next}"`), { timeout: 15_000 }).toBe(true)
+    await expect.poll(() => readFileSync(loopPath, "utf8").includes(`"count": ${next}`), { timeout: 15_000 }).toBe(true)
     return next
   }
 
   test("loop field edit autosaves without Save control", async ({ page }) => {
     await open(page)
     await expect(page.getByTestId("edge-save")).toHaveCount(0)
-    await bumpLoopAs(page)
+    await bumpForLoopCount(page)
     await expect(page.getByTestId("save-status")).toHaveAttribute("data-state", "saved", { timeout: 15_000 })
   })
 
   test("undo and redo restore file contents", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(loopPath, "utf8")
-    await bumpLoopAs(page)
+    await bumpForLoopCount(page)
     await expect(page.getByTestId("canvas-undo")).toBeEnabled({ timeout: 10_000 })
     await page.getByTestId("canvas-undo").click()
     await expect
@@ -68,7 +68,7 @@ test.describe("Autosave and undo", () => {
     await open(page)
     const beforeText = readFileSync(loopPath, "utf8")
     await page.getByTestId("ecp-if-pick").click()
-    const condition = page.getByTestId("if-condition-text")
+    const condition = page.getByTestId("control-condition-text")
     await expect(condition).toBeVisible({ timeout: 10_000 })
     await condition.fill("input.expand === false")
     await condition.blur()
@@ -84,7 +84,7 @@ test.describe("Autosave and undo", () => {
   test("keyboard undo and redo on canvas", async ({ page }) => {
     await open(page)
     const beforeText = readFileSync(loopPath, "utf8")
-    await bumpLoopAs(page)
+    await bumpForLoopCount(page)
     await page.locator(".react-flow__pane").click()
     await page.keyboard.press(`${mod}+KeyZ`)
     await expect

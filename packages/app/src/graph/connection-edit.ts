@@ -1,4 +1,4 @@
-import type { ExecutionManifest, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
 import { OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
 import {
@@ -11,8 +11,12 @@ import {
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_ORDER,
   CONNECTION_EDIT_SELF,
+  scopeForStateRef,
+  sourceScope,
   sourceVisibleTo,
 } from "./read-order.js"
+import { analyseMergePort } from "./merge-port-scope.js"
+import { addInputPort, uniquePortIdFromSource } from "./port-edit.js"
 import { firstMatchingPort } from "./port-compat.js"
 import {
   flattenJsonSchemaProperties,
@@ -21,6 +25,7 @@ import {
 import { typeLabelFromSchema, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
 import type { ReactFlowPort } from "./types.js"
 import {
+  EMPTY_INPUT_PORT_ID,
   LOOP_COLLECT_HANDLE,
   LOOP_COUNT_HANDLE,
   LOOP_INDEX_HANDLE,
@@ -354,6 +359,9 @@ export {
 
 export const CONNECTION_EDIT_INCOMPATIBLE = "Those ports are not compatible"
 
+/** Same wording as validation {@link ECP_REF_AMBIGUOUS}. @category App */
+export const CONNECTION_EDIT_REF_AMBIGUOUS = "Merge port refs are not on opposite sides of the same if."
+
 /**
  * Target of a data-port connection in the manifest.
  * @category App
@@ -552,10 +560,31 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
     return { ok: false, reason: CONNECTION_EDIT_ORDER }
   }
 
-  const next = cloneManifest(manifest)
+  let next = cloneManifest(manifest)
+  let targetHandle = target.targetHandle
+
+  if (targetHandle === EMPTY_INPUT_PORT_ID) {
+    const sourcePortName = target.sourceHandle === OUTPUT_HANDLE_ID ? "output" : target.sourceHandle.split(".").pop() ?? "input"
+    const placement = findNodePlacement(next.steps, target.targetStepId)
+    if (!placement) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+    const holder = placement.node
+    if (holder.type !== "if" && holder.type !== "parallel" && !isStepNode(holder)) {
+      return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    }
+    if (isStepNode(holder) && holder.accepts === undefined) {
+      return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    }
+    const portId = uniquePortIdFromSource(next, holder as IfNode | ParallelNode | StepNode, sourcePortName)
+    const schema = { type: "string" }
+    const added = addInputPort(next, target.targetStepId, portId, schema)
+    if (!added.ok) return added
+    next = added.manifest
+    targetHandle = portId
+  }
+
   const inputTarget = resolveInputTarget(next, target.targetStepId)
   if (!inputTarget) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  if (!targetHandleAllowed(inputTarget, target.targetHandle)) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+  if (!targetHandleAllowed(inputTarget, targetHandle)) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
 
   const sourceHit = findStepPlacement(next.steps, target.sourceNodeId)
   let sourceStep = sourceHit ? (sourceHit.parent[sourceHit.index] as StepNode) : undefined
@@ -569,14 +598,32 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
   if (typeof refResult !== "string") return refResult
 
   const input = structuredClone(inputTarget.holder.input ?? {}) as Record<string, unknown>
-  const existing = readInputAtPath(input, target.targetHandle)
+  const existing = readInputAtPath(input, targetHandle)
   if (isRefMarker(existing)) {
+    if (inputTarget.kind === "loop") {
+      assignInputPath(input, targetHandle, { $ref: refResult })
+      inputTarget.holder.input = input
+      return { ok: true, manifest: next }
+    }
     const paths = refPathsFromValue(existing) ?? []
     if (paths.includes(refResult)) return { ok: true, manifest: next }
-    const merged = [...paths, refResult]
-    assignInputPath(input, target.targetHandle, { $ref: merged.length === 1 ? merged[0]! : merged })
+    const scopes = paths
+      .map((path) => scopeForStateRef(next, path))
+      .filter((scope): scope is NonNullable<typeof scope> => scope !== undefined)
+    const incoming = sourceScope(next, { nodeId: target.sourceNodeId, handleId: target.sourceHandle })
+    if (incoming) scopes.push(incoming)
+    if (paths.length === 1) {
+      if (analyseMergePort(scopes).valid) {
+        assignInputPath(input, targetHandle, { $ref: [paths[0]!, refResult] })
+      } else {
+        return { ok: false, reason: CONNECTION_EDIT_REF_AMBIGUOUS }
+      }
+    } else {
+      if (!analyseMergePort(scopes).valid) return { ok: false, reason: CONNECTION_EDIT_REF_AMBIGUOUS }
+      assignInputPath(input, targetHandle, { $ref: [...paths, refResult] })
+    }
   } else {
-    assignInputPath(input, target.targetHandle, { $ref: refResult })
+    assignInputPath(input, targetHandle, { $ref: refResult })
   }
   inputTarget.holder.input = input
   return { ok: true, manifest: next }

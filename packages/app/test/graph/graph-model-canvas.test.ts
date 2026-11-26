@@ -124,15 +124,16 @@ describe("drawing a branch into a start node or an end", () => {
     expect(node<ParallelNode>(next, "fan").input).toEqual({ keep: 1, doc: { $ref: "state.src.text" } })
   })
 
-  it("binds Inputs to an if, a parallel and the loop driver", () => {
+  it("binds Inputs to an if, a parallel, and the loop driver", () => {
     const base = graph()
     const withIf = ok(connect(base, EXECUTION_ACCEPTS_NODE_ID, "mode", "gate", "mode"))
     expect(node<IfNode>(withIf, "gate").input).toEqual({ mode: { $ref: "state.mode" } })
     const withParallel = ok(connect(base, EXECUTION_ACCEPTS_NODE_ID, "doc", "fan", "doc"))
     expect(node<ParallelNode>(withParallel, "fan").input).toEqual({ doc: { $ref: "state.doc" } })
     const withDriver = ok(connect(base, EXECUTION_ACCEPTS_NODE_ID, "files", "lp", LOOP_ITEMS_HANDLE))
-    expect(node<LoopNode>(withDriver, "lp").input).toEqual({ items: { $ref: ["state.xs", "state.files"] } })
+    expect(node<LoopNode>(withDriver, "lp").input).toEqual({ items: { $ref: "state.files" } })
   })
+
 
   it("binds a step output to the loop count driver of a for loop", () => {
     const base = manifestOf(step("src"), {

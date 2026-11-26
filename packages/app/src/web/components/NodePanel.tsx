@@ -3,7 +3,6 @@ import { AlertTriangle, Box, FileCode2 } from "lucide-react"
 import type {
   CapabilityEntry,
   ExecutionManifest,
-  LoopNode,
   Node,
   ScriptDescriptor,
   StepNode,
@@ -17,15 +16,9 @@ import {
 import { scriptTextFromRetrieve } from "../../client/document-state.js"
 import {
   collectSteps,
-  setLoopDriver,
-  setLoopField,
-  setLoopLabel,
-  setLoopMode,
   type AddStepPlacement,
-  type LoopMode,
   type ReactFlowIoData,
   type ReactFlowNode,
-  type ReactFlowLoopItemsData,
   type ReactFlowPort,
   type ReactFlowStepData,
   type RunGraphLoop,
@@ -35,15 +28,8 @@ import {
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 import type { EditorApplyRequest } from "../hooks/useExecutionEditor.js"
-import {
-  BindingList,
-  EditError,
-  IssueList,
-  SelectField,
-  TextField,
-  usePanelEditor,
-} from "./panel-fields.js"
-import { EndPanel, IfPanel, ParallelPanel } from "./StructureNodePanels.js"
+import { EndPanel } from "./StructureNodePanels.js"
+import { ControlNodePanel } from "./ControlNodePanel.js"
 
 /**
  * Props for {@link NodePanel}.
@@ -92,38 +78,6 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   return steps.find((step) => step.id === id)
 }
 
-function findLoop(manifest: ExecutionManifest | undefined, id: string): LoopNode | undefined {
-  if (!manifest) return undefined
-  const walk = (nodes: Node[]): LoopNode | undefined => {
-    for (const node of nodes) {
-      if (node.type === "loop" && node.id === id) return node
-      if (node.type === "parallel") {
-        for (const line of node.paths) {
-          const hit = walk(line)
-          if (hit) return hit
-        }
-      } else if (node.type === "if") {
-        const hitThen = walk(node.then)
-        if (hitThen) return hitThen
-        if (node.else) {
-          const hitElse = walk(node.else)
-          if (hitElse) return hitElse
-        }
-      } else if (node.type === "loop") {
-        const hit = walk(node.steps)
-        if (hit) return hit
-      }
-    }
-    return undefined
-  }
-  if (Array.isArray(manifest.steps)) {
-    const hit = walk(manifest.steps)
-    if (hit) return hit
-  }
-  if (Array.isArray(manifest.detached)) return walk(manifest.detached)
-  return undefined
-}
-
 function patchStep(
   manifest: ExecutionManifest,
   stepId: string,
@@ -144,130 +98,6 @@ function patchStep(
       return node
     })
   return { ...manifest, steps: walk(manifest.steps) }
-}
-
-type LoopFieldKey = "as" | "concurrency" | "onError"
-
-const LOOP_MODES = ["forEach", "for"] as const
-
-function LoopItemsPanel({
-  node,
-  data,
-  manifest,
-  issues,
-  loopRun,
-  loopRound,
-  readOnly = false,
-  applyManifestEdit,
-  scheduleTextEdit,
-  flushTextEdit,
-  fieldEpoch = 0,
-}: {
-  node: ReactFlowNode
-  data: ReactFlowLoopItemsData
-  manifest?: ExecutionManifest
-  issues: ValidationIssue[]
-  loopRun?: RunGraphLoopItems
-  loopRound?: RunGraphLoop
-  readOnly: boolean
-  applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
-  scheduleTextEdit?: (request: EditorApplyRequest) => void
-  flushTextEdit?: () => void
-  fieldEpoch?: number
-}) {
-  const editor = usePanelEditor({ manifest, readOnly, fieldEpoch, applyManifestEdit, scheduleTextEdit, flushTextEdit })
-  const source = findLoop(manifest, node.id)
-  const mode = source?.mode ?? data.controlKind ?? "for"
-  const driverKey = mode === "forEach" ? "items" : "count"
-  const field = (name: LoopFieldKey, value: string | number) => (current: ExecutionManifest) =>
-    setLoopField(current, node.id, name, value)
-
-  return (
-    <section data-testid="node-panel" data-node-id={node.id} data-node-kind="loop" className="space-y-4">
-      <header className="space-y-1">
-        <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-on-surface">
-          <Box className="h-4 w-4 text-primary" aria-hidden="true" />
-          {data.label}
-        </h3>
-        <p className="text-[12px] text-on-surface-variant">Loop ({mode} mode).</p>
-      </header>
-      <div className="space-y-1.5">
-        <Row label="Kind">loop</Row>
-        <Row label="Id">{node.id}</Row>
-        <Row label="Mode">{mode}</Row>
-      </div>
-      <div key={`${node.id}-${fieldEpoch}`} className="space-y-3 border-t border-outline-variant pt-3">
-        <TextField
-          label="Label"
-          testId="loop-field-label"
-          value={source?.label ?? ""}
-          editor={editor}
-          onType={(next) => editor.type("Loop label", (current) => setLoopLabel(current, node.id, next))}
-          onCommit={(next) => editor.commit("Loop label", (current) => setLoopLabel(current, node.id, next))}
-        />
-        <SelectField
-          label="Mode"
-          testId="loop-field-mode"
-          value={mode}
-          options={LOOP_MODES}
-          editor={editor}
-          onChoose={(next) => editor.choose("Loop mode", (current) => setLoopMode(current, node.id, next as LoopMode))}
-        />
-        {driverKey ? (
-          <BindingList
-            key={driverKey}
-            title={driverKey === "items" ? "Items" : "Count"}
-            testId="loop-driver"
-            ports={[{ name: driverKey, typeLabel: driverKey === "items" ? "array" : "integer" }]}
-            input={source?.input}
-            editor={editor}
-            onBind={(_key, binding) => (current) => setLoopDriver(current, node.id, binding)}
-            fixedKeys
-          />
-        ) : null}
-        <TextField
-          label="As"
-          testId="loop-field-as"
-          value={source?.as ?? data.as ?? ""}
-          editor={editor}
-          onType={(next) => editor.type("Loop as", field("as", next))}
-          onCommit={(next) => editor.commit("Loop as", field("as", next))}
-        />
-        {mode === "forEach" ? (
-          <>
-            <TextField
-              label="Concurrency"
-              testId="loop-field-concurrency"
-              type="number"
-              value={String(source?.concurrency ?? data.concurrency ?? 1)}
-              editor={editor}
-              onType={(next) => editor.type("Loop concurrency", field("concurrency", Number.parseInt(next, 10)))}
-              onCommit={(next) => editor.commit("Loop concurrency", field("concurrency", Number.parseInt(next, 10)))}
-            />
-            <SelectField
-              label="On error"
-              testId="loop-field-on-error"
-              value={source?.onError ?? data.onError ?? "fail"}
-              options={["fail", "continue"]}
-              editor={editor}
-              onChoose={(next) => editor.choose("Loop onError", field("onError", next))}
-            />
-          </>
-        ) : null}
-        <EditError editor={editor} testId="loop-field-error" />
-      </div>
-      <div className="space-y-1.5">
-        {loopRun ? (
-          <Row label="Progress">
-            {loopRun.done} / {loopRun.count}
-            {loopRun.failed > 0 ? ` (${loopRun.failed} failed)` : ""}
-          </Row>
-        ) : null}
-        {loopRound ? <Row label="Round">{loopRound.round + 1}</Row> : null}
-      </div>
-      <IssueList issues={issues} />
-    </section>
-  )
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -662,8 +492,8 @@ export function NodePanel({
   capability,
   issues,
   runStep,
-  runLoopItems,
-  runLoop,
+  runLoopItems: _runLoopItems,
+  runLoop: _runLoop,
   reloadKey,
   onUnauthorized,
   readOnly = false,
@@ -688,10 +518,9 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
-  if (node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end") {
-    const Panel = node.type === "ecp-if" ? IfPanel : node.type === "ecp-parallel" ? ParallelPanel : EndPanel
+  if (node.type === "ecp-end") {
     return (
-      <Panel
+      <EndPanel
         node={node}
         issues={issues}
         manifest={manifest}
@@ -704,20 +533,18 @@ export function NodePanel({
       />
     )
   }
-  if (node.type === "ecp-loop") {
+  if (node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop") {
     return (
-      <LoopItemsPanel
+      <ControlNodePanel
         node={node}
-        data={node.data as ReactFlowLoopItemsData}
-        manifest={manifest}
         issues={issues}
-        loopRun={runLoopItems}
-        loopRound={runLoop}
+        manifest={manifest}
         readOnly={readOnly}
+        fieldEpoch={fieldEpoch}
         applyManifestEdit={applyManifestEdit}
         scheduleTextEdit={scheduleTextEdit}
         flushTextEdit={flushTextEdit}
-        fieldEpoch={fieldEpoch}
+        onOpenCapabilityMenu={onOpenCapabilityMenu}
       />
     )
   }

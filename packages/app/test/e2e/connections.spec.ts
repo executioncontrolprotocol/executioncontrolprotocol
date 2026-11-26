@@ -68,12 +68,11 @@ test.describe("Connections and edge menus", () => {
     }, { timeout: 15_000 }).toBe(true)
   })
 
-  test("for loop panel shows count driver and as", async ({ page }) => {
+  test("for loop panel shows count driver and kind", async ({ page }) => {
     await open(page, loopForPath)
     await page.getByTestId("ecp-loop-rounds").click()
-    await expect(page.getByTestId("loop-field-as")).toBeVisible()
-    await expect(page.getByTestId("loop-driver")).toBeVisible()
-    await expect(page.getByTestId("loop-field-mode")).toBeVisible()
+    await expect(page.getByTestId("control-loop-driver")).toBeVisible()
+    await expect(page.getByTestId("control-field-kind")).toBeVisible()
   })
 
   test("read-only edge menu offers Configure only", async ({ page }) => {
@@ -103,7 +102,7 @@ test.describe("Connections and edge menus", () => {
     await open(page, branchLoopPath)
     const before = readFileSync(branchLoopPath, "utf8")
     await page.getByTestId("ecp-loop-retry").click()
-    await page.getByTestId("loop-field-mode").selectOption("forEach")
+    await page.getByTestId("control-field-kind").selectOption("forEach")
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "forEach"')
     const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
       steps: Array<{ id?: string; as?: string; mode?: string; input?: { count?: unknown; items?: unknown } }>
@@ -119,12 +118,12 @@ test.describe("Connections and edge menus", () => {
   test("the if panel binds an input and a branch appears", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-if-pick").click()
-    await page.getByTestId("if-inputs-new-key").fill("who")
-    await page.getByTestId("if-inputs-add").click()
+    await page.getByTestId("control-inputs-new-key").fill("who")
+    await page.getByTestId("control-inputs-add").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"who": ""')
-    const mode = page.getByTestId("if-inputs-who-mode")
+    const mode = page.getByTestId("control-inputs-who-mode")
     await mode.selectOption("ref")
-    const value = page.getByTestId("if-inputs-who-value")
+    const value = page.getByTestId("control-inputs-who-value")
     await value.fill("state.message")
     await value.blur()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"$ref": "state.message"')

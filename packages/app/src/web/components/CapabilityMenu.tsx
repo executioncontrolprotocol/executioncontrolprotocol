@@ -10,6 +10,7 @@ import {
 } from "../lib/capability-search.js"
 import {
   capabilityShortName,
+  CORE_GROUP_ID,
   groupCapabilities,
   type CapabilityMenuEntry,
 } from "../lib/group-capabilities.js"
@@ -133,6 +134,8 @@ export function CapabilityMenu({ client, request, onClose, onPick }: CapabilityM
               id: entry.id,
               plugin: entry.plugin,
               summary: typeof entry.summary === "string" ? entry.summary : "",
+              ...(entry.contract !== undefined ? { contract: entry.contract } : {}),
+              ...(entry.code !== undefined ? { code: entry.code } : {}),
             })),
           )
           setLoading(false)
@@ -150,8 +153,28 @@ export function CapabilityMenu({ client, request, onClose, onPick }: CapabilityM
   }, [client, query])
 
   useEffect(() => {
-    setActiveIndex(0)
-  }, [flat])
+    const trimmed = query.trim().toLowerCase()
+    if (trimmed.length === 0) {
+      setActiveIndex(0)
+      return
+    }
+    let best = 0
+    let bestScore = -1
+    for (let index = 0; index < flat.length; index += 1) {
+      const entry = flat[index]!
+      const short = capabilityShortName(entry.id).toLowerCase()
+      const id = entry.id.toLowerCase()
+      let score = 0
+      if (short === trimmed) score = 100
+      else if (short.startsWith(trimmed)) score = 80
+      else if (id.includes(trimmed)) score = 50
+      if (score > bestScore) {
+        bestScore = score
+        best = index
+      }
+    }
+    setActiveIndex(bestScore >= 0 ? best : 0)
+  }, [flat, query])
 
   const pickAt = (index: number) => {
     const entry = flat[index]
@@ -170,7 +193,27 @@ export function CapabilityMenu({ client, request, onClose, onPick }: CapabilityM
       setActiveIndex((current) => Math.max(current - 1, 0))
     } else if (event.key === "Enter") {
       event.preventDefault()
-      pickAt(activeIndex)
+      const trimmed = query.trim().toLowerCase()
+      if (trimmed.length === 0) {
+        pickAt(activeIndex)
+        return
+      }
+      let best = activeIndex
+      let bestScore = -1
+      for (let index = 0; index < flat.length; index += 1) {
+        const entry = flat[index]!
+        const short = capabilityShortName(entry.id).toLowerCase()
+        const id = entry.id.toLowerCase()
+        let score = 0
+        if (short === trimmed) score = 100
+        else if (short.startsWith(trimmed)) score = 80
+        else if (id.includes(trimmed)) score = 50
+        if (score > bestScore) {
+          bestScore = score
+          best = index
+        }
+      }
+      pickAt(bestScore >= 0 ? best : activeIndex)
     } else if (event.key === "Escape") {
       event.preventDefault()
       onClose()
@@ -207,7 +250,12 @@ export function CapabilityMenu({ client, request, onClose, onPick }: CapabilityM
         ) : null}
         {groups.map((group) => (
           <div key={group.plugin} role="group" data-testid={`capability-menu-group-${group.plugin}`}>
-            <p className="px-3 pb-0.5 pt-1.5 font-mono text-[10px] uppercase text-on-surface-variant">{group.plugin}</p>
+            <p
+              className="px-3 pb-0.5 pt-1.5 font-mono text-[10px] uppercase text-on-surface-variant"
+              data-testid={group.plugin === CORE_GROUP_ID ? "capability-menu-group-core" : undefined}
+            >
+              {group.plugin}
+            </p>
             {group.entries.map((entry) => {
               rowIndex += 1
               const index = rowIndex

@@ -25,4 +25,25 @@ describe("analyseMergePort", () => {
       ]),
     ).toEqual({ valid: true, definite: false })
   })
+
+  it("rejects a single scope", () => {
+    expect(analyseMergePort([[ifSide("g", "then")]])).toEqual({ valid: false, definite: false })
+  })
+
+  it("rejects unrelated scopes with no shared separator", () => {
+    expect(analyseMergePort([[ifSide("a", "then")], [ifSide("b", "else")]])).toEqual({ valid: false, definite: false })
+  })
+
+  it("covers nested inner if branches for definite merge", () => {
+    const left: ScopeSegment[] = [
+      { kind: "if", id: "outer", side: "then" },
+      { kind: "if", id: "inner", side: "then" },
+    ]
+    const rightThen: ScopeSegment[] = [
+      { kind: "if", id: "outer", side: "then" },
+      { kind: "if", id: "inner", side: "else" },
+    ]
+    const rightElse: ScopeSegment[] = [{ kind: "if", id: "outer", side: "else" }]
+    expect(analyseMergePort([left, rightThen, rightElse])).toMatchObject({ valid: true, definite: true })
+  })
 })

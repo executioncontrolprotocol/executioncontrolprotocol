@@ -148,6 +148,17 @@ describe("operations", () => {
     expect(query.ok).toBe(true)
     if (query.ok && "items" in query.data) expect(query.data.items.length).toBeGreaterThan(0)
 
+    const list = await host.operations.retrieve({ type: "capability", limit: 50 })
+    expect(list.ok).toBe(true)
+    if (list.ok && "items" in list.data) {
+      const echoRow = list.data.items.find((row) => row.id.includes("echo"))
+      expect(echoRow?.plugin).toBeTruthy()
+      if (list.data.items.some((row) => row.contract === "step" && row.code === "script")) {
+        const scriptStep = list.data.items.find((row) => row.contract === "step" && row.code === "script")
+        expect(scriptStep?.code).toBe("script")
+      }
+    }
+
     const executions = await host.operations.retrieve({ type: "execution", query: "echo" })
     expect(executions.ok).toBe(true)
 

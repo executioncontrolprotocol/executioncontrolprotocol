@@ -1,6 +1,7 @@
 import type { Node } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
 import { isStepNode } from "./io-from-schema.js"
+import { parseStateRef } from "./extract-data-edges.js"
 import {
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
@@ -21,7 +22,11 @@ export interface ConnectionSource {
   handleId: string
 }
 
-interface ScopeSegment {
+/**
+ * Scope segment for merge-port validation (exported for connection edits).
+ * @category App
+ */
+export interface ScopeSegment {
   kind: "parallel" | "if" | "loop"
   id: string
   side?: "then" | "else"
@@ -204,3 +209,71 @@ export const CONNECTION_EDIT_SELF = "A node cannot read its own output"
  * @category App
  */
 export const CONNECTION_EDIT_HANDLE = "That port cannot be connected"
+
+/**
+ * Scope chain for a branch source, used by merge-port validation.
+ * @category App
+ */
+export function sourceScope(manifest: { steps: Node[] }, source: ConnectionSource): ScopeSegment[] | undefined {
+  const index = walkIndex(manifest.steps)
+
+  if (source.nodeId === EXECUTION_ACCEPTS_NODE_ID) return []
+
+  const container = index.structures.get(source.nodeId)
+  if (container?.kind === "if") {
+    const side =
+      source.handleId === IF_THEN_HANDLE ? "then" : source.handleId === IF_ELSE_HANDLE ? "else" : undefined
+    if (!side) return undefined
+    return [...container.scope, { kind: "if", id: container.id, side }]
+  }
+  if (container?.kind === "parallel" && source.handleId.startsWith(PARALLEL_PATH_HANDLE_PREFIX)) {
+    const pathIndex = Number.parseInt(source.handleId.slice(PARALLEL_PATH_HANDLE_PREFIX.length), 10) - 1
+    if (!Number.isInteger(pathIndex) || pathIndex < 0) return undefined
+    return [...container.scope, { kind: "parallel", id: container.id, index: pathIndex }]
+  }
+
+  const writer = index.readers.get(source.nodeId)
+  return writer?.scope
+}
+
+/**
+ * Scope chain for a writer identified by a `state.<as>[.<path>]` ref string.
+ * @category App
+ */
+export function scopeForStateRef(manifest: { steps: Node[] }, rawRef: string): ScopeSegment[] | undefined {
+  const parsed = parseStateRef(rawRef.startsWith("state.") ? rawRef : `state.${rawRef}`)
+  if (!parsed) return undefined
+  const index = walkIndex(manifest.steps)
+  for (const [nodeId, entry] of index.readers) {
+    const hit = findNodeInTree(manifest.steps, nodeId)
+    if (!hit) continue
+    const node = hit
+    const asKey =
+      isStepNode(node) && node.as === parsed.asKey
+        ? parsed.asKey
+        : (node.type === "if" || node.type === "parallel") && node.as === parsed.asKey
+          ? parsed.asKey
+          : undefined
+    if (asKey) return entry.scope
+  }
+  return undefined
+}
+
+function findNodeInTree(nodes: Node[], id: string): Node | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    if (node.type === "if") {
+      const hit = findNodeInTree([...node.then, ...(node.else ?? [])], id)
+      if (hit) return hit
+    } else if (node.type === "parallel") {
+      for (const path of node.paths) {
+        const hit = findNodeInTree(path, id)
+        if (hit) return hit
+      }
+    } else if (node.type === "loop") {
+      const hit = findNodeInTree(node.steps, id)
+      if (hit) return hit
+    }
+  }
+  return undefined
+}

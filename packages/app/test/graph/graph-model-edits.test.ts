@@ -11,6 +11,7 @@ import {
   setLoopField,
   unwrapStructure,
   wrapSteps,
+  EMPTY_INPUT_PORT_ID,
   LOOP_ITEM_HANDLE,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
@@ -63,7 +64,7 @@ describe("graph model encoder branches", () => {
     const fan = doc.nodes.find((n) => n.id === "fan")
     const outputs = (fan!.data as { outputs: Array<{ id: string }> }).outputs
     expect(outputs.some((p) => p.id.startsWith("path-"))).toBe(true)
-    expect((fan!.data as { inputs: unknown[] }).inputs).toEqual([])
+    expect((fan!.data as { inputs: Array<{ id: string }> }).inputs.map((port) => port.id)).toEqual([EMPTY_INPUT_PORT_ID])
   })
 
   it("for loop after step can read the last body commit", () => {

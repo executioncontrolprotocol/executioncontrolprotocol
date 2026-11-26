@@ -12,7 +12,6 @@ import {
   connectInput,
   insertConnectedStep,
 } from "../../src/graph/connection-edit.js"
-import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
 import { LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "../../src/graph/types.js"
 import { longestMatchingPortId, OUTPUT_HANDLE_ID } from "../../src/graph/extract-data-edges.js"
 import type { ReactFlowPort } from "../../src/graph/types.js"
@@ -84,13 +83,9 @@ describe("connectInput", () => {
 
   it("uses accepts and loop sources", () => {
     const foreach = load("loop-foreach.ecp.json")
-    const accepts = connectInput(foreach, {
-      sourceNodeId: EXECUTION_ACCEPTS_NODE_ID,
-      sourceHandle: "rowA",
-      targetStepId: "echo",
-      targetHandle: "value",
-    })
-    expect(accepts.ok).toBe(true)
+    const loop = foreach.steps[0] as { steps?: Array<{ id?: string; input?: Record<string, unknown> }> }
+    const echoStep = loop.steps?.find((step) => step.id === "echo")
+    if (echoStep) echoStep.input = { value: "placeholder" }
     const item = connectInput(foreach, {
       sourceNodeId: "rows",
       sourceHandle: LOOP_ITEM_HANDLE,

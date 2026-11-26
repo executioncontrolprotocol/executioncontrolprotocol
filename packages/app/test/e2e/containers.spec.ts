@@ -105,7 +105,7 @@ test.describe("Containers and menus", () => {
     await page.getByTestId("canvas-menu-item-wrap-if").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
     await page.getByTestId("ecp-if-if-1").click()
-    const condition = page.getByTestId("if-condition-text")
+    const condition = page.getByTestId("control-condition-text")
     await expect(condition).toBeVisible()
     await condition.fill("input.go === 1")
     await condition.blur()
@@ -119,14 +119,14 @@ test.describe("Containers and menus", () => {
   test("the condition switches between expression and script", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-if-pick").click()
-    await page.getByTestId("if-condition-form-script").click()
+    await page.getByTestId("control-condition-form-script").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"source": "return input.expand === true"')
     const pickNode = () =>
       (JSON.parse(readFileSync(branchLoopPath, "utf8")) as { steps: Array<{ id?: string; expression?: string }> }).steps.find(
         (node) => node.id === "pick",
       )
     expect(pickNode()?.expression).toBeUndefined()
-    await page.getByTestId("if-condition-form-expression").click()
+    await page.getByTestId("control-condition-form-expression").click()
     await expect.poll(() => pickNode()?.expression).toBe("input.expand === true")
   })
 
@@ -153,7 +153,7 @@ test.describe("Containers and menus", () => {
   test("changing the loop mode rewrites the fields and the file validates", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-loop-retry").click()
-    await page.getByTestId("loop-field-mode").selectOption("for")
+    await page.getByTestId("control-field-kind").selectOption("for")
     await expect
       .poll(() => {
         const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {

@@ -11,6 +11,7 @@ import {
   STRUCTURE_EDIT_EMPTY_STEPS,
   STRUCTURE_EDIT_PARALLEL_MIN,
   STRUCTURE_EDIT_STEP_NOT_FOUND,
+  addControlNode,
   deleteStep,
   removeStructure,
   setLoopField,
@@ -288,5 +289,76 @@ describe("wrapping pattern examples validates", () => {
     const result = wrapSteps(branch, ["start", "by-tier"], "parallel")
     if (!result.ok) throw new Error(result.reason)
     expect(await errors(result.manifest)).toEqual([])
+  })
+
+  it("addControlNode inserts an if at the top", () => {
+    const base = load("smallest.ecp.json")
+    const result = addControlNode(base, { kind: "top", after: "echo" })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const inserted = result.manifest.steps.find((node) => node.id === result.structureId)
+    expect(inserted?.type).toBe("if")
+    expect(inserted?.type === "if" && inserted.expression).toBe("true")
+  })
+
+  it("addControlNode supports tunnel placements and refuses bad anchors", () => {
+    const echo = "@executioncontrolprotocol/test.echo"
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "seed", uses: echo, as: "seed" },
+        {
+          type: "if",
+          id: "gate",
+          expression: "true",
+          then: [{ id: "t", uses: echo, as: "t" }],
+          else: [{ id: "e", uses: echo, as: "e" }],
+        },
+        {
+          type: "parallel",
+          id: "p",
+          paths: [
+            [{ id: "a", uses: echo, as: "a" }],
+            [{ id: "b", uses: echo, as: "b" }],
+          ],
+        },
+        { type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [{ id: "body", uses: echo, as: "body" }] },
+      ],
+    }
+    const push = addControlNode(manifest, { kind: "top" })
+    expect(push.ok).toBe(true)
+    if (!push.ok) return
+    expect(push.manifest.steps.at(-1)?.type).toBe("if")
+
+    const thenSide = addControlNode(manifest, { kind: "then-side", ifId: "gate" })
+    expect(thenSide.ok).toBe(true)
+    if (thenSide.ok) {
+      const gate = thenSide.manifest.steps[1]!
+      expect(gate.type === "if" && gate.then[0]?.type).toBe("if")
+    }
+
+    const elseSide = addControlNode(manifest, { kind: "else-side", ifId: "gate" })
+    expect(elseSide.ok).toBe(true)
+    if (elseSide.ok) {
+      const gate = elseSide.manifest.steps[1]!
+      expect(gate.type === "if" && gate.else?.[0]?.type).toBe("if")
+    }
+
+    const pathSide = addControlNode(manifest, { kind: "path-side", parallelId: "p", pathIndex: 1 })
+    expect(pathSide.ok).toBe(true)
+
+    const loopBody = addControlNode(manifest, { kind: "loop-body", loopId: "l" })
+    expect(loopBody.ok).toBe(true)
+
+    const before = addControlNode(manifest, { kind: "before", nodeId: "t" })
+    expect(before.ok).toBe(true)
+
+    const after = addControlNode(manifest, { kind: "after", nodeId: "t" })
+    expect(after.ok).toBe(true)
+
+    expect(addControlNode(manifest, { kind: "top", after: "missing" })).toMatchObject({ ok: false })
+    expect(addControlNode(manifest, { kind: "loop-body", loopId: "gate" })).toMatchObject({ ok: false })
+    expect(addControlNode(manifest, { kind: "path-side", parallelId: "p", pathIndex: 9 })).toMatchObject({ ok: false })
   })
 })

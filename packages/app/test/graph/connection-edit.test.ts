@@ -9,6 +9,8 @@ import {
   attachAfter,
   CONNECTION_EDIT_INSIDE,
   CONNECTION_EDIT_NOT_BINDING,
+  CONNECTION_EDIT_REF_AMBIGUOUS,
+  connectInput,
   connectorDeletePreview,
   deleteConnector,
   deleteParallelLine,
@@ -543,6 +545,120 @@ describe("connection-edit", () => {
     if (result.ok) {
       expect(result.manifest.detached?.map((n) => n.id)).toEqual(["D"])
     }
+  })
+
+  it("connectInput on empty port adds accepts and binds in one edit", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "w", uses: "@executioncontrolprotocol/test.echo", input: { value: "w" }, as: "w" },
+        {
+          type: "if",
+          id: "g",
+          expression: "true",
+          then: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "x" }],
+        },
+      ],
+    }
+    const result = connectInput(manifest, {
+      sourceNodeId: "w",
+      sourceHandle: "output",
+      targetStepId: "g",
+      targetHandle: "__empty",
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const gate = result.manifest.steps[1]!
+    expect(gate.type === "if" && gate.input?.output).toEqual({ $ref: "state.w" })
+    expect(gate.type === "if" && gate.accepts?.properties?.output).toBeTruthy()
+  })
+
+  it("connectInput appends merge refs on opposite if sides", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "if",
+          id: "pick",
+          expression: "true",
+          as: "pick",
+          then: [{ id: "fast", uses: "@executioncontrolprotocol/test.echo", input: { value: "f" }, as: "fast" }],
+          else: [{ id: "slow", uses: "@executioncontrolprotocol/test.echo", input: { value: "s" }, as: "slow" }],
+        },
+        {
+          id: "ship",
+          uses: "@executioncontrolprotocol/test.echo",
+          as: "ship",
+          input: { pick: { $ref: "state.fast" } },
+        },
+      ],
+    }
+    const merged = connectInput(manifest, {
+      sourceNodeId: "slow",
+      sourceHandle: "output",
+      targetStepId: "ship",
+      targetHandle: "pick",
+    })
+    expect(merged.ok).toBe(true)
+    if (!merged.ok) return
+    const pickBinding = (merged.manifest.steps[1] as { input?: Record<string, unknown> }).input?.pick as {
+      $ref?: string | string[]
+    }
+    expect(Array.isArray(pickBinding.$ref)).toBe(true)
+  })
+
+  it("disconnectInput collapses a merge list to one ref", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "r",
+          uses: "@executioncontrolprotocol/test.echo",
+          as: "r",
+          input: { x: { $ref: ["state.a", "state.b"] } },
+        },
+      ],
+    }
+    const result = disconnectInput(manifest, "r", "x", undefined, "state.a")
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect((result.manifest.steps[0] as { input?: Record<string, unknown> }).input?.x).toEqual({ $ref: "state.b" })
+  })
+
+  it("connectInput refuses ambiguous merge on same if side", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "if",
+          id: "g",
+          expression: "true",
+          then: [
+            { id: "a", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "a" },
+            { id: "b", uses: "@executioncontrolprotocol/test.echo", input: { value: "b" }, as: "b" },
+          ],
+        },
+        {
+          id: "r",
+          uses: "@executioncontrolprotocol/test.echo",
+          as: "r",
+          input: { x: { $ref: "state.a" } },
+        },
+      ],
+    }
+    const result = connectInput(manifest, {
+      sourceNodeId: "b",
+      sourceHandle: "output",
+      targetStepId: "r",
+      targetHandle: "x",
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe(CONNECTION_EDIT_REF_AMBIGUOUS)
   })
 
 })

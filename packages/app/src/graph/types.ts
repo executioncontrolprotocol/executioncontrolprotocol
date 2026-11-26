@@ -190,6 +190,9 @@ export interface ReactFlowTunnelData {
   depth: number
 }
 
+/** Target handle id for an unused multi-cardinal input slot (not stored in the manifest). @category App */
+export const EMPTY_INPUT_PORT_ID = "__empty"
+
 /** Target handle for a `forEach` loop's `items` input. @category App */
 export const LOOP_ITEMS_HANDLE = "items"
 
@@ -411,6 +414,8 @@ export interface ReactFlowEncodeOptions {
   nodeHeight?: number
   /** Capability I/O JSON Schemas. Without them, ports come from `input` keys only. */
   capabilitySchemas?: CapabilitySchemaIndex
+  /** Capability `contract` / `code` metadata for transform and multi-cardinal ports. */
+  capabilityMeta?: Record<string, { contract?: "step"; code?: "script" | "expression" }>
 }
 
 /**

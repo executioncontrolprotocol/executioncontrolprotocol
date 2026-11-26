@@ -4,10 +4,29 @@
  */
 export { executionToReactFlow, sidePlaceholderId } from "./execution-to-reactflow.js"
 export type { TunnelSpec } from "./types.js"
+export { analyseMergePort, type MergePortAnalysis, type ScopeSegment as MergeScopeSegment } from "./merge-port-scope.js"
+export {
+  kindSwitchAvailability,
+  switchControlKind,
+  KIND_SWITCH_LOOP_PARALLEL,
+  KIND_SWITCH_NO_ELSE,
+  KIND_SWITCH_TOO_MANY_PATHS,
+  type ControlPanelKind,
+  type KindSwitchOption,
+} from "./kind-switch.js"
+export {
+  addInputPort,
+  renameInputPort,
+  removeInputPort,
+  uniquePortIdFromSource,
+  PORT_EDIT_DUPLICATE,
+  PORT_EDIT_NOT_MULTI,
+} from "./port-edit.js"
 export {
   attachAfter,
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_INCOMPATIBLE,
+  CONNECTION_EDIT_REF_AMBIGUOUS,
   CONNECTION_EDIT_INSIDE,
   CONNECTION_EDIT_NOT_BINDING,
   CONNECTION_EDIT_ORDER,
@@ -77,7 +96,7 @@ export {
   type AddStepResult,
 } from "./add-step.js"
 export { firstMatchingPort, portTypeKind, portsAreCompatible, type PortTypeKind } from "./port-compat.js"
-export { sourceVisibleTo } from "./read-order.js"
+export { scopeForStateRef, sourceScope, sourceVisibleTo, type ScopeSegment } from "./read-order.js"
 export {
   connectInputTarget,
   dataConnectionRefusal,
@@ -94,6 +113,9 @@ export {
   deleteStep,
   removeStructure,
   unwrapStructure,
+  addControlNode,
+  CONTROL_NODE_ENTRY_ID,
+  type AddControlNodeResult,
   wrapSelectionIds,
   wrapSteps,
   setLoopField,
@@ -226,6 +248,7 @@ export {
 export {
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
+  EMPTY_INPUT_PORT_ID,
   LOOP_COLLECT_HANDLE,
   LOOP_COUNT_HANDLE,
   LOOP_INDEX_HANDLE,

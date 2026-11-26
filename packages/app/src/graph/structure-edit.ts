@@ -1,4 +1,5 @@
 import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
+import type { AddStepPlacement } from "./add-step.js"
 import {
   cloneManifest,
   finalizeManifest,
@@ -9,6 +10,7 @@ import {
   type NodePlacement,
   allNodeIds,
   isStructureNode,
+  nodeContainsId,
 } from "./manifest-walk.js"
 /**
  * Outcome of a manifest structure edit.
@@ -243,4 +245,83 @@ export function deleteStep(manifest: ExecutionManifest, stepId: string): Structu
   if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
   hit.parent.splice(hit.index, 1)
   return finalizeManifest(next)
+}
+
+/** Synthetic capability-menu id for inserting a new control node. @category App */
+export const CONTROL_NODE_ENTRY_ID = "@executioncontrolprotocol/core.control-node"
+
+/**
+ * Outcome of {@link addControlNode}.
+ * @category App
+ */
+export type AddControlNodeResult =
+  | { ok: true; manifest: ExecutionManifest; structureId: string }
+  | { ok: false; reason: string }
+
+/**
+ * Insert a new `if` control node (`expression: "true"`) at the given placement.
+ * @category App
+ */
+export function addControlNode(manifest: ExecutionManifest, placement: AddStepPlacement): AddControlNodeResult {
+  const next = cloneManifest(manifest)
+  const taken = allNodeIds(next)
+  const id = nextStructureId("if", taken)
+  const inserted: IfNode = { type: "if", id, expression: "true", then: [] }
+
+  const succeed = (draft: ExecutionManifest): AddControlNodeResult => ({
+    ok: true,
+    manifest: draft,
+    structureId: id,
+  })
+
+  if (placement.kind === "top") {
+    if (placement.after !== undefined) {
+      const index = next.steps.findIndex((node) => node.id === placement.after || nodeContainsId(node, placement.after!))
+      if (index < 0) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+      next.steps.splice(index + 1, 0, inserted)
+    } else {
+      next.steps.push(inserted)
+    }
+    return succeed(next)
+  }
+
+  if (placement.kind === "loop-body") {
+    const loop = findNodePlacement(next.steps, placement.loopId)?.node
+    if (!loop || loop.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    loop.steps.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "then-side") {
+    const ifNode = findNodePlacement(next.steps, placement.ifId)?.node
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.then.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "else-side") {
+    const ifNode = findNodePlacement(next.steps, placement.ifId)?.node
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.else = [inserted, ...(ifNode.else ?? [])]
+    return succeed(next)
+  }
+
+  if (placement.kind === "path-side") {
+    const parallel = findNodePlacement(next.steps, placement.parallelId)?.node
+    if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    const path = parallel.paths[placement.pathIndex]
+    if (!path) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    path.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "before" || placement.kind === "after") {
+    const hit = findNodePlacement(next.steps, placement.nodeId)
+    if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+    const spliceIndex = placement.kind === "before" ? hit.index : hit.index + 1
+    hit.parent.splice(spliceIndex, 0, inserted)
+    return succeed(next)
+  }
+
+  return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
 }

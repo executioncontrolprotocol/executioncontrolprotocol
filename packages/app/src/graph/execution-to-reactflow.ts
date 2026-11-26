@@ -42,6 +42,7 @@ import type {
   TunnelSpec,
 } from "./types.js"
 import {
+  EMPTY_INPUT_PORT_ID,
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   LOOP_COUNT_HANDLE,
@@ -55,8 +56,20 @@ import {
 interface EncodeContext {
   manifest: ExecutionManifest
   capabilitySchemas: CapabilitySchemaIndex | undefined
+  capabilityMeta: Record<string, { contract?: "step"; code?: "script" | "expression" }> | undefined
   tunnels: TunnelSpec[]
   tunnelStack: { childTunnelIds: string[] }[]
+}
+
+function withEmptyInputPort(inputs: ReactFlowPort[]): ReactFlowPort[] {
+  if (inputs.some((port) => port.id === EMPTY_INPUT_PORT_ID)) return inputs
+  return [...inputs, { id: EMPTY_INPUT_PORT_ID, name: "", typeLabel: "unknown", required: false }]
+}
+
+function stepUsesMultiCardinal(step: StepNode, ctx: EncodeContext): boolean {
+  if (step.accepts !== undefined) return true
+  const meta = ctx.capabilityMeta?.[step.uses]
+  return meta?.contract === "step" && meta?.code === "script"
 }
 
 interface RenderSegment {
@@ -127,6 +140,7 @@ function nodeIdsInSegment(seg: RenderSegment): string[] {
 
 function renderStep(node: StepNode, ctx: EncodeContext): RenderSegment {
   const ports = portsForStep(node, ctx.capabilitySchemas?.[node.uses])
+  if (stepUsesMultiCardinal(node, ctx)) ports.inputs = withEmptyInputPort(ports.inputs)
   const data: ReactFlowStepData = {
     label: node.label ?? node.id,
     uses: node.uses,
@@ -161,7 +175,7 @@ function ifPorts(node: IfNode): { inputs: ReactFlowPort[]; outputs: ReactFlowPor
       }
     }
   }
-  return { inputs, outputs }
+  return { inputs: withEmptyInputPort(inputs), outputs }
 }
 
 function ifReactFlowNode(node: IfNode): ReactFlowNode {
@@ -184,7 +198,7 @@ function parallelPorts(node: ParallelNode): { inputs: ReactFlowPort[]; outputs: 
     name: `path ${index + 1}`,
     typeLabel: "unknown",
   }))
-  return { inputs, outputs }
+  return { inputs: withEmptyInputPort(inputs), outputs }
 }
 
 function parallelReactFlowNode(node: ParallelNode): ReactFlowNode {
@@ -568,6 +582,7 @@ export function executionToReactFlow(
   const ctx: EncodeContext = {
     manifest,
     capabilitySchemas: options?.capabilitySchemas,
+    capabilityMeta: options?.capabilityMeta,
     tunnels,
     tunnelStack: [],
   }
@@ -623,6 +638,7 @@ export function executionToReactFlow(
     const detachedCtx: EncodeContext = {
       manifest,
       capabilitySchemas: options?.capabilitySchemas,
+      capabilityMeta: options?.capabilityMeta,
       tunnels: detachedTunnels,
       tunnelStack: [],
     }

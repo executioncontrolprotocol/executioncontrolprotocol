@@ -1,6 +1,8 @@
 # React Flow render
 
-Encoder: `packages/app/src/graph/` (`executionToReactFlow`). Viewer components:
+Encoder: `packages/app/src/graph/` (`executionToReactFlow`). `if`, `parallel`, and transform steps show each bound
+input port plus one empty port (`__empty`); connecting there adds a multi-cardinal property. Merge ports use a `$ref`
+list when validation allows opposite `if` sides. Viewer components:
 `packages/app/src/web/components/` (`EcpStepNode`, `EcpIoNode`, `EcpIfNode`, `EcpParallelNode`,
 `EcpLoopNode`, `EcpEndNode`, `EcpDataEdge`).
 

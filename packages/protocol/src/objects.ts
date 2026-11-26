@@ -468,4 +468,8 @@ export interface CapabilitySummary {
   plugin: string
   /** One-line summary. */
   summary: string
+  /** Step contract marker, when set on the capability manifest. */
+  contract?: "step"
+  /** Step code kind, when {@link CapabilitySummary.contract} is `"step"`. */
+  code?: "script" | "expression"
 }

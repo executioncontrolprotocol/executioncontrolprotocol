@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest"
 import {
   executionToReactFlow,
   EXECUTION_ACCEPTS_NODE_ID,
+  EMPTY_INPUT_PORT_ID,
   structureEndNodeId,
   LOOP_ITEMS_HANDLE,
   IF_THEN_HANDLE,
@@ -149,6 +150,33 @@ describe("executionToReactFlow", () => {
     const doc = executionToReactFlow(manifest)
     expect(doc.nodes.some((n) => n.id === "ecp:tunnel:solo:else")).toBe(true)
     expect(doc.nodes.some((n) => n.id === structureEndNodeId("solo"))).toBe(true)
+  })
+
+  it("if and parallel control nodes include an empty input port", () => {
+    const doc = executionToReactFlow(loadPattern("branch.ecp.json"))
+    const gate = doc.nodes.find((n) => n.id === "by-tier")
+    const inputs = (gate!.data as { inputs: Array<{ id: string }> }).inputs
+    expect(inputs.some((port) => port.id === EMPTY_INPUT_PORT_ID)).toBe(true)
+  })
+
+  it("transform steps show an empty port when capability metadata says script step", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          id: "xf",
+          uses: "@executioncontrolprotocol/core.transform",
+          accepts: { type: "object", properties: { a: { type: "string" } } },
+          script: { lang: "js", source: "return input" },
+        },
+      ],
+    }
+    const doc = executionToReactFlow(manifest, {
+      capabilityMeta: { "@executioncontrolprotocol/core.transform": { contract: "step", code: "script" } },
+    })
+    const inputs = (doc.nodes.find((n) => n.id === "xf")!.data as { inputs: Array<{ id: string }> }).inputs
+    expect(inputs.some((port) => port.id === EMPTY_INPUT_PORT_ID)).toBe(true)
   })
 
   it("literal-only steps may have no data edges", () => {

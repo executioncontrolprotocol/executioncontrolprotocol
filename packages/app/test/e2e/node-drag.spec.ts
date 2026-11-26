@@ -157,7 +157,8 @@ test.describe("Node drag", () => {
     await page.getByTestId("capability-menu-search").fill("echo")
     const row = page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo")
     await expect(row).toHaveAttribute("data-active", "true", { timeout: 15_000 })
-    await page.getByTestId("capability-menu-search").press("Enter")
+    await row.click()
+    await expect.poll(() => readFileSync(linearPath, "utf8").includes('"id": "echo"'), { timeout: 20_000 }).toBe(true)
     await expect(page.getByTestId("ecp-step-echo")).toBeVisible({ timeout: 15_000 })
     // Check where the node settles. If it's off, report whether the node or the viewport moved, so a CI failure says why.
     const diagnose = async (): Promise<string> => {
