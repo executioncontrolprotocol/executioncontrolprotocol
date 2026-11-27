@@ -218,3 +218,31 @@ control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree exe
 9. **The `T[]` cue** is the type on the reading port (`labels: Label[]`), not a label on the branch.
 10. **Core group:** the add-node menu's Core group holds the control node and transform capabilities, found by
     their manifest (`contract: "step"`, `code: "script"`), not by a hard-coded capability id.
+
+## Rail and end markers (2026-11-27)
+
+Mockup: [`mockups/rail-if-in-loop.png`](mockups/rail-if-in-loop.png). Supersedes the drawn `end` node and the tunnel
+shapes above; the manifest and engine don't change.
+
+- **Rail.** The flow is drawn as a neutral grey tube from Inputs to Outputs behind every node, in list order. A node on
+  the rail runs; a node off it is detached (badged, never runs). Order reads left to right along the rail; there is
+  no second kind of line.
+- **Tunnels off the rail**, told apart by colour and texture:
+
+  | | Colour | Texture | Meaning |
+  | --- | --- | --- | --- |
+  | Rail | grey | plain | runs in order |
+  | Loop | indigo | diagonal stripes, dashed edge, ↻ | repeats |
+  | `if` sides | green `then` / red `else` | solid tubes | one of two |
+  | `parallel` paths | blue | solid tubes, labelled `path N` | all at once |
+
+- **End markers, not nodes.** Each side of an `if`, each `parallel` path and each loop ends at an **end marker**: a
+  small label (`end then`, `end else`, `end path 2`, `end loop`) sitting across its tunnel, centred, at the point
+  where that side stops. It has no ports and carries no data; nothing connects to it. After their markers, the sides
+  of an `if` / `parallel` merge back into the rail.
+- **Changing scope.** Dragging an end marker along its tunnel moves the nodes it passes into or out of that side (one
+  edit, one undo step). Dragging a node into or out of a tunnel does the same.
+- **Branches** stay the only lines and carry only data.
+
+Vocabulary: *branch* is a data line between two ports; *tunnel* is a tube (the rail, a side, a path, a loop); *end
+marker* is the label where a tunnel's control stops.
