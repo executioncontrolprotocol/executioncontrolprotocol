@@ -15,4 +15,4 @@ body `as` names. Retired: `while`, stored loop `end`, `into`, `maxRounds`, `loop
 **App:** tunnels (`ecp-tunnel`) with labelled `then` / `else` / path tubes and a grey loop body; a
 drawn `end` for every control node (not stored); one Core-group control node with a Kind option
 (`if` · for each · for · parallel); multi-cardinal inputs on `if` / `parallel` / transforms; merge
-ports via `$ref` lists; tree layout left-to-right.
+ports via `$ref` lists; tree layout left-to-right. A control node may be saved with an empty `then`, path or loop body (validation reports it and `execute` refuses it until nodes are added).

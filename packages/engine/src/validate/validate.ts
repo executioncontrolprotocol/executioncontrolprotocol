@@ -866,11 +866,24 @@ async function checkIfNode(
   if (node.as !== undefined && node.input === undefined) {
     issues.push(semantic("ECP_MANIFEST_INVALID", "as requires input.", `${path}/as`, id))
   }
+  if (Array.isArray(node.then) && node.then.length === 0) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "`then` has no nodes", `${path}/then`, id))
+  }
 }
 
 function checkParallelContainer(node: Record<string, unknown>, path: string, id: string | undefined, issues: ValidationIssue[]): void {
   if (node.as !== undefined && node.input === undefined) {
     issues.push(semantic("ECP_MANIFEST_INVALID", "as requires input.", `${path}/as`, id))
+  }
+  if (Array.isArray(node.paths)) {
+    for (let index = 0; index < node.paths.length; index += 1) {
+      const pathNodes = node.paths[index]
+      if (Array.isArray(pathNodes) && pathNodes.length === 0) {
+        issues.push(
+          semantic("ECP_MANIFEST_INVALID", `path ${index + 1} has no nodes`, `${path}/paths/${index}`, id),
+        )
+      }
+    }
   }
 }
 
@@ -1005,6 +1018,9 @@ function checkLoopFields(node: Record<string, unknown>, path: string, id: string
     if (input?.count !== undefined) {
       issues.push(semantic("ECP_MANIFEST_INVALID", "forEach loop must not set input.count.", `${path}/input/count`, id))
     }
+  }
+  if (Array.isArray(node.steps) && node.steps.length === 0) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "the loop has no nodes", `${path}/steps`, id))
   }
 }
 

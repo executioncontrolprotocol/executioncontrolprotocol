@@ -217,6 +217,34 @@ describe("connectInput", () => {
     const later = result.manifest.steps[1] as { input?: { value?: { $ref?: string } } }
     expect(later.input?.value).toEqual({ $ref: "state.writer" })
   })
+
+  it("adds an object-typed port when the source schema is unknown", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "writer", uses: echo, as: "writer" },
+        {
+          type: "if",
+          id: "gate",
+          expression: "true",
+          then: [],
+        },
+      ],
+    }
+    const wired = connectInput(base, {
+      sourceNodeId: "writer",
+      sourceHandle: "output",
+      targetStepId: "gate",
+      targetHandle: "__empty",
+    })
+    expect(wired.ok).toBe(true)
+    if (!wired.ok) return
+    const gate = wired.manifest.steps.find((node) => node.id === "gate") as {
+      accepts?: { properties?: Record<string, unknown> }
+    }
+    expect(gate.accepts?.properties?.output).toEqual({ type: "object" })
+  })
 })
 
 describe("insertConnectedStep", () => {
@@ -242,7 +270,7 @@ describe("insertConnectedStep", () => {
     expect(echoStep.input?.value).toEqual({ $ref: "state.writer.text" })
   })
 
-  it("wires from input origin before the new step", () => {
+  it("refuses drag from an input-side origin", () => {
     const base = twoStep()
     const result = insertConnectedStep(
       base,
@@ -250,10 +278,7 @@ describe("insertConnectedStep", () => {
       { nodeId: "later", handleId: "text", side: "input" },
       { id: "text", name: "text", typeLabel: "string!" },
     )
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    const ids = result.manifest.steps.map((step) => step.id)
-    expect(ids.indexOf("echo")).toBeLessThan(ids.indexOf("later"))
+    expect(result).toMatchObject({ ok: false, reason: "Add a node after the port you dragged from, not before it" })
   })
 
   it("inserts unwired when no port matches", () => {

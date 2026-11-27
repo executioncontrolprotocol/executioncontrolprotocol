@@ -12,14 +12,8 @@ import { cloneManifest, finalizeManifest, freeStateKeyForId, locateNode } from "
 import { STRUCTURE_EDIT_STRUCTURE_NOT_FOUND, setLoopMode, type StructureEditResult } from "./structure-edit.js"
 import { IF_DEFAULT_EXPRESSION } from "./panel-edit.js"
 
-/** Refusal when an `if` has no `else` but parallel needs two paths. @category App */
-export const KIND_SWITCH_NO_ELSE = "Add a node to else first: a parallel path can't be empty"
-
 /** Refusal when `parallel` has too many paths to become an `if`. @category App */
 export const KIND_SWITCH_TOO_MANY_PATHS = "Remove paths until there are two: an if has only then and else"
-
-/** Refusal when a loop cannot become `parallel`. @category App */
-export const KIND_SWITCH_LOOP_PARALLEL = "Unwrap the loop, then wrap its nodes in parallel"
 
 /** Control kind shown in the App panel. @category App */
 export type ControlPanelKind = ReactFlowControlKind
@@ -90,12 +84,6 @@ export function kindSwitchAvailability(
   const current = controlKindOf(node)
   return ALL_KINDS.map((kind) => {
     if (kind === current) return { kind, enabled: true }
-    if (node.type === "loop" && kind === "parallel") {
-      return { kind, enabled: false, reason: KIND_SWITCH_LOOP_PARALLEL }
-    }
-    if (node.type === "if" && kind === "parallel" && !node.else?.length) {
-      return { kind, enabled: false, reason: KIND_SWITCH_NO_ELSE }
-    }
     if (node.type === "parallel" && kind === "if" && node.paths.length > 2) {
       return { kind, enabled: false, reason: KIND_SWITCH_TOO_MANY_PATHS }
     }
@@ -228,6 +216,17 @@ export function switchControlKind(
       id,
       paths: [[...source.then], [...(source.else ?? [])]],
       ...copyScopedInput(source),
+    }
+    if (label !== undefined) parallel.label = label
+    placement.parent[placement.index] = parallel
+    return finalizeManifest(next)
+  }
+
+  if (target === "parallel" && source.type === "loop") {
+    const parallel: ParallelNode = {
+      type: "parallel",
+      id,
+      paths: [[...source.steps], []],
     }
     if (label !== undefined) parallel.label = label
     placement.parent[placement.index] = parallel

@@ -418,6 +418,17 @@ export function addParallelPath(manifest: ExecutionManifest, parallelId: string,
 }
 
 /**
+ * Append an empty path to a `parallel` (saveable; validation flags it until a node is added).
+ * @category App
+ */
+export function appendEmptyParallelPath(manifest: ExecutionManifest, parallelId: string): StructureEditResult {
+  return editStructure<ParallelNode>(manifest, parallelId, ["parallel"], (node) => {
+    node.paths.push([])
+    return undefined
+  })
+}
+
+/**
  * Bind, set or clear a loop's driver input: `items` for `forEach`, `count` for `for`.
  * @category App
  */

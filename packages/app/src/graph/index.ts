@@ -8,8 +8,6 @@ export { analyseMergePort, type MergePortAnalysis, type ScopeSegment as MergeSco
 export {
   kindSwitchAvailability,
   switchControlKind,
-  KIND_SWITCH_LOOP_PARALLEL,
-  KIND_SWITCH_NO_ELSE,
   KIND_SWITCH_TOO_MANY_PATHS,
   type ControlPanelKind,
   type KindSwitchOption,
@@ -35,8 +33,10 @@ export {
   connectInputAndAttach,
   CONNECTION_EDIT_NOT_STEP,
   CONNECTION_EDIT_SOURCE_DETACHED,
+  CONNECTION_EDIT_INPUT_ORIGIN,
   placementManifestForDetachedConnect,
   insertConnectedStep,
+  insertConnectedControlNode,
   type ConnectInputTarget,
   deleteParallelLine,
   deleteConnector,
@@ -55,6 +55,7 @@ export {
 export { frameAtFlowPoint, placementAtFlowPoint, tunnelAtFlowPoint } from "./band-placement.js"
 export {
   addParallelPath,
+  appendEmptyParallelPath,
   conditionForm,
   ensureStructureAs,
   IF_DEFAULT_EXPRESSION,
@@ -88,6 +89,8 @@ export {
   type SchemaTextResult,
 } from "./panel-edit.js"
 export {
+  isScriptStepCapability,
+  type AddStepCapability,
   addCapabilityStep,
   allocateAsName,
   findStructure,
@@ -96,6 +99,7 @@ export {
   type AddStepResult,
 } from "./add-step.js"
 export { firstMatchingPort, portTypeKind, portsAreCompatible, type PortTypeKind } from "./port-compat.js"
+export { schemaFromReactFlowPort, sourcePortPropertySchema } from "./source-port-schema.js"
 export { scopeForStateRef, sourceScope, sourceVisibleTo, type ScopeSegment } from "./read-order.js"
 export {
   connectInputTarget,

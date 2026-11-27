@@ -46,6 +46,8 @@ interface CanvasMenuProps {
   onDeleteConnector: () => void
   /** Open the capability menu for a new step at this placement. */
   onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
+  /** Append an empty path on a parallel without opening the capability menu. */
+  onAppendEmptyPath?: (parallelId: string) => void
 }
 
 interface MenuItem {
@@ -80,6 +82,7 @@ export function CanvasMenu({
   onDeleteConnector,
   edges,
   onOpenCapabilityMenu,
+  onAppendEmptyPath,
 }: CanvasMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [submenu, setSubmenu] = useState<Submenu>(undefined)
@@ -162,7 +165,11 @@ export function CanvasMenu({
           action: open({ kind: "path-side", parallelId: structure.id, pathIndex: index }),
         })
       })
-      addItems.push({ id: "add-path", label: "Add path", action: open({ kind: "new-path", parallelId: structure.id }) })
+      addItems.push({
+        id: "add-path",
+        label: "Add path",
+        action: () => onAppendEmptyPath?.(structure.id),
+      })
     }
   }
 

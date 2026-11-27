@@ -7,6 +7,7 @@ import {
   addControlNode,
   executionToReactFlow,
   insertConnectedStep,
+  insertConnectedControlNode,
   placeWithOverrides,
   reactFlowLayoutFitKey,
   replayRunEvents,
@@ -304,6 +305,15 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       }
 
       if (request.origin && request.originPort) {
+        if (entry.id === CONTROL_NODE_ENTRY_ID || entry.controlNode) {
+          void applyManifestEdit((current) => {
+            const result = insertConnectedControlNode(current, request.origin!, request.originPort!)
+            // A control node isn't pinned: the tree layout places it with its tunnels and end.
+            if (result.ok) stepId = result.structureId
+            return result
+          }).then(finish)
+          return
+        }
         void client
           .retrieve({ type: "capability", id: entry.id })
           .then((response) => {
@@ -316,7 +326,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             void applyManifestEdit((current) => {
               const result = insertConnectedStep(
                 current,
-                { id: capability.id, accepts: capability.accepts, returns: capability.returns },
+                {
+                  id: capability.id,
+                  accepts: capability.accepts,
+                  returns: capability.returns,
+                  contract: capability.contract,
+                  code: capability.code,
+                },
                 request.origin!,
                 request.originPort!,
               )
@@ -333,13 +349,15 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       void applyManifestEdit((current) => {
         if (entry.id === CONTROL_NODE_ENTRY_ID || entry.controlNode) {
           const result = addControlNode(current, request.placement)
-          if (result.ok) {
-            stepId = result.structureId
-            pinFlowPosition(result.structureId)
-          }
+          // A control node isn't pinned: the tree layout places it with its tunnels and end.
+          if (result.ok) stepId = result.structureId
           return result
         }
-        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
+        const result = addCapabilityStep(
+          current,
+          { id: entry.id, contract: entry.contract, code: entry.code },
+          request.placement,
+        )
         if (result.ok) {
           stepId = result.stepId
           pinFlowPosition(result.stepId)

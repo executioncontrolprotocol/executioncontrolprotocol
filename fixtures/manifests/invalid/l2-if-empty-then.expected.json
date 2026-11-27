@@ -2,6 +2,7 @@
   {
     "code": "ECP_MANIFEST_INVALID",
     "path": "/steps/0/then",
-    "severity": "error"
+    "severity": "error",
+    "messageIncludes": "`then` has no nodes"
   }
 ]

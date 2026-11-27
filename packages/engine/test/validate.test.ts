@@ -464,6 +464,36 @@ describe("validation output contract (F2–F4)", () => {
     expect(l1.blocksDraft).toBe(true)
   })
 
+  it("validateExecutionLayers reports an empty loop body at L2", async () => {
+    const emptyLoop = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [] }],
+    } satisfies ExecutionManifest
+    const layers = await validateExecutionLayers(emptyLoop, validateOpts)
+    expect(layers.result.issues.some((issue) => issue.message === "the loop has no nodes")).toBe(true)
+  })
+
+  it("validateExecutionLayers reports empty control lists at L2 without blocking draft", async () => {
+    const emptyTunnel = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "parallel",
+          id: "p",
+          paths: [
+            [{ id: "a", uses: "@executioncontrolprotocol/test.echo", as: "a" }],
+            [],
+          ],
+        },
+      ],
+    } satisfies ExecutionManifest
+    const layers = await validateExecutionLayers(emptyTunnel, validateOpts)
+    expect(layers.blocksDraft).toBe(false)
+    expect(layers.result.issues.some((issue) => issue.message === "path 2 has no nodes")).toBe(true)
+  })
+
   it("validateExecutionLayers lets capability errors through to a draft but not a broken document", async () => {
     const unknownUses = {
       schema: "@executioncontrolprotocol.execution",

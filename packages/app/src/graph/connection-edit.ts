@@ -6,7 +6,11 @@ import {
   placementForConnectionOrigin,
   allocateAsName,
   type AddStepResult,
+  isScriptStepCapability,
+  type AddStepCapability,
 } from "./add-step.js"
+import { addControlNode, type AddControlNodeResult } from "./structure-edit.js"
+import { schemaFromReactFlowPort, sourcePortPropertySchema } from "./source-port-schema.js"
 import {
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_ORDER,
@@ -64,6 +68,9 @@ export const CONNECTION_EDIT_NOT_STEP = "Only a disconnected step can be reconne
 
 /** @category App */
 export const CONNECTION_EDIT_SOURCE_DETACHED = "Connect from a step that is in the flow"
+
+/** @category App */
+export const CONNECTION_EDIT_INPUT_ORIGIN = "Add a node after the port you dragged from, not before it"
 
 /** @category App */
 export const CONNECTION_EDIT_INSIDE = "That node is inside the disconnected step"
@@ -371,6 +378,8 @@ export interface ConnectInputTarget {
   sourceHandle: string
   targetStepId: string
   targetHandle: string
+  /** Schema of the feeding port when known (for example from a drag origin). */
+  sourcePortSchema?: Record<string, unknown>
 }
 
 function assignInputPath(input: Record<string, unknown>, inputPath: string, value: unknown): void {
@@ -575,7 +584,11 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
       return { ok: false, reason: CONNECTION_EDIT_HANDLE }
     }
     const portId = uniquePortIdFromSource(next, holder as IfNode | ParallelNode | StepNode, sourcePortName)
-    const schema = { type: "string" }
+    const fromHint =
+      target.sourcePortSchema && Object.keys(target.sourcePortSchema).length > 0
+        ? target.sourcePortSchema
+        : sourcePortPropertySchema(next, target.sourceNodeId, target.sourceHandle)
+    const schema = Object.keys(fromHint).length > 0 ? fromHint : { type: "object" }
     const added = addInputPort(next, target.targetStepId, portId, schema)
     if (!added.ok) return added
     next = added.manifest
@@ -650,40 +663,82 @@ function portsFromCapabilitySchema(
  */
 export function insertConnectedStep(
   manifest: ExecutionManifest,
-  capability: { id: string; accepts?: Record<string, unknown>; returns?: Record<string, unknown> },
+  capability: AddStepCapability & { accepts?: Record<string, unknown>; returns?: Record<string, unknown> },
   origin: { nodeId: string; handleId: string; side: "output" | "input" },
   originPort: ReactFlowPort,
 ): AddStepResult {
+  if (origin.side === "input") {
+    return { ok: false, reason: CONNECTION_EDIT_INPUT_ORIGIN }
+  }
   const placement = placementForConnectionOrigin(manifest, origin)
-  const added = addCapabilityStep(manifest, { id: capability.id }, placement)
+  const added = addCapabilityStep(manifest, capability, placement)
   if (!added.ok) return added
+
+  const sourcePortSchema = {
+    ...schemaFromReactFlowPort(originPort),
+    ...sourcePortPropertySchema(manifest, origin.nodeId, origin.handleId),
+  }
 
   const candidates =
     origin.side === "output"
       ? portsFromCapabilitySchema(capability.accepts, "accepts")
       : portsFromCapabilitySchema(capability.returns, "returns")
   const match = firstMatchingPort(originPort, candidates, origin.side)
-  if (!match) return added
 
   if (origin.side === "output") {
+    const skeleton = isScriptStepCapability(capability)
+    const targetHandle = skeleton || !match ? EMPTY_INPUT_PORT_ID : match.id
     const wired = connectInput(added.manifest, {
       sourceNodeId: origin.nodeId,
       sourceHandle: origin.handleId,
       targetStepId: added.stepId,
-      targetHandle: match.id,
+      targetHandle,
+      sourcePortSchema,
     })
     if (!wired.ok) return added
     return { ok: true, manifest: wired.manifest, stepId: added.stepId }
   }
 
+  if (!match) return added
   const wired = connectInput(added.manifest, {
     sourceNodeId: added.stepId,
     sourceHandle: match.id,
     targetStepId: origin.nodeId,
     targetHandle: origin.handleId,
+    sourcePortSchema,
   })
   if (!wired.ok) return added
   return { ok: true, manifest: wired.manifest, stepId: added.stepId }
+}
+
+/**
+ * Insert a control node from a port drag onto the canvas and bind the origin port to a new input on it.
+ * @category App
+ */
+export function insertConnectedControlNode(
+  manifest: ExecutionManifest,
+  origin: { nodeId: string; handleId: string; side: "output" | "input" },
+  originPort: ReactFlowPort,
+): AddControlNodeResult {
+  if (origin.side === "input") {
+    return { ok: false, reason: CONNECTION_EDIT_INPUT_ORIGIN }
+  }
+  const placement = placementForConnectionOrigin(manifest, origin)
+  const added = addControlNode(manifest, placement)
+  if (!added.ok) return added
+  const sourcePortSchema = {
+    ...schemaFromReactFlowPort(originPort),
+    ...sourcePortPropertySchema(manifest, origin.nodeId, origin.handleId),
+  }
+  const wired = connectInput(added.manifest, {
+    sourceNodeId: origin.nodeId,
+    sourceHandle: origin.handleId,
+    targetStepId: added.structureId,
+    targetHandle: EMPTY_INPUT_PORT_ID,
+    sourcePortSchema,
+  })
+  if (!wired.ok) return { ok: false, reason: wired.reason }
+  return { ok: true, manifest: wired.manifest, structureId: added.structureId }
 }
 
 export function detachedNodeIds(manifest: ExecutionManifest): Set<string> {

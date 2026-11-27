@@ -152,12 +152,12 @@ Loops have no expression and no pass-through inputs: nodes inside a loop read ea
 
 | From → to | Kept | Dropped / added |
 | --- | --- | --- |
-| if → parallel | inputs | condition dropped; `then` → path 1, `else` → path 2; not offered while there's no `else` (a path can't be empty) |
+| if → parallel | inputs | condition dropped; `then` → path 1, `else` → path 2 (or an empty path 2 when there's no `else`; validation flags empty paths) |
 | parallel → if | inputs | path 1 → `then`, path 2 → `else`; condition starts as `true`; refused while there are 3+ paths |
 | if / parallel → for each / for | nodes inside (`then` + `else`, or paths in order) become the body | inputs replaced by `items` / `count`; a branch of the same type is reconnected to it |
 | for each ↔ for | body | `items` ↔ `count`; concurrency and on error only on for each |
 | loop → if | body → `then` | the driver port becomes an ordinary input |
-| loop → parallel | — | not offered (a path can't be empty): unwrap the loop, select the nodes, wrap them in parallel |
+| loop → parallel | body on path 1 | path 2 starts empty (validation flags it until a node is added); loop driver inputs are dropped |
 
 Branches that no longer fit after a switch stay and are flagged by validation.
 

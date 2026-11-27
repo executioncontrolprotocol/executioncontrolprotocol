@@ -124,14 +124,20 @@ describe("structure-edit", () => {
     if (wrapped.ok) expect(wrapped.manifest.steps.some((node) => node.id === "if-2")).toBe(true)
   })
 
-  it("deleteStep cascades parallel to a single line", () => {
+  it("deleteStep leaves parallel with an empty path when one arm is cleared", () => {
     const base = flatTwoStep()
     const wrapped = wrapSteps(base, ["A", "B"], "parallel")
     if (!wrapped.ok) throw new Error("wrap failed")
     const deleted = deleteStep(wrapped.manifest, "A")
     expect(deleted.ok).toBe(true)
     if (deleted.ok) {
-      expect(deleted.manifest.steps.map((node) => (node as { id?: string }).id)).toEqual(["B"])
+      const parallel = deleted.manifest.steps[0]
+      expect(parallel?.type).toBe("parallel")
+      if (parallel?.type === "parallel") {
+        const ids = parallel.paths.flatMap((path) => path.map((node) => node.id))
+        expect(ids).toContain("B")
+        expect(parallel.paths.some((path) => path.length === 0)).toBe(true)
+      }
     }
   })
 
@@ -347,6 +353,13 @@ describe("wrapping pattern examples validates", () => {
 
     const pathSide = addControlNode(manifest, { kind: "path-side", parallelId: "p", pathIndex: 1 })
     expect(pathSide.ok).toBe(true)
+
+    const newPath = addControlNode(manifest, { kind: "new-path", parallelId: "p" })
+    expect(newPath.ok).toBe(true)
+    if (newPath.ok) {
+      const parallel = newPath.manifest.steps[2]
+      expect(parallel?.type === "parallel" && parallel.paths).toHaveLength(3)
+    }
 
     const loopBody = addControlNode(manifest, { kind: "loop-body", loopId: "l" })
     expect(loopBody.ok).toBe(true)

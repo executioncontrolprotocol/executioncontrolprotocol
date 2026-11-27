@@ -7,6 +7,7 @@ import { createLocalHost, generateHostToken, type LocalHost } from "@executionco
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const pluginTestRoot = path.join(repoRoot, "plugins/plugin-test")
+const pluginCoreRoot = path.join(repoRoot, "plugins/plugin-core")
 const appWebRoot = path.join(repoRoot, "packages/app/dist/web")
 
 /**
@@ -182,7 +183,7 @@ export async function startAppHarness(): Promise<AppE2eHarness> {
     mode: "server",
     port: 0,
     token,
-    extraPlugins: [pluginTestRoot],
+    extraPlugins: [pluginTestRoot, pluginCoreRoot],
     appRoot: appWebRoot,
   })
 

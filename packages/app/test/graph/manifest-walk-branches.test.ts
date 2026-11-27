@@ -13,7 +13,17 @@ import { STRUCTURE_EDIT_EMPTY_STEPS, walkManifestPlacements } from "../../src/gr
 const echo = "@executioncontrolprotocol/test.echo"
 
 describe("manifest-walk cleanup branches", () => {
-  it("collapses a parallel to one line and unwraps a single path", () => {
+  it("unwraps a parallel with a single non-empty path", () => {
+    const collapsed = cleanNode({
+      type: "parallel",
+      id: "p",
+      paths: [[{ id: "only", uses: echo, input: { value: "a" }, as: "only" }]],
+    })
+    expect(Array.isArray(collapsed)).toBe(true)
+    if (Array.isArray(collapsed)) expect(collapsed[0]?.id).toBe("only")
+  })
+
+  it("keeps two paths when one is empty", () => {
     const collapsed = cleanNode({
       type: "parallel",
       id: "p",
@@ -22,11 +32,10 @@ describe("manifest-walk cleanup branches", () => {
         [],
       ],
     })
-    expect(Array.isArray(collapsed)).toBe(true)
-    if (Array.isArray(collapsed)) expect(collapsed[0]?.id).toBe("only")
+    expect(collapsed).toMatchObject({ type: "parallel", paths: [[{ id: "only" }], []] })
   })
 
-  it("drops empty if containers and loops", () => {
+  it("keeps empty if then and empty loop body", () => {
     expect(
       cleanNode({
         type: "if",
@@ -35,8 +44,10 @@ describe("manifest-walk cleanup branches", () => {
         then: [],
         else: [{ id: "e", uses: echo, input: { value: "e" } }],
       }),
-    ).toBeNull()
-    expect(cleanNodes([{ type: "loop", id: "l", steps: [], end: { input: { repeat: false } } }])).toEqual([])
+    ).toMatchObject({ type: "if", then: [] })
+    expect(cleanNodes([{ type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [] }])).toEqual([
+      { type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [] },
+    ])
   })
 
   it("strips an empty else side and removes an all-empty parallel", () => {
@@ -50,7 +61,7 @@ describe("manifest-walk cleanup branches", () => {
     expect(kept).toMatchObject({ type: "if", then: [{ id: "t" }] })
     expect((kept as { else?: unknown[] }).else ?? []).toEqual([])
     const emptied = cleanNode({ type: "parallel", id: "p", paths: [[], []] })
-    expect(emptied === null || (emptied as { paths?: unknown[] }).paths?.length === 0).toBe(true)
+    expect(emptied).toMatchObject({ type: "parallel", paths: [[], []] })
   })
 
   it("finalizeManifest strips an empty detached list", () => {

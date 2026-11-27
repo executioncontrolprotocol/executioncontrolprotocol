@@ -367,7 +367,13 @@ describe("connection-edit", () => {
         },
       ],
     }
-    expect(deleteSequenceLink(base, "only")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
+    const result = deleteSequenceLink(base, "only")
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const loop = result.manifest.steps[0]
+      expect(loop?.type).toBe("loop")
+      expect(loop?.type === "loop" && loop.steps).toEqual([])
+    }
   })
 
   it("deleteSequenceLink moves tail inside an if side", () => {

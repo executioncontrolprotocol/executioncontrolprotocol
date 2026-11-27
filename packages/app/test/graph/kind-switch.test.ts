@@ -1,8 +1,6 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
-  KIND_SWITCH_LOOP_PARALLEL,
-  KIND_SWITCH_NO_ELSE,
   KIND_SWITCH_TOO_MANY_PATHS,
   kindSwitchAvailability,
   switchControlKind,
@@ -11,7 +9,7 @@ import {
 const echo = "@executioncontrolprotocol/test.echo"
 
 describe("kindSwitchAvailability", () => {
-  it("enables all kinds for a loop except parallel", () => {
+  it("enables parallel for a loop", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -20,27 +18,16 @@ describe("kindSwitchAvailability", () => {
     const rows = kindSwitchAvailability(manifest, "l")
     expect(rows.find((row) => row.kind === "if")?.enabled).toBe(true)
     expect(rows.find((row) => row.kind === "for")?.enabled).toBe(true)
-    expect(rows.find((row) => row.kind === "parallel")?.enabled).toBe(false)
+    expect(rows.find((row) => row.kind === "parallel")?.enabled).toBe(true)
   })
-  it("refuses if to parallel without else", () => {
+  it("enables if to parallel without else", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [{ type: "if", id: "g", expression: "true", then: [{ id: "s", uses: echo, as: "s" }] }],
     }
     const row = kindSwitchAvailability(manifest, "g").find((entry) => entry.kind === "parallel")
-    expect(row?.enabled).toBe(false)
-    expect(row?.reason).toBe(KIND_SWITCH_NO_ELSE)
-  })
-
-  it("refuses loop to parallel", () => {
-    const manifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [{ type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [] }],
-    }
-    const row = kindSwitchAvailability(manifest, "l").find((entry) => entry.kind === "parallel")
-    expect(row?.enabled).toBe(false)
+    expect(row?.enabled).toBe(true)
   })
 
   it("enables if for parallel with two paths", () => {
@@ -212,16 +199,17 @@ describe("switchControlKind", () => {
     expect(node.type === "parallel" && node.paths.length).toBe(2)
   })
 
-  it("refuses if to parallel without else", () => {
+  it("switches if to parallel with an empty path 2 when else is absent", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [{ type: "if", id: "g", expression: "true", then: [{ id: "s", uses: echo, as: "s" }] }],
     }
     const result = switchControlKind(manifest, "g", "parallel")
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toBe(KIND_SWITCH_NO_ELSE)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const node = result.manifest.steps[0]!
+    expect(node.type === "parallel" && node.paths).toEqual([[{ id: "s", uses: echo, as: "s" }], []])
   })
 
   it("returns noop when kind unchanged", () => {
@@ -315,16 +303,38 @@ describe("switchControlKind", () => {
     expect(node.type === "if" && node.input?.items).toEqual({ $ref: "state.rows" })
   })
 
-  it("refuses loop to parallel", () => {
+  it("preserves label when switching loop to parallel", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "l",
+          label: "Rows",
+          mode: "forEach",
+          as: "row",
+          input: { items: { $ref: "state.rows" } },
+          steps: [{ id: "s", uses: echo, as: "s" }],
+        },
+      ],
+    }
+    const result = switchControlKind(manifest, "l", "parallel")
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.manifest.steps[0]?.label).toBe("Rows")
+  })
+
+  it("switches loop to parallel with an empty second path", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [{ type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [{ id: "s", uses: echo, as: "s" }] }],
     }
     const result = switchControlKind(manifest, "l", "parallel")
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toBe(KIND_SWITCH_LOOP_PARALLEL)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const node = result.manifest.steps[0]!
+    expect(node.type === "parallel" && node.paths).toEqual([[{ id: "s", uses: echo, as: "s" }], []])
   })
 
   it("refuses parallel to if when three paths", () => {

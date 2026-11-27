@@ -22,6 +22,7 @@ import {
   setParallelInputBinding,
   setParallelLabel,
   setParallelMaxConcurrency,
+  appendEmptyParallelPath,
 } from "../../graph/index.js"
 import { locateNode } from "../../graph/manifest-walk.js"
 import {
@@ -155,7 +156,7 @@ export function IfPanel(props: StructurePanelProps) {
  * @category App
  */
 export function ParallelPanel(props: StructurePanelProps) {
-  const { node, issues, manifest, fieldEpoch, onOpenCapabilityMenu, readOnly } = props
+  const { node, issues, manifest, fieldEpoch, readOnly } = props
   const editor = usePanelEditor(props)
   const data = node.data as ReactFlowParallelData
   const source = manifest ? (locateNode(manifest, node.id)?.node as ParallelNode | undefined) : undefined
@@ -229,12 +230,9 @@ export function ParallelPanel(props: StructurePanelProps) {
         <button
           type="button"
           data-testid="parallel-add-path"
-          disabled={readOnly || !onOpenCapabilityMenu}
+          disabled={readOnly || editor.disabled}
           className="rounded border border-outline-variant px-2 py-1 text-[11px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect()
-            onOpenCapabilityMenu?.(rect.left, rect.bottom, { kind: "new-path", parallelId: node.id })
-          }}
+          onClick={() => void editor.commit("Add path", (current) => appendEmptyParallelPath(current, node.id))}
         >
           Add path
         </button>

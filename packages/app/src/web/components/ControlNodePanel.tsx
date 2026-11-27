@@ -16,6 +16,7 @@ import {
   setLoopMode,
   setParallelInputBinding,
   setParallelMaxConcurrency,
+  appendEmptyParallelPath,
   setStructureLabel,
   switchControlKind,
   type InputBindingEdit,
@@ -68,7 +69,7 @@ function KeyedValue({ label, children }: { label: string; children: ReactNode })
  * Unified panel for `if`, `forEach` / `for` loops and `parallel`.
  * @category App
  */
-export function ControlNodePanel({ node, issues, manifest, fieldEpoch, onOpenCapabilityMenu, ...ctx }: ControlNodePanelProps) {
+export function ControlNodePanel({ node, issues, manifest, fieldEpoch, onOpenCapabilityMenu: _onOpenCapabilityMenu, ...ctx }: ControlNodePanelProps) {
   const editor = usePanelEditor({ manifest, fieldEpoch, ...ctx })
   const data = node.data as ReactFlowControlData
   const source = manifest ? locateNode(manifest, node.id)?.node : undefined
@@ -266,12 +267,9 @@ export function ControlNodePanel({ node, issues, manifest, fieldEpoch, onOpenCap
               <button
                 type="button"
                 data-testid="control-add-path"
-                disabled={editor.disabled || !onOpenCapabilityMenu}
+                disabled={editor.disabled}
                 className="rounded border border-outline-variant px-2 py-1 text-[11px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
-                onClick={(event) => {
-                  const rect = event.currentTarget.getBoundingClientRect()
-                  onOpenCapabilityMenu?.(rect.left, rect.bottom, { kind: "new-path", parallelId: node.id })
-                }}
+                onClick={() => void editor.commit("Add path", (current) => appendEmptyParallelPath(current, node.id))}
               >
                 Add path
               </button>

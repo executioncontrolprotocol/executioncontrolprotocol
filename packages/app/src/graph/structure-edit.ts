@@ -315,6 +315,13 @@ export function addControlNode(manifest: ExecutionManifest, placement: AddStepPl
     return succeed(next)
   }
 
+  if (placement.kind === "new-path") {
+    const parallel = findNodePlacement(next.steps, placement.parallelId)?.node
+    if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    parallel.paths.push([inserted])
+    return succeed(next)
+  }
+
   if (placement.kind === "before" || placement.kind === "after") {
     const hit = findNodePlacement(next.steps, placement.nodeId)
     if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }

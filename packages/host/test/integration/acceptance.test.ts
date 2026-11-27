@@ -82,7 +82,7 @@ describe("host integration acceptance", () => {
       "ref-unresolved",
       "plugins-missing",
       "mode-without-as",
-      "schema-if-empty-then",
+      "l2-if-empty-then",
     ]
     for (const name of names) {
       const manifest = JSON.parse(

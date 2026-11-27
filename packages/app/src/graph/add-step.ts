@@ -33,6 +33,25 @@ import { STRUCTURE_EDIT_STEP_NOT_FOUND, STRUCTURE_EDIT_STRUCTURE_NOT_FOUND } fro
 const NODE_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 
 /**
+ * Capability metadata the App needs to add a step. A step-contract script capability (`contract: "step"`,
+ * `code: "script"`, e.g. a transform) gets a starting `accepts` / `returns` / `script` so it validates and takes branches.
+ * @category App
+ */
+export interface AddStepCapability {
+  /** Capability id. */
+  id: string
+  /** Manifest `contract`, when present. */
+  contract?: string
+  /** Manifest `code`, when present. */
+  code?: string
+}
+
+/** True for a step-contract script capability (a transform). @category App */
+export function isScriptStepCapability(capability: AddStepCapability): boolean {
+  return capability.contract === "step" && capability.code === "script"
+}
+
+/**
  * Where to insert a newly added capability step. `loop-body`, `then-side`, `else-side` and `path-side` insert at the start
  * of that list; `new-path` appends a path holding the step.
  * @category App
@@ -212,13 +231,19 @@ export function placementForConnectionOrigin(
 
 function buildStep(
   manifest: ExecutionManifest,
-  capabilityId: string,
+  capability: AddStepCapability,
   placement: AddStepPlacement,
 ): StepNode {
+  const capabilityId = capability.id
   const idStem = idStemFromShort(shortNameFromCapability(capabilityId))
   const nodeId = uniqueNodeId(idStem, allNodeIds(manifest))
   const asName = allocateAsName(manifest, capabilityId)
   const step: StepNode = { id: nodeId, uses: capabilityId, as: asName }
+  if (isScriptStepCapability(capability)) {
+    step.accepts = { type: "object", properties: {} }
+    step.returns = { type: "object", properties: {} }
+    step.script = { lang: "js", source: "return input" }
+  }
   if (placementNeedsReplaceMode(manifest, placement)) step.mode = "replace"
   return step
 }
@@ -247,11 +272,11 @@ export function findStructure(
  */
 export function addCapabilityStep(
   manifest: ExecutionManifest,
-  capability: { id: string },
+  capability: AddStepCapability,
   placement: AddStepPlacement,
 ): AddStepResult {
   const next = cloneManifest(manifest)
-  const step = buildStep(next, capability.id, placement)
+  const step = buildStep(next, capability, placement)
 
   if (placement.kind === "top") {
     if (placement.after !== undefined) {

@@ -115,8 +115,8 @@ The separate `type: "forEach"` node and loop `throttle` are removed. See `realig
   "maxConcurrency": 2, "paths": [ [ …nodes… ], [ …nodes… ] ] }
 ```
 
-- `paths`: array of node lists (`minItems 2`, each list `minItems 1`). Each path runs in order;
-  paths run concurrently.
+- `paths`: array of node lists (`minItems 2`; each list may be empty while editing). Each path runs
+  in order; paths run concurrently. An empty path is saveable but fails L2 validation until it has a node.
 - Optional `accepts` / `input` / `as` pass the same scoped input object to every path (see 04).
 - `maxConcurrency`: optional integer `>= 1`; default = host setting (4).
 

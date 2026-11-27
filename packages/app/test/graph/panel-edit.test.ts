@@ -3,6 +3,7 @@ import { validateExecution } from "@executioncontrolprotocol/engine"
 import { describe, expect, it } from "vitest"
 import {
   addParallelPath,
+  appendEmptyParallelPath,
   conditionForm,
   ensureStructureAs,
   normalizeRefPath,
@@ -333,6 +334,16 @@ describe("parallel edits", () => {
 
   it("refuses an empty path", () => {
     expect(refusal(addParallelPath(parallelManifest(), "fan", []))).toBe(PANEL_EDIT_PATH_EMPTY)
+  })
+
+  it("appendEmptyParallelPath adds an empty path", () => {
+    const added = ok(appendEmptyParallelPath(parallelManifest(), "fan"))
+    expect(node<ParallelNode>(added, "fan").paths).toHaveLength(3)
+    expect(node<ParallelNode>(added, "fan").paths[2]).toEqual([])
+  })
+
+  it("appendEmptyParallelPath refuses a missing parallel", () => {
+    expect(refusal(appendEmptyParallelPath(parallelManifest(), "nope"))).toBeTruthy()
   })
 
   it("a parallel edited through the panel still validates", async () => {

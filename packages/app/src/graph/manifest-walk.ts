@@ -82,7 +82,6 @@ export function cleanNode(node: Node): Node | Node[] | null {
   if (node.type === "if") {
     const thenSteps = cleanNodes(node.then)
     const elseSteps = node.else ? cleanNodes(node.else) : undefined
-    if (thenSteps.length === 0) return null
     return {
       ...node,
       then: thenSteps,
@@ -90,14 +89,13 @@ export function cleanNode(node: Node): Node | Node[] | null {
     }
   }
   if (node.type === "parallel") {
-    const paths = node.paths.map((path) => cleanNodes(path)).filter((path) => path.length > 0)
+    const paths = node.paths.map((path) => cleanNodes(path))
     if (paths.length === 0) return null
-    if (paths.length === 1) return paths[0]!
+    if (paths.length === 1 && paths[0]!.length > 0) return paths[0]!
     return { ...node, paths }
   }
   if (node.type === "loop") {
     const steps = cleanNodes(node.steps)
-    if (steps.length === 0) return null
     return { ...node, steps }
   }
   return node

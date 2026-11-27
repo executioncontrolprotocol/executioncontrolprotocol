@@ -17,6 +17,7 @@ import {
 } from "@xyflow/react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
+  appendEmptyParallelPath,
   connectInputAndAttach,
   connectInputTarget,
   dataConnectionRefusal,
@@ -777,6 +778,11 @@ function GraphCanvasBody({
               }
             : undefined
         }
+        onAppendEmptyPath={(parallelId) => {
+          void applyEdit((current) => appendEmptyParallelPath(current, parallelId)).then((ok) => {
+            if (ok) closeMenu()
+          })
+        }}
       />
     ) : null}
     </EdgeMenuContext.Provider>

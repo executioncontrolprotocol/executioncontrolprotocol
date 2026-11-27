@@ -59,7 +59,7 @@ function applyFix(
     case "mode-without-as":
       ;(steps[0] as { as: string }).as = "out"
       break
-    case "schema-if-empty-then": {
+    case "l2-if-empty-then": {
       const iff = steps[0] as { then: unknown[] }
       iff.then = [
         {

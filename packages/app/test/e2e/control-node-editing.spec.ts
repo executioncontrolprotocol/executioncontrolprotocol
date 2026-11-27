@@ -64,13 +64,13 @@ test.describe("control node editing", () => {
     await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"type": "if"'), { timeout: 15_000 }).toBe(true)
   })
 
-  test("an if without else can't become parallel and says why", async ({ page }) => {
+  test("an if without else can become parallel", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-if-gated-gate").click()
     const kind = page.getByTestId("control-field-kind")
-    await expect(kind.locator('option[value="parallel"]')).toBeDisabled()
-    await expect(page.getByTestId("control-kind-unavailable-parallel")).toContainText("a parallel path can't be empty")
-    await expect(page.getByTestId("control-kind-unavailable-forEach")).toHaveCount(0)
+    await expect(kind.locator('option[value="parallel"]')).toBeEnabled()
+    await kind.selectOption("parallel")
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"type": "parallel"'), { timeout: 15_000 }).toBe(true)
   })
 
   test("delete if keeping nodes undoes", async ({ page }) => {

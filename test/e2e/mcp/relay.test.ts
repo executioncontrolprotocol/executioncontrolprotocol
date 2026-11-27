@@ -86,7 +86,7 @@ describe("mcp relay e2e", () => {
       "ref-unresolved",
       "plugins-missing",
       "mode-without-as",
-      "schema-if-empty-then",
+      "l2-if-empty-then",
     ]
     for (const name of names) {
       const file = path.join(fixturesRoot, "manifests/invalid", `${name}.ecp.json`)

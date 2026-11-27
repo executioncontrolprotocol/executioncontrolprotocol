@@ -37,7 +37,7 @@ const validationCapabilities = [
 ]
 
 const graphInvalid = [
-  "schema-if-empty-then",
+  "l2-if-empty-then",
   "schema-loop-ref-and-expr",
   "schema-loop-ref-neither",
   "schema-loop-foreach-maxrounds",
