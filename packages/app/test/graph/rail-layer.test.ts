@@ -75,6 +75,25 @@ function pathStartPoint(d: string): { x: number; y: number } {
 }
 
 describe("computeRailVisualLayer", () => {
+  it("nested-parallel: path labels avoid overlapping the for-each loop title", () => {
+    const manifest = loadPattern("nested-parallel.ecp.json")
+    const laid = executionToReactFlow(manifest)
+    const shapes = computeRailVisualLayer(manifest.steps, laid.nodes)
+    const path1 = shapes.find((shape) => shape.kind === "label" && shape.testId === "ecp-side-label-work-path-1")
+    const path2 = shapes.find((shape) => shape.kind === "label" && shape.testId === "ecp-side-label-work-path-2")
+    const loopTitle = shapes.find((shape) => shape.kind === "label" && shape.testId === "ecp-loop-title-each-file")
+    expect(path1?.kind).toBe("label")
+    expect(path2?.kind).toBe("label")
+    expect(loopTitle?.kind).toBe("label")
+    if (path1?.kind !== "label" || path2?.kind !== "label" || loopTitle?.kind !== "label") return
+    const inLoopTitleBand = (label: { x: number; y: number }) =>
+      label.x >= loopTitle.x - 4 &&
+      label.x <= loopTitle.x + 120 &&
+      label.y >= loopTitle.y - 16 &&
+      label.y <= loopTitle.y + 8
+    expect(inLoopTitleBand(path1)).toBe(false)
+    expect(inLoopTitleBand(path2)).toBe(false)
+  })
   it("if-in-loop: a grey rail runs from Inputs to Notify on the root centre line", () => {
     const { laid, shapes } = layer(loadPattern("if-in-loop.ecp.json"))
     const rail = shape(shapes, "ecp-rail-root")

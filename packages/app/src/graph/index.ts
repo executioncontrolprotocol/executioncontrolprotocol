@@ -67,6 +67,16 @@ export {
 } from "./delete-selection.js"
 export { frameAtFlowPoint, placementAtFlowPoint, tunnelAtFlowPoint } from "./band-placement.js"
 export {
+  MARKER_SCOPE_UNCHANGED,
+  REPARENT_UNCHANGED,
+  applyMarkerSnap,
+  markerSnapHighlight,
+  reparentDropTarget,
+  reparentNodeAtPoint,
+  snapMarkerX,
+  type MarkerSnapCenter,
+} from "./marker-scope.js"
+export {
   addParallelPath,
   appendEmptyParallelPath,
   conditionForm,

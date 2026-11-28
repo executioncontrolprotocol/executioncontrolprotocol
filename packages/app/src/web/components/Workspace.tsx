@@ -280,6 +280,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     [commitOverrides],
   )
 
+  const onClearPositionOverrides = useCallback(
+    (nodeIds: readonly string[]) => {
+      if (nodeIds.length === 0) return
+      commitOverrides((current) => {
+        const next = { ...current }
+        for (const id of nodeIds) delete next[id]
+        return next
+      })
+    },
+    [commitOverrides],
+  )
+
   const onAutoLayout = useCallback(() => {
     clearOverrides()
   }, [clearOverrides])
@@ -472,6 +484,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               selectedId={selectedId}
               selectedStepIds={selectedStepIds}
               readOnly={readOnly}
+              positionDragOnly={replay !== undefined}
               selectedEdge={selectedEdge}
               onSelect={selectFromCanvas}
               onSelectSteps={setSelectedStepIds}
@@ -481,6 +494,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
               onMenuDismiss={() => setCapabilityMenu(undefined)}
               onPositionDragStop={onPositionDragStop}
+              onClearPositionOverrides={onClearPositionOverrides}
               onAutoLayout={onAutoLayout}
               suppressNextFitRef={suppressNextFit}
               onUndo={() => void editor.undo()}

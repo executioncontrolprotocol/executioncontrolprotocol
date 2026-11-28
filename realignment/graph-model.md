@@ -246,3 +246,14 @@ shapes above; the manifest and engine don't change.
 
 Vocabulary: *branch* is a data line between two ports; *tunnel* is a tube (the rail, a side, a path, a loop); *end
 marker* is the label where a tunnel's control stops.
+
+### Branches inside tunnels (2026-11-28)
+
+Mockup: [`mockups/rail-routed-if-in-loop.png`](mockups/rail-routed-if-in-loop.png).
+
+- Tunnels run continuously from node to node (side bands start at the control node's edge; joins are full tunnel
+  height and meet the next node) and are at least as tall as the nodes in them, so every port sits inside a tunnel.
+- Every branch is routed along the tunnels between its two ports: along its side, under the side's end label, round
+  the join and along the rail, using the same curves as the tunnels. Branches sharing a tunnel run side by side on
+  evenly spaced lanes; a merge port's branches arrive as matching curves.
+- End labels sit on the tunnel's edge, above the branches running through it.

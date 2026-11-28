@@ -18,10 +18,12 @@ export function RailVisualLayer({
   manifest,
   nodes,
   run,
+  highlightBandTestId,
 }: {
   manifest: ExecutionManifest
   nodes: readonly ReactFlowNode[]
   run: RunGraphState
+  highlightBandTestId?: string
 }) {
   const shapes = useMemo(() => {
     const steps = Array.isArray(manifest.steps) ? manifest.steps : []
@@ -53,7 +55,7 @@ export function RailVisualLayer({
           </pattern>
         </defs>
         {shapes.map((shape) => (
-          <RailShape key={shapeKey(shape)} shape={shape} />
+          <RailShape key={shapeKey(shape)} shape={shape} highlighted={shape.testId === highlightBandTestId} />
         ))}
       </svg>
     </ViewportPortal>
@@ -66,9 +68,10 @@ function shapeKey(shape: RailVisualShape): string {
   return `${shape.kind}:${shape.testId}`
 }
 
-function RailShape({ shape }: { shape: RailVisualShape }) {
+function RailShape({ shape, highlighted }: { shape: RailVisualShape; highlighted?: boolean }) {
   if (shape.kind === "path") {
     const opacity = shape.dimmed ? 0.35 : 1
+  const bandClass = highlighted && shape.box ? "ecp-rail-band--drop-target" : undefined
     return (
       <path
         data-testid={shape.testId}
@@ -81,6 +84,7 @@ function RailShape({ shape }: { shape: RailVisualShape }) {
         strokeWidth={shape.strokeWidth}
         strokeLinecap="round"
         pointerEvents="none"
+        className={bandClass}
       />
     )
   }

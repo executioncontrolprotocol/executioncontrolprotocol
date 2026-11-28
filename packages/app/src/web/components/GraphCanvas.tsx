@@ -35,6 +35,11 @@ import {
   wrapSteps,
   CONNECTION_EDIT_INCOMPATIBLE,
   resizeTunnelNodes,
+  applyMarkerSnap,
+  markerSnapHighlight,
+  reparentNodeAtPoint,
+  reparentDropTarget,
+  parseEndMarkerId,
   type AddStepPlacement,
   type PositionOverrides,
   type ReactFlowDocument,
@@ -118,6 +123,8 @@ export interface GraphCanvasProps {
   selectedStepIds: readonly string[]
   /** True while a run is busy or a replay is selected. */
   readOnly: boolean
+  /** Allow step drags for position overrides only (run replay). */
+  positionDragOnly?: boolean
   /** Selected data branch, when any. */
   selectedEdge?: SelectedEdge
   /** Called with the clicked node id, or undefined when the pane is clicked. */
@@ -143,6 +150,8 @@ export interface GraphCanvasProps {
   ) => void
   /** Persist drag stop positions to browser storage. */
   onPositionDragStop: (updates: PositionOverrides) => void
+  /** Drop position overrides after a structural drag (scope or reparent). */
+  onClearPositionOverrides?: (nodeIds: readonly string[]) => void
   /** Clear overrides and storage for this execution. */
   onAutoLayout: () => void
   /** Skip the next layout-driven fit (cursor-placed step). */
@@ -208,9 +217,12 @@ function buildNodes(
   selectedId: string | undefined,
   selectedStepIds: readonly string[],
   readOnly: boolean,
+  positionDragOnly: boolean,
+  scopeHighlightIds: ReadonlySet<string>,
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
   const dataConnectable = !readOnly
+  const nodeDraggable = !readOnly || positionDragOnly
   const ifSides = ifSideByStepId(document)
   const choices = run.choices
   return document.nodes.map((node) => {
@@ -316,7 +328,7 @@ function buildNodes(
         } as unknown as Record<string, unknown>,
         zIndex: 1000,
         selectable: false,
-        draggable: false,
+        draggable: !readOnly,
         connectable: false,
         deletable: false,
         focusable: false,
@@ -336,6 +348,7 @@ function buildNodes(
     const structureSelected =
       selectedId === node.id &&
       (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel")
+    const scopeHighlight = scopeHighlightIds.has(node.id)
     return {
       id: node.id,
       type: node.type,
@@ -345,7 +358,13 @@ function buildNodes(
       zIndex: 1000,
       connectable: dataConnectable,
       deletable: false,
-      className: nodeDimmed ? "ecp-rf-node--dimmed" : undefined,
+      draggable: nodeDraggable,
+      className: [
+        nodeDimmed ? "ecp-rf-node--dimmed" : "",
+        scopeHighlight ? "ecp-rf-node--scope-target" : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
       ...(node.style?.width !== undefined ? { style: { width: node.style.width } } : {}),
     }
   })
@@ -480,6 +499,7 @@ function GraphCanvasBody({
   selectedId,
   selectedStepIds,
   readOnly,
+  positionDragOnly = false,
   selectedEdge,
   onSelect,
   onSelectSteps,
@@ -489,6 +509,7 @@ function GraphCanvasBody({
   onOpenCapabilityMenu,
   onMenuDismiss,
   onPositionDragStop,
+  onClearPositionOverrides,
   onAutoLayout,
   suppressNextFitRef,
   onUndo,
@@ -496,10 +517,20 @@ function GraphCanvasBody({
   undoDisabled,
   redoDisabled,
 }: GraphCanvasProps) {
+  const [scopeHighlightIds, setScopeHighlightIds] = useState<ReadonlySet<string>>(new Set())
+  const [dropTargetTestId, setDropTargetTestId] = useState<string | undefined>(undefined)
   const built = useMemo(
-    () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly),
-    [document, run, nodeErrors, selectedId, selectedStepIds, readOnly],
+    () =>
+      buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly, positionDragOnly, scopeHighlightIds),
+    [document, run, nodeErrors, selectedId, selectedStepIds, readOnly, positionDragOnly, scopeHighlightIds],
   )
+  const markerYById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const node of built) {
+      if (node.type === "ecp-end") map.set(node.id, node.position.y)
+    }
+    return map
+  }, [built])
   const edges = useMemo(() => buildEdges(document, run, selectedEdge), [document, run, selectedEdge])
   const [menu, setMenu] = useState<CanvasMenuState | undefined>(undefined)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | undefined>(undefined)
@@ -525,26 +556,82 @@ function GraphCanvasBody({
     })
   }, [built])
 
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const kept = changes.filter((change) => change.type === "dimensions" || change.type === "position")
-    if (kept.length === 0) return
-    setNodes((current) => {
-      const next = applyNodeChanges(kept, current)
-      if (kept.some((change) => change.type === "position")) return applyTunnelBoundsToNodes(next)
-      return next
-    })
-  }, [])
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const kept = changes
+        .filter((change) => change.type === "dimensions" || change.type === "position")
+        .map((change) => {
+          if (change.type !== "position" || !change.position) return change
+          if (!parseEndMarkerId(change.id)) return change
+          const baseY = markerYById.get(change.id)
+          if (baseY === undefined) return change
+          return { ...change, position: { x: change.position.x, y: baseY } }
+        })
+      if (kept.length === 0) return
+      setNodes((current) => {
+        const next = applyNodeChanges(kept, current)
+        if (kept.some((change) => change.type === "position")) return applyTunnelBoundsToNodes(next)
+        return next
+      })
+    },
+    [markerYById],
+  )
+
+  const onNodeDrag = useCallback(
+    (_event: MouseEvent | TouchEvent, node: Node) => {
+      if (readOnly) return
+      if (node.type === "ecp-end") {
+        const highlighted = markerSnapHighlight(manifest, node.id, node.position.x, document)
+        setScopeHighlightIds(new Set(highlighted))
+        setDropTargetTestId(undefined)
+        return
+      }
+      if (node.type === "ecp-tunnel") return
+      const target = reparentDropTarget(manifest, document, node.position)
+      setDropTargetTestId(target?.testId)
+      setScopeHighlightIds(new Set())
+    },
+    [document, manifest, readOnly],
+  )
 
   const onNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, _node: Node, dragged: Node[]) => {
+      setScopeHighlightIds(new Set())
+      setDropTargetTestId(undefined)
       const updates: PositionOverrides = {}
+      const clearedIds: string[] = []
+      if (readOnly && positionDragOnly) {
+        for (const node of dragged) {
+          if (node.type === "ecp-tunnel" || node.type === "ecp-end") continue
+          updates[node.id] = { x: node.position.x, y: node.position.y }
+        }
+        if (Object.keys(updates).length > 0) onPositionDragStop(updates)
+        return
+      }
+      if (readOnly) return
       for (const node of dragged) {
-        if (node.type === "ecp-tunnel" || node.type === "ecp-end") continue
+        if (node.type === "ecp-tunnel") continue
+        if (node.type === "ecp-end") {
+          const edit = applyMarkerSnap(manifest, node.id, node.position.x, document)
+          if (edit.ok) {
+            void applyEdit(() => edit).then((ok) => {
+              if (ok) onClearPositionOverrides?.(markerSnapHighlight(manifest, node.id, node.position.x, document))
+            })
+          }
+          continue
+        }
+        const edit = reparentNodeAtPoint(manifest, document, node.id, node.position)
+        if (edit.ok) {
+          clearedIds.push(node.id)
+          void applyEdit(() => edit)
+          continue
+        }
         updates[node.id] = { x: node.position.x, y: node.position.y }
       }
+      if (clearedIds.length > 0) onClearPositionOverrides?.(clearedIds)
       if (Object.keys(updates).length > 0) onPositionDragStop(updates)
     },
-    [onPositionDragStop],
+    [applyEdit, document, manifest, onClearPositionOverrides, onPositionDragStop, positionDragOnly, readOnly],
   )
 
   const closeMenu = useCallback(() => setMenu(undefined), [])
@@ -634,6 +721,7 @@ function GraphCanvasBody({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={onNodeDragStop}
       onMove={(event) => {
         // Only a pan / zoom the user makes closes menus; programmatic moves (fit view after a load or an edit) have no
@@ -721,6 +809,7 @@ function GraphCanvasBody({
         manifest={manifest}
         nodes={nodes as unknown as ReactFlowNode[]}
         run={run}
+        highlightBandTestId={dropTargetTestId}
       />
       <Controls showInteractive={false}>
         <ControlButton

@@ -380,6 +380,15 @@
     opacity: 0.45;
   }
 
+  .ecp-rf-node--scope-target {
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
+  .ecp-rail-band--drop-target {
+    stroke-opacity: 0.95 !important;
+    fill-opacity: 0.35 !important;
+  }
+
   .react-flow__handle.ecp-rf-handle--tunnel-then {
     background: #3fb950 !important;
     border-color: #2ea043 !important;

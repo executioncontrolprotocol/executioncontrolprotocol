@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import { Command, Flags } from "@oclif/core"
+import { Args, Command, Flags } from "@oclif/core"
 import { describe, expect, it } from "vitest"
 import { checkCommandHelp } from "../src/lib/help-quality.js"
 
@@ -56,6 +56,59 @@ describe("cli help quality", () => {
       }
     }
     expect(checkCommandHelp("good", GoodFlag)).toEqual([])
+
+    class WithArgs extends Command {
+      static override description = "Args ok"
+      static override examples = ["ecp with-args"]
+      static override args = { file: Args.string({ description: "Target file" }) }
+    }
+    expect(checkCommandHelp("with-args", WithArgs)).toEqual([])
+  })
+
+  it("flags missing descriptions and empty examples", () => {
+    class NoDescription extends Command {
+      static override examples = [{ description: "x", command: "ecp x" }]
+    }
+    expect(checkCommandHelp("no-desc", NoDescription).some((row) => row.message === "missing description")).toBe(true)
+
+    class NoExamples extends Command {
+      static override description = "Has a description"
+    }
+    expect(checkCommandHelp("no-examples", NoExamples).some((row) => row.message === "missing examples")).toBe(true)
+
+    class EmptyStringExample extends Command {
+      static override description = "d"
+      static override examples = ["   "]
+    }
+    expect(checkCommandHelp("empty-ex", EmptyStringExample).some((row) => row.message.includes("empty command"))).toBe(
+      true,
+    )
+
+    class BlankDescription extends Command {
+      static override description = "   "
+      static override examples = ["ecp x"]
+    }
+    expect(checkCommandHelp("blank-desc", BlankDescription).some((row) => row.message === "missing description")).toBe(
+      true,
+    )
+
+    class MissingArg extends Command {
+      static override description = "d"
+      static override examples = ["ecp x"]
+      static override args = { file: Args.string() }
+    }
+    expect(checkCommandHelp("missing-arg", MissingArg).some((row) => row.message === "arg missing description")).toBe(
+      true,
+    )
+
+    class WeakFlagDescription extends Command {
+      static override description = "d"
+      static override examples = ["ecp x"]
+      static override flags = {
+        opt: Flags.string({ description: "   " }),
+      }
+    }
+    expect(checkCommandHelp("weak-flag", WeakFlagDescription).some((row) => row.message.includes("flag"))).toBe(true)
   })
 
   it("rejects help text that points at internal specs", () => {
@@ -67,5 +120,11 @@ describe("cli help quality", () => {
       }
     }
     expect(checkCommandHelp("spec-ref", SpecRef).some((row) => row.message.includes("internal docs"))).toBe(true)
+
+    class CatalogueRef extends Command {
+      static override description = "Uses the error catalogue"
+      static override examples = ["ecp x"]
+    }
+    expect(checkCommandHelp("cat", CatalogueRef).some((row) => row.message.includes("internal docs"))).toBe(true)
   })
 })

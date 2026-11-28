@@ -417,6 +417,33 @@ export function computeRailVisualLayer(
 
   pushPath(out, "ecp-rail-root", "rail", `M ${railLeft} ${centreY} L ${railRight} ${centreY}`, RAIL_STROKE, RAIL_OPACITY, rootStroke)
 
+  const labelObstacles: { x: number; y: number; w: number; h: number }[] = []
+  for (const node of laidNodes) {
+    if (node.type === "ecp-tunnel") continue
+    if (node.type === "ecp-io" || node.type === "ecp-step" || node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
+      const box = nodeBox(node, nodeWidth, nodeHeight)
+      labelObstacles.push({ x: box.x, y: box.y, w: box.width, h: box.height })
+    }
+  }
+
+  function labelsOverlap(
+    labelX: number,
+    labelY: number,
+    text: string,
+    obstacles: { x: number; y: number; w: number; h: number }[],
+  ): boolean {
+    const w = Math.max(48, text.length * 7)
+    const h = 14
+    const lx = labelX
+    const ly = labelY - h
+    for (const obstacle of obstacles) {
+      if (lx + w > obstacle.x && lx < obstacle.x + obstacle.w && ly + h > obstacle.y && ly < obstacle.y + obstacle.h) {
+        return true
+      }
+    }
+    return false
+  }
+
   function portLabelAt(
     control: ReactFlowNode,
     handleId: string,
@@ -424,11 +451,16 @@ export function computeRailVisualLayer(
     fill: string,
     testId: string,
     above: boolean,
+    band?: { x: number; y: number },
   ): void {
     const controlBox = nodeBox(control, nodeWidth, nodeHeight)
     const portY = outputHandleY(control, handleId, nodeWidth, nodeHeight)
-    const labelX = controlBox.x + controlBox.width + 6
-    const labelY = above ? portY - 6 : portY + 14
+    let labelX = controlBox.x + controlBox.width + 6
+    let labelY = above ? portY - 6 : portY + 14
+    if (labelsOverlap(labelX, labelY, text, labelObstacles) && band) {
+      labelX = band.x + 8
+      labelY = band.y + 14
+    }
     out.push({ kind: "label", testId, text, x: labelX, y: labelY, fill, fontWeight: 700 })
   }
 
@@ -484,6 +516,7 @@ export function computeRailVisualLayer(
         if (control) {
           const tone = sideStroke(side)
           const sideNodes = side === "then" ? node.then : (node.else ?? [])
+          const ifBand = sideBand(control, marker, sideNodes, byId, nodeWidth, nodeHeight)
           pushSideBand(out, node.id, side, side, control, marker, sideNodes, sideHandleId(side), tone, dimmed)
           portLabelAt(
             control,
@@ -492,6 +525,7 @@ export function computeRailVisualLayer(
             tone.labelColor,
             `ecp-side-label-${node.id}-${side}`,
             side === "then",
+            { x: ifBand.x, y: ifBand.y },
           )
         }
       }
@@ -509,8 +543,17 @@ export function computeRailVisualLayer(
         if (control) {
           const tone = sideStroke("path")
           const handleId = sideHandleId("path", index + 1)
+          const pathBand = sideBand(control, marker, path, byId, nodeWidth, nodeHeight)
           pushSideBand(out, node.id, pathKey, "path", control, marker, path, handleId, tone, false)
-          portLabelAt(control, handleId, `path ${index + 1}`, tone.labelColor, `ecp-side-label-${node.id}-${pathKey}`, true)
+          portLabelAt(
+            control,
+            handleId,
+            `path ${index + 1}`,
+            tone.labelColor,
+            `ecp-side-label-${node.id}-${pathKey}`,
+            true,
+            { x: pathBand.x, y: pathBand.y },
+          )
         }
         for (const child of path) emitJoins(child, parentCentreY)
       })

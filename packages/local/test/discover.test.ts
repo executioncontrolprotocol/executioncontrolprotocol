@@ -48,6 +48,21 @@ describe("discoverPluginRoots", () => {
     expect(bySource.core?.map((item) => item.root)).toEqual([path.resolve(tempRoot, "extra")])
   })
 
+  it("dedupes the same plugin when it appears twice", async () => {
+    const dataDir = path.join(tempRoot, "dedupe")
+    await mkdir(path.join(dataDir, "node_modules/@scope/plugin-once"), { recursive: true })
+    await writeFile(
+      path.join(dataDir, "package.json"),
+      JSON.stringify({
+        dependencies: { "@scope/plugin-once": "1.0.0" },
+        oclif: { plugins: ["@scope/plugin-once"] },
+      }),
+    )
+    const roots = await discoverPluginRoots({ dataDir })
+    expect(roots).toHaveLength(1)
+    expect(roots[0]?.source).toBe("user")
+  })
+
   it("tolerates a missing data-dir package.json", async () => {
     const roots = await discoverPluginRoots({
       dataDir: path.join(tempRoot, "absent"),
