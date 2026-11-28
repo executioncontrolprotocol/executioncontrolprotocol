@@ -11,7 +11,7 @@ have yet. This plan brings those features back on the v2 manifest and the host A
 **Superseded in part:** [`graph-model.md`](graph-model.md) replaces the route-connector model this plan
 was written for. D2, D3, D3a and [Deleting connections](#deleting-connections) (except `detached` and
 draft rules) follow `graph-model.md` and `spec/11-app.md`: nodes and data branches, tunnels visual
-only, one control node with Kind and drawn `end` terminals. The other decisions stand.
+only, one control node with Kind, a grey rail, coloured tunnels and end markers. The other decisions stand.
 
 **Scope change:** spec 11 says the App is "view and run; expression editing on graph edges is in
 scope", and `REALIGNMENT-PLAN.md` § Later lists "App editing: canvas edits written through `commit`
@@ -77,7 +77,7 @@ always what's stored. Agents keep the strict default, and `execute` validates ev
 draft is never runnable.
 
 **Control nodes:** Delete splices body nodes into the parent (`then` / `else` / paths / loop body) or
-**Delete with its nodes** removes them too. Drawn `end` nodes have no Delete of their own.
+**Delete with its nodes** removes them too. End markers have no Delete of their own.
 
 **Steps:** the node menu has **Delete step**, which removes the step. That's the usual way a step is
 removed.
@@ -147,7 +147,7 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
 
 ### Phases 1–3 (canvas graph)
 
-Canvas rendering, control nodes and drawn `end` terminals, tunnels, panels and
+Canvas rendering, control nodes, rail, end markers, tunnels, branch routing, panels and
 delete semantics: implemented per [`graph-model.md`](graph-model.md), `spec/11-app.md` and
 `packages/app/REACTFLOW_RENDER.md` (graph-model PR #110). The route-connector plan in early drafts
 of this file is retired.

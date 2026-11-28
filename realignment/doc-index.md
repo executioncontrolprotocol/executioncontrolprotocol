@@ -21,7 +21,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | Plugin READMEs | 6 |
 | Contributor skill | 4 |
 | Examples | 16 |
-| Other | 41 |
+| Other | 42 |
 
 ## All files
 
@@ -135,6 +135,7 @@ Every markdown file and agent rule in the MVP tree. Regenerate with
 | `.changeset/app-host-api-only.md` | Other | current |
 | `.changeset/app-no-flow-ports.md` | Other | current |
 | `.changeset/app-node-drag.md` | Other | current |
+| `.changeset/app-rail.md` | Other | current |
 | `.changeset/app-route-pill-levels.md` | Other | current |
 | `.changeset/azure-blob-delete.md` | Other | current |
 | `.changeset/capture-pr4.md` | Other | current |

@@ -87,7 +87,7 @@ it to `replace`).
 
 ### Loop
 
-One control node; required `mode` is `"for"` or `"forEach"`. The drawn `end` is not stored. Each
+One control node; required `mode` is `"for"` or `"forEach"`. End markers are not stored. Each
 round / item runs on a state copy; when the loop finishes, every body `as` (except the loop's item /
 index names) is published to the parent as an ordered array (`T[]`, `null` slots when a writer did
 not run or `onError: "continue"`). `count: 0` still publishes `[]`. Nested loops publish `T[][]`.

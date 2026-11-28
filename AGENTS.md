@@ -102,9 +102,10 @@ The Fluent SDK is a post-MVP phase (`realignment/post-mvp-fluent-sdk.md`).
   and similar nodes) runs only in the QuickJS sandbox, never with `new Function` or
   `eval` in the host process. `$script` in `input` is a marker: the host parses it and never runs
   it. Transform step `script` is a plain object (not a `$script` wrapper).
-- **Graph model:** nodes, ports, branches (`$ref` in `input`), tunnels, drawn `end` terminals — see
-  `realignment/graph-model.md`. **Loops:** `type: "loop"` with `mode` `for` or `forEach`; driver
-  `input`, body `steps`; values after the loop are arrays. No separate `forEach` node.
+- **Graph model:** nodes, ports, branches (`$ref` in `input`), grey rail, coloured tunnels, end markers
+  (one per side, path, or loop; not stored) — see `realignment/graph-model.md`. **Loops:** `type: "loop"`
+  with `mode` `for` or `forEach`; driver `input`, body `steps`; values after the loop are arrays. No
+  separate `forEach` node.
 - **Tests:**
   - New behaviour needs positive, negative and edge tests.
   - Coverage floors live in `vitest.config.mts`; raise them toward 90%, never lower them to

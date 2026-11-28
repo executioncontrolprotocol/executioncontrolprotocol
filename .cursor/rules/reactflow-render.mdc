@@ -7,15 +7,14 @@ alwaysApply: false
 # React Flow render
 
 Follow `packages/app/REACTFLOW_RENDER.md`. The App renders **execution manifests (v2)** with the
-graph model: nodes, ports, branches, tunnels, drawn `end` terminals — see `realignment/graph-model.md`.
+graph model: nodes, ports, branches, rail, tunnels, end markers — see `realignment/graph-model.md`.
 
 Non-negotiables:
 
 - Published edges are **data** only. Layout `control` edges are stripped before publish.
-- **`if`**, **`parallel`**, **`loop`**, and drawn **`end`** (`end:<controlId>`) are React Flow nodes;
-  the App uses one control node component (Kind: if · for each · for · parallel); `end` has no ports.
+- **`if`**, **`parallel`**, **`loop`**, and **end markers** (`ecp-end`, id `end:<structureId>:<side>`,
+  no ports) are React Flow nodes; one control node component (Kind: if · for each · for · parallel).
+- Painted tunnels are the **rail SVG layer**; `ecp-tunnel` frames are membership only and not `parentId`.
 - Branches are drawn only for **`$ref`** / **`$state`** bindings; resolve producers per C1 (inputs, step
   `as`, loop `item` / `index`, `if` / `parallel` scoped `as`, merge-port `$ref` lists).
 - Data branches only; control nodes and steps with ports; no sequence-only connector UI.
-- Tunnels (`ecp-tunnel`) outline each control's lists with labelled tones (`then`, `else`, `path N`, loop
-  body). Sized after tree layout; not React Flow `parentId`.

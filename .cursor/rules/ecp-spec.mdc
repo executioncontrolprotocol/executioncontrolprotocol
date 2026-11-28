@@ -19,7 +19,7 @@ alwaysApply: true
   `expression` or `script` over `input`, not a separate gate on steps. Branches after a loop carry
   `T[]`. See `realignment/graph-model.md` and spec 02.
 - **Loops:** one `type: "loop"` node with `mode` `for` or `forEach`; drivers bind through
-  `input`. A drawn `end` closes the tunnel in the App only (not stored). No separate `forEach` node
+  `input`. End markers close each side, path, or loop in the App only (not stored). No separate `forEach` node
   or loop `throttle`. See `realignment/graph-model.md` and spec 02.
 - **Marker rule:** `$` markers only in value positions (`input`, `$script.params`, config).
   Transform step `script` is a plain object (`lang`, `source`/`path`), not `{ "$script": … }`.

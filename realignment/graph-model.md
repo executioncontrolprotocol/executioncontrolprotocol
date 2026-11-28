@@ -1,8 +1,7 @@
-# Graph model: nodes, branches and tunnels
+# Graph model: nodes, branches, rail and tunnels
 
-**Status:** agreed 2026-11-26 (decisions below), on branch `feature/graph-model-tunnels`. It revises the containers-and-bands
-model that PR #110 implements; that state is tagged `draft/graph-model-containers` so we can return to it.
-**Mockup:** [`mockups/tunnels-if-in-loop.png`](mockups/tunnels-if-in-loop.png) — an `if` / `else` inside a forEach.
+**Mockups:** [`mockups/rail-if-in-loop.png`](mockups/rail-if-in-loop.png) (rail, tunnels, end markers),
+[`mockups/rail-routed-if-in-loop.png`](mockups/rail-routed-if-in-loop.png) (branch routing through tunnels).
 
 ## Vocabulary
 
@@ -11,8 +10,9 @@ model that PR #110 implements; that state is tagged `draft/graph-model-container
 | **Node** | Anything that runs or decides: a step (capability call or transform) or a control node (`if`, `loop`, `parallel`). |
 | **Port** | A named, typed input or output of a node. Types come from JSON Schema; `unknown` when they can't be known. |
 | **Branch** | A connection from one output port to one input port. It carries one value — a property, a sub-object or a whole node output — and nothing else. In the manifest it's a `$ref` in the target node's `input`. **The only kind of line.** |
-| **Tunnel** | The tinted shape drawn around the nodes a control node governs, from the control node to its `end`. It shows what runs; it carries nothing and is never configured or connected to. |
-| **End** | The closing terminal of a control node. It ends the control's effect and carries no data. Drawn, never stored. |
+| **Rail** | The neutral grey tube drawn left to right from Inputs through the root steps to Outputs. A node on the rail runs; a node off it is detached (badged, never runs). |
+| **Tunnel** | A painted tube on or beside the rail: the rail itself, an `if` side (`then` / `else`), a `parallel` path, or a loop body. Tunnels show what runs; they carry nothing and are never configured or connected to. |
+| **End marker** | One per `if` side, `parallel` path, or loop. A small label (`end then`, `end else`, `end path N`, `end loop`) at the tunnel edge where that side stops. Drawn in the App, not stored. No ports; dragging it changes scope. |
 
 Not used: edge, arm, route, pill, level, line, band, container.
 
@@ -27,6 +27,39 @@ Not used: edge, arm, route, pill, level, line, band, container.
 4. **Schemas are built by connecting.** Control nodes and transforms have multi-cardinal inputs: every branch you
    connect adds a typed port, and the ports together are the node's `accepts`.
 5. **Today's executor stays.** The manifest is a tree: nesting is the tunnel, list order is run order.
+
+## App canvas: rail, tunnels and branches
+
+The visible tunnels are an SVG overlay (`RailVisualLayer` from `computeRailVisualLayer` in `packages/app`). The layer
+has `pointer-events: none` (`data-testid="ecp-rail-layer"`). **`ecp-tunnel` nodes** stay in the React Flow document
+for membership only: transparent, no border, not the painted tunnels. Drop targets and the detached **disconnected**
+badge still use them.
+
+| Tunnel | Colour | Texture | Meaning |
+| --- | --- | --- | --- |
+| Rail | grey | plain tube | runs in order (`ecp-rail-root`; loop bodies off the main row get `ecp-rail-loop-<id>`) |
+| Loop | indigo | diagonal stripes, dashed edge, ↻ title | repeats |
+| `if` sides | green `then` / red `else` | solid tubes | one of two |
+| `parallel` paths | blue | solid tubes, `path N` label | all at once |
+
+Tunnels run continuously from node to node and are at least as tall as the nodes in them, so every port sits inside
+a tunnel. Each `if` side or `parallel` path is one shape: a neck leaves the control node's port and opens to the full
+height of the side. Side labels sit **outside** their tunnel (`then` and each `path N` above, `else` below); end marker
+labels sit **inside** the tunnel edge. Full-height grey **joins** carry each side back into the parent rail before the
+next node.
+
+**End markers** are `ecp-end` React Flow nodes (ids `end:<structureId>:<side>` with `then`, `else`, `path-N`, or
+`loop`). They are not stored. **`alignEndMarkersToBandEdges`** places them just inside the tunnel edge (`END_MARKER_INSET`):
+`then`, upper paths and `end loop` on the top edge; `else` and the last path on the bottom edge.
+Releasing a drag calls **`applyMarkerSnap`** once: nodes whose centres the marker crossed move into or out of that side,
+path, or loop body (one undo step). Dragging a node into a tunnel uses the same reparent rules (one undo step). End
+markers have no context menu, are not selectable, and have no panel. Delete does not remove a marker.
+
+**Branches** run through the tunnels between their two ports, using the tunnels' curves: along a side, under its end
+label, round the join and along the rail. Branches sharing a tunnel run side by side on evenly spaced lanes
+(`BRANCH_LANE_SPACING`); a merge port's branches arrive as matching curves. `computeBranchRoutes` returns the middle of
+each path; `EcpDataEdge` anchors it on React Flow's port positions with `composeBranchPath`, curving into the target
+port over `BRANCH_ENTRY_CURVE`. A branch touching a detached node is drawn as a plain curve.
 
 ## Nodes
 
@@ -56,7 +89,7 @@ multi-cardinal (its `accepts` is what you connect); its outputs are its `returns
   missing optional input or a non-boolean runs `else` (the run record says why).
 - **Outputs:** `then` and `else`, each carrying the inputs with the same types. A node inside reads them with
   `{ "$ref": "state.express.order" }`; they exist only inside the tunnel.
-- **Tunnels:** a green `then` tube and a red `else` tube (labelled, not colour-only), meeting at `end if`.
+- **Tunnels:** green `then` and red `else` tubes, each with an end marker; joins merge back into the rail.
 
 ### `loop`
 
@@ -74,7 +107,8 @@ multi-cardinal (its `accepts` is what you connect); its outputs are its `returns
 ```
 
 - **Outputs inside:** `item` and `index` (forEach) or `index` (for).
-- **Tunnel:** a light grey shape around the body, ending at `end loop`.
+- **Tunnel:** indigo striped loop region around the body; its `end loop` marker sits inside the region's top edge,
+  after the body.
 - **`while` is retired for now.** `for` runs exactly `count` times; there is no condition.
 
 ### `parallel`
@@ -85,20 +119,21 @@ multi-cardinal (its `accepts` is what you connect); its outputs are its `returns
 ```
 
 - **Outputs:** one per path, each carrying the inputs (as for `if`). No inputs → no outputs; it just starts its paths.
-- **Tunnels:** one tube per path, all in one tone, each with a small `path 1`, `path 2`, … label in the same style as
-  the `then` / `else` labels, meeting at `end parallel`.
+- **Tunnels:** one blue tube per path, labelled `path 1`, `path 2`, … in the same style as `then` / `else`, each with
+  its own end marker; joins merge back into the rail.
 
-### `end`
+### End markers
 
-- Every control node has exactly one `end`. It's created and deleted with its control node and can't be added,
-  moved out or deleted on its own. It isn't stored in the manifest: it's where the control's list closes.
-- It has no ports. Branches pass across it freely.
+- Each `if` side, each `parallel` path, and each loop has exactly one end marker, created and removed with its control
+  node. They are not stored in the manifest.
+- They have no ports and carry no data. Branches run under the end label through the tunnel; nothing connects to a
+  marker.
 
 ## Branches across a tunnel's end
 
-The end carries no data; what crosses it is decided by the branch:
+The end marker carries no data; what crosses the tunnel mouth is decided by the branch:
 
-| Leaving | A branch from a node inside to a node after the `end` carries |
+| Leaving | A branch from a node inside to a node after the marker carries |
 | --- | --- |
 | `parallel` | the value, definitely present (every path ran) |
 | `if` | the value, possibly missing (the other side may have run) — so the reader needs a **merge port** or `optional` + `fallback` |
@@ -137,7 +172,7 @@ computing (a count, a filtered list, a reshaped value) is a transform node upstr
 
 **Every kind:** Kind (if · for each · for · parallel), Label, Inputs (ports with name, type from the feeding branch,
 and a branch or a literal; together they're `accepts`). Not exposed: the id (shown read-only), the `as` name (managed
-by the App), the `end` (always paired).
+by the App), end markers (drawn, not in the panel).
 
 | Kind | Inputs | Options | Outputs into the tunnel |
 | --- | --- | --- | --- |
@@ -164,19 +199,19 @@ Branches that no longer fit after a switch stay and are flagged by validation.
 ## Configuration and actions
 
 - Right-hand panel: the selected node (step; `if`: inputs, condition as expression or script; `loop`: mode, driver,
-  limits; `parallel`: paths, limit). A selected branch shows its two ports and Delete.
-- Delete: a branch removes its `$ref`; a step removes the step; a control node removes the control and its `end`,
-  keeping its nodes (or "with its nodes"). An `end` has no Delete of its own.
+  limits; `parallel`: paths, limit). A selected branch shows its two ports and Delete. An end marker has no panel.
+- Delete: a branch removes its `$ref`; a step removes the step; a control node removes the control and its end markers,
+  keeping its nodes (or "with its nodes"). An end marker has no Delete of its own.
 - Wrap a selection in `if` / `loop` / `parallel` (parallel needs two or more nodes, one per path).
 - Drawing a branch is refused when types don't fit or the reader runs before the writer; a node can't read the other
   side of an `if`, another path, or a loop's item from outside it.
 
 ## Changes from the `draft/graph-model-containers` state
 
-| Containers and bands (PR #110 today) | Tunnels (this proposal) |
+| Containers and bands (older App) | Rail and tunnels (today) |
 | --- | --- |
-| Dotted container split into `then` / `else` / path bands | Green `then` / red `else` tubes, one-tone path tubes, a grey box for loops; each labelled |
-| Start node on the container's left edge, `end` only for loops | Control node at the tunnel's start; an `end` for every control node, drawn not stored |
+| Dotted container split into `then` / `else` / path bands | Grey rail; green `then` / red `else` / blue path tubes; indigo striped loop region |
+| Start node on the container's left edge, one `end` per control | Control on the rail; one end marker per side, path, or loop (drawn, not stored) |
 | Loop `end` object: `input.value`, `repeat`, gather `expression` / `script`, `returns`; loop `into` | Removed. A branch leaving a loop carries `T[]` |
 | `while` with post-round `repeat` | Retired; `for` is count-only |
 | Reading after an `if`: `optional` + `fallback` | Merge port (`$ref` list), or `optional` + `fallback` |
@@ -218,42 +253,3 @@ control outputs; conditions over `input` only; `ECP_NODE_DETACHED`; the tree exe
 9. **The `T[]` cue** is the type on the reading port (`labels: Label[]`), not a label on the branch.
 10. **Core group:** the add-node menu's Core group holds the control node and transform capabilities, found by
     their manifest (`contract: "step"`, `code: "script"`), not by a hard-coded capability id.
-
-## Rail and end markers (2026-11-27)
-
-Mockup: [`mockups/rail-if-in-loop.png`](mockups/rail-if-in-loop.png). Supersedes the drawn `end` node and the tunnel
-shapes above; the manifest and engine don't change.
-
-- **Rail.** The flow is drawn as a neutral grey tube from Inputs to Outputs behind every node, in list order. A node on
-  the rail runs; a node off it is detached (badged, never runs). Order reads left to right along the rail; there is
-  no second kind of line.
-- **Tunnels off the rail**, told apart by colour and texture:
-
-  | | Colour | Texture | Meaning |
-  | --- | --- | --- | --- |
-  | Rail | grey | plain | runs in order |
-  | Loop | indigo | diagonal stripes, dashed edge, ↻ | repeats |
-  | `if` sides | green `then` / red `else` | solid tubes | one of two |
-  | `parallel` paths | blue | solid tubes, labelled `path N` | all at once |
-
-- **End markers, not nodes.** Each side of an `if`, each `parallel` path and each loop ends at an **end marker**: a
-  small label (`end then`, `end else`, `end path 2`, `end loop`) sitting across its tunnel, centred, at the point
-  where that side stops. It has no ports and carries no data; nothing connects to it. After their markers, the sides
-  of an `if` / `parallel` merge back into the rail.
-- **Changing scope.** Dragging an end marker along its tunnel moves the nodes it passes into or out of that side (one
-  edit, one undo step). Dragging a node into or out of a tunnel does the same.
-- **Branches** stay the only lines and carry only data.
-
-Vocabulary: *branch* is a data line between two ports; *tunnel* is a tube (the rail, a side, a path, a loop); *end
-marker* is the label where a tunnel's control stops.
-
-### Branches inside tunnels (2026-11-28)
-
-Mockup: [`mockups/rail-routed-if-in-loop.png`](mockups/rail-routed-if-in-loop.png).
-
-- Tunnels run continuously from node to node (side bands start at the control node's edge; joins are full tunnel
-  height and meet the next node) and are at least as tall as the nodes in them, so every port sits inside a tunnel.
-- Every branch is routed along the tunnels between its two ports: along its side, under the side's end label, round
-  the join and along the rail, using the same curves as the tunnels. Branches sharing a tunnel run side by side on
-  evenly spaced lanes; a merge port's branches arrive as matching curves.
-- End labels sit on the tunnel's edge, above the branches running through it.
