@@ -1,7 +1,6 @@
 import type { NodeProps } from "@xyflow/react"
-import { AlertTriangle, Filter } from "lucide-react"
-import { EXPR_HANDLE_ID, type ReactFlowStepData, type ReactFlowStepStatus } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import { AlertTriangle } from "lucide-react"
+import { type ReactFlowStepData, type ReactFlowStepStatus } from "../../graph/index.js"
 import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
@@ -29,8 +28,8 @@ export interface EcpStepNodeData extends ReactFlowStepData {
 }
 
 /**
- * View-only React Flow node for a capability step: label, capability id, `as`, `expr`
- * gate, ports with their bindings, and run / validation status.
+ * View-only React Flow node for a capability step: label, capability id, `as`, ports with
+ * their bindings, and run / validation status.
  * @category App
  */
 export function EcpStepNode({ id, data, selected }: NodeProps) {
@@ -55,8 +54,6 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
       data-invalid={step.invalid ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle />
-      <FlowOutHandle />
       {step.detached ? (
         <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
           disconnected
@@ -72,15 +69,6 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
             <div className="mt-1 font-mono text-[10px] text-primary-fixed">
               as {step.as}
               {step.mode ? ` (${step.mode})` : ""}
-            </div>
-          ) : null}
-          {step.exprBadge ? (
-            <div
-              className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded border border-outline-variant bg-surface-container-high px-1.5 py-0.5 font-mono text-[9px] text-tertiary-fixed-dim"
-              title={step.exprBadge}
-            >
-              <Filter className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-              {step.exprBadge}
             </div>
           ) : null}
           {step.round !== undefined ? (
@@ -103,7 +91,7 @@ export function EcpStepNode({ id, data, selected }: NodeProps) {
             nodeId={id}
             port={port}
             connected={port.binding === "ref" || targets.has(port.id)}
-            connectable={dataConnectable && port.id !== EXPR_HANDLE_ID}
+            connectable={dataConnectable}
           />
         ))}
         {step.outputs.map((port) => (

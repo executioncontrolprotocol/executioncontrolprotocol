@@ -30,8 +30,8 @@ export interface RunCursor {
   inProgress?: string
   /** Loop id to the round index that was in progress. */
   loops: Record<string, number>
-  /** Branch id to the arm index that was selected. */
-  branches: Record<string, number>
+  /** `if` node id to the side that was taken. */
+  choices: Record<string, "then" | "else">
   /** Outermost `forEach` loop id to item indexes that finished. */
   loopItems?: Record<string, { completed: number[] }>
 }
@@ -41,8 +41,8 @@ export interface RunCursor {
  * @category Definitions
  */
 export interface LoopPartialFile {
-  /** Item index (string key) to collected value, or `null` when continuing past an error. */
-  results: Record<string, JsonValue | null>
+  /** Round / item index (string key) to keys written in that round, or `null` on continue. */
+  rounds: Record<string, Record<string, JsonValue | null> | null>
   /** Failed item indexes when `onError` is `continue`. */
   errors: Array<{ index: number; error: ValidationIssue }>
 }
@@ -358,9 +358,8 @@ export type RunEventType =
   | "step.end"
   | "step.error"
   | "step.warning"
-  | "branch.select"
+  | "if.select"
   | "loop.round"
-  | "loop.exhausted"
   | "loop.start"
   | "loop.item.start"
   | "loop.item.end"
@@ -469,4 +468,8 @@ export interface CapabilitySummary {
   plugin: string
   /** One-line summary. */
   summary: string
+  /** Step contract marker, when set on the capability manifest. */
+  contract?: "step"
+  /** Step code kind, when {@link CapabilitySummary.contract} is `"step"`. */
+  code?: "script" | "expression"
 }

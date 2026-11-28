@@ -4,32 +4,32 @@ import type { RunDetail } from "@executioncontrolprotocol/protocol"
 import { nodeErrorIssues, type AppHostClient } from "../../client/index.js"
 import {
   addCapabilityStep,
+  addControlNode,
   executionToReactFlow,
   insertConnectedStep,
+  insertConnectedControlNode,
   placeWithOverrides,
   reactFlowLayoutFitKey,
   replayRunEvents,
   type PositionOverrides,
   type ReactFlowDocument,
   deleteSelection,
+  isEndNodeSelection,
   isStructureHeaderSelection,
-  routeDeleteTarget,
   type DeleteSelection,
-  type ReactFlowRouteEdgeData,
   type RunGraphState,
 } from "../../graph/index.js"
 import type { CapabilityEntry } from "@executioncontrolprotocol/protocol"
 import { retrieveItem } from "../../client/results.js"
+import { CONTROL_NODE_ENTRY_ID } from "../lib/group-capabilities.js"
 import { useCapabilities } from "../hooks/useCapabilities.js"
 import { useExecutionDocument, type ExecutionRetrieveHook, type ExecutionSource } from "../hooks/useExecutionDocument.js"
 import { useExecutionEditor } from "../hooks/useExecutionEditor.js"
 import { useLiveRun } from "../hooks/useLiveRun.js"
-import type { Node } from "@executioncontrolprotocol/protocol"
 import { GraphCanvas, type FocusRequest, type SelectedEdge } from "./GraphCanvas.js"
 import { JsonView } from "./JsonView.js"
 import { EdgePanel } from "./EdgePanel.js"
 import { NodePanel } from "./NodePanel.js"
-import { StructurePanel } from "./StructurePanel.js"
 import { RunsView } from "./RunsView.js"
 import { RunView } from "./RunView.js"
 import { ValidationView } from "./ValidationView.js"
@@ -74,21 +74,6 @@ function sourceLabel(source: ExecutionSource): string {
   return source.kind === "path" ? source.path : source.id
 }
 
-function isBranchOrParallel(nodes: Node[], id: string): boolean {
-  for (const node of nodes) {
-    if (node.type === "branch" && node.id === id) return true
-    if (node.type === "parallel" && node.id === id) return true
-    if (node.type === "branch") {
-      for (const arm of node.branches) if (isBranchOrParallel(arm.steps, id)) return true
-    } else if (node.type === "parallel") {
-      for (const line of node.branches) if (isBranchOrParallel(line, id)) return true
-    } else if (node.type === "loop") {
-      if (isBranchOrParallel(node.steps, id)) return true
-    }
-  }
-  return false
-}
-
 /**
  * Execution workspace: graph canvas with run / validation overlays and a tabbed sidebar
  * (Graph, Validation, Run, Runs, JSON). Hot reload keeps selection and the viewport, and
@@ -130,7 +115,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const dagre = useMemo<{ document?: ReactFlowDocument; error?: string }>(() => {
     if (!workingManifest) return {}
     try {
-      return { document: executionToReactFlow(workingManifest, { capabilitySchemas: capabilities.schemas }) }
+      const capabilityMeta: Record<string, { contract?: "step"; code?: "script" | "expression" }> = {}
+      for (const [id, entry] of Object.entries(capabilities.byId)) {
+        if (entry.contract !== undefined || entry.code !== undefined) {
+          capabilityMeta[id] = { contract: entry.contract, code: entry.code }
+        }
+      }
+      return {
+        document: executionToReactFlow(workingManifest, {
+          capabilitySchemas: capabilities.schemas,
+          capabilityMeta,
+        }),
+      }
     } catch (error) {
       return { error: `The graph could not be drawn: ${error instanceof Error ? error.message : String(error)}` }
     }
@@ -142,7 +138,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     const nonFrame: string[] = []
     const frames: string[] = []
     for (const node of dagreDocument.nodes) {
-      if (node.type === "ecp-frame") frames.push(node.id)
+      if (node.type === "ecp-tunnel") frames.push(node.id)
       else nonFrame.push(node.id)
     }
     return { nonFrame, frames }
@@ -173,8 +169,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
   const selectedNode = encoded.document?.nodes.find((node) => node.id === selectedId)
   const selectedEdgeRecord = encoded.document?.edges.find((edge) => edge.id === selectedEdge?.edgeId)
   const overlay = replay?.graph ?? live.graph
-  const runId = replay?.detail.id ?? live.runId
-  const runSource: "live" | "replay" | "none" = replay ? "replay" : live.runId ? "live" : "none"
   const startRun = live.start
   const applyManifestEdit = editor.applyEdit
   const structureEditError = editor.structureError
@@ -198,16 +192,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               return { kind: "steps", stepIds: selectedStepIds }
             }
             if (selectedEdgeRecord) {
-              const level =
-                selectedEdgeRecord.data.kind === "route"
-                  ? (routeDeleteTarget((selectedEdgeRecord.data as ReactFlowRouteEdgeData).levels) ??
-                    selectedEdge?.level ??
-                    0)
-                  : (selectedEdge?.level ?? 0)
-              return { kind: "connector", edge: selectedEdgeRecord, level }
+              return { kind: "connector", edge: selectedEdgeRecord }
             }
             if (selectedId && isStructureHeaderSelection(workingManifest, selectedId)) {
               return { kind: "structure", structureId: selectedId }
+            }
+            if (selectedId && isEndNodeSelection(workingManifest, selectedId)) {
+              return { kind: "end", endNodeId: selectedId }
             }
             return { kind: "none" }
           })()
@@ -289,6 +280,18 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
     [commitOverrides],
   )
 
+  const onClearPositionOverrides = useCallback(
+    (nodeIds: readonly string[]) => {
+      if (nodeIds.length === 0) return
+      commitOverrides((current) => {
+        const next = { ...current }
+        for (const id of nodeIds) delete next[id]
+        return next
+      })
+    },
+    [commitOverrides],
+  )
+
   const onAutoLayout = useCallback(() => {
     clearOverrides()
   }, [clearOverrides])
@@ -314,6 +317,15 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       }
 
       if (request.origin && request.originPort) {
+        if (entry.id === CONTROL_NODE_ENTRY_ID || entry.controlNode) {
+          void applyManifestEdit((current) => {
+            const result = insertConnectedControlNode(current, request.origin!, request.originPort!)
+            // A control node isn't pinned: the tree layout places it with its tunnels and end.
+            if (result.ok) stepId = result.structureId
+            return result
+          }).then(finish)
+          return
+        }
         void client
           .retrieve({ type: "capability", id: entry.id })
           .then((response) => {
@@ -326,7 +338,13 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
             void applyManifestEdit((current) => {
               const result = insertConnectedStep(
                 current,
-                { id: capability.id, accepts: capability.accepts, returns: capability.returns },
+                {
+                  id: capability.id,
+                  accepts: capability.accepts,
+                  returns: capability.returns,
+                  contract: capability.contract,
+                  code: capability.code,
+                },
                 request.origin!,
                 request.originPort!,
               )
@@ -341,7 +359,17 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       }
 
       void applyManifestEdit((current) => {
-        const result = addCapabilityStep(current, { id: entry.id }, request.placement)
+        if (entry.id === CONTROL_NODE_ENTRY_ID || entry.controlNode) {
+          const result = addControlNode(current, request.placement)
+          // A control node isn't pinned: the tree layout places it with its tunnels and end.
+          if (result.ok) stepId = result.structureId
+          return result
+        }
+        const result = addCapabilityStep(
+          current,
+          { id: entry.id, contract: entry.contract, code: entry.code },
+          request.placement,
+        )
         if (result.ok) {
           stepId = result.stepId
           pinFlowPosition(result.stepId)
@@ -366,10 +394,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
 
   const selectedUses =
     selectedNode?.type === "ecp-step" ? (selectedNode.data as { uses: string }).uses : undefined
-  const structurePanelId =
-    selectedId && workingManifest && !selectedNode && isBranchOrParallel(workingManifest.steps, selectedId)
-      ? selectedId
-      : undefined
   const title = workingManifest?.execution?.label ?? workingManifest?.execution?.id ?? sourceLabel(source)
   const valid = validation?.valid
   const saveStatusLabel =
@@ -384,7 +408,6 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
       data-selected-node={selectedId ?? ""}
       data-selected-steps={selectedStepIds.join(",")}
       data-selected-edge={selectedEdge?.edgeId ?? ""}
-      data-selected-level={selectedEdge !== undefined ? String(selectedEdge.level) : ""}
       data-loads={doc.loads}
       data-version={doc.version !== undefined ? String(doc.version) : ""}
       className="flex min-h-0 flex-1 flex-col"
@@ -461,6 +484,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               selectedId={selectedId}
               selectedStepIds={selectedStepIds}
               readOnly={readOnly}
+              positionDragOnly={replay !== undefined}
               selectedEdge={selectedEdge}
               onSelect={selectFromCanvas}
               onSelectSteps={setSelectedStepIds}
@@ -470,6 +494,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
               onMenuDismiss={() => setCapabilityMenu(undefined)}
               onPositionDragStop={onPositionDragStop}
+              onClearPositionOverrides={onClearPositionOverrides}
               onAutoLayout={onAutoLayout}
               suppressNextFitRef={suppressNextFit}
               onUndo={() => void editor.undo()}
@@ -530,22 +555,12 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
               ) : null}
               {selectedEdgeRecord ? (
                 <EdgePanel
-                  client={client}
                   manifest={workingManifest}
                   edge={selectedEdgeRecord}
-                  runId={runId}
-                  runSource={runSource}
-                  onUnauthorized={onUnauthorized}
                   readOnly={readOnly}
                   applyManifestEdit={applyManifestEdit}
-                  scheduleTextEdit={editor.scheduleText}
-                  flushTextEdit={editor.flushText}
-                  discardTextEdit={editor.discardText}
-                  fieldEpoch={editor.fieldEpoch}
-                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
+                  onDeleted={() => setSelectedEdge(undefined)}
                 />
-              ) : structurePanelId ? (
-                <StructurePanel manifest={workingManifest} structureId={structurePanelId} />
               ) : (
                 <NodePanel
                   client={client}
@@ -565,6 +580,7 @@ export function Workspace({ client, source, onUnauthorized }: WorkspaceProps) {
                   scheduleTextEdit={editor.scheduleText}
                   flushTextEdit={editor.flushText}
                   fieldEpoch={editor.fieldEpoch}
+                  onOpenCapabilityMenu={readOnly ? undefined : openCapabilityMenu}
                 />
               )}
               </>

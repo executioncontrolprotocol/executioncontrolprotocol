@@ -11,12 +11,16 @@
           "type": "array"
         }
       },
-      "required": ["signals"]
+      "required": [
+        "signals"
+      ]
     },
     "returns": {
       "type": "object",
       "properties": {
-        "brief": { "type": "object" }
+        "brief": {
+          "type": "object"
+        }
       }
     }
   },

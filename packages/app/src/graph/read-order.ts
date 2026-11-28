@@ -1,29 +1,42 @@
 import type { Node } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID } from "./io-from-schema.js"
 import { isStepNode } from "./io-from-schema.js"
+import { parseStateRef } from "./extract-data-edges.js"
 import {
-  LOOP_INTO_HANDLE,
+  IF_ELSE_HANDLE,
+  IF_THEN_HANDLE,
+  LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
+  PARALLEL_PATH_HANDLE_PREFIX,
+  endMarkerId,
 } from "./types.js"
-import { walkManifestPlacements } from "./extract-data-edges.js"
 
 /**
  * Source port on the graph for read-order checks.
  * @category App
  */
 export interface ConnectionSource {
-  /** Node id (step, loop, or Inputs). */
+  /** Node id (step, loop, end, if, or Inputs). */
   nodeId: string
   /** Handle id on that node. */
   handleId: string
 }
 
-interface ScopeSegment {
-  kind: "parallel" | "branch" | "loop"
+/**
+ * Scope segment for merge-port validation (exported for connection edits).
+ * @category App
+ */
+export interface ScopeSegment {
+  kind: "parallel" | "if" | "loop"
   id: string
+  side?: "then" | "else"
   index?: number
 }
 
+/**
+ * Where a reader (a step, an `if`, a `parallel`, a loop driver or a loop `end`) sits in document order. Steps and loop
+ * ends use whole numbers; `if` / `parallel` readers sit half a step before their first inner node.
+ */
 interface StepWalkEntry {
   order: number
   enclosingLoopStack: string[]
@@ -32,19 +45,21 @@ interface StepWalkEntry {
 
 interface StructureBounds {
   id: string
-  kind: "parallel" | "branch" | "loop"
-  mode?: "while" | "for" | "forEach"
+  kind: "parallel" | "if" | "loop"
+  mode?: "for" | "forEach"
   startOrder: number
   endOrder: number
   scope: ScopeSegment[]
 }
 
 interface WalkIndex {
-  steps: Map<string, StepWalkEntry>
+  /** Every reader by React Flow node id: steps, `if`, `parallel`, loops (the driver) and `end:<loopId>`. */
+  readers: Map<string, StepWalkEntry>
   structures: Map<string, StructureBounds>
 }
 
-function walkIndex(nodes: Node[]): WalkIndex {
+/** @internal Visible to graph routing helpers in the App package. */
+export function walkIndex(nodes: Node[]): WalkIndex {
   const steps = new Map<string, StepWalkEntry>()
   const structures = new Map<string, StructureBounds>()
   let order = 0
@@ -55,22 +70,29 @@ function walkIndex(nodes: Node[]): WalkIndex {
         steps.set(node.id, { order: order++, enclosingLoopStack: [...loopStack], scope: [...scope] })
       } else if (node.type === "loop") {
         const startOrder = order++
-        const mode = node.mode ?? "while"
+        const mode = node.mode
         const loopScope: ScopeSegment = { kind: "loop", id: node.id }
+        steps.set(node.id, { order: startOrder, enclosingLoopStack: [...loopStack], scope: [...scope] })
         walk(node.steps, [...scope, loopScope], [...loopStack, node.id])
         const endOrder = order++
+        steps.set(endMarkerId(node.id, "loop"), {
+          order: endOrder,
+          enclosingLoopStack: [...loopStack, node.id],
+          scope: [...scope, loopScope],
+        })
         structures.set(node.id, {
           id: node.id,
           kind: "loop",
-          mode: mode === "for" || mode === "forEach" ? mode : "while",
+          mode: mode === "for" || mode === "forEach" ? mode : undefined,
           startOrder,
           endOrder,
           scope: [...scope],
         })
       } else if (node.type === "parallel") {
         const startOrder = order
-        node.branches.forEach((line, index) => {
-          walk(line, [...scope, { kind: "parallel", id: node.id, index }], loopStack)
+        steps.set(node.id, { order: startOrder - 0.5, enclosingLoopStack: [...loopStack], scope: [...scope] })
+        node.paths.forEach((path, index) => {
+          walk(path, [...scope, { kind: "parallel", id: node.id, index }], loopStack)
         })
         structures.set(node.id, {
           id: node.id,
@@ -79,14 +101,16 @@ function walkIndex(nodes: Node[]): WalkIndex {
           endOrder: order,
           scope: [...scope],
         })
-      } else if (node.type === "branch") {
+      } else if (node.type === "if") {
         const startOrder = order
-        node.branches.forEach((arm, index) => {
-          walk(arm.steps, [...scope, { kind: "branch", id: node.id, index }], loopStack)
-        })
+        steps.set(node.id, { order: startOrder - 0.5, enclosingLoopStack: [...loopStack], scope: [...scope] })
+        walk(node.then, [...scope, { kind: "if", id: node.id, side: "then" }], loopStack)
+        if (node.else) {
+          walk(node.else, [...scope, { kind: "if", id: node.id, side: "else" }], loopStack)
+        }
         structures.set(node.id, {
           id: node.id,
-          kind: "branch",
+          kind: "if",
           startOrder,
           endOrder: order,
           scope: [...scope],
@@ -96,7 +120,7 @@ function walkIndex(nodes: Node[]): WalkIndex {
   }
 
   walk(nodes, [], [])
-  return { steps, structures }
+  return { readers: steps, structures }
 }
 
 function divergedAtSiblingScope(writer: StepWalkEntry, reader: StepWalkEntry): boolean {
@@ -107,26 +131,20 @@ function divergedAtSiblingScope(writer: StepWalkEntry, reader: StepWalkEntry): b
     const left = w[index]!
     const right = r[index]!
     if (left.kind !== right.kind || left.id !== right.id) return false
+    if (left.kind === "if" && left.side !== right.side) return true
     if (left.index !== undefined && right.index !== undefined && left.index !== right.index) return true
   }
   return false
 }
 
-function forEachBodyLeak(writer: StepWalkEntry, reader: StepWalkEntry, structures: Map<string, StructureBounds>): boolean {
-  for (let depth = writer.scope.length; depth > 0; depth -= 1) {
-    const segment = writer.scope[depth - 1]
-    if (!segment || segment.kind !== "loop") continue
-    const loop = structures.get(segment.id)
-    if (!loop || loop.mode !== "forEach") continue
-    const writerInside = writer.scope.length >= depth
-    const readerInside = reader.scope.length >= depth && reader.scope[depth - 1]?.id === segment.id
-    if (writerInside && !readerInside && reader.order > loop.endOrder) return true
-  }
-  return false
+/** Whether the reader sits inside the band of an `if` side or `parallel` path. */
+function insideBand(reader: StepWalkEntry, structureId: string, match: (segment: ScopeSegment) => boolean): boolean {
+  return reader.scope.some((segment) => segment.id === structureId && match(segment))
 }
 
 /**
- * Whether `source` state is visible when read by `targetStepId` under L3 scope rules.
+ * Whether `source` state is visible when read by `targetStepId` under L3 scope rules. The reader is any node that has
+ * input ports: a step, an `if`, a `parallel`, a loop (its driver) or a loop `end` (`end:<loopId>`).
  * @category App
  */
 export function sourceVisibleTo(
@@ -135,37 +153,43 @@ export function sourceVisibleTo(
   targetStepId: string,
 ): boolean {
   const index = walkIndex(manifest.steps)
-  const { loopById } = walkManifestPlacements(manifest.steps)
+  const reader = index.readers.get(targetStepId)
 
   if (source.nodeId === EXECUTION_ACCEPTS_NODE_ID) {
-    return index.steps.has(targetStepId)
+    return reader !== undefined
   }
 
-  if (source.nodeId === targetStepId && source.handleId !== LOOP_ITEM_HANDLE && source.handleId !== LOOP_INTO_HANDLE) {
+  if (source.nodeId === targetStepId && source.handleId !== LOOP_ITEM_HANDLE) {
     return false
   }
 
-  const loopAsSource = loopById.has(source.nodeId)
-  if (loopAsSource) {
-    const reader = index.steps.get(targetStepId)
+  const sourceLoop = index.structures.get(source.nodeId)
+  if (sourceLoop?.kind === "loop") {
     if (!reader) return false
-    if (source.handleId === LOOP_ITEM_HANDLE) {
+    if (source.handleId === LOOP_ITEM_HANDLE || source.handleId === LOOP_INDEX_HANDLE) {
       return reader.enclosingLoopStack.includes(source.nodeId)
     }
-    if (source.handleId === LOOP_INTO_HANDLE) {
-      const loop = loopById.get(source.nodeId)
-      if (!loop) return false
-      return reader.order > loop.endOrder && !reader.enclosingLoopStack.includes(source.nodeId)
-    }
     return false
   }
 
-  const writer = index.steps.get(source.nodeId)
-  const reader = index.steps.get(targetStepId)
+  const container = index.structures.get(source.nodeId)
+  if (container?.kind === "if") {
+    if (!reader) return false
+    const side = source.handleId === IF_THEN_HANDLE ? "then" : source.handleId === IF_ELSE_HANDLE ? "else" : undefined
+    if (!side) return false
+    return insideBand(reader, source.nodeId, (segment) => segment.kind === "if" && segment.side === side)
+  }
+  if (container?.kind === "parallel") {
+    if (!reader || !source.handleId.startsWith(PARALLEL_PATH_HANDLE_PREFIX)) return false
+    const pathIndex = Number.parseInt(source.handleId.slice(PARALLEL_PATH_HANDLE_PREFIX.length), 10) - 1
+    if (!Number.isInteger(pathIndex) || pathIndex < 0) return false
+    return insideBand(reader, source.nodeId, (segment) => segment.kind === "parallel" && segment.index === pathIndex)
+  }
+
+  const writer = index.readers.get(source.nodeId)
   if (!writer || !reader) return false
   if (reader.order <= writer.order) return false
   if (divergedAtSiblingScope(writer, reader)) return false
-  if (forEachBodyLeak(writer, reader, index.structures)) return false
   return true
 }
 
@@ -173,16 +197,92 @@ export function sourceVisibleTo(
  * Reason returned when a data connection is refused for document order / scope.
  * @category App
  */
-export const CONNECTION_EDIT_ORDER = "That output is not produced before this step"
+export const CONNECTION_EDIT_ORDER = "That output is not produced before this node"
 
 /**
- * Reason returned when a step would read its own output.
+ * Reason returned when a node would read its own output.
  * @category App
  */
-export const CONNECTION_EDIT_SELF = "A step cannot read its own output"
+export const CONNECTION_EDIT_SELF = "A node cannot read its own output"
 
 /**
  * Reason returned when a handle cannot accept connections.
  * @category App
  */
 export const CONNECTION_EDIT_HANDLE = "That port cannot be connected"
+
+/**
+ * Scope chain for a branch source, used by merge-port validation.
+ * @category App
+ */
+/**
+ * Scope chain for a reader node id (step, control, loop, or end marker).
+ * @category App
+ */
+export function readerScope(manifest: { steps: Node[] }, readerId: string): ScopeSegment[] | undefined {
+  return walkIndex(manifest.steps).readers.get(readerId)?.scope
+}
+
+export function sourceScope(manifest: { steps: Node[] }, source: ConnectionSource): ScopeSegment[] | undefined {
+  const index = walkIndex(manifest.steps)
+
+  if (source.nodeId === EXECUTION_ACCEPTS_NODE_ID) return []
+
+  const container = index.structures.get(source.nodeId)
+  if (container?.kind === "if") {
+    const side =
+      source.handleId === IF_THEN_HANDLE ? "then" : source.handleId === IF_ELSE_HANDLE ? "else" : undefined
+    if (!side) return undefined
+    return [...container.scope, { kind: "if", id: container.id, side }]
+  }
+  if (container?.kind === "parallel" && source.handleId.startsWith(PARALLEL_PATH_HANDLE_PREFIX)) {
+    const pathIndex = Number.parseInt(source.handleId.slice(PARALLEL_PATH_HANDLE_PREFIX.length), 10) - 1
+    if (!Number.isInteger(pathIndex) || pathIndex < 0) return undefined
+    return [...container.scope, { kind: "parallel", id: container.id, index: pathIndex }]
+  }
+
+  const writer = index.readers.get(source.nodeId)
+  return writer?.scope
+}
+
+/**
+ * Scope chain for a writer identified by a `state.<as>[.<path>]` ref string.
+ * @category App
+ */
+export function scopeForStateRef(manifest: { steps: Node[] }, rawRef: string): ScopeSegment[] | undefined {
+  const parsed = parseStateRef(rawRef.startsWith("state.") ? rawRef : `state.${rawRef}`)
+  if (!parsed) return undefined
+  const index = walkIndex(manifest.steps)
+  for (const [nodeId, entry] of index.readers) {
+    const hit = findNodeInTree(manifest.steps, nodeId)
+    if (!hit) continue
+    const node = hit
+    const asKey =
+      isStepNode(node) && node.as === parsed.asKey
+        ? parsed.asKey
+        : (node.type === "if" || node.type === "parallel") && node.as === parsed.asKey
+          ? parsed.asKey
+          : undefined
+    if (asKey) return entry.scope
+  }
+  return undefined
+}
+
+function findNodeInTree(nodes: Node[], id: string): Node | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    if (node.type === "if") {
+      const hit = findNodeInTree([...node.then, ...(node.else ?? [])], id)
+      if (hit) return hit
+    } else if (node.type === "parallel") {
+      for (const path of node.paths) {
+        const hit = findNodeInTree(path, id)
+        if (hit) return hit
+      }
+    } else if (node.type === "loop") {
+      const hit = findNodeInTree(node.steps, id)
+      if (hit) return hit
+    }
+  }
+  return undefined
+}

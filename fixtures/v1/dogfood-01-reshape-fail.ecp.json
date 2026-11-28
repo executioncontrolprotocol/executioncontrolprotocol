@@ -9,7 +9,9 @@
           "type": "array"
         }
       },
-      "required": ["items"]
+      "required": [
+        "items"
+      ]
     }
   },
   "steps": [

@@ -34,4 +34,34 @@ describe("decideIdleShutdown", () => {
     })
     expect(decision.shouldIdleStop).toBe(true)
   })
+
+  it("does not stop while the supervisor is shutting down or the host is unhealthy", () => {
+    expect(decideIdleShutdown({ ...base, stopping: true }).shouldIdleStop).toBe(false)
+    expect(decideIdleShutdown({ ...base, hostHealthy: false }).shouldIdleStop).toBe(false)
+  })
+
+  it("does not schedule shutdown without a last activity time", () => {
+    const decision = decideIdleShutdown({ ...base, lastActivityAt: undefined, nowMs: 0 })
+    expect(decision.shouldIdleStop).toBe(false)
+    expect(decision.idleShutdownAt).toBeNull()
+  })
+
+  it("exposes the idle shutdown instant before the deadline", () => {
+    const decision = decideIdleShutdown({
+      ...base,
+      nowMs: Date.parse("2026-01-01T00:00:30.000Z"),
+    })
+    expect(decision.shouldIdleStop).toBe(false)
+    expect(decision.idleShutdownAt).toBe("2026-01-01T00:01:00.000Z")
+  })
+
+  it("ignores an unparseable last activity time", () => {
+    const decision = decideIdleShutdown({
+      ...base,
+      lastActivityAt: "not-a-date",
+      nowMs: 9_999_999_999,
+    })
+    expect(decision.shouldIdleStop).toBe(false)
+    expect(decision.idleShutdownAt).toBeNull()
+  })
 })

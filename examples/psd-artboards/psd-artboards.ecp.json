@@ -197,9 +197,9 @@
         }
       },
       "script": {
-          "lang": "js",
-          "path": "scripts/plan-layout.js"
-        },
+        "lang": "js",
+        "path": "scripts/plan-layout.js"
+      },
       "as": "plan"
     },
     {
@@ -324,9 +324,9 @@
         }
       },
       "script": {
-          "lang": "js",
-          "path": "scripts/check-structure.js"
-        },
+        "lang": "js",
+        "path": "scripts/check-structure.js"
+      },
       "as": "structure"
     },
     {
@@ -377,9 +377,9 @@
         }
       },
       "script": {
-          "lang": "js",
-          "path": "scripts/review-images.js"
-        },
+        "lang": "js",
+        "path": "scripts/review-images.js"
+      },
       "as": "reviewImages"
     },
     {
@@ -437,9 +437,9 @@
         }
       },
       "script": {
-          "lang": "js",
-          "path": "scripts/eval-prompt.js"
-        },
+        "lang": "js",
+        "path": "scripts/eval-prompt.js"
+      },
       "as": "reviewPrompt"
     },
     {
@@ -520,9 +520,9 @@
         }
       },
       "script": {
-          "lang": "js",
-          "path": "scripts/parse-verdict.js"
-        },
+        "lang": "js",
+        "path": "scripts/parse-verdict.js"
+      },
       "as": "verdict"
     }
   ]

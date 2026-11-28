@@ -5,7 +5,7 @@
     {
       "type": "parallel",
       "id": "pair",
-      "branches": [
+      "paths": [
         [
           {
             "id": "a",

@@ -1,6 +1,5 @@
 import type { NodeProps } from "@xyflow/react"
 import type { ReactFlowIoData } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle } from "./ports.js"
 import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
@@ -30,8 +29,6 @@ export function EcpIoNode({ id, data }: NodeProps) {
       data-node-id={id}
       className="ecp-rf-node ecp-rf-node--io min-w-[180px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm"
     >
-      {io.kind === "returns" ? <FlowInHandle /> : null}
-      {io.kind === "accepts" ? <FlowOutHandle /> : null}
       <div className="mb-2">
         <div className="font-display text-[11px] font-semibold leading-tight text-on-surface">{io.label}</div>
         <div className="mt-1 font-mono text-[10px] text-on-surface-variant">execution.{io.kind}</div>

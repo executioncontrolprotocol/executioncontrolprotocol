@@ -291,7 +291,7 @@ covered. Missing (add one fixture + `.expected.json` each):
   CLI sweep).
 - `ECP_REF_UNRESOLVED`: ref to a later step; ref to a parallel sibling's output (message says
   so).
-- `ECP_REF_MAYBE_MISSING`: after a gated step; after a branch without default arm; after a loop
+- `ECP_REF_MAYBE_MISSING`: after an `if` whose `else` may not run; after a loop
   (check which of these the existing fixture covers; add the others).
 - `ECP_REF_PATH_INVALID`: wrong output path, with a "did you mean" suggestion.
 - `ECP_TYPE_MISMATCH`: number into string; object into string.
@@ -304,10 +304,10 @@ covered. Missing (add one fixture + `.expected.json` each):
 
 ### F9 — The A2 "all-features" fixture doesn't use all features (Medium)
 
-**Evidence:** `fixtures/manifests/acceptance/all-features.ecp.json` uses only step, branch,
+**Evidence:** `fixtures/manifests/acceptance/all-features.ecp.json` used only step, legacy branch,
 parallel, `$expr`, `$state` and `mode: "replace"`. No loop, `$ref` (with `optional`/`fallback`),
-`$script` (path and source), gated step (`expr` on a step), `create`/`merge`/`append` modes,
-or config on a step. Spec 12 A2 is meant to prove executor semantics end to end.
+`$script` (path and source), `if`, `create`/`merge`/`append` modes, or config on a step. Spec 12 A2
+is meant to prove executor semantics end to end.
 
 **Fix:** extend the fixture (and its `.run.json`: result, step statuses incl. `skipped`, loop
 rounds, event order) to cover every feature above, using `plugin-test` capabilities

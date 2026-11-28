@@ -25,81 +25,93 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "forEach",
       "id": "each-order",
       "label": "For each order",
-      "ref": "state.orders",
+      "mode": "forEach",
+      "input": {
+        "items": {
+          "$ref": "state.orders"
+        }
+      },
       "as": "order",
       "concurrency": 2,
       "steps": [
         {
-          "type": "branch",
+          "type": "if",
           "id": "shipping",
           "label": "Shipping speed",
-          "branches": [
-            {
-              "label": "express",
-              "expr": "(state) => String(state.order).startsWith('express')",
-              "steps": [
-                {
-                  "type": "parallel",
-                  "id": "express-prep",
-                  "label": "Prepare express in parallel",
-                  "branches": [
-                    [
-                      {
-                        "id": "pick",
-                        "label": "Pick items",
-                        "uses": "@executioncontrolprotocol/test.echo",
-                        "input": {
-                          "value": {
-                            "$ref": "state.order"
-                          }
-                        },
-                        "as": "pick"
-                      }
-                    ],
-                    [
-                      {
-                        "id": "label-print",
-                        "label": "Print label",
-                        "uses": "@executioncontrolprotocol/test.echo",
-                        "input": {
-                          "value": {
-                            "$ref": "state.order"
-                          }
-                        },
-                        "as": "label_print"
-                      }
-                    ]
-                  ]
-                }
-              ]
+          "accepts": {
+            "type": "object",
+            "properties": {
+              "order": {
+                "type": "string"
+              }
             },
+            "required": [
+              "order"
+            ]
+          },
+          "input": {
+            "order": {
+              "$ref": "state.order"
+            }
+          },
+          "expression": "String(input.order).startsWith('express')",
+          "then": [
             {
-              "label": "standard",
+              "type": "parallel",
+              "id": "express-prep",
+              "label": "Prepare express in parallel",
+              "paths": [
+                [
+                  {
+                    "id": "pick",
+                    "label": "Pick items",
+                    "uses": "@executioncontrolprotocol/test.echo",
+                    "input": {
+                      "value": {
+                        "$ref": "state.order"
+                      }
+                    },
+                    "as": "pick"
+                  }
+                ],
+                [
+                  {
+                    "id": "label-print",
+                    "label": "Print label",
+                    "uses": "@executioncontrolprotocol/test.echo",
+                    "input": {
+                      "value": {
+                        "$ref": "state.order"
+                      }
+                    },
+                    "as": "label_print"
+                  }
+                ]
+              ]
+            }
+          ],
+          "else": [
+            {
+              "type": "loop",
+              "id": "batch-wait",
+              "label": "Wait for a batch slot",
+              "mode": "for",
+              "as": "round",
+              "input": { "count": 2 },
               "steps": [
                 {
-                  "type": "loop",
-                  "mode": "while",
-                  "id": "batch-wait",
-                  "label": "Wait for a batch slot",
-                  "expr": "(state) => state.slot === undefined",
-                  "maxRounds": 2,
-                  "steps": [
-                    {
-                      "id": "slot",
-                      "label": "Check slot",
-                      "uses": "@executioncontrolprotocol/test.echo",
-                      "input": {
-                        "value": {
-                          "$ref": "state.order"
-                        }
-                      },
-                      "as": "slot",
-                      "mode": "replace"
+                  "id": "slot",
+                  "label": "Check slot",
+                  "uses": "@executioncontrolprotocol/test.echo",
+                  "input": {
+                    "value": {
+                      "$ref": "state.order"
                     }
-                  ]
+                  },
+                  "as": "slot",
+                  "mode": "replace"
                 }
               ]
             }
@@ -116,9 +128,7 @@
           },
           "as": "ship"
         }
-      ],
-      "collect": "state.ship",
-      "into": "shipped"
+      ]
     },
     {
       "id": "notify",
@@ -126,7 +136,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.shipped"
+          "$ref": "state.ship"
         }
       },
       "as": "notify"

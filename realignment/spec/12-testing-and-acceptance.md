@@ -27,22 +27,24 @@ fixtures/
 
 Minimum fixture set (Phase 0 writes them; later phases add more):
 
-- **Valid:** smallest execution; every node kind alone; nested branch-in-loop-in-parallel;
+- **Valid:** smallest execution; every node kind alone; nested `if`-in-loop-in-parallel;
   every marker; every commit mode; `$script` by source and by path; `optional`/`fallback`;
   `localize-banner` (reference example, 02; validated against the shipped Firefly, Anthropic and
   test plugins in the engine tests, where its only issue is the missing `anthropic/default` config).
 - **Invalid (one per code that L0–L3 can produce):** at least one fixture for each of
   `ECP_EXECUTION_LOAD`, `ECP_MANIFEST_INVALID` (unknown property, missing `steps`, duplicate
-  id, default arm not last, `mode` without `as`, `$secret` in execution, `maxRounds` 0),
+  id, empty `if.then`, `mode` without `as`, `$secret` in execution, `while` / stored `end` / `into`, old graph shapes),
   `ECP_CAPABILITY_UNKNOWN` (with suggestion), `ECP_PLUGINS_MISSING`, `ECP_INPUT_INVALID` (wrong
   type, missing required, unknown property, enum), `ECP_EXPR_INVALID` (syntax, two params,
   async), `ECP_SCRIPT_INVALID` (syntax with line/col, missing file, both source and path,
   `$script` at an object position), `ECP_CONFIG_UNKNOWN`, `ECP_REF_UNRESOLVED` (unknown key,
-  later step, parallel sibling), `ECP_REF_MAYBE_MISSING` (after gated step, after branch without
-  default, after loop), `ECP_REF_PATH_INVALID` (with "did you mean"), `ECP_TYPE_MISMATCH`
+  later step, parallel sibling path), `ECP_REF_MAYBE_MISSING` (after `if` without `else`, after
+  loop), `ECP_REF_PATH_INVALID` (with "did you mean"), `ECP_TYPE_MISMATCH`
   (number into string, object into string), `ECP_COMMIT_CONFLICT` (two `create`, `create` in
-  loop, parallel lines same key), `ECP_RETURNS_UNRESOLVED`.
-- **Runs:** each node kind's semantics; skip; branch none-match; loop exhausted; parallel
+  loop, parallel paths same key), `ECP_RETURNS_UNRESOLVED`.
+- **Runs:** each node kind's semantics; `if` none-match (`side: null`); `for` / `forEach` array
+  outputs;
+  parallel
   failure cancels siblings; each commit mode; `$state` staged writes discarded on failure;
   config + secret resolution and redaction; output invalid; step timeout; expr timeout; resume
   after interruption.
@@ -64,7 +66,7 @@ to 50 ms). Committed evidence is `bench/baseline/<date>-win32.json` and
 
 B1–B7 use a temp `ECP_HOME` with all four MVP plugins linked (`plugin-test`, Anthropic, Azure,
 Firefly). B4 live Firefly is skipped when credentials are absent (null median + note; no budget
-row). B5 runs `fixtures/manifests/valid/branch.ecp.json` with `--input` so the branch `$expr`
+row). B5 runs `fixtures/manifests/valid/branch.ecp.json` with `--input` so the `if` condition
 runs (not `--validate`). B7 measures editor-schema readiness with all MVP plugins present.
 
 The MCP relay is **not** a budgeted bench mode (A9 covers parity); result JSON records a note
@@ -76,7 +78,7 @@ instead of an MCP timing column.
 | B2 | `ecp retrieve --type capability --query …` (all installed plugins incl. Firefly) | same |
 | B3 | `ecp execute fixtures/…/echo.ecp.json` | same |
 | B4 | `ecp execute` Firefly fixture ×10 in a row (plugin import + IMS token; live only) | skipped without credentials |
-| B5 | `ecp execute` `$expr`-heavy fixture (`branch.ecp.json` with `--input`) | warm |
+| B5 | `ecp execute` condition-heavy fixture (`branch.ecp.json` with `--input`) | warm |
 | B6 | `ecp host start` until healthy; restart until healthy | warm |
 | B7 | `ecp retrieve --type schema` (editor schema readiness) with all MVP plugins | warm |
 | B8 | Schema scale: host start (incl. registry load of light manifests), first-use compile, cached validate, heap at 1,000 and 5,000 synthetic capabilities; warm `ecp execute` with all real plugins | synthetic + warm |

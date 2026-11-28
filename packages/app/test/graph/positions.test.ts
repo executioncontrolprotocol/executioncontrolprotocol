@@ -1,3 +1,8 @@
+import { readFileSync } from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { executionToReactFlow, tunnelRects } from "../../src/graph/index.js"
 import { describe, expect, it } from "vitest"
 import {
   parsePositionOverrides,
@@ -5,21 +10,25 @@ import {
   positionStorageKey,
   prunePositionOverrides,
 } from "../../src/graph/positions.js"
-import type { ReactFlowDocument, ReactFlowFrameData, ReactFlowNode } from "../../src/graph/types.js"
+import type { ReactFlowDocument, ReactFlowNode, ReactFlowTunnelData } from "../../src/graph/types.js"
 
-function frameNode(id: string, members: string[], childFrameIds: string[], depth: number): ReactFlowNode {
+function tunnelNode(id: string, members: string[], depth: number): ReactFlowNode {
   return {
     id,
-    type: "ecp-frame",
+    type: "ecp-tunnel",
     position: { x: 0, y: 0 },
     style: { width: 400, height: 300, pointerEvents: "none" },
     data: {
-      structureId: id,
-      structureKind: "loop",
+      structureId: "loop",
+      tunnelKind: "loop",
+      label: "loop",
+      controlNodeId: "loop",
+      endNodeId: "end:loop:loop",
+      sideNodeIds: members.filter((m) => m !== "loop" && m !== "end:loop:loop"),
       memberNodeIds: members,
-      childFrameIds,
+      childTunnelIds: [],
       depth,
-    } satisfies ReactFlowFrameData,
+    } satisfies ReactFlowTunnelData,
   }
 }
 
@@ -55,22 +64,23 @@ describe("parsePositionOverrides", () => {
 })
 
 describe("placeWithOverrides", () => {
-  it("moves overridden nodes and rebuilds the frame", () => {
+  it("moves overridden nodes and rebuilds the tunnel", () => {
     const document: ReactFlowDocument = {
       nodes: [
+        { id: "loop", type: "ecp-loop", position: { x: -50, y: 0 }, style: { width: 260 }, data: { label: "loop", inputs: [], outputs: [] } },
+        { id: "end:loop:loop", type: "ecp-end", position: { x: 900, y: 0 }, data: { label: "end loop", structureId: "loop", side: "loop", structureKind: "loop" } },
         step("a", 0, 0),
         step("b", 400, 0),
-        frameNode("ecp:frame:loop", ["a", "b"], [], 0),
+        tunnelNode("ecp:tunnel:loop:loop", ["loop", "a", "b", "end:loop:loop"], 0),
       ],
       edges: [],
     }
     const placed = placeWithOverrides(document, { a: { x: 100, y: 50 } })
     const a = placed.nodes.find((node) => node.id === "a")!
-    const b = placed.nodes.find((node) => node.id === "b")!
     expect(a.position).toEqual({ x: 100, y: 50 })
-    expect(b.position).toEqual({ x: 400, y: 0 })
-    const frame = placed.nodes.find((node) => node.type === "ecp-frame")!
-    expect(frame.position.x).toBeLessThanOrEqual(100)
+    const tunnel = placed.nodes.find((node) => node.type === "ecp-tunnel")!
+    expect(tunnel.position.x).toBeLessThanOrEqual(100)
+    expect(tunnel.position.x + Number(tunnel.style?.width)).toBeGreaterThanOrEqual(400 + 260)
   })
 
   it("ignores overrides for unknown ids", () => {
@@ -81,14 +91,38 @@ describe("placeWithOverrides", () => {
 })
 
 describe("prunePositionOverrides", () => {
-  it("drops removed and frame ids, keeps pending inserts", () => {
+  it("drops removed and tunnel ids, keeps pending inserts", () => {
     const previous = new Set(["a", "b"])
     const next = new Set(["a"])
-    const frames = new Set(["ecp:frame:b"])
-    const overrides = { a: { x: 0, y: 0 }, b: { x: 1, y: 1 }, pending: { x: 2, y: 2 }, "ecp:frame:b": { x: 3, y: 3 } }
-    expect(prunePositionOverrides(overrides, previous, next, frames)).toEqual({
+    const tunnels = new Set(["ecp:tunnel:b:loop"])
+    const overrides = {
+      a: { x: 0, y: 0 },
+      b: { x: 1, y: 1 },
+      pending: { x: 2, y: 2 },
+      "ecp:tunnel:b:loop": { x: 3, y: 3 },
+    }
+    expect(prunePositionOverrides(overrides, previous, next, tunnels)).toEqual({
       a: { x: 0, y: 0 },
       pending: { x: 2, y: 2 },
     })
+  })
+})
+
+describe("placeWithOverrides grows tunnels when body nodes move", () => {
+  const manifest = JSON.parse(
+    readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns/loop-for.ecp.json"), "utf8"),
+  ) as ExecutionManifest
+
+  it("rebuilds loop tunnel bounds after a body drag", () => {
+    const encoded = executionToReactFlow(manifest)
+    const loopId = manifest.steps.find((step) => step.type === "loop")?.id ?? "retry"
+    const bodyId = (manifest.steps[0] as { type: string; steps?: Array<{ id: string }> }).steps?.[0]?.id ?? "attempt"
+    const end = encoded.nodes.find((node) => node.id === `end:${loopId}:loop`)!
+    const placed = placeWithOverrides(encoded, { [bodyId]: { x: end.position.x + 600, y: end.position.y } })
+    const tunnel = placed.nodes.find((node) => node.id === `ecp:tunnel:${loopId}:loop`)!
+    const body = placed.nodes.find((node) => node.id === bodyId)!
+    expect(body.position.x + 260).toBeLessThanOrEqual(tunnel.position.x + Number(tunnel.style?.width))
+    const rects = tunnelRects(placed.nodes)
+    expect(rects.get(`ecp:tunnel:${loopId}:loop`)?.width).toBeGreaterThan(Number(tunnel.style?.width) - 400)
   })
 })

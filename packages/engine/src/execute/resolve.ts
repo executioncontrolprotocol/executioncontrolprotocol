@@ -7,7 +7,13 @@ import { checkScript } from "../validate/expr.js"
  */
 export class ResolveError extends Error {
   /** Catalogue code. */
-  readonly code: "ECP_REF_UNRESOLVED" | "ECP_EXPR_RESULT_INVALID" | "ECP_SCRIPT_INVALID" | "ECP_EXPR_FAILED" | "ECP_EXPR_TIMEOUT"
+  readonly code:
+    | "ECP_REF_UNRESOLVED"
+    | "ECP_REF_AMBIGUOUS"
+    | "ECP_EXPR_RESULT_INVALID"
+    | "ECP_SCRIPT_INVALID"
+    | "ECP_EXPR_FAILED"
+    | "ECP_EXPR_TIMEOUT"
 
   /**
    * @param code Which resolution rule failed.
@@ -82,7 +88,7 @@ export async function resolveValue(
     return resolved
   }
   if (!isRecord(value)) return value
-  if (typeof value.$ref === "string") return resolveRef(value, state)
+  if (typeof value.$ref === "string" || Array.isArray(value.$ref)) return resolveRef(value, state)
   if (typeof value.$state === "string") return { $state: value.$state }
   if (isRecord(value.$script)) return resolveScript(value.$script, state, expression, readText, executionDir)
   const output: Record<string, unknown> = {}
@@ -117,7 +123,24 @@ export function resolveStatePath(path: string, state: Record<string, unknown>): 
 }
 
 async function resolveRef(marker: Record<string, unknown>, state: Record<string, unknown>): Promise<unknown> {
-  const ref = String(marker.$ref)
+  const rawRef = marker.$ref
+  if (Array.isArray(rawRef)) {
+    const paths = rawRef.map(String)
+    const present: unknown[] = []
+    for (const ref of paths) {
+      const found = readRef(state, ref)
+      if (!found.missing) present.push(found.value)
+    }
+    if (present.length > 1) {
+      throw new ResolveError("ECP_REF_AMBIGUOUS", "More than one merge-port ref is present in state.")
+    }
+    if (present.length === 1) return present[0]
+    if (marker.optional === true || Object.prototype.hasOwnProperty.call(marker, "fallback")) {
+      return Object.prototype.hasOwnProperty.call(marker, "fallback") ? marker.fallback : undefined
+    }
+    throw new ResolveError("ECP_REF_UNRESOLVED", "No merge-port ref is present in state.")
+  }
+  const ref = String(rawRef)
   const found = readRef(state, ref)
   if (found.missing) {
     if (marker.optional === true || Object.prototype.hasOwnProperty.call(marker, "fallback")) {

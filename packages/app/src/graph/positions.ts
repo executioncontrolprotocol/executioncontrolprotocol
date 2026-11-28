@@ -1,5 +1,6 @@
-import { frameBounds, type FrameMembership, type FrameRect } from "./layout.js"
-import type { ReactFlowDocument, ReactFlowFrameData, ReactFlowNode } from "./types.js"
+import { resizeTunnelNodes } from "./tunnel-geometry.js"
+import { parseEndMarkerId } from "./types.js"
+import type { ReactFlowDocument, ReactFlowNode } from "./types.js"
 
 /** Browser storage key prefix for canvas position overrides. */
 export const POSITION_STORAGE_PREFIX = "ecp.app.positions.v1"
@@ -59,53 +60,18 @@ export function parsePositionOverrides(raw: string | null): PositionOverrides {
   return out
 }
 
-function frameMemberships(nodes: readonly ReactFlowNode[]): FrameMembership[] {
-  const out: FrameMembership[] = []
-  for (const node of nodes) {
-    if (node.type !== "ecp-frame") continue
-    const data = node.data as ReactFlowFrameData
-    out.push({
-      frameId: node.id,
-      memberNodeIds: data.memberNodeIds,
-      childFrameIds: data.childFrameIds,
-      depth: data.depth,
-    })
-  }
-  return out
-}
-
-function applyFrameRects(nodes: readonly ReactFlowNode[], rects: Map<string, FrameRect>): ReactFlowNode[] {
-  return nodes.map((node) => {
-    if (node.type !== "ecp-frame") return node
-    const rect = rects.get(node.id)
-    if (!rect) return node
-    return {
-      ...node,
-      position: { x: rect.x, y: rect.y },
-      style: {
-        ...node.style,
-        width: rect.width,
-        height: rect.height,
-        pointerEvents: "none",
-      },
-    }
-  })
-}
-
 /**
- * Apply dagre layout, then override positions and rebuild frame bounds.
+ * Apply overrides, then rebuild tunnel bounds from member node positions.
  * @category App
  */
 export function placeWithOverrides(document: ReactFlowDocument, overrides: PositionOverrides): ReactFlowDocument {
   const positioned = document.nodes.map((node): ReactFlowNode => {
-    if (node.type === "ecp-frame") return node
+    if (node.type === "ecp-tunnel" || node.type === "ecp-end") return node
     const override = overrides[node.id]
     if (!override) return node
     return { ...node, position: { x: override.x, y: override.y } }
   })
-  const frames = frameMemberships(positioned)
-  const rects = frameBounds(positioned, frames)
-  const nodes = applyFrameRects(positioned, rects)
+  const nodes = resizeTunnelNodes(positioned)
   return { ...document, nodes }
 }
 
@@ -117,11 +83,12 @@ export function prunePositionOverrides(
   overrides: PositionOverrides,
   previousIds: ReadonlySet<string>,
   nextIds: ReadonlySet<string>,
-  frameIds: ReadonlySet<string>,
+  tunnelIds: ReadonlySet<string>,
 ): PositionOverrides {
   const next: PositionOverrides = {}
   for (const [id, position] of Object.entries(overrides)) {
-    if (frameIds.has(id)) continue
+    if (tunnelIds.has(id)) continue
+    if (parseEndMarkerId(id)) continue
     if (previousIds.has(id) && !nextIds.has(id)) continue
     next[id] = position
   }

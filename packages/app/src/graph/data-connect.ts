@@ -12,18 +12,19 @@ import {
   placementManifestForDetachedConnect,
 } from "./connection-edit.js"
 import { findStepPlacement } from "./manifest-walk.js"
+import { isStepNode } from "./io-from-schema.js"
 import { portsAreCompatible } from "./port-compat.js"
 import { sourceVisibleTo } from "./read-order.js"
 import { EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
-import { EXPR_HANDLE_ID } from "./extract-data-edges.js"
 import {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
   LOOP_COLLECT_HANDLE,
   LOOP_REF_HANDLE,
+  loopIdFromEndMarker,
   type ReactFlowDocument,
+  type ReactFlowIfData,
   type ReactFlowIoData,
   type ReactFlowLoopItemsData,
+  type ReactFlowParallelData,
   type ReactFlowPort,
   type ReactFlowStepData,
 } from "./types.js"
@@ -33,8 +34,7 @@ import {
  * @category App
  */
 export function isDataHandle(handleId: string | null | undefined): boolean {
-  if (!handleId) return false
-  return handleId !== FLOW_IN_HANDLE && handleId !== FLOW_OUT_HANDLE
+  return Boolean(handleId)
 }
 
 function stepPort(
@@ -55,8 +55,8 @@ function ioPort(
   return list.find((port) => port.id === handleId)
 }
 
-function loopPort(
-  data: ReactFlowLoopItemsData,
+function structurePort(
+  data: ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData,
   handleId: string,
   side: "input" | "output",
 ): ReactFlowPort | undefined {
@@ -78,19 +78,22 @@ export function portOnDocument(
   if (!node) return undefined
   if (node.type === "ecp-step") return stepPort(node.data as ReactFlowStepData, handleId, side)
   if (node.type === "ecp-io") return ioPort(node.data as ReactFlowIoData, handleId, side)
-  if (node.type === "ecp-loop") return loopPort(node.data as ReactFlowLoopItemsData, handleId, side)
+  if (node.type === "ecp-end") return undefined
+  if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
+    return structurePort(node.data as ReactFlowLoopItemsData | ReactFlowIfData | ReactFlowParallelData, handleId, side)
+  }
   return undefined
 }
 
 function disallowedSource(nodeId: string, handleId: string): boolean {
   if (nodeId === EXECUTION_RETURNS_NODE_ID) return true
-  if (handleId === EXPR_HANDLE_ID || handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
+  if (handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
   return false
 }
 
 function disallowedTarget(nodeId: string, handleId: string): boolean {
   if (nodeId === EXECUTION_RETURNS_NODE_ID) return true
-  if (handleId === EXPR_HANDLE_ID || handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
+  if (handleId === LOOP_REF_HANDLE || handleId === LOOP_COLLECT_HANDLE) return true
   return false
 }
 
@@ -131,10 +134,13 @@ export function dataConnectionRefusal(
 
   const detachedRoots = new Set((manifest.detached ?? []).map((node) => node.id))
   const exempt = detachedNodeIds(manifest)
-  if (exempt.has(target) && !detachedRoots.has(target)) {
+  const targetOwner = loopIdFromEndMarker(target) ?? target
+  if (exempt.has(targetOwner) && !detachedRoots.has(targetOwner)) {
     return CONNECTION_EDIT_NOT_STEP
   }
-  if (detachedRoots.has(target)) {
+  if (detachedRoots.has(targetOwner)) {
+    const root = (manifest.detached ?? []).find((node) => node.id === targetOwner)
+    if (!root || !isStepNode(root)) return CONNECTION_EDIT_NOT_STEP
     if (exempt.has(source)) return CONNECTION_EDIT_SOURCE_DETACHED
     if (findStepPlacement(manifest.steps, target)) {
       return !sourceVisibleTo(manifest, { nodeId: source, handleId: sourceHandle }, target)

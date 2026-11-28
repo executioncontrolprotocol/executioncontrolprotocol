@@ -3,22 +3,17 @@
   "version": "2.0",
   "steps": [
     {
-      "type": "branch",
-      "id": "route",
-      "branches": [
+      "type": "if",
+      "id": "pick",
+      "expression": "false",
+      "then": [
         {
-          "label": "only",
-          "expr": "(state) => false",
-          "steps": [
-            {
-              "id": "yes",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "yes"
-              },
-              "as": "yes"
-            }
-          ]
+          "id": "yes",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "yes"
+          },
+          "as": "yes"
         }
       ]
     }

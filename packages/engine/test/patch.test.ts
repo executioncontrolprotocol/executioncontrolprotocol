@@ -7,17 +7,11 @@ const manifest = {
   steps: [
     { id: "doc", uses: "echo", input: { value: "doc" }, as: "doc" },
     {
-      type: "branch",
+      type: "if",
       id: "check-headline",
-      branches: [
-        {
-          expr: "(state) => true",
-          steps: [{ id: "translate", uses: "echo", input: { prompt: "hi" }, as: "translated" }],
-        },
-        {
-          steps: [{ id: "skip", uses: "echo", input: { value: "skip" }, as: "skip" }],
-        },
-      ],
+      expression: "true",
+      then: [{ id: "translate", uses: "echo", input: { prompt: "hi" }, as: "translated" }],
+      else: [{ id: "skip", uses: "echo", input: { value: "skip" }, as: "skip" }],
     },
     { id: "banner", uses: "echo", input: { value: "banner" }, as: "banner" },
   ],
@@ -46,20 +40,21 @@ describe("applyPatch", () => {
     expect(() => applyPatch(manifest, [{ op: "test", path: "/steps/0/id", value: "doc" }])).not.toThrow()
   })
 
-  it("resolves @nodeId under a nested branch and rejects unknown ids and failed tests", () => {
+  it("resolves @nodeId under a nested if and rejects unknown ids and failed tests", () => {
     const patched = applyPatch(manifest, [
       { op: "replace", path: "/steps/@translate/input/prompt", value: "Translate politely" },
       {
         op: "add",
-        path: "/steps/@check-headline/branches/1/steps/-",
+        path: "/steps/@check-headline/else/-",
         value: { id: "log", uses: "echo", input: { value: "log" } },
       },
     ])
-    const branch = patched.steps[1] as {
-      branches: Array<{ steps: Array<{ id: string; input?: { prompt?: string } }> }>
+    const ifNode = patched.steps[1] as {
+      then: Array<{ id: string; input?: { prompt?: string } }>
+      else: Array<{ id: string }>
     }
-    expect(branch.branches[0]?.steps[0]?.input?.prompt).toBe("Translate politely")
-    expect(branch.branches[1]?.steps.map((step) => step.id)).toEqual(["skip", "log"])
+    expect(ifNode.then[0]?.input?.prompt).toBe("Translate politely")
+    expect(ifNode.else.map((step) => step.id)).toEqual(["skip", "log"])
 
     expect(() => applyPatch(manifest, [{ op: "replace", path: "/steps/@missing/input", value: 1 }])).toThrow(
       expect.objectContaining({ code: "ECP_PATCH_INVALID", message: expect.stringContaining("op 0") }),
@@ -106,11 +101,11 @@ describe("applyPatch", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [[{ id: "left", uses: "echo" }], [{ id: "right", uses: "echo" }]],
+          paths: [[{ id: "left", uses: "echo" }], [{ id: "right", uses: "echo" }]],
         },
       ],
     }
     const nested = applyPatch(parallel, [{ op: "replace", path: "/steps/@right/uses", value: "fail" }])
-    expect((nested.steps[0] as { branches: Array<Array<{ uses: string }>> }).branches[1]?.[0]?.uses).toBe("fail")
+    expect((nested.steps[0] as { paths: Array<Array<{ uses: string }>> }).paths[1]?.[0]?.uses).toBe("fail")
   })
 })

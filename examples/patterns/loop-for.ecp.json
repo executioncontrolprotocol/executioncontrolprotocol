@@ -20,10 +20,14 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "for",
       "id": "rounds",
       "label": "Repeat count times",
-      "ref": "state.count",
+      "mode": "for",
+      "input": {
+        "count": {
+          "$ref": "state.count"
+        }
+      },
       "as": "i",
       "steps": [
         {
@@ -46,7 +50,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.tick.echo",
+          "$ref": "state.tick",
           "optional": true,
           "fallback": "the loop ran zero times"
         }

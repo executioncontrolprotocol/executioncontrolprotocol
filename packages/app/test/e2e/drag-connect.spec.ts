@@ -3,7 +3,7 @@ import path from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 import { executionToReactFlow } from "../../src/graph/index.js"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 test.describe("Drag data connections", () => {
   test.describe.configure({ mode: "serial" })
@@ -114,7 +114,7 @@ test.describe("Drag data connections", () => {
       '[data-testid="ecp-step-writer"] .react-flow__handle[data-handleid="text"][data-handlepos="left"]',
     )
     expect(readFileSync(manifestPath, "utf8")).toBe(before)
-    await expect(page.getByTestId("structure-edit-error")).toContainText("That output is not produced before this step")
+    await expect(page.getByTestId("structure-edit-error")).toContainText("That output is not produced before this node")
   })
 
   test("drop on empty canvas inserts wired echo", async ({ page }) => {
@@ -157,5 +157,82 @@ test.describe("Drag data connections", () => {
       '[data-testid="ecp-step-writer"] .react-flow__handle[data-handleid="text"][data-handlepos="right"]',
     )
     await expect(handle).not.toHaveClass(/connectable/)
+  })
+
+  test("draws a branch into an if input, deletes it from the panel, and undo and redo restore it", async ({ page }) => {
+    writeFileSync(
+      manifestPath,
+      `${JSON.stringify(
+        {
+          schema: "@executioncontrolprotocol.execution",
+          version: "2.0",
+          steps: [
+            { id: "writer", uses: "@executioncontrolprotocol/test.bounded", input: { text: "seed" }, as: "writer" },
+            {
+              type: "if",
+              id: "gate",
+              accepts: { type: "object", properties: { note: { type: "string" } } },
+              expression: "true",
+              then: [{ id: "later", uses: "@executioncontrolprotocol/test.bounded", input: { text: "keep" }, as: "later" }],
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    )
+    await open(page)
+    await dragHandle(
+      page,
+      '[data-testid="ecp-step-writer"] .react-flow__handle[data-handleid="text"][data-handlepos="right"]',
+      '[data-testid="ecp-if-gate"] .react-flow__handle[data-handleid="note"][data-handlepos="left"]',
+    )
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).toContain('"$ref": "state.writer.text"')
+    const drawn = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest
+    const edge = executionToReactFlow(drawn).edges.find((entry) => entry.data.kind === "data" && entry.target === "gate")
+    expect(edge?.id).toBeDefined()
+    const rfEdge = page.locator(`.react-flow__edge[data-id="${edge!.id}"]`)
+    await expect(rfEdge).toBeVisible()
+    await clickBranch(page, rfEdge)
+    await page.getByTestId("edge-delete").click()
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).not.toContain("state.writer.text")
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).toContain("state.writer.text")
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).not.toContain("state.writer.text")
+  })
+
+  test("a branch from an if side port sets as on the if", async ({ page }) => {
+    writeFileSync(
+      manifestPath,
+      `${JSON.stringify(
+        {
+          schema: "@executioncontrolprotocol.execution",
+          version: "2.0",
+          steps: [
+            {
+              type: "if",
+              id: "gate",
+              expression: "true",
+              then: [{ id: "later", uses: "@executioncontrolprotocol/test.bounded", input: { text: "keep" }, as: "later" }],
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    )
+    await open(page)
+    await dragHandle(
+      page,
+      '[data-testid="ecp-if-gate"] .react-flow__handle[data-handleid="then"][data-handlepos="right"]',
+      '[data-testid="ecp-step-later"] .react-flow__handle[data-handleid="text"][data-handlepos="left"]',
+    )
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).toContain('"as": "gate"')
+    const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest
+    const later = (parsed.steps[0] as { then: Array<{ input?: { text?: unknown } }> }).then[0]
+    expect(later?.input?.text).toEqual({ $ref: "state.gate" })
   })
 })

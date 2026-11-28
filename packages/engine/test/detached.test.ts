@@ -218,16 +218,15 @@ describe("detached steps", () => {
     expect(result.issues.some((issue) => issue.code === "ECP_NODE_DETACHED")).toBe(true)
   })
 
-  it("uses the branch container id in the detached message", async () => {
+  it("uses the if container id in the detached message", async () => {
     const manifest: ExecutionManifest = {
       ...detachedAside,
       detached: [
         {
-          type: "branch",
+          type: "if",
           id: "route",
-          branches: [
-            { expr: "true", steps: [{ id: "arm", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "arm" }] },
-          ],
+          expression: "true",
+          then: [{ id: "arm", uses: "@executioncontrolprotocol/test.echo", input: { value: "a" }, as: "arm" }],
         },
       ],
     }

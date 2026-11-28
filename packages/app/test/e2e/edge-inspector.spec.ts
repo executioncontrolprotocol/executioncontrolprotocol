@@ -2,7 +2,9 @@ import { copyFileSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { executionToReactFlow } from "../../src/graph/index.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 
@@ -11,7 +13,7 @@ test.describe("Edge inspector", () => {
 
   let harness: AppE2eHarness
   let manifestPath: string
-  const source = path.join(repoRoot, "fixtures/manifests/valid/localize-banner.ecp.json")
+  const source = path.join(repoRoot, "fixtures/manifests/valid/markers.ecp.json")
 
   function resetFixture(): void {
     copyFileSync(source, manifestPath)
@@ -19,7 +21,7 @@ test.describe("Edge inspector", () => {
 
   test.beforeAll(async () => {
     harness = await startAppHarness()
-    manifestPath = path.join(harness.workDir, "localize-banner.ecp.json")
+    manifestPath = path.join(harness.workDir, "markers.ecp.json")
     resetFixture()
   })
 
@@ -35,65 +37,47 @@ test.describe("Edge inspector", () => {
     await page.goto(appUrl(harness.baseUrl, harness.token, { open: manifestPath, dir: harness.workDir }))
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
-    await expect(page.getByTestId("ecp-step-translate")).toBeVisible({ timeout: 20_000 })
   }
 
-  /**
-   * Select an edge by its accessible name. Dispatch the click on the edge element itself: a
-   * coordinate click (even forced) lands on whichever edge is topmost at that point, and edges fanning
-   * out of the Inputs node overlap differently per platform's font metrics (it hit a neighbour on Linux).
-   */
-  async function clickEdge(page: Page, name: RegExp): Promise<void> {
-    const edge = page.getByRole("group", { name }).first()
-    await expect(edge).toBeAttached()
-    await edge.dispatchEvent("click")
-  }
+  test("ref data edge shows ref path and delete removes binding", async ({ page }) => {
+    await open(page)
+    // The branch into fromExpr's seed port (the binding this test deletes).
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as ExecutionManifest
+    const seedEdge = executionToReactFlow(manifest).edges.find((entry) => entry.data.kind === "data" && entry.target === "fromExpr")
+    expect(seedEdge?.id).toBeDefined()
+    const edge = page.locator(`.react-flow__edge[data-id="${seedEdge!.id}"]`)
+    await clickBranch(page, edge, { button: "right" })
+    await page.getByTestId("canvas-menu-item-delete-connector").click()
+    await expect.poll(() => {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { steps: Array<{ id?: string; input?: Record<string, unknown> }> }
+      const step = manifest.steps.find((node) => node.id === "fromExpr")
+      return step !== undefined && !("seed" in (step.input ?? {}))
+    }, { timeout: 15_000 }).toBe(true)
+  })
 
-  /** Route data edge into the translate step expr gate. */
-  async function selectTranslateGateExpr(page: Page): Promise<void> {
-    await clickEdge(page, /Edge from ecp:accepts to translate/i)
-    await expect(page.getByTestId("edge-panel")).toBeVisible()
-    await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })
-  }
+  test("selecting a branch shows its ports and a Delete button, nothing else", async ({ page }) => {
+    await open(page)
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await clickBranch(page, edge)
+    const panel = page.getByTestId("edge-panel")
+    await expect(panel).toBeVisible()
+    await expect(page.getByTestId("edge-source-port")).toContainText("/")
+    await expect(page.getByTestId("edge-target-port")).toContainText("/")
+    await expect(page.getByTestId("edge-delete")).toBeEnabled()
+    await expect(panel.locator("textarea, input, select")).toHaveCount(0)
+  })
 
-  test("edits a step expr gate and saves to disk", async ({ page }) => {
+  test("the Delete button removes the reference and undo restores it", async ({ page }) => {
     await open(page)
     const before = readFileSync(manifestPath, "utf8")
-    await selectTranslateGateExpr(page)
-    const editor = page.getByTestId("edge-expr-editor")
-    const unique = `(state) => state.locale === '${Date.now()}'`
-    await editor.fill(unique)
-    await editor.blur()
-    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
-    expect(before).not.toContain(unique)
-  })
-
-  test("shows syntax error and still autosaves draft", async ({ page }) => {
-    await open(page)
-    await selectTranslateGateExpr(page)
-    // Still reads state.locale, so the expr-read data edge (and its panel) survives the autosave.
-    const broken = "(state) => state.locale ==="
-    await page.getByTestId("edge-expr-editor").fill(broken)
-    await expect(page.getByTestId("edge-expr-issues")).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId("edge-save")).toHaveCount(0)
-    await page.getByTestId("edge-expr-editor").blur()
-    await expect.poll(() => readFileSync(manifestPath, "utf8").includes(broken), { timeout: 15_000 }).toBe(true)
-    // Once autosaved, the issues stay listed (they used to vanish when the text matched the saved text).
-    await page.waitForTimeout(1_500)
-    await expect(page.getByTestId("edge-expr-issues")).toBeVisible()
-  })
-
-  test("ref-only data edge has no editor", async ({ page }) => {
-    await open(page)
-    await clickEdge(page, /Edge from prompt to translate/i)
-    await expect(page.getByTestId("edge-panel")).toBeVisible()
-    await expect(page.getByTestId("edge-ref-path")).toBeVisible()
-    await expect(page.getByTestId("edge-expr-editor")).toHaveCount(0)
-  })
-
-  test("payload shows no run selected without a run", async ({ page }) => {
-    await open(page)
-    await selectTranslateGateExpr(page)
-    await expect(page.getByTestId("edge-payload-source-source")).toContainText("No run selected")
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await clickBranch(page, edge)
+    await page.getByTestId("edge-delete").click()
+    await expect.poll(() => readFileSync(manifestPath, "utf8")).not.toBe(before)
+    await expect(page.getByTestId("edge-panel")).toHaveCount(0)
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => JSON.stringify(JSON.parse(readFileSync(manifestPath, "utf8")))).toBe(
+      JSON.stringify(JSON.parse(before)),
+    )
   })
 })

@@ -5,9 +5,6 @@
     {
       "type": "loop",
       "id": "refine",
-      "expr": "(state) => false",
-      "maxRounds": 1,
-      "collect": "state.out",
       "steps": [
         {
           "id": "echo",
@@ -18,7 +15,8 @@
           "as": "out",
           "mode": "replace"
         }
-      ]
+      ],
+      "collect": "state.out"
     }
   ]
 }

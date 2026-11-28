@@ -9,23 +9,31 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" }
+          "name": {
+            "type": "string"
+          }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "greeting": { "type": "string" }
+          "greeting": {
+            "type": "string"
+          }
         },
-        "required": ["greeting"],
+        "required": [
+          "greeting"
+        ],
         "additionalProperties": false
       },
       "script": {
-          "lang": "js",
-          "source": "return { greeting: `Hello, ${input.name}!` }"
-        },
+        "lang": "js",
+        "source": "return { greeting: `Hello, ${input.name}!` }"
+      },
       "input": {
         "name": "world"
       },
@@ -36,9 +44,13 @@
     "returns": {
       "type": "object",
       "properties": {
-        "result": { "type": "object" }
+        "result": {
+          "type": "object"
+        }
       },
-      "required": ["result"]
+      "required": [
+        "result"
+      ]
     }
   }
 }

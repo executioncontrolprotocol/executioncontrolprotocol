@@ -75,22 +75,19 @@ test.describe("App host API allowlist", () => {
     await expect(page.getByTestId("workspace")).toBeVisible({ timeout: 20_000 })
     await page.getByTestId("ecp-step-echo").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
-    await page.getByTestId("canvas-menu-item-wrap-branch").click()
-    await expect(page.locator('[data-testid^="ecp-frame-branch-"]')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect(page.locator('[data-testid^="ecp-tunnel-"]').first()).toBeVisible({ timeout: 15_000 })
 
     const branchLoopPath = path.join(harness.workDir, "allowlist-branch-loop.ecp.json")
     copyFileSync(branchLoopSource, branchLoopPath)
     await openPath(page, harness, branchLoopPath)
-    const pill = page
-      .locator('[data-testid^="ecp-route-label-"]')
-      .filter({ hasText: /^expand$/ })
-      .first()
-    await pill.click()
-    await expect(page.getByTestId("edge-expr-editor")).toBeVisible({ timeout: 10_000 })
-    const unique = `(state) => state.expand === 'allowlist-${Date.now()}'`
-    await page.getByTestId("edge-expr-editor").fill(unique)
-    await page.getByTestId("edge-expr-editor").blur()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes(unique), { timeout: 15_000 }).toBe(true)
+    await page.getByTestId("ecp-loop-retry").click()
+    const field = page.getByTestId("control-loop-driver-count-value")
+    await expect(field).toBeVisible({ timeout: 10_000 })
+    const unique = (Date.now() % 5) + 3
+    await field.fill(String(unique))
+    await field.blur()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes(`"count": ${unique}`), { timeout: 15_000 }).toBe(true)
 
     const transformDir = mkdtempSync(path.join(os.tmpdir(), "ecp-allowlist-transform-"))
     const transformScript = path.join(transformDir, "step.js")

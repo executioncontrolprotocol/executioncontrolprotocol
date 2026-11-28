@@ -35,13 +35,11 @@ check is the backstop for a caller that skips validation.
 
 **Step:**
 
-1. If `expr` is present: evaluate (control). `false` → status `skipped`, event `step.skip`, no
-   commit. Non-boolean → fail `ECP_EXPR_RESULT_INVALID`.
-2. Resolve `input` (below).
-3. Resolve config (below).
-4. Validate the resolved input with Ajv against step `accepts` when `contract` is `"step"`, else
+1. Resolve `input` (below).
+2. Resolve config (below).
+3. Validate the resolved input with Ajv against step `accepts` when `contract` is `"step"`, else
    the capability's `accepts` → `ECP_INPUT_INVALID`.
-5. When `code` is `"script"`: resolve the step `script` to source (no `const params =` prefix),
+4. When `code` is `"script"`: resolve the step `script` to source (no `const params =` prefix),
    run it in QuickJS with a frozen `input` clone only (limits from `HostSettings.transform`:
    default 1000 ms, 32 MiB memory, 4 MiB result). The plugin handler is not called. Thrown
    script → `ECP_SCRIPT_FAILED`; transform timeout → `ECP_SCRIPT_TIMEOUT`.
@@ -51,11 +49,13 @@ check is the backstop for a caller that skips validation.
    timeout (capability `timeoutMs` from its manifest, else the host default 600 000 ms) →
    `ECP_STEP_TIMEOUT` on timeout. A thrown error → `ECP_STEP_FAILED` with the original message
    and, if present, the error's `code` and `details`.
-6. Validate the output with Ajv against step `returns` when `contract` is `"step"`, else the
+5. Validate the output with Ajv against step `returns` when `contract` is `"step"`, else the
    capability's `returns`. `"returns": {}` skips the schema check but the value must still be
    JSON → `ECP_OUTPUT_INVALID` on mismatch or non-JSON.
-7. Redact (below), then commit atomically: staged `$state` writes in order, then the `as`
+6. Redact (below), then commit atomically: staged `$state` writes in order, then the `as`
    output by `mode`. Persist the step record and `state.json`.
+
+Conditional steps use an enclosing `if` node; there is no step-level gate.
 
 **Commit modes** (on `as`):
 
@@ -77,46 +77,38 @@ each ref is copied into `ArtifactStore` through the host-injected file service (
 while keeping its `kind`. Failures append `captured[].error`, emit `step.warning`, and do not
 fail the step.
 
-**Branch:** evaluate arm `expr`s in order (control); run the first `true` arm; else the default
-arm; else nothing. Event `branch.select` with the arm index (or `null`).
+**`if`:** resolve `input`, evaluate `expression` or `script` over frozen `input`. `true` runs
+`then`; `false`, a throw, a missing optional input, or a non-boolean result runs `else` when
+present; otherwise nothing runs. Event `if.select` with `side` (`"then"` / `"else"` / `null`) and
+`reason` (`"true"` / `"false"` / `"throw"` / `"missing"` / `"non-boolean"`). When `as` is set and
+the chosen side runs, the resolved `input` is written to `state.<as>` for the duration of that
+side (scoped; removed in `finally`, including after resume once the side finishes).
 
-**Loop `while` (default):** resolve the driver from `ref` or `expr` before each round (including
-the first). `round = 0`; while `round < maxRounds` and the driver is `true`: run the body,
-`round++`. Event `loop.round` per round; `loop.exhausted` when it stops because of `maxRounds`.
-Non-boolean driver → `ECP_TYPE_MISMATCH`.
+**Loop `for`:** read `input.count` once (`0..1000`). Each round clones the pre-loop parent snapshot,
+binds `state.<as>` to the index, runs the body on that copy, and stores exported keys per round.
+Emit `loop.round`. Count `0` publishes `[]` for every exported key. When the loop finishes, arrays
+merge to the parent (`create` / `replace`). `for` step records use `<nodeId>#<round>`.
 
-**Loop `for`:** read the driver once (`ref` or `expr`; must be a non-negative integer, `0..1000`;
-otherwise `ECP_TYPE_MISMATCH` / `ECP_LIMIT_EXCEEDED`). For each iteration, bind `state.<as>` to
-the index, run the body on shared state, emit `loop.round`, then remove `state.<as>` when the
-loop ends (including after resume).
+**Loop `forEach`:** read `input.items` once (max 10 000). Same collector as `for`, with
+`concurrency` and `onError`. Failed items with `onError: "continue"` store `null` at that index.
+Events `loop.start`, `loop.item.*`, `loop.end`. Step records use `<nodeId>#i<index>` and carry
+`items` (outermost first).
 
-**Loop `forEach`:** read the driver once (must be an array; more than 10 000 items →
-`ECP_LIMIT_EXCEEDED`) and snapshot the state. Each item runs the body on its own deep copy of
-that snapshot plus `state.<as>` and `state.<as>Index`; body commits stay in the copy and
-`state.json` is not written for them. After the body, resolve `collect` in the item's scope.
-Up to `concurrency` items (1–32, default 1) run at once, started in index order. When every item
-has finished, `state.<into>` = the results in item order (`create`), then `state.json` is
-written. `onError: "fail"` (default): stop starting items, let running ones finish, fail with the
-lowest-index error, commit nothing. `"continue"`: failed item → `null`, append to
-`state.<into>Errors`. Step records inside `forEach` carry `items` (outermost first). Nested
-`forEach` snapshots the outer item; nested `while`/`for` use the item copy.
+**`$ref` list (merge port):** read every path; exactly one present value wins (`null` counts);
+none present → `optional` / `fallback` / `ECP_REF_UNRESOLVED`; two present → `ECP_REF_AMBIGUOUS`.
 
-`while` / `for` step records are keyed `<nodeId>#<round>` (rounds from 0); `forEach` uses
-`<nodeId>#i<index>`.
-
-**Parallel:** run each line as a sequence, at most `maxConcurrency` lines at a time (lines start
-in array order). All lines share the run's state object; validation (03) guarantees they don't
-read each other's outputs or write the same key, so commits are safe (single-threaded JS).
-If a line fails: abort the other lines (`AbortSignal`), wait for them to settle, fail the run
-with the first error. Steps aborted this way get status `cancelled`.
+**`parallel`:** optional scoped `as` (same rules as `if`). Run each path as a sequence, at most
+`maxConcurrency` paths at a time (paths start in array order). Paths share the run's state object;
+validation (03) guarantees they don't read each other's outputs or write the same key. If a path
+fails: abort the other paths (`AbortSignal`), wait for them to settle, fail the run with the
+first error. Steps aborted this way get status `cancelled`.
 
 ## Value resolution (input and `$script.params`)
 
 Recursive over the JSON value, depth-first, object keys in insertion order:
 
-- `$ref`: read the path from state. Missing (any segment `undefined`) → if `optional`: use
-  `fallback` when present, else omit the property (or `null` when inside an array); if not
-  optional → fail `ECP_REF_UNRESOLVED` (run-time; the validator should have caught most cases).
+- `$ref` (string or array of strings): string — read the path from state (missing → optional /
+  `fallback` / `ECP_REF_UNRESOLVED`). Array — merge port: the one committed value wins; see above.
 - `$state`: becomes `{ "$state": "<path>" }` handle object passed through untouched.
 - `$script`: resolve `params`, read `source` or the file at `path`, syntax-check (02), produce
   `const params = <JSON.stringify(params)>;\n<script text>`. Errors: `ECP_SCRIPT_INVALID`.
@@ -138,13 +130,16 @@ that names the path and requires an absolute path. `..` is allowed to the same d
 
 Through the `ExpressionEngine` service (QuickJS in the MVP):
 
-- The state is passed as JSON (serialised once per evaluation) and deep-frozen inside the VM.
-- The function is called with the state as its only argument; the result is serialised back.
+- `evaluateExpression(source, input)` evaluates one JavaScript expression with a deep-frozen
+  `input` clone (no function-of-state form).
+- `evaluateScript(source, input)` runs a transform-style script body with the same frozen `input`.
 - Limits per evaluation: 50 ms CPU (interrupt handler), 32 MB memory, 1 MB result. Breach →
-  `ECP_EXPR_TIMEOUT` / `ECP_EXPR_FAILED`.
-- A thrown error inside the function → `ECP_EXPR_FAILED` with the JS error message.
-- No host objects are exposed: no `require`, `process`, `fetch`, timers, or file access.
-  `Date` and `Math.random` exist (QuickJS built-ins); executions should not rely on them.
+  `ECP_EXPR_TIMEOUT` / `ECP_SCRIPT_TIMEOUT` and related codes.
+- A thrown error inside the sandbox → `ECP_EXPR_FAILED` / `ECP_SCRIPT_FAILED`.
+- No host globals beyond QuickJS built-ins (`Date`, `Math.random` exist; executions should not
+  rely on them). `process`, `require`, and `fetch` are undefined.
+- Non-boolean results from `if` conditions are treated as failure (take `else`); other positions
+  receive the value as-is.
 
 ## Config and secrets resolution (per step)
 
@@ -177,8 +172,8 @@ This includes capability outputs (a plugin echoing a key back).
 
 `execute { cancel: runId }` aborts the run's `AbortSignal`. In-flight capability calls receive
 the abort; the run ends `cancelled` once they settle (or after 10 s, whichever first). Nodes
-not started are not run. A `forEach` loop stops starting items, aborts running ones and does not
-commit `into`.
+not started are not run. A `forEach` loop stops starting items and aborts running ones without
+writing parent arrays until the loop would have finished normally.
 
 ## Resume
 
@@ -187,8 +182,10 @@ commit `into`.
 - `execute { resume: runId }` (status must be `interrupted`; else `ECP_REQUEST_INVALID`):
   reload the manifest **by hash** (the run record stores the manifest copy), load `state.json`,
   skip every node recorded as completed or skipped, and re-run the node that was in progress
-  from scratch (its staged writes were never committed). Loop round counters and branch
-  selections are restored from the run record. The same run id continues; event `run.resume`.
+  from scratch (its staged writes were never committed). Loop round counters and `if` side
+  choices (`cursor.choices`) are restored from the run record. Scoped `as` values from an
+  interrupted `if` remain in saved state until the side completes. The same run id continues; event
+  `run.resume`.
 - `forEach` mode: the outermost `forEach` loop records each finished item's result in
   `runs/<id>/loop-items/<nodeId>.json` (05). On resume, recorded items are skipped and their results
   reused; an item that was running restarts from its first step (its writes lived only in its copy).
@@ -205,9 +202,8 @@ commit `into`.
 | `step.skip` | `nodeId`, `round?`, `item?`, `items?` |
 | `step.end` | `nodeId`, `round?`, `item?`, `items?`, `durationMs`, `as?` |
 | `step.error` | `nodeId`, `round?`, `item?`, `items?`, `error` (issue) |
-| `branch.select` | `nodeId`, `arm` (index or `null`) |
-| `loop.round` | `nodeId`, `round` (`while`, `for`) |
-| `loop.exhausted` | `nodeId`, `rounds` (`while` only) |
+| `if.select` | `nodeId`, `side` (`"then"` / `"else"` / `null`), `reason` |
+| `loop.round` | `nodeId`, `round` (`for`) |
 | `loop.start` | `nodeId`, `count` (`forEach`) |
 | `loop.item.start` | `nodeId`, `index` |
 | `loop.item.end` | `nodeId`, `index`, `durationMs` |

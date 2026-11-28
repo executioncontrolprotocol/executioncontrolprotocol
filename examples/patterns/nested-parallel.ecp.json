@@ -40,56 +40,68 @@
       "type": "parallel",
       "id": "work",
       "label": "Two workstreams",
-      "branches": [
+      "paths": [
         [
           {
-            "type": "branch",
+            "type": "if",
             "id": "depth",
             "label": "How thorough",
-            "branches": [
-              {
-                "label": "full",
-                "expr": "(state) => state.mode === 'full'",
-                "steps": [
-                  {
-                    "type": "loop",
-                    "mode": "for",
-                    "id": "passes-loop",
-                    "label": "Run each pass",
-                    "ref": "state.passes",
-                    "as": "pass",
-                    "steps": [
-                      {
-                        "id": "review-pass",
-                        "label": "Review pass",
-                        "uses": "@executioncontrolprotocol/test.echo",
-                        "input": {
-                          "value": {
-                            "$ref": "state.pass"
-                          }
-                        },
-                        "as": "review_pass",
-                        "mode": "replace"
-                      }
-                    ]
-                  }
-                ]
+            "accepts": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string"
+                }
               },
+              "required": [
+                "mode"
+              ]
+            },
+            "input": {
+              "mode": {
+                "$ref": "state.mode"
+              }
+            },
+            "expression": "input.mode === 'full'",
+            "then": [
               {
-                "label": "quick",
+                "type": "loop",
+                "id": "passes-loop",
+                "label": "Run each pass",
+                "mode": "for",
+                "input": {
+                  "count": {
+                    "$ref": "state.passes"
+                  }
+                },
+                "as": "pass",
                 "steps": [
                   {
-                    "id": "quick-check",
-                    "label": "Quick check",
+                    "id": "review-pass",
+                    "label": "Review pass",
                     "uses": "@executioncontrolprotocol/test.echo",
                     "input": {
                       "value": {
-                        "$ref": "state.mode"
+                        "$ref": "state.pass"
                       }
                     },
-                    "as": "quick_check"
+                    "as": "review_pass",
+                    "mode": "replace"
                   }
                 ]
+              }
+            ],
+            "else": [
+              {
+                "id": "quick-check",
+                "label": "Quick check",
+                "uses": "@executioncontrolprotocol/test.echo",
+                "input": {
+                  "value": {
+                    "$ref": "state.mode"
+                  }
+                },
+                "as": "quick_check"
               }
             ]
           }
@@ -97,17 +109,21 @@
         [
           {
             "type": "loop",
-            "mode": "forEach",
             "id": "each-file",
             "label": "For each file",
-            "ref": "state.files",
+            "mode": "forEach",
+            "input": {
+              "items": {
+                "$ref": "state.files"
+              }
+            },
             "as": "file",
             "steps": [
               {
                 "type": "parallel",
                 "id": "file-checks",
                 "label": "Check the file in parallel",
-                "branches": [
+                "paths": [
                   [
                     {
                       "id": "lint",
@@ -147,9 +163,7 @@
                 },
                 "as": "file_ok"
               }
-            ],
-            "collect": "state.file_ok",
-            "into": "checked"
+            ]
           }
         ]
       ]
@@ -160,7 +174,7 @@
       "uses": "@executioncontrolprotocol/test.echo",
       "input": {
         "value": {
-          "$ref": "state.checked"
+          "$ref": "state.file_ok"
         }
       },
       "as": "wrap_up"

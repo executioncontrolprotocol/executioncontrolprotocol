@@ -1,25 +1,26 @@
-import type {
-  BranchNode,
-  ExecutionManifest,
-  LoopNode,
-  Node,
-  ParallelNode,
-  StepNode,
-} from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode, StepNode } from "@executioncontrolprotocol/protocol"
 import { EXECUTION_ACCEPTS_NODE_ID, EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
-import { EXPR_HANDLE_ID, OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
+import { OUTPUT_HANDLE_ID, longestMatchingPortId } from "./extract-data-edges.js"
 import {
   addCapabilityStep,
   placementForConnectionOrigin,
   allocateAsName,
   type AddStepResult,
+  isScriptStepCapability,
+  type AddStepCapability,
 } from "./add-step.js"
+import { addControlNode, type AddControlNodeResult } from "./structure-edit.js"
+import { schemaFromReactFlowPort, sourcePortPropertySchema } from "./source-port-schema.js"
 import {
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_ORDER,
   CONNECTION_EDIT_SELF,
+  scopeForStateRef,
+  sourceScope,
   sourceVisibleTo,
 } from "./read-order.js"
+import { analyseMergePort } from "./merge-port-scope.js"
+import { addInputPort, uniquePortIdFromSource } from "./port-edit.js"
 import { firstMatchingPort } from "./port-compat.js"
 import {
   flattenJsonSchemaProperties,
@@ -28,15 +29,22 @@ import {
 import { typeLabelFromSchema, valueSchemaFromJsonSchemaProp } from "./value-schema-hint.js"
 import type { ReactFlowPort } from "./types.js"
 import {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
+  EMPTY_INPUT_PORT_ID,
   LOOP_COLLECT_HANDLE,
+  LOOP_COUNT_HANDLE,
+  LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
-  LOOP_INTO_HANDLE,
+  LOOP_ITEMS_HANDLE,
   LOOP_REF_HANDLE,
+  IF_ELSE_HANDLE,
+  IF_THEN_HANDLE,
+  PARALLEL_PATH_HANDLE_PREFIX,
+  loopIdFromEndMarker,
+  parseEndMarkerId,
 } from "./types.js"
-import type { ReactFlowDataEdgeData, ReactFlowEdge, ReactFlowRouteEdgeData } from "./types.js"
-import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue } from "./markers.js"
+import { ensureStructureAs } from "./panel-edit.js"
+import type { ReactFlowDataEdgeData, ReactFlowEdge } from "./types.js"
+import { isRefMarker, isScriptMarker, isStateMarker, refPathFromValue, refPathsFromValue } from "./markers.js"
 import {
   cleanNodes,
   cloneManifest,
@@ -54,7 +62,7 @@ import {
 } from "./structure-edit.js"
 
 /** @category App */
-export const CONNECTION_EDIT_NOT_BINDING = "Edit the expression or the structure in its panel"
+export const CONNECTION_EDIT_NOT_BINDING = "That is not a branch with a reference to remove"
 
 /** @category App */
 export const CONNECTION_EDIT_NOT_STEP = "Only a disconnected step can be reconnected"
@@ -63,7 +71,7 @@ export const CONNECTION_EDIT_NOT_STEP = "Only a disconnected step can be reconne
 export const CONNECTION_EDIT_SOURCE_DETACHED = "Connect from a step that is in the flow"
 
 /** @category App */
-export const CONNECTION_EDIT_LOOP = "Delete the loop from its container menu"
+export const CONNECTION_EDIT_INPUT_ORIGIN = "Add a node after the port you dragged from, not before it"
 
 /** @category App */
 export const CONNECTION_EDIT_INSIDE = "That node is inside the disconnected step"
@@ -72,12 +80,6 @@ export const CONNECTION_EDIT_INSIDE = "That node is inside the disconnected step
 
 
 
-
-function findBranch(nodes: Node[], branchId: string): BranchNode | undefined {
-  const hit = findNodePlacement(nodes, branchId)
-  if (hit && hit.node.type === "branch") return hit.node
-  return undefined
-}
 
 function findParallel(nodes: Node[], parallelId: string): ParallelNode | undefined {
   const hit = findNodePlacement(nodes, parallelId)
@@ -161,21 +163,41 @@ function setInputAtPath(input: Record<string, unknown>, inputPath: string, value
   return true
 }
 
+/** A node whose `input` can hold a branch: a step, `if`, `parallel`, loop (driver) or a loop's `end` (`end:<loopId>`). */
+interface InputTarget {
+  /** Object whose `input` is read and written (the node, or the loop's `end`). */
+  holder: { input?: Record<string, unknown> }
+  kind: "step" | "if" | "parallel" | "loop" | "end"
+  /** The loop, for `loop` and `end` targets. */
+  loop?: LoopNode
+}
+
+function resolveInputTarget(draft: ExecutionManifest, nodeId: string): InputTarget | undefined {
+  if (parseEndMarkerId(nodeId)) return undefined
+  const hit = findNodePlacement(draft.steps, nodeId)
+  if (!hit) return undefined
+  const node = hit.node
+  if (isStepNode(node)) return { holder: node, kind: "step" }
+  if (node.type === "loop") return { holder: node, kind: "loop", loop: node }
+  return { holder: node, kind: node.type }
+}
+
 /**
- * Remove a step input binding (`$ref`, `$state`, or one `$script.params` entry).
+ * Remove an input binding (`$ref`, `$state`, or one `$script.params` entry) from a step, `if`, `parallel`, loop driver
+ * or loop `end` (`end:<loopId>`). The input becomes unbound; validation reports it when required.
  * @category App
  */
 export function disconnectInput(
   manifest: ExecutionManifest,
-  stepId: string,
+  targetId: string,
   inputPath: string,
   paramKey?: string,
+  refPath?: string,
 ): StructureEditResult {
   const next = cloneManifest(manifest)
-  const hit = findStepPlacement(next.steps, stepId)
-  if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const step = hit.parent[hit.index] as StepNode
-  const input = structuredClone(step.input ?? {}) as Record<string, unknown>
+  const target = resolveInputTarget(next, targetId)
+  if (!target) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  const input = structuredClone(target.holder.input ?? {}) as Record<string, unknown>
 
   if (paramKey !== undefined) {
     const scriptValue = readInputAtPath(input, inputPath)
@@ -195,10 +217,21 @@ export function disconnectInput(
     if (!isRefMarker(value) && !isStateMarker(value)) {
       return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
     }
-    if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+    if (isRefMarker(value) && refPath) {
+      const paths = refPathsFromValue(value) ?? []
+      const nextPaths = paths.filter((path) => path !== refPath)
+      if (nextPaths.length === paths.length) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+      if (nextPaths.length === 0) {
+        if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+      } else if (nextPaths.length === 1) {
+        assignInputPath(input, inputPath, { $ref: nextPaths[0]! })
+      } else {
+        assignInputPath(input, inputPath, { $ref: nextPaths })
+      }
+    } else if (!deleteInputKey(input, inputPath)) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
   }
 
-  hit.parent[hit.index] = { ...step, input: input as StepNode["input"] }
+  target.holder.input = input
   return { ok: true, manifest: next }
 }
 
@@ -209,31 +242,7 @@ function refuseIfEmptyTop(manifest: ExecutionManifest): StructureEditResult | un
 }
 
 /**
- * Remove a branch arm; its steps move to `detached`.
- * @category App
- */
-export function deleteArm(manifest: ExecutionManifest, branchId: string, armIndex: number): StructureEditResult {
-  const next = cloneManifest(manifest)
-  const branch = findBranch(next.steps, branchId)
-  if (!branch || armIndex < 0 || armIndex >= branch.branches.length) {
-    return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-  }
-  const placement = findNodePlacement(next.steps, branchId)!
-  const arm = branch.branches[armIndex]!
-  const moved = [...arm.steps]
-  let withDetached = appendDetached(next, moved)
-  branch.branches.splice(armIndex, 1)
-  if (branch.branches.length === 0) {
-    placement.parent.splice(placement.index, 1)
-  }
-  withDetached = { ...withDetached, steps: cleanNodes(withDetached.steps) }
-  const refused = refuseIfEmptyTop(withDetached)
-  if (refused) return refused
-  return { ok: true, manifest: withDetached }
-}
-
-/**
- * Remove a parallel line; its steps move to `detached`.
+ * Remove a parallel path; its steps move to `detached`.
  * @category App
  */
 export function deleteParallelLine(
@@ -243,15 +252,15 @@ export function deleteParallelLine(
 ): StructureEditResult {
   const next = cloneManifest(manifest)
   const parallel = findParallel(next.steps, parallelId)
-  if (!parallel || lineIndex < 0 || lineIndex >= parallel.branches.length) {
+  if (!parallel || lineIndex < 0 || lineIndex >= parallel.paths.length) {
     return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
   }
   const placement = findNodePlacement(next.steps, parallelId)!
-  const moved = [...parallel.branches[lineIndex]!]
+  const moved = [...parallel.paths[lineIndex]!]
   let withDetached = appendDetached(next, moved)
-  parallel.branches.splice(lineIndex, 1)
-  if (parallel.branches.length === 1) {
-    const survivor = parallel.branches[0]!
+  parallel.paths.splice(lineIndex, 1)
+  if (parallel.paths.length === 1) {
+    const survivor = parallel.paths[0]!
     placement.parent.splice(placement.index, 1, ...survivor)
   }
   withDetached = { ...withDetached, steps: cleanNodes(withDetached.steps) }
@@ -322,128 +331,34 @@ export function attachAfter(
 }
 
 /**
- * Attach a detached root as a new branch arm.
- * @category App
- */
-export function attachAsArm(
-  manifest: ExecutionManifest,
-  branchId: string,
-  detachedId: string,
-): StructureEditResult {
-  const list = manifest.detached
-  if (!Array.isArray(list)) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const root = list.find((node) => node.id === detachedId)
-  if (!root) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  if (nodeContainsId(root, branchId)) return { ok: false, reason: CONNECTION_EDIT_INSIDE }
-
-  const next = cloneManifest(manifest)
-  const branch = findBranch(next.steps, branchId)
-  if (!branch) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-
-  const without = dropDetachedRoot(next, detachedId)
-  if (!without) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const node = structuredClone(root)
-  const defaultIndex = branch.branches.findIndex((arm) => arm.expr === undefined)
-  const arm = { expr: "(state) => true", steps: [node] }
-  if (defaultIndex >= 0) branch.branches.splice(defaultIndex, 0, arm)
-  else branch.branches.push(arm)
-  return finalizeManifest(without)
-}
-
-/**
- * Attach a detached root as a new parallel line.
- * @category App
- */
-export function attachAsLine(
-  manifest: ExecutionManifest,
-  parallelId: string,
-  detachedId: string,
-): StructureEditResult {
-  const list = manifest.detached
-  if (!Array.isArray(list)) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const root = list.find((node) => node.id === detachedId)
-  if (!root) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  if (nodeContainsId(root, parallelId)) return { ok: false, reason: CONNECTION_EDIT_INSIDE }
-
-  const next = cloneManifest(manifest)
-  const parallel = findParallel(next.steps, parallelId)
-  if (!parallel) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
-
-  const without = dropDetachedRoot(next, detachedId)
-  if (!without) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
-  const node = structuredClone(root)
-  parallel.branches.push([node])
-  return finalizeManifest(without)
-}
-
-/**
- * Whether the connector for this edge can be deleted from the canvas menu.
+ * Whether the selected branch can be deleted (it is a `$ref` in a node's `input`), with the reason when it can't.
  * @category App
  */
 export function connectorDeletePreview(
   manifest: ExecutionManifest,
   edge: ReactFlowEdge,
-  level: number,
 ): { ok: true } | { ok: false; reason: string } {
-  if (edge.data.kind === "data") {
-    const data = edge.data as ReactFlowDataEdgeData
-    if (edge.target === EXECUTION_RETURNS_NODE_ID || findLoop(manifest.steps, edge.target)) {
-      return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-    }
-    if (!findStepPlacement(manifest.steps, edge.target)) {
-      return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-    }
-    if (edge.targetHandle === EXPR_HANDLE_ID || !data.bindingPath) {
-      return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-    }
-    return { ok: true }
-  }
-  if (edge.data.kind !== "route") return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  const route = edge.data as ReactFlowRouteEdgeData
-  const entry = route.levels[level]
-  if (!entry) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  if (entry.route === "loop") return { ok: false, reason: CONNECTION_EDIT_LOOP }
-  if (entry.route === "sequence" && edge.source === EXECUTION_ACCEPTS_NODE_ID) {
-    return { ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS }
-  }
-  if (entry.route === "branch" && entry.structureId !== undefined && entry.armIndex !== undefined) return { ok: true }
-  if (entry.route === "parallel" && entry.structureId !== undefined && entry.armIndex !== undefined) return { ok: true }
-  if (entry.route === "sequence") return { ok: true }
-  return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+  const result = deleteConnector(manifest, edge)
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason }
 }
 
 /**
- * Apply a canvas Delete action for the selected edge / route level.
+ * Apply a canvas Delete action for the selected branch: remove the `$ref` from the target node's `input`. The target
+ * may be a step, `if`, `parallel`, loop (driver) or loop `end`.
  * @category App
  */
 export function deleteConnector(
   manifest: ExecutionManifest,
   edge: ReactFlowEdge,
-  level: number,
 ): StructureEditResult {
-  if (edge.data.kind === "data") {
-    const data = edge.data as ReactFlowDataEdgeData
-    const bindingPath = data.bindingPath
-    if (!bindingPath) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-    return disconnectInput(manifest, edge.target, bindingPath, data.paramKey)
+  if (edge.data.kind !== "data") return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+  const data = edge.data as ReactFlowDataEdgeData
+  if (edge.target === EXECUTION_RETURNS_NODE_ID || !data.bindingPath) {
+    return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
   }
-  const route = edge.data as ReactFlowRouteEdgeData
-  const entry = route.levels[level]
-  if (!entry) return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
-  if (entry.route === "branch" && entry.structureId !== undefined && entry.armIndex !== undefined) {
-    return deleteArm(manifest, entry.structureId, entry.armIndex)
-  }
-  if (entry.route === "parallel" && entry.structureId !== undefined && entry.armIndex !== undefined) {
-    return deleteParallelLine(manifest, entry.structureId, entry.armIndex)
-  }
-  if (entry.route === "sequence") return deleteSequenceLink(manifest, edge.target)
-  return { ok: false, reason: CONNECTION_EDIT_NOT_BINDING }
+  return disconnectInput(manifest, edge.target, data.bindingPath, data.paramKey, data.statePath)
 }
 
-/**
- * Collect every node id under `manifest.detached` (for connectivity exemptions).
- * @category App
- */
 export {
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_ORDER,
@@ -451,6 +366,9 @@ export {
 } from "./read-order.js"
 
 export const CONNECTION_EDIT_INCOMPATIBLE = "Those ports are not compatible"
+
+/** Same wording as validation {@link ECP_REF_AMBIGUOUS}. @category App */
+export const CONNECTION_EDIT_REF_AMBIGUOUS = "Merge port refs are not on opposite sides of the same if."
 
 /**
  * Target of a data-port connection in the manifest.
@@ -461,6 +379,8 @@ export interface ConnectInputTarget {
   sourceHandle: string
   targetStepId: string
   targetHandle: string
+  /** Schema of the feeding port when known (for example from a drag origin). */
+  sourcePortSchema?: Record<string, unknown>
 }
 
 function assignInputPath(input: Record<string, unknown>, inputPath: string, value: unknown): void {
@@ -481,6 +401,11 @@ function assignInputPath(input: Record<string, unknown>, inputPath: string, valu
   current[parts[parts.length - 1]!] = value
 }
 
+/**
+ * The `state.<key>[.<path>]` a branch from this output port writes. Mutates `manifest` (a draft) when the port needs a
+ * key the node doesn't have yet: an `if` / `parallel` side port sets `as` (and an empty `input`), a loop `end`
+ * `results` port sets `into`.
+ */
 function buildStateRef(
   manifest: ExecutionManifest,
   sourceNodeId: string,
@@ -490,19 +415,23 @@ function buildStateRef(
   if (sourceNodeId === EXECUTION_ACCEPTS_NODE_ID) {
     return `state.${sourceHandle}`
   }
-  const loopPlacement = findNodePlacement(manifest.steps, sourceNodeId)
-  if (loopPlacement?.node.type === "loop") {
-    const loop = loopPlacement.node as LoopNode
-    if (sourceHandle === LOOP_ITEM_HANDLE) {
-      const asKey = loop.as
-      if (!asKey) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
-      return `state.${asKey}`
-    }
-    if (sourceHandle === LOOP_INTO_HANDLE) {
-      const into = loop.into
-      if (!into) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
-      return `state.${into}`
-    }
+  const structure = findNodePlacement(manifest.steps, sourceNodeId)?.node
+  if (structure?.type === "loop") {
+    const asKey = structure.as
+    const mode = structure.mode
+    if (!asKey) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    if (sourceHandle === LOOP_ITEM_HANDLE && mode === "forEach") return `state.${asKey}`
+    if (sourceHandle === LOOP_INDEX_HANDLE && mode === "for") return `state.${asKey}`
+    if (sourceHandle === LOOP_INDEX_HANDLE && mode === "forEach") return `state.${asKey}Index`
+    return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+  }
+  if (structure?.type === "if") {
+    if (sourceHandle !== IF_THEN_HANDLE && sourceHandle !== IF_ELSE_HANDLE) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    return `state.${ensureStructureAs(manifest, structure)}`
+  }
+  if (structure?.type === "parallel") {
+    if (!sourceHandle.startsWith(PARALLEL_PATH_HANDLE_PREFIX)) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    return `state.${ensureStructureAs(manifest, structure)}`
   }
   const writer = step ?? resolveSourceStep(manifest, sourceNodeId)
   if (!writer) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
@@ -520,13 +449,7 @@ function resolveSourceStep(manifest: ExecutionManifest, sourceNodeId: string): S
 }
 
 function isDisallowedTargetHandle(handle: string): boolean {
-  return (
-    handle === EXPR_HANDLE_ID ||
-    handle === LOOP_REF_HANDLE ||
-    handle === LOOP_COLLECT_HANDLE ||
-    handle === FLOW_IN_HANDLE ||
-    handle === FLOW_OUT_HANDLE
-  )
+  return handle === LOOP_REF_HANDLE || handle === LOOP_COLLECT_HANDLE
 }
 
 /**
@@ -563,12 +486,11 @@ function attachAfterLoopInto(
 function placeDetachedBeforeConnect(
   manifest: ExecutionManifest,
   sourceNodeId: string,
-  sourceHandle: string,
+  _sourceHandle: string,
   detachedId: string,
 ): StructureEditResult {
-  if (sourceHandle === LOOP_INTO_HANDLE) {
-    return attachAfterLoopInto(manifest, sourceNodeId, detachedId)
-  }
+  const endLoopId = loopIdFromEndMarker(sourceNodeId)
+  if (endLoopId) return attachAfterLoopInto(manifest, endLoopId, detachedId)
   return attachAfter(manifest, sourceNodeId, detachedId)
 }
 
@@ -602,7 +524,8 @@ export function connectInputAndAttach(
   manifest: ExecutionManifest,
   target: ConnectInputTarget,
 ): StructureEditResult {
-  if (findStepPlacement(manifest.steps, target.targetStepId)) {
+  // Any attached node (step, if, parallel, loop) or a loop end node connects in place.
+  if (findNodePlacement(manifest.steps, loopIdFromEndMarker(target.targetStepId) ?? target.targetStepId)) {
     return connectInput(manifest, target)
   }
   if (!isDetachedRootStep(manifest, target.targetStepId)) {
@@ -621,6 +544,21 @@ export function connectInputAndAttach(
   return connectInput(placed.manifest, target)
 }
 
+/** Whether `handle` is an input port the target accepts a branch on (loop drivers and `repeat` depend on the mode). */
+function targetHandleAllowed(target: InputTarget, handle: string): boolean {
+  if (target.kind === "loop") {
+    const mode = target.loop?.mode
+    return (mode === "forEach" && handle === LOOP_ITEMS_HANDLE) || (mode === "for" && handle === LOOP_COUNT_HANDLE)
+  }
+  return true
+}
+
+/**
+ * Write the `$ref` for a branch from an output port to an input port. The target may be a step, `if`, `parallel`, loop
+ * driver (`items` / `count`) or loop `end` (`end:<loopId>`). When the source is an `if` / `parallel` side port without
+ * `as`, or a loop `end` `results` port without `into`, that key is set in the same edit.
+ * @category App
+ */
 export function connectInput(manifest: ExecutionManifest, target: ConnectInputTarget): StructureEditResult {
   if (target.targetStepId === target.sourceNodeId) {
     return { ok: false, reason: CONNECTION_EDIT_SELF }
@@ -632,9 +570,35 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
     return { ok: false, reason: CONNECTION_EDIT_ORDER }
   }
 
-  const next = cloneManifest(manifest)
-  const targetHit = findStepPlacement(next.steps, target.targetStepId)
-  if (!targetHit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  let next = cloneManifest(manifest)
+  let targetHandle = target.targetHandle
+
+  if (targetHandle === EMPTY_INPUT_PORT_ID) {
+    const sourcePortName = target.sourceHandle === OUTPUT_HANDLE_ID ? "output" : target.sourceHandle.split(".").pop() ?? "input"
+    const placement = findNodePlacement(next.steps, target.targetStepId)
+    if (!placement) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+    const holder = placement.node
+    if (holder.type !== "if" && holder.type !== "parallel" && !isStepNode(holder)) {
+      return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    }
+    if (isStepNode(holder) && holder.accepts === undefined) {
+      return { ok: false, reason: CONNECTION_EDIT_HANDLE }
+    }
+    const portId = uniquePortIdFromSource(next, holder as IfNode | ParallelNode | StepNode, sourcePortName)
+    const fromHint =
+      target.sourcePortSchema && Object.keys(target.sourcePortSchema).length > 0
+        ? target.sourcePortSchema
+        : sourcePortPropertySchema(next, target.sourceNodeId, target.sourceHandle)
+    const schema = Object.keys(fromHint).length > 0 ? fromHint : { type: "object" }
+    const added = addInputPort(next, target.targetStepId, portId, schema)
+    if (!added.ok) return added
+    next = added.manifest
+    targetHandle = portId
+  }
+
+  const inputTarget = resolveInputTarget(next, target.targetStepId)
+  if (!inputTarget) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+  if (!targetHandleAllowed(inputTarget, targetHandle)) return { ok: false, reason: CONNECTION_EDIT_HANDLE }
 
   const sourceHit = findStepPlacement(next.steps, target.sourceNodeId)
   let sourceStep = sourceHit ? (sourceHit.parent[sourceHit.index] as StepNode) : undefined
@@ -647,11 +611,35 @@ export function connectInput(manifest: ExecutionManifest, target: ConnectInputTa
   const refResult = buildStateRef(next, target.sourceNodeId, target.sourceHandle, sourceStep)
   if (typeof refResult !== "string") return refResult
 
-  const step = targetHit.parent[targetHit.index] as StepNode
-  const input = structuredClone(step.input ?? {}) as Record<string, unknown>
-  assignInputPath(input, target.targetHandle, { $ref: refResult })
-  targetHit.parent[targetHit.index] = { ...step, input: input as StepNode["input"] }
-
+  const input = structuredClone(inputTarget.holder.input ?? {}) as Record<string, unknown>
+  const existing = readInputAtPath(input, targetHandle)
+  if (isRefMarker(existing)) {
+    if (inputTarget.kind === "loop") {
+      assignInputPath(input, targetHandle, { $ref: refResult })
+      inputTarget.holder.input = input
+      return { ok: true, manifest: next }
+    }
+    const paths = refPathsFromValue(existing) ?? []
+    if (paths.includes(refResult)) return { ok: true, manifest: next }
+    const scopes = paths
+      .map((path) => scopeForStateRef(next, path))
+      .filter((scope): scope is NonNullable<typeof scope> => scope !== undefined)
+    const incoming = sourceScope(next, { nodeId: target.sourceNodeId, handleId: target.sourceHandle })
+    if (incoming) scopes.push(incoming)
+    if (paths.length === 1) {
+      if (analyseMergePort(scopes).valid) {
+        assignInputPath(input, targetHandle, { $ref: [paths[0]!, refResult] })
+      } else {
+        return { ok: false, reason: CONNECTION_EDIT_REF_AMBIGUOUS }
+      }
+    } else {
+      if (!analyseMergePort(scopes).valid) return { ok: false, reason: CONNECTION_EDIT_REF_AMBIGUOUS }
+      assignInputPath(input, targetHandle, { $ref: [...paths, refResult] })
+    }
+  } else {
+    assignInputPath(input, targetHandle, { $ref: refResult })
+  }
+  inputTarget.holder.input = input
   return { ok: true, manifest: next }
 }
 
@@ -676,40 +664,82 @@ function portsFromCapabilitySchema(
  */
 export function insertConnectedStep(
   manifest: ExecutionManifest,
-  capability: { id: string; accepts?: Record<string, unknown>; returns?: Record<string, unknown> },
+  capability: AddStepCapability & { accepts?: Record<string, unknown>; returns?: Record<string, unknown> },
   origin: { nodeId: string; handleId: string; side: "output" | "input" },
   originPort: ReactFlowPort,
 ): AddStepResult {
+  if (origin.side === "input") {
+    return { ok: false, reason: CONNECTION_EDIT_INPUT_ORIGIN }
+  }
   const placement = placementForConnectionOrigin(manifest, origin)
-  const added = addCapabilityStep(manifest, { id: capability.id }, placement)
+  const added = addCapabilityStep(manifest, capability, placement)
   if (!added.ok) return added
+
+  const sourcePortSchema = {
+    ...schemaFromReactFlowPort(originPort),
+    ...sourcePortPropertySchema(manifest, origin.nodeId, origin.handleId),
+  }
 
   const candidates =
     origin.side === "output"
       ? portsFromCapabilitySchema(capability.accepts, "accepts")
       : portsFromCapabilitySchema(capability.returns, "returns")
   const match = firstMatchingPort(originPort, candidates, origin.side)
-  if (!match) return added
 
   if (origin.side === "output") {
+    const skeleton = isScriptStepCapability(capability)
+    const targetHandle = skeleton || !match ? EMPTY_INPUT_PORT_ID : match.id
     const wired = connectInput(added.manifest, {
       sourceNodeId: origin.nodeId,
       sourceHandle: origin.handleId,
       targetStepId: added.stepId,
-      targetHandle: match.id,
+      targetHandle,
+      sourcePortSchema,
     })
     if (!wired.ok) return added
     return { ok: true, manifest: wired.manifest, stepId: added.stepId }
   }
 
+  if (!match) return added
   const wired = connectInput(added.manifest, {
     sourceNodeId: added.stepId,
     sourceHandle: match.id,
     targetStepId: origin.nodeId,
     targetHandle: origin.handleId,
+    sourcePortSchema,
   })
   if (!wired.ok) return added
   return { ok: true, manifest: wired.manifest, stepId: added.stepId }
+}
+
+/**
+ * Insert a control node from a port drag onto the canvas and bind the origin port to a new input on it.
+ * @category App
+ */
+export function insertConnectedControlNode(
+  manifest: ExecutionManifest,
+  origin: { nodeId: string; handleId: string; side: "output" | "input" },
+  originPort: ReactFlowPort,
+): AddControlNodeResult {
+  if (origin.side === "input") {
+    return { ok: false, reason: CONNECTION_EDIT_INPUT_ORIGIN }
+  }
+  const placement = placementForConnectionOrigin(manifest, origin)
+  const added = addControlNode(manifest, placement)
+  if (!added.ok) return added
+  const sourcePortSchema = {
+    ...schemaFromReactFlowPort(originPort),
+    ...sourcePortPropertySchema(manifest, origin.nodeId, origin.handleId),
+  }
+  const wired = connectInput(added.manifest, {
+    sourceNodeId: origin.nodeId,
+    sourceHandle: origin.handleId,
+    targetStepId: added.structureId,
+    targetHandle: EMPTY_INPUT_PORT_ID,
+    sourcePortSchema,
+  })
+  if (!wired.ok) return { ok: false, reason: wired.reason }
+  return { ok: true, manifest: wired.manifest, structureId: added.structureId }
 }
 
 export function detachedNodeIds(manifest: ExecutionManifest): Set<string> {
@@ -719,10 +749,11 @@ export function detachedNodeIds(manifest: ExecutionManifest): Set<string> {
   const walk = (nodes: Node[]): void => {
     for (const node of nodes) {
       ids.add(node.id)
-      if (node.type === "branch") {
-        for (const arm of node.branches) walk(arm.steps)
+      if (node.type === "if") {
+        walk(node.then)
+        if (node.else) walk(node.else)
       } else if (node.type === "parallel") {
-        for (const line of node.branches) walk(line)
+        for (const path of node.paths) walk(path)
       } else if (node.type === "loop") {
         walk(node.steps)
       }

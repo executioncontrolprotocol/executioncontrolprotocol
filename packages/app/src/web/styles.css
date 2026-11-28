@@ -262,13 +262,6 @@
     stroke-width: 2.5;
   }
 
-  .react-flow__edge.ecp-rf-edge--route path.react-flow__edge-path {
-    stroke: var(--color-outline) !important;
-    stroke-width: 1.5 !important;
-    stroke-dasharray: 6 4 !important;
-    opacity: 0.85;
-  }
-
   .react-flow__edge.ecp-rf-edge--taken path.react-flow__edge-path {
     stroke: var(--color-status-valid) !important;
     opacity: 1;
@@ -278,57 +271,149 @@
     opacity: 0.3 !important;
   }
 
-  .ecp-rf-frame {
+  .ecp-rf-tunnel {
+    position: relative;
     pointer-events: none;
     box-sizing: border-box;
-    border: 1px dashed var(--color-outline);
-    border-radius: 0.5rem;
-    /* No fill: frames are nodes, and React Flow draws edges and their pills under nodes, so a fill would tint
-       every edge and pill that crosses a frame. The dashed border and header carry the container. */
-    background: transparent;
+    border-radius: 0.75rem;
+    border-width: 1px;
+    border-style: solid;
   }
 
-  .ecp-rf-frame-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.375rem;
-    max-width: 100%;
-    padding: 0.25rem 0.5rem 0.125rem;
-    color: var(--color-on-surface-variant);
+  .ecp-rf-tunnel--then {
+    background-color: #3fb95024;
+    border-color: #3fb95073;
+  }
+
+  .ecp-rf-tunnel--else {
+    background-color: #f851491f;
+    border-color: #f8514966;
+  }
+
+  .ecp-rf-tunnel--path {
+    background-color: #58a6ff1f;
+    border-color: #58a6ff66;
+  }
+
+  .ecp-rf-tunnel--loop {
+    background: repeating-linear-gradient(
+      35deg,
+      rgba(163, 113, 247, 0.07) 0,
+      rgba(163, 113, 247, 0.07) 5px,
+      transparent 5px,
+      transparent 14px
+    ) !important;
+    border-color: rgba(163, 113, 247, 0.6) !important;
+    border-style: dashed !important;
+  }
+
+  .ecp-rf-tunnel--membership-only {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .ecp-rail-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .ecp-rf-tunnel-label {
+    position: absolute;
+    top: 0.35rem;
+    left: 0.5rem;
     font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
-    line-height: 1.35;
-    cursor: pointer;
+    font-size: 12px;
+    pointer-events: none;
   }
 
-  .ecp-rf-frame-label-text {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    white-space: normal;
+  .ecp-rf-tunnel--then .ecp-rf-tunnel-label {
+    color: rgba(63, 185, 80, 0.9);
   }
 
-  .ecp-rf-frame-menu {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
+  .ecp-rf-tunnel--else .ecp-rf-tunnel-label {
+    color: rgba(248, 81, 73, 0.9);
   }
 
-  .ecp-rf-frame-label {
-    max-width: 100%;
-    padding: 0.25rem 0.5rem 0.125rem;
-    color: var(--color-on-surface-variant);
+  .ecp-rf-tunnel--path .ecp-rf-tunnel-label {
+    color: rgba(88, 166, 255, 0.9);
+  }
+
+  .ecp-rf-tunnel--loop .ecp-rf-tunnel-label {
+    color: #c297ff;
+    font-weight: 700;
+  }
+
+  .ecp-rf-end--then {
+    background: #12261a;
+    border-color: #3fb950;
+    color: #56d364;
+  }
+
+  .ecp-rf-end--else {
+    background: #2a1414;
+    border-color: #f85149;
+    color: #ff7b72;
+  }
+
+  .ecp-rf-end--loop {
+    background: #1c1830;
+    border-color: #a371f7;
+    color: #c297ff;
+  }
+
+  .ecp-rf-end--path {
+    background: rgba(88, 166, 255, 0.12);
+    border-color: #58a6ff;
+    color: #58a6ff;
+  }
+
+  .ecp-rf-tunnel--dimmed {
+    opacity: 0.35;
+  }
+
+  .ecp-rf-node--dimmed {
+    opacity: 0.45;
+  }
+
+  .ecp-rf-node--scope-target {
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
+  .ecp-rail-band--drop-target {
+    stroke-opacity: 0.95 !important;
+    fill-opacity: 0.35 !important;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-then {
+    background: #3fb950 !important;
+    border-color: #2ea043 !important;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-else {
+    background: #f85149 !important;
+    border-color: #da3633 !important;
+  }
+
+  .react-flow__handle.ecp-rf-handle--tunnel-path {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary-fixed-dim) !important;
+  }
+
+  .ecp-rf-detached-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
     font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
-    line-height: 1.35;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    font-size: 10px;
+    color: var(--color-on-surface-variant);
+    pointer-events: none;
   }
+
 
   .ecp-rf-edge-label-stack {
     position: absolute;

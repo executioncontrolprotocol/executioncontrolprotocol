@@ -6,19 +6,23 @@
       "type": "loop",
       "id": "items",
       "mode": "forEach",
-      "ref": "state.rows",
+      "input": {
+        "items": {
+          "$ref": "state.rows"
+        }
+      },
       "as": "row",
       "concurrency": 0,
       "steps": [
         {
           "id": "echo",
           "uses": "@executioncontrolprotocol/test.echo",
-          "input": { "value": "x" },
+          "input": {
+            "value": "x"
+          },
           "as": "out"
         }
-      ],
-      "collect": "state.out",
-      "into": "results"
+      ]
     }
   ]
 }

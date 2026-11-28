@@ -2,13 +2,13 @@ import { copyFileSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
-import { executionToReactFlow } from "../../src/graph/index.js"
-import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const branchLoopSource = path.join(repoRoot, "examples/branch-loop/branch-loop.ecp.json")
 const mod = process.platform === "darwin" ? "Meta" : "Control"
+/** Modifier for additive step selection (matches GraphCanvas shift/meta/ctrl). */
+const additiveMod = process.platform === "darwin" ? "Meta" : "Control"
 
 test.describe("Delete key", () => {
   test.describe.configure({ mode: "serial" })
@@ -51,52 +51,60 @@ test.describe("Delete key", () => {
 
   test("Delete removes a multi-select in one save and undo restores both", async ({ page }) => {
     await open(page)
-    await page.getByTestId("ecp-step-gated").click()
-    await page.getByTestId("ecp-step-compact").click({ modifiers: ["Shift"] })
+    await page.getByTestId("ecp-step-Seed").click()
+    await page.getByTestId("ecp-step-tick").click({ modifiers: [additiveMod] })
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-selected-steps", /Seed/)
+    await expect(page.getByTestId("workspace")).toHaveAttribute("data-selected-steps", /tick/)
     await page.keyboard.press("Delete")
     await expect.poll(() => {
       const text = readFileSync(branchLoopPath, "utf8")
-      return !text.includes('"id": "gated"') && !text.includes('"id": "compact"')
+      return !text.includes('"id": "Seed"') && !text.includes('"id": "tick"')
     }).toBe(true)
     await page.keyboard.press(`${mod}+KeyZ`)
     await expect.poll(() => {
       const text = readFileSync(branchLoopPath, "utf8")
-      return text.includes('"id": "gated"') && text.includes('"id": "compact"')
+      return text.includes('"id": "Seed"') && text.includes('"id": "tick"')
     }).toBe(true)
   })
 
   test("Delete on a branch frame unwraps the structure", async ({ page }) => {
     await open(page)
-    await page.getByTestId("ecp-frame-label-route").click()
+    await page.getByTestId("ecp-if-pick").click()
     await page.keyboard.press("Delete")
-    await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"id": "route"')).toBe(true)
+    await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"id": "pick"')).toBe(true)
     await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"id": "expanded"')).toBe(true)
     await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"id": "compact"')).toBe(true)
   })
 
-  test("Delete on a branch pill detaches the inner arm steps", async ({ page }) => {
+  test("Delete on an if keeps its nodes and undo restores the if", async ({ page }) => {
     await open(page)
-    const doc = executionToReactFlow(JSON.parse(readFileSync(branchLoopSource, "utf8")) as ExecutionManifest)
-    const armEdge = doc.edges.find((edge) => edge.data.kind === "route" && edge.target === "expanded")
-    expect(armEdge?.id).toBeDefined()
-    const pill = page.getByTestId(`ecp-route-label-${armEdge!.id}`)
-    await pill.click()
+    const before = readFileSync(branchLoopPath, "utf8")
+    await page.getByTestId("ecp-if-pick").click()
     await page.keyboard.press("Delete")
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8").includes('"detached"')).toBe(true)
-    await expect(page.getByTestId("ecp-detached-expanded")).toBeVisible({ timeout: 15_000 })
+    await expect.poll(() => !readFileSync(branchLoopPath, "utf8").includes('"id": "pick"')).toBe(true)
+    await expect(page.getByTestId("ecp-step-expanded")).toBeVisible()
+    await expect(page.getByTestId("ecp-step-compact")).toBeVisible()
+    await page.keyboard.press(`${mod}+KeyZ`)
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(before)
   })
 
-  test("Backspace in the expression editor edits text only", async ({ page }) => {
+  test("Delete on a selected branch removes the reference", async ({ page }) => {
     await open(page)
-    const pill = page.locator('[data-testid^="ecp-route-label-"]').filter({ hasText: "expand" }).first()
-    await pill.click()
-    const editor = page.getByTestId("edge-expr-editor")
-    await expect(editor).toBeVisible({ timeout: 10_000 })
+    const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
+    await clickBranch(page, edge)
     const before = readFileSync(branchLoopPath, "utf8")
-    await editor.click()
-    await page.keyboard.press("Backspace")
-    await expect(editor).not.toHaveValue("(state) => state.expand === true")
+    await page.keyboard.press("Delete")
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(before)
+    await expect(page.locator(".react-flow__edge.ecp-rf-edge--selected")).toHaveCount(0)
+  })
+
+  test("Delete does not remove loop end nodes", async ({ page }) => {
+    await open(page)
+    await page.getByTestId("ecp-end-end:retry:loop").click({ force: true })
+    const before = readFileSync(branchLoopPath, "utf8")
+    await page.keyboard.press("Delete")
     expect(readFileSync(branchLoopPath, "utf8")).toBe(before)
+    await expect(page.getByTestId("ecp-end-end:retry:loop")).toBeVisible()
   })
 
   test("read-only replay ignores Delete", async ({ page }) => {

@@ -45,7 +45,7 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
   "script": { "lang": "js", "source": "return { prompt: `Translate: ${input.headline}` }" },
   "as": "prompt" },
 { "id": "translate", "label": "Translate headline", "uses": "@executioncontrolprotocol/anthropic.generate",
-  "config": "anthropic/default", "expr": "(state) => state.locale !== 'en'",
+  "config": "anthropic/default",
   "input": { "prompt": { "$ref": "state.prompt.prompt" } },
   "as": "translation", "mode": "replace" }
 ```
@@ -57,7 +57,6 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 | `label` | no | Display only |
 | `uses` | yes | Capability id `@scope/name.capability`, must be installed |
 | `config` | no | Config object id (`<plugin-short>/<name>`); default: `<plugin-short>/default` if it exists |
-| `expr` | no | Gate. JS function source `(state) => boolean`; `false` skips the step |
 | `input` | no | Object validated against step `accepts` when the capability `contract` is `"step"`, otherwise the capability's `accepts` (after value markers resolve) |
 | `accepts` | when `contract` is `"step"` | Step input JSON Schema (object). Required with `returns` on step-contract capabilities |
 | `returns` | when `contract` is `"step"` | Step output JSON Schema (object). `{}` means any JSON at run time |
@@ -70,90 +69,89 @@ across the whole document (all nesting levels): `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 The legacy `version` mode is removed (it behaved exactly like `replace`; the v1 converter maps
 it to `replace`).
 
-### Branch
+### `if`
 
 ```json
-{ "type": "branch", "id": "check-headline", "branches": [
-  { "label": "missing", "expr": "(state) => !state.doc.headline", "steps": [ … ] },
-  { "label": "default", "steps": [ … ] } ] }
+{ "type": "if", "id": "check-headline", "accepts": { … }, "input": { … },
+  "expression": "input.headline.length > 0",
+  "then": [ … ], "else": [ … ] }
 ```
 
-- `branches`: array of arms, `minItems 1`. Each arm: `label?`, `expr?`, `steps` (`minItems 1`).
-- Arms are tried in order; the first whose `expr` returns `true` runs. **An arm without `expr`
-  is the default arm and MUST be last.** At most one default arm. If no arm matches and there's
-  no default, nothing runs.
+- Optional `accepts` / `input` bind the condition's inputs (when absent, `input` is `{}`).
+- Exactly one of `expression` or `script` drives the condition over frozen `input`.
+- `true` runs `then`; `false`, a throw, a missing optional input, or a non-boolean result runs
+  `else` when present; otherwise nothing runs and `if.select` records `side: null`.
+- Optional `as` requires `input`. The resolved `input` object is scoped for nodes inside `then` /
+  `else` only (see 04).
+- `then` has at least one node; `else`, when present, has at least one node.
 
 ### Loop
 
-One node type, three modes. Omit `mode` for `while` (today's loop).
+One control node; required `mode` is `"for"` or `"forEach"`. End markers are not stored. Each
+round / item runs on a state copy; when the loop finishes, every body `as` (except the loop's item /
+index names) is published to the parent as an ordered array (`T[]`, `null` slots when a writer did
+not run or `onError: "continue"`). `count: 0` still publishes `[]`. Nested loops publish `T[][]`.
 
 ```json
-{ "type": "loop", "id": "refine", "expr": "(state) => state.translation.score < 0.8", "maxRounds": 3, "steps": [ … ] }
-{ "type": "loop", "mode": "for", "id": "n", "ref": "state.count", "as": "i", "steps": [ … ] }
-{ "type": "loop", "mode": "forEach", "id": "variants", "ref": "state.rows", "as": "row",
-  "steps": [ … ], "collect": "state.itemResult", "into": "results", "concurrency": 2, "onError": "continue" }
+{ "type": "loop", "mode": "for", "id": "n", "input": { "count": { "$ref": "state.count" } }, "as": "i", "steps": [ … ] }
+{ "type": "loop", "mode": "forEach", "id": "variants", "input": { "items": { "$ref": "state.rows" } }, "as": "row",
+  "steps": [ … ], "concurrency": 2, "onError": "continue" }
 ```
 
-Every loop has exactly one of `ref` (a state path string, same syntax as `$ref`, for example
-`"state.rows"`) or `expr` (a JS function string). Neither or both → `ECP_MANIFEST_INVALID`.
-`expr` in control positions (gates) must return a boolean; in `for` / `forEach` mode the host
-also evaluates `expr` as a loop source expression (integer or array). See 04.
-
-| `mode` | Driver | Body state | Required fields | Only in this mode |
+| `mode` | Driver (`input`) | Body state | Required loop fields | Only in this mode |
 | --- | --- | --- | --- | --- |
-| `while` (default) | `ref` (boolean) or `expr` (boolean), checked **before each round** (including the first); `true` runs a round | Shared with the run; `create` in the body → `ECP_COMMIT_CONFLICT` | `maxRounds` (`1..1000`) | `maxRounds`, `loop.exhausted` when the cap is reached |
-| `for` | `ref` (integer) or `expr` (integer), read **once**; body runs that many times (`0..1000`) | Shared; `state.<as>` is the iteration index (from 0) during the loop and is removed when the loop ends; `create` in the body → `ECP_COMMIT_CONFLICT` | `as` | — |
-| `forEach` | `ref` (array) or `expr` (array), read **once** (`0..10000` items at run time) | Each item on a deep copy of state at loop start plus `state.<as>` and `state.<as>Index`; body writes stay in the copy (`create` allowed) | `as`, `collect`, `into` | `concurrency` (`1..32`, default `1`), `onError` (`"fail"` default or `"continue"`) |
+| `for` | `count` (integer), read once (`0..1000`) | Copy per round; `state.<as>` is the index; `create` allowed in the body | `mode`, `input.count`, `as` | `loop.round` |
+| `forEach` | `items` (array), read once (`0..10000` at run time) | Deep copy per item; `state.<as>` and `state.<as>Index` | `mode`, `input.items`, `as` | `concurrency` (`1..32`, default `1`), `onError` (`"fail"` or `"continue"`), `loop.start` / `loop.item.*` / `loop.end` |
 
-`forEach` `collect` is a state path (resolved in the item's scope after the body); when every
-item has finished, `state.<into>` is the collected results in item order (`create` semantics).
-With `onError: "continue"`, failed items record `null` and `{ index, error }` entries go to
-`state.<into>Errors`.
+`while`, stored `end`, `into`, `maxRounds`, `loop.repeat`, and `loop.exhausted` are rejected. See
+03 and 04.
 
-The separate `type: "forEach"` node and loop `throttle` are removed. See `realignment/loops.md`.
+The separate `type: "forEach"` node and loop `throttle` are removed. See `realignment/graph-model.md`.
 
 ### Parallel
 
 ```json
-{ "type": "parallel", "id": "prepare", "maxConcurrency": 2, "branches": [ [ …nodes… ], [ …nodes… ] ] }
+{ "type": "parallel", "id": "prepare", "accepts": { … }, "input": { … }, "as": "query",
+  "maxConcurrency": 2, "paths": [ [ …nodes… ], [ …nodes… ] ] }
 ```
 
-- `branches`: array of node lists (`minItems 2`, each list `minItems 1`). Each list runs in
-  order; lists run concurrently.
+- `paths`: array of node lists (`minItems 2`; each list may be empty while editing). Each path runs
+  in order; paths run concurrently. An empty path is saveable but fails L2 validation until it has a node.
+- Optional `accepts` / `input` / `as` pass the same scoped input object to every path (see 04).
 - `maxConcurrency`: optional integer `>= 1`; default = host setting (4).
 
 ## Markers and node fields
 
-See `realignment/loops.md` for the full design.
+See `realignment/graph-model.md` for the full design.
 
 | Rule | Meaning |
 | --- | --- |
-| **R1** | **`$` marks a substitution in a value position** (`input`, `$script.params`, config `values`): `$ref`, `$state`, `$script` (and `$secret` / `$env` in config only). **Node fields are plain** — no `$` — including `uses`, `as`, `into`, step `mode`, loop `mode`, `expr`, loop `ref` / `collect`, and a transform step's `script` object. |
-| **R2** | **Data reaches a step only through `$ref`, `$state`, or literals.** Computed outputs come from steps or a loop's `collect`. Loop `expr` / `ref` drives repetition and never writes state. `$script` in `input` is code passed as data, not a data transform. |
+| **R1** | **`$` marks a substitution in a value position** (`input`, `$script.params`, config `values`): `$ref`, `$state`, `$script` (and `$secret` / `$env` in config only). **Node fields are plain** — no `$` — including `uses`, `as`, step `mode`, loop `mode`, `if` `expression` / `script`, and a transform step's `script` object. |
+| **R2** | **Data reaches a node only through `$ref`, `$state`, or literals.** Computed outputs come from steps; values after a loop are arrays on body keys. `$script` in `input` is code passed as data, not a host transform. |
 
 | Marker | Shape | Resolves to | Allowed in |
 | --- | --- | --- | --- |
-| Ref | `{ "$ref": "state.<path>", "optional"?, "fallback"? }` | Value at path | `input`, `$script.params` |
+| Ref | `{ "$ref": "state.<path>" \| ["state.<a>", "state.<b>", …], "optional"?, "fallback"? }` | Value at path, or merge port (list of 2+ paths) | `input`, `$script.params` |
 | State handle | `{ "$state": "<path>" }` | Staged-write handle | `input` |
 | Script | `{ "$script": { "lang", "source"?\|"path"?, "params"?, "ecmaVersion"? } }` | Syntax-checked string for a capability | `input` (string positions), `$script.params` |
 | Secret / env | `{ "$secret": "…" }` / `{ "$env": "…" }` | Config values only | Config objects, not executions |
 
 **Plain node fields (not markers):** step `script` on `code: "script"` capabilities
 `{ "lang": "js", "source"?: "…", "path"?: "…", "ecmaVersion"?: n }` with exactly one of
-`source` / `path`; loop `ref`, `collect`; branch/loop/step `expr`; loop `mode`, `as`, `into`,
-`maxRounds`, `concurrency`, `onError`.
+`source` / `path`; `if` `expression` / `script`; loop `mode`, `as`, `concurrency`, `onError`.
 
-## Expressions (`expr` fields)
+## Expressions (`if` / `end` `expression` fields)
 
-- A string containing **one JavaScript function expression** (arrow or `function`) with at most
-  one parameter (the state). Example: `"(state) => state.items.length > 0"`.
-- Checked for syntax at validation time (acorn, `ecmaVersion: 2022`): must parse as a single
-  `ArrowFunctionExpression` or `FunctionExpression`, `params.length <= 1`, no `async`, no
-  generator. Otherwise `ECP_EXPR_INVALID` with line and column.
-- In control positions (step `expr`, arm `expr`, `while` loop `expr` / `ref`) the result MUST be
-  a boolean; any other value fails the run with `ECP_EXPR_RESULT_INVALID`.
-- In `for` and `forEach` loop `expr` (and typed `ref`), the run-time value must be a
-  non-negative integer or an array respectively (`ECP_TYPE_MISMATCH` / `ECP_LIMIT_EXCEEDED`; see 04).
+- A string containing **one JavaScript expression** evaluated over frozen `input` (for example
+  `input.tier === 'gold'`). Step `expression` on a `code: "expression"` capability (JSONata) is
+  unrelated.
+- Checked for syntax at validation time (acorn `parseExpressionAt`, `ecmaVersion: 2022`): must be
+  a single expression spanning the whole string. Otherwise `ECP_EXPR_INVALID` with line and column.
+- On `if`, the result MUST be a boolean for `then`; any failure (throw, missing input, non-boolean,
+  `false`) takes `else` when present (see 04).
+- On loop `end`, the result is the gathered value for that round / item.
+- Alternatively, `script` on `if` / `end` is a transform-style body that `return`s a value (QuickJS
+  with frozen `input` only).
 
 ### Step-level contracts (transforms)
 
@@ -217,7 +215,6 @@ into a config object (05).
 ## Reference example
 
 `fixtures/manifests/valid/localize-banner.ecp.json` (written in Phase 0) uses every feature:
-accepts/returns, sequence, `$ref` with `optional`/`fallback`, gated step, branch with default
-arm, parallel, loop (`while`, `for`, `forEach`), all commit modes, `$state`, transforms with
-plain `script` by `path` and by `source`, `$script` in `input`,
-and `config` on steps.
+accepts/returns, sequence, `$ref` with `optional`/`fallback` and merge lists, `if`, `parallel`, loop
+(`for`, `forEach`), all commit modes, `$state`, transforms with plain
+`script` by `path` and by `source`, `$script` in `input`, and `config` on steps.

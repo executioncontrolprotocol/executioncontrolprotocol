@@ -275,6 +275,8 @@ async function loadRetrievePayload(
             summary: capability?.summary,
             plugin: capability?.plugin,
             score: hit.score,
+            ...(capability?.contract !== undefined ? { contract: capability.contract } : {}),
+            ...(capability?.code !== undefined ? { code: capability.code } : {}),
           }
         }),
         total: hits.length,
@@ -288,6 +290,8 @@ async function loadRetrievePayload(
         id: capability.id,
         plugin: capability.plugin,
         summary: capability.summary,
+        ...(capability.contract !== undefined ? { contract: capability.contract } : {}),
+        ...(capability.code !== undefined ? { code: capability.code } : {}),
       }))
     return ok({ type: "capability", items, total: all.length })
   }

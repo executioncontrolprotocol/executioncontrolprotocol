@@ -1,20 +1,18 @@
 /**
- * Graph canvas context-menu target.
+ * Graph canvas context-menu target. Containers are drawn only; they are never a target.
  * @category App
  */
 export type CanvasContextTarget =
   | { kind: "pane" }
   | { kind: "edge" }
   | { kind: "io" }
-  | { kind: "step"; stepId: string }
-  | { kind: "loop"; structureId: string }
-  | { kind: "frame"; structureId: string }
+  | { kind: "node"; nodeId: string }
 
 /**
  * Menu kind returned by the dispatcher (or none).
  * @category App
  */
-export type CanvasContextMenuKind = "node" | "container" | "edge" | "none"
+export type CanvasContextMenuKind = "node" | "edge" | "none"
 
 /**
  * Prevent the browser menu and return which App menu should open.
@@ -25,8 +23,7 @@ export function openCanvasContextMenu(
   event: { preventDefault: () => void },
 ): CanvasContextMenuKind {
   event.preventDefault()
-  if (target.kind === "step") return "node"
-  if (target.kind === "loop" || target.kind === "frame") return "container"
+  if (target.kind === "node") return "node"
   if (target.kind === "edge") return "edge"
   return "none"
 }

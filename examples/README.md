@@ -2,8 +2,9 @@
 
 Portable v2 executions for the realignment host. Each folder has a `*.ecp.json` file with a
 `$schema` line and a short README. **Transforms** (`@executioncontrolprotocol/core.transform` or
-JSONata) reshape data between steps; **`expr`** on steps, branch arms, and loops is control only
-(boolean gates). Step `input` binds data with `$ref` / `$state` / `$script`, not inline `$expr`.
+JSONata) reshape data between steps. Control flow is made of nodes: an `if` decides with an `expression` or
+`script` over its typed `input`, and loop body keys leave the loop as arrays. Step `input` binds data with
+`$ref` / `$state` / `$script`, not inline `$expr`.
 
 | Example | Plugins |
 | --- | --- |
@@ -14,7 +15,7 @@ JSONata) reshape data between steps; **`expr`** on steps, branch arms, and loops
 | `psd-artboards-renditions/` | `plugin-azure-blob-storage`, `plugin-adobe-firefly-services`, `plugin-jsonata` (deterministic: reflow a PSD into new artboards, one JPEG per artboard found by layer type) |
 | `weekly-brief/` | `plugin-anthropic` |
 | `branch-loop/` | `plugin-test` |
-| `patterns/` | `plugin-test` (branch, parallel, while / for / forEach loops, and nested containers) |
+| `patterns/` | `plugin-test` (`if`, parallel, `for` / `forEach` loops, nested tunnels) |
 | `dogfood-reshape/` | Core transform walkthrough |
 | `dogfood-photo/` | `plugin-azure-blob-storage` |
 | `dogfood-caption/` | `plugin-anthropic` |

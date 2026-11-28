@@ -3,7 +3,6 @@ import { AlertTriangle, Box, FileCode2 } from "lucide-react"
 import type {
   CapabilityEntry,
   ExecutionManifest,
-  LoopNode,
   Node,
   ScriptDescriptor,
   StepNode,
@@ -17,10 +16,9 @@ import {
 import { scriptTextFromRetrieve } from "../../client/document-state.js"
 import {
   collectSteps,
-  setLoopField,
+  type AddStepPlacement,
   type ReactFlowIoData,
   type ReactFlowNode,
-  type ReactFlowLoopItemsData,
   type ReactFlowPort,
   type ReactFlowStepData,
   type RunGraphLoop,
@@ -30,6 +28,7 @@ import {
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 import type { EditorApplyRequest } from "../hooks/useExecutionEditor.js"
+import { ControlNodePanel } from "./ControlNodePanel.js"
 
 /**
  * Props for {@link NodePanel}.
@@ -57,7 +56,7 @@ export interface NodePanelProps {
   runStep?: RunGraphStep
   /** Run progress when the selected node is a `forEach` loop. */
   runLoopItems?: RunGraphLoopItems
-  /** Run round when the selected node is a `while` / `for` loop. */
+  /** Run round when the selected node is a `for` loop. */
   runLoop?: RunGraphLoop
   /** Changes on every reload, so script text is fetched again. */
   reloadKey: number
@@ -67,6 +66,8 @@ export interface NodePanelProps {
   readOnly?: boolean
   /** Persist loop and other manifest edits. */
   applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
+  /** Open the capability picker for a new step (the parallel panel's "Add path"). */
+  onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
 }
 
 function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode | undefined {
@@ -76,36 +77,6 @@ function findStep(manifest: ExecutionManifest | undefined, id: string): StepNode
   return steps.find((step) => step.id === id)
 }
 
-function findLoop(manifest: ExecutionManifest | undefined, id: string): LoopNode | undefined {
-  if (!manifest) return undefined
-  const walk = (nodes: Node[]): LoopNode | undefined => {
-    for (const node of nodes) {
-      if (node.type === "loop" && node.id === id) return node
-      if (node.type === "parallel") {
-        for (const line of node.branches) {
-          const hit = walk(line)
-          if (hit) return hit
-        }
-      } else if (node.type === "branch") {
-        for (const arm of node.branches) {
-          const hit = walk(arm.steps)
-          if (hit) return hit
-        }
-      } else if (node.type === "loop") {
-        const hit = walk(node.steps)
-        if (hit) return hit
-      }
-    }
-    return undefined
-  }
-  if (Array.isArray(manifest.steps)) {
-    const hit = walk(manifest.steps)
-    if (hit) return hit
-  }
-  if (Array.isArray(manifest.detached)) return walk(manifest.detached)
-  return undefined
-}
-
 function patchStep(
   manifest: ExecutionManifest,
   stepId: string,
@@ -113,310 +84,19 @@ function patchStep(
 ): ExecutionManifest {
   const walk = (nodes: Node[]): Node[] =>
     nodes.map((node) => {
-      if (node.type === "branch") {
+      if (node.type === "if") {
         return {
           ...node,
-          branches: node.branches.map((arm) => ({ ...arm, steps: walk(arm.steps) })),
+          then: walk(node.then),
+          ...(node.else ? { else: walk(node.else) } : {}),
         }
       }
       if (node.type === "loop") return { ...node, steps: walk(node.steps) }
-      if (node.type === "parallel") return { ...node, branches: node.branches.map((branch) => walk(branch)) }
+      if (node.type === "parallel") return { ...node, paths: node.paths.map((path) => walk(path)) }
       if ((node as StepNode).id === stepId) return patch(node as StepNode)
       return node
     })
   return { ...manifest, steps: walk(manifest.steps) }
-}
-
-type LoopFieldKey =
-  | "ref"
-  | "expr"
-  | "maxRounds"
-  | "as"
-  | "into"
-  | "collect"
-  | "concurrency"
-  | "onError"
-
-function LoopItemsPanel({
-  node,
-  data,
-  manifest,
-  issues,
-  loopRun,
-  loopRound,
-  readOnly = false,
-  applyManifestEdit,
-  scheduleTextEdit,
-  flushTextEdit,
-  fieldEpoch = 0,
-}: {
-  node: ReactFlowNode
-  data: ReactFlowLoopItemsData
-  manifest?: ExecutionManifest
-  issues: ValidationIssue[]
-  loopRun?: RunGraphLoopItems
-  loopRound?: RunGraphLoop
-  readOnly: boolean
-  applyManifestEdit?: (edit: (manifest: ExecutionManifest) => StructureEditResult) => Promise<boolean>
-  scheduleTextEdit?: (request: EditorApplyRequest) => void
-  flushTextEdit?: () => void
-  fieldEpoch?: number
-}) {
-  const loopFieldKey = `${node.id}-${fieldEpoch}`
-  const source = findLoop(manifest, node.id)
-  const mode = data.mode ?? "while"
-  const driver: "ref" | "expr" = source?.expr !== undefined ? "expr" : "ref"
-  const [fieldError, setFieldError] = useState<string | undefined>(undefined)
-
-  const queueField = useCallback(
-    (field: LoopFieldKey, value: string | number) => {
-      if (readOnly || !manifest || !scheduleTextEdit) return
-      const preview = setLoopField(manifest, node.id, field, value)
-      if (!preview.ok) {
-        setFieldError(preview.reason)
-        return
-      }
-      setFieldError(undefined)
-      scheduleTextEdit({
-        label: `Loop ${field}`,
-        apply: (current) => setLoopField(current, node.id, field, value),
-      })
-    },
-    [manifest, node.id, readOnly, scheduleTextEdit],
-  )
-
-  const saveField = useCallback(
-    (field: LoopFieldKey, value: string | number) => {
-      if (readOnly || !manifest) return
-      const preview = setLoopField(manifest, node.id, field, value)
-      if (!preview.ok) {
-        setFieldError(preview.reason)
-        return
-      }
-      setFieldError(undefined)
-      if (scheduleTextEdit) {
-        queueField(field, value)
-        flushTextEdit?.()
-        return
-      }
-      void applyManifestEdit?.((current) => setLoopField(current, node.id, field, value))
-    },
-    [applyManifestEdit, flushTextEdit, manifest, node.id, queueField, readOnly, scheduleTextEdit],
-  )
-
-  const switchDriver = useCallback(
-    (next: "ref" | "expr") => {
-      if (next === driver) return
-      if (next === "ref") {
-        void saveField("ref", source?.ref ?? "state.value")
-      } else {
-        void saveField("expr", source?.expr?.trim() ? source.expr : "(state) => true")
-      }
-    },
-    [driver, saveField, source?.expr, source?.ref],
-  )
-
-  const disabled = readOnly || !applyManifestEdit || !manifest
-
-  return (
-    <section data-testid="node-panel" data-node-id={node.id} className="space-y-4">
-      <header className="space-y-1">
-        <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-on-surface">
-          <Box className="h-4 w-4 text-primary" aria-hidden="true" />
-          {data.label}
-        </h3>
-        <p className="text-[12px] text-on-surface-variant">Loop ({mode} mode).</p>
-      </header>
-      <div className="space-y-1.5">
-        <Row label="Kind">loop</Row>
-        <Row label="Id">{node.id}</Row>
-        <Row label="Mode">{mode}</Row>
-      </div>
-      <div key={loopFieldKey} className="space-y-3 border-t border-outline-variant pt-3">
-        <p className="font-mono text-label uppercase text-on-surface-variant">Driver</p>
-        <div className="flex gap-2" data-testid="loop-field-driver">
-          <button
-            type="button"
-            disabled={disabled}
-            className={`rounded border px-2 py-1 font-mono text-[11px] disabled:opacity-40 ${
-              driver === "ref" ? "border-primary text-on-surface" : "border-outline-variant"
-            }`}
-            onClick={() => switchDriver("ref")}
-          >
-            ref
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            className={`rounded border px-2 py-1 font-mono text-[11px] disabled:opacity-40 ${
-              driver === "expr" ? "border-primary text-on-surface" : "border-outline-variant"
-            }`}
-            onClick={() => switchDriver("expr")}
-          >
-            expr
-          </button>
-        </div>
-        {driver === "ref" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Ref</span>
-            <input
-              data-testid="loop-field-ref"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.ref ?? (data.refPath ? `state.${data.refPath}` : "")}
-              disabled={disabled}
-              onChange={(event) => queueField("ref", event.target.value)}
-              onBlur={(event) => void saveField("ref", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("ref", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
-        ) : (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Expr</span>
-            <input
-              data-testid="loop-field-expr"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.expr ?? data.exprBadge ?? ""}
-              disabled={disabled}
-              onChange={(event) => queueField("expr", event.target.value)}
-              onBlur={(event) => void saveField("expr", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("expr", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
-        )}
-        {mode === "while" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">Max rounds</span>
-            <input
-              data-testid="loop-field-max-rounds"
-              type="number"
-              min={1}
-              max={1000}
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.maxRounds ?? data.maxRounds ?? 1}
-              disabled={disabled}
-              onChange={(event) => queueField("maxRounds", Number.parseInt(event.target.value, 10))}
-              onBlur={(event) => void saveField("maxRounds", Number.parseInt(event.target.value, 10))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  void saveField("maxRounds", Number.parseInt((event.target as HTMLInputElement).value, 10))
-                }
-              }}
-            />
-          </label>
-        ) : null}
-        {mode === "for" || mode === "forEach" ? (
-          <label className="block space-y-1">
-            <span className="font-mono text-label uppercase text-on-surface-variant">As</span>
-            <input
-              data-testid="loop-field-as"
-              className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-              defaultValue={source?.as ?? data.as ?? ""}
-              disabled={disabled}
-              onChange={(event) => queueField("as", event.target.value)}
-              onBlur={(event) => void saveField("as", event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveField("as", (event.target as HTMLInputElement).value)
-              }}
-            />
-          </label>
-        ) : null}
-        {mode === "forEach" ? (
-          <>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Into</span>
-              <input
-                data-testid="loop-field-into"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.into ?? data.into ?? ""}
-                disabled={disabled}
-                onChange={(event) => queueField("into", event.target.value)}
-                onBlur={(event) => void saveField("into", event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveField("into", (event.target as HTMLInputElement).value)
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Collect</span>
-              <input
-                data-testid="loop-field-collect"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.collect ?? (data.collectPath ? `state.${data.collectPath}` : "")}
-                disabled={disabled}
-                onChange={(event) => queueField("collect", event.target.value)}
-                onBlur={(event) => void saveField("collect", event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveField("collect", (event.target as HTMLInputElement).value)
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">Concurrency</span>
-              <input
-                data-testid="loop-field-concurrency"
-                type="number"
-                min={1}
-                max={32}
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.concurrency ?? data.concurrency ?? 1}
-                disabled={disabled}
-                onChange={(event) => queueField("concurrency", Number.parseInt(event.target.value, 10))}
-                onBlur={(event) => void saveField("concurrency", Number.parseInt(event.target.value, 10))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void saveField("concurrency", Number.parseInt((event.target as HTMLInputElement).value, 10))
-                  }
-                }}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="font-mono text-label uppercase text-on-surface-variant">On error</span>
-              <select
-                data-testid="loop-field-on-error"
-                className="w-full rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-mono text-[11px]"
-                defaultValue={source?.onError ?? data.onError ?? "fail"}
-                disabled={disabled}
-                onChange={(event) => void saveField("onError", event.target.value)}
-              >
-                <option value="fail">fail</option>
-                <option value="continue">continue</option>
-              </select>
-            </label>
-          </>
-        ) : null}
-        {fieldError ? (
-          <p className="text-[11px] text-error" data-testid="loop-field-error">
-            {fieldError}
-          </p>
-        ) : null}
-      </div>
-      <div className="space-y-1.5">
-        {loopRun ? (
-          <Row label="Progress">
-            {loopRun.done} / {loopRun.count}
-            {loopRun.failed > 0 ? ` (${loopRun.failed} failed)` : ""}
-          </Row>
-        ) : null}
-        {loopRound ? <Row label="Round">{loopRound.round + 1}</Row> : null}
-      </div>
-      {issues.length > 0 ? (
-        <ul className="space-y-2">
-          {issues.map((issue, index) => (
-            <li key={`${issue.code}-${index}`} className="flex gap-2 rounded border border-error/40 p-2 text-[12px]">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" aria-hidden="true" />
-              <span>
-                <span className="font-mono text-error">{issue.code}</span> {issue.message}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  )
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -560,7 +240,6 @@ function ScriptText({
 
 function bindingSummary(port: ReactFlowPort): string {
   if (port.binding === "ref") return `ref ${port.refPath ?? ""}${port.refOptional ? " (optional)" : ""}`
-  if (port.binding === "expr") return "expr"
   if (port.binding === "script") return port.scriptPath ? `script ${port.scriptPath}` : "script (inline)"
   if (port.binding === "literal") return port.valueTitle ?? port.valuePreview ?? "literal"
   return "not set"
@@ -596,11 +275,6 @@ function InputBinding({
         </span>
       </div>
       <p className="break-all font-mono text-[11px] text-on-surface-variant">{bindingSummary(port)}</p>
-      {port.binding === "expr" && port.exprSource ? (
-        <pre className="overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-primary-fixed">
-          {port.exprSource}
-        </pre>
-      ) : null}
       {port.binding === "script" && port.scriptSource ? (
         <pre data-testid="node-input-script" className="max-h-72 overflow-auto rounded bg-surface-container-lowest p-2 font-mono text-[11px] text-on-surface">
           {port.scriptSource}
@@ -804,7 +478,7 @@ function TransformCodePanel({
 }
 
 /**
- * Details of the selected node: capability, bindings (with script text), `expr`, config,
+ * Details of the selected node: capability, bindings (with script text), config,
  * validation issues and the capability's `accepts` / `returns` schemas.
  * @category App
  */
@@ -817,8 +491,8 @@ export function NodePanel({
   capability,
   issues,
   runStep,
-  runLoopItems,
-  runLoop,
+  runLoopItems: _runLoopItems,
+  runLoop: _runLoop,
   reloadKey,
   onUnauthorized,
   readOnly = false,
@@ -826,6 +500,7 @@ export function NodePanel({
   scheduleTextEdit,
   flushTextEdit,
   fieldEpoch = 0,
+  onOpenCapabilityMenu,
 }: NodePanelProps) {
   const stepContractSchemas = useMemo(() => {
     if (!node || node.type === "ecp-io" || !manifest) return undefined
@@ -842,20 +517,18 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
-  if (node.type === "ecp-loop") {
+  if (node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop") {
     return (
-      <LoopItemsPanel
+      <ControlNodePanel
         node={node}
-        data={node.data as ReactFlowLoopItemsData}
-        manifest={manifest}
         issues={issues}
-        loopRun={runLoopItems}
-        loopRound={runLoop}
+        manifest={manifest}
         readOnly={readOnly}
+        fieldEpoch={fieldEpoch}
         applyManifestEdit={applyManifestEdit}
         scheduleTextEdit={scheduleTextEdit}
         flushTextEdit={flushTextEdit}
-        fieldEpoch={fieldEpoch}
+        onOpenCapabilityMenu={onOpenCapabilityMenu}
       />
     )
   }
@@ -880,7 +553,6 @@ export function NodePanel({
             {data.mode ? ` (${data.mode})` : ""}
           </Row>
         ) : null}
-        {step?.expr ? <Row label="Expr">{step.expr}</Row> : null}
         {runStep ? (
           <Row label="Status">
             <span data-testid="node-run-status">{runStep.status}</span>

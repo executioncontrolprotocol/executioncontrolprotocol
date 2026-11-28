@@ -3,12 +3,18 @@
  * @category App
  */
 export interface CapabilityMenuEntry {
-  /** Capability id. */
+  /** Capability id, or {@link CONTROL_NODE_ENTRY_ID} for the control node. */
   id: string
-  /** Owning plugin id. */
+  /** Owning plugin id, or {@link CORE_GROUP_ID} for Core rows. */
   plugin: string
   /** Short human summary. */
   summary: string
+  /** Capability manifest `contract`, when present. */
+  contract?: "step"
+  /** Capability manifest `code`, when present. */
+  code?: "script" | "expression"
+  /** True for the synthetic control node entry. */
+  controlNode?: boolean
 }
 
 /**
@@ -18,18 +24,42 @@ export interface CapabilityMenuEntry {
 export interface CapabilityMenuGroup {
   /** Plugin id used as the group heading. */
   plugin: string
-  /** Capabilities in host list order within this plugin. */
+  /** Capabilities in host list order within this group. */
   entries: CapabilityMenuEntry[]
 }
 
+/** Core group heading in the add-node menu. @category App */
+export const CORE_GROUP_ID = "Core"
+
+import { CONTROL_NODE_ENTRY_ID } from "../../graph/structure-edit.js"
+
+export { CONTROL_NODE_ENTRY_ID }
+
 /**
- * Group capability rows by plugin, preserving first-seen plugin order and entry order within each group.
+ * Whether a capability belongs in the Core group (transform script steps).
+ * @category App
+ */
+export function isCoreTransformEntry(entry: CapabilityMenuEntry): boolean {
+  return entry.contract === "step" && entry.code === "script"
+}
+
+/**
+ * Group capability rows: Core (control node and transform capabilities) first, then plugin groups.
  * @category App
  */
 export function groupCapabilities(entries: readonly CapabilityMenuEntry[]): CapabilityMenuGroup[] {
+  const control: CapabilityMenuEntry = {
+    id: CONTROL_NODE_ENTRY_ID,
+    plugin: CORE_GROUP_ID,
+    summary: "Control node (if, loop, parallel)",
+    controlNode: true,
+  }
+  const coreTransforms = entries.filter((entry) => isCoreTransformEntry(entry) && !entry.controlNode)
+  const pluginEntries = entries.filter((entry) => !isCoreTransformEntry(entry) && !entry.controlNode)
+
   const order: string[] = []
   const byPlugin = new Map<string, CapabilityMenuEntry[]>()
-  for (const entry of entries) {
+  for (const entry of pluginEntries) {
     let list = byPlugin.get(entry.plugin)
     if (!list) {
       list = []
@@ -38,7 +68,12 @@ export function groupCapabilities(entries: readonly CapabilityMenuEntry[]): Capa
     }
     list.push(entry)
   }
-  return order.map((plugin) => ({ plugin, entries: byPlugin.get(plugin) ?? [] }))
+
+  const groups: CapabilityMenuGroup[] = []
+  const coreRows = [control, ...coreTransforms]
+  if (coreRows.length > 0) groups.push({ plugin: CORE_GROUP_ID, entries: coreRows })
+  for (const plugin of order) groups.push({ plugin, entries: byPlugin.get(plugin) ?? [] })
+  return groups
 }
 
 /**
@@ -46,6 +81,7 @@ export function groupCapabilities(entries: readonly CapabilityMenuEntry[]): Capa
  * @category App
  */
 export function capabilityShortName(id: string): string {
+  if (id === CONTROL_NODE_ENTRY_ID) return "control node"
   const dot = id.lastIndexOf(".")
   return dot >= 0 ? id.slice(dot + 1) : id
 }

@@ -40,15 +40,15 @@ test.describe("Containers and menus", () => {
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-version", /.+/, { timeout: 20_000 })
   }
 
-  test("branch-loop shows frames for branch and while loop", async ({ page }) => {
+  test("branch-loop shows tunnels for if and loop", async ({ page }) => {
     await open(page, branchLoopPath)
-    await expect(page.getByTestId("ecp-frame-route")).toBeVisible()
-    await expect(page.getByTestId("ecp-frame-retry")).toBeVisible()
+    await expect(page.locator('[data-testid^="ecp-tunnel-pick"]').first()).toBeVisible()
+    await expect(page.locator('[data-testid^="ecp-tunnel-retry"]').first()).toBeVisible()
   })
 
   test("right-click step opens the node menu and blocks the native menu", async ({ page }) => {
     await open(page, branchLoopPath)
-  await page.evaluate(() => {
+    await page.evaluate(() => {
       window.__ecpContextMenuPrevented = false
       document.addEventListener(
         "contextmenu",
@@ -64,25 +64,122 @@ test.describe("Containers and menus", () => {
     expect(await page.evaluate(() => window.__ecpContextMenuPrevented)).toBe(true)
   })
 
-  test("wrap in branch saves and shows a frame", async ({ page }) => {
+  test("wrap in if saves and shows a frame", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-step-expanded").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
-    await page.getByTestId("canvas-menu-item-wrap-branch").click()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "branch-1"')
-    await expect(page.locator('[data-testid="ecp-frame-branch-1"]')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await expect(page.locator('[data-testid^="ecp-tunnel-if-1"]').first()).toBeVisible({ timeout: 15_000 })
   })
 
   test("delete keep steps restores the file", async ({ page }) => {
     await open(page, branchLoopPath)
     await page.getByTestId("ecp-step-expanded").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-wrap").click()
-    await page.getByTestId("canvas-menu-item-wrap-branch").click()
-    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "branch-1"')
-    await page.getByTestId("ecp-frame-menu-branch-1").click()
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await page.getByTestId("ecp-if-if-1").click({ button: "right" })
     await page.getByTestId("canvas-menu-item-delete").click()
-    await page.getByTestId("canvas-menu-item-delete-keep-steps").click()
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+  })
+
+  test("delete with its nodes removes the if and what is inside it", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-pick").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-delete-with-nodes").click()
+    await expect
+      .poll(() => {
+        const text = readFileSync(branchLoopPath, "utf8")
+        return !text.includes('"id": "pick"') && !text.includes('"id": "expanded"') && !text.includes('"id": "compact"')
+      })
+      .toBe(true)
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+  })
+
+  test("wrap a step in an if, edit its expression, then undo and redo", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-step-Seed").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-wrap").click()
+    await page.getByTestId("canvas-menu-item-wrap-if").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"id": "if-1"')
+    await page.getByTestId("ecp-if-if-1").click()
+    const condition = page.getByTestId("control-condition-text")
+    await expect(condition).toBeVisible()
+    await condition.fill("input.go === 1")
+    await condition.blur()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"expression": "input.go === 1"')
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toContain("input.go === 1")
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"expression": "input.go === 1"')
+  })
+
+  test("the condition switches between expression and script", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-pick").click()
+    await page.getByTestId("control-condition-form-script").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"source": "return input.expand === true"')
+    const pickNode = () =>
+      (JSON.parse(readFileSync(branchLoopPath, "utf8")) as { steps: Array<{ id?: string; expression?: string }> }).steps.find(
+        (node) => node.id === "pick",
+      )
+    expect(pickNode()?.expression).toBeUndefined()
+    await page.getByTestId("control-condition-form-expression").click()
+    await expect.poll(() => pickNode()?.expression).toBe("input.expand === true")
+  })
+
+  test("add node in else from the start node menu creates the else side", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-if-gated-gate").click({ button: "right" })
+    await page.getByTestId("canvas-menu-item-add-else").click()
+    await page.getByTestId("capability-menu-search").fill("echo")
+    await page.getByTestId("capability-menu-item-@executioncontrolprotocol/test.echo").click()
+    await expect
+      .poll(() => {
+        const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
+          steps: Array<{ id?: string; else?: Array<{ uses?: string }> }>
+        }
+        return parsed.steps.find((node) => node.id === "gated-gate")?.else?.[0]?.uses
+      })
+      .toBe("@executioncontrolprotocol/test.echo")
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(originalText)
+  })
+
+  test("changing the loop mode rewrites the fields and the file validates", async ({ page }) => {
+    await open(page, branchLoopPath)
+    await page.getByTestId("ecp-loop-retry").click()
+    await page.getByTestId("control-field-kind").selectOption("for")
+    await expect
+      .poll(() => {
+        const parsed = JSON.parse(readFileSync(branchLoopPath, "utf8")) as {
+          steps: Array<{ id?: string; mode?: string; input?: { count?: number } }>
+        }
+        const retry = parsed.steps.find((node) => node.id === "retry")
+        return retry?.mode === "for" && retry.input?.count === 1
+      })
+      .toBe(true)
+    await expect(page.getByTestId("validation-status")).toHaveAttribute("data-valid", "true", { timeout: 15_000 })
+    await page.getByTestId("canvas-undo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toBe(originalText)
+    await page.getByTestId("canvas-redo").click()
+    await expect.poll(() => readFileSync(branchLoopPath, "utf8")).toContain('"mode": "for"')
+  })
+
+  test("a tunnel is not selectable and ignores pointer events", async ({ page }) => {
+    await open(page, branchLoopPath)
+    const tunnel = page.getByTestId("ecp-tunnel-pick-then")
+    await expect(tunnel).toBeVisible()
+    const passThrough = await tunnel.evaluate((el) => {
+      const parent = el.closest(".react-flow__node") as HTMLElement | null
+      return parent?.style.pointerEvents === "none" || getComputedStyle(el).pointerEvents === "none"
+    })
+    expect(passThrough).toBe(true)
+    await expect(tunnel).toHaveAttribute("data-kind", "then")
   })
 
   test("delete step removes it from disk", async ({ page }) => {

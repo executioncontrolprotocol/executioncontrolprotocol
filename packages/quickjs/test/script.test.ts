@@ -40,7 +40,7 @@ describe("QuickJsExpressionEngine evaluateScript", () => {
   it("times out under the transform budget without changing the expression budget", async () => {
     await withEngine({ transformOptions: { timeoutMs: 30 }, options: { timeoutMs: 200 } }, async (engine) => {
       await expect(engine.evaluateScript("while (true) {}", {})).rejects.toMatchObject({ code: "ECP_SCRIPT_TIMEOUT" })
-      await expect(engine.evaluate("(state) => { while (true) {} }", {}, "value")).rejects.toMatchObject({
+      await expect(engine.evaluateExpression("(() => { while (true) {} })()", {})).rejects.toMatchObject({
         code: "ECP_EXPR_TIMEOUT",
       })
     })

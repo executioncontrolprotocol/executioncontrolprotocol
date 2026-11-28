@@ -1,6 +1,5 @@
 import { Handle, Position } from "@xyflow/react"
 import type { ReactFlowPort } from "../../graph/index.js"
-import { FLOW_IN_HANDLE, FLOW_OUT_HANDLE } from "../../graph/index.js"
 
 function handleClass(kind: "input" | "output", connected: boolean): string {
   const state = connected ? "ecp-rf-handle--connected" : "ecp-rf-handle--idle"
@@ -14,13 +13,6 @@ function BindingText({ port }: { port: ReactFlowPort }) {
         {" \u2190 "}
         {port.refPath}
         {port.refOptional ? "?" : ""}
-      </span>
-    )
-  }
-  if (port.binding === "expr") {
-    return (
-      <span className="text-primary-fixed" title={port.valueTitle ?? port.exprSource}>
-        {" = expr"}
       </span>
     )
   }
@@ -43,53 +35,6 @@ function BindingText({ port }: { port: ReactFlowPort }) {
   return null
 }
 
-/** Flow handles sit on the node border, level with the node title. */
-const FLOW_HANDLE_TOP = 16
-
-function flowHandleClass(): string {
-  return "ecp-rf-handle ecp-rf-handle--flow !h-2 !w-2 !border"
-}
-
-/**
- * Target handle for structural route edges (left border, level with the node title).
- * @category App
- */
-export function FlowInHandle() {
-  return (
-    <Handle
-      type="target"
-      position={Position.Left}
-      id={FLOW_IN_HANDLE}
-      className={flowHandleClass()}
-      style={{ top: FLOW_HANDLE_TOP, pointerEvents: "none" }}
-      isConnectable={false}
-      isConnectableStart={false}
-      isConnectableEnd={false}
-      aria-hidden
-    />
-  )
-}
-
-/**
- * Source handle for structural route edges (right border, level with the node title).
- * @category App
- */
-export function FlowOutHandle() {
-  return (
-    <Handle
-      type="source"
-      position={Position.Right}
-      id={FLOW_OUT_HANDLE}
-      className={flowHandleClass()}
-      style={{ top: FLOW_HANDLE_TOP, pointerEvents: "none" }}
-      isConnectable={false}
-      isConnectableStart={false}
-      isConnectableEnd={false}
-      aria-hidden
-    />
-  )
-}
-
 export type PortDragState = "compatible" | "incompatible" | "idle"
 
 /**
@@ -107,6 +52,8 @@ export function InputPortRow({
   connectable?: boolean
   drag?: PortDragState
 }) {
+  const branchHint =
+    port.refBranchCount !== undefined && port.refBranchCount > 1 ? ` (${port.refBranchCount} branches)` : ""
   const allow = connectable && drag !== "incompatible"
   return (
     <div className="relative flex min-w-0 items-center gap-1 pl-2">
@@ -123,6 +70,7 @@ export function InputPortRow({
       <span className="min-w-0 truncate font-mono text-[10px] text-on-surface-variant">
         {port.name}
         <span className="text-outline">:{port.typeLabel}</span>
+        {branchHint}
         <BindingText port={port} />
       </span>
     </div>
@@ -138,11 +86,13 @@ export function OutputPortRow({
   connected,
   connectable = false,
   drag = "idle",
+  handleClassName,
 }: {
   port: ReactFlowPort
   connected: boolean
   connectable?: boolean
   drag?: PortDragState
+  handleClassName?: string
 }) {
   const allow = connectable && drag !== "incompatible"
   return (
@@ -155,7 +105,7 @@ export function OutputPortRow({
         type="source"
         position={Position.Right}
         id={port.id}
-        className={`${handleClass("output", connected)}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
+        className={`${handleClass("output", connected)}${handleClassName ? ` ${handleClassName}` : ""}${drag === "incompatible" ? " ecp-rf-port--incompatible" : ""}${drag === "compatible" ? " ecp-rf-port--compatible" : ""}`}
         isConnectable={allow}
         isConnectableStart={allow}
         isConnectableEnd={allow}

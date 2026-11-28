@@ -36,29 +36,60 @@
       "as": "start"
     },
     {
-      "type": "branch",
+      "type": "if",
       "id": "by-tier",
-      "label": "Route by tier",
-      "branches": [
-        {
-          "label": "gold",
-          "expr": "(state) => state.tier === 'gold'",
-          "steps": [
-            {
-              "id": "gold-offer",
-              "label": "Gold offer",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "Free express shipping"
-              },
-              "as": "gold_offer"
-            }
-          ]
+      "label": "Gold tier?",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string"
+          }
         },
+        "required": [
+          "tier"
+        ]
+      },
+      "input": {
+        "tier": {
+          "$ref": "state.tier"
+        }
+      },
+      "expression": "input.tier === 'gold'",
+      "then": [
         {
-          "label": "silver",
-          "expr": "(state) => state.tier === 'silver'",
-          "steps": [
+          "id": "gold-offer",
+          "label": "Gold offer",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "Free express shipping"
+          },
+          "as": "gold_offer"
+        }
+      ],
+      "else": [
+        {
+          "type": "if",
+          "id": "by-tier-silver",
+          "label": "Silver tier?",
+          "accepts": {
+            "type": "object",
+            "properties": {
+              "tier": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tier"
+            ]
+          },
+          "input": {
+            "tier": {
+              "$ref": "state.tier"
+            }
+          },
+          "expression": "input.tier === 'silver'",
+          "then": [
             {
               "id": "silver-offer",
               "label": "Silver offer",
@@ -68,11 +99,8 @@
               },
               "as": "silver_offer"
             }
-          ]
-        },
-        {
-          "label": "everyone else",
-          "steps": [
+          ],
+          "else": [
             {
               "id": "default-offer",
               "label": "Default offer",

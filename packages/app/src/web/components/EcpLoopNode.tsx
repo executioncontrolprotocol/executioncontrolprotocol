@@ -1,7 +1,6 @@
 import type { NodeProps } from "@xyflow/react"
 import { Repeat } from "lucide-react"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE, type ReactFlowLoopItemsData } from "../../graph/index.js"
-import { FlowInHandle, FlowOutHandle } from "./ports.js"
+import type { ReactFlowLoopItemsData } from "../../graph/index.js"
 import { DragInputPort, DragOutputPort } from "./drag-port.js"
 
 /**
@@ -14,7 +13,7 @@ export interface EcpLoopNodeData extends ReactFlowLoopItemsData {
   done?: number
   /** Total item count (`forEach`). */
   count?: number
-  /** Current round (`while` / `for`). */
+  /** Current round (`for`). */
   round?: number
   /** Input port ids with an incoming data edge. */
   connectedTargetHandles?: string[]
@@ -36,7 +35,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
     selected ? "ecp-rf-node--selected" : "",
     node.detached ? "ecp-rf-node--detached" : "",
   ]
-  const mode = node.mode ?? "while"
+  const mode = node.controlKind === "forEach" ? "forEach" : "for"
 
   return (
     <div
@@ -44,8 +43,6 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
       data-selected={selected ? "true" : "false"}
       className={classes.join(" ")}
     >
-      <FlowInHandle />
-      <FlowOutHandle />
       {node.detached ? (
         <span className="ecp-rf-detached-badge" data-testid={`ecp-detached-${id}`}>
           disconnected
@@ -57,21 +54,12 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             <Repeat className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             {node.label}
           </div>
-          {node.exprBadge ? (
-            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">{node.exprBadge}</div>
-          ) : null}
-          {mode === "forEach" && node.as && node.into ? (
-            <div className="mt-1 font-mono text-[10px] text-on-surface-variant">
-              as {node.as} → {node.into}
-            </div>
-          ) : null}
-          {mode === "for" && node.as ? (
+          {node.as ? (
             <div className="mt-1 font-mono text-[10px] text-on-surface-variant">as {node.as}</div>
           ) : null}
           <div className="mt-1 font-mono text-[9px] text-on-surface-variant">
             {mode}
             {mode === "forEach" ? ` · ×${node.concurrency ?? 1}` : ""}
-            {mode === "while" && node.maxRounds !== undefined ? ` · max ${node.maxRounds}` : ""}
             {mode === "forEach" && node.onError === "continue" ? " · onError: continue" : ""}
           </div>
           {node.count !== undefined ? (
@@ -93,7 +81,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             nodeId={id}
             port={port}
             connected={port.binding === "ref" || targets.has(port.id)}
-            connectable={false}
+            connectable={dataConnectable}
           />
         ))}
         {node.outputs.map((port) => (
@@ -102,7 +90,7 @@ export function EcpLoopNode({ id, data, selected }: NodeProps) {
             nodeId={id}
             port={port}
             connected={sources.has(port.id)}
-            connectable={dataConnectable && (port.id === LOOP_ITEM_HANDLE || port.id === LOOP_INTO_HANDLE)}
+            connectable={dataConnectable}
           />
         ))}
       </div>

@@ -17,29 +17,36 @@ import {
 } from "@xyflow/react"
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
-  armRunState,
+  appendEmptyParallelPath,
+  computeBranchRoutes,
   connectInputAndAttach,
   connectInputTarget,
   dataConnectionRefusal,
   deleteConnector,
   deleteStep,
+  detachedNodeIds,
   isDataHandle,
+  isStructureHeaderSelection,
   isValidDataConnection,
+  placementAtFlowPoint,
   placementForConnectionOrigin,
   portOnDocument,
   removeStructure,
-  routeDeleteTarget,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
   CONNECTION_EDIT_INCOMPATIBLE,
-  type ReactFlowRouteEdgeData,
-  frameBounds,
+  resizeTunnelNodes,
+  applyMarkerSnap,
+  markerSnapHighlight,
+  reparentNodeAtPoint,
+  reparentDropTarget,
+  parseEndMarkerId,
   type AddStepPlacement,
-  type FrameMembership,
   type PositionOverrides,
   type ReactFlowDocument,
-  type ReactFlowFrameData,
+  type ReactFlowEndData,
+  type ReactFlowTunnelData,
   type ReactFlowNode,
   type ReactFlowPort,
   type ReactFlowStepData,
@@ -52,13 +59,14 @@ import { findNodePlacement } from "../../graph/manifest-walk.js"
 import { openCanvasContextMenu } from "../lib/canvas-context-menu.js"
 import { CanvasMenu, type CanvasMenuState } from "./CanvasMenu.js"
 import { EcpDataEdge } from "./EcpDataEdge.js"
-import { EcpFrameNode } from "./EcpFrameNode.js"
+import { EcpControlNode } from "./EcpControlNode.js"
 import { EcpIoNode } from "./EcpIoNode.js"
-import { EcpRouteEdge } from "./EcpRouteEdge.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
-import { FrameActionsContext, type FrameActionsContextValue } from "./frame-actions-context.js"
-import { RouteEdgeSelectionContext, type RouteEdgeSelectionContextValue } from "./route-edge-selection-context.js"
-import { EcpLoopNode, type EcpLoopNodeData } from "./EcpLoopNode.js"
+import { EcpEndNode } from "./EcpEndNode.js"
+import { EcpTunnelNode } from "./EcpTunnelNode.js"
+import { BranchRoutingContext } from "./branch-routing-context.js"
+import { RailVisualLayer } from "./RailVisualLayer.js"
+import type { EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 import { CanvasEditContext } from "./canvas-edit-context.js"
 import type { CapabilityOriginPort } from "./CapabilityMenu.js"
@@ -66,22 +74,24 @@ import type { CapabilityOriginPort } from "./CapabilityMenu.js"
 const nodeTypes = {
   "ecp-step": EcpStepNode,
   "ecp-io": EcpIoNode,
-  "ecp-frame": EcpFrameNode,
-  "ecp-loop": EcpLoopNode,
+  "ecp-tunnel": EcpTunnelNode,
+  "ecp-loop": EcpControlNode,
+  "ecp-if": EcpControlNode,
+  "ecp-parallel": EcpControlNode,
+  "ecp-end": EcpEndNode,
+  "ecp-placeholder": () => null,
 }
-const edgeTypes = { "ecp-data": EcpDataEdge, "ecp-route": EcpRouteEdge }
-const EDGE_INTERACTION_WIDTH = 20
+const edgeTypes = { "ecp-data": EcpDataEdge }
+const EDGE_INTERACTION_WIDTH = 36
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 }
 
 /**
- * Selected edge on the canvas, including the route level for stacked pills.
+ * Selected data branch on the canvas.
  * @category App
  */
 export interface SelectedEdge {
   /** Published edge id. */
   edgeId: string
-  /** Index into `levels` on a route edge (`0` for data edges and path clicks). */
-  level: number
 }
 
 /**
@@ -116,7 +126,9 @@ export interface GraphCanvasProps {
   selectedStepIds: readonly string[]
   /** True while a run is busy or a replay is selected. */
   readOnly: boolean
-  /** Selected edge and route level, when any. */
+  /** Allow step drags for position overrides only (run replay). */
+  positionDragOnly?: boolean
+  /** Selected data branch, when any. */
   selectedEdge?: SelectedEdge
   /** Called with the clicked node id, or undefined when the pane is clicked. */
   onSelect: (id: string | undefined) => void
@@ -141,6 +153,8 @@ export interface GraphCanvasProps {
   ) => void
   /** Persist drag stop positions to browser storage. */
   onPositionDragStop: (updates: PositionOverrides) => void
+  /** Drop position overrides after a structural drag (scope or reparent). */
+  onClearPositionOverrides?: (nodeIds: readonly string[]) => void
   /** Clear overrides and storage for this execution. */
   onAutoLayout: () => void
   /** Skip the next layout-driven fit (cursor-placed step). */
@@ -160,6 +174,10 @@ function topLevelPlacement(manifest: ExecutionManifest, selectedId: string | und
   if (selectedId === EXECUTION_ACCEPTS_NODE_ID || selectedId === EXECUTION_RETURNS_NODE_ID) return { kind: "top" }
   if (!findNodePlacement(manifest.steps, selectedId)) return { kind: "top" }
   return { kind: "top", after: selectedId }
+}
+
+function findStepNode(document: ReactFlowDocument, nodeId: string): boolean {
+  return document.nodes.some((node) => node.id === nodeId && node.type === "ecp-step")
 }
 
 function stepStatus(run: RunGraphState, id: string): ReactFlowStepStatus | undefined {
@@ -182,35 +200,17 @@ function connectedHandles(document: ReactFlowDocument): {
   return { targets, sources }
 }
 
-function structureIdFromSelection(
-  document: ReactFlowDocument,
-  selectedId: string | undefined,
-): string | undefined {
-  if (!selectedId) return undefined
-  const frame = document.nodes.find(
-    (node) => node.type === "ecp-frame" && (node.data as ReactFlowFrameData).structureId === selectedId,
-  )
-  if (frame) return selectedId
-  const loop = document.nodes.find((node) => node.type === "ecp-loop" && node.id === selectedId)
-  if (loop) return selectedId
-  return undefined
-}
-
-function frameAtFlowPoint(document: ReactFlowDocument, point: { x: number; y: number }): ReactFlowNode | undefined {
-  const hit = document.nodes
-    .filter((node) => node.type === "ecp-frame")
-    .filter((frame) => {
-      const w = frame.style?.width ?? 0
-      const h = frame.style?.height ?? 0
-      return (
-        point.x >= frame.position.x &&
-        point.y >= frame.position.y &&
-        point.x <= frame.position.x + w &&
-        point.y <= frame.position.y + h
-      )
-    })
-    .sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0))
-  return hit[0]
+function ifSideByStepId(document: ReactFlowDocument): Map<string, { ifId: string; side: "then" | "else" }> {
+  const out = new Map<string, { ifId: string; side: "then" | "else" }>()
+  for (const node of document.nodes) {
+    if (node.type !== "ecp-tunnel") continue
+    const tunnel = node.data as ReactFlowTunnelData
+    if (tunnel.tunnelKind !== "then" && tunnel.tunnelKind !== "else") continue
+    for (const memberId of tunnel.memberNodeIds) {
+      out.set(memberId, { ifId: tunnel.structureId, side: tunnel.tunnelKind })
+    }
+  }
+  return out
 }
 
 function buildNodes(
@@ -220,9 +220,14 @@ function buildNodes(
   selectedId: string | undefined,
   selectedStepIds: readonly string[],
   readOnly: boolean,
+  positionDragOnly: boolean,
+  scopeHighlightIds: ReadonlySet<string>,
 ): Node[] {
   const { targets, sources } = connectedHandles(document)
   const dataConnectable = !readOnly
+  const nodeDraggable = !readOnly || positionDragOnly
+  const ifSides = ifSideByStepId(document)
+  const choices = run.choices
   return document.nodes.map((node) => {
     const connected = {
       connectedTargetHandles: targets.get(node.id) ?? [],
@@ -232,7 +237,12 @@ function buildNodes(
     if (node.type === "ecp-step") {
       const runStep = run.steps[node.id]
       const issues = nodeErrors[node.id] ?? []
-      const status = stepStatus(run, node.id)
+      let status = stepStatus(run, node.id)
+      const side = ifSides.get(node.id)
+      if (side && side.ifId in choices) {
+        const choice = choices[side.ifId]
+        if (choice !== null && choice !== side.side) status = "skipped"
+      }
       const stepData = node.data as ReactFlowStepData
       const step: EcpStepNodeData = {
         ...stepData,
@@ -257,21 +267,36 @@ function buildNodes(
         ...(loopRound ? { round: loopRound.round } : {}),
       }
       data = loopNode as unknown as Record<string, unknown>
+    } else if (node.type === "ecp-if") {
+      const choice = run.choices[node.id]
+      data = {
+        ...node.data,
+        ...connected,
+        dataConnectable,
+        ...(choice !== undefined ? { choiceSide: choice } : {}),
+      }
     } else {
       data = { ...node.data, ...connected, dataConnectable }
     }
-    if (node.type === "ecp-frame") {
+    if (node.type === "ecp-tunnel") {
+      const tunnel = node.data as ReactFlowTunnelData
+      let dimmed = false
+      if ((tunnel.tunnelKind === "then" || tunnel.tunnelKind === "else") && tunnel.structureId in choices) {
+        const choice = choices[tunnel.structureId]
+        if (choice !== null && choice !== tunnel.tunnelKind) dimmed = true
+      }
       return {
         id: node.id,
         type: node.type,
         position: node.position,
-        data: { ...(node.data as ReactFlowFrameData) } as unknown as Record<string, unknown>,
+        data: { ...tunnel, dimmed } as unknown as Record<string, unknown>,
         zIndex: node.zIndex ?? 0,
         selectable: false,
         draggable: false,
         connectable: false,
         deletable: false,
         focusable: false,
+        className: dimmed ? "ecp-rf-tunnel--dimmed" : undefined,
         ...(node.style?.width !== undefined
           ? {
               style: {
@@ -283,44 +308,74 @@ function buildNodes(
           : {}),
       }
     }
+    if (node.type === "ecp-end") {
+      const endData = node.data as ReactFlowEndData
+      const loopRound = run.loops[endData.structureId]
+      let endDimmed = false
+      if (
+        endData.structureKind === "if" &&
+        (endData.side === "then" || endData.side === "else") &&
+        endData.structureId in choices
+      ) {
+        const choice = choices[endData.structureId]
+        if (choice !== null && choice !== endData.side) endDimmed = true
+      }
+      return {
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: {
+          ...endData,
+          ...(loopRound ? { round: loopRound.round } : {}),
+          dimmed: endDimmed,
+        } as unknown as Record<string, unknown>,
+        zIndex: 1000,
+        selectable: false,
+        draggable: !readOnly,
+        connectable: false,
+        deletable: false,
+        focusable: false,
+        className: endDimmed ? "ecp-rf-node--dimmed" : undefined,
+        ...(node.style?.width !== undefined
+          ? { style: { width: node.style.width, height: node.style?.height } }
+          : {}),
+      }
+    }
+    const tunnelSide = ifSides.get(node.id)
+    const nodeDimmed =
+      tunnelSide &&
+      tunnelSide.ifId in choices &&
+      choices[tunnelSide.ifId] !== null &&
+      choices[tunnelSide.ifId] !== tunnelSide.side
     const stepSelected = node.type === "ecp-step" && selectedStepIds.includes(node.id)
-    const loopSelected = node.type === "ecp-loop" && selectedId === node.id
+    const structureSelected =
+      selectedId === node.id &&
+      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel")
+    const scopeHighlight = scopeHighlightIds.has(node.id)
     return {
       id: node.id,
       type: node.type,
       position: node.position,
       data,
-      selected: stepSelected || loopSelected || (node.type === "ecp-io" && selectedId === node.id),
+      selected: stepSelected || structureSelected || (node.type === "ecp-io" && selectedId === node.id),
       zIndex: 1000,
       connectable: dataConnectable,
       deletable: false,
+      draggable: nodeDraggable,
+      className: [
+        nodeDimmed ? "ecp-rf-node--dimmed" : "",
+        scopeHighlight ? "ecp-rf-node--scope-target" : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
       ...(node.style?.width !== undefined ? { style: { width: node.style.width } } : {}),
     }
   })
 }
 
-function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdge?: SelectedEdge): Edge[] {
+function buildEdges(document: ReactFlowDocument, _run: RunGraphState, selectedEdge?: SelectedEdge): Edge[] {
   const edges: Edge[] = []
   for (const edge of document.edges) {
-    if (edge.data.kind === "route") {
-      const armState = armRunState(edge.data, run)
-      const stateClass = armState === "idle" ? "" : ` ecp-rf-edge--${armState}`
-      const selected = edge.id === selectedEdge?.edgeId
-      edges.push({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-        type: "ecp-route",
-        data: { ...edge.data, armState },
-        className: `ecp-rf-edge--route${stateClass}${selected ? " ecp-rf-edge--selected" : ""}`,
-        interactionWidth: EDGE_INTERACTION_WIDTH,
-        selectable: true,
-        selected,
-      })
-      continue
-    }
     if (edge.data.kind !== "data" || !edge.sourceHandle || !edge.targetHandle) continue
     const selected = edge.id === selectedEdge?.edgeId
     edges.push({
@@ -333,6 +388,7 @@ function buildEdges(document: ReactFlowDocument, run: RunGraphState, selectedEdg
       data: { ...edge.data },
       className: `ecp-rf-edge--data${selected ? " ecp-rf-edge--selected" : ""}`,
       interactionWidth: EDGE_INTERACTION_WIDTH,
+      zIndex: 500,
       selectable: true,
       selected,
     })
@@ -352,38 +408,9 @@ function FocusNode({ focus }: { focus?: FocusRequest }) {
   return null
 }
 
-function frameMembershipFromNodes(nodes: readonly Node[]): FrameMembership[] {
-  const out: FrameMembership[] = []
-  for (const node of nodes) {
-    if (node.type !== "ecp-frame") continue
-    const data = node.data as unknown as ReactFlowFrameData
-    out.push({
-      frameId: node.id,
-      memberNodeIds: data.memberNodeIds,
-      childFrameIds: data.childFrameIds,
-      depth: data.depth,
-    })
-  }
-  return out
-}
-
-function applyFrameBoundsToNodes(nodes: Node[]): Node[] {
-  const rects = frameBounds(nodes, frameMembershipFromNodes(nodes))
-  return nodes.map((node) => {
-    if (node.type !== "ecp-frame") return node
-    const rect = rects.get(node.id)
-    if (!rect) return node
-    return {
-      ...node,
-      position: { x: rect.x, y: rect.y },
-      style: {
-        ...(node.style ?? {}),
-        width: rect.width,
-        height: rect.height,
-        pointerEvents: "none",
-      },
-    }
-  })
+/** Re-fit tunnels after nodes move so member bounds stay wrapped. */
+function applyTunnelBoundsToNodes(nodes: Node[]): Node[] {
+  return resizeTunnelNodes(nodes as unknown as ReactFlowNode[]) as unknown as Node[]
 }
 
 function CaptureFlowProjection() {
@@ -476,6 +503,7 @@ function GraphCanvasBody({
   selectedId,
   selectedStepIds,
   readOnly,
+  positionDragOnly = false,
   selectedEdge,
   onSelect,
   onSelectSteps,
@@ -485,6 +513,7 @@ function GraphCanvasBody({
   onOpenCapabilityMenu,
   onMenuDismiss,
   onPositionDragStop,
+  onClearPositionOverrides,
   onAutoLayout,
   suppressNextFitRef,
   onUndo,
@@ -492,29 +521,44 @@ function GraphCanvasBody({
   undoDisabled,
   redoDisabled,
 }: GraphCanvasProps) {
+  const [scopeHighlightIds, setScopeHighlightIds] = useState<ReadonlySet<string>>(new Set())
+  const [dropTargetTestId, setDropTargetTestId] = useState<string | undefined>(undefined)
   const built = useMemo(
-    () => buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly),
-    [document, run, nodeErrors, selectedId, selectedStepIds, readOnly],
+    () =>
+      buildNodes(document, run, nodeErrors, selectedId, selectedStepIds, readOnly, positionDragOnly, scopeHighlightIds),
+    [document, run, nodeErrors, selectedId, selectedStepIds, readOnly, positionDragOnly, scopeHighlightIds],
   )
+  const markerYById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const node of built) {
+      if (node.type === "ecp-end") map.set(node.id, node.position.y)
+    }
+    return map
+  }, [built])
   const edges = useMemo(() => buildEdges(document, run, selectedEdge), [document, run, selectedEdge])
+  const branchRoutes = useMemo(() => {
+    const dataEdges = document.edges.filter(
+      (edge) => edge.data.kind === "data" && edge.sourceHandle && edge.targetHandle,
+    )
+    return computeBranchRoutes({
+      roots: Array.isArray(manifest.steps) ? manifest.steps : [],
+      laidNodes: document.nodes,
+      edges: dataEdges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        sourceHandle: edge.sourceHandle!,
+        target: edge.target,
+        targetHandle: edge.targetHandle!,
+      })),
+      manifest,
+      detachedNodeIds: detachedNodeIds(manifest),
+    })
+  }, [document.edges, document.nodes, manifest])
   const [menu, setMenu] = useState<CanvasMenuState | undefined>(undefined)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | undefined>(undefined)
   const screenToFlowRef = useRef<
     ((position: { x: number; y: number }) => { x: number; y: number }) | undefined
   >(undefined)
-  const selectedStructureId = useMemo(() => structureIdFromSelection(document, selectedId), [document, selectedId])
-  const routeSelection = useMemo<RouteEdgeSelectionContextValue>(
-    () => ({
-      selectedEdgeId: selectedEdge?.edgeId,
-      selectedLevel: selectedEdge?.level,
-      select: (edgeId, level) => {
-        onSelect(undefined)
-        onSelectSteps([])
-        onSelectEdge({ edgeId, level })
-      },
-    }),
-    [onSelect, onSelectEdge, onSelectSteps, selectedEdge?.edgeId, selectedEdge?.level],
-  )
   const [nodes, setNodes] = useState<Node[]>(built)
 
   useEffect(() => {
@@ -530,67 +574,99 @@ function GraphCanvasBody({
         if (dragPos) next = { ...next, position: dragPos, dragging: true }
         return next
       })
-      return dragging.size > 0 ? applyFrameBoundsToNodes(merged) : merged
+      return dragging.size > 0 ? applyTunnelBoundsToNodes(merged) : merged
     })
   }, [built])
 
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const kept = changes.filter((change) => change.type === "dimensions" || change.type === "position")
-    if (kept.length === 0) return
-    setNodes((current) => {
-      const next = applyNodeChanges(kept, current)
-      if (kept.some((change) => change.type === "position")) return applyFrameBoundsToNodes(next)
-      return next
-    })
-  }, [])
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const kept = changes
+        .filter((change) => change.type === "dimensions" || change.type === "position")
+        .map((change) => {
+          if (change.type !== "position" || !change.position) return change
+          if (!parseEndMarkerId(change.id)) return change
+          const baseY = markerYById.get(change.id)
+          if (baseY === undefined) return change
+          return { ...change, position: { x: change.position.x, y: baseY } }
+        })
+      if (kept.length === 0) return
+      setNodes((current) => {
+        const next = applyNodeChanges(kept, current)
+        if (kept.some((change) => change.type === "position")) return applyTunnelBoundsToNodes(next)
+        return next
+      })
+    },
+    [markerYById],
+  )
+
+  const onNodeDrag = useCallback(
+    (_event: MouseEvent | TouchEvent, node: Node) => {
+      if (readOnly) return
+      if (node.type === "ecp-end") {
+        const highlighted = markerSnapHighlight(manifest, node.id, node.position.x, document)
+        setScopeHighlightIds(new Set(highlighted))
+        setDropTargetTestId(undefined)
+        return
+      }
+      if (node.type === "ecp-tunnel") return
+      const target = reparentDropTarget(manifest, document, node.position)
+      setDropTargetTestId(target?.testId)
+      setScopeHighlightIds(new Set())
+    },
+    [document, manifest, readOnly],
+  )
 
   const onNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, _node: Node, dragged: Node[]) => {
+      setScopeHighlightIds(new Set())
+      setDropTargetTestId(undefined)
       const updates: PositionOverrides = {}
+      const clearedIds: string[] = []
+      if (readOnly && positionDragOnly) {
+        for (const node of dragged) {
+          if (node.type === "ecp-tunnel" || node.type === "ecp-end") continue
+          updates[node.id] = { x: node.position.x, y: node.position.y }
+        }
+        if (Object.keys(updates).length > 0) onPositionDragStop(updates)
+        return
+      }
+      if (readOnly) return
       for (const node of dragged) {
-        if (node.type === "ecp-frame") continue
+        if (node.type === "ecp-tunnel") continue
+        if (node.type === "ecp-end") {
+          const edit = applyMarkerSnap(manifest, node.id, node.position.x, document)
+          if (edit.ok) {
+            void applyEdit(() => edit).then((ok) => {
+              if (ok) onClearPositionOverrides?.(markerSnapHighlight(manifest, node.id, node.position.x, document))
+            })
+          }
+          continue
+        }
+        const edit = reparentNodeAtPoint(manifest, document, node.id, node.position)
+        if (edit.ok) {
+          clearedIds.push(node.id)
+          void applyEdit(() => edit)
+          continue
+        }
         updates[node.id] = { x: node.position.x, y: node.position.y }
       }
+      if (clearedIds.length > 0) onClearPositionOverrides?.(clearedIds)
       if (Object.keys(updates).length > 0) onPositionDragStop(updates)
     },
-    [onPositionDragStop],
+    [applyEdit, document, manifest, onClearPositionOverrides, onPositionDragStop, positionDragOnly, readOnly],
   )
 
   const closeMenu = useCallback(() => setMenu(undefined), [])
-
-  const frameActions = useMemo<FrameActionsContextValue>(
-    () => ({
-      selectedStructureId,
-      onHeaderClick: (structureId) => {
-        onSelectEdge(undefined)
-        onSelectSteps([])
-        onSelect(structureId)
-      },
-      onOpenMenu: (structureId, clientX, clientY) => {
-        setMenu({ kind: "container", structureId, clientX, clientY })
-      },
-    }),
-    [onSelect, onSelectEdge, onSelectSteps, selectedStructureId],
-  )
-
-  const openContainerMenu = useCallback(
-    (structureId: string, clientX: number, clientY: number) => {
-      openCanvasContextMenu({ kind: "frame", structureId }, { preventDefault: () => {} })
-      setMenu({ kind: "container", structureId, clientX, clientY })
-    },
-    [],
-  )
 
   const edgeMenu = useMemo<EdgeMenuContextValue>(
     () => ({
       hoveredEdgeId,
       selectedEdgeId: selectedEdge?.edgeId,
-      selectedLevel: selectedEdge?.level,
-      openMenu: (edgeId, level, clientX, clientY) => {
-        setMenu({ kind: "edge", edgeId, level, clientX, clientY })
+      openMenu: (edgeId, clientX, clientY) => {
+        setMenu({ kind: "edge", edgeId, clientX, clientY })
       },
     }),
-    [hoveredEdgeId, selectedEdge?.edgeId, selectedEdge?.level],
+    [hoveredEdgeId, selectedEdge?.edgeId],
   )
 
   const onConnect = useCallback(
@@ -611,15 +687,6 @@ function GraphCanvasBody({
       return isValidDataConnection(manifest, document, c)
     },
     [document, manifest, readOnly],
-  )
-
-  const deleteLevelForEdge = useCallback(
-    (edgeId: string): number => {
-      const edge = document.edges.find((entry) => entry.id === edgeId)
-      if (!edge || edge.data.kind !== "route") return 0
-      return routeDeleteTarget((edge.data as ReactFlowRouteEdgeData).levels) ?? 0
-    },
-    [document.edges],
   )
 
   const onConnectEnd = useCallback(
@@ -667,9 +734,8 @@ function GraphCanvasBody({
   const canvasEdit = useMemo(() => ({ manifest, document }), [document, manifest])
 
   return (
-    <FrameActionsContext.Provider value={frameActions}>
     <EdgeMenuContext.Provider value={edgeMenu}>
-    <RouteEdgeSelectionContext.Provider value={routeSelection}>
+    <BranchRoutingContext.Provider value={branchRoutes}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
     <CanvasEditContext.Provider value={canvasEdit}>
     <ReactFlow
@@ -678,6 +744,7 @@ function GraphCanvasBody({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={onNodeDragStop}
       onMove={(event) => {
         // Only a pan / zoom the user makes closes menus; programmatic moves (fit view after a load or an edit) have no
@@ -700,23 +767,22 @@ function GraphCanvasBody({
           return
         }
         onSelectSteps([])
-        if (node.type === "ecp-loop") onSelect(node.id)
-        else if (node.type === "ecp-io") onSelect(node.id)
+        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-io") {
+          onSelect(node.id)
+        }
       }}
       onNodeContextMenu={(event, node) => {
-        if (node.type === "ecp-step") {
-          if (openCanvasContextMenu({ kind: "step", stepId: node.id }, event) === "node") {
-            setMenu({ kind: "node", stepId: node.id, clientX: event.clientX, clientY: event.clientY })
-          }
+        if (node.type === "ecp-end") {
+          event.preventDefault()
           return
         }
-        if (node.type === "ecp-loop") {
-          if (openCanvasContextMenu({ kind: "loop", structureId: node.id }, event) === "container") {
-            setMenu({ kind: "container", structureId: node.id, clientX: event.clientX, clientY: event.clientY })
-          }
+        if (node.type === "ecp-io") {
+          openCanvasContextMenu({ kind: "io" }, event)
           return
         }
-        if (node.type === "ecp-io") openCanvasContextMenu({ kind: "io" }, event)
+        if (openCanvasContextMenu({ kind: "node", nodeId: node.id }, event) === "node") {
+          setMenu({ kind: "node", nodeId: node.id, clientX: event.clientX, clientY: event.clientY })
+        }
       }}
       onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
       onEdgeMouseLeave={() => setHoveredEdgeId(undefined)}
@@ -725,7 +791,6 @@ function GraphCanvasBody({
           setMenu({
             kind: "edge",
             edgeId: edge.id,
-            level: deleteLevelForEdge(edge.id),
             clientX: event.clientX,
             clientY: event.clientY,
           })
@@ -737,21 +802,15 @@ function GraphCanvasBody({
       onPaneContextMenu={(event) => {
         openCanvasContextMenu({ kind: "pane" }, event)
         const project = screenToFlowRef.current
-        if (!project) return
+        if (!project || readOnly || !onOpenCapabilityMenu) return
         const flow = project({ x: event.clientX, y: event.clientY })
-        const frame = frameAtFlowPoint(document, flow)
-        if (frame) {
-          const structureId = (frame.data as ReactFlowFrameData).structureId
-          openContainerMenu(structureId, event.clientX, event.clientY)
-          return
-        }
-        if (readOnly || !onOpenCapabilityMenu) return
-        onOpenCapabilityMenu(event.clientX, event.clientY, topLevelPlacement(manifest, selectedId), undefined, undefined, flow)
+        const placement = placementAtFlowPoint(manifest, document, flow) ?? topLevelPlacement(manifest, selectedId)
+        onOpenCapabilityMenu(event.clientX, event.clientY, placement, undefined, undefined, flow)
       }}
       onEdgeClick={(_, edge) => {
         onSelect(undefined)
         onSelectSteps([])
-        onSelectEdge({ edgeId: edge.id, level: deleteLevelForEdge(edge.id) })
+        onSelectEdge({ edgeId: edge.id })
       }}
       onPaneClick={() => {
         onSelect(undefined)
@@ -764,11 +823,19 @@ function GraphCanvasBody({
       nodesDraggable
       nodesConnectable={!readOnly}
       elementsSelectable
+      elevateEdgesOnSelect
+      edgesFocusable
       minZoom={0.1}
       proOptions={{ hideAttribution: true }}
       colorMode="dark"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--color-surface-container-highest)" />
+      <RailVisualLayer
+        manifest={manifest}
+        nodes={nodes as unknown as ReactFlowNode[]}
+        run={run}
+        highlightBandTestId={dropTargetTestId}
+      />
       <Controls showInteractive={false}>
         <ControlButton
           onClick={onUndo}
@@ -806,15 +873,13 @@ function GraphCanvasBody({
         onClose={closeMenu}
         onConfigure={() => {
           if (menu.kind === "node") {
-            onSelectSteps([])
-            onSelect(menu.stepId)
-          } else if (menu.kind === "edge") {
+            onSelectEdge(undefined)
+            onSelectSteps(findStepNode(document, menu.nodeId) ? [menu.nodeId] : [])
+            onSelect(menu.nodeId)
+          } else {
             onSelect(undefined)
             onSelectSteps([])
-            onSelectEdge({ edgeId: menu.edgeId, level: menu.level })
-          } else {
-            onSelectSteps([])
-            onSelect(menu.structureId)
+            onSelectEdge({ edgeId: menu.edgeId })
           }
           closeMenu()
         }}
@@ -822,32 +887,30 @@ function GraphCanvasBody({
           if (menu.kind !== "edge") return
           const edge = document.edges.find((entry) => entry.id === menu.edgeId)
           if (!edge) return
-          void applyEdit((current) => deleteConnector(current, edge, menu.level)).then((ok) => {
+          void applyEdit((current) => deleteConnector(current, edge)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
         onWrap={(kind) => {
           if (menu.kind !== "node") return
-          const ids = wrapSelectionIds(selectedStepIds, menu.stepId)
+          const ids = wrapSelectionIds(selectedStepIds, menu.nodeId)
           void applyEdit((current) => wrapSteps(current, ids, kind)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
-        onDeleteStep={() => {
+        onDelete={() => {
           if (menu.kind !== "node") return
-          void applyEdit((current) => deleteStep(current, menu.stepId)).then((ok) => {
+          const nodeId = menu.nodeId
+          void applyEdit((current) =>
+            isStructureHeaderSelection(current, nodeId) ? unwrapStructure(current, nodeId) : deleteStep(current, nodeId),
+          ).then((ok) => {
             if (ok) closeMenu()
           })
         }}
-        onUnwrap={() => {
-          if (menu.kind !== "container") return
-          void applyEdit((current) => unwrapStructure(current, menu.structureId)).then((ok) => {
-            if (ok) closeMenu()
-          })
-        }}
-        onRemoveStructure={() => {
-          if (menu.kind !== "container") return
-          void applyEdit((current) => removeStructure(current, menu.structureId)).then((ok) => {
+        onDeleteWithNodes={() => {
+          if (menu.kind !== "node") return
+          const nodeId = menu.nodeId
+          void applyEdit((current) => removeStructure(current, nodeId)).then((ok) => {
             if (ok) closeMenu()
           })
         }}
@@ -859,10 +922,14 @@ function GraphCanvasBody({
               }
             : undefined
         }
+        onAppendEmptyPath={(parallelId) => {
+          void applyEdit((current) => appendEmptyParallelPath(current, parallelId)).then((ok) => {
+            if (ok) closeMenu()
+          })
+        }}
       />
     ) : null}
-    </RouteEdgeSelectionContext.Provider>
+    </BranchRoutingContext.Provider>
     </EdgeMenuContext.Provider>
-    </FrameActionsContext.Provider>
   )
 }

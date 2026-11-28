@@ -20,12 +20,11 @@ const manifest: ExecutionManifest = {
   steps: [
     { id: "first", uses: "@ecp/test.echo", input: { text: "a" } },
     {
-      type: "branch",
+      type: "if",
       id: "pick",
-      branches: [
-        { expr: "(s) => true", steps: [{ id: "inner", uses: "@ecp/test.echo", input: { "a/b": 1 } }] },
-        { steps: [{ id: "fallback", uses: "@ecp/test.echo" }] },
-      ],
+      expression: "true",
+      then: [{ id: "inner", uses: "@ecp/test.echo", input: { "a/b": 1 } }],
+      else: [{ id: "fallback", uses: "@ecp/test.echo" }],
     },
   ],
 }
@@ -146,8 +145,8 @@ describe("issueNodeId", () => {
   it("finds the deepest node on the pointer path", () => {
     expect(issueNodeId(issue("/steps/0/input/text"), manifest)).toBe("first")
     expect(issueNodeId(issue("/steps/1"), manifest)).toBe("pick")
-    expect(issueNodeId(issue("/steps/1/branches/0/steps/0/input/a~1b"), manifest)).toBe("inner")
-    expect(issueNodeId(issue("/steps/1/branches/1/steps/0/uses"), manifest)).toBe("fallback")
+    expect(issueNodeId(issue("/steps/1/then/0/input/a~1b"), manifest)).toBe("inner")
+    expect(issueNodeId(issue("/steps/1/else/0/uses"), manifest)).toBe("fallback")
   })
 
   it("reads an @nodeId segment", () => {
@@ -175,7 +174,7 @@ describe("nodeErrorIssues", () => {
   it("groups error issues by node and skips warnings and unplaced issues", () => {
     const a = issue("/steps/0/input")
     const b = issue("/steps/0/uses")
-    const c = issue("/steps/1/branches/0/steps/0")
+    const c = issue("/steps/1/then/0")
     const warning = issue("/steps/0", { severity: "warning" })
     const loose = issue("/execution")
     expect(nodeErrorIssues([a, b, c, warning, loose], manifest)).toEqual({ first: [a, b], inner: [c] })

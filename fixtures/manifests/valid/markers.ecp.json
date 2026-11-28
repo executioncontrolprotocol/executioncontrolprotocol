@@ -16,26 +16,36 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "seed": { "type": "string" }
+          "seed": {
+            "type": "string"
+          }
         },
-        "required": ["seed"],
+        "required": [
+          "seed"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "value": { "type": "string" }
+          "value": {
+            "type": "string"
+          }
         },
-        "required": ["value"],
+        "required": [
+          "value"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "seed": { "$ref": "state.seed.echo" }
+        "seed": {
+          "$ref": "state.seed.echo"
+        }
       },
       "script": {
-          "lang": "js",
-          "source": "return { value: input.seed }"
-        },
+        "lang": "js",
+        "source": "return { value: input.seed }"
+      },
       "as": "fromExpr"
     },
     {

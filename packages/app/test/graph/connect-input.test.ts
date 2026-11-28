@@ -12,8 +12,7 @@ import {
   connectInput,
   insertConnectedStep,
 } from "../../src/graph/connection-edit.js"
-import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_INTO_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
+import { LOOP_ITEM_HANDLE, LOOP_REF_HANDLE } from "../../src/graph/types.js"
 import { longestMatchingPortId, OUTPUT_HANDLE_ID } from "../../src/graph/extract-data-edges.js"
 import type { ReactFlowPort } from "../../src/graph/types.js"
 
@@ -84,13 +83,9 @@ describe("connectInput", () => {
 
   it("uses accepts and loop sources", () => {
     const foreach = load("loop-foreach.ecp.json")
-    const accepts = connectInput(foreach, {
-      sourceNodeId: EXECUTION_ACCEPTS_NODE_ID,
-      sourceHandle: "rowA",
-      targetStepId: "echo",
-      targetHandle: "value",
-    })
-    expect(accepts.ok).toBe(true)
+    const loop = foreach.steps[0] as { steps?: Array<{ id?: string; input?: Record<string, unknown> }> }
+    const echoStep = loop.steps?.find((step) => step.id === "echo")
+    if (echoStep) echoStep.input = { value: "placeholder" }
     const item = connectInput(foreach, {
       sourceNodeId: "rows",
       sourceHandle: LOOP_ITEM_HANDLE,
@@ -105,18 +100,18 @@ describe("connectInput", () => {
         { id: "after", uses: echo, input: { value: "t" }, as: "after" },
       ],
     }
-    const into = connectInput(withTail, {
-      sourceNodeId: "rows",
-      sourceHandle: LOOP_INTO_HANDLE,
+    const afterLoop = connectInput(withTail, {
+      sourceNodeId: "echo",
+      sourceHandle: "output",
       targetStepId: "after",
       targetHandle: "value",
     })
-    expect(into.ok).toBe(true)
-    if (into.ok) {
-      const after = into.manifest.steps.find((node) => node.id === "after") as {
+    expect(afterLoop.ok).toBe(true)
+    if (afterLoop.ok) {
+      const after = afterLoop.manifest.steps.find((node) => node.id === "after") as {
         input?: { value?: { $ref?: string } }
       }
-      expect(after?.input?.value).toEqual({ $ref: "state.results" })
+      expect(after?.input?.value).toEqual({ $ref: "state.echoed" })
     }
   })
 
@@ -152,8 +147,7 @@ describe("connectInput", () => {
           type: "loop",
           id: "rows",
           mode: "forEach",
-          into: "out",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           steps: [{ id: "body", uses: echo, input: { value: "b" }, as: "body" }],
         },
       ],
@@ -192,7 +186,7 @@ describe("connectInput", () => {
         sourceNodeId: "writer",
         sourceHandle: "text",
         targetStepId: "later",
-        targetHandle: "expr",
+        targetHandle: LOOP_REF_HANDLE,
       }),
     ).toMatchObject({ ok: false, reason: CONNECTION_EDIT_HANDLE })
     expect(base).toEqual(before)
@@ -223,6 +217,34 @@ describe("connectInput", () => {
     const later = result.manifest.steps[1] as { input?: { value?: { $ref?: string } } }
     expect(later.input?.value).toEqual({ $ref: "state.writer" })
   })
+
+  it("adds an object-typed port when the source schema is unknown", () => {
+    const base: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "writer", uses: echo, as: "writer" },
+        {
+          type: "if",
+          id: "gate",
+          expression: "true",
+          then: [],
+        },
+      ],
+    }
+    const wired = connectInput(base, {
+      sourceNodeId: "writer",
+      sourceHandle: "output",
+      targetStepId: "gate",
+      targetHandle: "__empty",
+    })
+    expect(wired.ok).toBe(true)
+    if (!wired.ok) return
+    const gate = wired.manifest.steps.find((node) => node.id === "gate") as {
+      accepts?: { properties?: Record<string, unknown> }
+    }
+    expect(gate.accepts?.properties?.output).toEqual({ type: "object" })
+  })
 })
 
 describe("insertConnectedStep", () => {
@@ -248,7 +270,7 @@ describe("insertConnectedStep", () => {
     expect(echoStep.input?.value).toEqual({ $ref: "state.writer.text" })
   })
 
-  it("wires from input origin before the new step", () => {
+  it("refuses drag from an input-side origin", () => {
     const base = twoStep()
     const result = insertConnectedStep(
       base,
@@ -256,10 +278,7 @@ describe("insertConnectedStep", () => {
       { nodeId: "later", handleId: "text", side: "input" },
       { id: "text", name: "text", typeLabel: "string!" },
     )
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    const ids = result.manifest.steps.map((step) => step.id)
-    expect(ids.indexOf("echo")).toBeLessThan(ids.indexOf("later"))
+    expect(result).toMatchObject({ ok: false, reason: "Add a node after the port you dragged from, not before it" })
   })
 
   it("inserts unwired when no port matches", () => {

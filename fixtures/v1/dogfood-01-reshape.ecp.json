@@ -10,17 +10,23 @@
           "items": {
             "type": "object",
             "properties": {
-              "title": { "type": "string" }
+              "title": {
+                "type": "string"
+              }
             }
           }
         }
       },
-      "required": ["items"]
+      "required": [
+        "items"
+      ]
     },
     "returns": {
       "type": "object",
       "properties": {
-        "summary": { "type": "object" }
+        "summary": {
+          "type": "object"
+        }
       }
     }
   },
@@ -36,30 +42,43 @@
             "items": {
               "type": "object",
               "properties": {
-                "title": { "type": "string" }
+                "title": {
+                  "type": "string"
+                }
               }
             }
           }
         },
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "title": { "type": "string" },
-          "count": { "type": "integer" }
+          "title": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
         },
-        "required": ["title", "count"],
+        "required": [
+          "title",
+          "count"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "items": { "$ref": "state.items" }
+        "items": {
+          "$ref": "state.items"
+        }
       },
       "script": {
-          "lang": "js",
-          "source": "return { title: input.items[0].title, count: input.items.length }"
-        },
+        "lang": "js",
+        "source": "return { title: input.items[0].title, count: input.items.length }"
+      },
       "as": "summary"
     }
   ]

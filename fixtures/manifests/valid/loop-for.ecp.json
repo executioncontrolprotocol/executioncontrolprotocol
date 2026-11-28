@@ -17,9 +17,13 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "for",
       "id": "rounds",
-      "ref": "state.count",
+      "mode": "for",
+      "input": {
+        "count": {
+          "$ref": "state.count"
+        }
+      },
       "as": "i",
       "steps": [
         {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { boundsAroundNodeIds, layoutReactFlowDocument } from "../../src/graph/layout.js"
-import type { ReactFlowDocument, ReactFlowNode } from "../../src/graph/types.js"
+import { boundsAroundNodeIds } from "../../src/graph/layout.js"
+import { layoutManifestTree } from "../../src/graph/tree-layout.js"
+import type { ReactFlowNode } from "../../src/graph/types.js"
 
 function node(id: string, x: number, y: number, extra: Partial<ReactFlowNode> = {}): ReactFlowNode {
   return {
@@ -23,30 +24,18 @@ describe("boundsAroundNodeIds", () => {
   })
 })
 
-describe("layoutReactFlowDocument", () => {
-  it("lays out nodes left to right, ignoring loop-back routes and edges to unknown nodes", () => {
-    const doc = {
-      nodes: [node("a", 0, 0), node("b", 0, 0)],
-      edges: [
-        { id: "ab", source: "a", target: "b", data: { kind: "route" } },
-        { id: "ba", source: "b", target: "a", data: { kind: "route", loopBack: true } },
-        { id: "ax", source: "a", target: "x", data: { kind: "route" } },
-      ],
-    } as unknown as ReactFlowDocument
-    const laid = layoutReactFlowDocument(doc)
-    const [a, b] = laid.nodes
-    expect(a!.position.x).toBeLessThan(b!.position.x)
-    expect(a!.style?.width).toBe(260)
-    expect(laid.edges).toHaveLength(3)
-  })
-
-  it("honours direction and node size options", () => {
-    const doc = {
-      nodes: [node("a", 0, 0), node("b", 0, 0)],
-      edges: [{ id: "ab", source: "a", target: "b", data: { kind: "route" } }],
-    } as unknown as ReactFlowDocument
-    const laid = layoutReactFlowDocument(doc, { direction: "TB", nodeWidth: 200, nodeHeight: 80 } as never)
-    expect(laid.nodes[0]!.position.y).toBeLessThan(laid.nodes[1]!.position.y)
-    expect(laid.nodes[0]!.style?.width).toBe(200)
+describe("layoutManifestTree", () => {
+  it("lays steps in one row left to right", () => {
+    const roots = [
+      { id: "a", uses: "@executioncontrolprotocol/test.echo", input: {} },
+      { id: "b", uses: "@executioncontrolprotocol/test.echo", input: {} },
+    ]
+    const rf: ReactFlowNode[] = [
+      node("a", 0, 0),
+      node("b", 0, 0),
+    ]
+    const positions = layoutManifestTree(roots, rf)
+    expect(positions.get("a")!.x).toBeLessThan(positions.get("b")!.x)
+    expect(positions.get("a")!.y).toBe(positions.get("b")!.y)
   })
 })

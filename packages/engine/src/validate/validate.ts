@@ -579,17 +579,15 @@ function checkUnknownUses(manifest: unknown, capabilities: readonly CapabilityEn
       if (type === "step" && typeof node.uses === "string" && !byId.has(node.uses)) {
         issues.push(unknownCapabilityIssue(node.uses, `${path}/uses`, capabilities, ids))
       }
-      if (type === "branch" && Array.isArray(node.branches)) {
-        for (let arm = 0; arm < node.branches.length; arm += 1) {
-          const branch = node.branches[arm]
-          if (isRecord(branch) && Array.isArray(branch.steps)) visit(branch.steps, `${path}/branches/${arm}/steps`)
-        }
+      if (type === "if") {
+        if (Array.isArray(node.then)) visit(node.then, `${path}/then`)
+        if (Array.isArray(node.else)) visit(node.else, `${path}/else`)
       }
       if (type === "loop" && Array.isArray(node.steps)) visit(node.steps, `${path}/steps`)
-      if (type === "parallel" && Array.isArray(node.branches)) {
-        for (let line = 0; line < node.branches.length; line += 1) {
-          const branch = node.branches[line]
-          if (Array.isArray(branch)) visit(branch, `${path}/branches/${line}`)
+      if (type === "parallel" && Array.isArray(node.paths)) {
+        for (let line = 0; line < node.paths.length; line += 1) {
+          const pathNodes = node.paths[line]
+          if (Array.isArray(pathNodes)) visit(pathNodes, `${path}/paths/${line}`)
         }
       }
     }
@@ -676,19 +674,15 @@ async function checkCapabilityInputs(
           issues.push(...assertScriptPositions(input, accepts, inputPath))
         }
       }
-      if (type === "branch" && Array.isArray(node.branches)) {
-        for (let arm = 0; arm < node.branches.length; arm += 1) {
-          const branch = node.branches[arm]
-          if (isRecord(branch) && Array.isArray(branch.steps)) {
-            await visit(branch.steps, `${path}/branches/${arm}/steps`)
-          }
-        }
+      if (type === "if") {
+        if (Array.isArray(node.then)) await visit(node.then, `${path}/then`)
+        if (Array.isArray(node.else)) await visit(node.else, `${path}/else`)
       }
       if (type === "loop" && Array.isArray(node.steps)) await visit(node.steps, `${path}/steps`)
-      if (type === "parallel" && Array.isArray(node.branches)) {
-        for (let line = 0; line < node.branches.length; line += 1) {
-          const branch = node.branches[line]
-          if (Array.isArray(branch)) await visit(branch, `${path}/branches/${line}`)
+      if (type === "parallel" && Array.isArray(node.paths)) {
+        for (let line = 0; line < node.paths.length; line += 1) {
+          const pathNodes = node.paths[line]
+          if (Array.isArray(pathNodes)) await visit(pathNodes, `${path}/paths/${line}`)
         }
       }
     }
@@ -804,10 +798,6 @@ async function walkSemantics(
         seen.set(id, path)
       }
     }
-    if (typeof node.expr === "string") {
-      const failure = checkExpression(node.expr)
-      if (failure) issues.push(syntaxIssue("ECP_EXPR_INVALID", `${path}/expr`, failure, id))
-    }
     await checkScripts(node.input, `${path}/input`, id, options, issues)
     const type = typeof node.type === "string" ? node.type : "step"
     if (type === "step") {
@@ -818,47 +808,83 @@ async function walkSemantics(
         await checkTransformScript(node.script, `${path}/script`, id, options, issues)
       }
     }
-    if (type === "branch" && Array.isArray(node.branches)) checkBranch(node.branches, path, issues)
-    if (type === "branch" && Array.isArray(node.branches)) {
-      for (let arm = 0; arm < node.branches.length; arm += 1) {
-        const branch = node.branches[arm]
-        if (isRecord(branch) && Array.isArray(branch.steps)) {
-          await walkSemantics(branch.steps, `${path}/branches/${arm}/steps`, state, issues, seen, inputNames, configs, options)
-        }
+    if (type === "if") {
+      await checkIfNode(node, path, id, options, issues)
+      if (Array.isArray(node.then)) {
+        await walkSemantics(node.then, `${path}/then`, state, issues, seen, inputNames, configs, options)
+      }
+      if (Array.isArray(node.else)) {
+        await walkSemantics(node.else, `${path}/else`, state, issues, seen, inputNames, configs, options)
       }
     }
     if (type === "loop") {
       checkLoopFields(node, path, id, issues)
-      const loopMode = typeof node.mode === "string" ? node.mode : "while"
-      const childState: SemanticState = loopMode === "forEach" ? state : { inLoop: true }
       if (Array.isArray(node.steps)) {
-        await walkSemantics(node.steps, `${path}/steps`, childState, issues, seen, inputNames, configs, options)
+        await walkSemantics(node.steps, `${path}/steps`, state, issues, seen, inputNames, configs, options)
       }
     }
-    if (type === "parallel" && Array.isArray(node.branches)) {
-      for (let line = 0; line < node.branches.length; line += 1) {
-        const branch = node.branches[line]
-        if (Array.isArray(branch)) {
-          await walkSemantics(branch, `${path}/branches/${line}`, state, issues, seen, inputNames, configs, options)
+    if (type === "parallel") {
+      checkParallelContainer(node, path, id, issues)
+      if (Array.isArray(node.paths)) {
+        for (let line = 0; line < node.paths.length; line += 1) {
+          const pathNodes = node.paths[line]
+          if (Array.isArray(pathNodes)) {
+            await walkSemantics(pathNodes, `${path}/paths/${line}`, state, issues, seen, inputNames, configs, options)
+          }
         }
       }
     }
   }
 }
 
-function checkBranch(arms: unknown[], path: string, issues: ValidationIssue[]): void {
-  arms.forEach((arm, index) => {
-    if (!isRecord(arm)) return
-    if (arm.expr === undefined && index !== arms.length - 1) {
-      issues.push(
-        semantic(
-          "ECP_MANIFEST_INVALID",
-          "A branch arm without expr is the default and must be last.",
-          `${path}/branches/${index}`,
-        ),
-      )
+async function checkIfNode(
+  node: Record<string, unknown>,
+  path: string,
+  id: string | undefined,
+  options: ValidateOptions,
+  issues: ValidationIssue[],
+): Promise<void> {
+  const hasExpression = typeof node.expression === "string" && node.expression.length > 0
+  const hasScript = node.script !== undefined
+  if (hasExpression === hasScript) {
+    issues.push(
+      semantic(
+        "ECP_MANIFEST_INVALID",
+        "if node requires exactly one of expression and script.",
+        hasExpression || hasScript ? path : `${path}/expression`,
+        id,
+      ),
+    )
+  }
+  if (hasExpression) {
+    const failure = checkExpression(String(node.expression))
+    if (failure) issues.push(syntaxIssue("ECP_EXPR_INVALID", `${path}/expression`, failure, id))
+  }
+  if (hasScript) {
+    await checkTransformScript(node.script, `${path}/script`, id, options, issues)
+  }
+  if (node.as !== undefined && node.input === undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "as requires input.", `${path}/as`, id))
+  }
+  if (Array.isArray(node.then) && node.then.length === 0) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "`then` has no nodes", `${path}/then`, id))
+  }
+}
+
+function checkParallelContainer(node: Record<string, unknown>, path: string, id: string | undefined, issues: ValidationIssue[]): void {
+  if (node.as !== undefined && node.input === undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "as requires input.", `${path}/as`, id))
+  }
+  if (Array.isArray(node.paths)) {
+    for (let index = 0; index < node.paths.length; index += 1) {
+      const pathNodes = node.paths[index]
+      if (Array.isArray(pathNodes) && pathNodes.length === 0) {
+        issues.push(
+          semantic("ECP_MANIFEST_INVALID", `path ${index + 1} has no nodes`, `${path}/paths/${index}`, id),
+        )
+      }
     }
-  })
+  }
 }
 
 function checkStepContract(
@@ -917,7 +943,7 @@ function checkStep(
   node: Record<string, unknown>,
   path: string,
   id: string | undefined,
-  state: SemanticState,
+  _state: SemanticState,
   issues: ValidationIssue[],
   inputNames: Set<string>,
   configs: Map<string, ConfigObject>,
@@ -930,11 +956,6 @@ function checkStep(
   }
   if (asName && inputNames.has(asName)) {
     issues.push(semantic("ECP_MANIFEST_INVALID", `as ${asName} is already an execution input.`, `${path}/as`, id))
-  }
-  if (state.inLoop && asName && (mode ?? "create") === "create") {
-    issues.push(
-      semantic("ECP_COMMIT_CONFLICT", `create mode inside a loop would fail on the next round. Use replace, append, or merge.`, `${path}/mode`, id),
-    )
   }
   if (typeof node.config === "string" && !configs.has(node.config)) {
     const names = [...configs.keys()]
@@ -956,67 +977,50 @@ function checkStep(
 
 function checkLoopFields(node: Record<string, unknown>, path: string, id: string | undefined, all: ValidationIssue[]): void {
   const issues = { push: (issue: ValidationIssue) => (loopFieldIssuePaths.set(issue, path), all.push(issue)) }
-  const mode = typeof node.mode === "string" ? node.mode : "while"
-  const hasRef = typeof node.ref === "string"
-  const hasExpr = typeof node.expr === "string"
-  if (hasRef === hasExpr) {
-    issues.push(
-      semantic(
-        "ECP_MANIFEST_INVALID",
-        `Loop in ${mode} mode requires exactly one of ref and expr.`,
-        hasRef || hasExpr ? path : `${path}/ref`,
-        id,
-      ),
-    )
+  const mode = typeof node.mode === "string" ? node.mode : undefined
+  if (mode !== "for" && mode !== "forEach") {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "Loop mode must be for or forEach.", `${path}/mode`, id))
+    return
+  }
+  if (node.end !== undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "Loop end is not stored in the manifest.", `${path}/end`, id))
+  }
+  if (node.into !== undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "Loop into is removed; read body keys as arrays.", `${path}/into`, id))
+  }
+  if (node.maxRounds !== undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "maxRounds is not allowed.", `${path}/maxRounds`, id))
   }
   if (node.throttle !== undefined) {
     issues.push(semantic("ECP_MANIFEST_INVALID", `Loop in ${mode} mode does not support throttle.`, `${path}/throttle`, id))
   }
-  if (mode === "while") {
-    if (node.maxRounds === undefined) {
-      issues.push(semantic("ECP_MANIFEST_INVALID", "while loop requires maxRounds.", `${path}/maxRounds`, id))
-    }
-    for (const [field, pointer] of [
-      ["as", "as"],
-      ["collect", "collect"],
-      ["into", "into"],
-      ["concurrency", "concurrency"],
-      ["onError", "onError"],
-    ] as const) {
-      if (node[field] !== undefined) {
-        issues.push(
-          semantic("ECP_MANIFEST_INVALID", `${field} is not allowed in while loop mode.`, `${path}/${pointer}`, id),
-        )
-      }
-    }
+  const input = isRecord(node.input) ? node.input : undefined
+  if (node.as === undefined) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "Loop requires as.", `${path}/as`, id))
   }
   if (mode === "for") {
-    if (node.as === undefined) {
-      issues.push(semantic("ECP_MANIFEST_INVALID", "for loop requires as.", `${path}/as`, id))
+    if (!input || input.count === undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "for loop requires input.count.", `${path}/input/count`, id))
     }
-    for (const [field, pointer] of [
-      ["maxRounds", "maxRounds"],
-      ["collect", "collect"],
-      ["into", "into"],
-      ["concurrency", "concurrency"],
-      ["onError", "onError"],
-    ] as const) {
+    for (const [field, pointer] of ["concurrency", "onError"] as const) {
       if (node[field] !== undefined) {
-        issues.push(
-          semantic("ECP_MANIFEST_INVALID", `${field} is not allowed in for loop mode.`, `${path}/${pointer}`, id),
-        )
+        issues.push(semantic("ECP_MANIFEST_INVALID", `${field} is not allowed in for loop mode.`, `${path}/${pointer}`, id))
       }
+    }
+    if (input?.items !== undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "for loop must not set input.items.", `${path}/input/items`, id))
     }
   }
   if (mode === "forEach") {
-    for (const field of ["as", "collect", "into"] as const) {
-      if (node[field] === undefined) {
-        issues.push(semantic("ECP_MANIFEST_INVALID", `forEach loop requires ${field}.`, `${path}/${field}`, id))
-      }
+    if (!input || input.items === undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "forEach loop requires input.items.", `${path}/input/items`, id))
     }
-    if (node.maxRounds !== undefined) {
-      issues.push(semantic("ECP_MANIFEST_INVALID", "maxRounds is not allowed in forEach loop mode.", `${path}/maxRounds`, id))
+    if (input?.count !== undefined) {
+      issues.push(semantic("ECP_MANIFEST_INVALID", "forEach loop must not set input.count.", `${path}/input/count`, id))
     }
+  }
+  if (Array.isArray(node.steps) && node.steps.length === 0) {
+    issues.push(semantic("ECP_MANIFEST_INVALID", "the loop has no nodes", `${path}/steps`, id))
   }
 }
 

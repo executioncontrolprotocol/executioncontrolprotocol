@@ -1,0 +1,36 @@
+{
+  "schema": "@executioncontrolprotocol.execution",
+  "version": "2.0",
+  "steps": [
+    {
+      "type": "loop",
+      "id": "rounds",
+      "mode": "for",
+      "input": {
+        "count": 0
+      },
+      "as": "i",
+      "steps": [
+        {
+          "id": "body",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "x"
+          },
+          "as": "body",
+          "mode": "replace"
+        }
+      ]
+    },
+    {
+      "id": "after",
+      "uses": "@executioncontrolprotocol/test.echo",
+      "input": {
+        "value": {
+          "$ref": "state.body"
+        }
+      },
+      "as": "after"
+    }
+  ]
+}

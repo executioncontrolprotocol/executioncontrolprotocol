@@ -31,7 +31,7 @@ export function runStatusClass(status: string | undefined): string {
 }
 
 /**
- * Run form from `execution.accepts`, live per-step status, loop rounds, branch arms, and
+ * Run form from `execution.accepts`, live per-step status, loop rounds, if sides, and
  * the result or error.
  * @category App
  */
@@ -39,7 +39,7 @@ export function RunView({ manifest, run, onRun, client }: RunViewProps) {
   const status = run.busy ? "running" : run.status
   const steps = Object.entries(run.graph.steps)
   const loops = Object.entries(run.graph.loops)
-  const arms = Object.entries(run.graph.arms)
+  const choices = Object.entries(run.graph.choices)
   return (
     <section data-testid="run-view" className="space-y-4">
       <RunInputForm
@@ -79,19 +79,18 @@ export function RunView({ manifest, run, onRun, client }: RunViewProps) {
           ))}
         </ul>
       ) : null}
-      {loops.length > 0 || arms.length > 0 ? (
+      {loops.length > 0 || choices.length > 0 ? (
         <ul className="space-y-1 font-mono text-[11px] text-on-surface-variant">
           {loops.map(([loopId, loop]) => (
             <li key={`loop-${loopId}`} data-testid="run-loop" data-node-id={loopId} className="flex items-center gap-1.5">
               <Repeat className="h-3 w-3" aria-hidden="true" />
               {loopId}: round {loop.round}
-              {loop.exhausted ? " (reached maxRounds)" : ""}
             </li>
           ))}
-          {arms.map(([branchId, arm]) => (
-            <li key={`arm-${branchId}`} data-testid="run-arm" data-node-id={branchId} className="flex items-center gap-1.5">
+          {choices.map(([ifId, side]) => (
+            <li key={`if-${ifId}`} data-testid="run-if-choice" data-node-id={ifId} className="flex items-center gap-1.5">
               <Split className="h-3 w-3" aria-hidden="true" />
-              {branchId}: {arm === null ? "no arm ran" : `arm ${arm}`}
+              {ifId}: {side === null ? "no side ran" : side}
             </li>
           ))}
         </ul>

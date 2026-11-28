@@ -4,14 +4,14 @@
   "steps": [
     {
       "type": "loop",
-      "mode": "forEach",
       "id": "items",
-      "ref": "state.rows",
-      "as": "row",
-      "throttle": {
-        "starts": 1,
-        "perSeconds": 60
+      "mode": "forEach",
+      "input": {
+        "items": {
+          "$ref": "state.rows"
+        }
       },
+      "as": "row",
       "steps": [
         {
           "id": "echo",
@@ -22,8 +22,10 @@
           "as": "out"
         }
       ],
-      "collect": "state.out",
-      "into": "results"
+      "throttle": {
+        "starts": 1,
+        "perSeconds": 60
+      }
     }
   ]
 }

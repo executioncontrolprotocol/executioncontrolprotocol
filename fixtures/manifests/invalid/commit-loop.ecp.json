@@ -4,10 +4,20 @@
   "steps": [
     {
       "type": "loop",
+      "mode": "for",
       "id": "loop",
-      "expr": "(state) => false",
-      "maxRounds": 1,
+      "input": { "count": 1 },
+      "as": "i",
       "steps": [
+        {
+          "id": "warm",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "x"
+          },
+          "as": "item",
+          "mode": "replace"
+        },
         {
           "id": "echo",
           "uses": "@executioncontrolprotocol/test.echo",

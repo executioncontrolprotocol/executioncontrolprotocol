@@ -2,15 +2,10 @@
   "input": {},
   "status": "completed",
   "result": {},
-  "steps": [
-    {
-      "nodeId": "echo",
-      "status": "skipped"
-    }
-  ],
+  "steps": [],
   "events": [
     "run.start",
-    "step.skip",
+    "if.select",
     "run.end"
   ]
 }

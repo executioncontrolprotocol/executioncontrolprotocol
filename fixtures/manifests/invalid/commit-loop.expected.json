@@ -1,7 +1,7 @@
 [
   {
     "code": "ECP_COMMIT_CONFLICT",
-    "path": "/steps/0/steps/0/mode",
+    "path": "/steps/0/steps/1/as",
     "severity": "error"
   }
 ]

@@ -1,21 +1,17 @@
-import type {
-  BranchNode,
-  ExecutionManifest,
-  LoopNode,
-  Node,
-  ParallelNode,
-  StepNode,
-} from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, IfNode, LoopNode, Node, ParallelNode } from "@executioncontrolprotocol/protocol"
+import type { AddStepPlacement } from "./add-step.js"
 import {
   cloneManifest,
   finalizeManifest,
   findNodePlacement,
   findStepPlacement,
-  type StepPlacement,
+  freeStateKey,
+  locateNode,
+  type NodePlacement,
   allNodeIds,
   isStructureNode,
+  nodeContainsId,
 } from "./manifest-walk.js"
-
 /**
  * Outcome of a manifest structure edit.
  * @category App
@@ -25,10 +21,10 @@ export type StructureEditResult =
   | { ok: false; reason: string }
 
 /** @category App */
-export const STRUCTURE_EDIT_CONTIGUOUS = "Select contiguous steps in the same container"
+export const STRUCTURE_EDIT_CONTIGUOUS = "Select contiguous nodes in the same list"
 
 /** @category App */
-export const STRUCTURE_EDIT_PARALLEL_MIN = "Select two or more steps"
+export const STRUCTURE_EDIT_PARALLEL_MIN = "Select two or more nodes, one per path"
 
 /** @category App */
 export const STRUCTURE_EDIT_EMPTY_STEPS = "The execution must keep at least one step"
@@ -39,30 +35,22 @@ export const STRUCTURE_EDIT_STEP_NOT_FOUND = "Step not found"
 /** @category App */
 export const STRUCTURE_EDIT_STRUCTURE_NOT_FOUND = "Structure not found"
 
-
-
-
-
-
-
-function nextStructureId(prefix: "branch" | "parallel" | "loop", taken: Set<string>): string {
+function nextStructureId(prefix: "if" | "parallel" | "loop", taken: Set<string>): string {
   let n = 1
   while (taken.has(`${prefix}-${n}`)) n += 1
   return `${prefix}-${n}`
 }
 
-
-
-
-
-
 function structureBody(node: Node): Node[] {
-  if (node.type === "branch") return node.branches.flatMap((arm) => arm.steps)
-  if (node.type === "parallel") return node.branches.flatMap((line) => line)
+  if (node.type === "if") {
+    const out = [...node.then]
+    if (node.else) out.push(...node.else)
+    return out
+  }
+  if (node.type === "parallel") return node.paths.flat()
   if (node.type === "loop") return [...node.steps]
   return []
 }
-
 
 /**
  * Step ids to wrap: the multi-selection when the right-clicked step is in it, else that step alone.
@@ -74,21 +62,21 @@ export function wrapSelectionIds(selectedStepIds: readonly string[], rightClicke
 }
 
 /**
- * Wrap contiguous sibling steps in a new branch, parallel, or `while` loop.
+ * Wrap contiguous sibling nodes (steps or start nodes) in a new `if`, `parallel` (one path per node), or `for` loop.
  * @category App
  */
 export function wrapSteps(
   manifest: ExecutionManifest,
   stepIds: readonly string[],
-  kind: "branch" | "parallel" | "loop",
+  kind: "if" | "parallel" | "loop",
 ): StructureEditResult {
   if (stepIds.length === 0) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
   const unique = [...new Set(stepIds)]
   if (unique.length !== stepIds.length) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
 
-  const placements: StepPlacement[] = []
+  const placements: NodePlacement[] = []
   for (const stepId of unique) {
-    const hit = findStepPlacement(manifest.steps, stepId)
+    const hit = findNodePlacement(manifest.steps, stepId)
     if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
     placements.push(hit)
   }
@@ -108,9 +96,9 @@ export function wrapSteps(
   }
 
   const next = cloneManifest(manifest)
-  const nextPlacements: StepPlacement[] = []
+  const nextPlacements: NodePlacement[] = []
   for (const stepId of unique) {
-    const hit = findStepPlacement(next.steps, stepId)
+    const hit = findNodePlacement(next.steps, stepId)
     if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
     nextPlacements.push(hit)
   }
@@ -121,29 +109,31 @@ export function wrapSteps(
   const slice = parentList.splice(nextIndexes[0]!, nextIndexes.length)
   let inserted: Node
 
-  if (kind === "branch") {
-    const id = nextStructureId("branch", taken)
+  if (kind === "if") {
+    const id = nextStructureId("if", taken)
     inserted = {
-      type: "branch",
+      type: "if",
       id,
-      branches: [{ label: "condition", expr: "(state) => true", steps: slice as StepNode[] }],
-    } satisfies BranchNode
+      expression: "true",
+      then: slice,
+    } satisfies IfNode
   } else if (kind === "parallel") {
     const id = nextStructureId("parallel", taken)
     inserted = {
       type: "parallel",
       id,
-      branches: (slice as StepNode[]).map((step) => [step]),
+      paths: slice.map((node) => [node]),
     } satisfies ParallelNode
   } else {
     const id = nextStructureId("loop", taken)
+    const as = freeStateKey(next, "i")
     inserted = {
       type: "loop",
       id,
-      mode: "while",
-      expr: "(state) => true",
-      maxRounds: 1,
-      steps: slice as StepNode[],
+      mode: "for",
+      as,
+      input: { count: LOOP_DEFAULT_COUNT },
+      steps: slice,
     } satisfies LoopNode
   }
 
@@ -178,6 +168,74 @@ export function removeStructure(manifest: ExecutionManifest, structureId: string
 }
 
 /**
+ * Loop modes and the fields each mode uses. Changing the mode removes the fields the new mode forbids.
+ * @category App
+ */
+export type LoopMode = "for" | "forEach"
+
+/** Loop fields (besides `mode`) that only some modes allow. */
+const LOOP_FIELD_MODES: Readonly<Record<string, readonly LoopMode[]>> = {
+  as: ["for", "forEach"],
+  concurrency: ["forEach"],
+  onError: ["forEach"],
+}
+
+/** Placeholder `count` for a loop switched to `for`: one iteration, so the loop validates until the user binds a count. */
+const LOOP_DEFAULT_COUNT = 1
+
+/**
+ * Switch a loop to `mode`, rewriting only what the new mode needs and removing what it forbids so the result validates
+ * when it can.
+ * @category App
+ */
+export function setLoopMode(manifest: ExecutionManifest, loopId: string, mode: LoopMode): StructureEditResult {
+  const next = cloneManifest(manifest)
+  const hit = locateNode(next, loopId)
+  if (!hit || hit.node.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+  const loop = hit.node
+  if (mode !== "for" && mode !== "forEach") return { ok: false, reason: "Invalid loop field" }
+  const input: Record<string, unknown> = { ...(loop.input ?? {}) }
+  if (mode === "for") {
+    delete loop.concurrency
+    delete loop.onError
+    delete input.items
+    input.count ??= LOOP_DEFAULT_COUNT
+    loop.as ??= freeStateKey(next, "i")
+  } else {
+    delete input.count
+    loop.as ??= freeStateKey(next, "item")
+  }
+  loop.input = input as LoopNode["input"]
+  loop.mode = mode
+  return { ok: true, manifest: next }
+}
+
+/** Update a scalar field on a loop node (canvas panel). The `mode` field delegates to {@link setLoopMode}. @category App */
+export function setLoopField(
+  manifest: ExecutionManifest,
+  loopId: string,
+  field: string,
+  value: unknown,
+): StructureEditResult {
+  if (field === "mode") {
+    if (value === "for" || value === "forEach") return setLoopMode(manifest, loopId, value)
+    return { ok: false, reason: "Invalid loop field" }
+  }
+  const next = cloneManifest(manifest)
+  const hit = findNodePlacement(next.steps, loopId)
+  if (!hit || hit.node.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+  const loop = hit.node
+  const mode = loop.mode
+  const allowed = LOOP_FIELD_MODES[field]
+  if (allowed && !allowed.includes(mode)) return { ok: false, reason: `${field} is not used by ${mode} loops` }
+  if (field === "concurrency" && typeof value === "number") loop.concurrency = value
+  else if (field === "onError" && (value === "fail" || value === "continue")) loop.onError = value
+  else if (field === "as" && typeof value === "string") loop.as = value
+  else return { ok: false, reason: "Invalid loop field" }
+  return finalizeManifest(next)
+}
+
+/**
  * Remove one step and apply the emptiness cascade.
  * @category App
  */
@@ -187,4 +245,90 @@ export function deleteStep(manifest: ExecutionManifest, stepId: string): Structu
   if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
   hit.parent.splice(hit.index, 1)
   return finalizeManifest(next)
+}
+
+/** Synthetic capability-menu id for inserting a new control node. @category App */
+export const CONTROL_NODE_ENTRY_ID = "@executioncontrolprotocol/core.control-node"
+
+/**
+ * Outcome of {@link addControlNode}.
+ * @category App
+ */
+export type AddControlNodeResult =
+  | { ok: true; manifest: ExecutionManifest; structureId: string }
+  | { ok: false; reason: string }
+
+/**
+ * Insert a new `if` control node (`expression: "true"`) at the given placement.
+ * @category App
+ */
+export function addControlNode(manifest: ExecutionManifest, placement: AddStepPlacement): AddControlNodeResult {
+  const next = cloneManifest(manifest)
+  const taken = allNodeIds(next)
+  const id = nextStructureId("if", taken)
+  const inserted: IfNode = { type: "if", id, expression: "true", then: [] }
+
+  const succeed = (draft: ExecutionManifest): AddControlNodeResult => ({
+    ok: true,
+    manifest: draft,
+    structureId: id,
+  })
+
+  if (placement.kind === "top") {
+    if (placement.after !== undefined) {
+      const index = next.steps.findIndex((node) => node.id === placement.after || nodeContainsId(node, placement.after!))
+      if (index < 0) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+      next.steps.splice(index + 1, 0, inserted)
+    } else {
+      next.steps.push(inserted)
+    }
+    return succeed(next)
+  }
+
+  if (placement.kind === "loop-body") {
+    const loop = findNodePlacement(next.steps, placement.loopId)?.node
+    if (!loop || loop.type !== "loop") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    loop.steps.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "then-side") {
+    const ifNode = findNodePlacement(next.steps, placement.ifId)?.node
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.then.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "else-side") {
+    const ifNode = findNodePlacement(next.steps, placement.ifId)?.node
+    if (!ifNode || ifNode.type !== "if") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    ifNode.else = [inserted, ...(ifNode.else ?? [])]
+    return succeed(next)
+  }
+
+  if (placement.kind === "path-side") {
+    const parallel = findNodePlacement(next.steps, placement.parallelId)?.node
+    if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    const path = parallel.paths[placement.pathIndex]
+    if (!path) return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    path.unshift(inserted)
+    return succeed(next)
+  }
+
+  if (placement.kind === "new-path") {
+    const parallel = findNodePlacement(next.steps, placement.parallelId)?.node
+    if (!parallel || parallel.type !== "parallel") return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
+    parallel.paths.push([inserted])
+    return succeed(next)
+  }
+
+  if (placement.kind === "before" || placement.kind === "after") {
+    const hit = findNodePlacement(next.steps, placement.nodeId)
+    if (!hit) return { ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND }
+    const spliceIndex = placement.kind === "before" ? hit.index : hit.index + 1
+    hit.parent.splice(spliceIndex, 0, inserted)
+    return succeed(next)
+  }
+
+  return { ok: false, reason: STRUCTURE_EDIT_STRUCTURE_NOT_FOUND }
 }

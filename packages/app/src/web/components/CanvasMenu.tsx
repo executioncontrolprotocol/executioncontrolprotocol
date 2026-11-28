@@ -3,33 +3,28 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import type { ReactFlowEdge } from "../../graph/index.js"
 import type { AddStepPlacement } from "../../graph/index.js"
 import {
-  STRUCTURE_EDIT_PARALLEL_MIN,
   connectorDeletePreview,
   findStructure,
-  routeDeleteMenuLabel,
+  isEndNodeSelection,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
-  type ReactFlowRouteEdgeData,
 } from "../../graph/index.js"
 
+/**
+ * What a canvas menu is open on: a node (step, start node or loop end) or a branch.
+ * @category App
+ */
 export type CanvasMenuState =
   | {
       kind: "node"
-      stepId: string
-      clientX: number
-      clientY: number
-    }
-  | {
-      kind: "container"
-      structureId: string
+      nodeId: string
       clientX: number
       clientY: number
     }
   | {
       kind: "edge"
       edgeId: string
-      level: number
       clientX: number
       clientY: number
     }
@@ -42,23 +37,35 @@ interface CanvasMenuProps {
   edges: readonly ReactFlowEdge[]
   onClose: () => void
   onConfigure: () => void
-  onWrap: (kind: "branch" | "parallel" | "loop") => void
-  onDeleteStep: () => void
-  onUnwrap: () => void
-  onRemoveStructure: () => void
+  onWrap: (kind: "if" | "parallel" | "loop") => void
+  /** Delete the node: a step is removed, a start node is removed and its nodes stay. */
+  onDelete: () => void
+  /** Delete a start node together with the nodes inside it. */
+  onDeleteWithNodes: () => void
   onDeleteConnector: () => void
   /** Open the capability menu for a new step at this placement. */
   onOpenCapabilityMenu?: (clientX: number, clientY: number, placement: AddStepPlacement) => void
+  /** Append an empty path on a parallel without opening the capability menu. */
+  onAppendEmptyPath?: (parallelId: string) => void
 }
 
-type Submenu = "wrap" | "delete" | undefined
+interface MenuItem {
+  id: string
+  label: string
+  action?: () => void
+  submenu?: "wrap"
+  disabled?: boolean
+  title?: string
+}
+
+type Submenu = "wrap" | undefined
 
 /** Room the submenu flyout needs beside the menu (its min width plus the gap). */
 const SUBMENU_FLYOUT_WIDTH = 168
 
 /**
- * Cursor-positioned canvas context menu for steps and structures. Submenus open as a flyout beside the menu, so the
- * item under the pointer never changes.
+ * Cursor-positioned canvas context menu for nodes and branches. Submenus open as a flyout beside the menu, so the item
+ * under the pointer never changes.
  * @category App
  */
 export function CanvasMenu({
@@ -69,12 +76,12 @@ export function CanvasMenu({
   onClose,
   onConfigure,
   onWrap,
-  onDeleteStep,
-  onUnwrap,
-  onRemoveStructure,
+  onDelete,
+  onDeleteWithNodes,
   onDeleteConnector,
   edges,
   onOpenCapabilityMenu,
+  onAppendEmptyPath,
 }: CanvasMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [submenu, setSubmenu] = useState<Submenu>(undefined)
@@ -83,15 +90,14 @@ export function CanvasMenu({
   const [focusIndex, setFocusIndex] = useState(0)
   const [pos, setPos] = useState({ left: state.clientX, top: state.clientY })
 
-  const wrapIds =
-    state.kind === "node" ? wrapSelectionIds(selectedStepIds, state.stepId) : ([] as string[])
+  const nodeId = state.kind === "node" ? state.nodeId : undefined
+  const isEnd = nodeId !== undefined && isEndNodeSelection(manifest, nodeId)
+  const structure = nodeId !== undefined && !isEnd ? findStructure(manifest, nodeId) : undefined
 
-  const wrapBranch = state.kind === "node" ? wrapSteps(manifest, wrapIds, "branch") : undefined
-  const wrapParallel = state.kind === "node" ? wrapSteps(manifest, wrapIds, "parallel") : undefined
-  const wrapLoop = state.kind === "node" ? wrapSteps(manifest, wrapIds, "loop") : undefined
-
-  const unwrapPreview =
-    state.kind === "container" ? unwrapStructure(manifest, state.structureId) : undefined
+  const wrapIds = nodeId !== undefined && !isEnd ? wrapSelectionIds(selectedStepIds, nodeId) : ([] as string[])
+  const wrapIf = wrapIds.length > 0 ? wrapSteps(manifest, wrapIds, "if") : undefined
+  const wrapParallel = wrapIds.length > 0 ? wrapSteps(manifest, wrapIds, "parallel") : undefined
+  const wrapLoop = wrapIds.length > 0 ? wrapSteps(manifest, wrapIds, "loop") : undefined
 
   const layoutMenu = useCallback(() => {
     const canvas = document.querySelector('[data-testid="graph-canvas"]')
@@ -136,76 +142,78 @@ export function CanvasMenu({
   const edgeRecord = state.kind === "edge" ? edges.find((edge) => edge.id === state.edgeId) : undefined
   const deletePreview =
     state.kind === "edge" && edgeRecord
-      ? connectorDeletePreview(manifest, edgeRecord, state.level)
+      ? connectorDeletePreview(manifest, edgeRecord)
       : { ok: false as const, reason: "" }
 
-  const deleteConnectorLabel =
-    state.kind === "edge" && edgeRecord?.data.kind === "route"
-      ? routeDeleteMenuLabel((edgeRecord.data as ReactFlowRouteEdgeData).levels, state.level)
-      : "Delete"
+  const open = (placement: AddStepPlacement) => () => onOpenCapabilityMenu?.(state.clientX, state.clientY, placement)
 
-  const structure =
-    state.kind === "container" ? findStructure(manifest, state.structureId) : undefined
+  const addItems: MenuItem[] = []
+  if (!readOnly && onOpenCapabilityMenu && structure) {
+    if (structure.type === "loop") {
+      addItems.push({ id: "add-step", label: "Add node in the loop", action: open({ kind: "loop-body", loopId: structure.id }) })
+    } else if (structure.type === "if") {
+      addItems.push(
+        { id: "add-then", label: "Add node in then", action: open({ kind: "then-side", ifId: structure.id }) },
+        { id: "add-else", label: "Add node in else", action: open({ kind: "else-side", ifId: structure.id }) },
+      )
+    } else if (structure.type === "parallel") {
+      structure.paths.forEach((_path, index) => {
+        addItems.push({
+          id: `add-path-${index + 1}`,
+          label: `Add node in path ${index + 1}`,
+          action: open({ kind: "path-side", parallelId: structure.id, pathIndex: index }),
+        })
+      })
+      addItems.push({
+        id: "add-path",
+        label: "Add path",
+        action: () => onAppendEmptyPath?.(structure.id),
+      })
+    }
+  }
 
-  const addItems =
-    !readOnly && state.kind === "container" && onOpenCapabilityMenu && structure
-      ? structure.type === "loop"
-        ? [
-            {
-              id: "add-step",
-              label: "Add step…",
-              action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "loop-body", loopId: structure.id }),
-            },
-          ]
-        : structure.type === "branch"
-          ? [
-              {
-                id: "add-arm",
-                label: "Add arm…",
-                action: () => onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-arm", branchId: structure.id }),
-              },
-            ]
-          : structure.type === "parallel"
-            ? [
-                {
-                  id: "add-line",
-                  label: "Add line…",
-                  action: () =>
-                    onOpenCapabilityMenu(state.clientX, state.clientY, { kind: "new-line", parallelId: structure.id }),
-                },
-              ]
-            : []
-      : []
-
-  const items =
-    state.kind === "edge"
-      ? readOnly
-        ? [{ id: "configure", label: "Configure", action: onConfigure }]
-        : [
-            { id: "configure", label: "Configure", action: onConfigure },
-            {
-              id: "delete-connector",
-              label: deleteConnectorLabel,
-              action: onDeleteConnector,
-              disabled: !deletePreview.ok,
-              title: deletePreview.ok ? undefined : deletePreview.reason,
-            },
-          ]
-      : readOnly
-    ? [{ id: "configure", label: "Configure", action: onConfigure }]
-    : state.kind === "node"
-      ? [
-          { id: "configure", label: "Configure", action: onConfigure },
-          { id: "wrap", label: "Wrap in", submenu: "wrap" as const },
-          { id: "delete-step", label: "Delete step", action: onDeleteStep },
-        ]
+  const configureItem: MenuItem = { id: "configure", label: "Configure", action: onConfigure }
+  let items: MenuItem[]
+  if (state.kind === "edge") {
+    items = readOnly
+      ? [configureItem]
       : [
-          { id: "configure", label: "Configure", action: onConfigure },
-          ...addItems,
-          { id: "delete", label: "Delete", submenu: "delete" as const },
+          configureItem,
+          {
+            id: "delete-connector",
+            label: "Delete branch",
+            action: onDeleteConnector,
+            disabled: !deletePreview.ok,
+            title: deletePreview.ok ? undefined : deletePreview.reason,
+          },
         ]
+  } else if (readOnly) {
+    items = [configureItem]
+  } else if (structure) {
+    const unwrapPreview = unwrapStructure(manifest, structure.id)
+    items = [
+      configureItem,
+      { id: "wrap", label: "Wrap in", submenu: "wrap" },
+      ...addItems,
+      {
+        id: "delete",
+        label: "Delete",
+        action: onDelete,
+        disabled: !unwrapPreview.ok,
+        title: unwrapPreview.ok ? undefined : unwrapPreview.reason,
+      },
+      { id: "delete-with-nodes", label: "Delete with its nodes", action: onDeleteWithNodes },
+    ]
+  } else {
+    items = [
+      configureItem,
+      { id: "wrap", label: "Wrap in", submenu: "wrap" },
+      { id: "delete-step", label: "Delete", action: onDelete },
+    ]
+  }
 
   const onKeyDown = (event: React.KeyboardEvent) => {
+    const item = items[focusIndex]
     if (event.key === "ArrowDown") {
       event.preventDefault()
       setFocusIndex((index) => Math.min(index + 1, items.length - 1))
@@ -214,19 +222,22 @@ export function CanvasMenu({
       setFocusIndex((index) => Math.max(index - 1, 0))
     } else if (event.key === "Enter") {
       event.preventDefault()
-      const item = items[focusIndex]
-      if (!item) return
-      if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
-      else if ("action" in item && item.action) item.action()
-    } else if (event.key === "ArrowRight" && items[focusIndex] && "submenu" in items[focusIndex]) {
-      setSubmenu(items[focusIndex].submenu)
+      if (!item || item.disabled) return
+      if (item.submenu) setSubmenu(item.submenu)
+      else item.action?.()
+    } else if (event.key === "ArrowRight" && item?.submenu) {
+      setSubmenu(item.submenu)
     } else if (event.key === "ArrowLeft" && submenu) {
       setSubmenu(undefined)
     }
   }
 
-  const parallelDisabled = wrapParallel && !wrapParallel.ok
   const parallelHint = wrapParallel && !wrapParallel.ok ? wrapParallel.reason : undefined
+  const submenuClass = `absolute top-0 min-w-[10rem] rounded-md border border-outline-variant bg-surface-container-high py-1 shadow-lg ${
+    flyoutLeft ? "right-full mr-1" : "left-full ml-1"
+  }`
+  const wrapItemClass =
+    "block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
 
   return (
     <div
@@ -238,60 +249,53 @@ export function CanvasMenu({
       onKeyDown={onKeyDown}
     >
       {items.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              data-testid={`canvas-menu-item-${item.id}`}
-              disabled={"disabled" in item ? item.disabled : false}
-              title={"title" in item ? item.title : undefined}
-              className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[12px] text-on-surface hover:bg-surface-container-highest${
-                index === focusIndex ? " bg-surface-container-highest" : ""
-              }`}
-              aria-haspopup={"submenu" in item && item.submenu ? "menu" : undefined}
-              aria-expanded={"submenu" in item && item.submenu ? submenu === item.submenu : undefined}
-              onMouseEnter={() => {
-                setSubmenu("submenu" in item && item.submenu ? item.submenu : undefined)
-              }}
-              onClick={() => {
-                if ("submenu" in item && item.submenu) setSubmenu(item.submenu)
-                else if ("action" in item && item.action) item.action()
-              }}
-            >
-              {item.label}
-              {"submenu" in item && item.submenu ? <span aria-hidden="true">▸</span> : null}
-            </button>
-          ))}
-      {submenu === "wrap" && !readOnly ? (
-        <div
-          role="menu"
-          data-testid="canvas-submenu"
-          className={`absolute top-0 min-w-[10rem] rounded-md border border-outline-variant bg-surface-container-high py-1 shadow-lg ${
-            flyoutLeft ? "right-full mr-1" : "left-full ml-1"
+        <button
+          key={item.id}
+          type="button"
+          role="menuitem"
+          data-testid={`canvas-menu-item-${item.id}`}
+          disabled={item.disabled ?? false}
+          title={item.title}
+          className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[12px] text-on-surface hover:bg-surface-container-highest disabled:opacity-50${
+            index === focusIndex ? " bg-surface-container-highest" : ""
           }`}
+          aria-haspopup={item.submenu ? "menu" : undefined}
+          aria-expanded={item.submenu ? submenu === item.submenu : undefined}
+          onMouseEnter={() => setSubmenu(item.submenu)}
+          onClick={() => {
+            if (item.submenu) setSubmenu(item.submenu)
+            else item.action?.()
+          }}
         >
+          {item.label}
+          {item.submenu ? <span aria-hidden="true">▸</span> : null}
+        </button>
+      ))}
+      {submenu === "wrap" && !readOnly ? (
+        <div role="menu" data-testid="canvas-submenu" className={submenuClass}>
           <button
             type="button"
             role="menuitem"
-            data-testid="canvas-menu-item-wrap-branch"
-            disabled={wrapBranch !== undefined && !wrapBranch.ok}
-            className="block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
-            onClick={() => onWrap("branch")}
+            data-testid="canvas-menu-item-wrap-if"
+            disabled={wrapIf !== undefined && !wrapIf.ok}
+            title={wrapIf && !wrapIf.ok ? wrapIf.reason : undefined}
+            className={wrapItemClass}
+            onClick={() => onWrap("if")}
           >
-            Branch
+            If
           </button>
           <button
             type="button"
             role="menuitem"
             data-testid="canvas-menu-item-wrap-parallel"
-            disabled={parallelDisabled}
+            disabled={parallelHint !== undefined}
             title={parallelHint}
-            className="block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
+            className={wrapItemClass}
             onClick={() => onWrap("parallel")}
           >
             Parallel
-            {parallelHint === STRUCTURE_EDIT_PARALLEL_MIN ? (
-              <span className="mt-0.5 block text-[10px] text-on-surface-variant">Select two or more steps</span>
+            {parallelHint ? (
+              <span className="mt-0.5 block text-[10px] text-on-surface-variant">{parallelHint}</span>
             ) : null}
           </button>
           <button
@@ -299,40 +303,11 @@ export function CanvasMenu({
             role="menuitem"
             data-testid="canvas-menu-item-wrap-loop"
             disabled={wrapLoop !== undefined && !wrapLoop.ok}
-            className="block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
+            title={wrapLoop && !wrapLoop.ok ? wrapLoop.reason : undefined}
+            className={wrapItemClass}
             onClick={() => onWrap("loop")}
           >
             Loop
-          </button>
-        </div>
-      ) : null}
-      {submenu === "delete" && !readOnly ? (
-        <div
-          role="menu"
-          data-testid="canvas-submenu"
-          className={`absolute top-0 min-w-[10rem] rounded-md border border-outline-variant bg-surface-container-high py-1 shadow-lg ${
-            flyoutLeft ? "right-full mr-1" : "left-full ml-1"
-          }`}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="canvas-menu-item-delete-keep-steps"
-            disabled={unwrapPreview !== undefined && !unwrapPreview.ok}
-            title={unwrapPreview && !unwrapPreview.ok ? unwrapPreview.reason : undefined}
-            className="block w-full px-3 py-1.5 text-left text-[12px] enabled:hover:bg-surface-container-highest disabled:opacity-50"
-            onClick={onUnwrap}
-          >
-            Keep steps
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="canvas-menu-item-delete-with-steps"
-            className="block w-full px-3 py-1.5 text-left text-[12px] hover:bg-surface-container-highest"
-            onClick={onRemoveStructure}
-          >
-            With its steps
           </button>
         </div>
       ) : null}

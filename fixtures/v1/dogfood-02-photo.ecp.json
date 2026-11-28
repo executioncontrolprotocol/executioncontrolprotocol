@@ -5,7 +5,9 @@
     "returns": {
       "type": "object",
       "properties": {
-        "upload": { "type": "object" }
+        "upload": {
+          "type": "object"
+        }
       }
     }
   },

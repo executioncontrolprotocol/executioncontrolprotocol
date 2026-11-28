@@ -11,58 +11,44 @@
       "as": "a"
     },
     {
-      "type": "branch",
+      "type": "if",
       "id": "outer",
-      "branches": [
+      "expression": "true",
+      "then": [
         {
-          "label": "outer",
-          "expr": "(state) => true",
-          "steps": [
+          "type": "if",
+          "id": "inner",
+          "expression": "1 === 1",
+          "then": [
             {
-              "type": "branch",
-              "id": "inner",
-              "branches": [
-                {
-                  "label": "inner",
-                  "expr": "(state) => 1 === 1",
-                  "steps": [
-                    {
-                      "id": "x",
-                      "uses": "@executioncontrolprotocol/test.echo",
-                      "input": {
-                        "value": "x"
-                      },
-                      "as": "x"
-                    }
-                  ]
-                },
-                {
-                  "steps": [
-                    {
-                      "id": "w",
-                      "uses": "@executioncontrolprotocol/test.echo",
-                      "input": {
-                        "value": "w"
-                      },
-                      "as": "w"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "steps": [
-            {
-              "id": "n",
+              "id": "x",
               "uses": "@executioncontrolprotocol/test.echo",
               "input": {
-                "value": "n"
+                "value": "x"
               },
-              "as": "n"
+              "as": "x"
+            }
+          ],
+          "else": [
+            {
+              "id": "w",
+              "uses": "@executioncontrolprotocol/test.echo",
+              "input": {
+                "value": "w"
+              },
+              "as": "w"
             }
           ]
+        }
+      ],
+      "else": [
+        {
+          "id": "n",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "n"
+          },
+          "as": "n"
         }
       ]
     }

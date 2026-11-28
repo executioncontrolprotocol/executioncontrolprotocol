@@ -20,7 +20,6 @@ export {
   HOST_VERSION,
   MAX_LOOP_CONCURRENCY,
   MAX_LOOP_ITEMS,
-  MAX_ROUNDS_LIMIT,
   SCHEMA_DOCUMENT_INLINE_MAX_BYTES,
   NODE_ID_PATTERN,
   PLUGIN_MANIFEST_SCHEMA,
@@ -37,12 +36,11 @@ export type { EcpErrorCode, ErrorCatalogueEntry, ErrorKind } from "./errors.js"
 export { FIRST_PARTY_PLUGINS, firstPartyInstallCommand, firstPartyPlugin, pluginIdFromCapability } from "./first-party.js"
 export type { FirstPartyPlugin } from "./first-party.js"
 export type {
-  BranchArm,
-  BranchNode,
   CommitMode,
   ExecutionBlock,
   ExecutionManifest,
   ExprMarker,
+  IfNode,
   JsonValue,
   LoopNode,
   Node,

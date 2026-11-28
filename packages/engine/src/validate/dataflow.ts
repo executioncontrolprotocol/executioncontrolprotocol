@@ -1,6 +1,7 @@
 import type { CapabilityEntry, ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import { closeMatches } from "../schema/suggest.js"
 import { fileAccessBindingIssue, fileAccessValueIssues } from "./file-access.js"
+import { analyseMergePort, type ScopeSegment } from "./merge-port-scope.js"
 
 type JsonSchema = Record<string, unknown>
 
@@ -8,6 +9,7 @@ interface Binding {
   schema: JsonSchema
   certainty: "definite" | "maybe"
   producer: string
+  writeScope: ScopeSegment[]
 }
 
 type Env = Map<string, Binding>
@@ -15,6 +17,7 @@ type Env = Map<string, Binding>
 interface WalkContext {
   maybe: boolean
   siblings: Set<string>
+  scope: ScopeSegment[]
 }
 
 const AVAILABLE_CAP = 50
@@ -27,7 +30,7 @@ export function checkDataFlow(manifest: ExecutionManifest, capabilities: readonl
   const byId = new Map(capabilities.map((capability) => [capability.id, capability]))
   const issues: ValidationIssue[] = []
   const env = initialEnv(manifest)
-  const after = walkNodes(asNodes(manifest.steps), env, { maybe: false, siblings: new Set() }, issues, byId)
+  const after = walkNodes(asNodes(manifest.steps), env, { maybe: false, siblings: new Set(), scope: [] }, issues, byId)
   const returns = manifest.execution?.returns
   const properties = schemaProperties(returns)
   if (properties) {
@@ -51,7 +54,12 @@ function initialEnv(manifest: ExecutionManifest): Env {
   const required = new Set(Array.isArray(accepts?.required) ? (accepts.required as string[]) : [])
   for (const [name, schema] of Object.entries(properties)) {
     const definite = required.has(name) || (schema as JsonSchema).default !== undefined
-    env.set(name, { schema: schema as JsonSchema, certainty: definite ? "definite" : "maybe", producer: "input" })
+    env.set(name, {
+      schema: schema as JsonSchema,
+      certainty: definite ? "definite" : "maybe",
+      producer: "input",
+      writeScope: [],
+    })
   }
   return env
 }
@@ -75,7 +83,7 @@ function walkNode(
   issues: ValidationIssue[],
   capabilities: Map<string, CapabilityEntry>,
 ): Env {
-  if (node.type === "branch") return walkBranch(node, env, ctx, issues, capabilities)
+  if (node.type === "if") return walkIf(node, env, ctx, issues, capabilities)
   if (node.type === "loop") return walkLoop(node, env, ctx, issues, capabilities)
   if (node.type === "parallel") return walkParallel(node, env, ctx, issues, capabilities)
   return walkStep(node, env, ctx, issues, capabilities)
@@ -93,7 +101,7 @@ function walkStep(
   const accepts = (capability?.contract === "step" ? stepAccepts : capability?.accepts) as JsonSchema | undefined
   visitValues(node.input, accepts, `${node.path}/input`, (value, schema, pointer) => {
     if (!isRecord(value)) return
-    if (typeof value.$ref === "string") {
+    if (isRecord(value) && hasRef(value)) {
       checkRef(value, schema, pointer, node.id, env, ctx, issues)
       return
     }
@@ -124,42 +132,75 @@ function walkStep(
   const next = cloneEnv(env)
   next.set(node.as, {
     schema,
-    certainty: ctx.maybe || node.expr ? "maybe" : "definite",
+    certainty: ctx.maybe ? "maybe" : "definite",
     producer: node.id ?? "step",
+    writeScope: [...ctx.scope],
   })
   return next
 }
 
-function walkBranch(
+function walkIf(
   node: NodeLike,
   env: Env,
   ctx: WalkContext,
   issues: ValidationIssue[],
   capabilities: Map<string, CapabilityEntry>,
 ): Env {
-  const arms = node.arms ?? []
-  const armEnvs = arms.map((arm) => walkNodes(arm.steps, cloneEnv(env), ctx, issues, capabilities))
-  const hasDefault = arms.some((arm) => arm.expr === undefined)
+  const entry = scopedIfEnv(node, env, ctx, issues)
+  visitValues(node.input, node.accepts as JsonSchema | undefined, `${node.path}/input`, (value, schema, pointer) => {
+    if (isRecord(value) && hasRef(value)) {
+      checkRef(value, schema, pointer, node.id, env, ctx, issues)
+    }
+  })
+  const ifId = node.id ?? "if"
+  const thenCtx: WalkContext = { ...ctx, scope: [...ctx.scope, { kind: "if", id: ifId, side: "then" }] }
+  const elseCtx: WalkContext = { ...ctx, scope: [...ctx.scope, { kind: "if", id: ifId, side: "else" }] }
+  const thenEnv = walkNodes(node.then ?? [], cloneEnv(entry), thenCtx, issues, capabilities)
+  const elseNodes = node.else ?? []
+  const elseEnv = elseNodes.length > 0 ? walkNodes(elseNodes, cloneEnv(entry), elseCtx, issues, capabilities) : undefined
+  const sides = elseEnv ? [thenEnv, elseEnv] : [thenEnv]
   const produced = new Set<string>()
-  for (const armEnv of armEnvs) {
-    for (const key of changedKeys(env, armEnv)) produced.add(key)
+  for (const sideEnv of sides) {
+    for (const key of changedKeys(env, sideEnv)) produced.add(key)
   }
+  if (node.as && !env.has(node.as)) produced.delete(node.as)
   const next = cloneEnv(env)
   for (const key of produced) {
-    const infos = armEnvs
-      .map((armEnv) => armEnv.get(key))
+    const infos = sides
+      .map((sideEnv) => sideEnv.get(key))
       .filter((binding): binding is Binding => binding !== undefined && binding !== env.get(key))
-    const everyDefinite = armEnvs.every((armEnv) => {
-      const binding = armEnv.get(key)
+    const everyDefinite = sides.every((sideEnv) => {
+      const binding = sideEnv.get(key)
       return binding !== undefined && binding !== env.get(key) && binding.certainty === "definite"
     })
     const schemas = infos.map((binding) => binding.schema)
     next.set(key, {
       schema: schemas.length <= 1 ? (schemas[0] ?? {}) : { anyOf: schemas },
-      certainty: everyDefinite && hasDefault ? "definite" : "maybe",
-      producer: infos[0]?.producer ?? node.id ?? "branch",
+      certainty: everyDefinite && elseEnv ? "definite" : "maybe",
+      producer: infos[0]?.producer ?? node.id ?? "if",
+      writeScope: infos[0]?.writeScope ?? ctx.scope,
     })
   }
+  return next
+}
+
+function scopedIfEnv(node: NodeLike, env: Env, ctx: WalkContext, issues: ValidationIssue[]): Env {
+  if (!node.as) return env
+  if (env.get(node.as)) {
+    issues.push(
+      issue(
+        "ECP_COMMIT_CONFLICT",
+        "error",
+        `Scoped as ${node.as} collides with an existing key.`,
+        `${node.path}/as`,
+        node.id,
+      ),
+    )
+    return env
+  }
+  const accepts = isRecord(node.accepts) ? (node.accepts as JsonSchema) : { type: "object" }
+  const next = cloneEnv(env)
+  next.set(node.as, { schema: accepts, certainty: "definite", producer: node.id ?? "if", writeScope: ctx.scope })
   return next
 }
 
@@ -171,100 +212,8 @@ function walkLoop(
   capabilities: Map<string, CapabilityEntry>,
 ): Env {
   const mode = loopMode(node)
-  if (mode === "forEach") return walkLoopForEach(node, env, ctx, issues, capabilities)
-  if (mode === "for") return walkLoopFor(node, env, ctx, issues, capabilities)
-  return walkLoopWhile(node, env, ctx, issues, capabilities)
-}
-
-function walkLoopWhile(
-  node: NodeLike,
-  env: Env,
-  ctx: WalkContext,
-  issues: ValidationIssue[],
-  capabilities: Map<string, CapabilityEntry>,
-): Env {
-  if (typeof node.ref === "string") {
-    checkStatePathRef(node.ref, { type: "boolean" }, `${node.path}/ref`, node.id, env, ctx, issues)
-  }
-  const seeded = cloneEnv(env)
-  for (const key of collectAs(node.steps ?? [])) {
-    if (seeded.get(key)?.certainty !== "definite") {
-      seeded.set(key, { schema: {}, certainty: "maybe", producer: node.id ?? "loop" })
-    }
-  }
-  const after = walkNodes(node.steps ?? [], seeded, { ...ctx, maybe: true }, issues, capabilities)
-  const next = cloneEnv(env)
-  for (const key of changedKeys(env, after)) {
-    const before = env.get(key)
-    const produced = after.get(key)
-    if (!produced || produced === before) continue
-    next.set(key, before?.certainty === "definite" ? before : { ...produced, certainty: "maybe" })
-  }
-  return next
-}
-
-function walkLoopFor(
-  node: NodeLike,
-  env: Env,
-  ctx: WalkContext,
-  issues: ValidationIssue[],
-  capabilities: Map<string, CapabilityEntry>,
-): Env {
-  if (typeof node.ref === "string") {
-    checkStatePathRef(node.ref, { type: "integer", minimum: 0 }, `${node.path}/ref`, node.id, env, ctx, issues)
-  }
   const asKey = node.as
   if (!asKey) return env
-  if (env.get(asKey)) {
-    issues.push(
-      issue(
-        "ECP_COMMIT_CONFLICT",
-        "error",
-        `Loop ${node.id} binds ${asKey}, which already exists in the parent scope.`,
-        `${node.path}/as`,
-        node.id,
-      ),
-    )
-  }
-  const bodyEnv = cloneEnv(env)
-  bodyEnv.set(asKey, {
-    schema: { type: "integer", minimum: 0 },
-    certainty: "definite",
-    producer: node.id ?? "loop",
-  })
-  const after = walkNodes(node.steps ?? [], bodyEnv, { ...ctx, maybe: true }, issues, capabilities)
-  const next = cloneEnv(env)
-  for (const key of changedKeys(env, after)) {
-    if (key === asKey) continue
-    const before = env.get(key)
-    const produced = after.get(key)
-    if (!produced || produced === before) continue
-    next.set(key, before?.certainty === "definite" ? before : { ...produced, certainty: "maybe" })
-  }
-  return next
-}
-
-function walkLoopForEach(
-  node: NodeLike,
-  env: Env,
-  ctx: WalkContext,
-  issues: ValidationIssue[],
-  capabilities: Map<string, CapabilityEntry>,
-): Env {
-  const asKey = node.as
-  const into = node.into
-  if (!asKey || !into) return env
-  if (node.expr) {
-    issues.push(
-      issue(
-        "ECP_LOOP_UNTYPED",
-        "warning",
-        `Loop ${node.id} uses expr for forEach items; element typing is unavailable.`,
-        `${node.path}/expr`,
-        node.id,
-      ),
-    )
-  }
   const asIndex = `${asKey}Index`
   if (env.get(asKey) || env.get(asIndex)) {
     issues.push(
@@ -277,66 +226,73 @@ function walkLoopForEach(
       ),
     )
   }
-  if (typeof node.ref === "string") {
-    checkStatePathRef(node.ref, { type: "array" }, `${node.path}/ref`, node.id, env, ctx, issues)
-  }
-  const elementSchema = arrayElementSchemaFromPath(env, node.ref)
-  const itemEnv = cloneEnv(env)
-  itemEnv.set(asKey, { schema: elementSchema, certainty: "definite", producer: node.id ?? "loop" })
-  itemEnv.set(asIndex, { schema: { type: "integer", minimum: 0 }, certainty: "definite", producer: node.id ?? "loop" })
-  const afterBody = walkNodes(node.steps ?? [], itemEnv, ctx, issues, capabilities)
-  if (typeof node.collect === "string") {
-    checkStatePathRef(node.collect, undefined, `${node.path}/collect`, node.id, afterBody, ctx, issues)
-  }
-  const collectBinding = typeof node.collect === "string" ? schemaFromStatePath(afterBody, node.collect) : {}
-  const continueMode = node.onError === "continue"
-  const intoElement = continueMode ? { anyOf: [collectBinding, { type: "null" }] } : collectBinding
-  const intoExisting = env.get(into)
-  if (intoExisting?.certainty === "definite") {
-    issues.push(
-      issue(
-        "ECP_COMMIT_CONFLICT",
-        "error",
-        `Loop ${node.id} creates ${into}, which already exists.`,
-        `${node.path}/into`,
-        node.id,
-      ),
-    )
-  }
-  const errorsKey = `${into}Errors`
-  if (continueMode && env.get(errorsKey)?.certainty === "definite") {
-    issues.push(
-      issue(
-        "ECP_COMMIT_CONFLICT",
-        "error",
-        `Loop ${node.id} creates ${errorsKey}, which already exists.`,
-        `${node.path}/into`,
-        node.id,
-      ),
-    )
-  }
-  const next = cloneEnv(env)
-  next.set(into, {
-    schema: { type: "array", items: intoElement },
-    certainty: "definite",
-    producer: node.id ?? "loop",
+  const inputSchema =
+    mode === "forEach"
+      ? { type: "object", properties: { items: { type: "array" } } }
+      : { type: "object", properties: { count: { type: "integer", minimum: 0 } } }
+  visitValues(node.input, inputSchema, `${node.path}/input`, (value, schema, pointer) => {
+    if (isRecord(value) && hasRef(value)) {
+      checkRef(value, schema, pointer, node.id, env, ctx, issues)
+    }
   })
-  if (continueMode) {
-    next.set(errorsKey, {
-      schema: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["index", "error"],
-          properties: {
-            index: { type: "integer", minimum: 0 },
-            error: { type: "object" },
-          },
-        },
-      },
+  const loopScope: WalkContext = {
+    ...ctx,
+    scope: [...ctx.scope, { kind: "loop", id: node.id ?? "loop" }],
+  }
+  const itemEnv = cloneEnv(env)
+  if (mode === "forEach") {
+    const itemsMarker = isRecord(node.input) ? (node.input as Record<string, unknown>).items : undefined
+    const elementSchema = arrayElementSchema(env, itemsMarker)
+    itemEnv.set(asKey, {
+      schema: elementSchema,
       certainty: "definite",
       producer: node.id ?? "loop",
+      writeScope: loopScope.scope,
     })
+    itemEnv.set(asIndex, {
+      schema: { type: "integer", minimum: 0 },
+      certainty: "definite",
+      producer: node.id ?? "loop",
+      writeScope: loopScope.scope,
+    })
+  } else {
+    itemEnv.set(asKey, {
+      schema: { type: "integer", minimum: 0 },
+      certainty: "definite",
+      producer: node.id ?? "loop",
+      writeScope: loopScope.scope,
+    })
+    itemEnv.set(asIndex, {
+      schema: { type: "integer", minimum: 0 },
+      certainty: "definite",
+      producer: node.id ?? "loop",
+      writeScope: loopScope.scope,
+    })
+  }
+  const afterBody = walkNodes(node.steps ?? [], itemEnv, loopScope, issues, capabilities)
+  const continueMode = node.onError === "continue"
+  const next = cloneEnv(env)
+  for (const key of changedKeys(itemEnv, afterBody)) {
+    if (key === asKey || key === asIndex) continue
+    const produced = afterBody.get(key)
+    if (!produced) continue
+    const itemSchema =
+      produced.certainty === "maybe" || continueMode ? { anyOf: [produced.schema, { type: "null" }] } : produced.schema
+    const outer = env.get(key)
+    if (outer?.certainty === "definite") {
+      issues.push(
+        issue(
+          "ECP_COMMIT_CONFLICT",
+          "error",
+          `Loop ${node.id} writes ${key}, which already exists in the parent scope.`,
+          `${node.path}/steps`,
+          node.id,
+        ),
+      )
+      continue
+    }
+    const arraySchema = { type: "array", items: itemSchema }
+    next.set(key, { schema: arraySchema, certainty: "definite", producer: node.id ?? "loop", writeScope: ctx.scope })
   }
   return next
 }
@@ -355,40 +311,12 @@ function arrayElementSchema(env: Env, itemsMarker: unknown): JsonSchema {
   return {}
 }
 
-function schemaFromRef(env: Env, marker: Record<string, unknown>): JsonSchema {
-  const ref = String(marker.$ref)
-  const parsed = parseRef(ref)
-  if (!parsed) return {}
-  const binding = env.get(parsed.key)
-  if (!binding) return {}
-  if (parsed.rest.length === 0) return binding.schema
-  return walkSchema(binding.schema, parsed.rest).schema ?? {}
+function loopMode(node: NodeLike): "for" | "forEach" {
+  return node.mode === "for" ? "for" : "forEach"
 }
 
-function loopMode(node: NodeLike): "while" | "for" | "forEach" {
-  if (node.mode === "for" || node.mode === "forEach") return node.mode
-  return "while"
-}
-
-function checkStatePathRef(
-  path: string,
-  target: JsonSchema | undefined,
-  pointer: string,
-  nodeId: string | undefined,
-  env: Env,
-  ctx: WalkContext,
-  issues: ValidationIssue[],
-): void {
-  checkRef({ $ref: path }, target, pointer, nodeId, env, ctx, issues)
-}
-
-function arrayElementSchemaFromPath(env: Env, ref: string | undefined): JsonSchema {
-  if (!ref) return {}
-  return arrayElementSchema(env, { $ref: ref })
-}
-
-function schemaFromStatePath(env: Env, path: string): JsonSchema {
-  return schemaFromRef(env, { $ref: path })
+function hasRef(value: Record<string, unknown>): boolean {
+  return typeof value.$ref === "string" || Array.isArray(value.$ref)
 }
 
 function walkParallel(
@@ -398,14 +326,24 @@ function walkParallel(
   issues: ValidationIssue[],
   capabilities: Map<string, CapabilityEntry>,
 ): Env {
-  const lines = node.lines ?? []
+  const outer = env
+  if (node.as) {
+    const accepts = isRecord(node.accepts) ? (node.accepts as JsonSchema) : { type: "object" }
+    env = scopedIfEnv({ ...node, as: node.as, accepts } as NodeLike, env, ctx, issues)
+  }
+  const lines = node.paths ?? []
   const previews = lines.map((line) => new Set(collectAs(line)))
+  const parId = node.id ?? "parallel"
   const lineEnvs = lines.map((line, index) => {
     const siblings = new Set<string>()
     previews.forEach((keys, other) => {
       if (other !== index) for (const key of keys) siblings.add(key)
     })
-    return walkNodes(line, cloneEnv(env), { ...ctx, siblings }, issues, capabilities)
+    return walkNodes(line, cloneEnv(env), {
+      ...ctx,
+      siblings,
+      scope: [...ctx.scope, { kind: "parallel", id: parId, index }],
+    }, issues, capabilities)
   })
   const owner = new Map<string, number>()
   lineEnvs.forEach((lineEnv, index) => {
@@ -417,7 +355,7 @@ function walkParallel(
             "ECP_COMMIT_CONFLICT",
             "error",
             `Parallel lines both write ${key}.`,
-            `${node.path}/branches/${index}`,
+            `${node.path}/paths/${index}`,
             node.id,
           ),
         )
@@ -426,7 +364,7 @@ function walkParallel(
       }
     }
   })
-  const next = cloneEnv(env)
+  const next = cloneEnv(outer)
   for (const [key, index] of owner) {
     const binding = lineEnvs[index]?.get(key)
     if (binding) next.set(key, binding)
@@ -443,7 +381,70 @@ function checkRef(
   ctx: WalkContext,
   issues: ValidationIssue[],
 ): void {
-  const ref = String(value.$ref)
+  const rawRef = value.$ref
+  if (Array.isArray(rawRef)) {
+    if (rawRef.length < 2) {
+      issues.push(issue("ECP_MANIFEST_INVALID", "error", "Merge port $ref list needs at least two paths.", `${pointer}/$ref`, nodeId))
+      return
+    }
+    const optional = value.optional === true || Object.prototype.hasOwnProperty.call(value, "fallback")
+    const bindings: Binding[] = []
+    const scopes: ScopeSegment[][] = []
+    for (const entry of rawRef) {
+      const ref = String(entry)
+      const parsed = parseRef(ref)
+      if (!parsed) {
+        issues.push(issue("ECP_REF_PATH_INVALID", "error", `Ref ${ref} is not a state path.`, `${pointer}/$ref`, nodeId))
+        return
+      }
+      const binding = env.get(parsed.key)
+      if (!binding) {
+        issues.push(
+          issue("ECP_REF_UNRESOLVED", "error", `${ref} is not produced before this step.`, `${pointer}/$ref`, nodeId),
+        )
+        return
+      }
+      bindings.push(binding)
+      scopes.push(binding.writeScope)
+    }
+    const merge = analyseMergePort(scopes)
+    if (!merge.valid) {
+      issues.push(
+        issue(
+          "ECP_REF_AMBIGUOUS",
+          "error",
+          "Merge port refs are not on opposite sides of the same if.",
+          `${pointer}/$ref`,
+          nodeId,
+        ),
+      )
+      return
+    }
+    const definite = merge.definite
+    if (!definite && !optional) {
+      issues.push(
+        issue(
+          "ECP_REF_MAYBE_MISSING",
+          "error",
+          "Merge port might be missing. Add optional and fallback.",
+          `${pointer}/$ref`,
+          nodeId,
+          [`add "optional": true and a "fallback"`],
+        ),
+      )
+    }
+    const schemas = bindings.map((binding) => binding.schema)
+    const merged = schemas.length <= 1 ? (schemas[0] ?? {}) : { anyOf: schemas }
+    if (target && !typesFit(merged, target)) {
+      issues.push({
+        ...issue("ECP_TYPE_MISMATCH", "error", "Merge port does not fit the target schema.", `${pointer}/$ref`, nodeId),
+        expected: trim(target, 2048),
+        actual: trim(merged, 1024),
+      })
+    }
+    return
+  }
+  const ref = String(rawRef)
   const parsed = parseRef(ref)
   if (!parsed) {
     issues.push(issue("ECP_REF_PATH_INVALID", "error", `Ref ${ref} is not a state path.`, `${pointer}/$ref`, nodeId))
@@ -616,8 +617,9 @@ function collectAs(nodes: NodeLike[]): string[] {
   for (const node of nodes) {
     if (node.as) keys.push(node.as)
     for (const child of node.steps ?? []) keys.push(...collectAs([child]))
-    for (const arm of node.arms ?? []) keys.push(...collectAs(arm.steps))
-    for (const line of node.lines ?? []) keys.push(...collectAs(line))
+    for (const child of node.then ?? []) keys.push(...collectAs([child]))
+    for (const child of node.else ?? []) keys.push(...collectAs([child]))
+    for (const line of node.paths ?? []) keys.push(...collectAs(line))
   }
   return keys
 }
@@ -690,28 +692,20 @@ function issue(
   return { code, severity, message, path, nodeId, suggestions }
 }
 
-interface ArmLike {
-  expr?: string
-  steps: NodeLike[]
-}
-
 interface NodeLike {
   type?: string
   id?: string
   path: string
   uses?: string
-  expr?: string
   input?: unknown
   accepts?: unknown
   returns?: unknown
   as?: string
   mode?: string
-  ref?: string
   steps?: NodeLike[]
-  arms?: ArmLike[]
-  lines?: NodeLike[][]
-  collect?: string
-  into?: string
+  then?: NodeLike[]
+  else?: NodeLike[]
+  paths?: NodeLike[][]
   onError?: string
 }
 
@@ -727,33 +721,25 @@ function asNode(node: ExecutionManifest["steps"][number], path: string): NodeLik
     id: typeof record.id === "string" ? record.id : undefined,
     path,
     uses: typeof record.uses === "string" ? record.uses : undefined,
-    expr: typeof record.expr === "string" ? record.expr : undefined,
     input: record.input,
     accepts: record.accepts,
     returns: record.returns,
     as: typeof record.as === "string" ? record.as : undefined,
     mode: typeof record.mode === "string" ? record.mode : undefined,
   }
-  if (type === "branch" && Array.isArray(record.branches)) {
-    base.arms = record.branches.map((arm, index) => {
-      const armRecord = arm as Record<string, unknown>
-      return {
-        expr: typeof armRecord.expr === "string" ? armRecord.expr : undefined,
-        steps: asNodes((armRecord.steps as ExecutionManifest["steps"]) ?? [], `${path}/branches/${index}/steps`),
-      }
-    })
+  if (type === "if") {
+    base.then = Array.isArray(record.then) ? asNodes(record.then as ExecutionManifest["steps"], `${path}/then`) : []
+    base.else = Array.isArray(record.else) ? asNodes(record.else as ExecutionManifest["steps"], `${path}/else`) : []
   }
   if (type === "loop" && Array.isArray(record.steps)) {
     base.steps = asNodes(record.steps as ExecutionManifest["steps"], `${path}/steps`)
-    base.ref = typeof record.ref === "string" ? record.ref : undefined
     base.as = typeof record.as === "string" ? record.as : undefined
-    base.collect = typeof record.collect === "string" ? record.collect : undefined
-    base.into = typeof record.into === "string" ? record.into : undefined
     base.onError = typeof record.onError === "string" ? record.onError : undefined
+    base.input = record.input
   }
-  if (type === "parallel" && Array.isArray(record.branches)) {
-    base.lines = record.branches.map((line, index) =>
-      asNodes(line as ExecutionManifest["steps"], `${path}/branches/${index}`),
+  if (type === "parallel" && Array.isArray(record.paths)) {
+    base.paths = record.paths.map((line, index) =>
+      asNodes(line as ExecutionManifest["steps"], `${path}/paths/${index}`),
     )
   }
   if (type === "step") base.steps = undefined

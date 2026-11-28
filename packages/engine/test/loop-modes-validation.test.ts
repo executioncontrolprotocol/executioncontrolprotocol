@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { validateExecution } from "../src/index.js"
+import { forLoop, foreachLoop } from "./manifest-helpers.js"
 
 const echo = {
   id: "@executioncontrolprotocol/test.echo",
@@ -15,88 +16,88 @@ const echo = {
   returns: { type: "object", properties: { echo: {} } },
 }
 
-const body = [{ id: "body", uses: echo.id, input: { value: "x" }, as: "out", mode: "replace" }]
-
-function manifest(loop: Record<string, unknown>): ExecutionManifest {
-  return {
+async function issues(steps: ExecutionManifest["steps"]) {
+  const manifest: ExecutionManifest = {
     schema: "@executioncontrolprotocol.execution",
     version: "2.0",
     execution: {
       accepts: {
         type: "object",
-        properties: { rows: { type: "array", items: { type: "object" } }, n: { type: "integer" }, go: { type: "boolean" } },
-        required: ["rows", "n", "go"],
+        properties: {
+          rows: { type: "array", items: { type: "object" } },
+          n: { type: "integer" },
+        },
+        required: ["rows", "n"],
       },
     },
-    steps: [{ type: "loop", id: "l", steps: body, ...loop } as ExecutionManifest["steps"][0]],
-  } as ExecutionManifest
-}
-
-async function issues(loop: Record<string, unknown>) {
-  return (await validateExecution(manifest(loop), { capabilities: [echo] })).issues
+    steps,
+  }
+  return (await validateExecution(manifest, { capabilities: [echo] })).issues
 }
 
 describe("loop mode validation", () => {
-  it("reports one readable error when both ref and expr are set", async () => {
-    const found = await issues({ mode: "forEach", ref: "state.rows", expr: "(s) => s.rows", as: "r", collect: "state.out", into: "x" })
-    expect(found).toEqual([
-      expect.objectContaining({ code: "ECP_MANIFEST_INVALID", path: "/steps/0", message: "Loop in forEach mode requires exactly one of ref and expr." }),
-    ])
+  it("requires mode, driver, and as", async () => {
+    const found = await issues([{ type: "loop", id: "l", steps: [] } as ExecutionManifest["steps"][0]])
+    expect(found.filter((issue) => issue.severity === "error").length).toBeGreaterThan(0)
   })
 
-  it("reports one readable error when neither ref nor expr is set", async () => {
-    const found = await issues({ maxRounds: 2 })
-    expect(found).toEqual([
-      expect.objectContaining({ path: "/steps/0/ref", message: "Loop in while mode requires exactly one of ref and expr." }),
+  it("rejects legacy while, end, into, and maxRounds", async () => {
+    const found = await issues([
+      {
+        type: "loop",
+        id: "l",
+        mode: "while",
+        maxRounds: 2,
+        steps: [],
+        end: { input: { repeat: false } },
+      } as ExecutionManifest["steps"][0],
     ])
+    expect(found.some((issue) => issue.path?.includes("mode") || issue.path?.includes("maxRounds"))).toBe(true)
+    const intoIssue = await issues([
+      {
+        type: "loop",
+        id: "l",
+        mode: "forEach",
+        as: "r",
+        input: { items: { $ref: "state.rows" } },
+        into: "collected",
+        steps: [],
+      } as ExecutionManifest["steps"][0],
+    ])
+    expect(intoIssue.some((issue) => issue.path?.includes("into"))).toBe(true)
   })
 
-  it("names the mode for fields it doesn't allow, one error each", async () => {
-    expect(await issues({ expr: "(s) => false", maxRounds: 2, collect: "state.out" })).toEqual([
-      expect.objectContaining({ path: "/steps/0/collect", message: "collect is not allowed in while loop mode." }),
-    ])
-    expect(await issues({ mode: "for", ref: "state.n", as: "i", maxRounds: 3 })).toEqual([
-      expect.objectContaining({ path: "/steps/0/maxRounds", message: "maxRounds is not allowed in for loop mode." }),
-    ])
+  it("accepts legal for and forEach shells", async () => {
     expect(
-      await issues({ mode: "forEach", ref: "state.rows", as: "r", collect: "state.out", into: "x", maxRounds: 2 }),
-    ).toEqual([expect.objectContaining({ path: "/steps/0/maxRounds", message: "maxRounds is not allowed in forEach loop mode." })])
-  })
-
-  it("rejects throttle and names the missing per-mode fields", async () => {
+      (await issues([forLoop(), { id: "read", uses: echo.id, input: { value: { $ref: "state.out" } }, as: "done" }])).filter(
+        (issue) => issue.severity === "error",
+      ),
+    ).toEqual([])
     expect(
-      await issues({ mode: "forEach", ref: "state.rows", as: "r", collect: "state.out", into: "x", throttle: { starts: 1, perSeconds: 1 } }),
-    ).toEqual([expect.objectContaining({ path: "/steps/0/throttle", message: "Loop in forEach mode does not support throttle." })])
-    expect(await issues({ mode: "for", ref: "state.n" })).toEqual([
-      expect.objectContaining({ path: "/steps/0/as", message: "for loop requires as." }),
-    ])
-    const missing = await issues({ mode: "forEach", ref: "state.rows" })
-    expect(missing.map((issue) => issue.message).sort()).toEqual([
-      "forEach loop requires as.",
-      "forEach loop requires collect.",
-      "forEach loop requires into.",
-    ])
+      (
+        await issues([
+          foreachLoop(),
+          { id: "read", uses: echo.id, input: { value: { $ref: "state.out" } }, as: "done" },
+        ])
+      ).filter((issue) => issue.severity === "error"),
+    ).toEqual([])
   })
 
-  it("keeps real errors inside the loop body", async () => {
-    const found = await issues({ maxRounds: 2, steps: [{ id: "body", uses: echo.id, input: { value: "x" }, as: "out" }] })
-    expect(found.map((issue) => issue.code)).toEqual(expect.arrayContaining(["ECP_MANIFEST_INVALID", "ECP_COMMIT_CONFLICT"]))
-  })
-
-  it("accepts each mode driven by ref, and warns only for an expr-driven forEach", async () => {
-    expect(await issues({ ref: "state.go", maxRounds: 2 })).toEqual([])
-    expect(await issues({ mode: "for", ref: "state.n", as: "i" })).toEqual([])
-    expect(await issues({ mode: "forEach", ref: "state.rows", as: "r", collect: "state.out", into: "x" })).toEqual([])
-    expect(await issues({ mode: "forEach", expr: "(s) => s.rows", as: "r", collect: "state.out", into: "x" })).toEqual([
-      expect.objectContaining({ code: "ECP_LOOP_UNTYPED", severity: "warning", path: "/steps/0/expr" }),
-    ])
-  })
-
-  it("rejects a ref whose type doesn't fit the mode", async () => {
-    expect((await issues({ ref: "state.n", maxRounds: 2 })).map((issue) => issue.code)).toContain("ECP_TYPE_MISMATCH")
-    expect((await issues({ mode: "for", ref: "state.go", as: "i" })).map((issue) => issue.code)).toContain("ECP_TYPE_MISMATCH")
+  it("rejects driver refs whose types do not fit", async () => {
     expect(
-      (await issues({ mode: "forEach", ref: "state.n", as: "r", collect: "state.out", into: "x" })).map((issue) => issue.code),
+      (await issues([forLoop({ input: { count: { $ref: "state.rows" } } })])).map((issue) => issue.code),
     ).toContain("ECP_TYPE_MISMATCH")
+    expect(
+      (await issues([foreachLoop({ input: { items: { $ref: "state.n" } } })])).map((issue) => issue.code),
+    ).toContain("ECP_TYPE_MISMATCH")
+  })
+
+  it("allows create inside a for body", async () => {
+    const found = await issues([
+      forLoop({
+        steps: [{ id: "body", uses: echo.id, input: { value: "x" }, as: "fresh", mode: "create" }],
+      }),
+    ])
+    expect(found.map((issue) => issue.code)).not.toContain("ECP_COMMIT_CONFLICT")
   })
 })

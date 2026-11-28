@@ -1,7 +1,7 @@
 [
   {
     "code": "ECP_REF_UNRESOLVED",
-    "path": "/steps/0/branches/0/0/input/value/$ref",
+    "path": "/steps/0/paths/0/0/input/value/$ref",
     "severity": "error",
     "messageIncludes": "parallel sibling"
   }

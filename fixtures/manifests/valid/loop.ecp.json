@@ -5,8 +5,9 @@
     {
       "type": "loop",
       "id": "refine",
-      "expr": "(state) => state.tick === undefined",
-      "maxRounds": 2,
+      "mode": "for",
+      "as": "round",
+      "input": { "count": 2 },
       "steps": [
         {
           "id": "tick",

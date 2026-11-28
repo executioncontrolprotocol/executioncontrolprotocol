@@ -5,7 +5,7 @@
   "steps": [],
   "events": [
     "run.start",
-    "branch.select",
+    "if.select",
     "run.end"
   ]
 }

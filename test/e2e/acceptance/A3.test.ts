@@ -47,7 +47,7 @@ function applyFix(
       ;(steps[1] as { id: string; as: string }).as = "echo2"
       break
     case "expr-syntax":
-      ;(steps[0] as { expr: string }).expr = "(state) => true"
+      ;(steps[0] as { expression: string }).expression = "true"
       break
     case "ref-unresolved":
       ;(steps[0] as { input: { value: unknown } }).input = { value: "literal" }
@@ -59,13 +59,15 @@ function applyFix(
     case "mode-without-as":
       ;(steps[0] as { as: string }).as = "out"
       break
-    case "default-arm-not-last": {
-      const branch = steps[0] as {
-        branches: Array<Record<string, unknown>>
-      }
-      const defaultArm = branch.branches.find((arm) => arm.expr === undefined)
-      const others = branch.branches.filter((arm) => arm !== defaultArm)
-      if (defaultArm) branch.branches = [...others, defaultArm]
+    case "l2-if-empty-then": {
+      const iff = steps[0] as { then: unknown[] }
+      iff.then = [
+        {
+          id: "echo",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: "x" },
+        },
+      ]
       break
     }
     default:

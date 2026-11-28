@@ -69,9 +69,13 @@
     },
     {
       "type": "loop",
-      "mode": "forEach",
       "id": "rows",
-      "ref": "state.packed.rows",
+      "mode": "forEach",
+      "input": {
+        "items": {
+          "$ref": "state.packed.rows"
+        }
+      },
       "as": "row",
       "concurrency": 2,
       "steps": [
@@ -85,9 +89,7 @@
           },
           "as": "echoed"
         }
-      ],
-      "collect": "state.echoed",
-      "into": "results"
+      ]
     }
   ]
 }

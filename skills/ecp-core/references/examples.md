@@ -1,9 +1,10 @@
 # Examples and fixtures
 
 Transforms move data between steps (`examples/transform/`, core plugin); transform `script` is a
-plain object (`lang`, `source`/`path`), not `{ "$script": … }`. `expr` on steps, branch arms and
-`while` loops is control only (boolean gates). Loop `expr` / plain `ref` also drive `for` and
-`forEach` modes. Do not put `$expr` in step `input`.
+plain object (`lang`, `source`/`path`), not `{ "$script": … }`. An `if` node's `expression` or
+`script` is boolean control over `input`. `for` and `forEach` bind drivers through loop `input`
+(`count` / `items`); body keys leave the loop as arrays. Do not put `$expr` in
+step `input`. Pattern manifests live under `examples/patterns/`.
 
 | Path | Role |
 | --- | --- |

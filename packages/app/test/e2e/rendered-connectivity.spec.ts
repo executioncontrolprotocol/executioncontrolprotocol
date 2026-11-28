@@ -5,7 +5,7 @@ import type { CapabilityEntry, ExecutionManifest } from "@executioncontrolprotoc
 import { expect, test, type Page } from "@playwright/test"
 import { AppHostClient } from "../../src/client/api.js"
 import { retrieveItem, retrieveItems } from "../../src/client/results.js"
-import { detachedNodeIds, executionToReactFlow, type ReactFlowDocument } from "../../src/graph/index.js"
+import { executionToReactFlow, type ReactFlowDocument } from "../../src/graph/index.js"
 import { manifestCapabilityUses, mergeCapabilityCatalog } from "../../src/web/hooks/useCapabilities.js"
 import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
 
@@ -52,10 +52,6 @@ const manifestSources = [
 
 /** Source path -> copied path in the harness work dir (unique basename). */
 const manifestInHarness = new Map<string, string>()
-
-function nonFrameNodeIds(doc: ReactFlowDocument): string[] {
-  return doc.nodes.filter((node) => node.type !== "ecp-frame").map((node) => node.id)
-}
 
 function loadManifest(file: string): ExecutionManifest {
   return JSON.parse(readFileSync(file, "utf8")) as ExecutionManifest
@@ -130,7 +126,7 @@ test.describe("Rendered connectivity", () => {
       const rf008 = attachReactFlow008Guard(page)
       const manifest = loadManifest(manifestPath)
       const doc = await encodeLikeWorkspace(harness, manifest)
-      const published = doc.edges.filter((edge) => edge.data.kind === "data" || edge.data.kind === "route")
+      const published = doc.edges.filter((edge) => edge.data.kind === "data")
       const expectedIds = new Set(published.map((edge) => edge.id))
 
       await openWorkspace(page, manifestPath)
@@ -150,16 +146,16 @@ test.describe("Rendered connectivity", () => {
         expect(renderedIdSet.has(id), `${label} missing rendered edge ${id}`).toBe(true)
       }
 
-      const touched = new Set<string>()
       for (const edge of published) {
         if (!renderedIdSet.has(edge.id)) continue
-        touched.add(edge.source)
-        touched.add(edge.target)
-      }
-      const exempt = detachedNodeIds(manifest)
-      for (const nodeId of nonFrameNodeIds(doc)) {
-        if (exempt.has(nodeId)) continue
-        expect(touched.has(nodeId), `${label} orphaned node ${nodeId}`).toBe(true)
+        expect(
+          doc.nodes.some((node) => node.id === edge.source),
+          `${label} unknown data edge source ${edge.source}`,
+        ).toBe(true)
+        expect(
+          doc.nodes.some((node) => node.id === edge.target),
+          `${label} unknown data edge target ${edge.target}`,
+        ).toBe(true)
       }
     })
   }

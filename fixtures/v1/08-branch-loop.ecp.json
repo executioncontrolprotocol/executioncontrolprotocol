@@ -37,54 +37,64 @@
       "as": "Seed"
     },
     {
-      "type": "branch",
-      "id": "route",
-      "branches": [
+      "type": "if",
+      "id": "pick",
+      "input": {
+        "expand": {
+          "$ref": "state.expand"
+        }
+      },
+      "expression": "input.expand === true",
+      "then": [
         {
-          "label": "expand",
-          "expr": "(state) => state.expand === true",
-          "steps": [
-            {
-              "id": "expanded",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "expanded"
-              },
-              "as": "expanded"
-            }
-          ]
-        },
+          "id": "expanded",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "expanded"
+          },
+          "as": "expanded"
+        }
+      ],
+      "else": [
         {
-          "label": "compact",
-          "expr": "(state) => state.expand === false",
-          "steps": [
-            {
-              "id": "compact",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "skipped-arm"
-              },
-              "as": "compact"
-            }
-          ]
+          "id": "compact",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "skipped-arm"
+          },
+          "as": "compact"
         }
       ]
     },
     {
-      "id": "gated",
-      "uses": "@executioncontrolprotocol/test.echo",
+      "type": "if",
+      "id": "gated-gate",
       "input": {
-        "value": "only-when-expand"
+        "expand": {
+          "$ref": "state.expand"
+        }
       },
-      "as": "gated",
-      "expr": "(state) => state.expand === true"
+      "expression": "input.expand === true",
+      "then": [
+        {
+          "id": "gated",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "only-when-expand"
+          },
+          "as": "gated"
+        }
+      ]
     },
     {
       "type": "loop",
       "id": "retry",
       "label": "retry",
-      "expr": "(state) => state.tick === undefined || state.tick.echo !== 'tick'",
-      "maxRounds": 2,
+      "mode": "for",
+      "input": {
+        "count": 1
+      },
+      "as": "i",
       "steps": [
         {
           "id": "tick",

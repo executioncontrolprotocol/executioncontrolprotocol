@@ -6,17 +6,22 @@ import {
   unwrapStructure,
   type StructureEditResult,
 } from "./structure-edit.js"
-import type { ReactFlowEdge } from "./types.js"
+import { parseEndMarkerId, type ReactFlowEdge } from "./types.js"
+
+/** Why a control `end` node can't be deleted on its own. @category App */
+export const STRUCTURE_EDIT_DELETE_END = "Delete the control node instead"
 
 /**
- * Canvas selection mapped to a delete edit.
+ * Canvas selection mapped to a delete edit: a start node (`if` / `parallel` / `loop`) is removed and its nodes stay,
+ * a loop `end` is refused, a branch loses its `$ref`.
  * @category App
  */
 export type DeleteSelection =
   | { kind: "none" }
   | { kind: "steps"; stepIds: readonly string[] }
   | { kind: "structure"; structureId: string }
-  | { kind: "connector"; edge: ReactFlowEdge; level: number }
+  | { kind: "end"; endNodeId: string }
+  | { kind: "connector"; edge: ReactFlowEdge }
 
 /**
  * Pure Delete / Backspace dispatch for the graph selection.
@@ -41,18 +46,31 @@ export function deleteSelection(
   if (selection.kind === "structure") {
     return unwrapStructure(manifest, selection.structureId)
   }
-  const preview = connectorDeletePreview(manifest, selection.edge, selection.level)
+  if (selection.kind === "end") return { ok: false, reason: STRUCTURE_EDIT_DELETE_END }
+  const preview = connectorDeletePreview(manifest, selection.edge)
   if (!preview.ok) return { ok: false, reason: preview.reason }
-  return deleteConnector(manifest, selection.edge, selection.level)
+  return deleteConnector(manifest, selection.edge)
 }
 
 /**
- * Whether `structureId` selects a branch, parallel, or loop container (not a step).
+ * Whether `structureId` is the id of a start node (`if`, `parallel` or `loop`), not a step.
  * @category App
  */
 export function isStructureHeaderSelection(manifest: ExecutionManifest, structureId: string): boolean {
   const hit = findNodePlacement(manifest.steps, structureId)
   if (!hit) return false
   const node = hit.parent[hit.index]
-  return node.type === "branch" || node.type === "parallel" || node.type === "loop"
+  return node.type === "if" || node.type === "parallel" || node.type === "loop"
+}
+/**
+ * Whether `nodeId` is the React Flow id of a loop `end` node that exists in the manifest.
+ * @category App
+ */
+export function isEndNodeSelection(manifest: ExecutionManifest, nodeId: string): boolean {
+  const parsed = parseEndMarkerId(nodeId)
+  if (!parsed) return false
+  const structureId = parsed.structureId
+  const hit = findNodePlacement(manifest.steps, structureId)
+  if (!hit) return false
+  return hit.node.type === "if" || hit.node.type === "parallel" || hit.node.type === "loop"
 }

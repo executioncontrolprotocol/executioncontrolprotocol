@@ -3,13 +3,19 @@
   "version": "2.0",
   "steps": [
     {
-      "id": "echo",
-      "uses": "@executioncontrolprotocol/test.echo",
-      "input": {
-        "value": "hi"
-      },
-      "as": "echo",
-      "expr": "(state) =>"
+      "type": "if",
+      "id": "bad",
+      "expression": "(state) =>",
+      "then": [
+        {
+          "id": "echo",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "hi"
+          },
+          "as": "echo"
+        }
+      ]
     }
   ]
 }

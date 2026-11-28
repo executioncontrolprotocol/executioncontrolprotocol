@@ -1,22 +1,22 @@
 import { readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import type { ExecutionManifest, Node } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   acceptsPropertyKeys,
-  detachedNodeIds,
   executionToReactFlow,
   EXECUTION_RETURNS_NODE_ID,
+  extractDataEdges,
+  resolveInputHandle,
   returnsSourceKeys,
-  stateReadsFromExpr,
   walkInputRefs,
   type ReactFlowDocument,
   type ReactFlowEdge,
-  type ReactFlowRouteEdgeData,
 } from "../../src/graph/index.js"
 import { jsonSchemaObjectProperties } from "../../src/graph/json-schema.js"
-import { FLOW_IN_HANDLE, FLOW_OUT_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
+import { isStepNode } from "../../src/graph/io-from-schema.js"
+import { LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, "../../../..")
@@ -63,99 +63,119 @@ function dataEdges(doc: ReactFlowDocument): ReactFlowEdge[] {
   return doc.edges.filter((edge) => edge.data.kind === "data")
 }
 
-function assertC2(doc: ReactFlowDocument, file: string, manifest?: ExecutionManifest): void {
-  const connected = new Set<string>()
-  for (const edge of doc.edges) {
-    connected.add(edge.source)
-    connected.add(edge.target)
-  }
-  const exempt = manifest ? detachedNodeIds(manifest) : new Set<string>()
-  for (const node of doc.nodes) {
-    if (node.type === "ecp-frame") continue
-    if (exempt.has(node.id)) continue
-    expect(connected.has(node.id), `${file} orphaned node ${node.id}`).toBe(true)
-  }
+interface RefBinding {
+  readerId: string
+  inputPath: string
+  refPath: string
 }
 
-type AnyNode = Record<string, unknown> & { id: string; type?: string; steps?: AnyNode[] }
+function inputPortIds(manifest: ExecutionManifest): Map<string, string[]> {
+  const doc = executionToReactFlow(manifest)
+  const out = new Map<string, string[]>()
+  for (const node of doc.nodes) {
+    if (node.type === "ecp-end") {
+      out.set(node.id, [])
+      continue
+    }
+    if (node.type === "ecp-step" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop") {
+      const data = node.data as { inputs: Array<{ id: string }> }
+      out.set(node.id, data.inputs.map((port) => port.id))
+    }
+  }
+  return out
+}
 
-/** Visit every node in the manifest, depth first, including loop bodies and branch / parallel arms. */
-function forEachNode(nodes: AnyNode[], visit: (node: AnyNode) => void): void {
-  for (const node of nodes) {
-    visit(node)
-    if (Array.isArray(node.steps)) forEachNode(node.steps, visit)
-    if (Array.isArray(node.branches)) {
-      for (const branch of node.branches as unknown[]) {
-        if (Array.isArray(branch)) forEachNode(branch as AnyNode[], visit)
-        else if (branch && typeof branch === "object" && Array.isArray((branch as AnyNode).steps)) {
-          forEachNode((branch as AnyNode).steps!, visit)
+function collectRefBindings(nodes: Node[]): RefBinding[] {
+  const bindings: RefBinding[] = []
+  const walk = (list: Node[]): void => {
+    for (const node of list) {
+      if (node.type === "if" || node.type === "parallel") {
+        if (node.input) {
+          for (const [name, value] of Object.entries(node.input)) {
+            walkInputRefs(value, name, (inputPath, refPath) => {
+              if (refPath.startsWith("state.") || refPath.startsWith("$state")) {
+                bindings.push({ readerId: node.id, inputPath, refPath })
+              }
+            })
+          }
+        }
+        if (node.type === "if") {
+          walk(node.then)
+          if (node.else) walk(node.else)
+        } else {
+          for (const pathNodes of node.paths) walk(pathNodes)
+        }
+      } else if (node.type === "loop") {
+        if (node.input) {
+          for (const [name, value] of Object.entries(node.input)) {
+            walkInputRefs(value, name, (inputPath, refPath) => {
+              if (refPath.startsWith("state.") || refPath.startsWith("$state")) {
+                bindings.push({ readerId: node.id, inputPath, refPath })
+              }
+            })
+          }
+        }
+        walk(node.steps)
+      } else if (isStepNode(node) && node.input) {
+        for (const [name, value] of Object.entries(node.input)) {
+          walkInputRefs(value, name, (inputPath, refPath) => {
+            if (refPath.startsWith("state.") || refPath.startsWith("$state")) {
+              bindings.push({ readerId: node.id, inputPath, refPath })
+            }
+          })
         }
       }
     }
   }
+  walk(nodes)
+  return bindings
 }
-
-/** Every state key the manifest can produce: execution inputs, step `as`, loop `into` and item keys. */
-function knownKeys(manifest: ExecutionManifest): Set<string> {
-  const keys = new Set(acceptsPropertyKeys(manifest))
-  forEachNode((manifest.steps ?? []) as unknown as AnyNode[], (node) => {
-    if (typeof node.as === "string") {
-      keys.add(node.as)
-      if (node.type === "loop" && node.mode === "forEach") keys.add(`${node.as}Index`)
-    }
-    if (typeof node.into === "string") keys.add(node.into)
-  })
-  return keys
-}
-
-const withStatePrefix = (path: string): string => (path.startsWith("state.") ? path : `state.${path}`)
 
 /**
- * C1, checked from the manifest alone (not from the edge builder): every `$ref` in a step input, every state read in
- * a step or loop `expr`, and every loop `ref` / `collect` has a data edge into that node carrying that state path.
- * Reads of keys nothing produces (an optional ref with a fallback) are skipped.
+ * C1: every manifest `$ref` has a published data branch with matching source/target nodes and ports (Resolution 6).
  */
 function assertC1(manifest: ExecutionManifest, doc: ReactFlowDocument, file: string): void {
-  const keys = knownKeys(manifest)
-  const edges = dataEdges(doc)
-  // One edge per state key and node is enough: `state.tick` and `state.tick.echo` in one expression share an edge.
-  const keyOf = (path: string): string => withStatePrefix(path).slice("state.".length).split(".")[0] ?? ""
-  const expectEdge = (nodeId: string, statePath: string, what: string): void => {
-    const wanted = withStatePrefix(statePath)
-    if (!keys.has(keyOf(wanted))) return
-    const found = edges.some(
-      (edge) => edge.target === nodeId && keyOf((edge.data as { statePath?: string }).statePath ?? "") === keyOf(wanted),
-    )
-    expect(found, `${file}: no edge into ${nodeId} for ${what} (${wanted})`).toBe(true)
+  const steps = Array.isArray(manifest.steps) ? manifest.steps : []
+  const bindings = collectRefBindings(steps)
+  const portIds = inputPortIds(manifest)
+  const published = dataEdges(doc)
+
+  const outputPortIds = new Map<string, string[]>()
+  for (const node of doc.nodes) {
+    if (node.type === "ecp-step" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop" || node.type === "ecp-end" || node.type === "ecp-io") {
+      const data = node.data as { outputs?: Array<{ id: string }> }
+      if (data.outputs) outputPortIds.set(node.id, data.outputs.map((port) => port.id))
+    }
   }
-  forEachNode((manifest.steps ?? []) as unknown as AnyNode[], (node) => {
-    if (node.type === "loop") {
-      if (typeof node.ref === "string") expectEdge(node.id, node.ref, "loop ref")
-      if (typeof node.collect === "string") expectEdge(node.id, node.collect, "loop collect")
-      if (typeof node.expr === "string") {
-        for (const read of stateReadsFromExpr(node.expr)) expectEdge(node.id, read, "loop expr")
-      }
-      return
-    }
-    if (node.type !== undefined && node.type !== "step") return
-    if (node.input && typeof node.input === "object") {
-      for (const [name, value] of Object.entries(node.input as Record<string, unknown>)) {
-        walkInputRefs(value, name, (inputPath, refPath) => {
-          if (refPath.startsWith("state.")) expectEdge(node.id, refPath, `input ${inputPath}`)
-        })
-      }
-    }
-    if (typeof node.expr === "string") {
-      for (const read of stateReadsFromExpr(node.expr)) expectEdge(node.id, read, "expr gate")
-    }
-  })
 
   const acceptsKeys = acceptsPropertyKeys(manifest)
+  const expectedFromExtract = extractDataEdges(steps, acceptsKeys, outputPortIds, portIds)
+
+  for (const binding of bindings) {
+    const targetHandle = resolveInputHandle(binding.inputPath, portIds.get(binding.readerId))
+    const fromExtract = expectedFromExtract.find(
+      (edge) =>
+        edge.target === binding.readerId &&
+        edge.targetHandle === targetHandle &&
+        (edge.data as { statePath?: string }).statePath === binding.refPath,
+    )
+    expect(fromExtract, `${file}: no branch for ${binding.readerId}.${binding.inputPath} (${binding.refPath})`).toBeDefined()
+    const onCanvas = published.find(
+      (edge) =>
+        edge.target === binding.readerId &&
+        edge.targetHandle === targetHandle &&
+        edge.source === fromExtract!.source &&
+        edge.sourceHandle === fromExtract!.sourceHandle,
+    )
+    expect(onCanvas, `${file}: branch ${binding.refPath} not published on canvas`).toBeDefined()
+  }
+
   const writers = returnsSourceKeys(manifest)
+  const acceptsKeysSchema = acceptsPropertyKeys(manifest)
   for (const field of jsonSchemaObjectProperties(manifest.execution?.returns)) {
-    if (!writers.has(field.name) && !acceptsKeys.has(field.name)) continue
+    if (!writers.has(field.name) && !acceptsKeysSchema.has(field.name)) continue
     expect(
-      dataEdges(doc).some((e) => e.target === EXECUTION_RETURNS_NODE_ID && e.targetHandle === field.name),
+      published.some((e) => e.target === EXECUTION_RETURNS_NODE_ID && e.targetHandle === field.name),
       `${file} returns ${field.name}`,
     ).toBe(true)
   }
@@ -169,13 +189,12 @@ describe("graph connectivity invariant", () => {
     expect(manifestPaths.length).toBeGreaterThan(5)
   })
 
-  it.each(manifestPaths)("%s satisfies C1 and C2", (file) => {
+  it.each(manifestPaths)("%s satisfies C1", (file) => {
     const manifest = loadManifest(file)
     const doc = executionToReactFlow(manifest)
     const relative = path.relative(repoRoot, file)
     try {
       assertC1(manifest, doc, relative)
-      assertC2(doc, relative, manifest)
       connectivityResults.push({ file: relative, ok: true })
     } catch (error) {
       connectivityResults.push({ file: relative, ok: false })
@@ -194,17 +213,15 @@ describe("connectivity focused cases", () => {
           type: "loop",
           mode: "forEach",
           id: "outer",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           as: "item",
-          into: "out",
           steps: [
             {
               type: "loop",
               mode: "forEach",
               id: "inner",
-              ref: "state.item.parts",
+              input: { items: { $ref: "state.item.parts" } },
               as: "part",
-              into: "parts",
               steps: [
                 {
                   id: "use-part",
@@ -230,7 +247,7 @@ describe("connectivity focused cases", () => {
     const doc = executionToReactFlow(manifest)
     const data = dataEdges(doc)
     expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_ITEM_HANDLE, target: "use-part" }))
-    expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_ITEM_HANDLE, target: "use-index" }))
+    expect(data).toContainEqual(expect.objectContaining({ source: "inner", sourceHandle: LOOP_INDEX_HANDLE, target: "use-index" }))
     expect(data).toContainEqual(expect.objectContaining({ source: "outer", sourceHandle: LOOP_ITEM_HANDLE, target: "use-item" }))
   })
 
@@ -244,9 +261,8 @@ describe("connectivity focused cases", () => {
           type: "loop",
           mode: "forEach",
           id: "cleanup",
-          ref: "state.items",
+          input: { items: { $ref: "state.items" } },
           as: "published",
-          into: "done",
           steps: [{ id: "in-loop", uses: "@executioncontrolprotocol/test.echo", as: "other" }],
         },
         {
@@ -265,55 +281,47 @@ describe("connectivity focused cases", () => {
   it("for iteration variable edge", () => {
     const doc = executionToReactFlow(loadManifest(path.join(validDir, "loop-for.ecp.json")))
     expect(dataEdges(doc)).toContainEqual(
-      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_ITEM_HANDLE, target: "tick" }),
+      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_INDEX_HANDLE, target: "tick" }),
     )
   })
 
-  it.each(manifestPaths)("%s route edges use flow handles", (file) => {
-    const doc = executionToReactFlow(loadManifest(file))
-    for (const edge of doc.edges) {
-      if (edge.data.kind !== "route") continue
-      expect(edge.sourceHandle, `${file} ${edge.id} sourceHandle`).toBe(FLOW_OUT_HANDLE)
-      expect(edge.targetHandle, `${file} ${edge.id} targetHandle`).toBe(FLOW_IN_HANDLE)
-    }
+  it("if input and for loop count branches", () => {
+    const branch = executionToReactFlow(loadManifest(path.join(examplesDir, "patterns/branch.ecp.json")))
+    expect(dataEdges(branch)).toContainEqual(
+      expect.objectContaining({ target: "by-tier", targetHandle: "tier", sourceHandle: "tier" }),
+    )
+    const loopFor = executionToReactFlow(loadManifest(path.join(examplesDir, "patterns/loop-for.ecp.json")))
+    expect(dataEdges(loopFor)).toContainEqual(
+      expect.objectContaining({ source: "rounds", sourceHandle: LOOP_INDEX_HANDLE, target: "tick" }),
+    )
   })
 
-  it.each(manifestPaths)("%s publishes every branch arm expr on a route edge level", (file) => {
-    const manifest = loadManifest(file)
-    const expected: Array<{ structureId: string; armIndex: number; expr: string }> = []
-    const walk = (nodes: AnyNode[]): void => {
-      for (const node of nodes) {
-        if (node.type === "branch") {
-          const arms = node.branches as Array<{ expr?: string; steps?: AnyNode[] }>
-          arms.forEach((arm, armIndex) => {
-            if (typeof arm.expr === "string") {
-              expected.push({ structureId: node.id, armIndex, expr: arm.expr })
-            }
-            if (arm.steps) walk(arm.steps)
-          })
-        } else if (node.type === "parallel") {
-          for (const line of node.branches as AnyNode[][]) walk(line)
-        } else if (node.type === "loop" && node.steps) {
-          walk(node.steps as AnyNode[])
-        }
-      }
+  it("ref to if as from outside the if draws nothing", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "if",
+          id: "gate",
+          expression: "true",
+          input: { x: 1 },
+          as: "scoped",
+          then: [{ id: "in-then", uses: "@executioncontrolprotocol/test.echo", input: { value: 1 } }],
+        },
+        {
+          id: "after",
+          uses: "@executioncontrolprotocol/test.echo",
+          input: { value: { $ref: "state.scoped" } },
+        },
+      ],
     }
-    walk((manifest.steps ?? []) as AnyNode[])
     const doc = executionToReactFlow(manifest)
-    const found = new Set<string>()
-    for (const edge of doc.edges) {
-      if (edge.data.kind !== "route") continue
-      const data = edge.data as ReactFlowRouteEdgeData
-      for (const level of data.levels) {
-        if (level.route === "branch" && typeof level.exprSource === "string") {
-          found.add(`${level.structureId}:${level.armIndex}:${level.exprSource}`)
-        }
-      }
-    }
-    for (const arm of expected) {
-      expect(found.has(`${arm.structureId}:${arm.armIndex}:${arm.expr}`), `${file} missing arm ${arm.structureId}[${arm.armIndex}]`).toBe(
-        true,
-      )
-    }
+    expect(dataEdges(doc).some((e) => e.target === "after" && (e.data as { statePath?: string }).statePath?.includes("scoped"))).toBe(false)
+  })
+
+  it.each(manifestPaths)("%s publishes data edges only", (file) => {
+    const doc = executionToReactFlow(loadManifest(file))
+    expect(doc.edges.every((edge) => edge.data.kind === "data" || edge.data.kind === "layout-control")).toBe(true)
   })
 })

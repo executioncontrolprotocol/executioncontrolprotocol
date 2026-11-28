@@ -1,0 +1,8 @@
+[
+  {
+    "code": "ECP_MANIFEST_INVALID",
+    "path": "/steps/0/then",
+    "severity": "error",
+    "messageIncludes": "`then` has no nodes"
+  }
+]

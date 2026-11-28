@@ -1,4 +1,4 @@
-import { parse, parseExpressionAt } from "acorn"
+import { parse } from "acorn"
 import type { ValidationIssue } from "@executioncontrolprotocol/protocol"
 
 /**
@@ -23,26 +23,24 @@ interface LocatedNode {
 }
 
 /**
- * Check one `expr` or `$expr` source. Returns a failure, or undefined when it is a single function.
+ * Check one `if` / `end` `expression` source. Returns a failure, or undefined when it is one expression.
  * @category Validation
  */
 export function checkExpression(source: string): SyntaxFailure | undefined {
+  if (source.trim() === "") return { message: "Expression is empty.", line: 1, column: 1 }
   try {
-    const node = parseExpressionAt(source, 0, { ecmaVersion: 2022 }) as LocatedNode
-    if (node.type !== "ArrowFunctionExpression" && node.type !== "FunctionExpression") {
-      return { message: "Expression must be a single function.", line: 1, column: 1 }
+    // Wrapped in parentheses so a leading `(` (e.g. an object literal) parses as one expression.
+    const program = parse(`(${source}\n)`, { ecmaVersion: 2022 }) as unknown as { body: LocatedNode[] }
+    if (program.body.length !== 1 || program.body[0]?.type !== "ExpressionStatement") {
+      return { message: "Expression must be a single expression.", line: 1, column: 1 }
     }
-    if (node.end !== source.length) {
-      return { message: "Expression must be a single function.", line: 1, column: node.end + 1 }
-    }
-    if ((node.params?.length ?? 0) > 1) {
-      return { message: "Expression function must take at most one parameter.", line: 1, column: 1 }
-    }
-    if (node.async) return { message: "Expression function must not be async.", line: 1, column: 1 }
-    if (node.generator) return { message: "Expression function must not be a generator.", line: 1, column: 1 }
     return undefined
   } catch (error) {
-    return fromAcorn(error, "Expression syntax is invalid.")
+    const failure = fromAcorn(error, "Expression syntax is invalid.")
+    const lines = source.split("\n")
+    // The error can land on the wrapper's closing line when the expression ends too early.
+    if (failure.line > lines.length) return { ...failure, line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 }
+    return failure.line === 1 ? { ...failure, column: Math.max(1, failure.column - 1) } : failure
   }
 }
 

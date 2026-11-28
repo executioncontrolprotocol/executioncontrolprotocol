@@ -1,4 +1,4 @@
-# App canvas editing: containers, connections, add capability, drag
+# App canvas editing: tunnels, connections, add capability, drag
 
 **Status:** plan, 2026-11-24. Decisions below agreed with the maintainer; nothing built yet.
 **Delivery:** one PR from `feature/app-canvas-editing` into `development`, one commit (or a few) per
@@ -7,6 +7,11 @@ phase. The branch stays open until every phase is done.
 pre-realignment App (`legacy/packages/app`, deleted in `8fd1f4c7`; read it with
 `git show 8fd1f4c7^:legacy/packages/app/<path>`) showed canvas editing that the realigned App doesn't
 have yet. This plan brings those features back on the v2 manifest and the host API.
+
+**Superseded in part:** [`graph-model.md`](graph-model.md) replaces the route-connector model this plan
+was written for. D2, D3, D3a and [Deleting connections](#deleting-connections) (except `detached` and
+draft rules) follow `graph-model.md` and `spec/11-app.md`: nodes and data branches, tunnels visual
+only, one control node with Kind, a grey rail, coloured tunnels and end markers. The other decisions stand.
 
 **Scope change:** spec 11 says the App is "view and run; expression editing on graph edges is in
 scope", and `REALIGNMENT-PLAN.md` § Later lists "App editing: canvas edits written through `commit`
@@ -18,9 +23,9 @@ phase 0, before any code.
 | # | Decision |
 | --- | --- |
 | D1 | **Deleting a connection removes the connector, never a node.** The connector disappears entirely; it doesn't just lose its condition or expression. Nodes it connected stay on the canvas and in the file, now disconnected, and the execution is invalid until they're reconnected. See [Deleting connections](#deleting-connections). |
-| D2 | **A branch arm is the edge.** A branch has no node of its own. Each connector shows at most one pill (branch-arm labels only; nested labels join with ` › `). Conditions are edited in the right-hand panel (one Branch section per arm on that connector). The pill or edge path selects the connector; one ⋯ menu per connector opens Configure / Delete. |
-| D3 | **Every structure is a container.** Branches, parallels and loops of every mode get the same frame `forEach` has today, with the structure's label and a ⋯ menu (Configure, Delete) on the frame header. Wrapping steps in a branch / parallel / loop creates that container. |
-| D3a | **The App owns right-click.** Right-click never shows the browser menu anywhere on the canvas: on empty canvas it opens the capability menu, on a container its ⋯ menu, on an edge its ⋯ menu, on a node the node menu. Wrap is only in the node menu. |
+| D2 | **Superseded by `graph-model.md`.** Conditions live on `if` nodes (`expression` / `script` over `input`); data branches are `$ref` bindings only. |
+| D3 | **Superseded by `graph-model.md` (tunnels are visual only; the control node starts each tunnel).** |
+| D3a | **The App owns right-click.** Right-click never shows the browser menu anywhere on the canvas: on empty canvas it opens the capability menu, on a branch its menu, on a node the node menu. Wrap is only in the node menu. Tunnels are not right-click targets. |
 | D4 | **The right-hand panel is where things are configured.** Menus only pick an action; Configure opens the panel. No modal configure dialogs (legacy had `RouteConfigureDialog` / `StepConfigureDialog`). |
 | D5 | **One capability picker.** Right-clicking the canvas and dropping a connection on empty canvas open the same searchable capability menu at the cursor. |
 | D6 | **Only valid connections can be made.** While dragging from a port, incompatible ports are dimmed and refuse the drop; the same check runs in `isValidConnection`. |
@@ -33,22 +38,21 @@ phase 0, before any code.
 
 ## Deleting connections
 
-Delete on a connector removes that connector. Nothing it connected is deleted; a node left without
+Delete rules for branches and control nodes: [`graph-model.md`](graph-model.md) and
+`spec/11-app.md`. Delete on a data branch removes the `$ref` binding; delete on a control node
+follows the graph-model tables (`detached` steps when a node is left out of flow still apply below).
+
+Delete on a data branch removes that binding. Nothing it connected is deleted; a node left without
 its connection is **disconnected**: drawn where it was, saved in the file, and reported by
 validation until it's reconnected.
 
 | Connector | After Delete | Valid? |
 | --- | --- | --- |
-| Data edge (`$ref` binding) | The connector is gone and the target input is unbound. | Invalid if the input is required, until it's bound again |
-| Branch arm (route edge into an arm) | The connector and the arm are gone. The arm's steps are disconnected. Deleting the **last** arm removes the branch container too; its steps become `detached`. | Invalid (`ECP_NODE_DETACHED`) until reconnected or deleted |
-| Parallel line | The connector and the line are gone. The line's steps are disconnected. Deleting a line from a parallel that has **two** lines removes the parallel container and splices the remaining line in place, still connected (the deleted line's steps become `detached`). | Invalid until reconnected |
-| Sequence route (A → B) | The connector is gone; B (and everything after it in that sequence) is disconnected, and A connects to nothing. | Invalid until reconnected |
-| Loop entry / loop-back | Not deletable: they're drawn from the loop container. Delete the container instead. | — |
+| Data branch (`$ref` in `input`) | The branch is gone and the target input is unbound. | Invalid if the input is required, until it's bound again |
 
-**Reconnecting:** route anchors stay on nodes for layout but are not connectable. Reconnect a
-disconnected **root step** by dragging a compatible data output onto its input: the App binds the
-input and places the step after the source (same placement rules as sequence order). A disconnected
-branch, loop, or parallel root is not reattached this way.
+**Reconnecting:** reconnect a disconnected **root step** by dragging a compatible output port onto
+its input: the App binds the branch and places the step in document order. A disconnected `if`,
+`loop`, or `parallel` root is not reattached this way.
 
 **Where disconnected steps are saved:** the manifest has no free-floating steps today
 (`additionalProperties: false`), and autosave means the browser and the file must never disagree.
@@ -72,14 +76,11 @@ and returns the issues. The App always commits with `draft: true`, so what you s
 always what's stored. Agents keep the strict default, and `execute` validates every run, so a
 draft is never runnable.
 
-**Containers:** Delete in a container's ⋯ menu asks which:
+**Control nodes:** Delete splices body nodes into the parent (`then` / `else` / paths / loop body) or
+**Delete with its nodes** removes them too. End markers have no Delete of their own.
 
-- **Delete container, keep steps**: the body's steps are spliced in place where the container was
-  (branch arms and parallel lines in order), still connected.
-- **Delete container and its steps**.
-
-**Nodes:** the node menu has **Delete step**, which removes the node and its connectors. That's the
-only way a node is removed.
+**Steps:** the node menu has **Delete step**, which removes the step. That's the usual way a step is
+removed.
 
 ## Host API only
 
@@ -118,8 +119,8 @@ spec 09; nothing else uses them.
 | Feature | Legacy files (under `legacy/packages/app/src/ui/`) | Port as |
 | --- | --- | --- |
 | Route ⋯ control and menu (Configure / Delete) | `components/EdgeMenuControlOverlay.tsx`, `lib/edge-menu.ts`, `ReactFlowCanvas.tsx` (`handleOpenEdgeMenu`, `handleEdgeContextMenu`) | Pill + ⋯ button inside `EcpRouteEdge` (clickable, `nodrag nopan`); shared `CanvasMenu` |
-| Route configure (`when` / `until` / `maxRounds`) | `lib/route-configure.ts` (`renderConfiguredRouteSource`), `components/RouteConfigureDialog.tsx` | Right-hand panel fields on v2 `expr` / `ref` / `maxRounds` |
-| Wrap a step in branch / parallel / loop; unwrap | `lib/route-configure.ts` (`renderWrappedStepSource`, `renderUnwrappedRouteSource`, `flattenRouteStructure`) | `wrapSteps` / `unwrapStructure` in `graph/`, from node and container menus |
+| Structure configure | legacy route dialogs | Right-hand panel on `if` / `loop` / `parallel` / `end` nodes |
+| Wrap a step in `if` / parallel / loop; unwrap | legacy wrap helpers | `wrapSteps` / `unwrapStructure` in `graph/`, from node menus |
 | Port type compatibility | `lib/step-connect.ts` (`portTypeKind`, `portsAreCompatible`) | Same rules over v2 JSON Schema ports |
 | Dim incompatible ports while dragging | `EcpStepNode.tsx` / `EcpIoNode.tsx` (`useConnection`, `ecp-rf-port--incompatible`) | Same, in the current node components and the loop head |
 | Connect / disconnect ports | `lib/graph-edit.ts` (`connectPorts`, `disconnectPorts`), `lib/step-connect.ts` (`buildStateRefFromConnection`) | `connectPorts` / `disconnectPorts` in `graph/` writing `{ "$ref": "state.<as>[.<port>]" }` |
@@ -141,66 +142,15 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
   (drop `/v1/file` and `/v1/files`; watch `{ id }` / `{ path }`), spec 10 (`--path`, `--draft`), spec
   11 (canvas editing and the host API), spec 12 (acceptance for the new behaviour).
 - `REALIGNMENT-PLAN.md` § Later: saved node layout in the manifest, and collaborative editing.
-- `packages/app/REACTFLOW_RENDER.md`: frames for every structure, one pill per branch level, ⋯
-  controls, flow handles, detached nodes with no flow connector and a "disconnected" badge, dragged
-  positions overriding layout.
+- `packages/app/REACTFLOW_RENDER.md`: graph-model nodes and data branches per `graph-model.md`;
+  detached nodes with a "disconnected" badge; dragged positions overriding layout.
 
-### Phase 1: route edges you can select (fixes found in the #105 check)
+### Phases 1–3 (canvas graph)
 
-- **Pill click selects its arm.** `.ecp-rf-edge-label` is `pointer-events: none` today, so a click
-  goes to whatever edge is underneath (in `examples/branch-loop` the `expand` pill selects an
-  unrelated data edge). Make the pill a button (`nodrag nopan`) that selects its own edge.
-- **Nested branches keep every level.** When an arm starts with another branch,
-  `renderBranch` overwrites the inner arms' route data with the outer arm's, so both inner edges
-  read `outer · true` and the inner conditions can't be seen or edited. Route edge data becomes a
-  list of levels (`levels: RouteLevel[]`, outer first); `EcpRouteEdge` draws one pill per level,
-  each selecting that level. Same for an arm that starts with a parallel or a loop.
-- Tests: unit (`execution-to-reactflow`) for nested branch, branch → loop and branch → parallel;
-  the connectivity test also checks that every branch arm's `expr` is on some route pill;
-  Playwright clicks each pill in `branch-loop` and a nested-branch fixture and checks the panel.
-
-### Phase 2: containers for every structure
-
-- Branch, parallel and loop (`while`, `for`, `forEach`) all render the `ecp-frame` that `forEach`
-  uses today, sized from the body's nodes after layout. Parallel has one frame around the whole
-  parallel; branch arms stay route edges with pills inside the branch's frame; loops
-  keep their head node (it carries the `ref` / `expr` / `item` / `into` ports from #105).
-- Frame header: structure icon, label (or type), and a ⋯ menu (also on right-click anywhere on the
-  frame that isn't a node or edge):
-  - **Configure**: selects the structure; the right-hand panel shows its fields.
-  - **Delete** ▸ **keep steps** (`unwrapStructure`) / **with its steps** (`removeStructure`), as in
-    [Deleting connections](#deleting-connections).
-- Node menu (right-click on a step, or ⋯ on its header): **Configure**, **Wrap in branch /
-  parallel / loop** (`wrapSteps`, for the step or a contiguous selection in the same container),
-  **Delete step**. Wrap appears only here.
-- Canvas right-click handling (D3a): one `onContextMenu` dispatcher with `preventDefault()` on the
-  React Flow wrapper; pane, frame, edge and node targets each open their own menu. A new
-  branch gets one arm with a placeholder condition `(state) => true`; a new loop is `while` with
-  `expr: "(state) => true"` and `maxRounds: 1` so the body runs exactly once until configured.
-- Tests: unit for `wrapSteps` / `unwrapStructure` round trips on every fixture structure;
-  Playwright wraps a step, configures it, removes it.
-
-### Phase 3: ⋯ menus on edges, Configure in the panel, Delete
-
-- Each route pill and each data edge gets a ⋯ button (on hover and when selected); right-clicking
-  the edge opens the same menu: **Configure** and **Delete** (per [Deleting connections](#deleting-connections)).
-- Right-hand panel (today's Edge panel):
-  - Branch arm: label and condition (`expr`, existing editor with live validation). Default arm:
-    **Add condition** (writes `expr`). Conditional arm: **Make default** (drops `expr`), offered
-    only when no other arm is default. **Add arm** inserts a conditional arm before the default
-    arm; an arm needs at least one step (schema `minItems: 1`), so it opens the capability menu
-    and the picked capability becomes the arm's first step.
-  - Loop: mode, `ref` or `expr`, `maxRounds`, and for `forEach` `as` / `into` / `collect`.
-  - Data edge: the `$ref` path, optional / fallback (as today).
-- Pure helpers in `graph/route-edit.ts`: `setArmExpr`, `setArmLabel`, `addArm`, `deleteArm`,
-  `deleteParallelLine`, `deleteSequenceLink`, `makeDefaultArm`, `disconnectPorts`, and the
-  reconnect helpers `attachAfter`, `attachAsArm`, `attachAsLine`.
-- Protocol (first, in this phase): `detached` in `execution.base.schema.json`, `ExecutionManifest`
-  and spec 02; `ECP_NODE_DETACHED` in `errors.ts`, spec 03 (L2 row) and validation; the run planner
-  refuses `detached`; the App draws detached nodes with no flow connector and a "disconnected"
-  badge. Fixture: `fixtures/manifests/invalid/detached.ecp.json` (expected `ECP_NODE_DETACHED`), and
-  a conformance case showing `execute` refuses it, strict `commit` refuses it and `commit` with
-  `draft: true` stores it.
+Canvas rendering, control nodes, rail, end markers, tunnels, branch routing, panels and
+delete semantics: implemented per [`graph-model.md`](graph-model.md), `spec/11-app.md` and
+`packages/app/REACTFLOW_RENDER.md` (graph-model PR #110). The route-connector plan in early drafts
+of this file is retired.
 
 ### Phase 4: capability menu (right-click on canvas)
 
@@ -209,7 +159,7 @@ Each phase ends with unit tests plus a Playwright spec in `packages/app/test/e2e
   (debounced). Every capability the host reports is listed.
 - Picking one calls `addCapabilityStep(manifest, { capability })`: a new step with a unique `id`
   and `as` from the capability label, appended to the top-level `steps`, or after the selected node
-  in the same container. It's placed at the cursor (D7). Inputs start unbound; validation shows
+  in the same tunnel list. It's placed at the cursor (D7). Inputs start unbound; validation shows
   what's missing, and the new node is selected so its panel is open.
 
 ### Phase 5: drag to connect, incompatible ports, drop on empty canvas

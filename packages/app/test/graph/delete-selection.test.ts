@@ -5,10 +5,9 @@ import Ajv from "ajv/dist/2020.js"
 import addFormats from "ajv-formats"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
-import { CONNECTION_EDIT_LOOP, connectorDeletePreview } from "../../src/graph/connection-edit.js"
+import { CONNECTION_EDIT_NOT_BINDING, connectorDeletePreview, deleteConnector } from "../../src/graph/connection-edit.js"
 import { deleteSelection, isStructureHeaderSelection } from "../../src/graph/delete-selection.js"
 import { executionToReactFlow } from "../../src/graph/execution-to-reactflow.js"
-import { routeDeleteTarget } from "../../src/graph/route-edge-label.js"
 import { STRUCTURE_EDIT_EMPTY_STEPS } from "../../src/graph/structure-edit.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -79,89 +78,53 @@ describe("deleteSelection", () => {
       version: "2.0",
       steps: [
         {
-          type: "branch",
-          id: "route",
-          branches: [
-            {
-              expr: "(state) => true",
-              steps: [
-                { id: "A", uses: echo, input: { value: "a" }, as: "A" },
-                { id: "B", uses: echo, input: { value: "b" }, as: "B" },
-              ],
-            },
+          type: "if",
+          id: "pick",
+          expression: "true",
+          then: [
+            { id: "A", uses: echo, input: { value: "a" }, as: "A" },
+            { id: "B", uses: echo, input: { value: "b" }, as: "B" },
           ],
         },
         { id: "tail", uses: echo, input: { value: "t" }, as: "tail" },
       ],
     }
-    const result = deleteSelection(base, { kind: "structure", structureId: "route" }, false)
+    const result = deleteSelection(base, { kind: "structure", structureId: "pick" }, false)
     expect(result?.ok).toBe(true)
     if (!result?.ok) return
     expect(result.manifest.steps.map((node) => node.id)).toEqual(["A", "B", "tail"])
-    expect(result.manifest.steps.some((node) => node.id === "route")).toBe(false)
+    expect(result.manifest.steps.some((node) => node.id === "pick")).toBe(false)
   })
 
-  it("deletes a route connector at the delete-target level", () => {
-    const base = load("nested-branch.ecp.json")
+  it("deletes a data branch via connector delete", () => {
+    const base = load("markers.ecp.json")
     const doc = executionToReactFlow(base)
-    const innerEdge = doc.edges.find((edge) => edge.data.kind === "route" && edge.target === "x")
-    expect(innerEdge).toBeDefined()
-    const level = routeDeleteTarget(innerEdge!.data.levels)
-    expect(level).toBe(1)
-    const preview = connectorDeletePreview(base, innerEdge!, level!)
+    const edge = doc.edges.find((entry) => entry.data.kind === "data" && entry.target === "fromExpr")
+    expect(edge).toBeDefined()
+    const preview = connectorDeletePreview(base, edge!)
     expect(preview.ok).toBe(true)
-    const result = deleteSelection(base, { kind: "connector", edge: innerEdge!, level: level! }, false)
+    const result = deleteSelection(base, { kind: "connector", edge: edge! }, false)
     expect(result?.ok).toBe(true)
     if (!result?.ok) return
-    expect(result.manifest.detached?.some((node) => node.id === "x")).toBe(true)
-    const outer = result.manifest.steps.find((node) => node.id === "outer")
-    expect(outer?.type).toBe("branch")
-    if (outer?.type === "branch") {
-      const inner = outer.branches[0]?.steps[0]
-      expect(inner?.type).toBe("branch")
-      if (inner?.type === "branch") {
-        expect(inner.branches.some((arm) => arm.steps.some((step) => step.id === "w"))).toBe(true)
-      }
-    }
+    const target = result.manifest.steps.find((node) => node.id === "fromExpr") as { input?: Record<string, unknown> }
+    expect(target.input?.seed).toBeUndefined()
   })
 
-  it("returns preview failures for loop routes and the Inputs sequence link", () => {
-    const loopManifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [
-        {
-          type: "loop",
-          id: "retry",
-          expr: "(state) => true",
-          maxRounds: 2,
-          steps: [{ id: "tick", uses: echo, input: { value: "t" }, as: "tick" }],
-        },
-      ],
+  it("refuses control connector delete", () => {
+    const edge = {
+      id: "e",
+      source: "A",
+      target: "B",
+      data: { kind: "control" as const },
     }
-    const loopDoc = executionToReactFlow(loopManifest)
-    const loopEdge = loopDoc.edges.find((edge) => edge.data.kind === "route" && edge.data.route === "loop")
-    expect(loopEdge).toBeDefined()
-    const loopLevel = routeDeleteTarget(loopEdge!.data.levels) ?? 0
-    const loopResult = deleteSelection(loopManifest, { kind: "connector", edge: loopEdge!, level: loopLevel }, false)
-    expect(loopResult).toMatchObject({ ok: false, reason: CONNECTION_EDIT_LOOP })
-
-    const seqManifest: ExecutionManifest = {
-      schema: "@executioncontrolprotocol.execution",
-      version: "2.0",
-      steps: [{ id: "A", uses: echo, input: { value: "a" }, as: "A" }],
-    }
-    const seqDoc = executionToReactFlow(seqManifest)
-    const seqEdge = seqDoc.edges.find((edge) => edge.data.kind === "route" && edge.target === "A")
-    expect(seqEdge).toBeDefined()
-    const seqLevel = routeDeleteTarget(seqEdge!.data.levels) ?? 0
-    const seqResult = deleteSelection(seqManifest, { kind: "connector", edge: seqEdge!, level: seqLevel }, false)
-    expect(seqResult).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_EMPTY_STEPS })
+    const base = load("loop.ecp.json")
+    expect(deleteConnector(base, edge as never)).toMatchObject({ ok: false, reason: CONNECTION_EDIT_NOT_BINDING })
   })
 
   it("distinguishes structure headers from steps for selection typing", () => {
     const base = load("nested-branch.ecp.json")
     expect(isStructureHeaderSelection(base, "outer")).toBe(true)
+    expect(isStructureHeaderSelection(base, "inner")).toBe(true)
     expect(isStructureHeaderSelection(base, "x")).toBe(false)
     expect(isStructureHeaderSelection(base, "missing")).toBe(false)
   })

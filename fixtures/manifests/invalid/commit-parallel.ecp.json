@@ -5,7 +5,7 @@
     {
       "type": "parallel",
       "id": "race",
-      "branches": [
+      "paths": [
         [
           {
             "id": "a",

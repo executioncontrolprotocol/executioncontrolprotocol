@@ -1,11 +1,6 @@
 import type { RunEvent, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import type { ReactFlowRunProgress } from "./progress.js"
-import type {
-  ReactFlowArmRunState,
-  ReactFlowRouteEdgeData,
-  ReactFlowRunOutcome,
-  ReactFlowStepStatus,
-} from "./types.js"
+import type { ReactFlowRunOutcome, ReactFlowStepStatus } from "./types.js"
 
 const CANCELLED_CODE = "ECP_RUN_CANCELLED"
 
@@ -25,14 +20,12 @@ export interface RunGraphStep {
 }
 
 /**
- * Loop progress on the graph (`while` / `for` rounds).
+ * Loop progress on the graph (`for` rounds).
  * @category App
  */
 export interface RunGraphLoop {
   /** Latest round started (0-based). */
   round: number
-  /** True when the loop stopped because it reached `maxRounds`. */
-  exhausted: boolean
 }
 
 /**
@@ -57,9 +50,9 @@ export interface RunGraphState {
   status: "idle" | "running" | ReactFlowRunOutcome
   /** Step id to its latest status. Steps without events are absent. */
   steps: Record<string, RunGraphStep>
-  /** Branch id to the selected arm index (`null` when no arm ran). */
-  arms: Record<string, number | null>
-  /** Loop id to its round progress (`while` / `for`). */
+  /** `if` node id to the taken side (`null` when neither side ran). */
+  choices: Record<string, "then" | "else" | null>
+  /** Loop id to its round progress (`for`). */
   loops: Record<string, RunGraphLoop>
   /** Loop id to item progress (`forEach` mode). */
   loopItems: Record<string, RunGraphLoopItems>
@@ -72,7 +65,7 @@ export interface RunGraphState {
  * @category App
  */
 export function createRunGraphState(): RunGraphState {
-  return { status: "idle", steps: {}, arms: {}, loops: {}, loopItems: {}, lastSeq: 0 }
+  return { status: "idle", steps: {}, choices: {}, loops: {}, loopItems: {}, lastSeq: 0 }
 }
 
 function stringField(data: Record<string, unknown>, key: string): string | undefined {
@@ -160,26 +153,14 @@ export function reduceRunEvent(state: RunGraphState, event: RunEvent): RunGraphS
       const status = issue?.code === CANCELLED_CODE ? "cancelled" : "failed"
       return withStep(base, nodeId, status, round, item, issue?.message)
     }
-    case "branch.select": {
+    case "if.select": {
       if (!nodeId) return base
-      const arm = typeof data.arm === "number" ? data.arm : null
-      return { ...base, arms: { ...base.arms, [nodeId]: arm } }
+      const side = data.side === "then" || data.side === "else" ? data.side : null
+      return { ...base, choices: { ...base.choices, [nodeId]: side } }
     }
     case "loop.round":
       if (!nodeId || round === undefined) return base
-      return { ...base, loops: { ...base.loops, [nodeId]: { round, exhausted: false } } }
-    case "loop.exhausted": {
-      if (!nodeId) return base
-      const rounds = typeof data.rounds === "number" ? data.rounds : 0
-      const current = base.loops[nodeId]
-      return {
-        ...base,
-        loops: {
-          ...base.loops,
-          [nodeId]: { round: current?.round ?? Math.max(0, rounds - 1), exhausted: true },
-        },
-      }
-    }
+      return { ...base, loops: { ...base.loops, [nodeId]: { round } } }
     case "loop.start": {
       if (!nodeId) return base
       const count = countField(data) ?? 0
@@ -232,26 +213,18 @@ export function replayRunEvents(events: readonly RunEvent[]): RunGraphState {
 }
 
 /**
- * Run-time state of a route edge: `taken` / `skipped` for branch arms once the branch
- * selected, `taken` for a loop that ran a round, else `idle`.
+ * Whether an `if` node's `then` or `else` side was taken during a run.
  * @category App
  */
-export function armRunState(
-  route: Pick<ReactFlowRouteEdgeData, "route" | "structureId" | "armIndex" | "loopMode">,
+export function ifSideRunState(
+  ifId: string,
+  side: "then" | "else",
   state: RunGraphState,
-): ReactFlowArmRunState {
-  if (route.route === "sequence") return "idle"
-  if (route.route === "branch") {
-    if (!route.structureId) return "idle"
-    if (!(route.structureId in state.arms)) return "idle"
-    return state.arms[route.structureId] === route.armIndex ? "taken" : "skipped"
-  }
-  if (route.route === "loop") {
-    if (!route.structureId) return "idle"
-    if (route.loopMode === "forEach") return route.structureId in state.loopItems ? "taken" : "idle"
-    return route.structureId in state.loops ? "taken" : "idle"
-  }
-  return "idle"
+): "taken" | "skipped" | "idle" {
+  if (!(ifId in state.choices)) return "idle"
+  const choice = state.choices[ifId]
+  if (choice === null) return "skipped"
+  return choice === side ? "taken" : "skipped"
 }
 
 /**
@@ -292,17 +265,14 @@ export function applyRunEvent(bus: ReactFlowRunProgress, event: RunEvent, runId?
       })
       return
     }
-    case "branch.select":
-      if (nodeId) bus.emitArmStatus(nodeId, typeof data.arm === "number" ? data.arm : null)
+    case "if.select":
+      if (nodeId) {
+        const side = data.side === "then" || data.side === "else" ? data.side : null
+        bus.emitIfChoice(nodeId, side)
+      }
       return
     case "loop.round":
       if (nodeId && round !== undefined) bus.emitLoopRound(nodeId, round)
-      return
-    case "loop.exhausted":
-      if (nodeId) {
-        const rounds = typeof data.rounds === "number" ? data.rounds : 0
-        bus.emitLoopRound(nodeId, Math.max(0, rounds - 1), true)
-      }
       return
     case "loop.start": {
       if (!nodeId) return

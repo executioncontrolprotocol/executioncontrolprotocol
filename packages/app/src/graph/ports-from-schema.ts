@@ -1,16 +1,11 @@
 import type { StepNode } from "@executioncontrolprotocol/protocol"
-import {
-  EXPR_HANDLE_ID,
-  OUTPUT_HANDLE_ID,
-  parseStateRef,
-  walkInputRefs,
-} from "./extract-data-edges.js"
+import { OUTPUT_HANDLE_ID, parseStateRef, walkInputRefs } from "./extract-data-edges.js"
 import {
   flattenJsonSchemaProperties,
   isJsonObject,
   jsonSchemaObjectProperties,
 } from "./json-schema.js"
-import { isExprMarker, isRefMarker, isScriptMarker, refPathFromValue } from "./markers.js"
+import { isExprMarker, isRefMarker, isScriptMarker, refPathFromValue, refPathsFromValue } from "./markers.js"
 import type { CapabilityIoSchemas, ReactFlowPort } from "./types.js"
 import {
   typeLabelFromSchema,
@@ -57,7 +52,6 @@ function clearBinding(port: ReactFlowPort): void {
   delete port.valueTitle
   delete port.refPath
   delete port.refOptional
-  delete port.exprSource
   delete port.scriptSource
   delete port.scriptPath
 }
@@ -111,9 +105,13 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
   for (const [name, value] of Object.entries(step.input ?? {})) {
     const port = getOrCreateInput(inputs, byName, name)
 
-    const directRef = refPathFromValue(value)
-    if (directRef !== undefined) {
-      setRef(port, directRef, isRefMarker(value) && value.optional === true)
+    const directRefs = refPathsFromValue(value)
+    if (directRefs && directRefs.length > 0) {
+      setRef(port, directRefs[0]!, isRefMarker(value) && value.optional === true)
+      if (directRefs.length > 1) {
+        port.refBranchCount = directRefs.length
+        port.refPath = directRefs.map((raw) => shortRefPath(raw)).join(", ")
+      }
       continue
     }
     if (isScriptMarker(value)) {
@@ -135,9 +133,6 @@ function applyInputBindings(inputs: ReactFlowPort[], step: StepNode): void {
     setLiteral(port, value)
   }
 
-  if (step.expr !== undefined && !byName.has(EXPR_HANDLE_ID)) {
-    inputs.push(exprGatePort(step.expr))
-  }
 }
 
 function walkNestedScripts(
@@ -162,17 +157,6 @@ function walkNestedScripts(
   }
 }
 
-function exprGatePort(source?: string): ReactFlowPort {
-  return {
-    id: EXPR_HANDLE_ID,
-    name: EXPR_HANDLE_ID,
-    typeLabel: EXPR_HANDLE_ID,
-    required: false,
-    binding: "expr",
-    ...(source !== undefined ? { exprSource: source } : {}),
-  }
-}
-
 /**
  * Ensure an output port exists for a data-edge source handle.
  * @category App
@@ -183,23 +167,18 @@ export function ensureOutputPort(outputs: ReactFlowPort[], handleId: string): vo
 }
 
 /**
- * Ensure an input port exists for a data-edge target handle (including nested paths and
- * the synthetic `expr` gate handle).
+ * Ensure an input port exists for a data-edge target handle (including nested paths).
  * @category App
  */
 export function ensureInputPort(inputs: ReactFlowPort[], handleId: string): void {
   if (inputs.some((port) => port.id === handleId)) return
-  if (handleId === EXPR_HANDLE_ID) {
-    inputs.push(exprGatePort())
-    return
-  }
   inputs.push({ id: handleId, name: handleId, typeLabel: UNKNOWN_TYPE, required: false })
 }
 
 /**
  * Build input and output ports for a step from its capability's JSON Schemas, falling
  * back to the step's `input` keys, then annotate each input with its binding
- * (literal, `$ref` / `$state`, or `$script`). A gated step gets an `expr` port.
+ * (literal, `$ref` / `$state`, or `$script`).
  * Outputs always include the whole-document `output` handle.
  * @category App
  */

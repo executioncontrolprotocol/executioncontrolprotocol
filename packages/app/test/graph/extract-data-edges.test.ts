@@ -1,9 +1,7 @@
 import type { Node } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
-  EXECUTION_ACCEPTS_NODE_ID,
   extractDataEdges,
-  extractExprEdges,
   formatExprBadge,
   longestMatchingPortId,
   parseStateRef,
@@ -93,7 +91,6 @@ describe("walkers", () => {
     walkInputRefs(value, "root", (p, r, k) => seen.push([p, r, k]))
     expect(seen).toEqual([
       ["root.a", "state.x", undefined],
-      ["root.b.0", "y", undefined],
       ["root.d", "state.w", "p"],
     ])
   })
@@ -117,18 +114,19 @@ describe("walkers", () => {
   })
 })
 
-describe("extractDataEdges / extractExprEdges", () => {
+describe("extractDataEdges", () => {
   const nodes: Node[] = [
     { id: "w1", uses: "@x/p.c", input: { v: 1 }, as: "k" },
     { id: "r1", uses: "@x/p.c", input: { v: { $ref: "state.k" } } },
     { id: "w2", uses: "@x/p.c", input: { v: 2 }, as: "k" },
-    { id: "r2", uses: "@x/p.c", expr: "(state) => state.k.done && state.inp", input: { v: { $ref: "state.k.f" } } },
+    { id: "r2", uses: "@x/p.c", input: { v: { $ref: "state.k.f" } } },
     {
       type: "loop",
       id: "l",
-      expr: "(state) => true",
-      maxRounds: 2,
-      steps: [{ id: "self", uses: "@x/p.c", input: { v: { $ref: "state.later" } }, as: "later" }],
+      mode: "for",
+      as: "i",
+      input: { count: 2 },
+      steps: [{ id: "self", uses: "@x/p.c", input: { v: { $ref: "state.later" } }, as: "later", mode: "replace" }],
     },
   ]
 
@@ -140,48 +138,14 @@ describe("extractDataEdges / extractExprEdges", () => {
     ])
   })
 
-  it("expr gates read from writers and accepts, deduped, into the expr handle", () => {
-    const edges = extractExprEdges(nodes, new Set(["inp"]), new Map([["w2", ["output", "done"]]]))
-    expect(edges.map((e) => [e.source, e.sourceHandle, e.targetHandle])).toEqual([
-      ["w2", "done", "expr"],
-      [EXECUTION_ACCEPTS_NODE_ID, "inp", "expr"],
-    ])
-  })
-
-  it("forEach collect and into reads use loop handles", () => {
-    const nodes: Node[] = [
-      {
-        type: "loop",
-        mode: "forEach",
-        id: "items",
-        ref: "state.list",
-        as: "row",
-        into: "out",
-        collect: "state.results",
-        steps: [
-          {
-            id: "body",
-            uses: "@x/p.c",
-            input: { a: { $ref: "state.out.summary" } },
-          },
-        ],
-      },
-    ]
-    const edges = extractDataEdges(nodes)
-    expect(edges).toContainEqual(
-      expect.objectContaining({ source: "items", sourceHandle: "into", target: "body", targetHandle: "a" }),
-    )
-  })
-
   it("loop item reads inside forEach resolve to the loop head item handle", () => {
     const nodes: Node[] = [
       {
         type: "loop",
         mode: "forEach",
         id: "items",
-        ref: "state.list",
         as: "row",
-        into: "out",
+        input: { items: { $ref: "state.list" } },
         steps: [
           {
             id: "body",
@@ -196,7 +160,35 @@ describe("extractDataEdges / extractExprEdges", () => {
       expect.objectContaining({ source: "items", target: "body", sourceHandle: "item", targetHandle: "a" }),
     )
     expect(edges).toContainEqual(
-      expect.objectContaining({ source: "items", target: "body", sourceHandle: "item", targetHandle: "b" }),
+      expect.objectContaining({ source: "items", target: "body", sourceHandle: "index", targetHandle: "b" }),
+    )
+  })
+
+  it("if as inside then reads from the then port", () => {
+    const nodes: Node[] = [
+      {
+        type: "if",
+        id: "tier",
+        as: "customer",
+        input: { tier: { $ref: "state.base" } },
+        expression: "true",
+        then: [
+          {
+            id: "reader",
+            uses: "@x/p.c",
+            input: { v: { $ref: "state.customer.tier" } },
+          },
+        ],
+      },
+    ]
+    const edges = extractDataEdges(nodes)
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "tier",
+        sourceHandle: "then",
+        target: "reader",
+        targetHandle: "v",
+      }),
     )
   })
 

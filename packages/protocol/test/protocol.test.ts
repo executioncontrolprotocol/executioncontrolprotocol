@@ -80,14 +80,6 @@ describe("error catalogue", () => {
     expect(MAX_LOOP_ITEMS).toBe(10000)
   })
 
-  it("catalogues ECP_LOOP_UNTYPED as validation", () => {
-    expect(catalogueEntry("ECP_LOOP_UNTYPED")).toEqual({
-      httpStatus: 422,
-      exitCode: 2,
-      kind: "validation",
-    })
-  })
-
   it("catalogues ECP_NODE_DETACHED as validation", () => {
     expect(catalogueEntry("ECP_NODE_DETACHED")).toEqual({
       httpStatus: 422,
@@ -327,7 +319,7 @@ describe("loop node schema", () => {
   const validate = ajv().compile(readJson(path.join(schemaDir, "execution.base.schema.json")) as object)
   const base = { schema: EXECUTION_SCHEMA, version: EXECUTION_VERSION }
 
-  it("accepts while loop with expr and maxRounds", () => {
+  it("rejects while mode, stored end, into, and maxRounds", () => {
     expect(
       validate({
         ...base,
@@ -335,16 +327,17 @@ describe("loop node schema", () => {
           {
             type: "loop",
             id: "L",
-            expr: "(state) => true",
+            mode: "while",
             maxRounds: 3,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+            end: { input: { repeat: true } },
           },
         ],
       }),
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it("accepts forEach loop with ref, collect as plain paths, and mode fields", () => {
+  it("accepts forEach without end or into", () => {
     expect(
       validate({
         ...base,
@@ -353,10 +346,8 @@ describe("loop node schema", () => {
             type: "loop",
             mode: "forEach",
             id: "items",
-            ref: "state.rows",
+            input: { items: { $ref: "state.rows" } },
             as: "row",
-            collect: "state.out",
-            into: "results",
             concurrency: 2,
             steps: [{ id: "echo", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
           },
@@ -365,7 +356,7 @@ describe("loop node schema", () => {
     ).toBe(true)
   })
 
-  it("accepts for loop with expr and as", () => {
+  it("accepts for loop with input.count and as", () => {
     expect(
       validate({
         ...base,
@@ -374,7 +365,7 @@ describe("loop node schema", () => {
             type: "loop",
             mode: "for",
             id: "count",
-            expr: "(state) => 3",
+            input: { count: 3 },
             as: "i",
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
           },
@@ -383,7 +374,7 @@ describe("loop node schema", () => {
     ).toBe(true)
   })
 
-  it("rejects both ref and expr on a loop", () => {
+  it("rejects a loop without mode", () => {
     expect(
       validate({
         ...base,
@@ -391,9 +382,6 @@ describe("loop node schema", () => {
           {
             type: "loop",
             id: "L",
-            ref: "state.flag",
-            expr: "(state) => true",
-            maxRounds: 1,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
           },
         ],
@@ -401,16 +389,15 @@ describe("loop node schema", () => {
     ).toBe(false)
   })
 
-  it("rejects neither ref nor expr on a loop", () => {
+  it("rejects type branch", () => {
     expect(
       validate({
         ...base,
         steps: [
           {
-            type: "loop",
+            type: "branch",
             id: "L",
-            maxRounds: 1,
-            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+            branches: [{ steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }] }],
           },
         ],
       }),
@@ -426,30 +413,55 @@ describe("loop node schema", () => {
             type: "loop",
             mode: "forEach",
             id: "L",
-            ref: "state.rows",
+            input: { items: { $ref: "state.rows" } },
             as: "row",
-            collect: "state.out",
             into: "results",
             maxRounds: 1,
             steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+            end: { input: { value: { $ref: "state.out" } } },
           },
         ],
       }),
     ).toBe(false)
   })
 
-  it("rejects collect on while mode", () => {
+  it("accepts a merge-port $ref list and rejects a list of one", () => {
     expect(
       validate({
         ...base,
         steps: [
           {
-            type: "loop",
-            id: "L",
-            expr: "(state) => true",
-            maxRounds: 1,
-            collect: "state.out",
-            steps: [{ id: "s", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
+            id: "read",
+            uses: "@executioncontrolprotocol/test.echo",
+            input: { value: { $ref: ["state.a", "state.b"] } },
+          },
+        ],
+      }),
+    ).toBe(true)
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            id: "read",
+            uses: "@executioncontrolprotocol/test.echo",
+            input: { value: { $ref: ["state.a"] } },
+          },
+        ],
+      }),
+    ).toBe(false)
+  })
+
+  it("rejects step expr gate", () => {
+    expect(
+      validate({
+        ...base,
+        steps: [
+          {
+            id: "gated",
+            uses: "@executioncontrolprotocol/test.echo",
+            expr: "true",
+            input: { value: "x" },
           },
         ],
       }),

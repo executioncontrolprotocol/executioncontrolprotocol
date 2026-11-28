@@ -76,26 +76,50 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "manifest": { "type": "object" }
+          "manifest": {
+            "type": "object"
+          }
         },
-        "required": ["manifest"],
+        "required": [
+          "manifest"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "document": { "type": "object" },
-          "layers": { "type": "array" },
-          "names": { "type": "array", "items": { "type": "string" } },
-          "count": { "type": "integer" }
+          "document": {
+            "type": "object"
+          },
+          "layers": {
+            "type": "array"
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "integer"
+          }
         },
-        "required": ["layers", "names", "count"],
+        "required": [
+          "layers",
+          "names",
+          "count"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "manifest": { "$ref": "state.manifest" }
+        "manifest": {
+          "$ref": "state.manifest"
+        }
       },
-      "script": { "lang": "js", "path": "scripts/layer-names.js" },
+      "script": {
+        "lang": "js",
+        "path": "scripts/layer-names.js"
+      },
       "as": "psd"
     }
   ]

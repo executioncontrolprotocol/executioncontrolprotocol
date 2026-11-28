@@ -347,10 +347,10 @@ export interface SecretsProvider {
  */
 export interface ExpressionEngine extends Lifecycle {
   /**
-   * Evaluate one function source. `control` requires a boolean.
+   * Evaluate one expression over a frozen `input` object.
    * Throws {@link ExpressionError}.
    */
-  evaluate(source: string, state: unknown, kind: "control" | "value"): Promise<unknown>
+  evaluateExpression(source: string, input: unknown): Promise<unknown>
   /**
    * Evaluate one transform script body against a frozen input object.
    * Throws {@link ScriptError}.

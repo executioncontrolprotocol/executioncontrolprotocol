@@ -66,19 +66,17 @@ export function isStepNode(node: Node): node is StepNode {
   return node.type === undefined || node.type === "step"
 }
 
-function collectCommitKeys(nodes: Node[], into: Set<string>, inForEachBody = false): void {
+function collectCommitKeys(nodes: Node[], into: Set<string>): void {
   for (const node of nodes) {
     if (isStepNode(node)) {
-      if (node.as && !inForEachBody) into.add(node.as)
-    } else if (node.type === "loop" && (node.mode ?? "while") === "forEach") {
-      if (node.into) into.add(node.into)
-      collectCommitKeys(node.steps, into, true)
+      if (node.as) into.add(node.as)
+    } else if (node.type === "loop") {
+      collectCommitKeys(node.steps, into)
     } else if (node.type === "parallel") {
-      for (const line of node.branches) collectCommitKeys(line, into, inForEachBody)
-    } else if (node.type === "branch") {
-      for (const arm of node.branches) collectCommitKeys(arm.steps, into, inForEachBody)
-    } else {
-      collectCommitKeys(node.steps, into, inForEachBody)
+      for (const path of node.paths) collectCommitKeys(path, into)
+    } else if (node.type === "if") {
+      collectCommitKeys(node.then, into)
+      if (node.else) collectCommitKeys(node.else, into)
     }
   }
 }

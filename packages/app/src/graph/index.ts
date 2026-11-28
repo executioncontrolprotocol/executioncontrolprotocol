@@ -2,15 +2,60 @@
  * Execution graph encoder: manifest to React Flow nodes and edges, layout and run status.
  * @category App
  */
-export { executionToReactFlow } from "./execution-to-reactflow.js"
+export { executionToReactFlow, sidePlaceholderId } from "./execution-to-reactflow.js"
+export {
+  computeRailVisualLayer,
+  JOIN_RIBBON_WIDTH,
+  SIDE_BAND_PADDING,
+  controlNestingDepth,
+  roundedRectPath,
+  joinFunnelPath,
+  sideTunnelPath,
+  RAIL_STROKE_WIDTH,
+  type RailLabelShape,
+  type RailLayerDimming,
+  type RailLoopShape,
+  type RailPathShape,
+  type RailVisualShape,
+} from "./rail-layer.js"
+export {
+  BRANCH_ENTRY_CURVE,
+  BRANCH_LANE_SPACING,
+  composeBranchPath,
+  computeBranchRoutes,
+  pathBoundingBox,
+  pathEndPoint,
+  pathMidpoint,
+  pathStartPoint,
+  pointInBox,
+  railBandBoxes,
+  type BranchRouteEdge,
+  type BranchRoutingInput,
+} from "./branch-routing.js"
+export { readerScope } from "./read-order.js"
+export type { TunnelSpec } from "./types.js"
+export { analyseMergePort, type MergePortAnalysis, type ScopeSegment as MergeScopeSegment } from "./merge-port-scope.js"
+export {
+  kindSwitchAvailability,
+  switchControlKind,
+  KIND_SWITCH_TOO_MANY_PATHS,
+  type ControlPanelKind,
+  type KindSwitchOption,
+} from "./kind-switch.js"
+export {
+  addInputPort,
+  renameInputPort,
+  removeInputPort,
+  uniquePortIdFromSource,
+  PORT_EDIT_DUPLICATE,
+  PORT_EDIT_NOT_MULTI,
+} from "./port-edit.js"
 export {
   attachAfter,
-  attachAsArm,
-  attachAsLine,
   CONNECTION_EDIT_HANDLE,
   CONNECTION_EDIT_INCOMPATIBLE,
+  CONNECTION_EDIT_REF_AMBIGUOUS,
   CONNECTION_EDIT_INSIDE,
-  CONNECTION_EDIT_LOOP,
   CONNECTION_EDIT_NOT_BINDING,
   CONNECTION_EDIT_ORDER,
   CONNECTION_EDIT_SELF,
@@ -18,10 +63,11 @@ export {
   connectInputAndAttach,
   CONNECTION_EDIT_NOT_STEP,
   CONNECTION_EDIT_SOURCE_DETACHED,
+  CONNECTION_EDIT_INPUT_ORIGIN,
   placementManifestForDetachedConnect,
   insertConnectedStep,
+  insertConnectedControlNode,
   type ConnectInputTarget,
-  deleteArm,
   deleteParallelLine,
   deleteConnector,
   deleteSequenceLink,
@@ -29,17 +75,62 @@ export {
   detachedNodeIds,
   disconnectInput,
 } from "./connection-edit.js"
-export { deleteSelection, isStructureHeaderSelection, type DeleteSelection } from "./delete-selection.js"
-export { routeDeleteMenuLabel, routeDeleteTarget, routeEdgeLabel } from "./route-edge-label.js"
 export {
-  addArmCondition,
-  makeDefaultArm,
-  ROUTE_EDIT_ARM_HAS_CONDITION,
-  ROUTE_EDIT_DEFAULT_EXISTS,
-  setArmLabel,
-  setLoopField,
-} from "./route-edit.js"
+  deleteSelection,
+  isEndNodeSelection,
+  isStructureHeaderSelection,
+  STRUCTURE_EDIT_DELETE_END,
+  type DeleteSelection,
+} from "./delete-selection.js"
+export { frameAtFlowPoint, placementAtFlowPoint, tunnelAtFlowPoint } from "./band-placement.js"
 export {
+  MARKER_SCOPE_UNCHANGED,
+  REPARENT_UNCHANGED,
+  applyMarkerSnap,
+  markerSnapHighlight,
+  reparentDropTarget,
+  reparentNodeAtPoint,
+  snapMarkerX,
+  type MarkerSnapCenter,
+} from "./marker-scope.js"
+export {
+  addParallelPath,
+  appendEmptyParallelPath,
+  conditionForm,
+  ensureStructureAs,
+  IF_DEFAULT_EXPRESSION,
+  normalizeRefPath,
+  PANEL_EDIT_CONDITION_FORM,
+  PANEL_EDIT_INPUT_KEY,
+  PANEL_EDIT_PATH_EMPTY,
+  PANEL_EDIT_REF_PATH,
+  PANEL_EDIT_SCHEMA_OBJECT,
+  PANEL_EDIT_SCRIPT_FILE,
+  PANEL_EDIT_STATE_KEY,
+  parseLiteralInput,
+  parseSchemaText,
+  setIfAccepts,
+  setIfAs,
+  setIfConditionForm,
+  setIfConditionText,
+  setIfInputBinding,
+  setIfLabel,
+  setLoopDriver,
+  setLoopLabel,
+  setParallelAccepts,
+  setParallelAs,
+  setParallelInputBinding,
+  setParallelLabel,
+  setParallelMaxConcurrency,
+  setStructureLabel,
+  type ConditionForm,
+  type ConditionHolder,
+  type InputBindingEdit,
+  type SchemaTextResult,
+} from "./panel-edit.js"
+export {
+  isScriptStepCapability,
+  type AddStepCapability,
   addCapabilityStep,
   allocateAsName,
   findStructure,
@@ -48,7 +139,8 @@ export {
   type AddStepResult,
 } from "./add-step.js"
 export { firstMatchingPort, portTypeKind, portsAreCompatible, type PortTypeKind } from "./port-compat.js"
-export { sourceVisibleTo } from "./read-order.js"
+export { schemaFromReactFlowPort, sourcePortPropertySchema } from "./source-port-schema.js"
+export { scopeForStateRef, sourceScope, sourceVisibleTo, type ScopeSegment } from "./read-order.js"
 export {
   connectInputTarget,
   dataConnectionRefusal,
@@ -65,35 +157,20 @@ export {
   deleteStep,
   removeStructure,
   unwrapStructure,
+  addControlNode,
+  CONTROL_NODE_ENTRY_ID,
+  type AddControlNodeResult,
   wrapSelectionIds,
   wrapSteps,
+  setLoopField,
+  setLoopMode,
+  type LoopMode,
   type StructureEditResult,
 } from "./structure-edit.js"
-export {
-  applyDataEdgeDraft,
-  applyRouteEdgeDraft,
-  dataEdgeEditable,
-  routeEdgeEditable,
-} from "./edge-panel-logic.js"
-export {
-  dataEdgeInspectorMeta,
-  exprIssuesAtPointer,
-  inputManifestPointer,
-  readManifestPointer,
-  replaceManifestPointer,
-  routeEdgeInspectorMeta,
-  stepManifestPointer,
-  valueAtInputPath,
-  valueAtStateRef,
-  type DataEdgeInspectorMeta,
-  type DataEdgeMarkerKind,
-  type RouteEdgeInspectorMeta,
-} from "./edge-manifest.js"
 export {
   collectSteps,
   EXPR_HANDLE_ID,
   extractDataEdges,
-  extractExprEdges,
   formatExprBadge,
   longestMatchingPortId,
   OUTPUT_HANDLE_ID,
@@ -127,6 +204,7 @@ export {
   isScriptMarker,
   isStateMarker,
   refPathFromValue,
+  refPathsFromValue,
 } from "./markers.js"
 export {
   ensureInputPort,
@@ -145,15 +223,46 @@ export {
   type ValueSchemaHint,
 } from "./value-schema-hint.js"
 export {
+  computeAllTunnelRects,
+  computeTunnelRect,
+  isNodeInsideTunnel,
+  nodeBox,
+  rectContainsRect,
+  rectsIntersect,
+  resizeTunnelNodes,
+  tunnelBounds,
+  tunnelRects,
+  TUNNEL_PADDING,
+} from "./tunnel-geometry.js"
+export {
+  loopsCrossedBetween,
+  loopDepthForStep,
+  typeLabelCrossingLoops,
+} from "./loop-export-type.js"
+export {
   boundsAroundNodeIds,
+  DEFAULT_NODE_WIDTH,
   frameBounds,
   FRAME_PADDING,
-  layoutReactFlowDocument,
   unionRect,
   type BoundsNode,
   type FrameMembership,
   type FrameRect,
 } from "./layout.js"
+export {
+  layoutManifestTree,
+  sideStackGap,
+  treeLayoutReactFlowDocument,
+  translateDocumentNodes,
+  documentMaxY,
+  TREE_EMPTY_SIDE_HEIGHT,
+  TREE_END_HEIGHT,
+  TREE_END_WIDTH,
+  TREE_GAP_X,
+  TREE_GAP_Y,
+  TREE_NODE_WIDTH,
+  TREE_TUNNEL_PADDING,
+} from "./tree-layout.js"
 export {
   POSITION_STORAGE_PREFIX,
   parsePositionOverrides,
@@ -171,8 +280,8 @@ export {
 } from "./progress.js"
 export {
   applyRunEvent,
-  armRunState,
   createRunGraphState,
+  ifSideRunState,
   reduceRunEvent,
   replayRunEvents,
   type RunGraphLoopItems,
@@ -181,25 +290,38 @@ export {
   type RunGraphStep,
 } from "./map-run-events.js"
 export {
-  FLOW_IN_HANDLE,
-  FLOW_OUT_HANDLE,
+  IF_ELSE_HANDLE,
+  IF_THEN_HANDLE,
+  EMPTY_INPUT_PORT_ID,
   LOOP_COLLECT_HANDLE,
-  LOOP_INTO_HANDLE,
+  LOOP_COUNT_HANDLE,
+  LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
+  LOOP_ITEMS_HANDLE,
   LOOP_REF_HANDLE,
+  PARALLEL_PATH_HANDLE_PREFIX,
+  END_NODE_PREFIX,
+  endMarkerId,
+  parseEndMarkerId,
+  loopIdFromEndMarker,
 } from "./types.js"
+export type { EndMarkerSide } from "./types.js"
 export type {
   CapabilityIoSchemas,
   CapabilitySchemaIndex,
-  ReactFlowArmRunState,
-  ReactFlowArmStatusDetail,
+  ReactFlowControlData,
+  ReactFlowControlKind,
   ReactFlowDocument,
   ReactFlowEdge,
   ReactFlowEdgeKind,
   ReactFlowEncodeOptions,
+  ReactFlowEndData,
+  ReactFlowIfData,
+  ReactFlowIfChoiceDetail,
   ReactFlowLoopItemsData,
   ReactFlowLoopProgressDetail,
-  ReactFlowFrameData,
+  ReactFlowTunnelData,
+  ReactFlowTunnelKind,
   ReactFlowIoData,
   ReactFlowIoKind,
   ReactFlowLoopRoundDetail,
@@ -207,11 +329,9 @@ export type {
   ReactFlowControlEdgeData,
   ReactFlowDataEdgeData,
   ReactFlowPlainEdgeData,
+  ReactFlowParallelData,
   ReactFlowPort,
   ReactFlowPortBinding,
-  ReactFlowRouteEdgeData,
-  ReactFlowRouteKind,
-  ReactFlowRouteLevel,
   ReactFlowRunLifecycleDetail,
   ReactFlowRunOutcome,
   ReactFlowStepData,

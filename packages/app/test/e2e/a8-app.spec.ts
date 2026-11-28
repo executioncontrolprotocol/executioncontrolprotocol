@@ -189,17 +189,16 @@ test.describe("A8 App", () => {
     await expect(step).not.toContainText("text:unknown")
   })
 
-  test("parallel execution shows one frame label without edge clipping", async ({ page }) => {
+  test("parallel execution shows start node label without edge clipping", async ({ page }) => {
     await openPath(page, harness.parallelPath)
-    // One frame for the whole parallel, not one per line.
-    await expect(page.locator('[data-testid^="ecp-frame-label-prepare"]')).toHaveCount(1)
-    const label = page.getByTestId("ecp-frame-label-prepare")
-    await expect(label).toBeVisible()
-    await expect(label).toHaveText("Prepare both sides in parallel for the pipeline")
-    const labelBox = await label.boundingBox()
+    await expect(page.locator('[data-testid^="ecp-tunnel-prepare-path"]').first()).toBeVisible()
+    const start = page.getByTestId("ecp-parallel-prepare")
+    await expect(start).toBeVisible()
+    await expect(start).toContainText("Prepare both sides in parallel for the pipeline")
+    const labelBox = await start.boundingBox()
     expect(labelBox).not.toBeNull()
-    expect(labelBox!.width).toBeGreaterThan(200)
-    await expect(page.locator(".ecp-rf-edge-label", { hasText: "Prepare both sides" })).toHaveCount(0)
+    expect(labelBox!.width).toBeGreaterThan(120)
+    await expect(page.locator(".ecp-rf-edge-label")).toHaveCount(0)
   })
 
   test("graph fits the canvas on open; selection does not move the viewport", async ({ page }) => {

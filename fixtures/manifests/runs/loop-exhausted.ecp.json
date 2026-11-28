@@ -4,9 +4,10 @@
   "steps": [
     {
       "type": "loop",
+      "mode": "for",
       "id": "refine",
-      "expr": "(state) => true",
-      "maxRounds": 1,
+      "input": { "count": 1 },
+      "as": "i",
       "steps": [
         {
           "id": "tick",

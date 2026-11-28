@@ -1,7 +1,7 @@
 [
   {
     "code": "ECP_EXPR_INVALID",
-    "path": "/steps/0/expr",
+    "path": "/steps/0/expression",
     "severity": "error"
   }
 ]

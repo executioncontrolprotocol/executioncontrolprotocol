@@ -60,72 +60,110 @@
       "accepts": {
         "type": "object",
         "properties": {
-          "headline": { "type": "string" }
+          "headline": {
+            "type": "string"
+          }
         },
-        "required": ["headline"],
+        "required": [
+          "headline"
+        ],
         "additionalProperties": false
       },
       "returns": {
         "type": "object",
         "properties": {
-          "prompt": { "type": "string" }
+          "prompt": {
+            "type": "string"
+          }
         },
-        "required": ["prompt"],
+        "required": [
+          "prompt"
+        ],
         "additionalProperties": false
       },
       "input": {
-        "headline": { "$ref": "state.doc.echo.headline" }
+        "headline": {
+          "$ref": "state.doc.echo.headline"
+        }
       },
       "script": {
-          "lang": "js",
-          "source": "return { prompt: `Translate: ${input.headline}` }"
-        },
+        "lang": "js",
+        "source": "return { prompt: `Translate: ${input.headline}` }"
+      },
       "as": "prompt"
     },
     {
-      "id": "translate",
-      "label": "Translate headline",
-      "uses": "@executioncontrolprotocol/anthropic.generate",
-      "config": "anthropic/default",
-      "expr": "(state) => state.locale !== 'en'",
+      "type": "if",
+      "id": "translate-gate",
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale"
+        ]
+      },
       "input": {
-        "prompt": {
-          "$ref": "state.prompt.prompt"
+        "locale": {
+          "$ref": "state.locale"
         }
       },
-      "as": "translation",
-      "mode": "replace"
+      "expression": "input.locale !== 'en'",
+      "then": [
+        {
+          "id": "translate",
+          "label": "Translate headline",
+          "uses": "@executioncontrolprotocol/anthropic.generate",
+          "config": "anthropic/default",
+          "input": {
+            "prompt": {
+              "$ref": "state.prompt.prompt"
+            }
+          },
+          "as": "translation",
+          "mode": "replace"
+        }
+      ]
     },
     {
-      "type": "branch",
+      "type": "if",
       "id": "check-headline",
-      "branches": [
-        {
-          "label": "missing",
-          "expr": "(state) => !state.doc.echo.headline",
-          "steps": [
-            {
-              "id": "filled",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "Untitled"
-              },
-              "as": "filled"
-            }
-          ]
+      "accepts": {
+        "type": "object",
+        "properties": {
+          "headline": {}
         },
+        "required": [
+          "headline"
+        ]
+      },
+      "input": {
+        "headline": {
+          "$ref": "state.doc.echo.headline"
+        }
+      },
+      "expression": "!input.headline",
+      "then": [
         {
-          "label": "default",
-          "steps": [
-            {
-              "id": "kept",
-              "uses": "@executioncontrolprotocol/test.echo",
-              "input": {
-                "value": "kept"
-              },
-              "as": "kept"
-            }
-          ]
+          "id": "filled",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "Untitled"
+          },
+          "as": "filled"
+        }
+      ],
+      "else": [
+        {
+          "id": "kept",
+          "uses": "@executioncontrolprotocol/test.echo",
+          "input": {
+            "value": "kept"
+          },
+          "as": "kept"
         }
       ]
     },
@@ -133,7 +171,7 @@
       "type": "parallel",
       "id": "prepare",
       "maxConcurrency": 2,
-      "branches": [
+      "paths": [
         [
           {
             "id": "copy",
@@ -169,9 +207,10 @@
     },
     {
       "type": "loop",
+      "mode": "for",
       "id": "refine",
-      "expr": "(state) => state.score === undefined",
-      "maxRounds": 3,
+      "input": { "count": 1 },
+      "as": "i",
       "steps": [
         {
           "id": "score",

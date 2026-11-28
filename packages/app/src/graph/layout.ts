@@ -1,19 +1,16 @@
-import dagre from "@dagrejs/dagre"
-import type {
-  ReactFlowDocument,
-  ReactFlowEncodeOptions,
-  ReactFlowLoopItemsData,
-  ReactFlowIoData,
-  ReactFlowNode,
-  ReactFlowStepData,
-} from "./types.js"
+import type { ReactFlowLoopItemsData, ReactFlowIoData, ReactFlowStepData } from "./types.js"
 
-const DEFAULT_NODE_WIDTH = 260
-const DEFAULT_NODE_HEIGHT = 160
+/** Height of synthetic structure `end` nodes in layout estimates. */
+const STRUCTURE_END_HEIGHT = 32
+
+/** Default React Flow node width (pixels) used by the layout. @category App */
+export const DEFAULT_NODE_WIDTH = 260
+/** Default node height (pixels) when a node has none. @category App */
+export const DEFAULT_NODE_HEIGHT = 160
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
 
-/** Padding around parallel line frames (pixels). */
+/** Padding around parallel path frames (pixels). */
 export const FRAME_PADDING = { x: 20, y: 16, label: 28 }
 
 /**
@@ -76,8 +73,16 @@ export function unionRect(a: FrameRect, b: FrameRect): FrameRect {
 }
 
 function estimateNodeHeight(node: BoundsNode, fallback: number): number {
-  const data = node.data as ReactFlowStepData | ReactFlowIoData | ReactFlowLoopItemsData | undefined
-  if (!data) return fallback
+  if (node.type === "ecp-end") return STRUCTURE_END_HEIGHT
+  if (node.type === "ecp-placeholder") return 1
+  if (node.type === "ecp-tunnel") return fallback
+  const data = node.data as
+    | ReactFlowStepData
+    | ReactFlowIoData
+    | ReactFlowLoopItemsData
+    | { inputs: unknown[]; outputs: unknown[] }
+    | undefined
+  if (!data || !("inputs" in data) || !("outputs" in data)) return fallback
   const rows =
     node.type === "ecp-step" || node.type === "ecp-loop"
       ? Math.max(data.inputs.length, 1) + Math.max(data.outputs.length, 1)
@@ -124,7 +129,7 @@ export function boundsAroundNodeIds(
 export function frameBounds(
   nodes: readonly BoundsNode[],
   frames: readonly FrameMembership[],
-  options?: { nodeWidth?: number; nodeHeight?: number },
+  options?: { nodeWidth?: number; nodeHeight?: number; headerless?: boolean },
 ): Map<string, FrameRect> {
   const nodeWidth = options?.nodeWidth ?? DEFAULT_NODE_WIDTH
   const nodeHeight = options?.nodeHeight ?? DEFAULT_NODE_HEIGHT
@@ -140,7 +145,7 @@ export function frameBounds(
     }
     if (!inner) continue
     const pad = FRAME_PADDING
-    const labelGap = pad.label
+    const labelGap = options?.headerless ? 0 : pad.label
     rects.set(spec.frameId, {
       x: inner.x - pad.x,
       y: inner.y - pad.y - labelGap,
@@ -151,95 +156,3 @@ export function frameBounds(
   return rects
 }
 
-/**
- * Assign dagre layout positions to nodes, returning a new document.
- * Loop-back route edges are drawn but excluded from rank constraints.
- * @category App
- */
-/**
- * A structure container for layout: dagre keeps each cluster's nodes together and sibling clusters apart, so the
- * frames drawn around them afterwards don't overlap.
- * @category App
- */
-export interface LayoutCluster {
-  /** Cluster id (the frame id). */
-  id: string
-  /** Every drawn node inside the structure, at any depth. */
-  memberNodeIds: readonly string[]
-  /** Clusters directly inside this one. */
-  childClusterIds: readonly string[]
-}
-
-export function layoutReactFlowDocument(
-  doc: ReactFlowDocument,
-  options?: ReactFlowEncodeOptions,
-  clusters: readonly LayoutCluster[] = [],
-): ReactFlowDocument {
-  const direction = options?.direction ?? "LR"
-  const nodeWidth = options?.nodeWidth ?? DEFAULT_NODE_WIDTH
-  const nodeHeight = options?.nodeHeight ?? DEFAULT_NODE_HEIGHT
-
-  const graph = new dagre.graphlib.Graph({ compound: clusters.length > 0 })
-  graph.setDefaultEdgeLabel(() => ({}))
-  // Clustered layouts spend ranks on container borders; a smaller rank gap keeps them about as wide as before.
-  graph.setGraph({ rankdir: direction, nodesep: 56, ranksep: clusters.length > 0 ? 32 : 96, marginx: 24, marginy: 24 })
-
-  const ids = new Set(doc.nodes.map((node) => node.id))
-  const heights = new Map(doc.nodes.map((node) => [node.id, estimateNodeHeight(node, nodeHeight)]))
-
-  for (const node of doc.nodes) {
-    graph.setNode(node.id, { width: nodeWidth, height: heights.get(node.id) ?? nodeHeight })
-  }
-  applyLayoutClusters(graph, clusters, ids)
-  for (const edge of doc.edges) {
-    if (!ids.has(edge.source) || !ids.has(edge.target)) continue
-    if (edge.data.kind === "route" && edge.data.loopBack) continue
-    graph.setEdge(edge.source, edge.target)
-  }
-
-  dagre.layout(graph)
-
-  const nodes = doc.nodes.map((node): ReactFlowNode => {
-    const laid = graph.node(node.id) as { x: number; y: number } | undefined
-    if (!laid) return { ...node, position: { ...node.position } }
-    const height = heights.get(node.id) ?? nodeHeight
-    return {
-      ...node,
-      position: { x: laid.x - nodeWidth / 2, y: laid.y - height / 2 },
-      style: { ...node.style, width: nodeWidth },
-    }
-  })
-  return { nodes, edges: doc.edges.map((edge) => ({ ...edge })) }
-}
-
-/**
- * Register clusters on a compound dagre graph: each node is parented to its innermost cluster and each cluster to the
- * cluster that lists it as a child. Clusters with no nodes in this graph are skipped.
- */
-function applyLayoutClusters(
-  graph: dagre.graphlib.Graph,
-  clusters: readonly LayoutCluster[],
-  nodeIds: ReadonlySet<string>,
-): void {
-  if (clusters.length === 0) return
-  const byId = new Map(clusters.map((cluster) => [cluster.id, cluster]))
-  const present = clusters.filter((cluster) => cluster.memberNodeIds.some((id) => nodeIds.has(id)))
-  const presentIds = new Set(present.map((cluster) => cluster.id))
-  const parentOf = new Map<string, string>()
-  for (const cluster of present) {
-    for (const child of cluster.childClusterIds) if (presentIds.has(child)) parentOf.set(child, cluster.id)
-  }
-  for (const cluster of present) {
-    graph.setNode(cluster.id, {})
-    const parent = parentOf.get(cluster.id)
-    if (parent) graph.setParent(cluster.id, parent)
-  }
-  for (const cluster of present) {
-    const inChildren = new Set(
-      cluster.childClusterIds.flatMap((child) => byId.get(child)?.memberNodeIds ?? []),
-    )
-    for (const id of cluster.memberNodeIds) {
-      if (nodeIds.has(id) && !inChildren.has(id)) graph.setParent(id, cluster.id)
-    }
-  }
-}

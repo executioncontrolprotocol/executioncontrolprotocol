@@ -1,5 +1,4 @@
 import type {
-  ReactFlowArmStatusDetail,
   ReactFlowLoopProgressDetail,
   ReactFlowLoopRoundDetail,
   ReactFlowRunLifecycleDetail,
@@ -15,7 +14,7 @@ export type ReactFlowProgressEventName =
   | "run:reset"
   | "run:done"
   | "step:status"
-  | "arm:status"
+  | "if:choice"
   | "loop:round"
   | "loop:progress"
 
@@ -48,15 +47,14 @@ export class ReactFlowRunProgress extends EventTarget {
     this.dispatchEvent(new CustomEvent("step:status", { detail }))
   }
 
-  /** Emit branch arm selection. */
-  emitArmStatus(structureId: string, arm: number | null): void {
-    const detail: ReactFlowArmStatusDetail = { structureId, arm }
-    this.dispatchEvent(new CustomEvent("arm:status", { detail }))
+  /** Emit `if` side selection. */
+  emitIfChoice(ifId: string, side: "then" | "else" | null): void {
+    this.dispatchEvent(new CustomEvent("if:choice", { detail: { ifId, side } }))
   }
 
-  /** Emit loop round progress for `while` / `for` modes. */
-  emitLoopRound(structureId: string, round: number, exhausted?: boolean): void {
-    const detail: ReactFlowLoopRoundDetail = { structureId, round, ...(exhausted ? { exhausted } : {}) }
+  /** Emit loop round progress for `for` mode. */
+  emitLoopRound(structureId: string, round: number): void {
+    const detail: ReactFlowLoopRoundDetail = { structureId, round }
     this.dispatchEvent(new CustomEvent("loop:round", { detail }))
   }
 

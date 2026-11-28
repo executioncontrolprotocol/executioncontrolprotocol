@@ -4,14 +4,17 @@ import { fileURLToPath } from "node:url"
 import Ajv from "ajv/dist/2020.js"
 import addFormats from "ajv-formats"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
+import { validateExecution } from "@executioncontrolprotocol/engine"
 import { describe, expect, it } from "vitest"
 import {
   STRUCTURE_EDIT_CONTIGUOUS,
   STRUCTURE_EDIT_EMPTY_STEPS,
   STRUCTURE_EDIT_PARALLEL_MIN,
   STRUCTURE_EDIT_STEP_NOT_FOUND,
+  addControlNode,
   deleteStep,
   removeStructure,
+  setLoopField,
   unwrapStructure,
   wrapSelectionIds,
   wrapSteps,
@@ -45,7 +48,7 @@ function flatTwoStep(): ExecutionManifest {
 
 describe("structure-edit", () => {
   it("rejects wrap with no step ids", () => {
-    expect(wrapSteps(flatTwoStep(), [], "branch")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
+    expect(wrapSteps(flatTwoStep(), [], "if")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
   })
 
   it("wrapSelectionIds prefers the multi-selection", () => {
@@ -53,9 +56,9 @@ describe("structure-edit", () => {
     expect(wrapSelectionIds(["A", "B"], "C")).toEqual(["C"])
   })
 
-  it("wrapSteps branch and round-trips", () => {
+  it("wrapSteps if and round-trips", () => {
     const base = flatTwoStep()
-    const wrapped = wrapSteps(base, ["A", "B"], "branch")
+    const wrapped = wrapSteps(base, ["A", "B"], "if")
     expect(wrapped.ok).toBe(true)
     if (!wrapped.ok) return
     expect(validate(wrapped.manifest)).toBe(true)
@@ -79,7 +82,7 @@ describe("structure-edit", () => {
 
   it("rejects non-contiguous and cross-line wraps", () => {
     const parallel = load("parallel.ecp.json")
-    expect(wrapSteps(parallel, ["left", "right"], "branch")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_CONTIGUOUS })
+    expect(wrapSteps(parallel, ["left", "right"], "if")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_CONTIGUOUS })
     const three: ExecutionManifest = {
       ...flatTwoStep(),
       steps: [
@@ -94,40 +97,47 @@ describe("structure-edit", () => {
     const manifest = {
       ...flatTwoStep(),
       detached: [
-        { id: "branch-1", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "branch-1" },
+        { id: "if-1", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "if-1" },
       ],
     } as ExecutionManifest
-    const wrapped = wrapSteps(manifest, ["A"], "branch")
+    const wrapped = wrapSteps(manifest, ["A"], "if")
     expect(wrapped.ok).toBe(true)
-    if (wrapped.ok) expect(wrapped.manifest.steps[0]!.id).toBe("branch-2")
+    if (wrapped.ok) expect(wrapped.manifest.steps[0]!.id).toBe("if-2")
   })
 
-  it("allocates branch-2 when branch-1 exists", () => {
+  it("allocates if-2 when if-1 exists", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
       steps: [
         {
-          type: "branch",
-          id: "branch-1",
-          branches: [{ label: "a", steps: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }] }],
+          type: "if",
+          id: "if-1",
+          expression: "true",
+          then: [{ id: "x", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" } }],
         },
         { id: "wrap-me", uses: "@executioncontrolprotocol/test.echo", input: { value: "y" }, as: "wrap-me" },
       ],
     }
-    const wrapped = wrapSteps(manifest, ["wrap-me"], "branch")
+    const wrapped = wrapSteps(manifest, ["wrap-me"], "if")
     expect(wrapped.ok).toBe(true)
-    if (wrapped.ok) expect(wrapped.manifest.steps.some((node) => node.id === "branch-2")).toBe(true)
+    if (wrapped.ok) expect(wrapped.manifest.steps.some((node) => node.id === "if-2")).toBe(true)
   })
 
-  it("deleteStep cascades parallel to a single line", () => {
+  it("deleteStep leaves parallel with an empty path when one arm is cleared", () => {
     const base = flatTwoStep()
     const wrapped = wrapSteps(base, ["A", "B"], "parallel")
     if (!wrapped.ok) throw new Error("wrap failed")
     const deleted = deleteStep(wrapped.manifest, "A")
     expect(deleted.ok).toBe(true)
     if (deleted.ok) {
-      expect(deleted.manifest.steps.map((node) => (node as { id?: string }).id)).toEqual(["B"])
+      const parallel = deleted.manifest.steps[0]
+      expect(parallel?.type).toBe("parallel")
+      if (parallel?.type === "parallel") {
+        const ids = parallel.paths.flatMap((path) => path.map((node) => node.id))
+        expect(ids).toContain("B")
+        expect(parallel.paths.some((path) => path.length === 0)).toBe(true)
+      }
     }
   })
 
@@ -155,15 +165,16 @@ describe("structure-edit", () => {
         {
           type: "parallel",
           id: "p",
-          branches: [
+          paths: [
             [
               {
                 type: "loop",
                 id: "L",
-                expr: "(state) => true",
-                maxRounds: 1,
+                mode: "for",
+                as: "i",
+                input: { count: 1 },
                 steps: [
-                  { id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only" },
+                  { id: "only", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, as: "only", mode: "replace" },
                 ],
               },
             ],
@@ -194,7 +205,7 @@ describe("structure-edit", () => {
     const base = flatTwoStep()
     const removed = removeStructure(base, "missing")
     expect(removed).toMatchObject({ ok: false, reason: "Structure not found" })
-    const wrapped = wrapSteps(base, ["A", "B"], "branch")
+    const wrapped = wrapSteps(base, ["A", "B"], "if")
     if (!wrapped.ok) throw new Error("wrap failed")
     const id = wrapped.manifest.steps[0]!.id
     const after = removeStructure(wrapped.manifest, id)
@@ -213,13 +224,154 @@ describe("structure-edit", () => {
     expect(wrapSteps(base, ["A", "B", "missing"], "loop")).toMatchObject({ ok: false })
   })
 
+  it("setLoopField updates loop as and refuses unknown structures", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "loop",
+          id: "L",
+          mode: "for",
+          as: "i",
+          input: { count: 2 },
+          steps: [{ id: "S", uses: "@executioncontrolprotocol/test.echo", input: { value: "x" }, mode: "replace" }],
+        },
+      ],
+    }
+    const ok = setLoopField(manifest, "L", "as", "round")
+    expect(ok.ok).toBe(true)
+    expect(setLoopField(manifest, "missing", "as", "i")).toMatchObject({ ok: false })
+  })
+
   it("does not mutate the input manifest on failure", () => {
     const base = flatTwoStep()
     const snapshot = structuredClone(base)
-    wrapSteps(base, ["A", "missing"], "branch")
+    wrapSteps(base, ["A", "missing"], "if")
     expect(base).toEqual(snapshot)
     deleteStep(base, "missing")
     expect(base).toEqual(snapshot)
     expect(deleteStep(base, "missing")).toMatchObject({ ok: false, reason: STRUCTURE_EDIT_STEP_NOT_FOUND })
+  })
+})
+describe("wrapping pattern examples validates", () => {
+  const echo = {
+    id: "@executioncontrolprotocol/test.echo",
+    plugin: "@executioncontrolprotocol/test",
+    package: "@executioncontrolprotocol/test",
+    pluginVersion: "0.0.0",
+    summary: "",
+    description: "",
+    useCases: [],
+    projections: [],
+    accepts: { type: "object", properties: { value: {} } },
+    returns: { type: "object", properties: { echo: {} } },
+  }
+  const branch = JSON.parse(
+    readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns/branch.ecp.json"), "utf8"),
+  ) as ExecutionManifest
+
+  async function errors(manifest: ExecutionManifest): Promise<string[]> {
+    const report = await validateExecution(manifest, { capabilities: [echo] })
+    return report.issues.filter((issue) => issue.severity === "error").map((issue) => `${issue.code} ${issue.path}`)
+  }
+
+  it.each(["if", "loop"] as const)("wrapping a step that commits `as` in %s stays valid", async (kind) => {
+    const result = wrapSteps(branch, ["start"], kind)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(await errors(result.manifest)).toEqual([])
+  })
+
+  it("a step wrapped in a for loop is the loop body without an explicit commit mode", () => {
+    const result = wrapSteps(branch, ["start"], "loop")
+    if (!result.ok) throw new Error(result.reason)
+    const loop = result.manifest.steps[0] as { mode?: string; steps: Array<{ mode?: string }> }
+    expect(loop.mode).toBe("for")
+    expect(loop.steps[0]?.mode).toBeUndefined()
+  })
+
+  it("wrapping two sibling nodes in parallel stays valid", async () => {
+    const result = wrapSteps(branch, ["start", "by-tier"], "parallel")
+    if (!result.ok) throw new Error(result.reason)
+    expect(await errors(result.manifest)).toEqual([])
+  })
+
+  it("addControlNode inserts an if at the top", () => {
+    const base = load("smallest.ecp.json")
+    const result = addControlNode(base, { kind: "top", after: "echo" })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const inserted = result.manifest.steps.find((node) => node.id === result.structureId)
+    expect(inserted?.type).toBe("if")
+    expect(inserted?.type === "if" && inserted.expression).toBe("true")
+  })
+
+  it("addControlNode supports tunnel placements and refuses bad anchors", () => {
+    const echo = "@executioncontrolprotocol/test.echo"
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        { id: "seed", uses: echo, as: "seed" },
+        {
+          type: "if",
+          id: "gate",
+          expression: "true",
+          then: [{ id: "t", uses: echo, as: "t" }],
+          else: [{ id: "e", uses: echo, as: "e" }],
+        },
+        {
+          type: "parallel",
+          id: "p",
+          paths: [
+            [{ id: "a", uses: echo, as: "a" }],
+            [{ id: "b", uses: echo, as: "b" }],
+          ],
+        },
+        { type: "loop", id: "l", mode: "for", as: "i", input: { count: 1 }, steps: [{ id: "body", uses: echo, as: "body" }] },
+      ],
+    }
+    const push = addControlNode(manifest, { kind: "top" })
+    expect(push.ok).toBe(true)
+    if (!push.ok) return
+    expect(push.manifest.steps.at(-1)?.type).toBe("if")
+
+    const thenSide = addControlNode(manifest, { kind: "then-side", ifId: "gate" })
+    expect(thenSide.ok).toBe(true)
+    if (thenSide.ok) {
+      const gate = thenSide.manifest.steps[1]!
+      expect(gate.type === "if" && gate.then[0]?.type).toBe("if")
+    }
+
+    const elseSide = addControlNode(manifest, { kind: "else-side", ifId: "gate" })
+    expect(elseSide.ok).toBe(true)
+    if (elseSide.ok) {
+      const gate = elseSide.manifest.steps[1]!
+      expect(gate.type === "if" && gate.else?.[0]?.type).toBe("if")
+    }
+
+    const pathSide = addControlNode(manifest, { kind: "path-side", parallelId: "p", pathIndex: 1 })
+    expect(pathSide.ok).toBe(true)
+
+    const newPath = addControlNode(manifest, { kind: "new-path", parallelId: "p" })
+    expect(newPath.ok).toBe(true)
+    if (newPath.ok) {
+      const parallel = newPath.manifest.steps[2]
+      expect(parallel?.type === "parallel" && parallel.paths).toHaveLength(3)
+    }
+
+    const loopBody = addControlNode(manifest, { kind: "loop-body", loopId: "l" })
+    expect(loopBody.ok).toBe(true)
+
+    const before = addControlNode(manifest, { kind: "before", nodeId: "t" })
+    expect(before.ok).toBe(true)
+
+    const after = addControlNode(manifest, { kind: "after", nodeId: "t" })
+    expect(after.ok).toBe(true)
+
+    expect(addControlNode(manifest, { kind: "top", after: "missing" })).toMatchObject({ ok: false })
+    expect(addControlNode(manifest, { kind: "loop-body", loopId: "gate" })).toMatchObject({ ok: false })
+    expect(addControlNode(manifest, { kind: "path-side", parallelId: "p", pathIndex: 9 })).toMatchObject({ ok: false })
   })
 })

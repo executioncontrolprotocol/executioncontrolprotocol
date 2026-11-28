@@ -1,7 +1,7 @@
 [
   {
     "code": "ECP_COMMIT_CONFLICT",
-    "path": "/steps/0/branches/1",
+    "path": "/steps/0/paths/1",
     "severity": "error",
     "messageIncludes": "Parallel lines both write"
   }

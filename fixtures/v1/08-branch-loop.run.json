@@ -31,14 +31,16 @@
     "run.start",
     "step.start",
     "step.end",
-    "branch.select",
+    "if.select",
     "step.start",
     "step.end",
+    "if.select",
     "step.start",
     "step.end",
     "loop.round",
     "step.start",
     "step.end",
+    "loop.repeat",
     "run.end"
   ]
 }

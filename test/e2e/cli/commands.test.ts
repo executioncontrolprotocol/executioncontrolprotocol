@@ -130,7 +130,7 @@ describe("cli e2e commands", () => {
       "ref-unresolved",
       "plugins-missing",
       "mode-without-as",
-      "default-arm-not-last",
+      "l2-if-empty-then",
     ]
     for (const name of names) {
       const file = path.join(fixturesRoot, "manifests/invalid", `${name}.ecp.json`)
