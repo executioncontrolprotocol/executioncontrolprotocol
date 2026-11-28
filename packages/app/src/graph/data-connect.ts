@@ -19,7 +19,7 @@ import { EXECUTION_RETURNS_NODE_ID } from "./io-from-schema.js"
 import {
   LOOP_COLLECT_HANDLE,
   LOOP_REF_HANDLE,
-  loopIdFromEndNodeId,
+  loopIdFromEndMarker,
   type ReactFlowDocument,
   type ReactFlowIfData,
   type ReactFlowIoData,
@@ -134,7 +134,7 @@ export function dataConnectionRefusal(
 
   const detachedRoots = new Set((manifest.detached ?? []).map((node) => node.id))
   const exempt = detachedNodeIds(manifest)
-  const targetOwner = loopIdFromEndNodeId(target) ?? target
+  const targetOwner = loopIdFromEndMarker(target) ?? target
   if (exempt.has(targetOwner) && !detachedRoots.has(targetOwner)) {
     return CONNECTION_EDIT_NOT_STEP
   }

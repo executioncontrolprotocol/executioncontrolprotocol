@@ -6,7 +6,7 @@ import {
   unwrapStructure,
   type StructureEditResult,
 } from "./structure-edit.js"
-import { structureIdFromEndNodeId, type ReactFlowEdge } from "./types.js"
+import { parseEndMarkerId, type ReactFlowEdge } from "./types.js"
 
 /** Why a control `end` node can't be deleted on its own. @category App */
 export const STRUCTURE_EDIT_DELETE_END = "Delete the control node instead"
@@ -67,8 +67,9 @@ export function isStructureHeaderSelection(manifest: ExecutionManifest, structur
  * @category App
  */
 export function isEndNodeSelection(manifest: ExecutionManifest, nodeId: string): boolean {
-  const structureId = structureIdFromEndNodeId(nodeId)
-  if (!structureId) return false
+  const parsed = parseEndMarkerId(nodeId)
+  if (!parsed) return false
+  const structureId = parsed.structureId
   const hit = findNodePlacement(manifest.steps, structureId)
   if (!hit) return false
   return hit.node.type === "if" || hit.node.type === "parallel" || hit.node.type === "loop"

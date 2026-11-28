@@ -14,7 +14,7 @@ import {
   placementManifestForDetachedConnect,
 } from "../../src/graph/connection-edit.js"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_COUNT_HANDLE, LOOP_ITEM_HANDLE, LOOP_ITEMS_HANDLE, loopEndNodeId } from "../../src/graph/types.js"
+import { LOOP_COUNT_HANDLE, LOOP_ITEM_HANDLE, LOOP_ITEMS_HANDLE, endMarkerId } from "../../src/graph/types.js"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const validDir = path.resolve(here, "../../../../fixtures/manifests/valid")
@@ -135,11 +135,11 @@ describe("connectInputAndAttach", () => {
       ],
       detached: [{ id: "C", uses: echo, as: "C" }],
     }
-    const placed = placementManifestForDetachedConnect(base, loopEndNodeId("rows"), "results", "C")
+    const placed = placementManifestForDetachedConnect(base, endMarkerId("rows", "loop"), "results", "C")
     expect(placed?.steps.map((node) => node.id)).toEqual(["rows", "C"])
     expect(
       connectInputAndAttach(base, {
-        sourceNodeId: loopEndNodeId("rows"),
+        sourceNodeId: endMarkerId("rows", "loop"),
         sourceHandle: "results",
         targetStepId: "C",
         targetHandle: "value",

@@ -61,7 +61,12 @@ export function EcpControlNode({ id, data, selected }: NodeProps) {
       data-control-kind={node.controlKind}
       data-choice-side={node.choiceSide ?? ""}
       className={[
-        "ecp-rf-node min-w-[200px] rounded-lg border border-outline-variant bg-surface-container px-3 py-2 shadow-sm",
+        "ecp-rf-node min-w-[200px] rounded-lg border bg-surface-container px-3 py-2 shadow-sm",
+        node.controlKind === "for" || node.controlKind === "forEach"
+          ? "ecp-rf-control--loop border-[#a371f7]"
+          : node.controlKind === "parallel"
+            ? "ecp-rf-control--parallel border-[#58a6ff]"
+            : "border-outline-variant",
         selected ? "ecp-rf-node--selected" : "",
         node.detached ? "ecp-rf-node--detached" : "",
         node.choiceSide === "then" ? "ecp-rf-if--then" : "",

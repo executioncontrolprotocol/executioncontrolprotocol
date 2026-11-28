@@ -12,7 +12,7 @@ import {
   rectsIntersect,
   tunnelRects,
 } from "../../src/graph/index.js"
-import { structureEndNodeId, type ReactFlowNode } from "../../src/graph/types.js"
+import { endMarkerId, type ReactFlowNode } from "../../src/graph/types.js"
 
 const patternsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns")
 
@@ -31,33 +31,32 @@ function centerY(node: ReactFlowNode, fallback = 160): number {
 }
 
 describe("tree layout invariants", () => {
-  it("control, end and sides column share vertical centre on if-in-loop", () => {
+  it("each if end marker shares vertical centre with its side on if-in-loop", () => {
     const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
-    const control = doc.nodes.find((n) => n.id === "express")!
-    const end = doc.nodes.find((n) => n.id === structureEndNodeId("express"))!
+    const endThen = doc.nodes.find((n) => n.id === endMarkerId("express", "then"))!
+    const endElse = doc.nodes.find((n) => n.id === endMarkerId("express", "else"))!
     const fast = doc.nodes.find((n) => n.id === "pick-fast")!
     const standard = doc.nodes.find((n) => n.id === "pick-standard")!
-    const cY = centerY(control)
-    const eY = centerY(end)
-    expect(Math.abs(cY - eY)).toBeLessThan(2)
-    const sideCy = (centerY(fast) + centerY(standard)) / 2
-    expect(Math.abs(cY - sideCy)).toBeLessThan(80)
+    expect(Math.abs(centerY(endThen) - centerY(fast))).toBeLessThan(2)
+    expect(Math.abs(centerY(endElse) - centerY(standard))).toBeLessThan(2)
+    expect(nodeBox(endThen).x).toBeLessThanOrEqual(nodeBox(endElse).x + 2)
   })
 
-  it("control is left of branch nodes; end is right and before the next row node", () => {
+  it("control is left of branch nodes; merge markers sit before ship", () => {
     const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
     const control = doc.nodes.find((n) => n.id === "express")!
-    const end = doc.nodes.find((n) => n.id === structureEndNodeId("express"))!
+    const endThen = doc.nodes.find((n) => n.id === endMarkerId("express", "then"))!
+    const endElse = doc.nodes.find((n) => n.id === endMarkerId("express", "else"))!
     const fast = nodeBox(doc.nodes.find((n) => n.id === "pick-fast")!)
     const standard = nodeBox(doc.nodes.find((n) => n.id === "pick-standard")!)
     const ship = nodeBox(doc.nodes.find((n) => n.id === "ship")!)
     const cBox = nodeBox(control)
-    const eBox = nodeBox(end)
+    const mergeRight = Math.max(nodeBox(endThen).x + nodeBox(endThen).width, nodeBox(endElse).x + nodeBox(endElse).width)
     expect(cBox.x + cBox.width).toBeLessThan(fast.x)
     expect(cBox.x + cBox.width).toBeLessThan(standard.x)
-    expect(eBox.x).toBeGreaterThan(fast.x + fast.width)
-    expect(eBox.x).toBeGreaterThan(standard.x + standard.width)
-    expect(eBox.x + eBox.width).toBeLessThan(ship.x)
+    expect(nodeBox(endThen).x).toBeGreaterThan(fast.x + fast.width)
+    expect(nodeBox(endElse).x).toBeGreaterThan(standard.x + standard.width)
+    expect(mergeRight).toBeLessThan(ship.x)
   })
 
   it("top-level inputs, steps and outputs share one horizontal line on branch", () => {
@@ -93,7 +92,7 @@ describe("tree layout invariants", () => {
   it("loop control, body and end share vertical centre", () => {
     const doc = executionToReactFlow(loadPattern("loop-for.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")!
-    const end = doc.nodes.find((n) => n.id === structureEndNodeId(loop.id))!
+    const end = doc.nodes.find((n) => n.id === endMarkerId(loop.id, "loop"))!
     expect(Math.abs(centerY(loop) - centerY(end))).toBeLessThan(2)
   })
 

@@ -142,7 +142,7 @@ export type ReactFlowParallelData = ReactFlowControlData & { controlKind: "paral
  * Visual tunnel kind drawn between a control node and its `end`.
  * @category App
  */
-export type ReactFlowTunnelKind = "then" | "else" | "path" | "loop"
+export type ReactFlowTunnelKind = "then" | "else" | "path" | "loop" | "rail" | "join"
 
 /**
  * Decorative tunnel around a control branch (not a dagre parent; drawn after layout).
@@ -220,41 +220,50 @@ export const LOOP_REF_HANDLE = "ref"
 /** @deprecated Old loop `collect` port id. @category App */
 export const LOOP_COLLECT_HANDLE = "collect"
 
-/** Prefix of a control `end` node's React Flow id (`end:<structureId>`). @category App */
+/** Prefix of a drawn end marker's React Flow id (`end:<structureId>:<side>`). @category App */
 export const END_NODE_PREFIX = "end:"
 
 /**
- * React Flow node id for a control node's synthetic `end` node (`end:<structureId>`).
+ * Which tunnel side an end marker closes (`then`, `else`, `path-1`, `loop`, …).
  * @category App
  */
-export function structureEndNodeId(structureId: string): string {
-  return `${END_NODE_PREFIX}${structureId}`
+export type EndMarkerSide = "then" | "else" | "loop" | `path-${number}`
+
+const END_MARKER_SIDE_PATTERN = /^(then|else|loop|path-\d+)$/
+
+/**
+ * React Flow node id for a structure's end marker on one side.
+ * @category App
+ */
+export function endMarkerId(structureId: string, side: EndMarkerSide): string {
+  return `${END_NODE_PREFIX}${structureId}:${side}`
 }
 
 /**
- * @deprecated Use {@link structureEndNodeId}.
+ * Parse an end marker id into structure id and side, or `undefined` when not a marker.
  * @category App
  */
-export function loopEndNodeId(loopId: string): string {
-  return structureEndNodeId(loopId)
+export function parseEndMarkerId(
+  nodeId: string,
+): { structureId: string; side: EndMarkerSide } | undefined {
+  if (!nodeId.startsWith(END_NODE_PREFIX)) return undefined
+  const rest = nodeId.slice(END_NODE_PREFIX.length)
+  const colon = rest.indexOf(":")
+  if (colon <= 0) return undefined
+  const structureId = rest.slice(0, colon)
+  const side = rest.slice(colon + 1)
+  if (!END_MARKER_SIDE_PATTERN.test(side)) return undefined
+  return { structureId, side: side as EndMarkerSide }
 }
 
 /**
- * Structure id behind a control `end` node's React Flow id, or `undefined` when `nodeId` is not an `end` id.
+ * Loop structure id when `nodeId` is that loop's `end loop` marker.
  * @category App
  */
-export function structureIdFromEndNodeId(nodeId: string): string | undefined {
-  return nodeId.startsWith(END_NODE_PREFIX) && nodeId.length > END_NODE_PREFIX.length
-    ? nodeId.slice(END_NODE_PREFIX.length)
-    : undefined
-}
-
-/**
- * @deprecated Use {@link structureIdFromEndNodeId}.
- * @category App
- */
-export function loopIdFromEndNodeId(nodeId: string): string | undefined {
-  return structureIdFromEndNodeId(nodeId)
+export function loopIdFromEndMarker(nodeId: string): string | undefined {
+  const parsed = parseEndMarkerId(nodeId)
+  if (!parsed || parsed.side !== "loop") return undefined
+  return parsed.structureId
 }
 
 /**
@@ -277,7 +286,9 @@ export interface ReactFlowEndData {
   structureId: string
   /** Which control this ends. */
   structureKind: "if" | "parallel" | "loop"
-  /** Display label (`end if`, `end loop`, …). */
+  /** Tunnel side this marker closes (`then`, `else`, `path-1`, `loop`, …). */
+  side: EndMarkerSide
+  /** Display label (`end then`, `end loop`, …). */
   label: string
 }
 

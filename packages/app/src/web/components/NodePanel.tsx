@@ -28,7 +28,6 @@ import {
 } from "../../graph/index.js"
 import type { ExecutionSource } from "../hooks/useExecutionDocument.js"
 import type { EditorApplyRequest } from "../hooks/useExecutionEditor.js"
-import { EndPanel } from "./StructureNodePanels.js"
 import { ControlNodePanel } from "./ControlNodePanel.js"
 
 /**
@@ -518,21 +517,6 @@ export function NodePanel({
     )
   }
   if (node.type === "ecp-io") return <IoPanel node={node} manifest={manifest} />
-  if (node.type === "ecp-end") {
-    return (
-      <EndPanel
-        node={node}
-        issues={issues}
-        manifest={manifest}
-        readOnly={readOnly}
-        fieldEpoch={fieldEpoch}
-        applyManifestEdit={applyManifestEdit}
-        scheduleTextEdit={scheduleTextEdit}
-        flushTextEdit={flushTextEdit}
-        onOpenCapabilityMenu={onOpenCapabilityMenu}
-      />
-    )
-  }
   if (node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-loop") {
     return (
       <ControlNodePanel

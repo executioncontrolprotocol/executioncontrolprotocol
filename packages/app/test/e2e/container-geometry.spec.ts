@@ -77,8 +77,9 @@ test.describe("Tunnel geometry", () => {
     const thenTunnel = await box(page, "ecp-tunnel-by-tier-then")
     const elseTunnel = await box(page, "ecp-tunnel-by-tier-else")
     expect(thenTunnel && elseTunnel).toBeTruthy()
-    await expect(page.getByTestId("ecp-tunnel-by-tier-then")).toContainText("then")
-    await expect(page.getByTestId("ecp-tunnel-by-tier-else")).toContainText("else")
+    const layer = page.getByTestId("ecp-rail-layer")
+    await expect(layer.getByTestId("ecp-side-label-by-tier-then")).toHaveText("then")
+    await expect(layer.getByTestId("ecp-side-label-by-tier-else")).toHaveText("else")
     await expect(page.locator(".react-flow__edge").first()).toBeVisible({ timeout: 10_000 })
     const ids = await page.locator(".react-flow__edge").evaluateAll((els) => els.map((el) => el.getAttribute("data-id") ?? ""))
     expect(ids.some((id) => id.includes("by-tier") && id.includes("tier"))).toBe(true)
@@ -109,12 +110,12 @@ test.describe("Tunnel geometry", () => {
     contains(thenTunnel!, fast!)
     expect(standard!.y + standard!.height).toBeLessThanOrEqual(elseTunnel!.y + elseTunnel!.height + 2)
     expect(fast!.y).toBeGreaterThanOrEqual(thenTunnel!.y - 2)
-    await expect(page.getByTestId("ecp-end-end:each-order")).toContainText("end loop")
-    await expect(page.getByTestId("ecp-end-end:express")).toContainText("end if")
-    const thenBg = await page.getByTestId("ecp-tunnel-express-then").evaluate((el) => getComputedStyle(el).backgroundColor)
-    const elseBg = await page.getByTestId("ecp-tunnel-express-else").evaluate((el) => getComputedStyle(el).backgroundColor)
-    expect(thenBg).toMatch(/63,\s*185,\s*80/)
-    expect(elseBg).toMatch(/248,\s*81,\s*73/)
+    await expect(page.getByTestId("ecp-end-end:each-order:loop")).toContainText("end loop")
+    await expect(page.getByTestId("ecp-end-end:express:then")).toContainText("end then")
+    await expect(page.getByTestId("ecp-end-end:express:else")).toContainText("end else")
+    const layer = page.getByTestId("ecp-rail-layer")
+    await expect(layer.getByTestId("ecp-side-express-then")).toHaveAttribute("stroke", "#3fb950")
+    await expect(layer.getByTestId("ecp-side-express-else")).toHaveAttribute("stroke", "#f85149")
   })
 
   async function verticalCenter(page: Page, testId: string): Promise<number> {
@@ -122,11 +123,14 @@ test.describe("Tunnel geometry", () => {
     return rect!.y + rect!.height / 2
   }
 
-  test("if-in-loop: control and end if share vertical centre", async ({ page }) => {
+  test("if-in-loop: each end marker shares vertical centre with its side", async ({ page }) => {
     await open(page, "if-in-loop.ecp.json")
-    const control = await verticalCenter(page, "ecp-if-express")
-    const end = await verticalCenter(page, "ecp-end-end:express")
-    expect(Math.abs(control - end)).toBeLessThan(6)
+    const endThen = await verticalCenter(page, "ecp-end-end:express:then")
+    const fast = await verticalCenter(page, "ecp-step-pick-fast")
+    const endElse = await verticalCenter(page, "ecp-end-end:express:else")
+    const standard = await verticalCenter(page, "ecp-step-pick-standard")
+    expect(Math.abs(endThen - fast)).toBeLessThan(8)
+    expect(Math.abs(endElse - standard)).toBeLessThan(8)
   })
 
   test("branch: top-level inputs and done share vertical centre", async ({ page }) => {
@@ -146,7 +150,6 @@ test.describe("Tunnel geometry", () => {
     contains(elseTunnel!, innerThen!)
     contains(elseTunnel!, innerElse!)
     disjoint(innerThen!, innerElse!)
-    const thenBg = await page.getByTestId("ecp-tunnel-by-tier-then").evaluate((el) => getComputedStyle(el).backgroundColor)
-    expect(thenBg).toMatch(/63,\s*185,\s*80/)
+    await expect(page.getByTestId("ecp-rail-layer").getByTestId("ecp-side-by-tier-then")).toHaveAttribute("stroke", "#3fb950")
   })
 })

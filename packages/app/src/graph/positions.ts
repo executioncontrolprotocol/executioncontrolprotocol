@@ -1,4 +1,5 @@
 import { resizeTunnelNodes } from "./tunnel-geometry.js"
+import { parseEndMarkerId } from "./types.js"
 import type { ReactFlowDocument, ReactFlowNode } from "./types.js"
 
 /** Browser storage key prefix for canvas position overrides. */
@@ -65,7 +66,7 @@ export function parsePositionOverrides(raw: string | null): PositionOverrides {
  */
 export function placeWithOverrides(document: ReactFlowDocument, overrides: PositionOverrides): ReactFlowDocument {
   const positioned = document.nodes.map((node): ReactFlowNode => {
-    if (node.type === "ecp-tunnel") return node
+    if (node.type === "ecp-tunnel" || node.type === "ecp-end") return node
     const override = overrides[node.id]
     if (!override) return node
     return { ...node, position: { x: override.x, y: override.y } }
@@ -87,6 +88,7 @@ export function prunePositionOverrides(
   const next: PositionOverrides = {}
   for (const [id, position] of Object.entries(overrides)) {
     if (tunnelIds.has(id)) continue
+    if (parseEndMarkerId(id)) continue
     if (previousIds.has(id) && !nextIds.has(id)) continue
     next[id] = position
   }

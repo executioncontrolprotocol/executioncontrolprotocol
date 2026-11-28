@@ -50,7 +50,8 @@ import {
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  structureEndNodeId,
+  endMarkerId,
+  type EndMarkerSide,
 } from "./types.js"
 
 interface EncodeContext {
@@ -242,11 +243,12 @@ function loopReactFlowNode(node: LoopNode): ReactFlowNode {
 function endReactFlowNode(
   structureId: string,
   structureKind: ReactFlowEndData["structureKind"],
+  side: EndMarkerSide,
   label: string,
 ): ReactFlowNode {
-  const data: ReactFlowEndData = { structureId, structureKind, label }
+  const data: ReactFlowEndData = { structureId, structureKind, side, label }
   return {
-    id: structureEndNodeId(structureId),
+    id: endMarkerId(structureId, side),
     type: "ecp-end",
     position: { x: 0, y: 0 },
     style: { width: TREE_END_WIDTH, height: TREE_END_HEIGHT },
@@ -256,8 +258,8 @@ function endReactFlowNode(
 
 function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
   const head = ifReactFlowNode(node)
-  const endId = structureEndNodeId(node.id)
-  const endNode = endReactFlowNode(node.id, "if", "end if")
+  const endThen = endReactFlowNode(node.id, "if", "then", "end then")
+  const endElse = endReactFlowNode(node.id, "if", "else", "end else")
   ctx.tunnelStack.push({ childTunnelIds: [] })
   const thenSeg = renderNodes(node.then, ctx)
   const elseSeg = node.else ? renderNodes(node.else, ctx) : { nodes: [], edges: [], entryIds: [], exitIds: [] }
@@ -285,7 +287,7 @@ function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
     tunnelKind: "then",
     label: "then",
     controlNodeId: node.id,
-    endNodeId: endId,
+    endNodeId: endMarkerId(node.id, "then"),
     sideNodeIds: thenSideIds,
     memberNodeIds: thenSideIds,
   })
@@ -295,7 +297,7 @@ function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
     tunnelKind: "else",
     label: "else",
     controlNodeId: node.id,
-    endNodeId: endId,
+    endNodeId: endMarkerId(node.id, "else"),
     sideNodeIds: elseSideIds,
     memberNodeIds: elseSideIds,
   })
@@ -306,31 +308,28 @@ function renderIf(node: IfNode, ctx: EncodeContext): RenderSegment {
   if (elseSeg.entryIds.length > 0) connectControl(edges, [node.id], elseSeg.entryIds, `if-else-${node.id}`)
   else if (node.else) connectControl(edges, [node.id], elseSideIds, `if-else-ph-${node.id}`)
   else connectControl(edges, [node.id], elseSideIds, `if-else-empty-${node.id}`)
-  if (thenSeg.exitIds.length > 0) connectControl(edges, thenSeg.exitIds, [endId], `if-then-end-${node.id}`)
-  else connectControl(edges, thenSideIds, [endId], `if-then-empty-${node.id}`)
-  if (elseSeg.exitIds.length > 0) connectControl(edges, elseSeg.exitIds, [endId], `if-else-end-${node.id}`)
-  else connectControl(edges, elseSideIds, [endId], `if-else-end-empty-${node.id}`)
 
   return {
-    nodes: [head, endNode, ...placeholderNodes, ...thenSeg.nodes, ...elseSeg.nodes],
+    nodes: [head, endThen, endElse, ...placeholderNodes, ...thenSeg.nodes, ...elseSeg.nodes],
     edges,
     entryIds: [node.id],
-    exitIds: [endId],
+    exitIds: [node.id],
   }
 }
 
 function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
   const head = parallelReactFlowNode(node)
-  const endId = structureEndNodeId(node.id)
-  const endNode = endReactFlowNode(node.id, "parallel", "end parallel")
   ctx.tunnelStack.push({ childTunnelIds: [] })
-  const out: RenderSegment = { nodes: [head, endNode], edges: [], entryIds: [node.id], exitIds: [endId] }
+  const endNodes = node.paths.map((_, index) =>
+    endReactFlowNode(node.id, "parallel", `path-${index + 1}`, `end path ${index + 1}`),
+  )
+  const out: RenderSegment = { nodes: [head, ...endNodes], edges: [], entryIds: [node.id], exitIds: [node.id] }
   node.paths.forEach((path, index) => {
     const seg = renderNodes(path, ctx)
     out.nodes.push(...seg.nodes)
     out.edges.push(...seg.edges)
     const pathIds = nodeIdsInSegment(seg)
-    const pathKey = `path-${index + 1}`
+    const pathKey = `path-${index + 1}` as const
     let sideIds = pathIds
     if (pathIds.length === 0) {
       const ph = sidePlaceholderNode(node.id, pathKey)
@@ -343,14 +342,12 @@ function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
       tunnelKind: "path",
       label: `path ${index + 1}`,
       controlNodeId: node.id,
-      endNodeId: endId,
+      endNodeId: endMarkerId(node.id, pathKey),
       sideNodeIds: sideIds,
       memberNodeIds: sideIds,
     })
     if (seg.entryIds.length > 0) connectControl(out.edges, [node.id], seg.entryIds, `par-${node.id}-${index}`)
     else connectControl(out.edges, [node.id], sideIds, `par-ph-${node.id}-${index}`)
-    if (seg.exitIds.length > 0) connectControl(out.edges, seg.exitIds, [endId], `par-end-${node.id}-${index}`)
-    else connectControl(out.edges, sideIds, [endId], `par-empty-${node.id}-${index}`)
   })
   ctx.tunnelStack.pop()
   return out
@@ -358,8 +355,8 @@ function renderParallel(node: ParallelNode, ctx: EncodeContext): RenderSegment {
 
 function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
   const head = loopReactFlowNode(node)
-  const endId = structureEndNodeId(node.id)
-  const endNode = endReactFlowNode(node.id, "loop", "end loop")
+  const endLoopId = endMarkerId(node.id, "loop")
+  const endNode = endReactFlowNode(node.id, "loop", "loop", "end loop")
   ctx.tunnelStack.push({ childTunnelIds: [] })
   const seg = renderNodes(node.steps, ctx)
   const bodyIds = nodeIdsInSegment(seg)
@@ -369,20 +366,18 @@ function renderLoop(node: LoopNode, ctx: EncodeContext): RenderSegment {
     tunnelKind: "loop",
     label: structureLabel(node),
     controlNodeId: node.id,
-    endNodeId: endId,
+    endNodeId: endLoopId,
     sideNodeIds: bodyIds,
-    memberNodeIds: [node.id, ...bodyIds, endId],
+    memberNodeIds: [node.id, ...bodyIds, endLoopId],
   })
   ctx.tunnelStack.pop()
   const edges = [...seg.edges]
   if (seg.entryIds.length > 0) connectControl(edges, [node.id], seg.entryIds, `loop-body-${node.id}`)
-  if (seg.exitIds.length > 0) connectControl(edges, seg.exitIds, [endId], `loop-end-${node.id}`)
-  else connectControl(edges, [node.id], [endId], `loop-end-empty-${node.id}`)
   return {
     nodes: [head, endNode, ...seg.nodes],
     edges,
     entryIds: [node.id],
-    exitIds: [endId],
+    exitIds: [node.id],
   }
 }
 

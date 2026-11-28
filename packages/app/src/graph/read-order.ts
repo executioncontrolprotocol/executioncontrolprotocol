@@ -8,7 +8,7 @@ import {
   LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  structureEndNodeId,
+  endMarkerId,
 } from "./types.js"
 
 /**
@@ -74,7 +74,7 @@ function walkIndex(nodes: Node[]): WalkIndex {
         steps.set(node.id, { order: startOrder, enclosingLoopStack: [...loopStack], scope: [...scope] })
         walk(node.steps, [...scope, loopScope], [...loopStack, node.id])
         const endOrder = order++
-        steps.set(structureEndNodeId(node.id), {
+        steps.set(endMarkerId(node.id, "loop"), {
           order: endOrder,
           enclosingLoopStack: [...loopStack, node.id],
           scope: [...scope, loopScope],

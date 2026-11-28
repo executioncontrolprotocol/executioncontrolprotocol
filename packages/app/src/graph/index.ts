@@ -3,6 +3,19 @@
  * @category App
  */
 export { executionToReactFlow, sidePlaceholderId } from "./execution-to-reactflow.js"
+export {
+  computeRailVisualLayer,
+  JOIN_RIBBON_WIDTH,
+  SIDE_BAND_PADDING,
+  controlNestingDepth,
+  roundedRectPath,
+  RAIL_STROKE_WIDTH,
+  type RailLabelShape,
+  type RailLayerDimming,
+  type RailLoopShape,
+  type RailPathShape,
+  type RailVisualShape,
+} from "./rail-layer.js"
 export type { TunnelSpec } from "./types.js"
 export { analyseMergePort, type MergePortAnalysis, type ScopeSegment as MergeScopeSegment } from "./merge-port-scope.js"
 export {
@@ -261,11 +274,11 @@ export {
   LOOP_REF_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
   END_NODE_PREFIX,
-  structureEndNodeId,
-  structureIdFromEndNodeId,
-  loopEndNodeId,
-  loopIdFromEndNodeId,
+  endMarkerId,
+  parseEndMarkerId,
+  loopIdFromEndMarker,
 } from "./types.js"
+export type { EndMarkerSide } from "./types.js"
 export type {
   CapabilityIoSchemas,
   CapabilitySchemaIndex,

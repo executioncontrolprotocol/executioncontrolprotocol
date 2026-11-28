@@ -2,7 +2,7 @@ import type { ExecutionManifest, Node } from "@executioncontrolprotocol/protocol
 import { findStructure, type AddStepPlacement } from "./add-step.js"
 import { boundsAroundNodeIds, DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./layout.js"
 import { collectAllNodeIds } from "./manifest-walk.js"
-import { structureEndNodeId, type ReactFlowDocument, type ReactFlowTunnelData } from "./types.js"
+import { endMarkerId, type ReactFlowDocument, type ReactFlowTunnelData } from "./types.js"
 
 /**
  * Innermost tunnel whose box holds `point` (flow coordinates), or `undefined` when the point is outside every tunnel.
@@ -46,7 +46,7 @@ function subtreeNodeIds(node: Node): string[] {
   const ids = new Set<string>()
   collectAllNodeIds([node], ids)
   if (node.type === "if" || node.type === "parallel" || node.type === "loop") {
-    ids.add(structureEndNodeId(node.id))
+    ids.add(endMarkerId(node.id, "loop"))
   }
   return [...ids]
 }

@@ -7,7 +7,7 @@ import {
   executionToReactFlow,
   EXECUTION_ACCEPTS_NODE_ID,
   EMPTY_INPUT_PORT_ID,
-  structureEndNodeId,
+  endMarkerId,
   LOOP_ITEMS_HANDLE,
   IF_THEN_HANDLE,
   type ReactFlowTunnelData,
@@ -39,9 +39,9 @@ describe("executionToReactFlow", () => {
     const doc = executionToReactFlow(loadPattern("loop-foreach.ecp.json"))
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")
     expect(loop).toBeDefined()
-    expect(doc.nodes.some((n) => n.id === structureEndNodeId(loop!.id))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId(loop!.id, "loop"))).toBe(true)
     expect(doc.edges.some((e) => e.targetHandle === LOOP_ITEMS_HANDLE)).toBe(true)
-    const end = doc.nodes.find((n) => n.id === structureEndNodeId(loop!.id))!
+    const end = doc.nodes.find((n) => n.id === endMarkerId(loop!.id, "loop"))!
     expect((end.data as { label: string }).label).toBe("end loop")
   })
 
@@ -49,7 +49,8 @@ describe("executionToReactFlow", () => {
     const doc = executionToReactFlow(loadPattern("parallel.ecp.json"))
     const parallel = doc.nodes.find((n) => n.type === "ecp-parallel")
     expect(parallel).toBeDefined()
-    expect(doc.nodes.some((n) => n.id === structureEndNodeId(parallel!.id))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId(parallel!.id, "path-1"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId(parallel!.id, "path-2"))).toBe(true)
     expect(doc.nodes.some((n) => n.type === "ecp-tunnel")).toBe(true)
     expect(doc.edges.every((e) => e.data.kind === "data")).toBe(true)
   })
@@ -63,13 +64,17 @@ describe("executionToReactFlow", () => {
       expect(data.memberNodeIds.length).toBeGreaterThan(0)
       expect(tunnel.id.startsWith("ecp:tunnel:")).toBe(true)
       if (data.tunnelKind === "loop") {
-        expect(data.memberNodeIds).toContain(structureEndNodeId(data.structureId))
+        expect(data.memberNodeIds).toContain(endMarkerId(data.structureId, "loop"))
         expect(data.controlNodeId).toBe(data.structureId)
       }
       if (data.tunnelKind === "then" || data.tunnelKind === "else") {
-        expect(data.memberNodeIds).not.toContain(structureEndNodeId(data.structureId))
+        expect(data.memberNodeIds).not.toContain(endMarkerId(data.structureId, data.tunnelKind))
         expect(data.controlNodeId).toBe(data.structureId)
-        expect(data.endNodeId).toBe(structureEndNodeId(data.structureId))
+        expect(data.endNodeId).toBe(endMarkerId(data.structureId, data.tunnelKind))
+      }
+      if (data.tunnelKind === "path") {
+        const pathN = data.label.replace(/^path /, "")
+        expect(data.endNodeId).toBe(endMarkerId(data.structureId, `path-${pathN}`))
       }
       if (data.tunnelKind === "path") {
         expect(data.label.startsWith("path ")).toBe(true)
@@ -87,7 +92,8 @@ describe("executionToReactFlow", () => {
     expect(data.tunnelKind).toBe("then")
     expect(data.memberNodeIds).toContain("gold-offer")
     expect(data.memberNodeIds).not.toContain("by-tier")
-    expect(data.memberNodeIds).not.toContain(structureEndNodeId("by-tier"))
+    expect(data.memberNodeIds).not.toContain(endMarkerId("by-tier", "then"))
+    expect(data.memberNodeIds).not.toContain(endMarkerId("by-tier", "else"))
   })
 
   it("loop-foreach pattern emits loop tunnel wrapping end", () => {
@@ -96,7 +102,7 @@ describe("executionToReactFlow", () => {
     const tunnel = doc.nodes.find((n) => n.id === `ecp:tunnel:${loop.id}:loop`)!
     const data = tunnel.data as ReactFlowTunnelData
     expect(data.memberNodeIds).toContain(loop.id)
-    expect(data.memberNodeIds).toContain(structureEndNodeId(loop.id))
+    expect(data.memberNodeIds).toContain(endMarkerId(loop.id, "loop"))
   })
 
   it("if-in-loop nests if tunnels inside loop tunnel and labels ends", () => {
@@ -105,10 +111,11 @@ describe("executionToReactFlow", () => {
     const thenTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:express:then")
     const elseTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:express:else")
     expect(loopTunnel && thenTunnel && elseTunnel).toBeTruthy()
-    expect(doc.nodes.some((n) => n.id === structureEndNodeId("express"))).toBe(true)
-    expect(doc.nodes.some((n) => n.id === structureEndNodeId("each-order"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId("express", "then"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId("express", "else"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId("each-order", "loop"))).toBe(true)
     const ends = doc.nodes.filter((n) => n.type === "ecp-end")
-    expect(ends.map((n) => (n.data as { label: string }).label).sort()).toEqual(["end if", "end loop"])
+    expect(ends.map((n) => (n.data as { label: string }).label).sort()).toEqual(["end else", "end loop", "end then"])
   })
 
   it("if-in-loop ship merge port shows two branches; notify input is array across loop", () => {
@@ -141,7 +148,7 @@ describe("executionToReactFlow", () => {
     expect(port?.refBranchCount).toBe(2)
   })
 
-  it("if with empty else still draws else tunnel and end if", () => {
+  it("if with empty else still draws else tunnel and both end markers", () => {
     const manifest: ExecutionManifest = {
       schema: "@executioncontrolprotocol.execution",
       version: "2.0",
@@ -149,7 +156,10 @@ describe("executionToReactFlow", () => {
     }
     const doc = executionToReactFlow(manifest)
     expect(doc.nodes.some((n) => n.id === "ecp:tunnel:solo:else")).toBe(true)
-    expect(doc.nodes.some((n) => n.id === structureEndNodeId("solo"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId("solo", "then"))).toBe(true)
+    expect(doc.nodes.some((n) => n.id === endMarkerId("solo", "else"))).toBe(true)
+    const endElse = doc.nodes.find((n) => n.id === endMarkerId("solo", "else"))!
+    expect((endElse.data as { label: string }).label).toBe("end else")
   })
 
   it("if and parallel control nodes include an empty input port", () => {

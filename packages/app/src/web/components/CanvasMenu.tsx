@@ -3,7 +3,6 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import type { ReactFlowEdge } from "../../graph/index.js"
 import type { AddStepPlacement } from "../../graph/index.js"
 import {
-  STRUCTURE_EDIT_DELETE_END,
   connectorDeletePreview,
   findStructure,
   isEndNodeSelection,
@@ -190,11 +189,6 @@ export function CanvasMenu({
         ]
   } else if (readOnly) {
     items = [configureItem]
-  } else if (isEnd) {
-    items = [
-      configureItem,
-      { id: "delete", label: "Delete", disabled: true, title: STRUCTURE_EDIT_DELETE_END },
-    ]
   } else if (structure) {
     const unwrapPreview = unwrapStructure(manifest, structure.id)
     items = [

@@ -10,7 +10,7 @@ import {
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  structureEndNodeId,
+  endMarkerId,
   type ReactFlowEdge,
 } from "./types.js"
 
@@ -119,7 +119,7 @@ function walkPlacements(nodes: Node[], state: WalkState): void {
         bodyStepIds: new Set(bodySteps.map((step) => step.id)),
         startOrder,
         endOrder: startOrder,
-        endNodeId: structureEndNodeId(node.id),
+        endNodeId: endMarkerId(node.id, "loop"),
       }
       state.loopById.set(node.id, scope)
       state.loopStack.push(node.id)

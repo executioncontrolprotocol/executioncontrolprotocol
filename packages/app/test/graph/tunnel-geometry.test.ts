@@ -23,7 +23,7 @@ function tunnel(id: string, members: string[], depth: number): ReactFlowNode {
       tunnelKind: "loop",
       label: "forEach",
       controlNodeId: "s",
-      endNodeId: "end:s",
+      endNodeId: "end:s:loop",
       sideNodeIds: members,
       memberNodeIds: members,
       childTunnelIds: [],
@@ -44,7 +44,7 @@ describe("tunnel-geometry", () => {
   it("resizeTunnelNodes updates tunnel size and position", () => {
     const nodes = [
       { id: "s", type: "ecp-loop", position: { x: -80, y: 0 }, style: { width: 260 }, data: { label: "s", inputs: [], outputs: [] } },
-      { id: "end:s", type: "ecp-end", position: { x: 700, y: 0 }, data: { label: "end" } },
+      { id: "end:s:loop", type: "ecp-end", position: { x: 700, y: 0 }, data: { label: "end loop", structureId: "s", structureKind: "loop", side: "loop" } },
       step("a", 0, 0),
       step("b", 300, 0),
       tunnel("ecp:tunnel:s:loop", ["a", "b"], 0),
@@ -58,7 +58,7 @@ describe("tunnel-geometry", () => {
   it("tunnelRects returns a map of tunnel boxes", () => {
     const nodes = [
       { id: "x", type: "ecp-if" as const, position: { x: 0, y: 10 }, style: { width: 260 }, data: { label: "x", inputs: [], outputs: [] } },
-      { id: "end:x", type: "ecp-end" as const, position: { x: 400, y: 10 }, data: { structureId: "x", structureKind: "if" as const, label: "end if" } },
+      { id: "end:x:then", type: "ecp-end" as const, position: { x: 400, y: 10 }, data: { structureId: "x", structureKind: "if" as const, side: "then" as const, label: "end then" } },
       step("a", 80, 10),
       {
         ...tunnel("ecp:tunnel:x:then", ["a"], 0),
@@ -66,7 +66,7 @@ describe("tunnel-geometry", () => {
           ...(tunnel("ecp:tunnel:x:then", ["a"], 0).data as ReactFlowTunnelData),
           tunnelKind: "then",
           controlNodeId: "x",
-          endNodeId: "end:x",
+          endNodeId: "end:x:then",
         },
       },
     ]
@@ -77,7 +77,7 @@ describe("tunnel-geometry", () => {
   it("isNodeInsideTunnel checks center against the tunnel rect", () => {
     const nodes = resizeTunnelNodes([
       { id: "s", type: "ecp-loop", position: { x: 0, y: 50 }, style: { width: 260 }, data: { label: "s", inputs: [], outputs: [] } },
-      { id: "end:s", type: "ecp-end", position: { x: 500, y: 50 }, data: { structureId: "s", structureKind: "loop", label: "end" } },
+      { id: "end:s:loop", type: "ecp-end", position: { x: 500, y: 50 }, data: { structureId: "s", structureKind: "loop", side: "loop", label: "end loop" } },
       step("a", 50, 50),
       tunnel("ecp:tunnel:s:loop", ["a"], 0),
     ])

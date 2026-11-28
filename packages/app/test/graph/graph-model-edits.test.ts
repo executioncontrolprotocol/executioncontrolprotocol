@@ -7,7 +7,7 @@ import {
   dataConnectionRefusal,
   executionToReactFlow,
   isValidDataConnection,
-  loopEndNodeId,
+  endMarkerId,
   setLoopField,
   unwrapStructure,
   wrapSteps,
@@ -331,7 +331,7 @@ describe("end and parallel encoder branches", () => {
       ],
     }
     const doc = executionToReactFlow(manifest)
-    const end = doc.nodes.find((n) => n.id === loopEndNodeId("L"))
+    const end = doc.nodes.find((n) => n.id === endMarkerId("L", "loop"))
     expect(end?.type).toBe("ecp-end")
     const data = end!.data as { label: string; structureKind: string }
     expect(data.label).toBe("end loop")

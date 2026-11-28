@@ -5,7 +5,7 @@ import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import {
   executionToReactFlow,
-  loopEndNodeId,
+  endMarkerId,
   LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
@@ -47,7 +47,7 @@ describe("executionToReactFlow pattern examples", () => {
     const doc = executionToReactFlow(load("nested-foreach-branch.ecp.json"))
     const loops = doc.nodes.filter((n) => n.type === "ecp-loop")
     for (const loop of loops) {
-      expect(doc.nodes.some((n) => n.id === loopEndNodeId(loop.id))).toBe(true)
+      expect(doc.nodes.some((n) => n.id === endMarkerId(loop.id, "loop"))).toBe(true)
     }
     expect(doc.nodes.filter((n) => n.type === "ecp-tunnel").length).toBeGreaterThan(0)
   })

@@ -23,8 +23,8 @@ function tunnelNode(id: string, members: string[], depth: number): ReactFlowNode
       tunnelKind: "loop",
       label: "loop",
       controlNodeId: "loop",
-      endNodeId: "end:loop",
-      sideNodeIds: members.filter((m) => m !== "loop" && m !== "end:loop"),
+      endNodeId: "end:loop:loop",
+      sideNodeIds: members.filter((m) => m !== "loop" && m !== "end:loop:loop"),
       memberNodeIds: members,
       childTunnelIds: [],
       depth,
@@ -68,10 +68,10 @@ describe("placeWithOverrides", () => {
     const document: ReactFlowDocument = {
       nodes: [
         { id: "loop", type: "ecp-loop", position: { x: -50, y: 0 }, style: { width: 260 }, data: { label: "loop", inputs: [], outputs: [] } },
-        { id: "end:loop", type: "ecp-end", position: { x: 900, y: 0 }, data: { label: "end" } },
+        { id: "end:loop:loop", type: "ecp-end", position: { x: 900, y: 0 }, data: { label: "end loop", structureId: "loop", side: "loop", structureKind: "loop" } },
         step("a", 0, 0),
         step("b", 400, 0),
-        tunnelNode("ecp:tunnel:loop:loop", ["loop", "a", "b", "end:loop"], 0),
+        tunnelNode("ecp:tunnel:loop:loop", ["loop", "a", "b", "end:loop:loop"], 0),
       ],
       edges: [],
     }
@@ -117,7 +117,7 @@ describe("placeWithOverrides grows tunnels when body nodes move", () => {
     const encoded = executionToReactFlow(manifest)
     const loopId = manifest.steps.find((step) => step.type === "loop")?.id ?? "retry"
     const bodyId = (manifest.steps[0] as { type: string; steps?: Array<{ id: string }> }).steps?.[0]?.id ?? "attempt"
-    const end = encoded.nodes.find((node) => node.id === `end:${loopId}`)!
+    const end = encoded.nodes.find((node) => node.id === `end:${loopId}:loop`)!
     const placed = placeWithOverrides(encoded, { [bodyId]: { x: end.position.x + 600, y: end.position.y } })
     const tunnel = placed.nodes.find((node) => node.id === `ecp:tunnel:${loopId}:loop`)!
     const body = placed.nodes.find((node) => node.id === bodyId)!

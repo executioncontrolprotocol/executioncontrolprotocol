@@ -8,7 +8,7 @@ describe("openCanvasContextMenu", () => {
     { label: "io", target: { kind: "io" }, expect: "none" },
     { label: "step", target: { kind: "node", nodeId: "a" }, expect: "node" },
     { label: "start node", target: { kind: "node", nodeId: "if-1" }, expect: "node" },
-    { label: "end node", target: { kind: "node", nodeId: "end:loop-1" }, expect: "node" },
+    { label: "end marker id", target: { kind: "node", nodeId: "end:loop-1:loop" }, expect: "node" },
   ]
 
   it.each(targets)("calls preventDefault and returns $expect for $label", ({ target, expect: expected }) => {

@@ -10,7 +10,7 @@ import type {
 import type { IfNode, Node, ParallelNode, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
   conditionForm,
-  structureIdFromEndNodeId,
+  parseEndMarkerId,
   setIfAccepts,
   setIfAs,
   setIfConditionForm,
@@ -249,7 +249,7 @@ export function ParallelPanel(props: StructurePanelProps) {
 export function EndPanel(props: StructurePanelProps) {
   const { node, issues } = props
   const data = node.data as ReactFlowEndData
-  const structureId = structureIdFromEndNodeId(node.id) ?? data.structureId
+  const structureId = parseEndMarkerId(node.id)?.structureId ?? data.structureId
   return (
     <section data-testid="node-panel" data-node-id={node.id} data-node-kind="end" className="space-y-4">
       <PanelHeader

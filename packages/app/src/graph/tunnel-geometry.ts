@@ -128,6 +128,12 @@ export function computeTunnelRect(
       height: nodeHeight,
     }
   }
+  if (spec.tunnelKind === "rail" || spec.tunnelKind === "join") {
+    const railInner = boundsAroundNodeIds(nodes, spec.sideNodeIds, nodeWidth, nodeHeight)
+    if (railInner) return railInner
+    return undefined
+  }
+
   if (spec.tunnelKind === "loop") {
     const loopInner = boundsAroundNodeIds(
       nodes,

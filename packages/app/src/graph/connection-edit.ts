@@ -39,7 +39,8 @@ import {
   IF_ELSE_HANDLE,
   IF_THEN_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  loopIdFromEndNodeId,
+  loopIdFromEndMarker,
+  parseEndMarkerId,
 } from "./types.js"
 import { ensureStructureAs } from "./panel-edit.js"
 import type { ReactFlowDataEdgeData, ReactFlowEdge } from "./types.js"
@@ -172,7 +173,7 @@ interface InputTarget {
 }
 
 function resolveInputTarget(draft: ExecutionManifest, nodeId: string): InputTarget | undefined {
-  if (loopIdFromEndNodeId(nodeId)) return undefined
+  if (parseEndMarkerId(nodeId)) return undefined
   const hit = findNodePlacement(draft.steps, nodeId)
   if (!hit) return undefined
   const node = hit.node
@@ -488,7 +489,7 @@ function placeDetachedBeforeConnect(
   _sourceHandle: string,
   detachedId: string,
 ): StructureEditResult {
-  const endLoopId = loopIdFromEndNodeId(sourceNodeId)
+  const endLoopId = loopIdFromEndMarker(sourceNodeId)
   if (endLoopId) return attachAfterLoopInto(manifest, endLoopId, detachedId)
   return attachAfter(manifest, sourceNodeId, detachedId)
 }
@@ -524,7 +525,7 @@ export function connectInputAndAttach(
   target: ConnectInputTarget,
 ): StructureEditResult {
   // Any attached node (step, if, parallel, loop) or a loop end node connects in place.
-  if (findNodePlacement(manifest.steps, loopIdFromEndNodeId(target.targetStepId) ?? target.targetStepId)) {
+  if (findNodePlacement(manifest.steps, loopIdFromEndMarker(target.targetStepId) ?? target.targetStepId)) {
     return connectInput(manifest, target)
   }
   if (!isDetachedRootStep(manifest, target.targetStepId)) {

@@ -100,12 +100,11 @@ test.describe("Delete key", () => {
 
   test("Delete does not remove loop end nodes", async ({ page }) => {
     await open(page)
-    await page.getByTestId("ecp-end-end:retry").click()
+    await page.getByTestId("ecp-end-end:retry:loop").click({ force: true })
     const before = readFileSync(branchLoopPath, "utf8")
     await page.keyboard.press("Delete")
     expect(readFileSync(branchLoopPath, "utf8")).toBe(before)
-    await expect(page.getByTestId("ecp-end-end:retry")).toBeVisible()
-    await expect(page.getByTestId("structure-edit-error")).toContainText("Delete the control node instead")
+    await expect(page.getByTestId("ecp-end-end:retry:loop")).toBeVisible()
   })
 
   test("read-only replay ignores Delete", async ({ page }) => {

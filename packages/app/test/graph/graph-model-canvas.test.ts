@@ -21,9 +21,8 @@ import {
   LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
   LOOP_ITEMS_HANDLE,
-  loopEndNodeId,
-  loopIdFromEndNodeId,
-  structureEndNodeId,
+  endMarkerId,
+  loopIdFromEndMarker,
   portOnDocument,
   removeStructure,
   STRUCTURE_EDIT_DELETE_END,
@@ -276,14 +275,14 @@ describe("read order for start nodes and ends", () => {
 
   it("a step is readable by the nodes after it", () => {
     const base = graph()
-    for (const reader of ["gate", "fan", "lp", loopEndNodeId("lp"), "last"]) {
+    for (const reader of ["gate", "fan", "lp", endMarkerId("lp", "loop"), "last"]) {
       expect(visible(base, "src", "output", reader)).toBe(true)
     }
   })
 
   it("a step is not readable by the nodes before it", () => {
     const base = graph()
-    for (const reader of ["src", "gate", "fan", "lp", loopEndNodeId("lp")]) {
+    for (const reader of ["src", "gate", "fan", "lp", endMarkerId("lp", "loop")]) {
       expect(visible(base, "last", "output", reader)).toBe(false)
     }
   })
@@ -302,7 +301,7 @@ describe("read order for start nodes and ends", () => {
 
   it("Inputs are readable by every node", () => {
     const base = graph()
-    for (const reader of ["src", "gate", "yes", "fan", "lp", "body", loopEndNodeId("lp"), "last"]) {
+    for (const reader of ["src", "gate", "yes", "fan", "lp", "body", endMarkerId("lp", "loop"), "last"]) {
       expect(visible(base, EXECUTION_ACCEPTS_NODE_ID, "mode", reader)).toBe(true)
     }
   })
@@ -434,7 +433,7 @@ describe("deleting a start node and an end", () => {
   })
 
   it("refuses to delete a loop end and says why", () => {
-    const endId = loopEndNodeId("lp")
+    const endId = endMarkerId("lp", "loop")
     expect(deleteSelection(graph(), { kind: "end", endNodeId: endId }, false)).toMatchObject({
       ok: false,
       reason: STRUCTURE_EDIT_DELETE_END,
@@ -449,12 +448,12 @@ describe("deleting a start node and an end", () => {
 
   it("tells control end nodes from other ids", () => {
     const base = graph()
-    expect(isEndNodeSelection(base, loopEndNodeId("lp"))).toBe(true)
-    expect(isEndNodeSelection(base, structureEndNodeId("gate"))).toBe(true)
+    expect(isEndNodeSelection(base, endMarkerId("lp", "loop"))).toBe(true)
+    expect(isEndNodeSelection(base, endMarkerId("gate", "then"))).toBe(true)
     expect(isEndNodeSelection(base, "lp")).toBe(false)
     expect(isEndNodeSelection(base, "ghost")).toBe(false)
-    expect(loopIdFromEndNodeId(loopEndNodeId("lp"))).toBe("lp")
-    expect(loopIdFromEndNodeId("lp")).toBeUndefined()
+    expect(loopIdFromEndMarker(endMarkerId("lp", "loop"))).toBe("lp")
+    expect(loopIdFromEndMarker("lp")).toBeUndefined()
   })
 })
 
@@ -563,7 +562,7 @@ describe("ports of start nodes and ends on the document", () => {
     expect(portOnDocument(doc, "gate", IF_THEN_HANDLE, "output")?.id).toBe(IF_THEN_HANDLE)
     expect(portOnDocument(doc, "gate", IF_ELSE_HANDLE, "output")?.id).toBe(IF_ELSE_HANDLE)
     expect(portOnDocument(doc, "fan", "path-1", "output")?.id).toBe("path-1")
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")).toBeUndefined()
+    expect(portOnDocument(doc, endMarkerId("lp", "loop"), "value", "input")).toBeUndefined()
     expect(portOnDocument(doc, "lp", LOOP_ITEMS_HANDLE, "input")?.id).toBe(LOOP_ITEMS_HANDLE)
   })
 
@@ -578,10 +577,10 @@ describe("ports of start nodes and ends on the document", () => {
 
   it("keeps loop end nodes on the canvas without data ports", () => {
     const doc = executionToReactFlow(graph())
-    const end = doc.nodes.find((node) => node.id === loopEndNodeId("lp"))
+    const end = doc.nodes.find((node) => node.id === endMarkerId("lp", "loop"))
     expect(end?.type).toBe("ecp-end")
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "value", "input")).toBeUndefined()
-    expect(portOnDocument(doc, loopEndNodeId("lp"), "repeat", "input")).toBeUndefined()
+    expect(portOnDocument(doc, endMarkerId("lp", "loop"), "value", "input")).toBeUndefined()
+    expect(portOnDocument(doc, endMarkerId("lp", "loop"), "repeat", "input")).toBeUndefined()
   })
 
   it("does not find a port the node does not have", () => {
@@ -597,7 +596,7 @@ describe("ports of start nodes and ends on the document", () => {
     const refusalOf = (source: string, sourceHandle: string, target: string, targetHandle: string): string | undefined =>
       dataConnectionRefusal(base, doc, { source, target, sourceHandle, targetHandle })
     expect(refusalOf("src", "output", "gate", "mode")).toBeUndefined()
-    expect(refusalOf("body", "output", loopEndNodeId("lp"), "value")).toBe(CONNECTION_EDIT_HANDLE)
+    expect(refusalOf("body", "output", endMarkerId("lp", "loop"), "value")).toBe(CONNECTION_EDIT_HANDLE)
     expect(refusalOf("last", "output", "gate", "mode")).toBe(CONNECTION_EDIT_ORDER)
     expect(refusalOf("src", "output", "gate", "nope")).toBe(CONNECTION_EDIT_HANDLE)
     expect(refusalOf("gate", IF_THEN_HANDLE, "gate", "mode")).toBe(CONNECTION_EDIT_SELF)

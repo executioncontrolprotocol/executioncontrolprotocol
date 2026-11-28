@@ -38,4 +38,39 @@ describe("placement inside tunnels", () => {
     }
     expect(placementAtFlowPoint(manifest, doc, point)).toEqual({ kind: "else-side", ifId: "gate" })
   })
+
+  it("placementAtFlowPoint resolves a parallel path index", () => {
+    const parallel: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "parallel",
+          id: "fan",
+          paths: [
+            [{ id: "a", uses: "@executioncontrolprotocol/test.echo", input: { value: "1" } }],
+            [{ id: "b", uses: "@executioncontrolprotocol/test.echo", input: { value: "2" } }],
+          ],
+        },
+      ],
+    }
+    const doc = executionToReactFlow(parallel)
+    const pathTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:fan:path-2")!
+    const point = {
+      x: pathTunnel.position.x + 12,
+      y: pathTunnel.position.y + Number(pathTunnel.style?.height) / 2,
+    }
+    expect(placementAtFlowPoint(parallel, doc, point)).toEqual({ kind: "path-side", parallelId: "fan", pathIndex: 1 })
+  })
+
+  it("placementAtFlowPoint returns after-node when the point is right of an existing step", () => {
+    const doc = executionToReactFlow(manifest)
+    const thenTunnel = doc.nodes.find((n) => n.id === "ecp:tunnel:gate:then")!
+    const yes = doc.nodes.find((n) => n.id === "yes")!
+    const point = {
+      x: yes.position.x + Number(yes.style?.width ?? 200) + 4,
+      y: thenTunnel.position.y + Number(thenTunnel.style?.height) / 2,
+    }
+    expect(placementAtFlowPoint(manifest, doc, point)).toEqual({ kind: "after", nodeId: "yes" })
+  })
 })

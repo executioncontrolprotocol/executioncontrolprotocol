@@ -14,7 +14,7 @@ import {
   tunnelRects,
 } from "../../src/graph/index.js"
 import type { FrameRect } from "../../src/graph/layout.js"
-import { structureEndNodeId, type ReactFlowTunnelData } from "../../src/graph/types.js"
+import { endMarkerId, type ReactFlowTunnelData } from "../../src/graph/types.js"
 
 const patternsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../examples/patterns")
 
@@ -39,7 +39,7 @@ function tunnelRect(doc: ReturnType<typeof executionToReactFlow>, tunnelId: stri
 }
 
 describe("tunnel invariants", () => {
-  it("if-in-loop: sibling tubes disjoint; picks in correct tubes; ends positioned on the merge rank", () => {
+  it("if-in-loop: sibling tubes disjoint; per-side end markers before ship and loop end before notify", () => {
     const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
     const thenR = tunnelRect(doc, "ecp:tunnel:express:then")
     const elseR = tunnelRect(doc, "ecp:tunnel:express:else")
@@ -55,24 +55,23 @@ describe("tunnel invariants", () => {
     expect(isNodeInsideTunnel(standard, elseR)).toBe(true)
     expect(isNodeInsideTunnel(standard, thenR)).toBe(false)
 
-    const endIf = doc.nodes.find((n) => n.id === structureEndNodeId("express"))!
+    const endThen = doc.nodes.find((n) => n.id === endMarkerId("express", "then"))!
+    const endElse = doc.nodes.find((n) => n.id === endMarkerId("express", "else"))!
     const ship = rectForStep(doc, "ship")
     const fastBox = nodeBox(fast)
     const stdBox = nodeBox(standard)
-    const endBox = nodeBox(endIf)
-    expect(endBox.x).toBeGreaterThan(fastBox.x + fastBox.width)
-    expect(endBox.x).toBeGreaterThan(stdBox.x + stdBox.width)
-    expect(endBox.x).toBeLessThan(ship.x)
-    const control = doc.nodes.find((n) => n.id === "express")!
-    const endCy = endBox.y + endBox.height / 2
-    const controlBox = nodeBox(control)
-    expect(Math.abs(endCy - (controlBox.y + controlBox.height / 2))).toBeLessThan(2)
+    const thenBox = nodeBox(endThen)
+    const elseBox = nodeBox(endElse)
+    expect(thenBox.x).toBeGreaterThan(fastBox.x + fastBox.width)
+    expect(elseBox.x).toBeGreaterThan(stdBox.x + stdBox.width)
+    const mergeRight = Math.max(thenBox.x + thenBox.width, elseBox.x + elseBox.width)
+    expect(mergeRight).toBeLessThan(ship.x)
 
-    const endLoop = doc.nodes.find((n) => n.id === structureEndNodeId("each-order"))!
+    const endLoop = doc.nodes.find((n) => n.id === endMarkerId("each-order", "loop"))!
     const notify = rectForStep(doc, "notify")
     const endLoopBox = nodeBox(endLoop)
     expect(endLoopBox.x).toBeGreaterThan(ship.x + ship.width)
-    expect(endLoopBox.x).toBeLessThan(notify.x)
+    expect(endLoopBox.x + endLoopBox.width).toBeLessThan(notify.x)
   })
 
   it("branch: outer tubes disjoint; inner if tubes inside else; gold offer near tier if", () => {

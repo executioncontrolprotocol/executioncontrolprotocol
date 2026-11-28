@@ -5,7 +5,7 @@ function sidePlaceholderId(structureId: string, sideKey: string): string {
 }
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./layout.js"
 import type { ReactFlowDocument, ReactFlowEncodeOptions, ReactFlowNode } from "./types.js"
-import { structureEndNodeId } from "./types.js"
+import { endMarkerId } from "./types.js"
 
 /** Default flow node width for tree layout (pixels). @category App */
 export const TREE_NODE_WIDTH = DEFAULT_NODE_WIDTH
@@ -21,8 +21,10 @@ export const TREE_TUNNEL_LABEL = 22
 export const TREE_END_WIDTH = 90
 /** Synthetic `end` node height (pixels). @category App */
 export const TREE_END_HEIGHT = 32
-/** Reserved height for an empty branch placeholder (pixels). @category App */
-export const TREE_EMPTY_SIDE_HEIGHT = 48
+/** Reserved height for an empty branch lane (pixels). @category App */
+export const TREE_EMPTY_SIDE_HEIGHT = 25
+/** Horizontal gap after the longest side marker before the merge / next sibling (pixels). @category App */
+export const TREE_JOIN_GAP = 48
 
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
@@ -120,58 +122,60 @@ function layoutLeaf(id: string, x: number, centerY: number, ctx: LayoutCtx): Siz
 function layoutEmptySide(structureId: string, sideKey: string, x: number, centerY: number, ctx: LayoutCtx): Size {
   const id = sidePlaceholderId(structureId, sideKey)
   setPos(ctx, id, x, centerY - TREE_EMPTY_SIDE_HEIGHT / 2)
-  return { width: ctx.nodeWidth, height: TREE_EMPTY_SIDE_HEIGHT }
+  return { width: 0, height: TREE_EMPTY_SIDE_HEIGHT }
 }
 
 function layoutIf(node: IfNode, x: number, centerY: number, ctx: LayoutCtx): Size {
   const control = ctx.byId.get(node.id)
-  const endId = structureEndNodeId(node.id)
   const cW = measureWidth(control, ctx.nodeWidth)
   const cH = measureHeight(control, ctx.nodeHeight)
 
   const columnX = x + cW + TREE_GAP_X
-  const sides: Array<{ key: string; nodes: Node[] }> = [
+  const sides: Array<{ key: "then" | "else"; nodes: Node[] }> = [
     { key: "then", nodes: node.then },
     { key: "else", nodes: node.else ?? [] },
   ]
 
-  const sideLayouts: Array<{ size: Size; centerY: number }> = []
+  const sideLayouts: Array<{ size: Size; centerY: number; key: "then" | "else" }> = []
   let columnHeight = 0
-  let columnWidth = 0
   for (let i = 0; i < sides.length; i += 1) {
     if (i > 0) columnHeight += sideStackGap()
     const side = sides[i]!
     let size: Size
     if (side.nodes.length === 0) {
-      size = { width: ctx.nodeWidth, height: TREE_EMPTY_SIDE_HEIGHT }
+      size = { width: 0, height: TREE_EMPTY_SIDE_HEIGHT }
     } else {
-      const measure = layoutRowMeasure(side.nodes, ctx)
-      size = measure
+      size = layoutRowMeasure(side.nodes, ctx)
     }
     const sideCy = columnHeight + size.height / 2
-    sideLayouts.push({ size, centerY: sideCy })
+    sideLayouts.push({ size, centerY: sideCy, key: side.key })
     columnHeight += size.height
-    columnWidth = Math.max(columnWidth, size.width)
   }
 
   const columnCy = columnHeight / 2
   const globalOffset = centerY - columnCy
 
+  let mergeRight = columnX
   for (let i = 0; i < sides.length; i += 1) {
     const side = sides[i]!
     const layout = sideLayouts[i]!
     const sideCenter = globalOffset + layout.centerY
-    if (side.nodes.length === 0) layoutEmptySide(node.id, side.key, columnX, sideCenter, ctx)
-    else layoutRow(side.nodes, columnX, sideCenter, ctx)
+    const sideWidth = layout.size.width
+    if (side.nodes.length === 0) {
+      layoutEmptySide(node.id, side.key, columnX, sideCenter, ctx)
+    } else {
+      layoutRow(side.nodes, columnX, sideCenter, ctx)
+    }
+    const endX = columnX + sideWidth + TREE_GAP_X
+    const endId = endMarkerId(node.id, side.key)
+    setPos(ctx, endId, endX, sideCenter - TREE_END_HEIGHT / 2)
+    mergeRight = Math.max(mergeRight, endX + TREE_END_WIDTH)
   }
 
-  const columnTop = globalOffset
-  const colCy = columnTop + columnHeight / 2
+  const colCy = globalOffset + columnHeight / 2
   setPos(ctx, node.id, x, colCy - cH / 2)
-  const endX = columnX + columnWidth + TREE_GAP_X
-  setPos(ctx, endId, endX, colCy - TREE_END_HEIGHT / 2)
 
-  const blockW = endX + TREE_END_WIDTH - x
+  const blockW = mergeRight + TREE_JOIN_GAP - x
   const blockH = Math.max(cH, columnHeight, TREE_END_HEIGHT)
   return { width: blockW, height: blockH }
 }
@@ -184,42 +188,44 @@ function layoutRowMeasure(nodes: readonly Node[], ctx: LayoutCtx): Size {
 
 function layoutParallel(node: ParallelNode, x: number, centerY: number, ctx: LayoutCtx): Size {
   const control = ctx.byId.get(node.id)
-  const endId = structureEndNodeId(node.id)
   const cW = measureWidth(control, ctx.nodeWidth)
   const cH = measureHeight(control, ctx.nodeHeight)
 
   const columnX = x + cW + TREE_GAP_X
   const sideLayouts: Array<{ size: Size; centerY: number; nodes: Node[]; index: number }> = []
   let columnHeight = 0
-  let columnWidth = 0
   node.paths.forEach((path, index) => {
     if (index > 0) columnHeight += sideStackGap()
-    const size = path.length === 0 ? { width: ctx.nodeWidth, height: TREE_EMPTY_SIDE_HEIGHT } : layoutRowMeasure(path, ctx)
+    const size =
+      path.length === 0 ? { width: 0, height: TREE_EMPTY_SIDE_HEIGHT } : layoutRowMeasure(path, ctx)
     sideLayouts.push({ size, centerY: columnHeight + size.height / 2, nodes: path, index })
     columnHeight += size.height
-    columnWidth = Math.max(columnWidth, size.width)
   })
 
   const columnCy = columnHeight / 2
   const globalOffset = centerY - columnCy
 
+  let mergeRight = columnX
   for (const side of sideLayouts) {
     const sideCenter = globalOffset + side.centerY
-    if (side.nodes.length === 0) layoutEmptySide(node.id, `path-${side.index + 1}`, columnX, sideCenter, ctx)
+    const pathKey = `path-${side.index + 1}` as const
+    if (side.nodes.length === 0) layoutEmptySide(node.id, pathKey, columnX, sideCenter, ctx)
     else layoutRow(side.nodes, columnX, sideCenter, ctx)
+    const endX = columnX + side.size.width + TREE_GAP_X
+    const endId = endMarkerId(node.id, pathKey)
+    setPos(ctx, endId, endX, sideCenter - TREE_END_HEIGHT / 2)
+    mergeRight = Math.max(mergeRight, endX + TREE_END_WIDTH)
   }
 
   const colCy = globalOffset + columnHeight / 2
   setPos(ctx, node.id, x, colCy - cH / 2)
-  const endX = columnX + columnWidth + TREE_GAP_X
-  setPos(ctx, endId, endX, colCy - TREE_END_HEIGHT / 2)
 
-  return { width: endX + TREE_END_WIDTH - x, height: Math.max(cH, columnHeight, TREE_END_HEIGHT) }
+  return { width: mergeRight + TREE_JOIN_GAP - x, height: Math.max(cH, columnHeight, TREE_END_HEIGHT) }
 }
 
 function layoutLoop(node: LoopNode, x: number, centerY: number, ctx: LayoutCtx): Size {
   const control = ctx.byId.get(node.id)
-  const endId = structureEndNodeId(node.id)
+  const endId = endMarkerId(node.id, "loop")
   const cW = measureWidth(control, ctx.nodeWidth)
   const cH = measureHeight(control, ctx.nodeHeight)
 

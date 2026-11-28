@@ -25,7 +25,7 @@ import {
   LOOP_INDEX_HANDLE,
   LOOP_ITEM_HANDLE,
   PARALLEL_PATH_HANDLE_PREFIX,
-  loopIdFromEndNodeId,
+  loopIdFromEndMarker,
 } from "./types.js"
 import { STRUCTURE_EDIT_STEP_NOT_FOUND, STRUCTURE_EDIT_STRUCTURE_NOT_FOUND } from "./structure-edit.js"
 
@@ -217,7 +217,7 @@ export function placementForConnectionOrigin(
       return { kind: "loop-body", loopId: structure.id }
     }
   }
-  const endLoopId = loopIdFromEndNodeId(origin.nodeId)
+  const endLoopId = loopIdFromEndMarker(origin.nodeId)
   const endOf = endLoopId ? findStructure(manifest, endLoopId) : undefined
   if (endOf?.type === "loop") {
     if (origin.side === "output") return { kind: "after", nodeId: endOf.id }

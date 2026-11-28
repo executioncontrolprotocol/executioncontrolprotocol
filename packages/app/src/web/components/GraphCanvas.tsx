@@ -38,6 +38,7 @@ import {
   type AddStepPlacement,
   type PositionOverrides,
   type ReactFlowDocument,
+  type ReactFlowEndData,
   type ReactFlowTunnelData,
   type ReactFlowNode,
   type ReactFlowPort,
@@ -56,6 +57,7 @@ import { EcpIoNode } from "./EcpIoNode.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
 import { EcpEndNode } from "./EcpEndNode.js"
 import { EcpTunnelNode } from "./EcpTunnelNode.js"
+import { RailVisualLayer } from "./RailVisualLayer.js"
 import type { EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
 import { CanvasEditContext } from "./canvas-edit-context.js"
@@ -258,14 +260,6 @@ function buildNodes(
         dataConnectable,
         ...(choice !== undefined ? { choiceSide: choice } : {}),
       }
-    } else if (node.type === "ecp-end") {
-      const structureId = (node.data as { structureId: string }).structureId
-      const loopRound = run.loops[structureId]
-      data = {
-        ...node.data,
-        dataConnectable,
-        ...(loopRound ? { round: loopRound.round } : {}),
-      }
     } else {
       data = { ...node.data, ...connected, dataConnectable }
     }
@@ -299,6 +293,39 @@ function buildNodes(
           : {}),
       }
     }
+    if (node.type === "ecp-end") {
+      const endData = node.data as ReactFlowEndData
+      const loopRound = run.loops[endData.structureId]
+      let endDimmed = false
+      if (
+        endData.structureKind === "if" &&
+        (endData.side === "then" || endData.side === "else") &&
+        endData.structureId in choices
+      ) {
+        const choice = choices[endData.structureId]
+        if (choice !== null && choice !== endData.side) endDimmed = true
+      }
+      return {
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: {
+          ...endData,
+          ...(loopRound ? { round: loopRound.round } : {}),
+          dimmed: endDimmed,
+        } as unknown as Record<string, unknown>,
+        zIndex: 1000,
+        selectable: false,
+        draggable: false,
+        connectable: false,
+        deletable: false,
+        focusable: false,
+        className: endDimmed ? "ecp-rf-node--dimmed" : undefined,
+        ...(node.style?.width !== undefined
+          ? { style: { width: node.style.width, height: node.style?.height } }
+          : {}),
+      }
+    }
     const tunnelSide = ifSides.get(node.id)
     const nodeDimmed =
       tunnelSide &&
@@ -308,7 +335,7 @@ function buildNodes(
     const stepSelected = node.type === "ecp-step" && selectedStepIds.includes(node.id)
     const structureSelected =
       selectedId === node.id &&
-      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-end")
+      (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel")
     return {
       id: node.id,
       type: node.type,
@@ -512,7 +539,7 @@ function GraphCanvasBody({
     (_event: MouseEvent | TouchEvent, _node: Node, dragged: Node[]) => {
       const updates: PositionOverrides = {}
       for (const node of dragged) {
-        if (node.type === "ecp-tunnel") continue
+        if (node.type === "ecp-tunnel" || node.type === "ecp-end") continue
         updates[node.id] = { x: node.position.x, y: node.position.y }
       }
       if (Object.keys(updates).length > 0) onPositionDragStop(updates)
@@ -629,17 +656,15 @@ function GraphCanvasBody({
           return
         }
         onSelectSteps([])
-        if (
-          node.type === "ecp-loop" ||
-          node.type === "ecp-if" ||
-          node.type === "ecp-parallel" ||
-          node.type === "ecp-end" ||
-          node.type === "ecp-io"
-        ) {
+        if (node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel" || node.type === "ecp-io") {
           onSelect(node.id)
         }
       }}
       onNodeContextMenu={(event, node) => {
+        if (node.type === "ecp-end") {
+          event.preventDefault()
+          return
+        }
         if (node.type === "ecp-io") {
           openCanvasContextMenu({ kind: "io" }, event)
           return
@@ -692,6 +717,11 @@ function GraphCanvasBody({
       colorMode="dark"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--color-surface-container-highest)" />
+      <RailVisualLayer
+        manifest={manifest}
+        nodes={nodes as unknown as ReactFlowNode[]}
+        run={run}
+      />
       <Controls showInteractive={false}>
         <ControlButton
           onClick={onUndo}
