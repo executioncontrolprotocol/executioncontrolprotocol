@@ -31,14 +31,13 @@ function centerY(node: ReactFlowNode, fallback = 160): number {
 }
 
 describe("tree layout invariants", () => {
-  it("each if end marker shares vertical centre with its side on if-in-loop", () => {
-    const doc = executionToReactFlow(loadPattern("if-in-loop.ecp.json"))
+  it("if end markers sit on the top or bottom edge of their side band on if-in-loop", () => {
+    const manifest = loadPattern("if-in-loop.ecp.json")
+    const doc = executionToReactFlow(manifest)
     const endThen = doc.nodes.find((n) => n.id === endMarkerId("express", "then"))!
     const endElse = doc.nodes.find((n) => n.id === endMarkerId("express", "else"))!
-    const fast = doc.nodes.find((n) => n.id === "pick-fast")!
-    const standard = doc.nodes.find((n) => n.id === "pick-standard")!
-    expect(Math.abs(centerY(endThen) - centerY(fast))).toBeLessThan(2)
-    expect(Math.abs(centerY(endElse) - centerY(standard))).toBeLessThan(2)
+    expect(centerY(endThen)).toBeLessThan(centerY(doc.nodes.find((n) => n.id === "pick-fast")!))
+    expect(centerY(endElse)).toBeGreaterThan(centerY(doc.nodes.find((n) => n.id === "pick-standard")!))
     expect(nodeBox(endThen).x).toBeLessThanOrEqual(nodeBox(endElse).x + 2)
   })
 
@@ -85,15 +84,24 @@ describe("tree layout invariants", () => {
   it("parallel paths stack without tube overlap", () => {
     const doc = executionToReactFlow(loadPattern("nested-parallel.ecp.json"))
     const paths = doc.nodes.filter((n) => n.type === "ecp-tunnel" && n.id.startsWith("ecp:tunnel:work:path-"))
-    const rects = paths.map((p) => tunnelRects(doc.nodes).get(p.id)!)
-    expect(rectsIntersect(rects[0]!, rects[1]!)).toBe(false)
+    const rects = paths
+      .map((p) => tunnelRects(doc.nodes).get(p.id)!)
+      .sort((left, right) => left.y - right.y)
+    for (let index = 1; index < rects.length; index += 1) {
+      const prev = rects[index - 1]!
+      const next = rects[index]!
+      expect(prev.y + prev.height).toBeLessThanOrEqual(next.y + 2)
+    }
   })
 
-  it("loop control, body and end share vertical centre", () => {
-    const doc = executionToReactFlow(loadPattern("loop-for.ecp.json"))
+  it("loop end marker sits on the top edge of the loop body band", () => {
+    const manifest = loadPattern("loop-for.ecp.json")
+    const doc = executionToReactFlow(manifest)
     const loop = doc.nodes.find((n) => n.type === "ecp-loop")!
     const end = doc.nodes.find((n) => n.id === endMarkerId(loop.id, "loop"))!
-    expect(Math.abs(centerY(loop) - centerY(end))).toBeLessThan(2)
+    const tick = doc.nodes.find((n) => n.id === "tick")!
+    expect(centerY(end)).toBeLessThan(centerY(tick))
+    expect(centerY(end)).toBeLessThan(centerY(loop) + 8)
   })
 
   it("empty else still produces a visible else tube", () => {

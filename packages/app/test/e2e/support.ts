@@ -218,3 +218,36 @@ export function appUrl(
   if (params.dir) search.set("dir", params.dir)
   return `${baseUrl}/app/#${search.toString()}`
 }
+
+/**
+ * Click a branch (React Flow edge) on its line. A routed branch bends through its tunnels, so the centre of its bounding
+ * box isn't always on the line; this clicks the point halfway along the drawn path instead.
+ */
+export async function clickBranch(
+  page: import("@playwright/test").Page,
+  edge: import("@playwright/test").Locator,
+  options: { button?: "left" | "right" } = {},
+): Promise<void> {
+  // Branches bundled in one tunnel run side by side, so the middle of a branch can sit under a neighbour. Walk the
+  // path from its middle outwards and click the first point where this branch is the one under the pointer.
+  const point = await edge.evaluate((element) => {
+    const path = element.querySelector("path.react-flow__edge-interaction") ?? element.querySelector("path")
+    if (!(path instanceof SVGPathElement)) throw new Error("branch has no path")
+    const matrix = path.getScreenCTM()
+    if (!matrix) throw new Error("branch path has no screen transform")
+    const total = path.getTotalLength()
+    const toScreen = (length: number) => {
+      const local = path.getPointAtLength(length)
+      return { x: local.x * matrix.a + local.y * matrix.c + matrix.e, y: local.x * matrix.b + local.y * matrix.d + matrix.f }
+    }
+    const steps = 40
+    for (let step = 0; step <= steps; step += 1) {
+      const offset = (Math.ceil(step / 2) * (step % 2 === 0 ? 1 : -1) * total) / (steps * 1.25)
+      const candidate = toScreen(Math.min(total, Math.max(0, total / 2 + offset)))
+      const hit = document.elementFromPoint(candidate.x, candidate.y)?.closest(".react-flow__edge")
+      if (hit === element) return candidate
+    }
+    return toScreen(total / 2)
+  })
+  await page.mouse.click(point.x, point.y, { button: options.button ?? "left" })
+}

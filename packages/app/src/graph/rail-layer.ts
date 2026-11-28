@@ -147,7 +147,7 @@ function listCentreY(
   let count = 0
   for (const id of memberIds) {
     const node = byId.get(id)
-    if (!node || node.type === "ecp-tunnel" || node.type === "ecp-placeholder") continue
+    if (!node || node.type === "ecp-tunnel" || node.type === "ecp-placeholder" || node.type === "ecp-end") continue
     const box = nodeBox(node, nodeWidth, nodeHeight)
     sum += box.y + box.height / 2
     count += 1
@@ -166,7 +166,7 @@ function rowBandHeight(
   let maxH = 0
   for (const id of memberIds) {
     const node = byId.get(id)
-    if (!node || node.type === "ecp-tunnel" || node.type === "ecp-placeholder") continue
+    if (!node || node.type === "ecp-tunnel" || node.type === "ecp-placeholder" || node.type === "ecp-end") continue
     const box = nodeBox(node, nodeWidth, nodeHeight)
     if (centreY !== undefined) {
       const cy = box.y + box.height / 2
@@ -221,7 +221,7 @@ export const SIDE_BAND_PADDING = 18
 const SIDE_BAND_NEST_STEP = 12
 /** Stroke width of a join back to the rail and of a side's neck from its port. */
 export const JOIN_RIBBON_WIDTH = 18
-const BAND_LEFT_GAP = 14
+const BAND_LEFT_GAP = 0
 const BAND_RIGHT_GAP = 12
 
 /** Ids of every laid-out node in a list's subtree, including nested controls' end markers. */
@@ -315,33 +315,105 @@ function sideBand(
     right: markerBox.x + markerBox.width,
     bottom: markerBox.y + markerBox.height,
   }
-  const x = controlBox.x + controlBox.width + BAND_LEFT_GAP
+  // The band starts at its first node (less padding); the neck fills the gap from the control's port.
+  const x = Math.max(controlBox.x + controlBox.width + BAND_LEFT_GAP, inner.x - pad)
   const right = markerBox.x + markerBox.width + BAND_RIGHT_GAP
   const top = inner.y - pad
   const bottom = inner.bottom + pad
   return { x, y: top, width: Math.max(0, right - x), height: bottom - top }
 }
 
-/** A short ribbon from a control node's output port into its side band. */
-function neckPath(control: ReactFlowNode, handleId: string, band: { x: number; y: number; height: number }, nodeWidth: number, nodeHeight: number): string {
-  const controlBox = nodeBox(control, nodeWidth, nodeHeight)
-  const startX = controlBox.x + controlBox.width
-  const startY = outputHandleY(control, handleId, nodeWidth, nodeHeight)
-  const endX = band.x + 24
-  const endY = Math.min(Math.max(startY, band.y + JOIN_RIBBON_WIDTH), band.y + band.height - JOIN_RIBBON_WIDTH)
-  const midX = (startX + endX) / 2
-  return `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}`
+/**
+ * One side's tunnel as a single outline: a neck leaves the control's port at ribbon height, curves open to the band's
+ * full height, and the band runs on to its rounded right end. Drawn as one shape, so neck and band never double up
+ * where they meet. Falls back to a plain rounded band when there is no room for a neck.
+ * @category App
+ */
+export function sideTunnelPath(
+  portX: number,
+  portY: number,
+  band: { x: number; y: number; width: number; height: number },
+  radius: number,
+): string {
+  if (band.x - portX < 2) return roundedRectPath(band.x, band.y, band.width, band.height, radius)
+  const half = JOIN_RIBBON_WIDTH / 2
+  const right = band.x + band.width
+  const r = Math.max(0, Math.min(radius, band.width / 2, band.height / 2))
+  const top = band.y
+  const bottom = band.y + band.height
+  const midX = (portX + band.x) / 2
+  return [
+    `M ${portX} ${portY - half}`,
+    `C ${midX} ${portY - half} ${midX} ${top} ${band.x} ${top}`,
+    `L ${right - r} ${top}`,
+    `A ${r} ${r} 0 0 1 ${right} ${top + r}`,
+    `L ${right} ${bottom - r}`,
+    `A ${r} ${r} 0 0 1 ${right - r} ${bottom}`,
+    `L ${band.x} ${bottom}`,
+    `C ${midX} ${bottom} ${midX} ${portY + half} ${portX} ${portY + half}`,
+    "Z",
+  ].join(" ")
 }
 
-/** A join from an end marker: level along its side, then a short curve down / up into the rail at the merge. */
-function joinPath(marker: ReactFlowNode, mergeX: number, railY: number, nodeWidth: number, nodeHeight: number): string {
-  const box = nodeBox(marker, nodeWidth, nodeHeight)
-  const startX = box.x + box.width
-  const startY = box.y + box.height / 2
-  const bend = Math.min(40, Math.max(12, (mergeX - startX) / 2))
-  const levelEnd = Math.max(startX, mergeX - bend)
-  return `M ${startX} ${startY} L ${levelEnd} ${startY} C ${mergeX} ${startY} ${levelEnd} ${railY} ${mergeX} ${railY}`
+/** Horizontal inset of a side label from its tunnel's left end (flow pixels). */
+const SIDE_LABEL_INSET_X = 24
+/** Gap between a side label and its tunnel edge (flow pixels). */
+const SIDE_LABEL_GAP = 6
+/** Approximate cap height of a side label, so labels below a tunnel clear its edge (flow pixels). */
+const SIDE_LABEL_HEIGHT = 10
+
+/** Horizontal length over which a join curves from its side's lane into the tube (flow pixels). */
+export const JOIN_CURVE_LENGTH = 72
+
+/**
+ * A join drawn as a filled funnel: its left edge spans the side band's full height at the band's right edge, and it
+ * narrows with horizontal-tangent curves into the parent row's tube (centre `railY`, half-height `railHalf`) at `mergeX`.
+ * @category App
+ */
+export function joinFunnelPath(
+  band: { x: number; y: number; width: number; height: number },
+  mergeX: number,
+  railY: number,
+  railHalf: number,
+): string {
+  const bx = band.x + band.width
+  const top = band.y
+  const bottom = band.y + band.height
+  const mx = Math.max(mergeX, bx + 1)
+  const rt = railY - railHalf
+  const rb = railY + railHalf
+  const span = mx - bx
+  if (span <= JOIN_CURVE_LENGTH * 2) {
+    // Short join: one funnel from the band's full height into the tube.
+    const dx = span / 2
+    return [
+      `M ${bx} ${top}`,
+      `C ${bx + dx} ${top} ${mx - dx} ${rt} ${mx} ${rt}`,
+      `L ${mx} ${rb}`,
+      `C ${mx - dx} ${rb} ${bx + dx} ${bottom} ${bx} ${bottom}`,
+      "Z",
+    ].join(" ")
+  }
+  // Long join: pinch from the band into a tube on the band's centre line, run level, then curve into the merge.
+  const cy = (top + bottom) / 2
+  const lt = cy - railHalf
+  const lb = cy + railHalf
+  const pinchEnd = bx + JOIN_CURVE_LENGTH
+  const curveStart = mx - JOIN_CURVE_LENGTH
+  const p = JOIN_CURVE_LENGTH / 2
+  return [
+    `M ${bx} ${top}`,
+    `C ${bx + p} ${top} ${pinchEnd - p} ${lt} ${pinchEnd} ${lt}`,
+    `L ${curveStart} ${lt}`,
+    `C ${curveStart + p} ${lt} ${mx - p} ${rt} ${mx} ${rt}`,
+    `L ${mx} ${rb}`,
+    `C ${mx - p} ${rb} ${curveStart + p} ${lb} ${curveStart} ${lb}`,
+    `L ${pinchEnd} ${lb}`,
+    `C ${pinchEnd - p} ${lb} ${bx + p} ${bottom} ${bx} ${bottom}`,
+    "Z",
+  ].join(" ")
 }
+
 
 function sideDimmed(structureId: string, side: "then" | "else", dimming?: RailLayerDimming): boolean {
   if (!dimming) return false
@@ -417,50 +489,16 @@ export function computeRailVisualLayer(
 
   pushPath(out, "ecp-rail-root", "rail", `M ${railLeft} ${centreY} L ${railRight} ${centreY}`, RAIL_STROKE, RAIL_OPACITY, rootStroke)
 
-  const labelObstacles: { x: number; y: number; w: number; h: number }[] = []
-  for (const node of laidNodes) {
-    if (node.type === "ecp-tunnel") continue
-    if (node.type === "ecp-io" || node.type === "ecp-step" || node.type === "ecp-loop" || node.type === "ecp-if" || node.type === "ecp-parallel") {
-      const box = nodeBox(node, nodeWidth, nodeHeight)
-      labelObstacles.push({ x: box.x, y: box.y, w: box.width, h: box.height })
-    }
-  }
-
-  function labelsOverlap(
-    labelX: number,
-    labelY: number,
-    text: string,
-    obstacles: { x: number; y: number; w: number; h: number }[],
-  ): boolean {
-    const w = Math.max(48, text.length * 7)
-    const h = 14
-    const lx = labelX
-    const ly = labelY - h
-    for (const obstacle of obstacles) {
-      if (lx + w > obstacle.x && lx < obstacle.x + obstacle.w && ly + h > obstacle.y && ly < obstacle.y + obstacle.h) {
-        return true
-      }
-    }
-    return false
-  }
-
+  // Side labels sit just outside their tunnel (mockup): `then` and `path N` above the band, `else` below it.
   function portLabelAt(
-    control: ReactFlowNode,
-    handleId: string,
     text: string,
     fill: string,
     testId: string,
     above: boolean,
-    band?: { x: number; y: number },
+    band: { x: number; y: number; height: number },
   ): void {
-    const controlBox = nodeBox(control, nodeWidth, nodeHeight)
-    const portY = outputHandleY(control, handleId, nodeWidth, nodeHeight)
-    let labelX = controlBox.x + controlBox.width + 6
-    let labelY = above ? portY - 6 : portY + 14
-    if (labelsOverlap(labelX, labelY, text, labelObstacles) && band) {
-      labelX = band.x + 8
-      labelY = band.y + 14
-    }
+    const labelX = band.x + SIDE_LABEL_INSET_X
+    const labelY = above ? band.y - SIDE_LABEL_GAP : band.y + band.height + SIDE_LABEL_GAP + SIDE_LABEL_HEIGHT
     out.push({ kind: "label", testId, text, x: labelX, y: labelY, fill, fontWeight: 700 })
   }
 
@@ -477,11 +515,12 @@ export function computeRailVisualLayer(
     dimmed: boolean,
   ): void {
     const band = sideBand(control, marker, sideNodes, byId, nodeWidth, nodeHeight)
+    const controlBox = nodeBox(control, nodeWidth, nodeHeight)
     shapes.push({
       kind: "path",
       testId: `ecp-side-${structureId}-${sideKey}`,
       dataKind,
-      d: roundedRectPath(band.x, band.y, band.width, band.height, 22),
+      d: sideTunnelPath(controlBox.x + controlBox.width, outputHandleY(control, handleId, nodeWidth, nodeHeight), band, 22),
       stroke: tone.stroke,
       strokeOpacity: Math.min(1, tone.opacity * 2.2),
       strokeWidth: 1.2,
@@ -490,16 +529,34 @@ export function computeRailVisualLayer(
       box: band,
       dimmed,
     })
-    pushPath(
-      shapes,
-      `ecp-side-neck-${structureId}-${sideKey}`,
-      dataKind,
-      neckPath(control, handleId, band, nodeWidth, nodeHeight),
-      tone.stroke,
-      tone.opacity,
-      JOIN_RIBBON_WIDTH,
+  }
+
+  /** Push one join funnel from a side band into the parent row's tube at the merge. */
+  function pushJoin(
+    shapes: RailVisualShape[],
+    testId: string,
+    band: { x: number; y: number; width: number; height: number },
+    mergeX: number,
+    parentCentreY: number,
+    control: ReactFlowNode | undefined,
+    dimmed: boolean,
+  ): void {
+    // The parent row's tube is as tall as the control node plus padding (never taller than the side band).
+    const controlBox = control ? nodeBox(control, nodeWidth, nodeHeight) : undefined
+    const railHalf = Math.min(band.height / 2, (controlBox?.height ?? JOIN_RIBBON_WIDTH * 2) / 2 + SIDE_BAND_PADDING)
+    shapes.push({
+      kind: "path",
+      testId,
+      dataKind: "join",
+      d: joinFunnelPath(band, mergeX, parentCentreY, railHalf),
+      stroke: RAIL_STROKE,
+      strokeOpacity: 0,
+      strokeWidth: 0,
+      fill: RAIL_STROKE,
+      fillOpacity: RAIL_OPACITY,
+      box: band,
       dimmed,
-    )
+    })
   }
 
   function emitJoins(node: Node, parentCentreY: number): void {
@@ -510,23 +567,17 @@ export function computeRailVisualLayer(
         const marker = byId.get(markerId)
         if (!marker) continue
         const dimmed = sideDimmed(node.id, side, dimming)
-        const joinD = joinPath(marker, joinMerge, parentCentreY, nodeWidth, nodeHeight)
-        pushPath(out, `ecp-join-${node.id}-${side}`, "join", joinD, RAIL_STROKE, RAIL_OPACITY, JOIN_RIBBON_WIDTH, dimmed)
         const control = byId.get(node.id)
+        const sideNodes = side === "then" ? node.then : (node.else ?? [])
+        const ifBand =
+          control != null
+            ? sideBand(control, marker, sideNodes, byId, nodeWidth, nodeHeight)
+            : { x: 0, y: 0, width: 0, height: JOIN_RIBBON_WIDTH }
+        pushJoin(out, `ecp-join-${node.id}-${side}`, ifBand, joinMerge, parentCentreY, control, dimmed)
         if (control) {
           const tone = sideStroke(side)
-          const sideNodes = side === "then" ? node.then : (node.else ?? [])
-          const ifBand = sideBand(control, marker, sideNodes, byId, nodeWidth, nodeHeight)
           pushSideBand(out, node.id, side, side, control, marker, sideNodes, sideHandleId(side), tone, dimmed)
-          portLabelAt(
-            control,
-            sideHandleId(side),
-            tone.label,
-            tone.labelColor,
-            `ecp-side-label-${node.id}-${side}`,
-            side === "then",
-            { x: ifBand.x, y: ifBand.y },
-          )
+          portLabelAt(tone.label, tone.labelColor, `ecp-side-label-${node.id}-${side}`, side === "then", ifBand)
         }
       }
       for (const child of [...node.then, ...(node.else ?? [])]) emitJoins(child, parentCentreY)
@@ -537,23 +588,17 @@ export function computeRailVisualLayer(
         const markerId = endMarkerId(node.id, pathKey)
         const marker = byId.get(markerId)
         if (!marker) return
-        const joinD = joinPath(marker, joinMerge, parentCentreY, nodeWidth, nodeHeight)
-        pushPath(out, `ecp-join-${node.id}-${pathKey}`, "join", joinD, RAIL_STROKE, RAIL_OPACITY, JOIN_RIBBON_WIDTH)
         const control = byId.get(node.id)
+        const pathBand =
+          control != null
+            ? sideBand(control, marker, path, byId, nodeWidth, nodeHeight)
+            : { x: 0, y: 0, width: 0, height: JOIN_RIBBON_WIDTH }
+        pushJoin(out, `ecp-join-${node.id}-${pathKey}`, pathBand, joinMerge, parentCentreY, control, false)
         if (control) {
           const tone = sideStroke("path")
           const handleId = sideHandleId("path", index + 1)
-          const pathBand = sideBand(control, marker, path, byId, nodeWidth, nodeHeight)
           pushSideBand(out, node.id, pathKey, "path", control, marker, path, handleId, tone, false)
-          portLabelAt(
-            control,
-            handleId,
-            `path ${index + 1}`,
-            tone.labelColor,
-            `ecp-side-label-${node.id}-${pathKey}`,
-            true,
-            { x: pathBand.x, y: pathBand.y },
-          )
+          portLabelAt(`path ${index + 1}`, tone.labelColor, `ecp-side-label-${node.id}-${pathKey}`, true, pathBand)
         }
         for (const child of path) emitJoins(child, parentCentreY)
       })

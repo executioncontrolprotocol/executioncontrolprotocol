@@ -24,7 +24,7 @@ export const TREE_END_HEIGHT = 32
 /** Reserved height for an empty branch lane (pixels). @category App */
 export const TREE_EMPTY_SIDE_HEIGHT = 25
 /** Horizontal gap after the longest side marker before the merge / next sibling (pixels). @category App */
-export const TREE_JOIN_GAP = 48
+export const TREE_JOIN_GAP = 72
 
 const PORT_ROW_ESTIMATE = 18
 const HEADER_ESTIMATE = 72
@@ -38,11 +38,30 @@ interface Size {
  * Minimum vertical gap between stacked side rows so padded tubes do not overlap.
  * @category App
  */
-export function sideStackGap(): number {
-  return Math.max(
-    TREE_GAP_Y,
-    TREE_TUNNEL_PADDING * 2 + TREE_TUNNEL_LABEL + TREE_TUNNEL_PADDING + 6,
-  )
+export function sideStackGap(above: readonly Node[] = [], below: readonly Node[] = []): number {
+  const base = Math.max(TREE_GAP_Y, TREE_TUNNEL_PADDING * 2 + TREE_TUNNEL_LABEL + TREE_TUNNEL_PADDING + 6)
+  // Nested tunnels (and their end labels) are padded more at each control level, so sides that hold nested controls
+  // need more room between them.
+  return base + TREE_NEST_GAP * (nestingDepth(above) + nestingDepth(below))
+}
+
+/** Extra vertical gap per nested control level on either side of a side boundary (pixels). @category App */
+export const TREE_NEST_GAP = 30
+/**
+ * Horizontal gap between an `if` / `parallel` control and its sides, so each side's tunnel can curve out of its port
+ * (flow pixels).
+ * @category App
+ */
+export const TREE_FORK_GAP = 96
+
+function nestingDepth(list: readonly Node[]): number {
+  let depth = 0
+  for (const node of list) {
+    if (node.type === "if") depth = Math.max(depth, 1 + Math.max(nestingDepth(node.then), nestingDepth(node.else ?? [])))
+    else if (node.type === "parallel") depth = Math.max(depth, 1 + Math.max(0, ...node.paths.map(nestingDepth)))
+    else if (node.type === "loop") depth = Math.max(depth, 1 + nestingDepth(node.steps))
+  }
+  return depth
 }
 
 interface LayoutCtx {
@@ -130,7 +149,7 @@ function layoutIf(node: IfNode, x: number, centerY: number, ctx: LayoutCtx): Siz
   const cW = measureWidth(control, ctx.nodeWidth)
   const cH = measureHeight(control, ctx.nodeHeight)
 
-  const columnX = x + cW + TREE_GAP_X
+  const columnX = x + cW + TREE_FORK_GAP
   const sides: Array<{ key: "then" | "else"; nodes: Node[] }> = [
     { key: "then", nodes: node.then },
     { key: "else", nodes: node.else ?? [] },
@@ -139,7 +158,7 @@ function layoutIf(node: IfNode, x: number, centerY: number, ctx: LayoutCtx): Siz
   const sideLayouts: Array<{ size: Size; centerY: number; key: "then" | "else" }> = []
   let columnHeight = 0
   for (let i = 0; i < sides.length; i += 1) {
-    if (i > 0) columnHeight += sideStackGap()
+    if (i > 0) columnHeight += sideStackGap(sides[i - 1]!.nodes, sides[i]!.nodes)
     const side = sides[i]!
     let size: Size
     if (side.nodes.length === 0) {
@@ -191,11 +210,11 @@ function layoutParallel(node: ParallelNode, x: number, centerY: number, ctx: Lay
   const cW = measureWidth(control, ctx.nodeWidth)
   const cH = measureHeight(control, ctx.nodeHeight)
 
-  const columnX = x + cW + TREE_GAP_X
+  const columnX = x + cW + TREE_FORK_GAP
   const sideLayouts: Array<{ size: Size; centerY: number; nodes: Node[]; index: number }> = []
   let columnHeight = 0
   node.paths.forEach((path, index) => {
-    if (index > 0) columnHeight += sideStackGap()
+    if (index > 0) columnHeight += sideStackGap(node.paths[index - 1]!, path)
     const size =
       path.length === 0 ? { width: 0, height: TREE_EMPTY_SIDE_HEIGHT } : layoutRowMeasure(path, ctx)
     sideLayouts.push({ size, centerY: columnHeight + size.height / 2, nodes: path, index })

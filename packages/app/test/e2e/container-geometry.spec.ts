@@ -123,14 +123,14 @@ test.describe("Tunnel geometry", () => {
     return rect!.y + rect!.height / 2
   }
 
-  test("if-in-loop: each end marker shares vertical centre with its side", async ({ page }) => {
+  test("if-in-loop: end markers sit above then body and below else body", async ({ page }) => {
     await open(page, "if-in-loop.ecp.json")
     const endThen = await verticalCenter(page, "ecp-end-end:express:then")
     const fast = await verticalCenter(page, "ecp-step-pick-fast")
     const endElse = await verticalCenter(page, "ecp-end-end:express:else")
     const standard = await verticalCenter(page, "ecp-step-pick-standard")
-    expect(Math.abs(endThen - fast)).toBeLessThan(8)
-    expect(Math.abs(endElse - standard)).toBeLessThan(8)
+    expect(endThen).toBeLessThan(fast)
+    expect(endElse).toBeGreaterThan(standard)
   })
 
   test("branch: top-level inputs and done share vertical centre", async ({ page }) => {

@@ -18,11 +18,13 @@ import {
 import type { ExecutionManifest, ValidationIssue } from "@executioncontrolprotocol/protocol"
 import {
   appendEmptyParallelPath,
+  computeBranchRoutes,
   connectInputAndAttach,
   connectInputTarget,
   dataConnectionRefusal,
   deleteConnector,
   deleteStep,
+  detachedNodeIds,
   isDataHandle,
   isStructureHeaderSelection,
   isValidDataConnection,
@@ -62,6 +64,7 @@ import { EcpIoNode } from "./EcpIoNode.js"
 import { EdgeMenuContext, type EdgeMenuContextValue } from "./edge-menu-context.js"
 import { EcpEndNode } from "./EcpEndNode.js"
 import { EcpTunnelNode } from "./EcpTunnelNode.js"
+import { BranchRoutingContext } from "./branch-routing-context.js"
 import { RailVisualLayer } from "./RailVisualLayer.js"
 import type { EcpLoopNodeData } from "./EcpLoopNode.js"
 import { EcpStepNode, type EcpStepNodeData } from "./EcpStepNode.js"
@@ -79,7 +82,7 @@ const nodeTypes = {
   "ecp-placeholder": () => null,
 }
 const edgeTypes = { "ecp-data": EcpDataEdge }
-const EDGE_INTERACTION_WIDTH = 20
+const EDGE_INTERACTION_WIDTH = 36
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 }
 
 /**
@@ -385,6 +388,7 @@ function buildEdges(document: ReactFlowDocument, _run: RunGraphState, selectedEd
       data: { ...edge.data },
       className: `ecp-rf-edge--data${selected ? " ecp-rf-edge--selected" : ""}`,
       interactionWidth: EDGE_INTERACTION_WIDTH,
+      zIndex: 500,
       selectable: true,
       selected,
     })
@@ -532,6 +536,24 @@ function GraphCanvasBody({
     return map
   }, [built])
   const edges = useMemo(() => buildEdges(document, run, selectedEdge), [document, run, selectedEdge])
+  const branchRoutes = useMemo(() => {
+    const dataEdges = document.edges.filter(
+      (edge) => edge.data.kind === "data" && edge.sourceHandle && edge.targetHandle,
+    )
+    return computeBranchRoutes({
+      roots: Array.isArray(manifest.steps) ? manifest.steps : [],
+      laidNodes: document.nodes,
+      edges: dataEdges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        sourceHandle: edge.sourceHandle!,
+        target: edge.target,
+        targetHandle: edge.targetHandle!,
+      })),
+      manifest,
+      detachedNodeIds: detachedNodeIds(manifest),
+    })
+  }, [document.edges, document.nodes, manifest])
   const [menu, setMenu] = useState<CanvasMenuState | undefined>(undefined)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | undefined>(undefined)
   const screenToFlowRef = useRef<
@@ -713,6 +735,7 @@ function GraphCanvasBody({
 
   return (
     <EdgeMenuContext.Provider value={edgeMenu}>
+    <BranchRoutingContext.Provider value={branchRoutes}>
     <FlowProjectionRefContext.Provider value={screenToFlowRef}>
     <CanvasEditContext.Provider value={canvasEdit}>
     <ReactFlow
@@ -800,6 +823,8 @@ function GraphCanvasBody({
       nodesDraggable
       nodesConnectable={!readOnly}
       elementsSelectable
+      elevateEdgesOnSelect
+      edgesFocusable
       minZoom={0.1}
       proOptions={{ hideAttribution: true }}
       colorMode="dark"
@@ -904,6 +929,7 @@ function GraphCanvasBody({
         }}
       />
     ) : null}
+    </BranchRoutingContext.Provider>
     </EdgeMenuContext.Provider>
   )
 }

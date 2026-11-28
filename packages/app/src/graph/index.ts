@@ -9,6 +9,8 @@ export {
   SIDE_BAND_PADDING,
   controlNestingDepth,
   roundedRectPath,
+  joinFunnelPath,
+  sideTunnelPath,
   RAIL_STROKE_WIDTH,
   type RailLabelShape,
   type RailLayerDimming,
@@ -16,6 +18,21 @@ export {
   type RailPathShape,
   type RailVisualShape,
 } from "./rail-layer.js"
+export {
+  BRANCH_ENTRY_CURVE,
+  BRANCH_LANE_SPACING,
+  composeBranchPath,
+  computeBranchRoutes,
+  pathBoundingBox,
+  pathEndPoint,
+  pathMidpoint,
+  pathStartPoint,
+  pointInBox,
+  railBandBoxes,
+  type BranchRouteEdge,
+  type BranchRoutingInput,
+} from "./branch-routing.js"
+export { readerScope } from "./read-order.js"
 export type { TunnelSpec } from "./types.js"
 export { analyseMergePort, type MergePortAnalysis, type ScopeSegment as MergeScopeSegment } from "./merge-port-scope.js"
 export {

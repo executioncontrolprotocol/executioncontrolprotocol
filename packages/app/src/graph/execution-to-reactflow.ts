@@ -17,6 +17,7 @@ import {
   TREE_END_WIDTH,
   TREE_GAP_X,
 } from "./tree-layout.js"
+import { alignEndMarkersToBandEdges } from "./rail-geometry.js"
 import { loopsCrossedBetween, typeLabelCrossingLoops } from "./loop-export-type.js"
 import { ensureInputPort, ensureOutputPort, portsForStep } from "./ports-from-schema.js"
 import { refPathsFromValue } from "./markers.js"
@@ -624,7 +625,7 @@ export function executionToReactFlow(
       ? { acceptsId: acceptsNode.id, returnsId: returnsNode.id }
       : { acceptsId: acceptsNode.id },
   )
-  let flowNodes = laid.nodes
+  let flowNodes = alignEndMarkersToBandEdges(steps, laid.nodes, options)
   const detachedRoots = Array.isArray(manifest.detached) ? manifest.detached : []
   const detachedStructureIds = new Set<string>()
 

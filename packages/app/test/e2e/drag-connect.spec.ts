@@ -3,7 +3,7 @@ import path from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 import { executionToReactFlow } from "../../src/graph/index.js"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 test.describe("Drag data connections", () => {
   test.describe.configure({ mode: "serial" })
@@ -194,7 +194,7 @@ test.describe("Drag data connections", () => {
     expect(edge?.id).toBeDefined()
     const rfEdge = page.locator(`.react-flow__edge[data-id="${edge!.id}"]`)
     await expect(rfEdge).toBeVisible()
-    await rfEdge.click({ force: true })
+    await clickBranch(page, rfEdge)
     await page.getByTestId("edge-delete").click()
     await expect.poll(() => readFileSync(manifestPath, "utf8")).not.toContain("state.writer.text")
     await page.getByTestId("canvas-undo").click()

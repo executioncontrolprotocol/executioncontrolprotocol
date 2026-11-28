@@ -2,7 +2,7 @@ import { copyFileSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const branchLoopSource = path.join(repoRoot, "examples/branch-loop/branch-loop.ecp.json")
@@ -91,7 +91,7 @@ test.describe("Delete key", () => {
   test("Delete on a selected branch removes the reference", async ({ page }) => {
     await open(page)
     const edge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
-    await edge.click({ force: true })
+    await clickBranch(page, edge)
     const before = readFileSync(branchLoopPath, "utf8")
     await page.keyboard.press("Delete")
     await expect.poll(() => readFileSync(branchLoopPath, "utf8")).not.toBe(before)

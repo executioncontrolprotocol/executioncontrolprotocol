@@ -98,7 +98,7 @@ test.describe("Graph nodes (no structural edge labels)", () => {
     expect(endBox && fastBox).toBeTruthy()
     const endCy = endBox!.y + endBox!.height / 2
     const fastCy = fastBox!.y + fastBox!.height / 2
-    expect(Math.abs(endCy - fastCy)).toBeLessThanOrEqual(8)
+    expect(endCy).toBeLessThan(fastCy)
     const shipPort = page.getByTestId("ecp-step-ship").getByText(/value.*\(2 branches\)/)
     await expect(shipPort).toBeVisible()
     const notifyPort = page.getByTestId("ecp-step-notify").getByText(/value:.*\[\]/)

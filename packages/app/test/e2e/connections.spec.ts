@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { expect, test, type Page } from "@playwright/test"
 import { executionToReactFlow } from "../../src/graph/index.js"
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
-import { appUrl, startAppHarness, type AppE2eHarness } from "./support.js"
+import { appUrl, startAppHarness, type AppE2eHarness, clickBranch } from "./support.js"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..")
 const branchLoopSource = path.join(repoRoot, "examples/branch-loop/branch-loop.ecp.json")
@@ -58,7 +58,7 @@ test.describe("Connections and edge menus", () => {
     const targetEdge = doc.edges.find((edge) => edge.data.kind === "data" && edge.target === "fromExpr")
     expect(targetEdge?.id).toBeDefined()
     const rfEdge = page.locator(`.react-flow__edge[data-id="${targetEdge!.id}"]`)
-    await rfEdge.click({ button: "right" })
+    await clickBranch(page, rfEdge, { button: "right" })
     await expect(page.getByTestId("canvas-menu")).toBeVisible()
     await page.getByTestId("canvas-menu-item-delete-connector").click()
     await expect.poll(() => {
@@ -86,7 +86,7 @@ test.describe("Connections and edge menus", () => {
     await expect(page.getByTestId("run-replay")).toBeVisible()
     await page.getByTestId("tab-graph").click()
     const dataEdge = page.locator(".react-flow__edge.ecp-rf-edge--data").first()
-    await dataEdge.click({ button: "right", force: true })
+    await clickBranch(page, dataEdge, { button: "right" })
     await expect(page.getByTestId("canvas-menu-item-configure")).toBeVisible()
     await expect(page.getByTestId("canvas-menu-item-delete-connector")).toHaveCount(0)
   })

@@ -58,7 +58,8 @@ interface WalkIndex {
   structures: Map<string, StructureBounds>
 }
 
-function walkIndex(nodes: Node[]): WalkIndex {
+/** @internal Visible to graph routing helpers in the App package. */
+export function walkIndex(nodes: Node[]): WalkIndex {
   const steps = new Map<string, StepWalkEntry>()
   const structures = new Map<string, StructureBounds>()
   let order = 0
@@ -214,6 +215,14 @@ export const CONNECTION_EDIT_HANDLE = "That port cannot be connected"
  * Scope chain for a branch source, used by merge-port validation.
  * @category App
  */
+/**
+ * Scope chain for a reader node id (step, control, loop, or end marker).
+ * @category App
+ */
+export function readerScope(manifest: { steps: Node[] }, readerId: string): ScopeSegment[] | undefined {
+  return walkIndex(manifest.steps).readers.get(readerId)?.scope
+}
+
 export function sourceScope(manifest: { steps: Node[] }, source: ConnectionSource): ScopeSegment[] | undefined {
   const index = walkIndex(manifest.steps)
 

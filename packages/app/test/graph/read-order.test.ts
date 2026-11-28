@@ -1,8 +1,8 @@
 import type { ExecutionManifest } from "@executioncontrolprotocol/protocol"
 import { describe, expect, it } from "vitest"
 import { EXECUTION_ACCEPTS_NODE_ID } from "../../src/graph/io-from-schema.js"
-import { LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE } from "../../src/graph/types.js"
-import { sourceVisibleTo } from "../../src/graph/read-order.js"
+import { LOOP_INDEX_HANDLE, LOOP_ITEM_HANDLE, PARALLEL_PATH_HANDLE_PREFIX } from "../../src/graph/types.js"
+import { readerScope, sourceScope, sourceVisibleTo } from "../../src/graph/read-order.js"
 
 const echo = "@executioncontrolprotocol/test.echo"
 
@@ -215,5 +215,63 @@ describe("sourceVisibleTo: reader nested deeper than the writer", () => {
       ],
     })
     expect(sourceVisibleTo(m, { nodeId: "A", handleId: "output" }, "B")).toBe(true)
+  })
+})
+
+describe("readerScope", () => {
+  it("returns the else side for a nested if reader", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "if",
+          id: "outer",
+          expression: "false",
+          then: [],
+          else: [
+            {
+              type: "if",
+              id: "inner",
+              expression: "true",
+              then: [{ id: "leaf", uses: echo, input: { value: 1 }, as: "leaf" }],
+            },
+          ],
+        },
+      ],
+    }
+    const scope = readerScope(manifest, "inner")
+    expect(scope?.some((segment) => segment.id === "outer" && segment.side === "else")).toBe(true)
+  })
+
+  it("returns undefined for an unknown reader", () => {
+    expect(readerScope({ steps: [] }, "missing")).toBeUndefined()
+  })
+})
+
+describe("sourceScope", () => {
+  it("returns a parallel path scope for path output ports", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [
+        {
+          type: "parallel",
+          id: "p",
+          paths: [[{ id: "a", uses: echo, input: { value: 1 }, as: "a" }], [{ id: "b", uses: echo, input: { value: 2 }, as: "b" }]],
+        },
+      ],
+    }
+    const scope = sourceScope(manifest, { nodeId: "p", handleId: `${PARALLEL_PATH_HANDLE_PREFIX}1` })
+    expect(scope?.some((segment) => segment.kind === "parallel" && segment.index === 0)).toBe(true)
+  })
+
+  it("returns undefined for non-tunnel handles on controls", () => {
+    const manifest: ExecutionManifest = {
+      schema: "@executioncontrolprotocol.execution",
+      version: "2.0",
+      steps: [{ type: "if", id: "g", expression: "true", then: [] }],
+    }
+    expect(sourceScope(manifest, { nodeId: "g", handleId: "not-a-port" })).toBeUndefined()
   })
 })

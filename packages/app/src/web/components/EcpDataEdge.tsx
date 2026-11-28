@@ -1,5 +1,7 @@
 import type { SyntheticEvent } from "react"
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react"
+import { composeBranchPath, pathMidpoint } from "../../graph/branch-routing.js"
+import { useBranchRoute } from "./branch-routing-context.js"
 import { useEdgeMenuActions } from "./edge-menu-context.js"
 
 /**
@@ -19,7 +21,21 @@ export function EcpDataEdge({
   interactionWidth,
 }: EdgeProps) {
   const menu = useEdgeMenuActions()
-  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition })
+  const routedMiddle = useBranchRoute(id)
+  const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  })
+  const path = routedMiddle
+    ? composeBranchPath(sourceX, sourceY, targetX, targetY, routedMiddle)
+    : bezierPath
+  const mid = routedMiddle ? pathMidpoint(path) : { x: bezierLabelX, y: bezierLabelY }
+  const labelX = mid.x
+  const labelY = mid.y
 
   const stopPointer = (event: SyntheticEvent): void => {
     event.stopPropagation()

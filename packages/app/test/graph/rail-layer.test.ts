@@ -7,11 +7,13 @@ import {
   EXECUTION_ACCEPTS_NODE_ID,
   EXECUTION_RETURNS_NODE_ID,
   JOIN_RIBBON_WIDTH,
+  sideTunnelPath,
   RAIL_STROKE_WIDTH,
   computeRailVisualLayer,
   controlNestingDepth,
   executionToReactFlow,
   roundedRectPath,
+  joinFunnelPath,
   type RailLabelShape,
   type RailPathShape,
   type RailVisualShape,
@@ -66,6 +68,14 @@ function shape(shapes: readonly RailVisualShape[], testId: string): RailPathShap
 function pathEndPoint(d: string): { x: number; y: number } {
   const numbers = d.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
   return { x: numbers[numbers.length - 2]!, y: numbers[numbers.length - 1]! }
+}
+
+/** Every "x y" pair of an SVG path (commands are M / L / C / A-free here). */
+function pathPoints(d: string): Array<{ x: number; y: number }> {
+  const numbers = d.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+  const points: Array<{ x: number; y: number }> = []
+  for (let i = 0; i + 1 < numbers.length; i += 2) points.push({ x: numbers[i]!, y: numbers[i + 1]! })
+  return points
 }
 
 /** First "x y" pair of an SVG path. */
@@ -137,28 +147,54 @@ describe("computeRailVisualLayer", () => {
       expect(band.x + band.width).toBeGreaterThan(marker.x + marker.width)
       expect(band.x + band.width).toBeLessThan(marker.x + marker.width + 40)
     }
-    // A neck ribbon joins each side's port to its band.
-    expect(shape(shapes, "ecp-side-neck-express-then").strokeWidth).toBe(JOIN_RIBBON_WIDTH)
-    expect(shape(shapes, "ecp-side-neck-express-else").strokeWidth).toBe(JOIN_RIBBON_WIDTH)
+    // Each side is one tunnel outline: it leaves the control's port at ribbon height and opens to the band.
+    for (const side of ["then", "else"] as const) {
+      const band = side === "then" ? thenBand : elseBand
+      const start = pathStartPoint(band.d)
+      expect(start.x).toBe(express.x + express.width)
+      const ys = pathPoints(band.d).map((point) => point.y)
+      expect(ys).toContain(band.box!.y)
+      expect(ys).toContain(band.box!.y + band.box!.height)
+    }
+    expect(shapes.some((entry) => entry.kind === "path" && entry.testId.startsWith("ecp-side-neck-"))).toBe(false)
   })
 
-  it("if-in-loop: joins run from each end marker to the rail just before Ship", () => {
+  it("if-in-loop: joins are grey funnels from each side band into the rail just before Ship", () => {
     const { laid, shapes } = layer(loadPattern("if-in-loop.ecp.json"))
     const ship = box(laid, "ship")
     const railY = ship.y + ship.height / 2
     for (const side of ["then", "else"] as const) {
-      const marker = box(laid, `end:express:${side}`)
       const join = shape(shapes, `ecp-join-express-${side}`)
+      const band = shape(shapes, `ecp-side-express-${side}`).box!
       expect(join.dataKind).toBe("join")
-      expect(join.strokeWidth).toBe(JOIN_RIBBON_WIDTH)
-      const start = pathStartPoint(join.d)
-      const end = pathEndPoint(join.d)
-      expect(start.x).toBeCloseTo(marker.x + marker.width, 0)
-      expect(Math.abs(start.y - (marker.y + marker.height / 2))).toBeLessThanOrEqual(1)
-      expect(end.x).toBeGreaterThan(marker.x + marker.width)
-      expect(end.x).toBeLessThan(ship.x)
-      expect(Math.abs(end.y - railY)).toBeLessThanOrEqual(2)
+      expect(join.fill).toBe("#8b949e")
+      expect(join.d.trim().endsWith("Z")).toBe(true)
+      const points = pathPoints(join.d)
+      const xs = points.map((p) => p.x)
+      // Starts at the band's right edge, spanning its full height.
+      expect(Math.min(...xs)).toBeCloseTo(band.x + band.width, 0)
+      expect(points.some((p) => Math.abs(p.y - band.y) < 1)).toBe(true)
+      expect(points.some((p) => Math.abs(p.y - (band.y + band.height)) < 1)).toBe(true)
+      // Ends at the merge, before Ship, around the rail's centre line.
+      const mergeX = Math.max(...xs)
+      expect(mergeX).toBeLessThan(ship.x)
+      const atMerge = points.filter((p) => Math.abs(p.x - mergeX) < 0.5).map((p) => p.y)
+      expect(Math.min(...atMerge)).toBeLessThan(railY)
+      expect(Math.max(...atMerge)).toBeGreaterThan(railY)
     }
+  })
+
+  it("joinFunnelPath pinches a long join into a lane and keeps a short one a single funnel", () => {
+    const band = { x: 0, y: 0, width: 100, height: 100 }
+    const short = joinFunnelPath(band, 160, 200, 20)
+    expect(short.match(/C /g)).toHaveLength(2)
+    const long = joinFunnelPath(band, 600, 200, 20)
+    expect(long.match(/C /g)).toHaveLength(4)
+    // The long join's level run sits on the band's centre line, rail-height thick.
+    expect(long).toContain("L 528 30")
+    expect(long).toContain("L 172 70")
+    // A merge left of the band's edge is clamped so the shape never turns back on itself.
+    expect(Math.max(...pathPoints(joinFunnelPath(band, 50, 200, 20)).map((p) => p.x))).toBe(101)
   })
 
   it("if-in-loop: one then label, one else label, one loop title", () => {
@@ -335,5 +371,19 @@ describe("rail layer geometry helpers", () => {
     expect(
       controlNestingDepth([{ type: "parallel", id: "p", paths: [[step], [{ type: "parallel", id: "q", paths: [[step], [step]] }]] }]),
     ).toBe(2)
+  })
+  it("sideTunnelPath leaves the port at ribbon height and opens to the band's full height", () => {
+    const d = sideTunnelPath(100, 50, { x: 180, y: 0, width: 200, height: 60 }, 22)
+    expect(pathStartPoint(d)).toEqual({ x: 100, y: 50 - JOIN_RIBBON_WIDTH / 2 })
+    const low = 50 - JOIN_RIBBON_WIDTH / 2
+    const high = 50 + JOIN_RIBBON_WIDTH / 2
+    // Neck opens to the band's top, the band runs to its rounded right end, and the neck closes back at the port.
+    expect(d).toContain(`C 140 ${low} 140 0 180 0 L 358 0 A 22 22 0 0 1 380 22`)
+    expect(d).toContain(`L 180 60 C 140 60 140 ${high} 100 ${high} Z`)
+  })
+
+  it("sideTunnelPath is a plain rounded band when the band starts at the port", () => {
+    const band = { x: 101, y: 0, width: 200, height: 60 }
+    expect(sideTunnelPath(100, 50, band, 22)).toBe(roundedRectPath(band.x, band.y, band.width, band.height, 22))
   })
 })
